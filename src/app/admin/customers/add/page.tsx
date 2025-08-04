@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Modal } from "@/components/ui/modal";
+import { SuccessPopup, createCustomerSuccessPopup } from "@/components/ui/success-popup";
+import { createCustomer } from "@/lib/form-service";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
@@ -37,11 +38,7 @@ export default function AddCustomerPage() {
   const router = useRouter();
   const { t, currency } = useLocaleStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [generatedCredentials, setGeneratedCredentials] = useState<{
-    customerId: string;
-    secretKey: string;
-  } | null>(null);
+  const [successData, setSuccessData] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -65,28 +62,67 @@ export default function AddCustomerPage() {
     return { customerId, secretKey };
   };
 
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      alert("Please enter customer name");
+      return false;
+    }
+    if (!formData.phone.trim()) {
+      alert("Please enter phone number");
+      return false;
+    }
+    if (!formData.location.trim()) {
+      alert("Please enter location");
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const credentials = generateCredentials();
-      setGeneratedCredentials(credentials);
-      setShowSuccessModal(true);
+      // Create customer in Sanity using the actual API
+      const result = await createCustomer({
+        name: formData.name,
+        phone: formData.phone,
+        location: formData.location,
+        email: formData.email || undefined,
+      });
+
+      if (result.success && result.data) {
+        const resetForm = () => {
+          setFormData({
+            name: "",
+            phone: "",
+            email: "",
+            location: "",
+            serviceType: "",
+            address: "",
+            notes: "",
+            customerId: "",
+            secretKey: "",
+          });
+        };
+        
+        setSuccessData(createCustomerSuccessPopup(result.data, resetForm));
+      } else {
+        // Show error alert
+        alert(result.error || "An error occurred while creating the customer.");
+      }
     } catch (error) {
       console.error("Error adding customer:", error);
+      alert("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSuccessClose = () => {
-    setShowSuccessModal(false);
-    setGeneratedCredentials(null);
-    router.push("/admin/customers");
   };
 
   return (
@@ -296,98 +332,14 @@ export default function AddCustomerPage() {
         </CardContent>
       </Card>
 
-      {/* Success Modal */}
-      <Modal
-        isOpen={showSuccessModal}
-        onClose={handleSuccessClose}
-        size="md"
-        title="Customer Created Successfully!"
-      >
-        <div className="space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">
-              Customer Account Created
-            </h3>
-            <p className="text-gray-400">
-              The customer has been successfully added to your system.
-            </p>
-          </div>
-
-          {generatedCredentials && (
-            <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-              <h4 className="font-medium text-white">Login Credentials</h4>
-              <div className="space-y-2">
-                <div>
-                  <Label className="text-gray-400 text-sm">Customer ID</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Input
-                      value={generatedCredentials.customerId}
-                      readOnly
-                      className="bg-gray-700 border-gray-600 text-white font-mono"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigator.clipboard.writeText(generatedCredentials.customerId)}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-gray-400 text-sm">Secret Key</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Input
-                      value={generatedCredentials.secretKey}
-                      readOnly
-                      className="bg-gray-700 border-gray-600 text-white font-mono"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigator.clipboard.writeText(generatedCredentials.secretKey)}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <p className="text-yellow-400 text-sm">
-                ⚠️ Please save these credentials securely. They won&apos;t be shown again.
-              </p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <Button onClick={handleSuccessClose} className="flex-1">
-              View All Customers
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowSuccessModal(false);
-                setGeneratedCredentials(null);
-                              setFormData({
-                name: "",
-                phone: "",
-                email: "",
-                location: "",
-                serviceType: "",
-                address: "",
-                notes: "",
-                customerId: "",
-                secretKey: "",
-              });
-              }}
-            >
-              Add Another Customer
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {/* Success Popup */}
+      {successData && (
+        <SuccessPopup
+          isOpen={!!successData}
+          onClose={() => setSuccessData(null)}
+          data={successData}
+        />
+      )}
     </div>
   );
 } 

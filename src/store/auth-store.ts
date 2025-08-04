@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { User, LoginCredentials, ProfileData } from "@/types";
+import { authenticateUser, type AuthUser } from "@/lib/auth-service";
 
 interface AuthState {
   user: User | null;
@@ -25,39 +26,48 @@ export const useAuthStore = create<AuthState>()(
       login: async (credentials: LoginCredentials) => {
         set({ isLoading: true });
         try {
-          // TODO: Implement Clerk authentication
-          // This will be implemented when we set up Clerk integration
-          console.log("Login attempt:", credentials);
+          console.log("🔐 Login attempt:", {
+            customerId: credentials.customerId,
+          });
 
-          // Mock implementation for now
-          const mockUser: User = {
-            id: "1",
-            clerkId: credentials.customerId,
-            name: credentials.customerId === "admin" ? "Admin User" : "Customer User",
-            phone: "1234567890",
-            location: "Test Location",
-            role: credentials.customerId === "admin" ? "admin" : "customer",
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+          // Authenticate against Sanity database
+          const authResult = await authenticateUser(credentials);
+
+          if (!authResult.success || !authResult.user) {
+            set({ isLoading: false });
+            throw new Error(authResult.error || "Authentication failed");
+          }
+
+          // Convert AuthUser to User type
+          const user: User = {
+            id: authResult.user._id,
+            clerkId: authResult.user.clerkId,
+            customerId: authResult.user.customerId,
+            secretKey: authResult.user.secretKey,
+            name: authResult.user.name,
+            email: authResult.user.email,
+            phone: authResult.user.phone,
+            location: authResult.user.location,
+            role: authResult.user.role,
+            isActive: authResult.user.isActive,
+            createdAt: new Date(authResult.user.createdAt),
+            updatedAt: new Date(authResult.user.updatedAt),
           };
 
-          console.log("Setting auth state:", {
-            user: mockUser,
-            role: mockUser.role,
-            isAuthenticated: true,
+          console.log("✅ Authentication successful:", {
+            userId: user.id,
+            role: user.role,
+            name: user.name,
           });
 
           set({
-            user: mockUser,
-            role: mockUser.role,
+            user,
+            role: user.role,
             isAuthenticated: true,
             isLoading: false,
           });
-
-          console.log("Auth state set successfully");
         } catch (error) {
-          console.error("Login error:", error);
+          console.error("❌ Login error:", error);
           set({ isLoading: false });
           throw error;
         }

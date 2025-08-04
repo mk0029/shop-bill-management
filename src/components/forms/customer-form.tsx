@@ -4,13 +4,20 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  SuccessPopup,
+  createCustomerSuccessPopup,
+  type SuccessPopupData,
+} from "@/components/ui/success-popup";
+import { createCustomer } from "@/lib/form-service";
 import { CreateCustomerData, Customer } from "@/types";
 
 interface CustomerFormProps {
-  onSubmit: (data: CreateCustomerData) => Promise<void>;
+  onSubmit?: (data: CreateCustomerData) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
   customer?: Customer; // For editing existing customer
+  onSuccess?: (customer: any) => void; // Callback for successful creation
 }
 
 export function CustomerForm({
@@ -18,6 +25,7 @@ export function CustomerForm({
   onCancel,
   loading = false,
   customer,
+  onSuccess,
 }: CustomerFormProps) {
   const [formData, setFormData] = useState<CreateCustomerData>({
     name: "",
@@ -25,6 +33,8 @@ export function CustomerForm({
     location: "",
   });
   const [formErrors, setFormErrors] = useState<Partial<CreateCustomerData>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successData, setSuccessData] = useState<SuccessPopupData | null>(null);
 
   // Populate form when editing existing customer
   useEffect(() => {
@@ -65,10 +75,40 @@ export function CustomerForm({
 
     if (!validateForm()) return;
 
+    setIsSubmitting(true);
+
     try {
-      await onSubmit(formData);
+      // If custom onSubmit is provided, use it (for editing)
+      if (onSubmit) {
+        await onSubmit(formData);
+        return;
+      }
+
+      // Otherwise, create new customer in Sanity
+      const result = await createCustomer({
+        name: formData.name,
+        phone: formData.phone,
+        location: formData.location,
+      });
+
+      if (result.success && result.data) {
+        // Show success popup with customer credentials
+        const resetForm = () => {
+          setFormData({ name: "", phone: "", location: "" });
+        };
+        
+        setSuccessData(
+          createCustomerSuccessPopup(result.data, resetForm)
+        );
+      } else {
+        // Show error alert
+        alert(result.error || "An error occurred while creating the customer.");
+      }
     } catch (error) {
       console.error("Form submission failed:", error);
+      alert("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -84,7 +124,8 @@ export function CustomerForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name">Customer Name</Label>
         <Input
@@ -127,11 +168,11 @@ export function CustomerForm({
       <div className="flex gap-2 pt-4">
         <Button
           type="submit"
-          loading={loading}
-          disabled={loading}
+          loading={loading || isSubmitting}
+          disabled={loading || isSubmitting}
           className="flex-1"
         >
-          {loading
+          {loading || isSubmitting
             ? "Saving..."
             : customer
             ? "Update Customer"
@@ -147,5 +188,15 @@ export function CustomerForm({
         </Button>
       </div>
     </form>
+
+    {/* Success Popup */}
+    {successData && (
+      <SuccessPopup
+        isOpen={!!successData}
+        onClose={() => setSuccessData(null)}
+        data={successData}
+      />
+    )}
+  </>
   );
 }

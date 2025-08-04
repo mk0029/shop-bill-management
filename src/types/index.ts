@@ -2,7 +2,10 @@
 export interface User {
   id: string;
   clerkId: string;
+  customerId: string;
+  secretKey: string;
   name: string;
+  email?: string;
   phone: string;
   location: string;
   role: "admin" | "customer";
@@ -42,13 +45,62 @@ export interface CreateCustomerData {
 }
 
 // Item and inventory types
-export type ItemCategory = "light" | "motor" | "pump" | "wire" | "switch" | "socket" | "mcb" | "other";
+export type ItemCategory =
+  | "light"
+  | "motor"
+  | "pump"
+  | "wire"
+  | "switch"
+  | "socket"
+  | "mcb"
+  | "other";
 
-export type LightType = "led" | "bulb" | "tubelight" | "panel" | "concealed" | "other";
-export type Color = "white" | "warm-white" | "cool-white" | "yellow" | "red" | "blue" | "green" | "multicolor";
-export type Size = "1ft" | "2ft" | "3ft" | "4ft" | "5ft" | "6ft" | "small" | "medium" | "large";
-export type WireGauge = "0.5mm" | "1mm" | "1.5mm" | "2.5mm" | "4mm" | "6mm" | "10mm" | "16mm" | "25mm";
-export type Ampere = "6A" | "10A" | "16A" | "20A" | "25A" | "32A" | "40A" | "63A" | "100A";
+export type LightType =
+  | "led"
+  | "bulb"
+  | "tubelight"
+  | "panel"
+  | "concealed"
+  | "other";
+export type Color =
+  | "white"
+  | "warm-white"
+  | "cool-white"
+  | "yellow"
+  | "red"
+  | "blue"
+  | "green"
+  | "multicolor";
+export type Size =
+  | "1ft"
+  | "2ft"
+  | "3ft"
+  | "4ft"
+  | "5ft"
+  | "6ft"
+  | "small"
+  | "medium"
+  | "large";
+export type WireGauge =
+  | "0.5mm"
+  | "1mm"
+  | "1.5mm"
+  | "2.5mm"
+  | "4mm"
+  | "6mm"
+  | "10mm"
+  | "16mm"
+  | "25mm";
+export type Ampere =
+  | "6A"
+  | "10A"
+  | "16A"
+  | "20A"
+  | "25A"
+  | "32A"
+  | "40A"
+  | "63A"
+  | "100A";
 
 export interface InventoryItem {
   id: string;

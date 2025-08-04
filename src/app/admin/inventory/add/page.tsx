@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Modal } from "@/components/ui/modal";
+import { SuccessPopup, createProductSuccessPopup } from "@/components/ui/success-popup";
+import { createProduct } from "@/lib/form-service";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Package, Zap, DollarSign, AlertTriangle } from "lucide-react";
 import {
@@ -32,7 +33,7 @@ import {
 export default function AddInventoryItemPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successData, setSuccessData] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     category: "",
@@ -77,24 +78,100 @@ export default function AddInventoryItemPage() {
     ? popularBrands.filter(brand => brand.categories.includes(formData.category))
     : popularBrands;
 
+  const validateForm = () => {
+    if (!formData.category) {
+      alert("Please select a category");
+      return false;
+    }
+    if (!formData.brand) {
+      alert("Please select a brand");
+      return false;
+    }
+    if (!formData.purchasePrice || parseFloat(formData.purchasePrice) <= 0) {
+      alert("Please enter a valid purchase price");
+      return false;
+    }
+    if (!formData.sellingPrice || parseFloat(formData.sellingPrice) <= 0) {
+      alert("Please enter a valid selling price");
+      return false;
+    }
+    if (!formData.currentStock || parseInt(formData.currentStock) < 0) {
+      alert("Please enter a valid current stock");
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setShowSuccessModal(true);
+      // Create product in Sanity using the actual API
+      const productData = {
+        name: `${getCategoryLabel(formData.category)} - ${getBrandLabel(formData.brand)}`,
+        description: formData.description,
+        brandId: formData.brand, // Using brand name as ID for now
+        categoryId: formData.category, // Using category name as ID for now
+        specifications: {
+          lightType: formData.lightType,
+          color: formData.color,
+          size: formData.size,
+          watts: formData.watts,
+          wireGauge: formData.wireGauge,
+          ampere: formData.ampere,
+        },
+        pricing: {
+          purchasePrice: parseFloat(formData.purchasePrice),
+          sellingPrice: parseFloat(formData.sellingPrice),
+          unit: formData.unit,
+        },
+        inventory: {
+          currentStock: parseInt(formData.currentStock),
+          minimumStock: 0,
+          reorderLevel: 5,
+        },
+        tags: [formData.category, formData.brand],
+      };
+
+      const result = await createProduct(productData);
+
+      if (result.success && result.data) {
+        const resetForm = () => {
+          setFormData({
+            category: "",
+            lightType: "",
+            color: "",
+            size: "",
+            watts: "",
+            wireGauge: "",
+            ampere: "",
+            brand: "",
+            purchasePrice: "",
+            sellingPrice: "",
+            currentStock: "",
+            unit: "",
+            description: "",
+          });
+        };
+        
+        setSuccessData(createProductSuccessPopup(result.data, resetForm));
+      } else {
+        // Show error alert
+        alert(result.error || "An error occurred while creating the product.");
+      }
     } catch (error) {
       console.error("Error adding item:", error);
+      alert("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSuccessClose = () => {
-    setShowSuccessModal(false);
-    router.push("/admin/inventory");
   };
 
   const getItemSpecifications = () => {
@@ -396,78 +473,14 @@ export default function AddInventoryItemPage() {
         </CardContent>
       </Card>
 
-      {/* Success Modal */}
-      <Modal
-        isOpen={showSuccessModal}
-        onClose={handleSuccessClose}
-        size="md"
-        title="Item Added Successfully!"
-      >
-        <div className="space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Package className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">
-              Item Added to Inventory
-            </h3>
-            <p className="text-gray-400">
-              The item has been successfully added to your inventory.
-            </p>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h4 className="font-medium text-white mb-2">Item Details</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Name:</span>
-                <span className="text-white">{getCategoryLabel(formData.category)} - {getBrandLabel(formData.brand)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Category:</span>
-                <span className="text-white capitalize">{formData.category}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Brand:</span>
-                <span className="text-white">{formData.brand}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Stock:</span>
-                <span className="text-white">{formData.currentStock} {formData.unit}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <Button onClick={handleSuccessClose} className="flex-1">
-              View All Items
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowSuccessModal(false);
-                setFormData({
-                  category: "",
-                  lightType: "",
-                  color: "",
-                  size: "",
-                  watts: "",
-                  wireGauge: "",
-                  ampere: "",
-                  brand: "",
-                  purchasePrice: "",
-                  sellingPrice: "",
-                  currentStock: "",
-                  unit: "",
-                  description: "",
-                });
-              }}
-            >
-              Add Another Item
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {/* Success Popup */}
+      {successData && (
+        <SuccessPopup
+          isOpen={!!successData}
+          onClose={() => setSuccessData(null)}
+          data={successData}
+        />
+      )}
     </div>
   );
 } 

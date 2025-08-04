@@ -45,9 +45,19 @@ export default function LoginPage() {
         router.push("/customer/home");
       }
     } catch (err) {
-      setError(
-        "Invalid credentials. Please check your User ID and Secret Key."
-      );
+      const errorMessage =
+        err instanceof Error ? err.message : "Authentication failed";
+
+      // Check if it's a "user not found" error
+      if (
+        errorMessage.includes("Customer not found") ||
+        errorMessage.includes("not found")
+      ) {
+        router.push("/customer-not-found");
+        return;
+      }
+
+      setError(errorMessage);
     }
   };
 
@@ -122,14 +132,20 @@ export default function LoginPage() {
           )}
 
           {/* Login Form */}
-          <LoginForm onSubmit={handleLogin} isLoading={isLoading} error={error || undefined} />
+          <LoginForm
+            onSubmit={handleLogin}
+            isLoading={isLoading}
+            error={error || undefined}
+          />
 
           {/* Debug Test Buttons */}
           <div className="mt-4 flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleLogin({ customerId: "admin", secretKey: "admin123" })}
+              onClick={() =>
+                handleLogin({ customerId: "admin", secretKey: "admin123" })
+              }
               className="text-xs"
             >
               Test Admin Login
@@ -137,7 +153,9 @@ export default function LoginPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleLogin({ customerId: "customer1", secretKey: "secret123" })}
+              onClick={() =>
+                handleLogin({ customerId: "customer1", secretKey: "secret123" })
+              }
               className="text-xs"
             >
               Test Customer Login
@@ -148,9 +166,11 @@ export default function LoginPage() {
           <div className="mt-8 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <Info className="w-4 h-4 text-blue-400" />
-              <p className="text-sm font-medium text-gray-300">Demo Credentials</p>
+              <p className="text-sm font-medium text-gray-300">
+                Demo Credentials
+              </p>
             </div>
-            
+
             <div className="space-y-3">
               {/* Admin Credentials */}
               <div className="p-3 bg-gray-900 rounded border border-gray-700">
@@ -165,7 +185,9 @@ export default function LoginPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(demoCredentials.admin.id, "adminId")}
+                        onClick={() =>
+                          copyToClipboard(demoCredentials.admin.id, "adminId")
+                        }
                         className="h-6 w-6 p-0 hover:bg-gray-700"
                       >
                         {copiedCredential === "adminId" ? (
@@ -185,7 +207,9 @@ export default function LoginPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(demoCredentials.admin.key, "adminKey")}
+                        onClick={() =>
+                          copyToClipboard(demoCredentials.admin.key, "adminKey")
+                        }
                         className="h-6 w-6 p-0 hover:bg-gray-700"
                       >
                         {copiedCredential === "adminKey" ? (
@@ -212,7 +236,12 @@ export default function LoginPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(demoCredentials.customer.id, "customerId")}
+                        onClick={() =>
+                          copyToClipboard(
+                            demoCredentials.customer.id,
+                            "customerId"
+                          )
+                        }
                         className="h-6 w-6 p-0 hover:bg-gray-700"
                       >
                         {copiedCredential === "customerId" ? (
@@ -232,7 +261,12 @@ export default function LoginPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(demoCredentials.customer.key, "customerKey")}
+                        onClick={() =>
+                          copyToClipboard(
+                            demoCredentials.customer.key,
+                            "customerKey"
+                          )
+                        }
                         className="h-6 w-6 p-0 hover:bg-gray-700"
                       >
                         {copiedCredential === "customerKey" ? (
@@ -252,7 +286,9 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
           <p>© 2025 Electrician Shop Management System</p>
-          <p className="mt-1 text-xs">Professional electrician shop management solution</p>
+          <p className="mt-1 text-xs">
+            Professional electrician shop management solution
+          </p>
         </div>
       </motion.div>
     </div>

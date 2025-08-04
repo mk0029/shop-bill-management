@@ -25,8 +25,12 @@ import {
   Bell,
   Package,
   Clock,
+  Shield,
+  UserCog,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
+import { canManageAdmins } from "@/lib/admin-utils";
+import { useUser } from "@clerk/nextjs";
 
 interface NavigationItem {
   label: string;
@@ -68,14 +72,27 @@ const adminNavigation: NavigationItem[] = [
     children: [
       { label: "All Items", href: "/admin/inventory", icon: Package },
       { label: "Add Item", href: "/admin/inventory/add", icon: Plus },
-      { label: "Brand Management", href: "/admin/inventory/brands", icon: Building2 },
-      { label: "Stock History", href: "/admin/inventory/history", icon: History },
+      {
+        label: "Brand Management",
+        href: "/admin/inventory/brands",
+        icon: Building2,
+      },
+      {
+        label: "Stock History",
+        href: "/admin/inventory/history",
+        icon: History,
+      },
     ],
   },
   {
     label: "Sales Report",
     href: "/admin/sales-report",
     icon: BarChart3,
+  },
+  {
+    label: "Admin Management",
+    href: "/admin/manage-admins",
+    icon: Shield,
   },
   {
     label: "Settings",
@@ -111,15 +128,30 @@ export function Navigation() {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
   const { role, logout, isAuthenticated, user } = useAuthStore();
+  const { user: clerkUser } = useUser();
 
   console.log("Navigation Debug:", { role, isAuthenticated, user, pathname });
 
-  const navigation = role === "admin" ? adminNavigation : customerNavigation;
+  // Filter admin navigation based on permissions
+  const getFilteredAdminNavigation = () => {
+    const userEmail = clerkUser?.emailAddresses[0]?.emailAddress;
+    const showAdminManagement = canManageAdmins(userEmail);
+
+    return adminNavigation.filter((item) => {
+      if (item.href === "/admin/manage-admins") {
+        return showAdminManagement;
+      }
+      return true;
+    });
+  };
+
+  const navigation =
+    role === "admin" ? getFilteredAdminNavigation() : customerNavigation;
 
   const toggleExpanded = (label: string) => {
-    setExpandedItems(prev =>
+    setExpandedItems((prev) =>
       prev.includes(label)
-        ? prev.filter(item => item !== label)
+        ? prev.filter((item) => item !== label)
         : [...prev, label]
     );
   };
@@ -176,7 +208,7 @@ export function Navigation() {
               </div>
             </Link>
           )}
-          
+
           {hasChildren && isExpanded && (
             <div className="ml-6 space-y-1">
               {item.children!.map((child) => {
@@ -209,7 +241,7 @@ export function Navigation() {
       return (
         <Dropdown
           key={item.label}
-          options={item.children!.map(child => ({
+          options={item.children!.map((child) => ({
             value: child.href,
             label: child.label,
           }))}
@@ -229,9 +261,7 @@ export function Navigation() {
         key={item.label}
         href={item.href}
         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-          active
-            ? "bg-blue-600 text-white"
-            : "text-gray-300 hover:bg-gray-800"
+          active ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-800"
         }`}
       >
         <Icon className="w-5 h-5" />
@@ -264,7 +294,7 @@ export function Navigation() {
               className="fixed inset-0 bg-black/50 z-40 lg:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            
+
             {/* Mobile Menu */}
             <motion.div
               initial={{ x: "100%" }}
@@ -357,11 +387,7 @@ export function Navigation() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleLogout}
-            className="w-full"
-          >
+          <Button variant="outline" onClick={handleLogout} className="w-full">
             <LogOut className="w-4 h-4 mr-2" />
             Logout
           </Button>
@@ -375,7 +401,8 @@ export function Navigation() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white">
-                {navigation.find(item => isActive(item.href))?.label || "Dashboard"}
+                {navigation.find((item) => isActive(item.href))?.label ||
+                  "Dashboard"}
               </h1>
               <p className="text-gray-400">
                 {role === "admin" ? "Admin Panel" : "Customer Portal"}
@@ -392,4 +419,4 @@ export function Navigation() {
       </div>
     </>
   );
-} 
+}
