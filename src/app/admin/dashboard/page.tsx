@@ -133,7 +133,7 @@ export default function AdminDashboard() {
               Add Customer
             </Button>
           </Link>
-          <Link href="/admin/billing">
+          <Link href="/admin/billing/create">
             <Button variant="outline">
               <FileText className="w-4 h-4 mr-2" />
               Create Bill
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
               </div>
             </Button>
           </Link>
-          <Link href="/admin/billing">
+          <Link href="/admin/billing/create">
             <Button
               variant="outline"
               className="w-full justify-start h-auto p-4"

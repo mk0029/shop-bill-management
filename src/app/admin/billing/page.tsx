@@ -66,9 +66,24 @@ interface Bill {
 
 // Mock data
 const mockCustomers: Customer[] = [
-  { id: "1", name: "John Doe", phone: "+91 9876543210", location: "Mumbai, Maharashtra" },
-  { id: "2", name: "Jane Smith", phone: "+91 9876543211", location: "Delhi, India" },
-  { id: "3", name: "Mike Johnson", phone: "+91 9876543212", location: "Bangalore, Karnataka" },
+  {
+    id: "1",
+    name: "John Doe",
+    phone: "+91 9876543210",
+    location: "Mumbai, Maharashtra",
+  },
+  {
+    id: "2",
+    name: "Jane Smith",
+    phone: "+91 9876543211",
+    location: "Delhi, India",
+  },
+  {
+    id: "3",
+    name: "Mike Johnson",
+    phone: "+91 9876543212",
+    location: "Bangalore, Karnataka",
+  },
 ];
 
 const mockItems: Item[] = [
@@ -161,15 +176,16 @@ export default function BillingPage() {
     const billDetails: BillDetails = {
       billNumber: bill.id,
       customerName: bill.customerName,
-      customerPhone: mockCustomers.find(c => c.id === bill.customerId)?.phone || "",
+      customerPhone:
+        mockCustomers.find((c) => c.id === bill.customerId)?.phone || "",
       billDate: bill.date,
       dueDate: bill.date, // Using bill date as due date for now
       items: bill.items,
       subtotal: bill.subtotal,
       total: bill.total,
-      notes: bill.notes
+      notes: bill.notes,
     };
-    
+
     shareBillOnWhatsApp(billDetails);
   };
 
@@ -178,13 +194,15 @@ export default function BillingPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Billing Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            Billing Management
+          </h1>
           <p className="text-gray-400 mt-1 text-sm sm:text-base">
             Create and manage customer bills and invoices
           </p>
         </div>
-        <Button 
-          onClick={() => setShowCreateBill(true)}
+        <Button
+          onClick={() => router.push("/admin/billing/create")}
           className="w-full sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -203,7 +221,9 @@ export default function BillingPage() {
               <p className="text-xl sm:text-2xl font-bold text-white">
                 {mockBills.length}
               </p>
-              <p className="text-xs sm:text-sm text-gray-400 truncate">Total Bills</p>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                Total Bills
+              </p>
             </div>
           </div>
         </Card>
@@ -219,7 +239,9 @@ export default function BillingPage() {
                   .reduce((sum, bill) => sum + bill.total, 0)
                   .toLocaleString()}
               </p>
-              <p className="text-xs sm:text-sm text-gray-400 truncate">Total Revenue</p>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                Total Revenue
+              </p>
             </div>
           </div>
         </Card>
@@ -236,7 +258,9 @@ export default function BillingPage() {
                   ).length
                 }
               </p>
-              <p className="text-xs sm:text-sm text-gray-400 truncate">Today&apos;s Bills</p>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                Today&apos;s Bills
+              </p>
             </div>
           </div>
         </Card>
@@ -249,7 +273,9 @@ export default function BillingPage() {
               <p className="text-xl sm:text-2xl font-bold text-white">
                 {mockBills.filter((b) => b.status === "pending").length}
               </p>
-              <p className="text-xs sm:text-sm text-gray-400 truncate">Pending Bills</p>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                Pending Bills
+              </p>
             </div>
           </div>
         </Card>
@@ -360,10 +386,18 @@ export default function BillingPage() {
                     >
                       <User className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="hover:bg-gray-700">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:bg-gray-700"
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="hover:bg-gray-700">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:bg-gray-700"
+                    >
                       <Download className="w-4 h-4" />
                     </Button>
                   </div>
@@ -468,8 +502,8 @@ export default function BillingPage() {
                 <User className="w-4 h-4 mr-2" />
                 View Customer Bills
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="flex-1"
                 onClick={() => handleShareOnWhatsApp(selectedBill)}
               >

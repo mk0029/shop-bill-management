@@ -10,12 +10,21 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, User, FileText, DollarSign, Plus, Trash2, Package } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  User,
+  FileText,
+  DollarSign,
+  Plus,
+  Trash2,
+  Package,
+} from "lucide-react";
 import {
   mockInventoryItems,
   currency,
   getItemSpecifications,
-  getItemDisplayName
+  getItemDisplayName,
 } from "@/lib/inventory-data";
 
 // Mock data - will be replaced with real data
@@ -69,11 +78,12 @@ export default function CreateBillPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedItems, setSelectedItems] = useState<BillItem[]>([]);
-  const [itemSelectionModal, setItemSelectionModal] = useState<ItemSelectionModal>({
-    isOpen: false,
-    selectedCategory: "",
-    selectedSpecifications: {},
-  });
+  const [itemSelectionModal, setItemSelectionModal] =
+    useState<ItemSelectionModal>({
+      isOpen: false,
+      selectedCategory: "",
+      selectedSpecifications: {},
+    });
 
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -82,7 +92,7 @@ export default function CreateBillPage() {
     customerId: "",
     serviceType: "",
     location: "",
-    billDate: new Date().toISOString().split('T')[0],
+    billDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     notes: "",
     repairCharges: 0,
@@ -90,43 +100,52 @@ export default function CreateBillPage() {
   });
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const addItemToBill = (item: typeof mockInventoryItems[0]) => {
-    const existingItem = selectedItems.find(i => i.id === item.id);
+  const addItemToBill = (item: (typeof mockInventoryItems)[0]) => {
+    const existingItem = selectedItems.find((i) => i.id === item.id);
     if (existingItem) {
-      setSelectedItems(prev => prev.map(i => 
-        i.id === item.id 
-          ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.price }
-          : i
-      ));
+      setSelectedItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id
+            ? {
+                ...i,
+                quantity: i.quantity + 1,
+                total: (i.quantity + 1) * i.price,
+              }
+            : i
+        )
+      );
     } else {
       const specifications = getItemSpecifications(item);
-      setSelectedItems(prev => [...prev, {
-        id: item.id,
-        name: getItemDisplayName(item),
-        price: item.sellingPrice,
-        quantity: 1,
-        total: item.sellingPrice,
-        category: item.category,
-        brand: item.brand,
-        specifications,
-        unit: item.unit,
-      }]);
+      setSelectedItems((prev) => [
+        ...prev,
+        {
+          id: item.id,
+          name: getItemDisplayName(item),
+          price: item.sellingPrice,
+          quantity: 1,
+          total: item.sellingPrice,
+          category: item.category,
+          brand: item.brand,
+          specifications,
+          unit: item.unit,
+        },
+      ]);
     }
   };
 
-  const getItemSpecifications = (item: typeof mockInventoryItems[0]) => {
+  const getItemSpecifications = (item: (typeof mockInventoryItems)[0]) => {
     const specs = [];
-    
+
     if (item.lightType) specs.push(`Type: ${item.lightType}`);
     if (item.color) specs.push(`Color: ${item.color}`);
     if (item.size) specs.push(`Size: ${item.size}`);
     if (item.watts) specs.push(`${item.watts}W`);
     if (item.wireGauge) specs.push(`Gauge: ${item.wireGauge}`);
     if (item.ampere) specs.push(`${item.ampere}`);
-    
+
     return specs.join(", ");
   };
 
@@ -147,29 +166,43 @@ export default function CreateBillPage() {
   };
 
   const filterItemsBySpecifications = () => {
-    let filteredItems = mockInventoryItems.filter(item => 
-      item.category === itemSelectionModal.selectedCategory && item.currentStock > 0
+    let filteredItems = mockInventoryItems.filter(
+      (item) =>
+        item.category === itemSelectionModal.selectedCategory &&
+        item.currentStock > 0
     );
 
     const { selectedSpecifications } = itemSelectionModal;
 
     if (selectedSpecifications.brand) {
-      filteredItems = filteredItems.filter(item => item.brand === selectedSpecifications.brand);
+      filteredItems = filteredItems.filter(
+        (item) => item.brand === selectedSpecifications.brand
+      );
     }
     if (selectedSpecifications.color) {
-      filteredItems = filteredItems.filter(item => item.color === selectedSpecifications.color);
+      filteredItems = filteredItems.filter(
+        (item) => item.color === selectedSpecifications.color
+      );
     }
     if (selectedSpecifications.watts) {
-      filteredItems = filteredItems.filter(item => item.watts?.toString() === selectedSpecifications.watts);
+      filteredItems = filteredItems.filter(
+        (item) => item.watts?.toString() === selectedSpecifications.watts
+      );
     }
     if (selectedSpecifications.size) {
-      filteredItems = filteredItems.filter(item => item.size === selectedSpecifications.size);
+      filteredItems = filteredItems.filter(
+        (item) => item.size === selectedSpecifications.size
+      );
     }
     if (selectedSpecifications.wireGauge) {
-      filteredItems = filteredItems.filter(item => item.wireGauge === selectedSpecifications.wireGauge);
+      filteredItems = filteredItems.filter(
+        (item) => item.wireGauge === selectedSpecifications.wireGauge
+      );
     }
     if (selectedSpecifications.ampere) {
-      filteredItems = filteredItems.filter(item => item.ampere === selectedSpecifications.ampere);
+      filteredItems = filteredItems.filter(
+        (item) => item.ampere === selectedSpecifications.ampere
+      );
     }
 
     return filteredItems;
@@ -177,18 +210,18 @@ export default function CreateBillPage() {
 
   const updateItemQuantity = (itemId: string, quantity: number) => {
     if (quantity <= 0) {
-      setSelectedItems(prev => prev.filter(i => i.id !== itemId));
+      setSelectedItems((prev) => prev.filter((i) => i.id !== itemId));
     } else {
-      setSelectedItems(prev => prev.map(i => 
-        i.id === itemId 
-          ? { ...i, quantity, total: quantity * i.price }
-          : i
-      ));
+      setSelectedItems((prev) =>
+        prev.map((i) =>
+          i.id === itemId ? { ...i, quantity, total: quantity * i.price } : i
+        )
+      );
     }
   };
 
   const removeItem = (itemId: string) => {
-    setSelectedItems(prev => prev.filter(i => i.id !== itemId));
+    setSelectedItems((prev) => prev.filter((i) => i.id !== itemId));
   };
 
   const calculateTotal = () => {
@@ -207,7 +240,7 @@ export default function CreateBillPage() {
 
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Error creating bill:", error);
@@ -221,17 +254,15 @@ export default function CreateBillPage() {
     router.push("/admin/billing");
   };
 
-  const selectedCustomer = mockCustomers.find(c => c.id === formData.customerId);
+  const selectedCustomer = mockCustomers.find(
+    (c) => c.id === formData.customerId
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="p-2"
-        >
+        <Button variant="ghost" onClick={() => router.back()} className="p-2">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
@@ -259,9 +290,14 @@ export default function CreateBillPage() {
                     Select Customer *
                   </Label>
                   <Dropdown
-                    options={mockCustomers.map(c => ({ value: c.id, label: `${c.name} (${c.phone})` }))}
+                    options={mockCustomers.map((c) => ({
+                      value: c.id,
+                      label: `${c.name} (${c.phone})`,
+                    }))}
                     value={formData.customerId}
-                    onValueChange={(value) => handleInputChange("customerId", value)}
+                    onValueChange={(value) =>
+                      handleInputChange("customerId", value)
+                    }
                     placeholder="Choose customer"
                     className="bg-gray-800 border-gray-700"
                   />
@@ -274,7 +310,9 @@ export default function CreateBillPage() {
                   <Dropdown
                     options={serviceTypeOptions}
                     value={formData.serviceType}
-                    onValueChange={(value) => handleInputChange("serviceType", value)}
+                    onValueChange={(value) =>
+                      handleInputChange("serviceType", value)
+                    }
                     placeholder="Select service type"
                     className="bg-gray-800 border-gray-700"
                   />
@@ -287,7 +325,9 @@ export default function CreateBillPage() {
                   <Dropdown
                     options={locationOptions}
                     value={formData.location}
-                    onValueChange={(value) => handleInputChange("location", value)}
+                    onValueChange={(value) =>
+                      handleInputChange("location", value)
+                    }
                     placeholder="Select location type"
                     className="bg-gray-800 border-gray-700"
                   />
@@ -301,7 +341,9 @@ export default function CreateBillPage() {
                     id="billDate"
                     type="date"
                     value={formData.billDate}
-                    onChange={(e) => handleInputChange("billDate", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("billDate", e.target.value)
+                    }
                     className="bg-gray-800 border-gray-700 text-white"
                     required
                   />
@@ -315,66 +357,72 @@ export default function CreateBillPage() {
                     id="dueDate"
                     type="date"
                     value={formData.dueDate}
-                    onChange={(e) => handleInputChange("dueDate", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("dueDate", e.target.value)
+                    }
                     className="bg-gray-800 border-gray-700 text-white"
                   />
                 </div>
               </div>
 
-                              <div className="space-y-2">
-                  <Label htmlFor="notes" className="text-gray-300">
-                    Notes
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-gray-300">
+                  Notes
+                </Label>
+                <textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange("notes", e.target.value)}
+                  className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Add any additional notes..."
+                />
+              </div>
+
+              {/* Repair Charges */}
+              {formData.serviceType === "repair" && (
+                <div className="space-y-2">
+                  <Label htmlFor="repairCharges" className="text-gray-300">
+                    Repair Charges ({currency})
                   </Label>
-                  <textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => handleInputChange("notes", e.target.value)}
-                    className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Add any additional notes..."
+                  <Input
+                    id="repairCharges"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.repairCharges}
+                    onChange={(e) =>
+                      handleInputChange("repairCharges", e.target.value)
+                    }
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="Enter repair charges"
                   />
                 </div>
+              )}
 
-                {/* Repair Charges */}
-                {formData.serviceType === "repair" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="repairCharges" className="text-gray-300">
-                      Repair Charges ({currency})
-                    </Label>
-                    <Input
-                      id="repairCharges"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.repairCharges}
-                      onChange={(e) => handleInputChange("repairCharges", e.target.value)}
-                      className="bg-gray-800 border-gray-700 text-white"
-                      placeholder="Enter repair charges"
-                    />
-                  </div>
-                )}
-
-                {/* Home Visit Fee */}
-                {formData.location === "home" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="homeVisitFee" className="text-gray-300">
-                      Home Visit Fee ({currency})
-                    </Label>
-                    <Input
-                      id="homeVisitFee"
-                      type="number"
-                      min="50"
-                      max="200"
-                      step="1"
-                      value={formData.homeVisitFee}
-                      onChange={(e) => handleInputChange("homeVisitFee", e.target.value)}
-                      className="bg-gray-800 border-gray-700 text-white"
-                      placeholder="50-200"
-                    />
-                    <p className="text-xs text-gray-400">
-                      Minimum ₹50, Maximum ₹200
-                    </p>
-                  </div>
-                )}
+              {/* Home Visit Fee */}
+              {formData.location === "home" && (
+                <div className="space-y-2">
+                  <Label htmlFor="homeVisitFee" className="text-gray-300">
+                    Home Visit Fee ({currency})
+                  </Label>
+                  <Input
+                    id="homeVisitFee"
+                    type="number"
+                    min="50"
+                    max="200"
+                    step="1"
+                    value={formData.homeVisitFee}
+                    onChange={(e) =>
+                      handleInputChange("homeVisitFee", e.target.value)
+                    }
+                    className="bg-gray-800 border-gray-700 text-white"
+                    placeholder="50-200"
+                  />
+                  <p className="text-xs text-gray-400">
+                    Minimum ₹50, Maximum ₹200
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -387,116 +435,128 @@ export default function CreateBillPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-              {/* Category Buttons */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => openItemSelectionModal("light")}
-                  className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                {/* Category Buttons */}
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="text-left">
-                    <p className="font-medium text-white">Lights</p>
-                    <p className="text-sm text-gray-400">LED, Bulb, Panel, Tubelight</p>
-                    <p className="text-sm text-blue-400">Select specifications</p>
-                  </div>
-                </Button>
-              </motion.div>
+                  <Button
+                    variant="outline"
+                    onClick={() => openItemSelectionModal("light")}
+                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  >
+                    <div className="text-left">
+                      <p className="font-medium text-white">Lights</p>
+                      <p className="text-sm text-gray-400">
+                        LED, Bulb, Panel, Tubelight
+                      </p>
+                      <p className="text-sm text-blue-400">
+                        Select specifications
+                      </p>
+                    </div>
+                  </Button>
+                </motion.div>
 
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => openItemSelectionModal("wire")}
-                  className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="text-left">
-                    <p className="font-medium text-white">Wires</p>
-                    <p className="text-sm text-gray-400">Electric wires by gauge</p>
-                    <p className="text-sm text-blue-400">Select gauge</p>
-                  </div>
-                </Button>
-              </motion.div>
+                  <Button
+                    variant="outline"
+                    onClick={() => openItemSelectionModal("wire")}
+                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  >
+                    <div className="text-left">
+                      <p className="font-medium text-white">Wires</p>
+                      <p className="text-sm text-gray-400">
+                        Electric wires by gauge
+                      </p>
+                      <p className="text-sm text-blue-400">Select gauge</p>
+                    </div>
+                  </Button>
+                </motion.div>
 
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => openItemSelectionModal("mcb")}
-                  className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="text-left">
-                    <p className="font-medium text-white">MCB & Switches</p>
-                    <p className="text-sm text-gray-400">MCB, Switch, Socket</p>
-                    <p className="text-sm text-blue-400">Select ampere</p>
-                  </div>
-                </Button>
-              </motion.div>
+                  <Button
+                    variant="outline"
+                    onClick={() => openItemSelectionModal("mcb")}
+                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  >
+                    <div className="text-left">
+                      <p className="font-medium text-white">MCB & Switches</p>
+                      <p className="text-sm text-gray-400">
+                        MCB, Switch, Socket
+                      </p>
+                      <p className="text-sm text-blue-400">Select ampere</p>
+                    </div>
+                  </Button>
+                </motion.div>
 
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => openItemSelectionModal("motor")}
-                  className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="text-left">
-                    <p className="font-medium text-white">Motors</p>
-                    <p className="text-sm text-gray-400">Electric motors</p>
-                    <p className="text-sm text-blue-400">Select watts</p>
-                  </div>
-                </Button>
-              </motion.div>
+                  <Button
+                    variant="outline"
+                    onClick={() => openItemSelectionModal("motor")}
+                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  >
+                    <div className="text-left">
+                      <p className="font-medium text-white">Motors</p>
+                      <p className="text-sm text-gray-400">Electric motors</p>
+                      <p className="text-sm text-blue-400">Select watts</p>
+                    </div>
+                  </Button>
+                </motion.div>
 
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => openItemSelectionModal("pump")}
-                  className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="text-left">
-                    <p className="font-medium text-white">Pumps</p>
-                    <p className="text-sm text-gray-400">Water pumps</p>
-                    <p className="text-sm text-blue-400">Select watts</p>
-                  </div>
-                </Button>
-              </motion.div>
+                  <Button
+                    variant="outline"
+                    onClick={() => openItemSelectionModal("pump")}
+                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  >
+                    <div className="text-left">
+                      <p className="font-medium text-white">Pumps</p>
+                      <p className="text-sm text-gray-400">Water pumps</p>
+                      <p className="text-sm text-blue-400">Select watts</p>
+                    </div>
+                  </Button>
+                </motion.div>
 
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => openItemSelectionModal("other")}
-                  className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="text-left">
-                    <p className="font-medium text-white">Other Items</p>
-                    <p className="text-sm text-gray-400">Miscellaneous items</p>
-                    <p className="text-sm text-blue-400">Browse all</p>
-                  </div>
-                </Button>
-              </motion.div>
-            </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => openItemSelectionModal("other")}
+                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  >
+                    <div className="text-left">
+                      <p className="font-medium text-white">Other Items</p>
+                      <p className="text-sm text-gray-400">
+                        Miscellaneous items
+                      </p>
+                      <p className="text-sm text-blue-400">Browse all</p>
+                    </div>
+                  </Button>
+                </motion.div>
+              </div>
 
               {/* Selected Items */}
               {selectedItems.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-white">Selected Items ({selectedItems.length})</h4>
+                    <h4 className="font-medium text-white">
+                      Selected Items ({selectedItems.length})
+                    </h4>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -514,27 +574,40 @@ export default function CreateBillPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-white text-sm">{item.name}</p>
+                            <p className="font-medium text-white text-sm">
+                              {item.name}
+                            </p>
                             <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">
                               {item.category}
                             </span>
                           </div>
-                          <p className="text-xs text-gray-400 mb-1">{item.brand}</p>
-                          <p className="text-xs text-gray-400">{item.specifications}</p>
+                          <p className="text-xs text-gray-400 mb-1">
+                            {item.brand}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {item.specifications}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-blue-400 font-medium">{currency}{item.price} each</p>
-                          <p className="text-xs text-gray-500">Stock available</p>
+                          <p className="text-sm text-blue-400 font-medium">
+                            {currency}
+                            {item.price} each
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Stock available
+                          </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
+                              onClick={() =>
+                                updateItemQuantity(item.id, item.quantity - 1)
+                              }
                               className="w-8 h-8 p-0 text-xs"
                             >
                               -
@@ -545,7 +618,9 @@ export default function CreateBillPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
+                              onClick={() =>
+                                updateItemQuantity(item.id, item.quantity + 1)
+                              }
                               className="w-8 h-8 p-0 text-xs"
                             >
                               +
@@ -556,10 +631,12 @@ export default function CreateBillPage() {
                         <div className="flex items-center gap-3">
                           <div className="text-right">
                             <p className="font-semibold text-white text-sm">
-                              {currency}{item.total}
+                              {currency}
+                              {item.total}
                             </p>
                             <p className="text-xs text-gray-400">
-                              {item.quantity} × {currency}{item.price}
+                              {item.quantity} × {currency}
+                              {item.price}
                             </p>
                           </div>
                           <Button
@@ -594,7 +671,9 @@ export default function CreateBillPage() {
                 <div className="p-3 bg-gray-800 rounded-lg">
                   <h4 className="font-medium text-white mb-2">Customer</h4>
                   <p className="text-gray-300">{selectedCustomer.name}</p>
-                  <p className="text-sm text-gray-400">{selectedCustomer.phone}</p>
+                  <p className="text-sm text-gray-400">
+                    {selectedCustomer.phone}
+                  </p>
                 </div>
               )}
 
@@ -603,59 +682,90 @@ export default function CreateBillPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-gray-400 text-sm">
                     <span>Items ({selectedItems.length})</span>
-                    <span>{currency}{calculateTotal()}</span>
+                    <span>
+                      {currency}
+                      {calculateTotal()}
+                    </span>
                   </div>
-                  
+
                   {/* Category Breakdown */}
                   {(() => {
-                    const categoryBreakdown = selectedItems.reduce((acc, item) => {
-                      acc[item.category] = (acc[item.category] || 0) + item.total;
-                      return acc;
-                    }, {} as Record<string, number>);
-                    
-                    return Object.entries(categoryBreakdown).map(([category, total]) => (
-                      <div key={category} className="flex justify-between text-xs text-gray-500 ml-4">
-                        <span>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                        <span>{currency}{total}</span>
-                      </div>
-                    ));
+                    const categoryBreakdown = selectedItems.reduce(
+                      (acc, item) => {
+                        acc[item.category] =
+                          (acc[item.category] || 0) + item.total;
+                        return acc;
+                      },
+                      {} as Record<string, number>
+                    );
+
+                    return Object.entries(categoryBreakdown).map(
+                      ([category, total]) => (
+                        <div
+                          key={category}
+                          className="flex justify-between text-xs text-gray-500 ml-4"
+                        >
+                          <span>
+                            {category.charAt(0).toUpperCase() +
+                              category.slice(1)}
+                          </span>
+                          <span>
+                            {currency}
+                            {total}
+                          </span>
+                        </div>
+                      )
+                    );
                   })()}
                 </div>
-                
+
                 <hr className="border-gray-700" />
-                
+
                 {/* Additional Charges */}
                 {(formData.repairCharges > 0 || formData.homeVisitFee > 0) && (
                   <div className="space-y-2">
                     {formData.repairCharges > 0 && (
                       <div className="flex justify-between text-gray-400">
                         <span>Repair Charges</span>
-                        <span>{currency}{formData.repairCharges}</span>
+                        <span>
+                          {currency}
+                          {formData.repairCharges}
+                        </span>
                       </div>
                     )}
                     {formData.homeVisitFee > 0 && (
                       <div className="flex justify-between text-gray-400">
                         <span>Home Visit Fee</span>
-                        <span>{currency}{formData.homeVisitFee}</span>
+                        <span>
+                          {currency}
+                          {formData.homeVisitFee}
+                        </span>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Tax and Total */}
+                {/* Total Calculation (NO TAX) */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-gray-400">
-                    <span>Subtotal</span>
-                    <span>{currency}{calculateTotal()}</span>
+                    <span>Items Subtotal</span>
+                    <span>
+                      {currency}
+                      {calculateTotal()}
+                    </span>
                   </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Tax (10%)</span>
-                    <span>{currency}{((calculateTotal() + formData.repairCharges + formData.homeVisitFee) * 0.1).toFixed(2)}</span>
-                  </div>
+
                   <hr className="border-gray-700" />
                   <div className="flex justify-between text-lg font-semibold text-white">
-                    <span>Total</span>
-                    <span>{currency}{((calculateTotal() + formData.repairCharges + formData.homeVisitFee) * 1.1).toFixed(2)}</span>
+                    <span>Total Amount</span>
+                    <span>
+                      {currency}
+                      {(
+                        calculateTotal() +
+                        Number(formData.repairCharges) +
+                        Number(formData.homeVisitFee)
+                      ).toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -702,7 +812,14 @@ export default function CreateBillPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Total Amount:</span>
-                <span className="text-white">{currency}{(calculateTotal() * 1.1).toFixed(2)}</span>
+                <span className="text-white">
+                  {currency}
+                  {(
+                    calculateTotal() +
+                    Number(formData.repairCharges) +
+                    Number(formData.homeVisitFee)
+                  ).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Items:</span>
@@ -724,7 +841,7 @@ export default function CreateBillPage() {
                   customerId: "",
                   serviceType: "",
                   location: "",
-                  billDate: new Date().toISOString().split('T')[0],
+                  billDate: new Date().toISOString().split("T")[0],
                   dueDate: "",
                   notes: "",
                   repairCharges: 0,
@@ -743,7 +860,10 @@ export default function CreateBillPage() {
         isOpen={itemSelectionModal.isOpen}
         onClose={closeItemSelectionModal}
         size="xl"
-        title={`Select ${itemSelectionModal.selectedCategory.charAt(0).toUpperCase() + itemSelectionModal.selectedCategory.slice(1)} Items`}
+        title={`Select ${
+          itemSelectionModal.selectedCategory.charAt(0).toUpperCase() +
+          itemSelectionModal.selectedCategory.slice(1)
+        } Items`}
       >
         <div className="space-y-6">
           {/* Quick Filters */}
@@ -753,16 +873,18 @@ export default function CreateBillPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setItemSelectionModal(prev => ({
-                  ...prev,
-                  selectedSpecifications: {}
-                }))}
+                onClick={() =>
+                  setItemSelectionModal((prev) => ({
+                    ...prev,
+                    selectedSpecifications: {},
+                  }))
+                }
                 className="text-xs text-gray-400 hover:text-white"
               >
                 Clear All
               </Button>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Brand Filter */}
               <div className="space-y-2">
@@ -778,10 +900,15 @@ export default function CreateBillPage() {
                     { value: "other", label: "Other" },
                   ]}
                   value={itemSelectionModal.selectedSpecifications.brand || ""}
-                  onValueChange={(value) => setItemSelectionModal(prev => ({
-                    ...prev,
-                    selectedSpecifications: { ...prev.selectedSpecifications, brand: value || undefined }
-                  }))}
+                  onValueChange={(value) =>
+                    setItemSelectionModal((prev) => ({
+                      ...prev,
+                      selectedSpecifications: {
+                        ...prev.selectedSpecifications,
+                        brand: value || undefined,
+                      },
+                    }))
+                  }
                   placeholder="Select brand"
                   className="bg-gray-700 border-gray-600"
                 />
@@ -802,11 +929,18 @@ export default function CreateBillPage() {
                       { value: "blue", label: "Blue" },
                       { value: "green", label: "Green" },
                     ]}
-                    value={itemSelectionModal.selectedSpecifications.color || ""}
-                    onValueChange={(value) => setItemSelectionModal(prev => ({
-                      ...prev,
-                      selectedSpecifications: { ...prev.selectedSpecifications, color: value || undefined }
-                    }))}
+                    value={
+                      itemSelectionModal.selectedSpecifications.color || ""
+                    }
+                    onValueChange={(value) =>
+                      setItemSelectionModal((prev) => ({
+                        ...prev,
+                        selectedSpecifications: {
+                          ...prev.selectedSpecifications,
+                          color: value || undefined,
+                        },
+                      }))
+                    }
                     placeholder="Select color"
                     className="bg-gray-700 border-gray-600"
                   />
@@ -814,7 +948,9 @@ export default function CreateBillPage() {
               )}
 
               {/* Watts Filter (for lights, motors, pumps) */}
-              {["light", "motor", "pump"].includes(itemSelectionModal.selectedCategory) && (
+              {["light", "motor", "pump"].includes(
+                itemSelectionModal.selectedCategory
+              ) && (
                 <div className="space-y-2">
                   <Label className="text-gray-300 text-sm">Watts</Label>
                   <Dropdown
@@ -837,11 +973,18 @@ export default function CreateBillPage() {
                       { value: "1500", label: "1500W" },
                       { value: "2000", label: "2000W" },
                     ]}
-                    value={itemSelectionModal.selectedSpecifications.watts || ""}
-                    onValueChange={(value) => setItemSelectionModal(prev => ({
-                      ...prev,
-                      selectedSpecifications: { ...prev.selectedSpecifications, watts: value || undefined }
-                    }))}
+                    value={
+                      itemSelectionModal.selectedSpecifications.watts || ""
+                    }
+                    onValueChange={(value) =>
+                      setItemSelectionModal((prev) => ({
+                        ...prev,
+                        selectedSpecifications: {
+                          ...prev.selectedSpecifications,
+                          watts: value || undefined,
+                        },
+                      }))
+                    }
                     placeholder="Select watts"
                     className="bg-gray-700 border-gray-600"
                   />
@@ -864,10 +1007,15 @@ export default function CreateBillPage() {
                       { value: "1x4", label: "1x4" },
                     ]}
                     value={itemSelectionModal.selectedSpecifications.size || ""}
-                    onValueChange={(value) => setItemSelectionModal(prev => ({
-                      ...prev,
-                      selectedSpecifications: { ...prev.selectedSpecifications, size: value || undefined }
-                    }))}
+                    onValueChange={(value) =>
+                      setItemSelectionModal((prev) => ({
+                        ...prev,
+                        selectedSpecifications: {
+                          ...prev.selectedSpecifications,
+                          size: value || undefined,
+                        },
+                      }))
+                    }
                     placeholder="Select size"
                     className="bg-gray-700 border-gray-600"
                   />
@@ -889,11 +1037,18 @@ export default function CreateBillPage() {
                       { value: "6mm", label: "6mm" },
                       { value: "10mm", label: "10mm" },
                     ]}
-                    value={itemSelectionModal.selectedSpecifications.wireGauge || ""}
-                    onValueChange={(value) => setItemSelectionModal(prev => ({
-                      ...prev,
-                      selectedSpecifications: { ...prev.selectedSpecifications, wireGauge: value || undefined }
-                    }))}
+                    value={
+                      itemSelectionModal.selectedSpecifications.wireGauge || ""
+                    }
+                    onValueChange={(value) =>
+                      setItemSelectionModal((prev) => ({
+                        ...prev,
+                        selectedSpecifications: {
+                          ...prev.selectedSpecifications,
+                          wireGauge: value || undefined,
+                        },
+                      }))
+                    }
                     placeholder="Select gauge"
                     className="bg-gray-700 border-gray-600"
                   />
@@ -901,7 +1056,9 @@ export default function CreateBillPage() {
               )}
 
               {/* Ampere Filter (for MCB, switches, sockets) */}
-              {["mcb", "switch", "socket"].includes(itemSelectionModal.selectedCategory) && (
+              {["mcb", "switch", "socket"].includes(
+                itemSelectionModal.selectedCategory
+              ) && (
                 <div className="space-y-2">
                   <Label className="text-gray-300 text-sm">Ampere</Label>
                   <Dropdown
@@ -916,11 +1073,18 @@ export default function CreateBillPage() {
                       { value: "40A", label: "40A" },
                       { value: "63A", label: "63A" },
                     ]}
-                    value={itemSelectionModal.selectedSpecifications.ampere || ""}
-                    onValueChange={(value) => setItemSelectionModal(prev => ({
-                      ...prev,
-                      selectedSpecifications: { ...prev.selectedSpecifications, ampere: value || undefined }
-                    }))}
+                    value={
+                      itemSelectionModal.selectedSpecifications.ampere || ""
+                    }
+                    onValueChange={(value) =>
+                      setItemSelectionModal((prev) => ({
+                        ...prev,
+                        selectedSpecifications: {
+                          ...prev.selectedSpecifications,
+                          ampere: value || undefined,
+                        },
+                      }))
+                    }
                     placeholder="Select ampere"
                     className="bg-gray-700 border-gray-600"
                   />
@@ -930,32 +1094,43 @@ export default function CreateBillPage() {
           </div>
 
           {/* Active Filters Display */}
-          {Object.values(itemSelectionModal.selectedSpecifications).some(val => val) && (
+          {Object.values(itemSelectionModal.selectedSpecifications).some(
+            (val) => val
+          ) && (
             <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-blue-400 text-sm font-medium">Active Filters:</span>
+                <span className="text-blue-400 text-sm font-medium">
+                  Active Filters:
+                </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {Object.entries(itemSelectionModal.selectedSpecifications).map(([key, value]) => {
-                  if (!value) return null;
-                  return (
-                    <span
-                      key={key}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300"
-                    >
-                      {key}: {value}
-                      <button
-                        onClick={() => setItemSelectionModal(prev => ({
-                          ...prev,
-                          selectedSpecifications: { ...prev.selectedSpecifications, [key]: undefined }
-                        }))}
-                        className="ml-1 hover:text-blue-100"
+                {Object.entries(itemSelectionModal.selectedSpecifications).map(
+                  ([key, value]) => {
+                    if (!value) return null;
+                    return (
+                      <span
+                        key={key}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300"
                       >
-                        ×
-                      </button>
-                    </span>
-                  );
-                })}
+                        {key}: {value}
+                        <button
+                          onClick={() =>
+                            setItemSelectionModal((prev) => ({
+                              ...prev,
+                              selectedSpecifications: {
+                                ...prev.selectedSpecifications,
+                                [key]: undefined,
+                              },
+                            }))
+                          }
+                          className="ml-1 hover:text-blue-100"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  }
+                )}
               </div>
             </div>
           )}
@@ -970,7 +1145,7 @@ export default function CreateBillPage() {
                 Showing filtered results
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
               {filterItemsBySpecifications().map((item) => (
                 <motion.div
@@ -989,19 +1164,34 @@ export default function CreateBillPage() {
                     <div className="text-left w-full">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
-                          <p className="font-medium text-white text-sm">{getItemDisplayName(item)}</p>
-                          <p className="text-xs text-gray-400 mt-1">{item.brand}</p>
+                          <p className="font-medium text-white text-sm">
+                            {getItemDisplayName(item)}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {item.brand}
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-blue-400 font-medium">{currency}{item.sellingPrice}</p>
-                          <p className="text-xs text-gray-500">Stock: {item.currentStock}</p>
+                          <p className="text-sm text-blue-400 font-medium">
+                            {currency}
+                            {item.sellingPrice}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Stock: {item.currentStock}
+                          </p>
                         </div>
                       </div>
-                      
+
                       <div className="text-xs text-gray-400 space-y-1">
                         <p>{getItemSpecifications(item)}</p>
-                        <p>Purchase Price: {currency}{item.purchasePrice}</p>
-                        <p>Profit: {currency}{item.sellingPrice - item.purchasePrice}</p>
+                        <p>
+                          Purchase Price: {currency}
+                          {item.purchasePrice}
+                        </p>
+                        <p>
+                          Profit: {currency}
+                          {item.sellingPrice - item.purchasePrice}
+                        </p>
                       </div>
                     </div>
                   </Button>
@@ -1012,22 +1202,32 @@ export default function CreateBillPage() {
             {filterItemsBySpecifications().length === 0 && (
               <div className="text-center py-8">
                 <Package className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">No items found matching your criteria.</p>
-                <p className="text-sm text-gray-500 mt-2">Try adjusting your filters or check inventory.</p>
+                <p className="text-gray-400">
+                  No items found matching your criteria.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Try adjusting your filters or check inventory.
+                </p>
               </div>
             )}
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={closeItemSelectionModal} className="flex-1">
+            <Button
+              variant="outline"
+              onClick={closeItemSelectionModal}
+              className="flex-1"
+            >
               Close
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => setItemSelectionModal(prev => ({
-                ...prev,
-                selectedSpecifications: {}
-              }))}
+            <Button
+              variant="outline"
+              onClick={() =>
+                setItemSelectionModal((prev) => ({
+                  ...prev,
+                  selectedSpecifications: {},
+                }))
+              }
               className="flex-1"
             >
               Clear Filters
@@ -1047,4 +1247,4 @@ export default function CreateBillPage() {
       />
     </div>
   );
-} 
+}
