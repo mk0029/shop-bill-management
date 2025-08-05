@@ -11,6 +11,11 @@ import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { useInventoryStore, Product } from "@/store/inventory-store";
 import { formatSpecifications, getStockStatus } from "@/lib/inventory-data";
+import { useEnhancedInventory } from "@/hooks/use-enhanced-inventory";
+import {
+  DeleteConfirmation,
+  QuickDeleteConfirmation,
+} from "@/components/inventory/delete-confirmation";
 import {
   Package,
   Search,
@@ -94,6 +99,12 @@ export default function InventoryPage() {
   const [selectedItem, setSelectedItem] = useState<Product | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showConsolidated, setShowConsolidated] = useState(true);
+  const [deleteItem, setDeleteItem] = useState<Product | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Enhanced inventory hook for delete functionality
+  const { deleteProduct, isDeletingProduct, deleteError } =
+    useEnhancedInventory();
 
   // Fetch data on component mount
   useEffect(() => {
@@ -155,6 +166,45 @@ export default function InventoryPage() {
 
   const getItemSpecifications = (product: Product) => {
     return formatSpecifications(product.specifications);
+  };
+
+  const handleDeleteClick = (product: Product) => {
+    setDeleteItem(product);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteItem) return;
+
+    const isConsolidated = !!deleteItem._consolidated;
+    const consolidatedIds = deleteItem._consolidated?.originalIds;
+    const productName = deleteItem.name;
+
+    const success = await deleteProduct(
+      deleteItem._id,
+      isConsolidated,
+      consolidatedIds
+    );
+
+    if (success) {
+      setShowDeleteModal(false);
+      setDeleteItem(null);
+      // Refresh the products list
+      fetchProducts();
+      fetchInventorySummary();
+
+      // Show success message (you can replace this with a proper toast notification)
+      console.log(
+        `✅ Successfully deleted ${productName}${
+          isConsolidated ? " (consolidated)" : ""
+        }`
+      );
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteItem(null);
   };
 
   // Show loading state
@@ -483,7 +533,9 @@ export default function InventoryPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-400 hover:text-red-300">
+                            className="text-red-400 hover:text-red-300"
+                            onClick={() => handleDeleteClick(product)}
+                            disabled={isDeletingProduct}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -628,6 +680,17 @@ export default function InventoryPage() {
           </div>
         )}
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmation
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        product={deleteItem}
+        isConsolidated={!!deleteItem?._consolidated}
+        isDeleting={isDeletingProduct}
+        error={deleteError}
+      />
     </div>
   );
 }

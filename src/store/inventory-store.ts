@@ -63,6 +63,9 @@ export interface Product {
   seoDescription?: string;
   createdAt: string;
   updatedAt: string;
+  // Soft delete fields
+  deleted?: boolean;
+  deletedAt?: string;
   // Optional property for consolidated products
   _consolidated?: {
     totalEntries: number;
@@ -162,6 +165,9 @@ interface InventoryStore {
   getFeaturedProducts: () => Product[];
   getProductById: (productId: string) => Product | undefined;
   getConsolidatedProducts: () => Product[];
+
+  // Product deletion
+  deleteProduct: (productId: string) => Promise<boolean>;
 
   // Utilities
   clearError: () => void;
@@ -709,10 +715,13 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   getConsolidatedProducts: () => {
     const { products } = get();
 
+    // Filter out soft deleted products
+    const activeProducts = products.filter((product) => !product.deleted);
+
     // Group products by unique identifier (name + brand + key specifications)
     const groupedProducts = new Map<string, Product[]>();
 
-    products.forEach((product) => {
+    activeProducts.forEach((product) => {
       // Create a unique key based on name, brand, and key specifications
       const keySpecs = {
         lightType: product.specifications.lightType,
@@ -792,6 +801,27 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     });
 
     return consolidatedProducts;
+  },
+
+  // Delete product
+  deleteProduct: async (productId) => {
+    try {
+      // Remove from local state immediately for optimistic update
+      const { products } = get();
+      const updatedProducts = products.filter(
+        (product) => product._id !== productId
+      );
+      set({ products: updatedProducts });
+
+      // Note: Actual deletion is handled by the enhanced inventory API
+      // This just updates the local state
+      return true;
+    } catch (error) {
+      console.error("Error in deleteProduct:", error);
+      // Refresh data to restore state if needed
+      await get().fetchProducts();
+      return false;
+    }
   },
 
   // Utilities

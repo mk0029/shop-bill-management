@@ -14,10 +14,16 @@ export const inventoryApi = {
     brand?: string;
     isActive?: boolean;
     search?: string;
+    includeDeleted?: boolean;
   }): Promise<InventoryApiResponse> {
     try {
       let query = `*[_type == "product"`;
       const params: Record<string, unknown> = {};
+
+      // Filter out deleted products by default
+      if (!filters?.includeDeleted) {
+        query += ` && !defined(deleted)`;
+      }
 
       if (filters?.category) {
         query += ` && category->name match $category`;
@@ -64,6 +70,8 @@ export const inventoryApi = {
         isActive,
         isFeatured,
         tags,
+        deleted,
+        deletedAt,
         createdAt,
         updatedAt
       } | order(name asc)`;
