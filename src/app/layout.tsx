@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { DataProvider } from "@/components/providers/data-provider";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,6 +32,43 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
         >
           <DataProvider>{children}</DataProvider>
+          
+          <Script id="disable-number-input-scroll" strategy="afterInteractive">
+            {`
+              function disableNumberInputScroll() {
+                const numberInputs = document.querySelectorAll('input[type="number"]');
+                
+                numberInputs.forEach(input => {
+                  // Remove existing listeners if any
+                  input.removeEventListener('wheel', preventScroll);
+                  // Add the event listener
+                  input.addEventListener('wheel', preventScroll, { passive: false });
+                });
+              }
+              
+              function preventScroll(e) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+              
+              // Run on initial load
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', disableNumberInputScroll);
+              } else {
+                disableNumberInputScroll();
+              }
+              
+              // Also run when new content is added (for dynamic content)
+              const observer = new MutationObserver(() => {
+                disableNumberInputScroll();
+              });
+              
+              observer.observe(document.body, {
+                childList: true,
+                subtree: true
+              });
+            `}
+          </Script>
         </body>
       </html>
     </ClerkProvider>
