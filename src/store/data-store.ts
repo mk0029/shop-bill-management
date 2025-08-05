@@ -184,9 +184,23 @@ export const useDataStore = create<DataStore>((set, get) => ({
         );
 
         // Filter out null/undefined items and items without _id
-        const validData = Array.isArray(data)
+        let validData = Array.isArray(data)
           ? data.filter((item) => item && item._id)
           : [];
+
+        // Additional filtering for products to ensure they have valid references
+        if (step.name === "products") {
+          validData = validData.filter((product) => {
+            // Ensure product has basic required fields
+            return (
+              product.name &&
+              product.pricing &&
+              product.inventory &&
+              // Brand and category can be null, we'll handle that in the UI
+              true
+            );
+          });
+        }
 
         validData.forEach((item: any) => {
           newMap.set(item._id, item);

@@ -1,335 +1,215 @@
 // Inventory Data Helper File
-// Contains all local data arrays and constants for inventory management
+// Contains helper functions and utilities for inventory management
+// Data now comes from Sanity CMS and Zustand stores
+
+import { useCategoryStore } from "@/store/category-store";
+import { useSpecificationsStore } from "@/store/specifications-store";
+import { useBrandStore } from "@/store/brand-store";
 
 export const currency = "₹";
 
-// Item Categories
-export const itemCategories = [
-  { value: "light", label: "Light" },
-  { value: "motor", label: "Motor" },
-  { value: "pump", label: "Pump" },
-  { value: "wire", label: "Wire" },
-  { value: "switch", label: "Switch" },
-  { value: "socket", label: "Socket" },
-  { value: "mcb", label: "MCB" },
-  { value: "other", label: "Other" },
+// Helper function to get categories as dropdown options
+export const getItemCategories = () => {
+  const { getActiveCategories } = useCategoryStore.getState();
+  const categories = getActiveCategories();
+
+  return categories.map((category) => ({
+    value: category.name.toLowerCase(),
+    label: category.name,
+  }));
+};
+
+// Helper function to get light types
+export const getLightTypes = () => {
+  const { getOptionsByCategory } = useSpecificationsStore.getState();
+  return getOptionsByCategory("light", "lightType");
+};
+
+// Helper function to get colors for a category
+export const getColors = (category: string = "light") => {
+  const { getOptionsByCategory } = useSpecificationsStore.getState();
+  return getOptionsByCategory(category, "color");
+};
+
+// Helper function to get sizes for a category
+export const getSizes = (category: string = "light") => {
+  const { getOptionsByCategory } = useSpecificationsStore.getState();
+  return getOptionsByCategory(category, "size");
+};
+
+// Helper function to get wire gauges
+export const getWireGauges = () => {
+  const { getOptionsByCategory } = useSpecificationsStore.getState();
+  return getOptionsByCategory("wire", "wireGauge");
+};
+
+// Helper function to get ampere ratings
+export const getAmpereRatings = (category: string = "switch") => {
+  const { getOptionsByCategory } = useSpecificationsStore.getState();
+  return getOptionsByCategory(category, "amperage");
+};
+
+// Helper function to get units
+export const getUnits = () => {
+  const { unitOptions } = useSpecificationsStore.getState();
+  return unitOptions;
+};
+
+// Backward compatibility exports (using functions instead of static arrays)
+export const itemCategories = getItemCategories();
+export const lightTypes = getLightTypes();
+export const colors = getColors();
+export const sizes = getSizes();
+export const wireGauges = getWireGauges();
+export const ampereRatings = getAmpereRatings();
+export const units = getUnits();
+
+// Service type options for bills
+export const serviceTypes = [
+  { value: "repair", label: "Repair" },
+  { value: "sale", label: "Sale" },
+  { value: "installation", label: "Installation" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "custom", label: "Custom" },
 ];
 
-// Light Types
-export const lightTypes = [
-  { value: "led", label: "LED" },
-  { value: "bulb", label: "Bulb" },
-  { value: "tubelight", label: "Tubelight" },
-  { value: "panel", label: "Panel" },
-  { value: "concealed", label: "Concealed" },
+// Location type options for bills
+export const locationTypes = [
+  { value: "shop", label: "Shop" },
+  { value: "home", label: "Home" },
+  { value: "office", label: "Office" },
 ];
 
-// Colors
-export const colors = [
-  { value: "white", label: "White" },
-  { value: "warm-white", label: "Warm White" },
-  { value: "cool-white", label: "Cool White" },
-  { value: "daylight", label: "Daylight" },
-  { value: "red", label: "Red" },
-  { value: "blue", label: "Blue" },
-  { value: "green", label: "Green" },
-  { value: "yellow", label: "Yellow" },
-  { value: "orange", label: "Orange" },
-  { value: "purple", label: "Purple" },
+// Payment status options
+export const paymentStatuses = [
+  { value: "pending", label: "Pending" },
+  { value: "partial", label: "Partial" },
+  { value: "paid", label: "Paid" },
+  { value: "overdue", label: "Overdue" },
 ];
 
-// Sizes
-export const sizes = [
-  { value: "1x1", label: "1x1 ft" },
-  { value: "2x2", label: "2x2 ft" },
-  { value: "3x3", label: "3x3 ft" },
-  { value: "4x4", label: "4x4 ft" },
-  { value: "1x2", label: "1x2 ft" },
-  { value: "2x4", label: "2x4 ft" },
-  { value: "small", label: "Small" },
+// Bill status options
+export const billStatuses = [
+  { value: "draft", label: "Draft" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+// Priority levels
+export const priorityLevels = [
+  { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
-  { value: "large", label: "Large" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" },
 ];
 
-// Wire Gauges
-export const wireGauges = [
-  { value: "0.5", label: "0.5 sq mm" },
-  { value: "1", label: "1 sq mm" },
-  { value: "1.5", label: "1.5 sq mm" },
-  { value: "2.5", label: "2.5 sq mm" },
-  { value: "4", label: "4 sq mm" },
-  { value: "6", label: "6 sq mm" },
-  { value: "10", label: "10 sq mm" },
-  { value: "16", label: "16 sq mm" },
-  { value: "25", label: "25 sq mm" },
-  { value: "35", label: "35 sq mm" },
-  { value: "50", label: "50 sq mm" },
-  { value: "70", label: "70 sq mm" },
-  { value: "95", label: "95 sq mm" },
-  { value: "120", label: "120 sq mm" },
-  { value: "150", label: "150 sq mm" },
-  { value: "185", label: "185 sq mm" },
-  { value: "240", label: "240 sq mm" },
+// Payment methods
+export const paymentMethods = [
+  { value: "cash", label: "Cash" },
+  { value: "card", label: "Card" },
+  { value: "upi", label: "UPI" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "cheque", label: "Cheque" },
 ];
 
-// Ampere Ratings
-export const ampereRatings = [
-  { value: "6", label: "6A" },
-  { value: "10", label: "10A" },
-  { value: "16", label: "16A" },
-  { value: "20", label: "20A" },
-  { value: "25", label: "25A" },
-  { value: "32", label: "32A" },
-  { value: "40", label: "40A" },
-  { value: "50", label: "50A" },
-  { value: "63", label: "63A" },
-  { value: "80", label: "80A" },
-  { value: "100", label: "100A" },
-  { value: "125", label: "125A" },
-  { value: "160", label: "160A" },
-  { value: "200", label: "200A" },
-  { value: "250", label: "250A" },
-  { value: "315", label: "315A" },
-  { value: "400", label: "400A" },
-  { value: "500", label: "500A" },
-  { value: "630", label: "630A" },
-  { value: "800", label: "800A" },
-  { value: "1000", label: "1000A" },
+// Stock transaction types
+export const stockTransactionTypes = [
+  { value: "purchase", label: "Purchase" },
+  { value: "sale", label: "Sale" },
+  { value: "adjustment", label: "Adjustment" },
+  { value: "return", label: "Return" },
+  { value: "damage", label: "Damage" },
 ];
 
-// Units
-export const units = [
-  { value: "piece", label: "Piece" },
-  { value: "meter", label: "Meter" },
-  { value: "box", label: "Box" },
-  { value: "pack", label: "Pack" },
-  { value: "roll", label: "Roll" },
-  { value: "set", label: "Set" },
-  { value: "kg", label: "Kilogram" },
-  { value: "liter", label: "Liter" },
-];
+// Helper function to format currency
+export const formatCurrency = (amount: number) => {
+  return `${currency}${amount.toLocaleString("en-IN")}`;
+};
 
-// Popular Brands (can be managed by admin)
-export const popularBrands = [
-  { value: "havells", label: "Havells", categories: ["light", "motor", "pump"] },
-  { value: "philips", label: "Philips", categories: ["light"] },
-  { value: "bajaj", label: "Bajaj", categories: ["light", "motor"] },
-  { value: "anchor", label: "Anchor", categories: ["switch", "socket", "mcb"] },
-  { value: "polycab", label: "Polycab", categories: ["wire"] },
-  { value: "finolex", label: "Finolex", categories: ["wire"] },
-  { value: "crompton", label: "Crompton", categories: ["light", "motor", "pump"] },
-  { value: "orient", label: "Orient", categories: ["light", "motor"] },
-  { value: "usha", label: "Usha", categories: ["light", "motor"] },
-  { value: "wipro", label: "Wipro", categories: ["light"] },
-  { value: "syska", label: "Syska", categories: ["light"] },
-  { value: "surya", label: "Surya", categories: ["light"] },
-  { value: "other", label: "Other", categories: ["light", "motor", "pump", "wire", "switch", "socket", "mcb"] },
-];
+// Helper function to format specifications
+export const formatSpecifications = (specs: any) => {
+  const formatted = [];
 
-// Mock Inventory Items (for development)
-export const mockInventoryItems = [
-  // Lights
-  {
-    id: "1",
-    category: "light",
-    lightType: "led",
-    color: "white",
-    size: "",
-    watts: "5",
-    wireGauge: "",
-    ampere: "",
-    brand: "havells",
-    purchasePrice: 67,
-    sellingPrice: 90,
-    currentStock: 50,
-    unit: "piece",
-    description: "Havells 5W LED bulb in white color",
-  },
-  {
-    id: "2",
-    category: "light",
-    lightType: "led",
-    color: "warm-white",
-    size: "",
-    watts: "12",
-    wireGauge: "",
-    ampere: "",
-    brand: "philips",
-    purchasePrice: 120,
-    sellingPrice: 150,
-    currentStock: 30,
-    unit: "piece",
-    description: "Philips 12W LED bulb in warm white",
-  },
-  {
-    id: "3",
-    category: "light",
-    lightType: "panel",
-    color: "white",
-    size: "2x2",
-    watts: "20",
-    wireGauge: "",
-    ampere: "",
-    brand: "havells",
-    purchasePrice: 450,
-    sellingPrice: 600,
-    currentStock: 15,
-    unit: "piece",
-    description: "Havells 20W LED panel 2x2 ft",
-  },
-  // Wires
-  {
-    id: "4",
-    category: "wire",
-    lightType: "",
-    color: "",
-    size: "",
-    watts: "",
-    wireGauge: "1.5",
-    ampere: "",
-    brand: "polycab",
-    purchasePrice: 1200,
-    sellingPrice: 1500,
-    currentStock: 100,
-    unit: "meter",
-    description: "Polycab 1.5 sq mm wire",
-  },
-  {
-    id: "5",
-    category: "wire",
-    lightType: "",
-    color: "",
-    size: "",
-    watts: "",
-    wireGauge: "2.5",
-    ampere: "",
-    brand: "finolex",
-    purchasePrice: 1800,
-    sellingPrice: 2200,
-    currentStock: 80,
-    unit: "meter",
-    description: "Finolex 2.5 sq mm wire",
-  },
-  // Switches & MCB
-  {
-    id: "6",
-    category: "switch",
-    lightType: "",
-    color: "",
-    size: "",
-    watts: "",
-    wireGauge: "",
-    ampere: "16",
-    brand: "anchor",
-    purchasePrice: 45,
-    sellingPrice: 60,
-    currentStock: 100,
-    unit: "piece",
-    description: "Anchor 16A switch",
-  },
-  {
-    id: "7",
-    category: "mcb",
-    lightType: "",
-    color: "",
-    size: "",
-    watts: "",
-    wireGauge: "",
-    ampere: "32",
-    brand: "havells",
-    purchasePrice: 180,
-    sellingPrice: 250,
-    currentStock: 25,
-    unit: "piece",
-    description: "Havells 32A MCB",
-  },
-  // Motors
-  {
-    id: "8",
-    category: "motor",
-    lightType: "",
-    color: "",
-    size: "",
-    watts: "1000",
-    wireGauge: "",
-    ampere: "",
-    brand: "crompton",
-    purchasePrice: 2500,
-    sellingPrice: 3200,
-    currentStock: 8,
-    unit: "piece",
-    description: "Crompton 1HP motor",
-  },
-  {
-    id: "9",
-    category: "pump",
-    lightType: "",
-    color: "",
-    size: "",
-    watts: "500",
-    wireGauge: "",
-    ampere: "",
-    brand: "kirloskar",
-    purchasePrice: 1800,
-    sellingPrice: 2400,
-    currentStock: 12,
-    unit: "piece",
-    description: "Kirloskar 0.5HP pump",
-  },
-];
+  if (specs.lightType) formatted.push(`Type: ${specs.lightType}`);
+  if (specs.color) formatted.push(`Color: ${specs.color}`);
+  if (specs.size) formatted.push(`Size: ${specs.size}`);
+  if (specs.wattage) formatted.push(`${specs.wattage}W`);
+  if (specs.wireGauge) formatted.push(`Gauge: ${specs.wireGauge}`);
+  if (specs.amperage) formatted.push(`${specs.amperage}`);
+  if (specs.voltage) formatted.push(`${specs.voltage}`);
+  if (specs.material) formatted.push(`Material: ${specs.material}`);
 
-// Helper Functions
+  return formatted.join(", ");
+};
+
+// Helper function to get stock status
+export const getStockStatus = (currentStock: number, minimumStock: number) => {
+  if (currentStock <= 0)
+    return { status: "out_of_stock", label: "Out of Stock", color: "red" };
+  if (currentStock <= minimumStock)
+    return { status: "low_stock", label: "Low Stock", color: "yellow" };
+  return { status: "in_stock", label: "In Stock", color: "green" };
+};
+
+// Helper function to calculate profit margin
+export const calculateProfitMargin = (
+  sellingPrice: number,
+  purchasePrice: number
+) => {
+  if (purchasePrice === 0) return 0;
+  return ((sellingPrice - purchasePrice) / purchasePrice) * 100;
+};
+
+// Legacy helper functions for backward compatibility
 export const getCategoryLabel = (category: string) => {
-  const found = itemCategories.find(cat => cat.value === category);
+  const categories = getItemCategories();
+  const found = categories.find((cat) => cat.value === category);
   return found ? found.label : category;
 };
 
 export const getLightTypeLabel = (lightType: string) => {
-  const found = lightTypes.find(type => type.value === lightType);
-  return found ? found.label : lightType;
-};
-
-export const getBrandLabel = (brand: string) => {
-  const found = popularBrands.find(b => b.value === brand);
-  return found ? found.label : brand;
+  const { getOptionLabel } = useSpecificationsStore.getState();
+  return getOptionLabel(lightType, "lightType");
 };
 
 export const getUnitLabel = (unit: string) => {
-  const found = units.find(u => u.value === unit);
-  return found ? found.label : unit;
+  const { getOptionLabel } = useSpecificationsStore.getState();
+  return getOptionLabel(unit, "unit");
 };
 
-interface InventoryItem {
-  id: string;
-  category: string;
-  lightType: string;
-  color: string;
-  size: string;
-  watts: string;
-  wireGauge: string;
-  ampere: string;
-  brand: string;
-  purchasePrice: number;
-  sellingPrice: number;
-  currentStock: number;
-  unit: string;
-  description: string;
-}
-
-export const getItemSpecifications = (item: InventoryItem) => {
+export const getItemSpecifications = (formData: any) => {
   const specs = [];
-  if (item.lightType) specs.push(`Type: ${getLightTypeLabel(item.lightType)}`);
-  if (item.color) specs.push(`Color: ${item.color}`);
-  if (item.size) specs.push(`Size: ${item.size}`);
-  if (item.watts) specs.push(`${item.watts}W`);
-  if (item.wireGauge) specs.push(`Gauge: ${item.wireGauge} sq mm`);
-  if (item.ampere) specs.push(`${item.ampere}A`);
+
+  if (formData.lightType) specs.push(`Type: ${formData.lightType}`);
+  if (formData.color) specs.push(`Color: ${formData.color}`);
+  if (formData.size) specs.push(`Size: ${formData.size}`);
+  if (formData.watts) specs.push(`Watts: ${formData.watts}W`);
+  if (formData.wireGauge) specs.push(`Gauge: ${formData.wireGauge}`);
+  if (formData.ampere) specs.push(`Ampere: ${formData.ampere}`);
+
   return specs.join(", ");
 };
 
-export const getItemDisplayName = (item: InventoryItem) => {
-  const category = getCategoryLabel(item.category);
-  const brand = getBrandLabel(item.brand);
-  const specs = getItemSpecifications(item);
-  return `${category} - ${brand} (${specs})`;
-}; 
+// Helper function to safely get product brand name
+export const getProductBrandName = (product: any) => {
+  return product?.brand?.name || "No Brand";
+};
+
+// Helper function to safely get product category name
+export const getProductCategoryName = (product: any) => {
+  return product?.category?.name || "No Category";
+};
+
+// Helper function to safely get product display info
+export const getProductDisplayInfo = (product: any) => {
+  return {
+    name: product?.name || "Unnamed Product",
+    brandName: getProductBrandName(product),
+    categoryName: getProductCategoryName(product),
+    price: product?.pricing?.sellingPrice || 0,
+    stock: product?.inventory?.currentStock || 0,
+    isActive: product?.isActive || false,
+  };
+};

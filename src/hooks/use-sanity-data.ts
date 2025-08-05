@@ -189,9 +189,9 @@ export function useSearch() {
       (product) =>
         product.name.toLowerCase().includes(searchTerm) ||
         product.description?.toLowerCase().includes(searchTerm) ||
-        product.brand.name.toLowerCase().includes(searchTerm) ||
-        product.category.name.toLowerCase().includes(searchTerm) ||
-        product.tags.some((tag) => tag.toLowerCase().includes(searchTerm))
+        product.brand?.name?.toLowerCase().includes(searchTerm) ||
+        product.category?.name?.toLowerCase().includes(searchTerm) ||
+        product.tags?.some((tag) => tag.toLowerCase().includes(searchTerm))
     );
   };
 
@@ -216,8 +216,8 @@ export function useSearch() {
     return Array.from(bills.values()).filter(
       (bill) =>
         bill.billNumber.toLowerCase().includes(searchTerm) ||
-        bill.customer.name.toLowerCase().includes(searchTerm) ||
-        bill.customer.phone.includes(searchTerm)
+        bill.customer?.name?.toLowerCase().includes(searchTerm) ||
+        bill.customer?.phone?.includes(searchTerm)
     );
   };
 

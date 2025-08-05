@@ -165,28 +165,54 @@ export async function createProduct(productData: {
 
     // Find or create category reference
     let categoryReference;
-    if (productData.categoryId && productData.categoryId.length > 10) {
+    if (
+      productData.categoryId &&
+      productData.categoryId.length > 10 &&
+      productData.categoryId.includes("_")
+    ) {
       // This looks like a Sanity document ID
       categoryReference = { _type: "reference", _ref: productData.categoryId };
     } else {
       // This is a category name, try to find or create the category
-      const categoryQuery = `*[_type == "category" && name match "${productData.categoryId}*"][0]._id`;
-      let categoryId = await sanityClient.fetch(categoryQuery);
+      // Clean the category name for better matching
+      const cleanCategoryName = productData.categoryId.trim();
+
+      // Try exact match first
+      const exactQuery = `*[_type == "category" && name == $categoryName][0]._id`;
+      let categoryId = await sanityClient.fetch(exactQuery, {
+        categoryName: cleanCategoryName,
+      });
+
+      if (!categoryId) {
+        // Try case-insensitive match
+        const caseInsensitiveQuery = `*[_type == "category" && lower(name) == lower($categoryName)][0]._id`;
+        categoryId = await sanityClient.fetch(caseInsensitiveQuery, {
+          categoryName: cleanCategoryName,
+        });
+      }
 
       if (!categoryId) {
         // Create the category if it doesn't exist
+        const categorySlug = cleanCategoryName
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "") // Remove special characters except spaces and hyphens
+          .replace(/\s+/g, "-") // Replace spaces with hyphens
+          .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
+          .trim();
+
         const newCategory = await sanityClient.create({
           _type: "category",
-          name: productData.categoryId,
-          slug: {
-            current: productData.categoryId.toLowerCase().replace(/\s+/g, "-"),
-          },
+          name: cleanCategoryName,
+          slug: { current: categorySlug },
           isActive: true,
           sortOrder: 0,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
         categoryId = newCategory._id;
+        console.log(
+          `✅ Created new category: ${cleanCategoryName} with ID: ${categoryId}`
+        );
       }
 
       categoryReference = { _type: "reference", _ref: categoryId };

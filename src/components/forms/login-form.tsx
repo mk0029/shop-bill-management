@@ -61,7 +61,7 @@ export function LoginForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="customerId" className="text-gray-300 font-medium">
@@ -77,7 +77,9 @@ export function LoginForm({
               onChange={(e) => handleInputChange("customerId", e.target.value)}
               disabled={isLoading}
               className={`pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 ${
-                formErrors.customerId ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
+                formErrors.customerId
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  : ""
               }`}
             />
           </div>
@@ -100,7 +102,9 @@ export function LoginForm({
               onChange={(e) => handleInputChange("secretKey", e.target.value)}
               disabled={isLoading}
               className={`pl-10 pr-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 ${
-                formErrors.secretKey ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
+                formErrors.secretKey
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  : ""
               }`}
             />
             <button

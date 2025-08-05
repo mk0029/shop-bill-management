@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
+import { useInventoryStore, Product } from "@/store/inventory-store";
+import { formatSpecifications, getStockStatus } from "@/lib/inventory-data";
 import {
   Package,
   Search,
@@ -24,99 +26,8 @@ import {
   DollarSign,
   Zap,
   Building2,
+  Loader2,
 } from "lucide-react";
-import { InventoryItem, StockTransaction } from "@/types";
-
-// Mock data - will be replaced with real data
-const mockInventoryItems: InventoryItem[] = [
-  {
-    id: "1",
-    name: "LED Bulb",
-    category: "light",
-    lightType: "led",
-    color: "white",
-    watts: 5,
-    brand: "Philips",
-    purchasePrice: 67,
-    sellingPrice: 90,
-    currentStock: 25,
-    minimumStock: 10,
-    unit: "piece",
-    description: "5W LED bulb, white color",
-    isActive: true,
-    createdAt: new Date("2025-01-01"),
-    updatedAt: new Date("2025-01-15"),
-  },
-  {
-    id: "2",
-    name: "LED Bulb",
-    category: "light",
-    lightType: "led",
-    color: "warm-white",
-    watts: 5,
-    brand: "Havells",
-    purchasePrice: 69,
-    sellingPrice: 95,
-    currentStock: 18,
-    minimumStock: 10,
-    unit: "piece",
-    description: "5W LED bulb, warm white color",
-    isActive: true,
-    createdAt: new Date("2025-01-02"),
-    updatedAt: new Date("2025-01-14"),
-  },
-  {
-    id: "3",
-    name: "Panel Light",
-    category: "light",
-    lightType: "panel",
-    color: "white",
-    size: "medium",
-    watts: 12,
-    brand: "Crompton",
-    purchasePrice: 120,
-    sellingPrice: 180,
-    currentStock: 8,
-    minimumStock: 5,
-    unit: "piece",
-    description: "12W panel light, medium size",
-    isActive: true,
-    createdAt: new Date("2025-01-03"),
-    updatedAt: new Date("2025-01-13"),
-  },
-  {
-    id: "4",
-    name: "Electric Wire",
-    category: "wire",
-    wireGauge: "1.5mm",
-    brand: "Finolex",
-    purchasePrice: 45,
-    sellingPrice: 65,
-    currentStock: 150,
-    minimumStock: 50,
-    unit: "meter",
-    description: "1.5mm electric wire",
-    isActive: true,
-    createdAt: new Date("2025-01-04"),
-    updatedAt: new Date("2025-01-12"),
-  },
-  {
-    id: "5",
-    name: "MCB Switch",
-    category: "mcb",
-    ampere: "16A",
-    brand: "Schneider",
-    purchasePrice: 85,
-    sellingPrice: 120,
-    currentStock: 12,
-    minimumStock: 8,
-    unit: "piece",
-    description: "16A MCB switch",
-    isActive: true,
-    createdAt: new Date("2025-01-05"),
-    updatedAt: new Date("2025-01-11"),
-  },
-];
 
 const categoryOptions = [
   { value: "all", label: "All Categories" },
@@ -132,24 +43,18 @@ const categoryOptions = [
 
 const stockStatusOptions = [
   { value: "all", label: "All Stock" },
-  { value: "in-stock", label: "In Stock" },
-  { value: "low-stock", label: "Low Stock" },
-  { value: "out-of-stock", label: "Out of Stock" },
+  { value: "in_stock", label: "In Stock" },
+  { value: "low_stock", label: "Low Stock" },
+  { value: "out_of_stock", label: "Out of Stock" },
 ];
-
-const getStockStatus = (item: InventoryItem) => {
-  if (item.currentStock === 0) return "out-of-stock";
-  if (item.currentStock <= item.minimumStock) return "low-stock";
-  return "in-stock";
-};
 
 const getStockStatusColor = (status: string) => {
   switch (status) {
-    case "in-stock":
+    case "in_stock":
       return "text-green-400";
-    case "low-stock":
+    case "low_stock":
       return "text-yellow-400";
-    case "out-of-stock":
+    case "out_of_stock":
       return "text-red-400";
     default:
       return "text-gray-400";
@@ -158,11 +63,11 @@ const getStockStatusColor = (status: string) => {
 
 const getStockStatusIcon = (status: string) => {
   switch (status) {
-    case "in-stock":
+    case "in_stock":
       return TrendingUp;
-    case "low-stock":
+    case "low_stock":
       return AlertTriangle;
-    case "out-of-stock":
+    case "out_of_stock":
       return TrendingDown;
     default:
       return Package;
@@ -172,62 +77,110 @@ const getStockStatusIcon = (status: string) => {
 export default function InventoryPage() {
   const router = useRouter();
   const { currency } = useLocaleStore();
+  const {
+    products,
+    inventorySummary,
+    isLoading,
+    error,
+    fetchProducts,
+    fetchInventorySummary,
+    clearError,
+  } = useInventoryStore();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockStatusFilter, setStockStatusFilter] = useState("all");
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Product | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
 
-  const filteredItems = mockInventoryItems.filter((item) => {
-    const matchesSearch = 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
-    
-    const itemStockStatus = getStockStatus(item);
-    const matchesStockStatus = stockStatusFilter === "all" || itemStockStatus === stockStatusFilter;
-    
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchProducts();
+    fetchInventorySummary();
+  }, [fetchProducts, fetchInventorySummary]);
+
+  const filteredItems = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCategory =
+      categoryFilter === "all" ||
+      product.category.name.toLowerCase() === categoryFilter;
+
+    const stockStatus = getStockStatus(
+      product.inventory.currentStock,
+      product.inventory.minimumStock
+    );
+    const matchesStockStatus =
+      stockStatusFilter === "all" || stockStatus.status === stockStatusFilter;
+
     return matchesSearch && matchesCategory && matchesStockStatus;
   });
 
-  const totalItems = mockInventoryItems.length;
-  const totalValue = mockInventoryItems.reduce((sum, item) => sum + (item.currentStock * item.sellingPrice), 0);
-  const lowStockItems = mockInventoryItems.filter(item => getStockStatus(item) === "low-stock").length;
-  const outOfStockItems = mockInventoryItems.filter(item => getStockStatus(item) === "out-of-stock").length;
+  const totalItems = inventorySummary?.totalProducts || 0;
+  const totalValue = inventorySummary?.totalValue || 0;
+  const lowStockItems = inventorySummary?.lowStockProducts || 0;
+  const outOfStockItems = inventorySummary?.outOfStockProducts || 0;
 
-  const viewItemDetails = (item: InventoryItem) => {
+  const viewItemDetails = (item: Product) => {
     setSelectedItem(item);
     setShowItemModal(true);
   };
 
-  const getItemSpecifications = (item: InventoryItem) => {
-    const specs = [];
-    
-    if (item.lightType) specs.push(`Type: ${item.lightType}`);
-    if (item.color) specs.push(`Color: ${item.color}`);
-    if (item.size) specs.push(`Size: ${item.size}`);
-    if (item.watts) specs.push(`Watts: ${item.watts}W`);
-    if (item.wireGauge) specs.push(`Gauge: ${item.wireGauge}`);
-    if (item.ampere) specs.push(`Ampere: ${item.ampere}`);
-    
-    return specs.join(", ");
+  const getItemSpecifications = (product: Product) => {
+    return formatSpecifications(product.specifications);
   };
+
+  // Show loading state
+  if (isLoading && products.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-4" />
+          <p className="text-gray-400">Loading inventory...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-4" />
+          <p className="text-red-400 mb-4">{error}</p>
+          <Button
+            onClick={() => {
+              clearError();
+              fetchProducts();
+              fetchInventorySummary();
+            }}
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Inventory Management</h1>
+          <h1 className="text-3xl font-bold text-white">
+            Inventory Management
+          </h1>
           <p className="text-gray-400 mt-1">
             Track stock levels, manage items, and monitor inventory value
           </p>
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => router.push("/admin/inventory/brands")}
           >
             <Building2 className="w-4 h-4 mr-2" />
@@ -247,7 +200,9 @@ export default function InventoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm font-medium">Total Items</p>
-                <p className="text-2xl font-bold text-white mt-1">{totalItems}</p>
+                <p className="text-2xl font-bold text-white mt-1">
+                  {totalItems}
+                </p>
               </div>
               <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
                 <Package className="w-6 h-6 text-blue-400" />
@@ -261,7 +216,10 @@ export default function InventoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm font-medium">Total Value</p>
-                <p className="text-2xl font-bold text-white mt-1">{currency}{totalValue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-white mt-1">
+                  {currency}
+                  {totalValue.toLocaleString()}
+                </p>
               </div>
               <div className="w-12 h-12 bg-green-600/20 rounded-lg flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-green-400" />
@@ -275,7 +233,9 @@ export default function InventoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm font-medium">Low Stock</p>
-                <p className="text-2xl font-bold text-yellow-400 mt-1">{lowStockItems}</p>
+                <p className="text-2xl font-bold text-yellow-400 mt-1">
+                  {lowStockItems}
+                </p>
               </div>
               <div className="w-12 h-12 bg-yellow-600/20 rounded-lg flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-yellow-400" />
@@ -288,8 +248,12 @@ export default function InventoryPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">Out of Stock</p>
-                <p className="text-2xl font-bold text-red-400 mt-1">{outOfStockItems}</p>
+                <p className="text-gray-400 text-sm font-medium">
+                  Out of Stock
+                </p>
+                <p className="text-2xl font-bold text-red-400 mt-1">
+                  {outOfStockItems}
+                </p>
               </div>
               <div className="w-12 h-12 bg-red-600/20 rounded-lg flex items-center justify-center">
                 <TrendingDown className="w-6 h-6 text-red-400" />
@@ -347,72 +311,119 @@ export default function InventoryPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-800">
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Item</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Brand</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Stock</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Purchase Price</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Selling Price</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Value</th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">Actions</th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    Item
+                  </th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    Brand
+                  </th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    Stock
+                  </th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    Purchase Price
+                  </th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    Selling Price
+                  </th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    Value
+                  </th>
+                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => {
-                  const stockStatus = getStockStatus(item);
-                  const StatusIcon = getStockStatusIcon(stockStatus);
-                  const itemValue = item.currentStock * item.sellingPrice;
-                  
+                {filteredItems.map((product) => {
+                  const stockStatus = getStockStatus(
+                    product.inventory.currentStock,
+                    product.inventory.minimumStock
+                  );
+                  const StatusIcon = getStockStatusIcon(stockStatus.status);
+                  const itemValue =
+                    product.inventory.currentStock *
+                    product.pricing.sellingPrice;
+
                   return (
                     <motion.tr
-                      key={item.id}
+                      key={product._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
                     >
                       <td className="py-4 px-4">
                         <div>
-                          <p className="font-medium text-white">{item.name}</p>
-                          <p className="text-sm text-gray-400">{getItemSpecifications(item)}</p>
+                          <p className="font-medium text-white">
+                            {product.name}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {getItemSpecifications(product)}
+                          </p>
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-white">{item.brand}</span>
+                        <span className="text-white">{product.brand.name}</span>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
-                          <StatusIcon className={`w-4 h-4 ${getStockStatusColor(stockStatus)}`} />
-                          <span className={`font-medium ${getStockStatusColor(stockStatus)}`}>
-                            {item.currentStock} {item.unit}
+                          <StatusIcon
+                            className={`w-4 h-4 ${getStockStatusColor(
+                              stockStatus.status
+                            )}`}
+                          />
+                          <span
+                            className={`font-medium ${getStockStatusColor(
+                              stockStatus.status
+                            )}`}
+                          >
+                            {product.inventory.currentStock}{" "}
+                            {product.pricing.unit}
                           </span>
                         </div>
-                        {item.currentStock <= item.minimumStock && (
+                        {product.inventory.currentStock <=
+                          product.inventory.minimumStock && (
                           <p className="text-xs text-yellow-400 mt-1">
-                            Min: {item.minimumStock} {item.unit}
+                            Min: {product.inventory.minimumStock}{" "}
+                            {product.pricing.unit}
                           </p>
                         )}
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-gray-300">{currency}{item.purchasePrice}</span>
+                        <span className="text-gray-300">
+                          {currency}
+                          {product.pricing.purchasePrice}
+                        </span>
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-white font-medium">{currency}{item.sellingPrice}</span>
+                        <span className="text-white font-medium">
+                          {currency}
+                          {product.pricing.sellingPrice}
+                        </span>
                       </td>
                       <td className="py-4 px-4">
-                        <span className="text-green-400 font-medium">{currency}{itemValue.toLocaleString()}</span>
+                        <span className="text-green-400 font-medium">
+                          {currency}
+                          {itemValue.toLocaleString()}
+                        </span>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => viewItemDetails(item)}
+                            onClick={() => viewItemDetails(product)}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => router.push(`/admin/inventory/edit/${item.id}`)}
+                            onClick={() =>
+                              router.push(
+                                `/admin/inventory/edit/${product._id}`
+                              )
+                            }
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -435,7 +446,9 @@ export default function InventoryPage() {
           {filteredItems.length === 0 && (
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">No items found matching your criteria.</p>
+              <p className="text-gray-400">
+                No items found matching your criteria.
+              </p>
             </div>
           )}
         </CardContent>
@@ -456,19 +469,23 @@ export default function InventoryPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-400">Category</p>
-                  <p className="text-white capitalize">{selectedItem.category}</p>
+                  <p className="text-white capitalize">
+                    {selectedItem.category.name}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Brand</p>
-                  <p className="text-white">{selectedItem.brand}</p>
+                  <p className="text-white">{selectedItem.brand.name}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Specifications</p>
-                  <p className="text-white">{getItemSpecifications(selectedItem)}</p>
+                  <p className="text-white">
+                    {getItemSpecifications(selectedItem)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Unit</p>
-                  <p className="text-white">{selectedItem.unit}</p>
+                  <p className="text-white">{selectedItem.pricing.unit}</p>
                 </div>
               </div>
             </div>
@@ -479,16 +496,34 @@ export default function InventoryPage() {
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="text-gray-400">Current Stock</p>
-                  <p className="text-white font-medium">{selectedItem.currentStock} {selectedItem.unit}</p>
+                  <p className="text-white font-medium">
+                    {selectedItem.inventory.currentStock}{" "}
+                    {selectedItem.pricing.unit}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Minimum Stock</p>
-                  <p className="text-white">{selectedItem.minimumStock} {selectedItem.unit}</p>
+                  <p className="text-white">
+                    {selectedItem.inventory.minimumStock}{" "}
+                    {selectedItem.pricing.unit}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Status</p>
-                  <p className={`font-medium ${getStockStatusColor(getStockStatus(selectedItem))}`}>
-                    {getStockStatus(getStockStatus(selectedItem))}
+                  <p
+                    className={`font-medium ${getStockStatusColor(
+                      getStockStatus(
+                        selectedItem.inventory.currentStock,
+                        selectedItem.inventory.minimumStock
+                      ).status
+                    )}`}
+                  >
+                    {
+                      getStockStatus(
+                        selectedItem.inventory.currentStock,
+                        selectedItem.inventory.minimumStock
+                      ).label
+                    }
                   </p>
                 </div>
               </div>
@@ -496,27 +531,44 @@ export default function InventoryPage() {
 
             {/* Pricing Information */}
             <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3">Pricing Information</h4>
+              <h4 className="font-medium text-white mb-3">
+                Pricing Information
+              </h4>
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="text-gray-400">Purchase Price</p>
-                  <p className="text-gray-300">{currency}{selectedItem.purchasePrice}</p>
+                  <p className="text-gray-300">
+                    {currency}
+                    {selectedItem.pricing.purchasePrice}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Selling Price</p>
-                  <p className="text-white font-medium">{currency}{selectedItem.sellingPrice}</p>
+                  <p className="text-white font-medium">
+                    {currency}
+                    {selectedItem.pricing.sellingPrice}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Total Value</p>
                   <p className="text-green-400 font-medium">
-                    {currency}{(selectedItem.currentStock * selectedItem.sellingPrice).toLocaleString()}
+                    {currency}
+                    {(
+                      selectedItem.inventory.currentStock *
+                      selectedItem.pricing.sellingPrice
+                    ).toLocaleString()}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="flex gap-3">
-              <Button className="flex-1" onClick={() => router.push(`/admin/inventory/edit/${selectedItem.id}`)}>
+              <Button
+                className="flex-1"
+                onClick={() =>
+                  router.push(`/admin/inventory/edit/${selectedItem._id}`)
+                }
+              >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Item
               </Button>
@@ -529,4 +581,4 @@ export default function InventoryPage() {
       </Modal>
     </div>
   );
-} 
+}

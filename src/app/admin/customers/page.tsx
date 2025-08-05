@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useLocaleStore } from "@/store/locale-store";
+import { useCustomers, useBills } from "@/hooks/use-sanity-data";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -20,72 +21,26 @@ import {
   MapPin,
   Calendar,
   Filter,
+  Loader2,
 } from "lucide-react";
 
-interface Customer {
-  id: string;
+interface CustomerWithStats {
+  _id: string;
   clerkId: string;
+  customerId: string;
   name: string;
   phone: string;
+  email?: string;
   location: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  // Calculated stats
   totalBills: number;
   totalSpent: number;
-  lastBillDate: string;
-  createdAt: string;
-  isActive: boolean;
+  lastBillDate: string | null;
 }
-
-// Mock data - will be replaced with real data from Sanity
-const mockCustomers: Customer[] = [
-  {
-    id: "1",
-    clerkId: "customer1",
-    name: "John Doe",
-    phone: "+91 9876543210",
-    location: "Mumbai, Maharashtra",
-    totalBills: 8,
-    totalSpent: 15000,
-    lastBillDate: "2025-01-15",
-    createdAt: "2024-06-15",
-    isActive: true,
-  },
-  {
-    id: "2",
-    clerkId: "customer2",
-    name: "Jane Smith",
-    phone: "+91 9876543211",
-    location: "Delhi, India",
-    totalBills: 6,
-    totalSpent: 12500,
-    lastBillDate: "2025-01-10",
-    createdAt: "2024-07-20",
-    isActive: true,
-  },
-  {
-    id: "3",
-    clerkId: "customer3",
-    name: "Mike Johnson",
-    phone: "+91 9876543212",
-    location: "Bangalore, Karnataka",
-    totalBills: 5,
-    totalSpent: 10800,
-    lastBillDate: "2025-01-08",
-    createdAt: "2024-08-10",
-    isActive: true,
-  },
-  {
-    id: "4",
-    clerkId: "customer4",
-    name: "Sarah Wilson",
-    phone: "+91 9876543213",
-    location: "Chennai, Tamil Nadu",
-    totalBills: 3,
-    totalSpent: 7500,
-    lastBillDate: "2024-12-28",
-    createdAt: "2024-09-05",
-    isActive: false,
-  },
-];
 
 const filterOptions = [
   { value: "all", label: "All Customers" },
@@ -96,21 +51,51 @@ const filterOptions = [
 export default function CustomersPage() {
   const { currency } = useLocaleStore();
   const router = useRouter();
+  const { customers, isLoading: customersLoading } = useCustomers();
+  const { bills, isLoading: billsLoading } = useBills();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [filterActive, setFilterActive] = useState<"all" | "active" | "inactive">("all");
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerWithStats | null>(null);
+  const [filterActive, setFilterActive] = useState<
+    "all" | "active" | "inactive"
+  >("all");
 
-  const filteredCustomers = mockCustomers.filter((customer) => {
+  // Calculate customer statistics
+  const customersWithStats: CustomerWithStats[] = customers.map((customer) => {
+    const customerBills = bills.filter(
+      (bill) => bill.customer?._id === customer._id
+    );
+    const totalBills = customerBills.length;
+    const totalSpent = customerBills
+      .filter((bill) => bill.paymentStatus === "paid")
+      .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+    const lastBill = customerBills.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+
+    return {
+      ...customer,
+      totalBills,
+      totalSpent,
+      lastBillDate: lastBill ? lastBill.createdAt.split("T")[0] : null,
+    };
+  });
+
+  const filteredCustomers = customersWithStats.filter((customer) => {
     const matchesSearch =
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.includes(searchTerm) ||
-      customer.location.toLowerCase().includes(searchTerm.toLowerCase());
+      customer.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter =
       filterActive === "all" ||
       (filterActive === "active" && customer.isActive) ||
       (filterActive === "inactive" && !customer.isActive);
     return matchesSearch && matchesFilter;
   });
+
+  const isLoading = customersLoading || billsLoading;
 
   const handleDeleteCustomer = (customerId: string) => {
     // TODO: Implement delete functionality
@@ -142,7 +127,11 @@ export default function CustomersPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-white">
-                {mockCustomers.length}
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  customersWithStats.length
+                )}
               </p>
               <p className="text-sm text-gray-400">Total Customers</p>
             </div>
@@ -155,7 +144,11 @@ export default function CustomersPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-white">
-                {mockCustomers.filter((c) => c.isActive).length}
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  customersWithStats.filter((c) => c.isActive).length
+                )}
               </p>
               <p className="text-sm text-gray-400">Active Customers</p>
             </div>
@@ -168,7 +161,11 @@ export default function CustomersPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-white">
-                {mockCustomers.reduce((sum, c) => sum + c.totalBills, 0)}
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  customersWithStats.reduce((sum, c) => sum + c.totalBills, 0)
+                )}
               </p>
               <p className="text-sm text-gray-400">Total Bills</p>
             </div>
@@ -181,10 +178,13 @@ export default function CustomersPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-white">
-                {currency}
-                {mockCustomers
-                  .reduce((sum, c) => sum + c.totalSpent, 0)
-                  .toLocaleString()}
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  `${currency}${customersWithStats
+                    .reduce((sum, c) => sum + c.totalSpent, 0)
+                    .toLocaleString()}`
+                )}
               </p>
               <p className="text-sm text-gray-400">Total Revenue</p>
             </div>
@@ -207,8 +207,11 @@ export default function CustomersPage() {
           <Dropdown
             options={filterOptions}
             value={filterActive}
-            onValueChange={(value) => setFilterActive(value as "all" | "active" | "inactive")}
+            onValueChange={(value) =>
+              setFilterActive(value as "all" | "active" | "inactive")
+            }
             placeholder="Filter customers"
+            searchable={false}
             className="w-full sm:w-48"
           />
         </div>
@@ -217,118 +220,160 @@ export default function CustomersPage() {
       {/* Customers Table */}
       <Card className="bg-gray-900 border-gray-800">
         <div className="p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Customers</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                    Customer
-                  </th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                    Contact
-                  </th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                    Activity
-                  </th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCustomers.map((customer, index) => (
-                  <motion.tr
-                    key={customer.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="border-b border-gray-800 hover:bg-gray-800/50"
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-sm">
-                            {customer.name.charAt(0)}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">
-                            {customer.name}
-                          </p>
-                          <p className="text-gray-400 text-sm">
-                            ID: {customer.clerkId}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="w-4 h-4 text-gray-400" />
-                          <span className="text-white">{customer.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-400">
-                            {customer.location}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="space-y-1">
-                        <p className="text-white text-sm">
-                          {customer.totalBills} bills • {currency}
-                          {customer.totalSpent.toLocaleString()}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          Last: {customer.lastBillDate}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          customer.isActive
-                            ? "bg-green-900 text-green-300"
-                            : "bg-red-900 text-red-300"
-                        }`}
-                      >
-                        {customer.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedCustomer(customer)}
-                          className="hover:bg-gray-800"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="hover:bg-gray-800">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCustomer(customer.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-white">Customers</h2>
+            {isLoading && (
+              <div className="flex items-center gap-2 text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Loading customers...</span>
+              </div>
+            )}
           </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+                <p className="text-gray-400">Loading customer data...</p>
+              </div>
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400 mb-2">No customers found</p>
+              <p className="text-sm text-gray-500">
+                {searchTerm
+                  ? "Try adjusting your search terms"
+                  : "Add your first customer to get started"}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-800">
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                      Customer
+                    </th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                      Contact
+                    </th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                      Activity
+                    </th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                      Status
+                    </th>
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCustomers.map((customer, index) => (
+                    <motion.tr
+                      key={customer._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="border-b border-gray-800 hover:bg-gray-800/50"
+                    >
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-medium text-sm">
+                              {customer.name.charAt(0)}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-white font-medium">
+                              {customer.name}
+                            </p>
+                            <p className="text-gray-400 text-sm">
+                              ID: {customer.customerId}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="w-4 h-4 text-gray-400" />
+                            <span className="text-white">{customer.phone}</span>
+                          </div>
+                          {customer.email && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-gray-400">@</span>
+                              <span className="text-gray-400">
+                                {customer.email}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-400">
+                              {customer.location}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="space-y-1">
+                          <p className="text-white text-sm">
+                            {customer.totalBills} bills • {currency}
+                            {customer.totalSpent.toLocaleString()}
+                          </p>
+                          <p className="text-gray-400 text-xs">
+                            {customer.lastBillDate
+                              ? `Last: ${customer.lastBillDate}`
+                              : "No bills yet"}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            customer.isActive
+                              ? "bg-green-900 text-green-300"
+                              : "bg-red-900 text-red-300"
+                          }`}
+                        >
+                          {customer.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedCustomer(customer)}
+                            className="hover:bg-gray-800"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-gray-800"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteCustomer(customer._id)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -379,9 +424,7 @@ export default function CustomersPage() {
               </div>
               <div className="p-3 bg-gray-800 rounded border border-gray-700">
                 <p className="text-sm text-gray-400">Last Bill</p>
-                <p className="text-white">
-                  {selectedCustomer.lastBillDate}
-                </p>
+                <p className="text-white">{selectedCustomer.lastBillDate}</p>
               </div>
               <div className="p-3 bg-gray-800 rounded border border-gray-700">
                 <p className="text-sm text-gray-400">Member Since</p>

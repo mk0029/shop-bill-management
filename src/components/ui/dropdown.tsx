@@ -1,7 +1,8 @@
 import * as React from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import { Input } from "./input";
 
 interface DropdownOption {
   value: string;
@@ -17,6 +18,8 @@ interface DropdownProps {
   disabled?: boolean;
   className?: string;
   size?: "sm" | "md" | "lg";
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 const sizeClasses = {
@@ -33,16 +36,34 @@ export function Dropdown({
   disabled = false,
   className,
   size = "md",
+  searchable = true,
+  searchPlaceholder = "Search...",
 }: DropdownProps) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const [searchTerm, setSearchTerm] = React.useState("");
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((option) => option.value === value);
 
+  // Filter options based on search term
+  const filteredOptions = React.useMemo(() => {
+    if (!searchable || !searchTerm.trim()) {
+      return options;
+    }
+    return options.filter((option) =>
+      option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [options, searchTerm, searchable]);
+
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
+        setSearchTerm("");
       }
     };
 
@@ -50,13 +71,35 @@ export function Dropdown({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Focus search input when dropdown opens
+  React.useEffect(() => {
+    if (isOpen && searchable && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen, searchable]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape") {
+      setIsOpen(false);
+      setSearchTerm("");
+    }
+  };
+
   const handleSelect = (optionValue: string) => {
     onValueChange(optionValue);
     setIsOpen(false);
+    setSearchTerm("");
   };
 
   return (
-    <div className={cn("relative", className)} ref={dropdownRef}>
+    <div
+      className={cn("relative", className)}
+      ref={dropdownRef}
+      onKeyDown={handleKeyDown}
+    >
       <Button
         variant="outline"
         onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -78,24 +121,48 @@ export function Dropdown({
       </Button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-auto">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => !option.disabled && handleSelect(option.value)}
-              disabled={option.disabled}
-              className={cn(
-                "w-full px-3 py-2 text-left text-sm transition-colors duration-150 flex items-center justify-between",
-                option.disabled
-                  ? "text-gray-500 cursor-not-allowed"
-                  : "text-white hover:bg-gray-700 cursor-pointer",
-                option.value === value && "bg-blue-600 text-white hover:bg-blue-700"
-              )}
-            >
-              <span>{option.label}</span>
-              {option.value === value && <Check className="h-4 w-4" />}
-            </button>
-          ))}
+        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-50 max-h-60 overflow-hidden">
+          {searchable && (
+            <div className="p-2 border-b border-gray-700">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder={searchPlaceholder}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
+          <div className="max-h-48 overflow-auto">
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-gray-400 text-center">
+                {searchTerm ? "No results found" : "No options available"}
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => !option.disabled && handleSelect(option.value)}
+                  disabled={option.disabled}
+                  className={cn(
+                    "w-full px-3 py-2 text-left text-sm transition-colors duration-150 flex items-center justify-between",
+                    option.disabled
+                      ? "text-gray-500 cursor-not-allowed"
+                      : "text-white hover:bg-gray-700 cursor-pointer",
+                    option.value === value &&
+                      "bg-blue-600 text-white hover:bg-blue-700"
+                  )}
+                >
+                  <span>{option.label}</span>
+                  {option.value === value && <Check className="h-4 w-4" />}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

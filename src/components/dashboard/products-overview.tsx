@@ -5,6 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Package, Plus, AlertTriangle } from "lucide-react";
+import {
+  getProductBrandName,
+  getProductCategoryName,
+} from "@/lib/inventory-data";
+import Link from "next/link";
 
 export function ProductsOverview() {
   const { products, activeProducts, isLoading } = useProducts();
@@ -118,7 +123,7 @@ export function ProductsOverview() {
                   <div>
                     <p className="font-medium text-white">{product.name}</p>
                     <p className="text-sm text-gray-400">
-                      {product.brand.name}
+                      {getProductBrandName(product)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -148,10 +153,12 @@ export function ProductsOverview() {
             <Package className="h-5 w-5" />
             Recent Products
           </CardTitle>
-          <Button size="sm" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Product
-          </Button>
+          <Link href="/admin/inventory/add">
+            <Button size="sm" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Product
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -165,7 +172,8 @@ export function ProductsOverview() {
                     <div>
                       <h3 className="font-medium text-white">{product.name}</h3>
                       <p className="text-sm text-gray-400">
-                        {product.brand.name} • {product.category.name}
+                        {getProductBrandName(product)} •{" "}
+                        {getProductCategoryName(product)}
                       </p>
                     </div>
                   </div>

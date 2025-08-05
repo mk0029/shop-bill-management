@@ -11,28 +11,60 @@ import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useRouter } from "next/navigation";
 import {
+  useCustomers,
+  useProducts,
+  useBrands,
+  useCategories,
+} from "@/hooks/use-sanity-data";
+import { useLocaleStore } from "@/store/locale-store";
+import {
   ArrowLeft,
   Save,
   User,
   FileText,
   DollarSign,
-  Plus,
   Trash2,
   Package,
 } from "lucide-react";
-import {
-  mockInventoryItems,
-  currency,
-  getItemSpecifications,
-  getItemDisplayName,
-} from "@/lib/inventory-data";
 
-// Mock data - will be replaced with real data
-const mockCustomers = [
-  { id: "1", name: "John Doe", phone: "123-456-7890" },
-  { id: "2", name: "Jane Smith", phone: "098-765-4321" },
-  { id: "3", name: "Mike Johnson", phone: "555-123-4567" },
-];
+// Helper function to get item display name from real product data
+const getItemDisplayName = (product: any) => {
+  const specs = [];
+
+  // Extract specifications from the product's specifications object
+  if (product.specifications) {
+    const spec = product.specifications;
+    if (spec.lightType) specs.push(spec.lightType);
+    if (spec.color) specs.push(spec.color);
+    if (spec.size) specs.push(spec.size);
+    if (spec.watts) specs.push(`${spec.watts}W`);
+    if (spec.wireGauge) specs.push(`${spec.wireGauge}mm`);
+    if (spec.ampere) specs.push(`${spec.ampere}A`);
+  }
+
+  const categoryName = product.category?.name || "Product";
+  const brandName = product.brand?.name || "Unknown Brand";
+  const specString = specs.length > 0 ? ` (${specs.join(", ")})` : "";
+
+  return `${categoryName} - ${brandName}${specString}`;
+};
+
+// Helper function to get item specifications for display
+const getItemSpecifications = (product: any) => {
+  const specs = [];
+
+  if (product.specifications) {
+    const spec = product.specifications;
+    if (spec.lightType) specs.push(`Type: ${spec.lightType}`);
+    if (spec.color) specs.push(`Color: ${spec.color}`);
+    if (spec.size) specs.push(`Size: ${spec.size}`);
+    if (spec.watts) specs.push(`${spec.watts}W`);
+    if (spec.wireGauge) specs.push(`Gauge: ${spec.wireGauge}mm`);
+    if (spec.ampere) specs.push(`${spec.ampere}A`);
+  }
+
+  return specs.join(", ");
+};
 
 // Using inventory data from helper file
 
@@ -74,7 +106,15 @@ interface ItemSelectionModal {
 
 export default function CreateBillPage() {
   const router = useRouter();
-  // Using currency from helper file
+  const { currency } = useLocaleStore();
+  const { customers, isLoading: customersLoading } = useCustomers();
+  const {
+    activeProducts,
+    getProductsByCategory,
+    isLoading: productsLoading,
+  } = useProducts();
+  const { brands } = useBrands();
+  const { categories } = useCategories();
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedItems, setSelectedItems] = useState<BillItem[]>([]);
@@ -103,12 +143,12 @@ export default function CreateBillPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const addItemToBill = (item: (typeof mockInventoryItems)[0]) => {
-    const existingItem = selectedItems.find((i) => i.id === item.id);
+  const addItemToBill = (product: any) => {
+    const existingItem = selectedItems.find((i) => i.id === product._id);
     if (existingItem) {
       setSelectedItems((prev) =>
         prev.map((i) =>
-          i.id === item.id
+          i.id === product._id
             ? {
                 ...i,
                 quantity: i.quantity + 1,
@@ -118,35 +158,22 @@ export default function CreateBillPage() {
         )
       );
     } else {
-      const specifications = getItemSpecifications(item);
+      const specifications = getItemSpecifications(product);
       setSelectedItems((prev) => [
         ...prev,
         {
-          id: item.id,
-          name: getItemDisplayName(item),
-          price: item.sellingPrice,
+          id: product._id,
+          name: getItemDisplayName(product),
+          price: product.pricing.sellingPrice,
           quantity: 1,
-          total: item.sellingPrice,
-          category: item.category,
-          brand: item.brand,
+          total: product.pricing.sellingPrice,
+          category: product.category?.name || "Unknown",
+          brand: product.brand?.name || "Unknown",
           specifications,
-          unit: item.unit,
+          unit: product.pricing.unit,
         },
       ]);
     }
-  };
-
-  const getItemSpecifications = (item: (typeof mockInventoryItems)[0]) => {
-    const specs = [];
-
-    if (item.lightType) specs.push(`Type: ${item.lightType}`);
-    if (item.color) specs.push(`Color: ${item.color}`);
-    if (item.size) specs.push(`Size: ${item.size}`);
-    if (item.watts) specs.push(`${item.watts}W`);
-    if (item.wireGauge) specs.push(`Gauge: ${item.wireGauge}`);
-    if (item.ampere) specs.push(`${item.ampere}`);
-
-    return specs.join(", ");
   };
 
   const openItemSelectionModal = (category: string) => {
@@ -166,42 +193,54 @@ export default function CreateBillPage() {
   };
 
   const filterItemsBySpecifications = () => {
-    let filteredItems = mockInventoryItems.filter(
-      (item) =>
-        item.category === itemSelectionModal.selectedCategory &&
-        item.currentStock > 0
+    // Get products by category
+    let filteredItems = activeProducts.filter(
+      (product) =>
+        product.category?.name?.toLowerCase() ===
+          itemSelectionModal.selectedCategory.toLowerCase() &&
+        product.inventory.currentStock > 0 &&
+        product.isActive
     );
 
     const { selectedSpecifications } = itemSelectionModal;
 
+    // Filter by brand
     if (selectedSpecifications.brand) {
       filteredItems = filteredItems.filter(
-        (item) => item.brand === selectedSpecifications.brand
+        (product) => product.brand?.name === selectedSpecifications.brand
       );
     }
+
+    // Filter by specifications
     if (selectedSpecifications.color) {
       filteredItems = filteredItems.filter(
-        (item) => item.color === selectedSpecifications.color
+        (product) =>
+          product.specifications?.color === selectedSpecifications.color
       );
     }
     if (selectedSpecifications.watts) {
       filteredItems = filteredItems.filter(
-        (item) => item.watts?.toString() === selectedSpecifications.watts
+        (product) =>
+          product.specifications?.watts?.toString() ===
+          selectedSpecifications.watts
       );
     }
     if (selectedSpecifications.size) {
       filteredItems = filteredItems.filter(
-        (item) => item.size === selectedSpecifications.size
+        (product) =>
+          product.specifications?.size === selectedSpecifications.size
       );
     }
     if (selectedSpecifications.wireGauge) {
       filteredItems = filteredItems.filter(
-        (item) => item.wireGauge === selectedSpecifications.wireGauge
+        (product) =>
+          product.specifications?.wireGauge === selectedSpecifications.wireGauge
       );
     }
     if (selectedSpecifications.ampere) {
       filteredItems = filteredItems.filter(
-        (item) => item.ampere === selectedSpecifications.ampere
+        (product) =>
+          product.specifications?.ampere === selectedSpecifications.ampere
       );
     }
 
@@ -254,9 +293,7 @@ export default function CreateBillPage() {
     router.push("/admin/billing");
   };
 
-  const selectedCustomer = mockCustomers.find(
-    (c) => c.id === formData.customerId
-  );
+  const selectedCustomer = customers.find((c) => c._id === formData.customerId);
 
   return (
     <div className="space-y-6">
@@ -290,17 +327,39 @@ export default function CreateBillPage() {
                     Select Customer *
                   </Label>
                   <Dropdown
-                    options={mockCustomers.map((c) => ({
-                      value: c.id,
-                      label: `${c.name} (${c.phone})`,
+                    options={customers.map((c) => ({
+                      value: c._id,
+                      label: `${c.name} (${c.phone}) - ${c.location}`,
                     }))}
                     value={formData.customerId}
                     onValueChange={(value) =>
                       handleInputChange("customerId", value)
                     }
-                    placeholder="Choose customer"
+                    placeholder={
+                      customersLoading
+                        ? "Loading customers..."
+                        : customers.length === 0
+                        ? "No customers found"
+                        : "Choose customer"
+                    }
+                    searchable={true}
+                    searchPlaceholder="Search customers..."
                     className="bg-gray-800 border-gray-700"
+                    disabled={customersLoading || customers.length === 0}
                   />
+                  {customers.length === 0 && !customersLoading && (
+                    <div className="text-xs text-yellow-400">
+                      <p>No customers available.</p>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => router.push("/admin/customers/add")}
+                        className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs"
+                      >
+                        Add your first customer →
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -314,6 +373,7 @@ export default function CreateBillPage() {
                       handleInputChange("serviceType", value)
                     }
                     placeholder="Select service type"
+                    searchable={false}
                     className="bg-gray-800 border-gray-700"
                   />
                 </div>
@@ -329,6 +389,7 @@ export default function CreateBillPage() {
                       handleInputChange("location", value)
                     }
                     placeholder="Select location type"
+                    searchable={false}
                     className="bg-gray-800 border-gray-700"
                   />
                 </div>
@@ -436,118 +497,54 @@ export default function CreateBillPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                {/* Category Buttons */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    onClick={() => openItemSelectionModal("light")}
-                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  >
-                    <div className="text-left">
-                      <p className="font-medium text-white">Lights</p>
-                      <p className="text-sm text-gray-400">
-                        LED, Bulb, Panel, Tubelight
-                      </p>
-                      <p className="text-sm text-blue-400">
-                        Select specifications
-                      </p>
-                    </div>
-                  </Button>
-                </motion.div>
+                {/* Dynamic Category Buttons */}
+                {categories.map((category) => {
+                  const categoryProducts = activeProducts.filter(
+                    (product) =>
+                      product.category?.name?.toLowerCase() ===
+                        category.name.toLowerCase() &&
+                      product.inventory.currentStock > 0 &&
+                      product.isActive
+                  );
 
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    onClick={() => openItemSelectionModal("wire")}
-                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  >
-                    <div className="text-left">
-                      <p className="font-medium text-white">Wires</p>
-                      <p className="text-sm text-gray-400">
-                        Electric wires by gauge
-                      </p>
-                      <p className="text-sm text-blue-400">Select gauge</p>
-                    </div>
-                  </Button>
-                </motion.div>
+                  return (
+                    <motion.div
+                      key={category._id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          openItemSelectionModal(category.name.toLowerCase())
+                        }
+                        className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                        disabled={categoryProducts.length === 0}
+                      >
+                        <div className="text-left">
+                          <p className="font-medium text-white">
+                            {category.name}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {category.description ||
+                              `${category.name} products`}
+                          </p>
+                          <p className="text-sm text-blue-400">
+                            {categoryProducts.length} items available
+                          </p>
+                        </div>
+                      </Button>
+                    </motion.div>
+                  );
+                })}
 
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    onClick={() => openItemSelectionModal("mcb")}
-                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  >
-                    <div className="text-left">
-                      <p className="font-medium text-white">MCB & Switches</p>
-                      <p className="text-sm text-gray-400">
-                        MCB, Switch, Socket
-                      </p>
-                      <p className="text-sm text-blue-400">Select ampere</p>
-                    </div>
-                  </Button>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    onClick={() => openItemSelectionModal("motor")}
-                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  >
-                    <div className="text-left">
-                      <p className="font-medium text-white">Motors</p>
-                      <p className="text-sm text-gray-400">Electric motors</p>
-                      <p className="text-sm text-blue-400">Select watts</p>
-                    </div>
-                  </Button>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    onClick={() => openItemSelectionModal("pump")}
-                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  >
-                    <div className="text-left">
-                      <p className="font-medium text-white">Pumps</p>
-                      <p className="text-sm text-gray-400">Water pumps</p>
-                      <p className="text-sm text-blue-400">Select watts</p>
-                    </div>
-                  </Button>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    onClick={() => openItemSelectionModal("other")}
-                    className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  >
-                    <div className="text-left">
-                      <p className="font-medium text-white">Other Items</p>
-                      <p className="text-sm text-gray-400">
-                        Miscellaneous items
-                      </p>
-                      <p className="text-sm text-blue-400">Browse all</p>
-                    </div>
-                  </Button>
-                </motion.div>
+                {/* Show loading state if categories are loading */}
+                {productsLoading && (
+                  <div className="col-span-full text-center py-8">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-400">Loading categories...</p>
+                  </div>
+                )}
               </div>
 
               {/* Selected Items */}
@@ -673,6 +670,17 @@ export default function CreateBillPage() {
                   <p className="text-gray-300">{selectedCustomer.name}</p>
                   <p className="text-sm text-gray-400">
                     {selectedCustomer.phone}
+                  </p>
+                  {selectedCustomer.email && (
+                    <p className="text-sm text-gray-400">
+                      {selectedCustomer.email}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-400">
+                    📍 {selectedCustomer.location}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    ID: {selectedCustomer.customerId}
                   </p>
                 </div>
               )}
@@ -866,351 +874,368 @@ export default function CreateBillPage() {
         } Items`}
       >
         <div className="space-y-6">
-          {/* Quick Filters */}
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-white">Quick Filters</h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setItemSelectionModal((prev) => ({
-                    ...prev,
-                    selectedSpecifications: {},
-                  }))
-                }
-                className="text-xs text-gray-400 hover:text-white"
-              >
-                Clear All
-              </Button>
+          {productsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-400">Loading products...</p>
+              </div>
             </div>
+          ) : (
+            <>
+              {/* Quick Filters */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium text-white">Quick Filters</h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setItemSelectionModal((prev) => ({
+                        ...prev,
+                        selectedSpecifications: {},
+                      }))
+                    }
+                    className="text-xs text-gray-400 hover:text-white"
+                  >
+                    Clear All
+                  </Button>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Brand Filter */}
-              <div className="space-y-2">
-                <Label className="text-gray-300 text-sm">Brand</Label>
-                <Dropdown
-                  options={[
-                    { value: "", label: "All Brands" },
-                    { value: "havells", label: "Havells" },
-                    { value: "philips", label: "Philips" },
-                    { value: "crompton", label: "Crompton" },
-                    { value: "anchor", label: "Anchor" },
-                    { value: "polycab", label: "Polycab" },
-                    { value: "other", label: "Other" },
-                  ]}
-                  value={itemSelectionModal.selectedSpecifications.brand || ""}
-                  onValueChange={(value) =>
-                    setItemSelectionModal((prev) => ({
-                      ...prev,
-                      selectedSpecifications: {
-                        ...prev.selectedSpecifications,
-                        brand: value || undefined,
-                      },
-                    }))
-                  }
-                  placeholder="Select brand"
-                  className="bg-gray-700 border-gray-600"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Brand Filter */}
+                  <div className="space-y-2">
+                    <Label className="text-gray-300 text-sm">Brand</Label>
+                    <Dropdown
+                      options={[
+                        { value: "", label: "All Brands" },
+                        ...brands.map((brand) => ({
+                          value: brand.name,
+                          label: brand.name,
+                        })),
+                      ]}
+                      value={
+                        itemSelectionModal.selectedSpecifications.brand || ""
+                      }
+                      onValueChange={(value) =>
+                        setItemSelectionModal((prev) => ({
+                          ...prev,
+                          selectedSpecifications: {
+                            ...prev.selectedSpecifications,
+                            brand: value || undefined,
+                          },
+                        }))
+                      }
+                      placeholder="Select brand"
+                      className="bg-gray-700 border-gray-600"
+                    />
+                  </div>
+
+                  {/* Color Filter (for lights) */}
+                  {itemSelectionModal.selectedCategory === "light" && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-300 text-sm">Color</Label>
+                      <Dropdown
+                        options={[
+                          { value: "", label: "All Colors" },
+                          { value: "white", label: "White" },
+                          { value: "warm-white", label: "Warm White" },
+                          { value: "cool-white", label: "Cool White" },
+                          { value: "yellow", label: "Yellow" },
+                          { value: "red", label: "Red" },
+                          { value: "blue", label: "Blue" },
+                          { value: "green", label: "Green" },
+                        ]}
+                        value={
+                          itemSelectionModal.selectedSpecifications.color || ""
+                        }
+                        onValueChange={(value) =>
+                          setItemSelectionModal((prev) => ({
+                            ...prev,
+                            selectedSpecifications: {
+                              ...prev.selectedSpecifications,
+                              color: value || undefined,
+                            },
+                          }))
+                        }
+                        placeholder="Select color"
+                        className="bg-gray-700 border-gray-600"
+                      />
+                    </div>
+                  )}
+
+                  {/* Watts Filter (for lights, motors, pumps) */}
+                  {["light", "motor", "pump"].includes(
+                    itemSelectionModal.selectedCategory
+                  ) && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-300 text-sm">Watts</Label>
+                      <Dropdown
+                        options={[
+                          { value: "", label: "All Watts" },
+                          { value: "0.5", label: "0.5W" },
+                          { value: "1", label: "1W" },
+                          { value: "3", label: "3W" },
+                          { value: "5", label: "5W" },
+                          { value: "9", label: "9W" },
+                          { value: "12", label: "12W" },
+                          { value: "15", label: "15W" },
+                          { value: "20", label: "20W" },
+                          { value: "30", label: "30W" },
+                          { value: "50", label: "50W" },
+                          { value: "100", label: "100W" },
+                          { value: "200", label: "200W" },
+                          { value: "500", label: "500W" },
+                          { value: "1000", label: "1000W" },
+                          { value: "1500", label: "1500W" },
+                          { value: "2000", label: "2000W" },
+                        ]}
+                        value={
+                          itemSelectionModal.selectedSpecifications.watts || ""
+                        }
+                        onValueChange={(value) =>
+                          setItemSelectionModal((prev) => ({
+                            ...prev,
+                            selectedSpecifications: {
+                              ...prev.selectedSpecifications,
+                              watts: value || undefined,
+                            },
+                          }))
+                        }
+                        placeholder="Select watts"
+                        className="bg-gray-700 border-gray-600"
+                      />
+                    </div>
+                  )}
+
+                  {/* Size Filter (for specific light types) */}
+                  {itemSelectionModal.selectedCategory === "light" && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-300 text-sm">Size</Label>
+                      <Dropdown
+                        options={[
+                          { value: "", label: "All Sizes" },
+                          { value: "small", label: "Small" },
+                          { value: "medium", label: "Medium" },
+                          { value: "large", label: "Large" },
+                          { value: "4ft", label: "4ft" },
+                          { value: "6ft", label: "6ft" },
+                          { value: "2x2", label: "2x2" },
+                          { value: "1x4", label: "1x4" },
+                        ]}
+                        value={
+                          itemSelectionModal.selectedSpecifications.size || ""
+                        }
+                        onValueChange={(value) =>
+                          setItemSelectionModal((prev) => ({
+                            ...prev,
+                            selectedSpecifications: {
+                              ...prev.selectedSpecifications,
+                              size: value || undefined,
+                            },
+                          }))
+                        }
+                        placeholder="Select size"
+                        className="bg-gray-700 border-gray-600"
+                      />
+                    </div>
+                  )}
+
+                  {/* Wire Gauge Filter (for wires) */}
+                  {itemSelectionModal.selectedCategory === "wire" && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-300 text-sm">
+                        Wire Gauge
+                      </Label>
+                      <Dropdown
+                        options={[
+                          { value: "", label: "All Gauges" },
+                          { value: "0.5mm", label: "0.5mm" },
+                          { value: "1mm", label: "1mm" },
+                          { value: "1.5mm", label: "1.5mm" },
+                          { value: "2.5mm", label: "2.5mm" },
+                          { value: "4mm", label: "4mm" },
+                          { value: "6mm", label: "6mm" },
+                          { value: "10mm", label: "10mm" },
+                        ]}
+                        value={
+                          itemSelectionModal.selectedSpecifications.wireGauge ||
+                          ""
+                        }
+                        onValueChange={(value) =>
+                          setItemSelectionModal((prev) => ({
+                            ...prev,
+                            selectedSpecifications: {
+                              ...prev.selectedSpecifications,
+                              wireGauge: value || undefined,
+                            },
+                          }))
+                        }
+                        placeholder="Select gauge"
+                        className="bg-gray-700 border-gray-600"
+                      />
+                    </div>
+                  )}
+
+                  {/* Ampere Filter (for MCB, switches, sockets) */}
+                  {["mcb", "switch", "socket"].includes(
+                    itemSelectionModal.selectedCategory
+                  ) && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-300 text-sm">Ampere</Label>
+                      <Dropdown
+                        options={[
+                          { value: "", label: "All Ampere" },
+                          { value: "6A", label: "6A" },
+                          { value: "10A", label: "10A" },
+                          { value: "16A", label: "16A" },
+                          { value: "20A", label: "20A" },
+                          { value: "25A", label: "25A" },
+                          { value: "32A", label: "32A" },
+                          { value: "40A", label: "40A" },
+                          { value: "63A", label: "63A" },
+                        ]}
+                        value={
+                          itemSelectionModal.selectedSpecifications.ampere || ""
+                        }
+                        onValueChange={(value) =>
+                          setItemSelectionModal((prev) => ({
+                            ...prev,
+                            selectedSpecifications: {
+                              ...prev.selectedSpecifications,
+                              ampere: value || undefined,
+                            },
+                          }))
+                        }
+                        placeholder="Select ampere"
+                        className="bg-gray-700 border-gray-600"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Color Filter (for lights) */}
-              {itemSelectionModal.selectedCategory === "light" && (
-                <div className="space-y-2">
-                  <Label className="text-gray-300 text-sm">Color</Label>
-                  <Dropdown
-                    options={[
-                      { value: "", label: "All Colors" },
-                      { value: "white", label: "White" },
-                      { value: "warm-white", label: "Warm White" },
-                      { value: "cool-white", label: "Cool White" },
-                      { value: "yellow", label: "Yellow" },
-                      { value: "red", label: "Red" },
-                      { value: "blue", label: "Blue" },
-                      { value: "green", label: "Green" },
-                    ]}
-                    value={
-                      itemSelectionModal.selectedSpecifications.color || ""
-                    }
-                    onValueChange={(value) =>
-                      setItemSelectionModal((prev) => ({
-                        ...prev,
-                        selectedSpecifications: {
-                          ...prev.selectedSpecifications,
-                          color: value || undefined,
-                        },
-                      }))
-                    }
-                    placeholder="Select color"
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-              )}
-
-              {/* Watts Filter (for lights, motors, pumps) */}
-              {["light", "motor", "pump"].includes(
-                itemSelectionModal.selectedCategory
+              {/* Active Filters Display */}
+              {Object.values(itemSelectionModal.selectedSpecifications).some(
+                (val) => val
               ) && (
-                <div className="space-y-2">
-                  <Label className="text-gray-300 text-sm">Watts</Label>
-                  <Dropdown
-                    options={[
-                      { value: "", label: "All Watts" },
-                      { value: "0.5", label: "0.5W" },
-                      { value: "1", label: "1W" },
-                      { value: "3", label: "3W" },
-                      { value: "5", label: "5W" },
-                      { value: "9", label: "9W" },
-                      { value: "12", label: "12W" },
-                      { value: "15", label: "15W" },
-                      { value: "20", label: "20W" },
-                      { value: "30", label: "30W" },
-                      { value: "50", label: "50W" },
-                      { value: "100", label: "100W" },
-                      { value: "200", label: "200W" },
-                      { value: "500", label: "500W" },
-                      { value: "1000", label: "1000W" },
-                      { value: "1500", label: "1500W" },
-                      { value: "2000", label: "2000W" },
-                    ]}
-                    value={
-                      itemSelectionModal.selectedSpecifications.watts || ""
-                    }
-                    onValueChange={(value) =>
-                      setItemSelectionModal((prev) => ({
-                        ...prev,
-                        selectedSpecifications: {
-                          ...prev.selectedSpecifications,
-                          watts: value || undefined,
-                        },
-                      }))
-                    }
-                    placeholder="Select watts"
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-              )}
-
-              {/* Size Filter (for specific light types) */}
-              {itemSelectionModal.selectedCategory === "light" && (
-                <div className="space-y-2">
-                  <Label className="text-gray-300 text-sm">Size</Label>
-                  <Dropdown
-                    options={[
-                      { value: "", label: "All Sizes" },
-                      { value: "small", label: "Small" },
-                      { value: "medium", label: "Medium" },
-                      { value: "large", label: "Large" },
-                      { value: "4ft", label: "4ft" },
-                      { value: "6ft", label: "6ft" },
-                      { value: "2x2", label: "2x2" },
-                      { value: "1x4", label: "1x4" },
-                    ]}
-                    value={itemSelectionModal.selectedSpecifications.size || ""}
-                    onValueChange={(value) =>
-                      setItemSelectionModal((prev) => ({
-                        ...prev,
-                        selectedSpecifications: {
-                          ...prev.selectedSpecifications,
-                          size: value || undefined,
-                        },
-                      }))
-                    }
-                    placeholder="Select size"
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-              )}
-
-              {/* Wire Gauge Filter (for wires) */}
-              {itemSelectionModal.selectedCategory === "wire" && (
-                <div className="space-y-2">
-                  <Label className="text-gray-300 text-sm">Wire Gauge</Label>
-                  <Dropdown
-                    options={[
-                      { value: "", label: "All Gauges" },
-                      { value: "0.5mm", label: "0.5mm" },
-                      { value: "1mm", label: "1mm" },
-                      { value: "1.5mm", label: "1.5mm" },
-                      { value: "2.5mm", label: "2.5mm" },
-                      { value: "4mm", label: "4mm" },
-                      { value: "6mm", label: "6mm" },
-                      { value: "10mm", label: "10mm" },
-                    ]}
-                    value={
-                      itemSelectionModal.selectedSpecifications.wireGauge || ""
-                    }
-                    onValueChange={(value) =>
-                      setItemSelectionModal((prev) => ({
-                        ...prev,
-                        selectedSpecifications: {
-                          ...prev.selectedSpecifications,
-                          wireGauge: value || undefined,
-                        },
-                      }))
-                    }
-                    placeholder="Select gauge"
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-              )}
-
-              {/* Ampere Filter (for MCB, switches, sockets) */}
-              {["mcb", "switch", "socket"].includes(
-                itemSelectionModal.selectedCategory
-              ) && (
-                <div className="space-y-2">
-                  <Label className="text-gray-300 text-sm">Ampere</Label>
-                  <Dropdown
-                    options={[
-                      { value: "", label: "All Ampere" },
-                      { value: "6A", label: "6A" },
-                      { value: "10A", label: "10A" },
-                      { value: "16A", label: "16A" },
-                      { value: "20A", label: "20A" },
-                      { value: "25A", label: "25A" },
-                      { value: "32A", label: "32A" },
-                      { value: "40A", label: "40A" },
-                      { value: "63A", label: "63A" },
-                    ]}
-                    value={
-                      itemSelectionModal.selectedSpecifications.ampere || ""
-                    }
-                    onValueChange={(value) =>
-                      setItemSelectionModal((prev) => ({
-                        ...prev,
-                        selectedSpecifications: {
-                          ...prev.selectedSpecifications,
-                          ampere: value || undefined,
-                        },
-                      }))
-                    }
-                    placeholder="Select ampere"
-                    className="bg-gray-700 border-gray-600"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Active Filters Display */}
-          {Object.values(itemSelectionModal.selectedSpecifications).some(
-            (val) => val
-          ) && (
-            <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-blue-400 text-sm font-medium">
-                  Active Filters:
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(itemSelectionModal.selectedSpecifications).map(
-                  ([key, value]) => {
-                    if (!value) return null;
-                    return (
-                      <span
-                        key={key}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300"
-                      >
-                        {key}: {value}
-                        <button
-                          onClick={() =>
-                            setItemSelectionModal((prev) => ({
-                              ...prev,
-                              selectedSpecifications: {
-                                ...prev.selectedSpecifications,
-                                [key]: undefined,
-                              },
-                            }))
-                          }
-                          className="ml-1 hover:text-blue-100"
+                <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-blue-400 text-sm font-medium">
+                      Active Filters:
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(
+                      itemSelectionModal.selectedSpecifications
+                    ).map(([key, value]) => {
+                      if (!value) return null;
+                      return (
+                        <span
+                          key={key}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300"
                         >
-                          ×
-                        </button>
-                      </span>
-                    );
-                  }
+                          {key}: {value}
+                          <button
+                            onClick={() =>
+                              setItemSelectionModal((prev) => ({
+                                ...prev,
+                                selectedSpecifications: {
+                                  ...prev.selectedSpecifications,
+                                  [key]: undefined,
+                                },
+                              }))
+                            }
+                            className="ml-1 hover:text-blue-100"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Available Items */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-white">
+                    Available Items ({filterItemsBySpecifications().length})
+                  </h4>
+                  <div className="text-sm text-gray-400">
+                    Showing filtered results
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                  {filterItemsBySpecifications().map((product) => (
+                    <motion.div
+                      key={product._id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          addItemToBill(product);
+                          closeItemSelectionModal();
+                        }}
+                        className="w-full h-auto p-4 flex flex-col items-start gap-3 bg-gray-800 border-gray-700 hover:bg-gray-700"
+                      >
+                        <div className="text-left w-full">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <p className="font-medium text-white text-sm">
+                                {getItemDisplayName(product)}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {product.brand?.name || "Unknown Brand"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-blue-400 font-medium">
+                                {currency}
+                                {product.pricing.sellingPrice}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Stock: {product.inventory.currentStock}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-gray-400 space-y-1">
+                            <p>{getItemSpecifications(product)}</p>
+                            <p>
+                              Purchase Price: {currency}
+                              {product.pricing.purchasePrice}
+                            </p>
+                            <p>
+                              Profit: {currency}
+                              {product.pricing.sellingPrice -
+                                product.pricing.purchasePrice}
+                            </p>
+                          </div>
+                        </div>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {filterItemsBySpecifications().length === 0 && (
+                  <div className="text-center py-8">
+                    <Package className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">
+                      No items found matching your criteria.
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Try adjusting your filters or check inventory.
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
+            </>
           )}
-
-          {/* Available Items */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-white">
-                Available Items ({filterItemsBySpecifications().length})
-              </h4>
-              <div className="text-sm text-gray-400">
-                Showing filtered results
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-              {filterItemsBySpecifications().map((item) => (
-                <motion.div
-                  key={item.id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      addItemToBill(item);
-                      closeItemSelectionModal();
-                    }}
-                    className="w-full h-auto p-4 flex flex-col items-start gap-3 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  >
-                    <div className="text-left w-full">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <p className="font-medium text-white text-sm">
-                            {getItemDisplayName(item)}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {item.brand}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-blue-400 font-medium">
-                            {currency}
-                            {item.sellingPrice}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Stock: {item.currentStock}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-gray-400 space-y-1">
-                        <p>{getItemSpecifications(item)}</p>
-                        <p>
-                          Purchase Price: {currency}
-                          {item.purchasePrice}
-                        </p>
-                        <p>
-                          Profit: {currency}
-                          {item.sellingPrice - item.purchasePrice}
-                        </p>
-                      </div>
-                    </div>
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
-
-            {filterItemsBySpecifications().length === 0 && (
-              <div className="text-center py-8">
-                <Package className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">
-                  No items found matching your criteria.
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Try adjusting your filters or check inventory.
-                </p>
-              </div>
-            )}
-          </div>
 
           <div className="flex gap-3">
             <Button

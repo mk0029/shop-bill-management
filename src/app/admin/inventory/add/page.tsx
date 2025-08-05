@@ -22,33 +22,27 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useBrandStore } from "@/store/brand-store";
-import {
-  itemCategories,
-  lightTypes,
-  colors,
-  sizes,
-  wireGauges,
-  ampereRatings,
-  units,
-  currency,
-  getCategoryLabel,
-  getLightTypeLabel,
-  getUnitLabel,
-  getItemSpecifications,
-} from "@/lib/inventory-data";
+import { useCategoryStore } from "@/store/category-store";
+import { useSpecificationsStore } from "@/store/specifications-store";
+import { currency } from "@/lib/inventory-data";
 
 // Using data from helper file instead of local arrays
 
 export default function AddInventoryItemPage() {
   const router = useRouter();
   const { brands, fetchBrands } = useBrandStore();
+  const { categories, fetchCategories, getActiveCategories } =
+    useCategoryStore();
+  const { getOptionsByCategory, getOptionLabel } = useSpecificationsStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [successData, setSuccessData] = useState<unknown>(null);
+  const [successData, setSuccessData] = useState<SuccessPopupData | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Fetch brands on component mount
+  // Fetch data on component mount
   useEffect(() => {
     fetchBrands();
-  }, [fetchBrands]);
+    fetchCategories();
+  }, [fetchBrands, fetchCategories]);
 
   const [formData, setFormData] = useState({
     category: "",
@@ -66,8 +60,56 @@ export default function AddInventoryItemPage() {
     description: "",
   });
 
+  // Get dropdown options from stores
+  const itemCategories = getActiveCategories().map((cat) => ({
+    value: cat.name.toLowerCase(),
+    label: cat.name,
+  }));
+
+  const lightTypes = getOptionsByCategory("light", "lightType");
+  const colors = getOptionsByCategory(formData.category || "light", "color");
+  const sizes = getOptionsByCategory(formData.category || "light", "size");
+  const wireGauges = getOptionsByCategory("wire", "wireGauge");
+  const ampereRatings = getOptionsByCategory(
+    formData.category || "switch",
+    "amperage"
+  );
+  const units = useSpecificationsStore.getState().unitOptions;
+
+  // Helper functions
+  const getCategoryLabel = (category: string) => {
+    const found = itemCategories.find((cat) => cat.value === category);
+    return found ? found.label : category;
+  };
+
+  const getLightTypeLabel = (lightType: string) => {
+    return getOptionLabel(lightType, "lightType");
+  };
+
+  const getUnitLabel = (unit: string) => {
+    return getOptionLabel(unit, "unit");
+  };
+
+  const getItemSpecifications = () => {
+    const specs = [];
+
+    if (formData.lightType) specs.push(`Type: ${formData.lightType}`);
+    if (formData.color) specs.push(`Color: ${formData.color}`);
+    if (formData.size) specs.push(`Size: ${formData.size}`);
+    if (formData.watts) specs.push(`Watts: ${formData.watts}W`);
+    if (formData.wireGauge) specs.push(`Gauge: ${formData.wireGauge}`);
+    if (formData.ampere) specs.push(`Ampere: ${formData.ampere}`);
+
+    return specs.join(", ");
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Clear error when user starts typing
+    if (formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    }
   };
 
   // Check if item is a light
@@ -117,60 +159,61 @@ export default function AddInventoryItemPage() {
   };
 
   const validateForm = () => {
+    const errors: Record<string, string> = {};
+
     if (!formData.category) {
-      alert("Please select a category");
-      return false;
+      errors.category = "Please select a category";
     }
     if (!formData.brand) {
-      alert("Please select a brand");
-      return false;
+      errors.brand = "Please select a brand";
     }
     if (!formData.unit) {
-      alert("Please select a unit");
-      return false;
+      errors.unit = "Please select a unit";
     }
     if (!formData.purchasePrice || parseFloat(formData.purchasePrice) <= 0) {
-      alert("Please enter a valid purchase price");
-      return false;
+      errors.purchasePrice = "Please enter a valid purchase price";
     }
     if (!formData.sellingPrice || parseFloat(formData.sellingPrice) <= 0) {
-      alert("Please enter a valid selling price");
-      return false;
+      errors.sellingPrice = "Please enter a valid selling price";
     }
     if (
+      formData.purchasePrice &&
+      formData.sellingPrice &&
       parseFloat(formData.sellingPrice) < parseFloat(formData.purchasePrice)
     ) {
-      alert("Selling price should be greater than or equal to purchase price");
-      return false;
+      errors.sellingPrice =
+        "Selling price should be greater than or equal to purchase price";
     }
     if (!formData.currentStock || parseInt(formData.currentStock) < 0) {
-      alert("Please enter a valid current stock");
-      return false;
+      errors.currentStock = "Please enter a valid current stock";
     }
 
     // Category-specific validations
     if (isLightItem && !formData.lightType) {
-      alert("Please select a light type");
-      return false;
+      errors.lightType = "Please select a light type";
     }
     if (needsColor && !formData.color) {
-      alert("Please select a color");
-      return false;
+      errors.color = "Please select a color";
     }
     if (needsSize && !formData.size) {
-      alert("Please select a size");
-      return false;
+      errors.size = "Please select a size";
     }
     if (needsWatts && (!formData.watts || parseFloat(formData.watts) <= 0)) {
-      alert("Please enter valid watts");
-      return false;
+      errors.watts = "Please enter valid watts";
     }
     if (needsWireGauge && !formData.wireGauge) {
-      alert("Please select wire gauge");
-      return false;
+      errors.wireGauge = "Please select wire gauge";
     }
     if (needsAmpere && !formData.ampere) {
-      alert("Please select ampere rating");
+      errors.ampere = "Please select ampere rating";
+    }
+
+    setFormErrors(errors);
+
+    // Show first error as alert if there are errors
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      alert(firstError);
       return false;
     }
 
@@ -265,19 +308,6 @@ export default function AddInventoryItemPage() {
     }
   };
 
-  const getItemSpecifications = () => {
-    const specs = [];
-
-    if (formData.lightType) specs.push(`Type: ${formData.lightType}`);
-    if (formData.color) specs.push(`Color: ${formData.color}`);
-    if (formData.size) specs.push(`Size: ${formData.size}`);
-    if (formData.watts) specs.push(`Watts: ${formData.watts}W`);
-    if (formData.wireGauge) specs.push(`Gauge: ${formData.wireGauge}`);
-    if (formData.ampere) specs.push(`Ampere: ${formData.ampere}`);
-
-    return specs.join(", ");
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -302,7 +332,7 @@ export default function AddInventoryItemPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             {/* Basic Information */}
             <div className="space-y-2">
               <Label htmlFor="category" className="text-gray-300">
@@ -387,7 +417,6 @@ export default function AddInventoryItemPage() {
                   onChange={(e) => handleInputChange("watts", e.target.value)}
                   className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Enter watts (e.g., 5, 12, 20, 100, 500, 1000)"
-                  required
                   disabled={isLoading}
                 />
               </div>
@@ -470,7 +499,6 @@ export default function AddInventoryItemPage() {
                     }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter purchase price"
-                    required
                     disabled={isLoading}
                   />
                 </div>
@@ -493,7 +521,6 @@ export default function AddInventoryItemPage() {
                     }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter selling price"
-                    required
                     disabled={isLoading}
                   />
                 </div>
@@ -516,7 +543,6 @@ export default function AddInventoryItemPage() {
                   }
                   className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Enter purchased quantity"
-                  required
                   disabled={isLoading}
                 />
               </div>

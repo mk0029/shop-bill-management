@@ -17,7 +17,7 @@ interface CustomerFormProps {
   onCancel: () => void;
   loading?: boolean;
   customer?: Customer; // For editing existing customer
-  onSuccess?: (customer: any) => void; // Callback for successful creation
+  onSuccess?: (customer: unknown) => void; // Callback for successful creation
 }
 
 export function CustomerForm({
@@ -99,15 +99,13 @@ export function CustomerForm({
       if (result.success && result.data) {
         // Clear form after successful submission
         clearForm();
-        
+
         // Show success popup with customer credentials
         const resetForm = () => {
           clearForm();
         };
-        
-        setSuccessData(
-          createCustomerSuccessPopup(result.data, resetForm)
-        );
+
+        setSuccessData(createCustomerSuccessPopup(result.data, resetForm));
 
         // Call onSuccess callback if provided
         if (onSuccess) {
@@ -138,7 +136,7 @@ export function CustomerForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="space-y-2">
           <Label htmlFor="name">Customer Name</Label>
           <Input
