@@ -15,6 +15,7 @@ export interface AuthUser {
   email?: string;
   phone: string;
   location: string;
+  profileImage?: string;
   role: "admin" | "customer";
   isActive: boolean;
   createdAt: string;
@@ -154,6 +155,7 @@ export async function getUserByCustomerId(
       email,
       phone,
       location,
+      profileImage,
       role,
       isActive,
       createdAt,

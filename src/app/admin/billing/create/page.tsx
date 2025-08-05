@@ -26,9 +26,32 @@ import {
   Trash2,
   Package,
 } from "lucide-react";
+import { createBill } from "@/lib/form-service";
+
+interface Product {
+  _id: string;
+  name: string;
+  category?: { name: string };
+  brand?: { name: string };
+  specifications?: {
+    lightType?: string;
+    color?: string;
+    size?: string;
+    wattage?: number;
+    wireGauge?: string;
+    amperage?: string;
+  };
+  inventory: {
+    currentStock: number;
+  };
+  pricing: {
+    sellingPrice: number;
+    unit: string;
+  };
+}
 
 // Helper function to get item display name from real product data
-const getItemDisplayName = (product: any) => {
+const getItemDisplayName = (product: Product) => {
   const specs = [];
 
   // Extract specifications from the product's specifications object
@@ -37,9 +60,9 @@ const getItemDisplayName = (product: any) => {
     if (spec.lightType) specs.push(spec.lightType);
     if (spec.color) specs.push(spec.color);
     if (spec.size) specs.push(spec.size);
-    if (spec.watts) specs.push(`${spec.watts}W`);
+    if (spec.wattage) specs.push(`${spec.wattage}W`);
     if (spec.wireGauge) specs.push(`${spec.wireGauge}mm`);
-    if (spec.ampere) specs.push(`${spec.ampere}A`);
+    if (spec.amperage) specs.push(`${spec.amperage}A`);
   }
 
   const categoryName = product.category?.name || "Product";
@@ -50,7 +73,7 @@ const getItemDisplayName = (product: any) => {
 };
 
 // Helper function to get item specifications for display
-const getItemSpecifications = (product: any) => {
+const getItemSpecifications = (product: Product) => {
   const specs = [];
 
   if (product.specifications) {
@@ -58,9 +81,9 @@ const getItemSpecifications = (product: any) => {
     if (spec.lightType) specs.push(`Type: ${spec.lightType}`);
     if (spec.color) specs.push(`Color: ${spec.color}`);
     if (spec.size) specs.push(`Size: ${spec.size}`);
-    if (spec.watts) specs.push(`${spec.watts}W`);
+    if (spec.wattage) specs.push(`${spec.wattage}W`);
     if (spec.wireGauge) specs.push(`Gauge: ${spec.wireGauge}mm`);
-    if (spec.ampere) specs.push(`${spec.ampere}A`);
+    if (spec.amperage) specs.push(`${spec.amperage}A`);
   }
 
   return specs.join(", ");
@@ -110,7 +133,6 @@ export default function CreateBillPage() {
   const { customers, isLoading: customersLoading } = useCustomers();
   const {
     activeProducts,
-    getProductsByCategory,
     isLoading: productsLoading,
   } = useProducts();
   const { brands } = useBrands();
@@ -137,26 +159,39 @@ export default function CreateBillPage() {
     notes: "",
     repairCharges: 0,
     homeVisitFee: 0,
+    laborCharges: 0,
   });
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    // Convert numeric fields to numbers
+    if (['repairCharges', 'homeVisitFee', 'laborCharges'].includes(field)) {
+      const numericValue = Number(value) || 0;
+      setFormData((prev) => ({ ...prev, [field]: numericValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
   };
 
-  const addItemToBill = (product: any) => {
+  const addItemToBill = (product: Product) => {
     const existingItem = selectedItems.find((i) => i.id === product._id);
+    const maxStock = product.inventory.currentStock;
     if (existingItem) {
-      setSelectedItems((prev) =>
-        prev.map((i) =>
-          i.id === product._id
-            ? {
-                ...i,
-                quantity: i.quantity + 1,
-                total: (i.quantity + 1) * i.price,
-              }
-            : i
-        )
-      );
+      if (existingItem.quantity < maxStock) {
+        setSelectedItems((prev) =>
+          prev.map((i) =>
+            i.id === product._id
+              ? {
+                  ...i,
+                  quantity: i.quantity + 1,
+                  total: Number(i.quantity + 1) * Number(i.price),
+                }
+              : i
+          )
+        );
+      } else {
+        setAlertMessage(`Only ${maxStock} in stock!`);
+        setShowAlertModal(true);
+      }
     } else {
       const specifications = getItemSpecifications(product);
       setSelectedItems((prev) => [
@@ -164,9 +199,9 @@ export default function CreateBillPage() {
         {
           id: product._id,
           name: getItemDisplayName(product),
-          price: product.pricing.sellingPrice,
+          price: Number(product.pricing.sellingPrice),
           quantity: 1,
-          total: product.pricing.sellingPrice,
+          total: Number(product.pricing.sellingPrice),
           category: product.category?.name || "Unknown",
           brand: product.brand?.name || "Unknown",
           specifications,
@@ -221,7 +256,7 @@ export default function CreateBillPage() {
     if (selectedSpecifications.watts) {
       filteredItems = filteredItems.filter(
         (product) =>
-          product.specifications?.watts?.toString() ===
+          product.specifications?.wattage?.toString() ===
           selectedSpecifications.watts
       );
     }
@@ -240,7 +275,7 @@ export default function CreateBillPage() {
     if (selectedSpecifications.ampere) {
       filteredItems = filteredItems.filter(
         (product) =>
-          product.specifications?.ampere === selectedSpecifications.ampere
+          product.specifications?.amperage === selectedSpecifications.ampere
       );
     }
 
@@ -248,12 +283,19 @@ export default function CreateBillPage() {
   };
 
   const updateItemQuantity = (itemId: string, quantity: number) => {
-    if (quantity <= 0) {
+    const product = activeProducts.find((p) => p._id === itemId);
+    const maxStock = product ? product.inventory.currentStock : Infinity;
+    const clampedQuantity = Math.max(1, Math.min(quantity, maxStock));
+    if (clampedQuantity <= 0) {
       setSelectedItems((prev) => prev.filter((i) => i.id !== itemId));
     } else {
       setSelectedItems((prev) =>
         prev.map((i) =>
-          i.id === itemId ? { ...i, quantity, total: quantity * i.price } : i
+          i.id === itemId ? { 
+            ...i, 
+            quantity: clampedQuantity, 
+            total: Number(clampedQuantity) * Number(i.price) 
+          } : i
         )
       );
     }
@@ -264,7 +306,7 @@ export default function CreateBillPage() {
   };
 
   const calculateTotal = () => {
-    return selectedItems.reduce((sum, item) => sum + item.total, 0);
+    return selectedItems.reduce((sum, item) => sum + Number(item.total), 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -278,11 +320,47 @@ export default function CreateBillPage() {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setShowSuccessModal(true);
+      // Prepare bill data for API
+      const billData = {
+        customerId: formData.customerId,
+        items: selectedItems.map((item) => ({
+          productId: item.id,
+          productName: item.name,
+          category: item.category,
+          brand: item.brand,
+          specifications: item.specifications,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.price),
+          unit: item.unit,
+        })),
+        serviceType: formData.serviceType as "sale" | "repair" | "custom" | "installation" | "maintenance",
+        locationType: formData.location as "home" | "shop" | "office",
+        homeVisitFee: Number(formData.homeVisitFee),
+        repairCharges: Number(formData.repairCharges),
+        laborCharges: Number(formData.laborCharges),
+        notes: formData.notes,
+      };
+
+      console.log('Sending bill data:', billData);
+      console.log('Bill data types:', {
+        homeVisitFeeType: typeof billData.homeVisitFee,
+        repairChargesType: typeof billData.repairCharges,
+        laborChargesType: typeof billData.laborCharges,
+        homeVisitFeeValue: billData.homeVisitFee,
+        repairChargesValue: billData.repairCharges,
+        laborChargesValue: billData.laborCharges
+      });
+      const result = await createBill(billData);
+      if (result.success) {
+        setShowSuccessModal(true);
+      } else {
+        setAlertMessage(result.error || "Failed to create bill");
+        setShowAlertModal(true);
+      }
     } catch (error) {
       console.error("Error creating bill:", error);
+      setAlertMessage("Error creating bill");
+      setShowAlertModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -450,7 +528,7 @@ export default function CreateBillPage() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={formData.repairCharges}
+                    value={formData.repairCharges || ""}
                     onChange={(e) =>
                       handleInputChange("repairCharges", e.target.value)
                     }
@@ -472,7 +550,7 @@ export default function CreateBillPage() {
                     min="50"
                     max="200"
                     step="1"
-                    value={formData.homeVisitFee}
+                    value={formData.homeVisitFee || ""}
                     onChange={(e) =>
                       handleInputChange("homeVisitFee", e.target.value)
                     }
@@ -484,6 +562,25 @@ export default function CreateBillPage() {
                   </p>
                 </div>
               )}
+
+              {/* Labor Charges */}
+              <div className="space-y-2">
+                <Label htmlFor="laborCharges" className="text-gray-300">
+                  Labor Charges ({currency})
+                </Label>
+                <Input
+                  id="laborCharges"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.laborCharges || ""}
+                  onChange={(e) =>
+                    handleInputChange("laborCharges", e.target.value)
+                  }
+                  className="bg-gray-800 border-gray-700 text-white"
+                  placeholder="Enter labor charges"
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -730,7 +827,7 @@ export default function CreateBillPage() {
                 <hr className="border-gray-700" />
 
                 {/* Additional Charges */}
-                {(formData.repairCharges > 0 || formData.homeVisitFee > 0) && (
+                {(formData.repairCharges > 0 || formData.homeVisitFee > 0 || formData.laborCharges > 0) && (
                   <div className="space-y-2">
                     {formData.repairCharges > 0 && (
                       <div className="flex justify-between text-gray-400">
@@ -747,6 +844,15 @@ export default function CreateBillPage() {
                         <span>
                           {currency}
                           {formData.homeVisitFee}
+                        </span>
+                      </div>
+                    )}
+                    {formData.laborCharges > 0 && (
+                      <div className="flex justify-between text-gray-400">
+                        <span>Labor Charges</span>
+                        <span>
+                          {currency}
+                          {formData.laborCharges}
                         </span>
                       </div>
                     )}
@@ -769,9 +875,10 @@ export default function CreateBillPage() {
                     <span>
                       {currency}
                       {(
-                        calculateTotal() +
+                        Number(calculateTotal()) +
                         Number(formData.repairCharges) +
-                        Number(formData.homeVisitFee)
+                        Number(formData.homeVisitFee) +
+                        Number(formData.laborCharges)
                       ).toFixed(2)}
                     </span>
                   </div>
@@ -823,9 +930,10 @@ export default function CreateBillPage() {
                 <span className="text-white">
                   {currency}
                   {(
-                    calculateTotal() +
+                    Number(calculateTotal()) +
                     Number(formData.repairCharges) +
-                    Number(formData.homeVisitFee)
+                    Number(formData.homeVisitFee) +
+                    Number(formData.laborCharges)
                   ).toFixed(2)}
                 </span>
               </div>
@@ -854,6 +962,7 @@ export default function CreateBillPage() {
                   notes: "",
                   repairCharges: 0,
                   homeVisitFee: 0,
+                  laborCharges: 0,
                 });
               }}
             >

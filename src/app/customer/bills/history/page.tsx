@@ -9,101 +9,9 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
 import { useLocaleStore } from "@/store/locale-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useBills } from "@/hooks/use-sanity-data";
 import { Search, Filter, Eye, Download, Calendar, DollarSign, Receipt, Clock, CheckCircle, AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
-
-// Mock data - will be replaced with real data
-const mockBillHistory = [
-  {
-    id: "1",
-    amount: 2500,
-    date: "2025-01-15",
-    dueDate: "2025-01-30",
-    status: "paid",
-    items: [
-      { name: "Electrical Wiring", quantity: 1, price: 1500, total: 1500 },
-      { name: "Circuit Breaker", quantity: 2, price: 75, total: 150 },
-      { name: "Light Fixture", quantity: 3, price: 45, total: 135 },
-      { name: "Labor", quantity: 1, price: 715, total: 715 },
-    ],
-    serviceType: "Installation",
-    location: "Residential",
-    paymentDate: "2025-01-20",
-  },
-  {
-    id: "2",
-    amount: 1800,
-    date: "2025-01-14",
-    dueDate: "2025-01-29",
-    status: "pending",
-    items: [
-      { name: "Outlet Installation", quantity: 4, price: 60, total: 240 },
-      { name: "Switch Installation", quantity: 3, price: 50, total: 150 },
-      { name: "Labor", quantity: 1, price: 1410, total: 1410 },
-    ],
-    serviceType: "Repair",
-    location: "Residential",
-    paymentDate: null,
-  },
-  {
-    id: "3",
-    amount: 3200,
-    date: "2025-01-13",
-    dueDate: "2025-01-28",
-    status: "paid",
-    items: [
-      { name: "Electrical Panel", quantity: 1, price: 300, total: 300 },
-      { name: "Electrical Wiring", quantity: 1, price: 1500, total: 1500 },
-      { name: "Labor", quantity: 1, price: 1400, total: 1400 },
-    ],
-    serviceType: "Installation",
-    location: "Commercial",
-    paymentDate: "2025-01-25",
-  },
-  {
-    id: "4",
-    amount: 1500,
-    date: "2025-01-12",
-    dueDate: "2025-01-27",
-    status: "overdue",
-    items: [
-      { name: "Light Fixture", quantity: 5, price: 45, total: 225 },
-      { name: "Labor", quantity: 1, price: 1275, total: 1275 },
-    ],
-    serviceType: "Maintenance",
-    location: "Residential",
-    paymentDate: null,
-  },
-  {
-    id: "5",
-    amount: 2200,
-    date: "2025-01-10",
-    dueDate: "2025-01-25",
-    status: "paid",
-    items: [
-      { name: "Emergency Repair", quantity: 1, price: 500, total: 500 },
-      { name: "Parts Replacement", quantity: 1, price: 300, total: 300 },
-      { name: "Labor", quantity: 1, price: 1400, total: 1400 },
-    ],
-    serviceType: "Emergency",
-    location: "Residential",
-    paymentDate: "2025-01-12",
-  },
-  {
-    id: "6",
-    amount: 900,
-    date: "2025-01-08",
-    dueDate: "2025-01-23",
-    status: "paid",
-    items: [
-      { name: "Inspection", quantity: 1, price: 200, total: 200 },
-      { name: "Minor Repairs", quantity: 1, price: 400, total: 400 },
-      { name: "Labor", quantity: 1, price: 300, total: 300 },
-    ],
-    serviceType: "Inspection",
-    location: "Residential",
-    paymentDate: "2025-01-15",
-  },
-];
+import { BillItem, Bill } from "@/types";
 
 const statusOptions = [
   { value: "all", label: "All Status" },
@@ -149,50 +57,61 @@ const getStatusIcon = (status: string) => {
 export default function CustomerBillHistoryPage() {
   const { t, currency } = useLocaleStore();
   const { user } = useAuthStore();
+  const { getBillsByCustomer } = useBills();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeRange, setTimeRange] = useState("all");
-  const [selectedBill, setSelectedBill] = useState<any>(null);
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showBillModal, setShowBillModal] = useState(false);
 
-  const filteredBills = mockBillHistory.filter(bill => {
-    const matchesSearch = bill.id.includes(searchTerm) ||
-                         bill.serviceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         bill.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || bill.status === statusFilter;
-    
+  // Get real bills for the current customer
+  const allBills = user ? getBillsByCustomer(user.id) : [];
+
+  // Filter bills by search, status, and time range
+  const filteredBills = allBills.filter((bill) => {
+    const matchesSearch =
+      bill.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.locationType?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" ||
+      bill.paymentStatus === statusFilter ||
+      bill.status === statusFilter;
     // Time range filtering
     let matchesTime = true;
     if (timeRange !== "all") {
       const daysAgo = parseInt(timeRange);
-      const billDate = new Date(bill.date);
+      const billDate = new Date(bill.serviceDate);
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
       matchesTime = billDate >= cutoffDate;
     }
-    
     return matchesSearch && matchesStatus && matchesTime;
   });
 
-  const totalSpent = mockBillHistory.filter(bill => bill.status === "paid").reduce((sum, bill) => sum + bill.amount, 0);
-  const totalBills = mockBillHistory.length;
-  const paidBills = mockBillHistory.filter(bill => bill.status === "paid").length;
+  const totalSpent = allBills
+    .filter((bill) => bill.paymentStatus === "paid")
+    .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+  const totalBills = allBills.length;
+  const paidBills = allBills.filter((bill) => bill.paymentStatus === "paid").length;
   const averageBillAmount = totalBills > 0 ? totalSpent / totalBills : 0;
 
   // Calculate monthly spending trend
-  const monthlyData = mockBillHistory
-    .filter(bill => bill.status === "paid")
+  const monthlyData = allBills
+    .filter((bill) => bill.paymentStatus === "paid")
     .reduce((acc, bill) => {
-      const month = new Date(bill.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-      acc[month] = (acc[month] || 0) + bill.amount;
+      const month = new Date(bill.serviceDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      acc[month] = (acc[month] || 0) + (bill.totalAmount || 0);
       return acc;
     }, {} as Record<string, number>);
-
   const monthlyTrend = Object.values(monthlyData);
-  const isTrendingUp = monthlyTrend.length >= 2 && 
+  const isTrendingUp =
+    monthlyTrend.length >= 2 &&
     monthlyTrend[monthlyTrend.length - 1] > monthlyTrend[monthlyTrend.length - 2];
 
-  const viewBillDetails = (bill: any) => {
+  const viewBillDetails = (bill: Bill) => {
+    console.log('Selected bill:', bill);
+    console.log('Bill items:', bill.items);
     setSelectedBill(bill);
     setShowBillModal(true);
   };
@@ -232,7 +151,6 @@ export default function CustomerBillHistoryPage() {
             </div>
           </CardContent>
         </Card>
-
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -249,7 +167,6 @@ export default function CustomerBillHistoryPage() {
             </div>
           </CardContent>
         </Card>
-
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -264,7 +181,6 @@ export default function CustomerBillHistoryPage() {
             </div>
           </CardContent>
         </Card>
-
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -289,7 +205,7 @@ export default function CustomerBillHistoryPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search by bill ID, service type, or location..."
+                placeholder="Search by bill number, service type, or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
@@ -327,10 +243,10 @@ export default function CustomerBillHistoryPage() {
         <CardContent>
           <div className="space-y-4">
             {filteredBills.map((bill) => {
-              const StatusIcon = getStatusIcon(bill.status);
+              const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
               return (
                 <motion.div
-                  key={bill.id}
+                  key={bill._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
@@ -340,23 +256,18 @@ export default function CustomerBillHistoryPage() {
                       <StatusIcon className="w-6 h-6 text-blue-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-white">Bill #{bill.id}</h3>
-                      <p className="text-sm text-gray-400">{bill.serviceType} • {bill.location}</p>
+                      <h3 className="font-medium text-white">Bill #{bill.billNumber}</h3>
+                      <p className="text-sm text-gray-400">{bill.serviceType}  {bill.locationType}</p>
                       <p className="text-sm text-gray-400">
-                        {new Date(bill.date).toLocaleDateString()} - Due: {new Date(bill.dueDate).toLocaleDateString()}
+                        {bill.serviceDate ? new Date(bill.serviceDate).toLocaleDateString() : "-"}
                       </p>
-                      {bill.paymentDate && (
-                        <p className="text-sm text-green-400">
-                          Paid: {new Date(bill.paymentDate).toLocaleDateString()}
-                        </p>
-                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-semibold text-white">{currency}{bill.amount.toLocaleString()}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(bill.status)}`}>
-                        {bill.status}
+                      <p className="font-semibold text-white">{currency}{(bill.totalAmount || 0).toLocaleString()}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(bill.paymentStatus || bill.status)}`}>
+                        {bill.paymentStatus || bill.status}
                       </span>
                     </div>
                     <div className="flex gap-2">
@@ -395,7 +306,7 @@ export default function CustomerBillHistoryPage() {
         isOpen={showBillModal}
         onClose={() => setShowBillModal(false)}
         size="lg"
-        title={`Bill #${selectedBill?.id} - ${selectedBill?.serviceType}`}
+        title={`Bill #${selectedBill?.billNumber} - ${selectedBill?.serviceType}`}
       >
         {selectedBill && (
           <div className="space-y-6">
@@ -409,22 +320,16 @@ export default function CustomerBillHistoryPage() {
                 </div>
                 <div>
                   <p className="text-gray-400">Location</p>
-                  <p className="text-white">{selectedBill.location}</p>
+                  <p className="text-white">{selectedBill.locationType}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Bill Date</p>
-                  <p className="text-white">{new Date(selectedBill.date).toLocaleDateString()}</p>
+                  <p className="text-white">{selectedBill.serviceDate ? new Date(selectedBill.serviceDate).toLocaleDateString() : "-"}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Due Date</p>
-                  <p className="text-white">{new Date(selectedBill.dueDate).toLocaleDateString()}</p>
+                  <p className="text-gray-400">Status</p>
+                  <p className="text-white">{selectedBill.paymentStatus || selectedBill.status}</p>
                 </div>
-                {selectedBill.paymentDate && (
-                  <div>
-                    <p className="text-gray-400">Payment Date</p>
-                    <p className="text-green-400">{new Date(selectedBill.paymentDate).toLocaleDateString()}</p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -432,31 +337,84 @@ export default function CustomerBillHistoryPage() {
             <div className="bg-gray-800 rounded-lg p-4">
               <h4 className="font-medium text-white mb-3">Bill Items</h4>
               <div className="space-y-3">
-                {selectedBill.items.map((item: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                    <div>
-                      <p className="text-white">{item.name}</p>
-                      <p className="text-sm text-gray-400">
-                        {item.quantity} × {currency}{item.price}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-white">{currency}{item.total}</p>
-                  </div>
-                ))}
+                {selectedBill.items && Array.isArray(selectedBill.items) && selectedBill.items.length > 0 ? (
+                  selectedBill.items.map((item: BillItem, index: number) => {
+                    // Add null checks and debugging
+                    if (!item) {
+                      console.warn(`Item at index ${index} is null or undefined`);
+                      return null;
+                    }
+                    
+                    console.log('Processing item:', item);
+                    
+                    return (
+                      <div key={index} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                        <div>
+                          <p className="text-white">{item.productName || 'Product'}</p>
+                          <p className="text-sm text-gray-400">
+                            {item.quantity || 0} × {currency}{item.unitPrice || 0}
+                          </p>
+                          {item.specifications && (
+                            <p className="text-xs text-gray-500">{item.specifications}</p>
+                          )}
+                        </div>
+                        <p className="font-semibold text-white">{currency}{(item.totalPrice || 0).toLocaleString()}</p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-gray-400">No items found.</p>
+                )}
               </div>
             </div>
 
-            {/* Total */}
+            {/* Charges & Totals */}
             <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-white">Total Amount</span>
-                <span className="text-2xl font-bold text-white">{currency}{selectedBill.amount.toLocaleString()}</span>
+              <h4 className="font-medium text-white mb-3">Charges & Totals</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-400">Subtotal</p>
+                  <p className="text-white">{currency}{selectedBill.subtotal?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Home Visit Fee</p>
+                  <p className="text-white">{currency}{selectedBill.homeVisitFee?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Repair Charges</p>
+                  <p className="text-white">{currency}{selectedBill.repairCharges?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Labor Charges</p>
+                  <p className="text-white">{currency}{selectedBill.laborCharges?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Tax</p>
+                  <p className="text-white">{currency}{selectedBill.taxAmount?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Discount</p>
+                  <p className="text-white">{currency}{selectedBill.discountAmount?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Total</p>
+                  <p className="text-white font-bold text-lg">{currency}{selectedBill.totalAmount?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Paid</p>
+                  <p className="text-white">{currency}{selectedBill.paidAmount?.toLocaleString() || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Balance</p>
+                  <p className="text-white">{currency}{selectedBill.balanceAmount?.toLocaleString() || "-"}</p>
+                </div>
               </div>
-              <div className="mt-2">
-                <span className={`text-sm px-3 py-1 rounded-full ${getStatusColor(selectedBill.status)}`}>
-                  {selectedBill.status}
-                </span>
-              </div>
+              {selectedBill.notes && (
+                <div className="mt-4">
+                  <p className="text-gray-400">Notes</p>
+                  <p className="text-white">{selectedBill.notes}</p>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">

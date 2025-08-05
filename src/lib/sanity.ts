@@ -220,7 +220,9 @@ export const queries = {
 
   // Get bills with customer and items
   bills: `*[_type == "bill"] {
-    ...,
+    _id,
+    billId,
+    billNumber,
     customer->{
       _id,
       name,
@@ -229,14 +231,36 @@ export const queries = {
       location,
       role
     },
-    items[]->
+    items,
+    serviceType,
+    locationType,
+    serviceDate,
+    homeVisitFee,
+    transportationFee,
+    laborCharges,
+    subtotal,
+    taxAmount,
+    discountAmount,
+    totalAmount,
+    paymentStatus,
+    paymentMethod,
+    paidAmount,
+    balanceAmount,
+    status,
+    priority,
+    notes,
+    internalNotes,
+    createdAt,
+    updatedAt
   } | order(createdAt desc)`,
 
   // Get bills for specific customer
   customerBills: (
     customerId: string
   ) => `*[_type == "bill" && customer._ref == "${customerId}"] {
-    ...,
+    _id,
+    billId,
+    billNumber,
     customer->{
       _id,
       name,
@@ -245,7 +269,27 @@ export const queries = {
       location,
       role
     },
-    items[]->
+    items,
+    serviceType,
+    locationType,
+    serviceDate,
+    homeVisitFee,
+    transportationFee,
+    laborCharges,
+    subtotal,
+    taxAmount,
+    discountAmount,
+    totalAmount,
+    paymentStatus,
+    paymentMethod,
+    paidAmount,
+    balanceAmount,
+    status,
+    priority,
+    notes,
+    internalNotes,
+    createdAt,
+    updatedAt
   } | order(createdAt desc)`,
 
   // Get stock transactions

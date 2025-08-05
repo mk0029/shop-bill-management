@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { User, LoginCredentials, ProfileData } from "@/types";
 import { authenticateUser, type AuthUser } from "@/lib/auth-service";
+import { sanityClient } from "@/lib/sanity";
 
 interface AuthState {
   user: User | null;
@@ -48,6 +49,7 @@ export const useAuthStore = create<AuthState>()(
             email: authResult.user.email,
             phone: authResult.user.phone,
             location: authResult.user.location,
+            profileImage: authResult.user.profileImage,
             role: authResult.user.role,
             isActive: authResult.user.isActive,
             createdAt: new Date(authResult.user.createdAt),
@@ -88,10 +90,42 @@ export const useAuthStore = create<AuthState>()(
 
         set({ isLoading: true });
         try {
-          // TODO: Implement profile update with Clerk
-          const updatedUser = { ...user, ...data };
-          set({ user: updatedUser, isLoading: false });
+          // Update user in Sanity
+          const updateData: {
+            name: string;
+            phone: string;
+            location: string;
+            profileImage?: string;
+          } = {
+            name: data.name,
+            phone: data.phone,
+            location: data.location,
+          };
+
+          // Add profile image if provided
+          if (data.profileImage) {
+            updateData.profileImage = data.profileImage;
+          }
+
+          // Update the user document in Sanity
+          const updatedUser = await sanityClient
+            .patch(user.id)
+            .set(updateData)
+            .commit();
+
+          // Update local state
+          const updatedUserData: User = {
+            ...user,
+            name: data.name,
+            phone: data.phone,
+            location: data.location,
+            profileImage: data.profileImage || user.profileImage,
+            updatedAt: new Date(),
+          };
+
+          set({ user: updatedUserData, isLoading: false });
         } catch (error) {
+          console.error("Error updating profile:", error);
           set({ isLoading: false });
           throw error;
         }

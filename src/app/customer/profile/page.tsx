@@ -17,7 +17,10 @@ import {
   EyeOff,
   Check,
   X,
+  Camera,
+  Upload,
 } from "lucide-react";
+import { sanityClient } from "@/lib/sanity";
 
 export default function CustomerProfile() {
   const { user, updateProfile, isLoading } = useAuthStore();
@@ -27,6 +30,9 @@ export default function CustomerProfile() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: user?.name || "",
@@ -45,6 +51,40 @@ export default function CustomerProfile() {
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setProfileImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImageToSanity = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const result = await response.json();
+      return result.url;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
     }
   };
 
@@ -75,12 +115,21 @@ export default function CustomerProfile() {
   const handleSave = async () => {
     if (!validateForm()) return;
 
+    setIsUploading(true);
     try {
       const updateData: any = {
         name: formData.name,
         phone: formData.phone,
         location: formData.location,
       };
+
+      // Upload profile image if selected
+      if (profileImage) {
+        const imageUrl = await uploadImageToSanity(profileImage);
+        if (imageUrl) {
+          updateData.profileImage = imageUrl;
+        }
+      }
 
       if (formData.newPassword) {
         updateData.password = formData.newPassword;
@@ -90,17 +139,21 @@ export default function CustomerProfile() {
       setSuccess("Profile updated successfully!");
       setIsEditing(false);
 
-      // Clear password fields
+      // Clear password fields and image
       setFormData((prev) => ({
         ...prev,
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       }));
+      setProfileImage(null);
+      setImagePreview(null);
 
       setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
       setErrors({ general: "Failed to update profile. Please try again." });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -114,6 +167,8 @@ export default function CustomerProfile() {
       confirmPassword: "",
     });
     setErrors({});
+    setProfileImage(null);
+    setImagePreview(null);
     setIsEditing(false);
   };
 
@@ -159,6 +214,68 @@ export default function CustomerProfile() {
         </motion.div>
       )}
 
+      {/* Profile Image */}
+      <Card className="p-6 bg-gray-900 border-gray-800">
+        <h2 className="text-xl font-semibold text-white mb-6">
+          Profile Picture
+        </h2>
+        <div className="flex items-center gap-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+              {imagePreview ? (
+                <img
+                  src={imagePreview}
+                  alt="Profile preview"
+                  className="w-full h-full object-cover"
+                />
+              ) : user?.profileImage ? (
+                <img
+                  src={user.profileImage}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-12 h-12 text-gray-400" />
+              )}
+            </div>
+            {isEditing && (
+              <label className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors">
+                <Camera className="w-4 h-4 text-white" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+          <div className="flex-1">
+            <h3 className="text-white font-medium mb-2">
+              {user?.name || "Customer"}
+            </h3>
+            <p className="text-gray-400 text-sm mb-4">
+              {isEditing
+                ? "Click the camera icon to upload a new profile picture"
+                : "Your profile picture will appear here"}
+            </p>
+            {isEditing && profileImage && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setProfileImage(null);
+                  setImagePreview(null);
+                }}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
       {/* Profile Information */}
       <Card className="p-6 bg-gray-900 border-gray-800">
         <h2 className="text-xl font-semibold text-white mb-6">
@@ -174,7 +291,7 @@ export default function CustomerProfile() {
             <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
               <User className="w-5 h-5 text-gray-400" />
               <span className="text-white font-mono">
-                {user?.clerkId || "N/A"}
+                {user?.customerId || "N/A"}
               </span>
               <span className="text-xs text-gray-500 ml-auto">Read-only</span>
             </div>
@@ -243,7 +360,7 @@ export default function CustomerProfile() {
             Change Password
           </h2>
           <p className="text-gray-400 text-sm mb-6">
-            Leave password fields empty if you don't want to change your
+            Leave password fields empty if you don&apos;t want to change your
             password
           </p>
 
@@ -371,14 +488,18 @@ export default function CustomerProfile() {
       {/* Action Buttons */}
       {isEditing && (
         <div className="flex gap-4">
-          <Button onClick={handleSave} disabled={isLoading} className="flex-1">
+          <Button 
+            onClick={handleSave} 
+            disabled={isLoading || isUploading} 
+            className="flex-1"
+          >
             <Save className="w-4 h-4 mr-2" />
-            {isLoading ? "Saving..." : "Save Changes"}
+            {isLoading || isUploading ? "Saving..." : "Save Changes"}
           </Button>
           <Button
             variant="outline"
             onClick={handleCancel}
-            disabled={isLoading}
+            disabled={isLoading || isUploading}
             className="flex-1"
           >
             <X className="w-4 h-4 mr-2" />

@@ -74,7 +74,20 @@ interface Bill {
   billId: string;
   billNumber: string;
   customer: User;
-  items: any[];
+  items: Array<{
+    product: {
+      _type: "reference";
+      _ref: string;
+    };
+    productName: string;
+    category?: string;
+    brand?: string;
+    specifications?: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    unit?: string;
+  }>;
   serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
   locationType: "shop" | "home" | "office";
   serviceDate: string;
@@ -91,7 +104,10 @@ interface Bill {
   balanceAmount: number;
   status: "draft" | "confirmed" | "in_progress" | "completed" | "cancelled";
   priority: "low" | "medium" | "high" | "urgent";
+  notes?: string;
+  internalNotes?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface DataStore {

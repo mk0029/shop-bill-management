@@ -8,6 +8,7 @@ export interface User {
   email?: string;
   phone: string;
   location: string;
+  profileImage?: string;
   role: "admin" | "customer";
   isActive: boolean;
   createdAt: Date;
@@ -193,31 +194,58 @@ export interface CreateItemData {
 }
 
 // Bill and billing types
-export type ServiceType = "repair" | "sale" | "custom";
-export type LocationType = "shop" | "home";
+export type ServiceType = "repair" | "sale" | "installation" | "maintenance" | "custom";
+export type LocationType = "shop" | "home" | "office";
 
 export interface BillItem {
-  id: string;
-  itemId: string;
-  name: string;
+  product: {
+    _type: "reference";
+    _ref: string;
+  };
+  productName: string;
+  category?: string;
+  brand?: string;
+  specifications?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  unit?: string;
 }
 
 export interface Bill {
-  id: string;
-  customerId: string;
-  customerName: string;
+  _id: string;
+  billId: string;
+  billNumber: string;
+  customer: {
+    _id: string;
+    name: string;
+    phone: string;
+    email?: string;
+    location: string;
+    role: string;
+  };
   items: BillItem[];
-  serviceType: ServiceType;
-  locationType: LocationType;
+  serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
+  locationType: "shop" | "home" | "office";
+  serviceDate: string;
   homeVisitFee: number;
+  transportationFee?: number;
+  laborCharges?: number;
+  repairCharges?: number;
   subtotal: number;
+  taxAmount: number;
+  discountAmount?: number;
   totalAmount: number;
+  paymentStatus: "pending" | "partial" | "paid" | "overdue";
+  paymentMethod?: string;
+  paidAmount: number;
+  balanceAmount: number;
+  status: "draft" | "confirmed" | "in_progress" | "completed" | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
   notes?: string;
-  createdAt: Date;
-  createdBy: string;
+  internalNotes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateBillData {
@@ -265,6 +293,7 @@ export interface ProfileData {
   name: string;
   phone: string;
   location: string;
+  profileImage?: string;
 }
 
 export interface PasswordChangeData {

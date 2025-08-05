@@ -355,8 +355,13 @@ export async function createBill(billData: {
   customerId: string;
   items: Array<{
     productId: string;
+    productName: string;
+    category?: string;
+    brand?: string;
+    specifications?: string;
     quantity: number;
     unitPrice: number;
+    unit?: string;
   }>;
   serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
   locationType: "shop" | "home" | "office";
@@ -375,17 +380,48 @@ export async function createBill(billData: {
       Date.now()
     ).slice(-6)}`;
 
+    // Prepare items array for the new schema
+    const items = billData.items.map(item => ({
+      product: { _type: "reference", _ref: item.productId },
+      productName: item.productName,
+      category: item.category || "",
+      brand: item.brand || "",
+      specifications: item.specifications || "",
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: item.quantity * item.unitPrice,
+      unit: item.unit || "pcs",
+    }));
+
     // Calculate totals
-    const subtotal = billData.items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
+    const subtotal = items.reduce(
+      (sum, item) => sum + item.totalPrice,
       0
     );
-    const homeVisitFee =
-      billData.locationType !== "shop" ? billData.homeVisitFee || 0 : 0;
-    const repairCharges =
-      billData.serviceType === "repair" ? billData.repairCharges || 0 : 0;
-    const laborCharges = billData.laborCharges || 0;
-    const totalAmount = subtotal + homeVisitFee + repairCharges + laborCharges;
+    const homeVisitFee = Number(
+      billData.locationType !== "shop" ? billData.homeVisitFee || 0 : 0
+    );
+    const repairCharges = Number(
+      billData.serviceType === "repair" ? billData.repairCharges || 0 : 0
+    );
+    const laborCharges = Number(billData.laborCharges || 0);
+    const totalAmount = Number(subtotal) + homeVisitFee + repairCharges + laborCharges;
+
+    console.log('Bill calculation breakdown:', {
+      subtotal,
+      homeVisitFee,
+      repairCharges,
+      laborCharges,
+      totalAmount
+    });
+
+    console.log('Bill data types:', {
+      subtotalType: typeof subtotal,
+      homeVisitFeeType: typeof homeVisitFee,
+      repairChargesType: typeof repairCharges,
+      laborChargesType: typeof laborCharges,
+      totalAmountType: typeof totalAmount
+    });
 
     const newBill = {
       _type: "bill",
@@ -394,6 +430,7 @@ export async function createBill(billData: {
       customer: { _type: "reference", _ref: billData.customerId },
       serviceType: billData.serviceType,
       locationType: billData.locationType,
+      items, // NEW: Items array embedded in bill
       serviceDate: new Date().toISOString(),
       homeVisitFee,
       repairCharges,
@@ -412,31 +449,12 @@ export async function createBill(billData: {
 
     const result = await sanityClient.create(newBill);
 
-    // Create bill items
-    const billItems = await Promise.all(
-      billData.items.map(async (item) => {
-        const billItem = {
-          _type: "billItem",
-          bill: { _type: "reference", _ref: result._id },
-          product: { _type: "reference", _ref: item.productId },
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.quantity * item.unitPrice,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        return await sanityClient.create(billItem);
-      })
-    );
-
     console.log("✅ Bill created successfully:", result._id);
 
     return {
       success: true,
       data: {
         ...result,
-        items: billItems,
         billNumber,
         totalAmount,
       },
