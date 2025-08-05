@@ -7,10 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { SuccessPopup, createProductSuccessPopup } from "@/components/ui/success-popup";
+import {
+  SuccessPopup,
+  createProductSuccessPopup,
+} from "@/components/ui/success-popup";
 import { createProduct } from "@/lib/form-service";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Package, Zap, DollarSign, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Package,
+  Zap,
+  DollarSign,
+  AlertTriangle,
+} from "lucide-react";
+import { useBrandStore } from "@/store/brand-store";
 import {
   itemCategories,
   lightTypes,
@@ -19,21 +30,25 @@ import {
   wireGauges,
   ampereRatings,
   units,
-  popularBrands,
   currency,
   getCategoryLabel,
   getLightTypeLabel,
-  getBrandLabel,
   getUnitLabel,
-  getItemSpecifications
+  getItemSpecifications,
 } from "@/lib/inventory-data";
 
 // Using data from helper file instead of local arrays
 
 export default function AddInventoryItemPage() {
   const router = useRouter();
+  const { brands, fetchBrands } = useBrandStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [successData, setSuccessData] = useState<any>(null);
+  const [successData, setSuccessData] = useState<unknown>(null);
+
+  // Fetch brands on component mount
+  useEffect(() => {
+    fetchBrands();
+  }, [fetchBrands]);
 
   const [formData, setFormData] = useState({
     category: "",
@@ -52,31 +67,54 @@ export default function AddInventoryItemPage() {
   });
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Check if item is a light
   const isLightItem = formData.category === "light";
-  
+
   // Check if light item needs color field
   const needsColor = isLightItem && formData.lightType;
-  
+
   // Check if light item needs size field
-  const needsSize = isLightItem && ["panel", "concealed", "tubelight"].includes(formData.lightType);
-  
+  const needsSize =
+    isLightItem &&
+    ["panel", "concealed", "tubelight"].includes(formData.lightType);
+
   // Check if item needs watts field
   const needsWatts = ["light", "motor", "pump"].includes(formData.category);
-  
+
   // Check if item needs wire gauge
   const needsWireGauge = formData.category === "wire";
-  
+
   // Check if item needs ampere
   const needsAmpere = ["switch", "socket", "mcb"].includes(formData.category);
 
-  // Filter brands based on selected category
-  const availableBrands = formData.category 
-    ? popularBrands.filter(brand => brand.categories.includes(formData.category))
-    : popularBrands;
+  // Filter active brands based on selected category (all brands are available for all categories)
+  const availableBrands = brands
+    .filter((brand) => brand.isActive)
+    .map((brand) => ({
+      value: brand._id,
+      label: brand.name,
+    }));
+
+  const clearForm = () => {
+    setFormData({
+      category: "",
+      lightType: "",
+      color: "",
+      size: "",
+      watts: "",
+      wireGauge: "",
+      ampere: "",
+      brand: "",
+      purchasePrice: "",
+      sellingPrice: "",
+      currentStock: "",
+      unit: "",
+      description: "",
+    });
+  };
 
   const validateForm = () => {
     if (!formData.category) {
@@ -87,6 +125,10 @@ export default function AddInventoryItemPage() {
       alert("Please select a brand");
       return false;
     }
+    if (!formData.unit) {
+      alert("Please select a unit");
+      return false;
+    }
     if (!formData.purchasePrice || parseFloat(formData.purchasePrice) <= 0) {
       alert("Please enter a valid purchase price");
       return false;
@@ -95,37 +137,91 @@ export default function AddInventoryItemPage() {
       alert("Please enter a valid selling price");
       return false;
     }
+    if (
+      parseFloat(formData.sellingPrice) < parseFloat(formData.purchasePrice)
+    ) {
+      alert("Selling price should be greater than or equal to purchase price");
+      return false;
+    }
     if (!formData.currentStock || parseInt(formData.currentStock) < 0) {
       alert("Please enter a valid current stock");
       return false;
     }
+
+    // Category-specific validations
+    if (isLightItem && !formData.lightType) {
+      alert("Please select a light type");
+      return false;
+    }
+    if (needsColor && !formData.color) {
+      alert("Please select a color");
+      return false;
+    }
+    if (needsSize && !formData.size) {
+      alert("Please select a size");
+      return false;
+    }
+    if (needsWatts && (!formData.watts || parseFloat(formData.watts) <= 0)) {
+      alert("Please enter valid watts");
+      return false;
+    }
+    if (needsWireGauge && !formData.wireGauge) {
+      alert("Please select wire gauge");
+      return false;
+    }
+    if (needsAmpere && !formData.ampere) {
+      alert("Please select ampere rating");
+      return false;
+    }
+
     return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    e.stopPropagation();
+
     // Validate form before submission
     if (!validateForm()) {
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
+      // Get brand name for product name
+      const selectedBrand = brands.find(
+        (brand) => brand._id === formData.brand
+      );
+      const brandName = selectedBrand ? selectedBrand.name : "Unknown Brand";
+
+      // Build product name with specifications
+      let productName = `${getCategoryLabel(formData.category)} - ${brandName}`;
+      const specs = [];
+      if (formData.lightType) specs.push(formData.lightType);
+      if (formData.color) specs.push(formData.color);
+      if (formData.size) specs.push(formData.size);
+      if (formData.watts) specs.push(`${formData.watts}W`);
+      if (formData.wireGauge) specs.push(formData.wireGauge);
+      if (formData.ampere) specs.push(`${formData.ampere}A`);
+
+      if (specs.length > 0) {
+        productName += ` (${specs.join(", ")})`;
+      }
+
       // Create product in Sanity using the actual API
       const productData = {
-        name: `${getCategoryLabel(formData.category)} - ${getBrandLabel(formData.brand)}`,
+        name: productName,
         description: formData.description,
-        brandId: formData.brand, // Using brand name as ID for now
-        categoryId: formData.category, // Using category name as ID for now
+        brandId: formData.brand, // Using brand ID
+        categoryId: formData.category, // Using category name - will be converted to reference in form-service
         specifications: {
-          lightType: formData.lightType,
-          color: formData.color,
-          size: formData.size,
-          watts: formData.watts,
-          wireGauge: formData.wireGauge,
-          ampere: formData.ampere,
+          lightType: formData.lightType || undefined,
+          color: formData.color || undefined,
+          size: formData.size || undefined,
+          watts: formData.watts ? parseFloat(formData.watts) : undefined,
+          wireGauge: formData.wireGauge || undefined,
+          ampere: formData.ampere || undefined,
         },
         pricing: {
           purchasePrice: parseFloat(formData.purchasePrice),
@@ -134,33 +230,28 @@ export default function AddInventoryItemPage() {
         },
         inventory: {
           currentStock: parseInt(formData.currentStock),
-          minimumStock: 0,
-          reorderLevel: 5,
+          minimumStock: Math.max(
+            1,
+            Math.floor(parseInt(formData.currentStock) * 0.1)
+          ), // 10% of current stock
+          reorderLevel: Math.max(
+            5,
+            Math.floor(parseInt(formData.currentStock) * 0.2)
+          ), // 20% of current stock
         },
-        tags: [formData.category, formData.brand],
+        tags: [formData.category, brandName, ...specs],
       };
 
       const result = await createProduct(productData);
 
       if (result.success && result.data) {
+        // Clear form after successful submission
+        clearForm();
+
         const resetForm = () => {
-          setFormData({
-            category: "",
-            lightType: "",
-            color: "",
-            size: "",
-            watts: "",
-            wireGauge: "",
-            ampere: "",
-            brand: "",
-            purchasePrice: "",
-            sellingPrice: "",
-            currentStock: "",
-            unit: "",
-            description: "",
-          });
+          clearForm();
         };
-        
+
         setSuccessData(createProductSuccessPopup(result.data, resetForm));
       } else {
         // Show error alert
@@ -176,14 +267,14 @@ export default function AddInventoryItemPage() {
 
   const getItemSpecifications = () => {
     const specs = [];
-    
+
     if (formData.lightType) specs.push(`Type: ${formData.lightType}`);
     if (formData.color) specs.push(`Color: ${formData.color}`);
     if (formData.size) specs.push(`Size: ${formData.size}`);
     if (formData.watts) specs.push(`Watts: ${formData.watts}W`);
     if (formData.wireGauge) specs.push(`Gauge: ${formData.wireGauge}`);
     if (formData.ampere) specs.push(`Ampere: ${formData.ampere}`);
-    
+
     return specs.join(", ");
   };
 
@@ -191,11 +282,7 @@ export default function AddInventoryItemPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="p-2"
-        >
+        <Button variant="ghost" onClick={() => router.back()} className="p-2">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
@@ -227,6 +314,7 @@ export default function AddInventoryItemPage() {
                 onValueChange={(value) => handleInputChange("category", value)}
                 placeholder="Select category"
                 className="bg-gray-800 border-gray-700"
+                disabled={isLoading}
               />
             </div>
 
@@ -236,13 +324,16 @@ export default function AddInventoryItemPage() {
                 <Label htmlFor="lightType" className="text-gray-300">
                   Light Type *
                 </Label>
-                            <Dropdown
-              options={lightTypes}
-              value={formData.lightType}
-              onValueChange={(value) => handleInputChange("lightType", value)}
-              placeholder="Select light type"
-              className="bg-gray-800 border-gray-700"
-            />
+                <Dropdown
+                  options={lightTypes}
+                  value={formData.lightType}
+                  onValueChange={(value) =>
+                    handleInputChange("lightType", value)
+                  }
+                  placeholder="Select light type"
+                  className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
+                />
               </div>
             )}
 
@@ -252,13 +343,14 @@ export default function AddInventoryItemPage() {
                 <Label htmlFor="color" className="text-gray-300">
                   Color *
                 </Label>
-                            <Dropdown
-              options={colors}
-              value={formData.color}
-              onValueChange={(value) => handleInputChange("color", value)}
-              placeholder="Select color"
-              className="bg-gray-800 border-gray-700"
-            />
+                <Dropdown
+                  options={colors}
+                  value={formData.color}
+                  onValueChange={(value) => handleInputChange("color", value)}
+                  placeholder="Select color"
+                  className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
+                />
               </div>
             )}
 
@@ -268,13 +360,14 @@ export default function AddInventoryItemPage() {
                 <Label htmlFor="size" className="text-gray-300">
                   Size *
                 </Label>
-                            <Dropdown
-              options={sizes}
-              value={formData.size}
-              onValueChange={(value) => handleInputChange("size", value)}
-              placeholder="Select size"
-              className="bg-gray-800 border-gray-700"
-            />
+                <Dropdown
+                  options={sizes}
+                  value={formData.size}
+                  onValueChange={(value) => handleInputChange("size", value)}
+                  placeholder="Select size"
+                  className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
+                />
               </div>
             )}
 
@@ -295,6 +388,7 @@ export default function AddInventoryItemPage() {
                   className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Enter watts (e.g., 5, 12, 20, 100, 500, 1000)"
                   required
+                  disabled={isLoading}
                 />
               </div>
             )}
@@ -305,13 +399,16 @@ export default function AddInventoryItemPage() {
                 <Label htmlFor="wireGauge" className="text-gray-300">
                   Wire Gauge *
                 </Label>
-                            <Dropdown
-              options={wireGauges}
-              value={formData.wireGauge}
-              onValueChange={(value) => handleInputChange("wireGauge", value)}
-              placeholder="Select wire gauge"
-              className="bg-gray-800 border-gray-700"
-            />
+                <Dropdown
+                  options={wireGauges}
+                  value={formData.wireGauge}
+                  onValueChange={(value) =>
+                    handleInputChange("wireGauge", value)
+                  }
+                  placeholder="Select wire gauge"
+                  className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
+                />
               </div>
             )}
 
@@ -327,6 +424,7 @@ export default function AddInventoryItemPage() {
                   onValueChange={(value) => handleInputChange("ampere", value)}
                   placeholder="Select ampere"
                   className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
                 />
               </div>
             )}
@@ -341,9 +439,17 @@ export default function AddInventoryItemPage() {
                   options={availableBrands}
                   value={formData.brand}
                   onValueChange={(value) => handleInputChange("brand", value)}
-                  placeholder={formData.category ? "Select brand" : "Select category first"}
+                  placeholder={
+                    availableBrands.length > 0
+                      ? "Select brand"
+                      : "No brands available"
+                  }
                   className="bg-gray-800 border-gray-700"
-                  disabled={!formData.category}
+                  disabled={
+                    !formData.category ||
+                    isLoading ||
+                    availableBrands.length === 0
+                  }
                 />
               </div>
 
@@ -359,10 +465,13 @@ export default function AddInventoryItemPage() {
                     step="0.01"
                     min="0"
                     value={formData.purchasePrice}
-                    onChange={(e) => handleInputChange("purchasePrice", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("purchasePrice", e.target.value)
+                    }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter purchase price"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -379,10 +488,13 @@ export default function AddInventoryItemPage() {
                     step="0.01"
                     min="0"
                     value={formData.sellingPrice}
-                    onChange={(e) => handleInputChange("sellingPrice", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("sellingPrice", e.target.value)
+                    }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter selling price"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -399,10 +511,13 @@ export default function AddInventoryItemPage() {
                   type="number"
                   min="0"
                   value={formData.currentStock}
-                  onChange={(e) => handleInputChange("currentStock", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("currentStock", e.target.value)
+                  }
                   className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Enter purchased quantity"
                   required
+                  disabled={isLoading}
                 />
               </div>
 
@@ -416,6 +531,7 @@ export default function AddInventoryItemPage() {
                   onValueChange={(value) => handleInputChange("unit", value)}
                   placeholder="Select unit"
                   className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -428,9 +544,12 @@ export default function AddInventoryItemPage() {
               <textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                className="w-full h-24 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
+                className="w-full h-24 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Add any additional description..."
+                disabled={isLoading}
               />
             </div>
 
@@ -439,14 +558,44 @@ export default function AddInventoryItemPage() {
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <h4 className="font-medium text-white mb-3">Item Preview</h4>
                 <div className="space-y-2 text-sm">
-                  <p><span className="text-gray-400">Category:</span> <span className="text-white">{getCategoryLabel(formData.category)}</span></p>
-                  <p><span className="text-gray-400">Category:</span> <span className="text-white capitalize">{formData.category}</span></p>
-                  <p><span className="text-gray-400">Brand:</span> <span className="text-white">{formData.brand}</span></p>
+                  <p>
+                    <span className="text-gray-400">Category:</span>{" "}
+                    <span className="text-white">
+                      {getCategoryLabel(formData.category)}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Category:</span>{" "}
+                    <span className="text-white capitalize">
+                      {formData.category}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Brand:</span>{" "}
+                    <span className="text-white">{formData.brand}</span>
+                  </p>
                   {getItemSpecifications() && (
-                    <p><span className="text-gray-400">Specifications:</span> <span className="text-white">{getItemSpecifications()}</span></p>
+                    <p>
+                      <span className="text-gray-400">Specifications:</span>{" "}
+                      <span className="text-white">
+                        {getItemSpecifications()}
+                      </span>
+                    </p>
                   )}
-                  <p><span className="text-gray-400">Pricing:</span> <span className="text-white">{currency}{formData.purchasePrice} → {currency}{formData.sellingPrice}</span></p>
-                  <p><span className="text-gray-400">Stock:</span> <span className="text-white">{formData.currentStock} {formData.unit}</span></p>
+                  <p>
+                    <span className="text-gray-400">Pricing:</span>{" "}
+                    <span className="text-white">
+                      {currency}
+                      {formData.purchasePrice} → {currency}
+                      {formData.sellingPrice}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Stock:</span>{" "}
+                    <span className="text-white">
+                      {formData.currentStock} {formData.unit}
+                    </span>
+                  </p>
                 </div>
               </div>
             )}
@@ -455,7 +604,13 @@ export default function AddInventoryItemPage() {
             <div className="flex gap-4 pt-4">
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={
+                  isLoading ||
+                  !formData.category ||
+                  !formData.brand ||
+                  !formData.unit
+                }
+                loading={isLoading}
                 className="flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
@@ -465,6 +620,7 @@ export default function AddInventoryItemPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
+                disabled={isLoading}
               >
                 Cancel
               </Button>
@@ -483,4 +639,4 @@ export default function AddInventoryItemPage() {
       )}
     </div>
   );
-} 
+}

@@ -62,6 +62,20 @@ export default function AddCustomerPage() {
     return { customerId, secretKey };
   };
 
+  const clearForm = () => {
+    setFormData({
+      name: "",
+      phone: "",
+      email: "",
+      location: "",
+      serviceType: "",
+      address: "",
+      notes: "",
+      customerId: "",
+      secretKey: "",
+    });
+  };
+
   const validateForm = () => {
     if (!formData.name.trim()) {
       alert("Please enter customer name");
@@ -98,18 +112,11 @@ export default function AddCustomerPage() {
       });
 
       if (result.success && result.data) {
+        // Clear form after successful submission
+        clearForm();
+        
         const resetForm = () => {
-          setFormData({
-            name: "",
-            phone: "",
-            email: "",
-            location: "",
-            serviceType: "",
-            address: "",
-            notes: "",
-            customerId: "",
-            secretKey: "",
-          });
+          clearForm();
         };
         
         setSuccessData(createCustomerSuccessPopup(result.data, resetForm));
@@ -170,6 +177,7 @@ export default function AddCustomerPage() {
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter customer's full name"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -188,6 +196,7 @@ export default function AddCustomerPage() {
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter phone number"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -203,6 +212,7 @@ export default function AddCustomerPage() {
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Enter email address (optional)"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -216,6 +226,7 @@ export default function AddCustomerPage() {
                   onValueChange={(value) => handleInputChange("location", value)}
                   placeholder="Select location"
                   className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -232,6 +243,7 @@ export default function AddCustomerPage() {
                   onValueChange={(value) => handleInputChange("serviceType", value)}
                   placeholder="Select service type"
                   className="bg-gray-800 border-gray-700"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -248,6 +260,7 @@ export default function AddCustomerPage() {
                     onChange={(e) => handleInputChange("address", e.target.value)}
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter full address"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -268,6 +281,7 @@ export default function AddCustomerPage() {
                     onChange={(e) => handleInputChange("customerId", e.target.value)}
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter custom customer ID (optional)"
+                    disabled={isLoading}
                   />
                 </div>
                 <p className="text-xs text-gray-400">
@@ -288,6 +302,7 @@ export default function AddCustomerPage() {
                     onChange={(e) => handleInputChange("secretKey", e.target.value)}
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter custom secret key (optional)"
+                    disabled={isLoading}
                   />
                 </div>
                 <p className="text-xs text-gray-400">
@@ -305,8 +320,9 @@ export default function AddCustomerPage() {
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => handleInputChange("notes", e.target.value)}
-                className="w-full h-24 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full h-24 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Add any additional notes about the customer..."
+                disabled={isLoading}
               />
             </div>
 
@@ -324,6 +340,7 @@ export default function AddCustomerPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
+                disabled={isLoading}
               >
                 Cancel
               </Button>

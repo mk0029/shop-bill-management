@@ -652,7 +652,7 @@ export const sanityClient = createClient({
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET!,
   useCdn: false, // Real-time updates require CDN to be false
   apiVersion: "2024-01-01",
-  token: process.env.SANITY_API_TOKEN, // For write operations
+  token: process.env.NEXT_PUBLIC_SANITY_API_TOKEN, // For write operations
 });
 
 // Real-time listener setup

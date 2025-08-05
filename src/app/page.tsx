@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   Zap,
   Database,
-  Sync,
+  RefreshCw,
   Package,
   Users,
   FileText,
@@ -80,7 +80,7 @@ export default function Home() {
                   variant="outline"
                   className="text-blue-500 border-blue-500"
                 >
-                  <Sync className="h-3 w-3 mr-2" />
+                  <RefreshCw className="h-3 w-3 mr-2" />
                   Synced: {lastSyncTime.toLocaleTimeString()}
                 </Badge>
               )}

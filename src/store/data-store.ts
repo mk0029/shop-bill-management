@@ -183,7 +183,12 @@ export const useDataStore = create<DataStore>((set, get) => ({
           currentState[step.name as keyof DataStore] as Map<string, any>
         );
 
-        data.forEach((item: unknown) => {
+        // Filter out null/undefined items and items without _id
+        const validData = Array.isArray(data)
+          ? data.filter((item) => item && item._id)
+          : [];
+
+        validData.forEach((item: any) => {
           newMap.set(item._id, item);
         });
 
@@ -197,20 +202,24 @@ export const useDataStore = create<DataStore>((set, get) => ({
           const productsByCategory = new Map<string, string[]>();
           const productsByBrand = new Map<string, string[]>();
 
-          data.forEach((product: Product) => {
-            // Group by category
-            const categoryId = product.category._id;
-            if (!productsByCategory.has(categoryId)) {
-              productsByCategory.set(categoryId, []);
+          validData.forEach((product: Product) => {
+            // Group by category (with null checks)
+            if (product.category && product.category._id) {
+              const categoryId = product.category._id;
+              if (!productsByCategory.has(categoryId)) {
+                productsByCategory.set(categoryId, []);
+              }
+              productsByCategory.get(categoryId)!.push(product._id);
             }
-            productsByCategory.get(categoryId)!.push(product._id);
 
-            // Group by brand
-            const brandId = product.brand._id;
-            if (!productsByBrand.has(brandId)) {
-              productsByBrand.set(brandId, []);
+            // Group by brand (with null checks)
+            if (product.brand && product.brand._id) {
+              const brandId = product.brand._id;
+              if (!productsByBrand.has(brandId)) {
+                productsByBrand.set(brandId, []);
+              }
+              productsByBrand.get(brandId)!.push(product._id);
             }
-            productsByBrand.get(brandId)!.push(product._id);
           });
 
           set({ productsByCategory, productsByBrand });
@@ -218,20 +227,24 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
         if (step.name === "users") {
           const usersByClerkId = new Map<string, string>();
-          data.forEach((user: User) => {
-            usersByClerkId.set(user.clerkId, user._id);
+          validData.forEach((user: User) => {
+            if (user.clerkId && user._id) {
+              usersByClerkId.set(user.clerkId, user._id);
+            }
           });
           set({ usersByClerkId });
         }
 
         if (step.name === "bills") {
           const billsByCustomer = new Map<string, string[]>();
-          data.forEach((bill: Bill) => {
-            const customerId = bill.customer._id;
-            if (!billsByCustomer.has(customerId)) {
-              billsByCustomer.set(customerId, []);
+          validData.forEach((bill: Bill) => {
+            if (bill.customer && bill.customer._id && bill._id) {
+              const customerId = bill.customer._id;
+              if (!billsByCustomer.has(customerId)) {
+                billsByCustomer.set(customerId, []);
+              }
+              billsByCustomer.get(customerId)!.push(bill._id);
             }
-            billsByCustomer.get(customerId)!.push(bill._id);
           });
           set({ billsByCustomer });
         }

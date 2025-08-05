@@ -70,6 +70,11 @@ export function CustomerForm({
     return Object.keys(errors).length === 0;
   };
 
+  const clearForm = () => {
+    setFormData({ name: "", phone: "", location: "" });
+    setFormErrors({});
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -92,14 +97,22 @@ export function CustomerForm({
       });
 
       if (result.success && result.data) {
+        // Clear form after successful submission
+        clearForm();
+        
         // Show success popup with customer credentials
         const resetForm = () => {
-          setFormData({ name: "", phone: "", location: "" });
+          clearForm();
         };
         
         setSuccessData(
           createCustomerSuccessPopup(result.data, resetForm)
         );
+
+        // Call onSuccess callback if provided
+        if (onSuccess) {
+          onSuccess(result.data);
+        }
       } else {
         // Show error alert
         alert(result.error || "An error occurred while creating the customer.");
@@ -126,77 +139,77 @@ export function CustomerForm({
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Customer Name</Label>
-        <Input
-          id="name"
-          type="text"
-          placeholder="Enter customer name"
-          value={formData.name}
-          onChange={(e) => handleInputChange("name", e.target.value)}
-          error={formErrors.name}
-          disabled={loading}
+        <div className="space-y-2">
+          <Label htmlFor="name">Customer Name</Label>
+          <Input
+            id="name"
+            type="text"
+            placeholder="Enter customer name"
+            value={formData.name}
+            onChange={(e) => handleInputChange("name", e.target.value)}
+            error={formErrors.name}
+            disabled={loading || isSubmitting}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone Number</Label>
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="Enter phone number"
+            value={formData.phone}
+            onChange={(e) => handleInputChange("phone", e.target.value)}
+            error={formErrors.phone}
+            disabled={loading || isSubmitting}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="location">Location</Label>
+          <Input
+            id="location"
+            type="text"
+            placeholder="Enter customer location"
+            value={formData.location}
+            onChange={(e) => handleInputChange("location", e.target.value)}
+            error={formErrors.location}
+            disabled={loading || isSubmitting}
+          />
+        </div>
+
+        <div className="flex gap-2 pt-4">
+          <Button
+            type="submit"
+            loading={loading || isSubmitting}
+            disabled={loading || isSubmitting}
+            className="flex-1"
+          >
+            {loading || isSubmitting
+              ? "Saving..."
+              : customer
+              ? "Update Customer"
+              : "Create Customer"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading || isSubmitting}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+
+      {/* Success Popup */}
+      {successData && (
+        <SuccessPopup
+          isOpen={!!successData}
+          onClose={() => setSuccessData(null)}
+          data={successData}
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="phone">Phone Number</Label>
-        <Input
-          id="phone"
-          type="tel"
-          placeholder="Enter phone number"
-          value={formData.phone}
-          onChange={(e) => handleInputChange("phone", e.target.value)}
-          error={formErrors.phone}
-          disabled={loading}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-        <Input
-          id="location"
-          type="text"
-          placeholder="Enter customer location"
-          value={formData.location}
-          onChange={(e) => handleInputChange("location", e.target.value)}
-          error={formErrors.location}
-          disabled={loading}
-        />
-      </div>
-
-      <div className="flex gap-2 pt-4">
-        <Button
-          type="submit"
-          loading={loading || isSubmitting}
-          disabled={loading || isSubmitting}
-          className="flex-1"
-        >
-          {loading || isSubmitting
-            ? "Saving..."
-            : customer
-            ? "Update Customer"
-            : "Create Customer"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
-      </div>
-    </form>
-
-    {/* Success Popup */}
-    {successData && (
-      <SuccessPopup
-        isOpen={!!successData}
-        onClose={() => setSuccessData(null)}
-        data={successData}
-      />
-    )}
-  </>
+      )}
+    </>
   );
 }

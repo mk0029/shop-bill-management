@@ -23,6 +23,7 @@ import {
   BarChart3,
   DollarSign,
   Zap,
+  Building2,
 } from "lucide-react";
 import { InventoryItem, StockTransaction } from "@/types";
 
@@ -224,10 +225,19 @@ export default function InventoryPage() {
             Track stock levels, manage items, and monitor inventory value
           </p>
         </div>
-        <Button onClick={() => router.push("/admin/inventory/add")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Item
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => router.push("/admin/inventory/brands")}
+          >
+            <Building2 className="w-4 h-4 mr-2" />
+            Manage Brands
+          </Button>
+          <Button onClick={() => router.push("/admin/inventory/add")}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

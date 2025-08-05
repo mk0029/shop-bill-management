@@ -3,23 +3,33 @@ import imageUrlBuilder from "@sanity/image-url";
 
 // Sanity client configuration
 export const sanityClient = createClient({
-  projectId: "idji8ni7", // Your project ID from sanity.config.js
-  dataset: "production",
+  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "idji8ni7",
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
   useCdn: false, // Real-time updates require CDN to be false
   apiVersion: "2024-01-01",
-  token: process.env.NEXT_PUBLIC_SANITY_API_TOKEN, // For write operations
-  ignoreBrowserTokenWarning: true, // Suppress browser token warnings
-  perspective: "published", // Use published perspective for better compatibility
+  token: process.env.NEXT_PUBLIC_SANITY_API_TOKEN, // Server-side token (not NEXT_PUBLIC_)
+  ignoreBrowserTokenWarning: true,
+  perspective: "published",
 });
 
-console.log( process.env.NEXT_PUBLIC_SANITY_API_TOKEN,' process.env.SANITY_API_TOKEN process.env.SANITY_API_TOKEN process.env.SANITY_API_TOKEN process.env.SANITY_API_TOKEN')
+// Debug token availability
+if (typeof window === "undefined") {
+  // Server-side
+  console.log(
+    "Server-side Sanity token available:",
+    !!process.env.NEXT_PUBLIC_SANITY_API_TOKEN
+  );
+} else {
+  // Client-side - should not have access to server token
+  console.log("Client-side Sanity setup - using read-only access");
+}
 // Image URL builder
 const builder = imageUrlBuilder(sanityClient);
 
 export const urlFor = (source: any) => builder.image(source);
 
 // Real-time listener setup
-export const setupRealtimeListeners = (callback: (update: any) => void) => {
+export const setupRealtimeListeners = (callback: (update: unknown) => void) => {
   const subscription = sanityClient
     .listen(
       '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category"]]'
@@ -61,7 +71,7 @@ export const queries = {
       defined(updatedAt) => updatedAt,
       _updatedAt
     )
-  } | order(name asc)`,
+  }[defined(_id)] | order(name asc)`,
 
   // Get all categories
   categories: `*[_type == "category"] {
@@ -88,7 +98,7 @@ export const queries = {
       defined(updatedAt) => updatedAt,
       _updatedAt
     )
-  } | order(name asc)`,
+  }[defined(_id)] | order(name asc)`,
 
   // Get all products with references
   products: `*[_type == "product"] {
@@ -121,7 +131,7 @@ export const queries = {
         true
       )
     }
-  } | order(name asc)`,
+  }[defined(_id)] | order(name asc)`,
 
   // Get active products only
   activeProducts: `*[_type == "product" && isActive == true] {
@@ -180,7 +190,7 @@ export const queries = {
       defined(updatedAt) => updatedAt,
       _updatedAt
     )
-  } | order(name asc)`,
+  }[defined(_id)] | order(name asc)`,
 
   // Get customers only
   customers: `*[_type == "user" && role == "customer"] {

@@ -6,7 +6,7 @@ const client = createClient({
   dataset: "production",
   useCdn: false,
   apiVersion: "2024-01-01",
-  token: process.env.SANITY_API_TOKEN,
+  token: process.env.NEXT_PUBLIC_SANITY_API_TOKEN,
 });
 
 // Helper function to generate IDs

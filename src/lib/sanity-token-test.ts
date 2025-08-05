@@ -1,6 +1,6 @@
 // Test API token permissions
 export async function testApiToken() {
-  const token = process.env.SANITY_API_TOKEN;
+  const token = process.env.NEXT_PUBLIC_SANITY_API_TOKEN;
 
   if (!token) {
     return {

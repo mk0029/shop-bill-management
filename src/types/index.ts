@@ -44,6 +44,43 @@ export interface CreateCustomerData {
   location: string;
 }
 
+// Brand types
+export interface Brand {
+  _id: string;
+  _type: 'brand';
+  name: string;
+  slug: {
+    current: string;
+  };
+  logo?: {
+    asset: {
+      _ref: string;
+    };
+  };
+  description?: string;
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
+  };
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBrandData {
+  name: string;
+  description?: string;
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
+  };
+  isActive: boolean;
+}
+
 // Item and inventory types
 export type ItemCategory =
   | "light"

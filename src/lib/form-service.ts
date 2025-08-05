@@ -15,6 +15,37 @@ export interface ConfirmationData {
 }
 
 /**
+ * Check if a user already exists with the given phone number
+ */
+export async function checkExistingUserByPhone(
+  phone: string
+): Promise<boolean> {
+  try {
+    console.log("🔍 Checking for existing user with phone:", phone);
+
+    const query = `*[_type == "user" && phone == $phone][0] {
+      _id,
+      name,
+      phone,
+      customerId
+    }`;
+
+    const existingUser = await sanityClient.fetch(query, { phone });
+
+    if (existingUser) {
+      console.log("❌ User already exists with phone:", phone);
+      return true;
+    }
+
+    console.log("✅ No existing user found with phone:", phone);
+    return false;
+  } catch (error) {
+    console.error("Error checking existing user:", error);
+    return false; // Assume no existing user if there's an error
+  }
+}
+
+/**
  * Create a new customer in Sanity
  */
 export async function createCustomer(customerData: {
@@ -25,6 +56,15 @@ export async function createCustomer(customerData: {
 }): Promise<FormSubmissionResult> {
   try {
     console.log("📝 Creating customer in Sanity:", customerData);
+
+    // Check for existing user with same phone number
+    const userExists = await checkExistingUserByPhone(customerData.phone);
+    if (userExists) {
+      return {
+        success: false,
+        error: "Account already exists with this phone number",
+      };
+    }
 
     // Generate customer credentials
     const customerId = Buffer.from(
@@ -84,7 +124,7 @@ export async function createProduct(productData: {
   description?: string;
   brandId: string;
   categoryId: string;
-  specifications: any;
+  specifications: unknown;
   pricing: {
     purchasePrice: number;
     sellingPrice: number;
@@ -107,26 +147,69 @@ export async function createProduct(productData: {
       .toString("base64")
       .substring(0, 12);
 
-    // Check if brandId and categoryId are actual Sanity document IDs (they start with a specific pattern)
-    // If not, we'll store them as strings for now
-    const brandReference = productData.brandId.startsWith('_') 
-      ? { _type: "reference", _ref: productData.brandId }
-      : productData.brandId;
-    
-    const categoryReference = productData.categoryId.startsWith('_')
-      ? { _type: "reference", _ref: productData.categoryId }
-      : productData.categoryId;
+    // Find or create brand reference
+    let brandReference;
+    if (productData.brandId && productData.brandId.length > 10) {
+      // This looks like a Sanity document ID
+      brandReference = { _type: "reference", _ref: productData.brandId };
+    } else {
+      // This might be a brand name, try to find the brand
+      const brandQuery = `*[_type == "brand" && name match "${productData.brandId}*"][0]._id`;
+      const brandId = await sanityClient.fetch(brandQuery);
+      if (brandId) {
+        brandReference = { _type: "reference", _ref: brandId };
+      } else {
+        throw new Error(`Brand not found: ${productData.brandId}`);
+      }
+    }
+
+    // Find or create category reference
+    let categoryReference;
+    if (productData.categoryId && productData.categoryId.length > 10) {
+      // This looks like a Sanity document ID
+      categoryReference = { _type: "reference", _ref: productData.categoryId };
+    } else {
+      // This is a category name, try to find or create the category
+      const categoryQuery = `*[_type == "category" && name match "${productData.categoryId}*"][0]._id`;
+      let categoryId = await sanityClient.fetch(categoryQuery);
+
+      if (!categoryId) {
+        // Create the category if it doesn't exist
+        const newCategory = await sanityClient.create({
+          _type: "category",
+          name: productData.categoryId,
+          slug: {
+            current: productData.categoryId.toLowerCase().replace(/\s+/g, "-"),
+          },
+          isActive: true,
+          sortOrder: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        categoryId = newCategory._id;
+      }
+
+      categoryReference = { _type: "reference", _ref: categoryId };
+    }
 
     const newProduct = {
       _type: "product",
       productId,
       name: productData.name,
-      slug: { current: productData.name.toLowerCase().replace(/\s+/g, "-") },
+      slug: {
+        current: productData.name
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, ""),
+      },
       description: productData.description,
       brand: brandReference,
       category: categoryReference,
       specifications: productData.specifications,
-      pricing: productData.pricing,
+      pricing: {
+        ...productData.pricing,
+        taxRate: 18, // Default GST rate
+      },
       inventory: productData.inventory,
       images: [],
       isActive: true,

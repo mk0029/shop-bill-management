@@ -230,7 +230,7 @@ export function SanityDebug() {
               <div className="flex justify-between">
                 <span className="text-gray-400">API Token:</span>
                 <span className="text-white">
-                  {process.env.SANITY_API_TOKEN ? "✅ Set" : "❌ Missing"}
+                  {process.env.NEXT_PUBLIC_SANITY_API_TOKEN ? "✅ Set" : "❌ Missing"}
                 </span>
               </div>
             </div>
