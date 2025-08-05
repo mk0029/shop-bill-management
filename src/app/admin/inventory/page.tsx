@@ -84,6 +84,7 @@ export default function InventoryPage() {
     error,
     fetchProducts,
     fetchInventorySummary,
+    getConsolidatedProducts,
     clearError,
   } = useInventoryStore();
 
@@ -92,6 +93,7 @@ export default function InventoryPage() {
   const [stockStatusFilter, setStockStatusFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState<Product | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
+  const [showConsolidated, setShowConsolidated] = useState(true);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -99,7 +101,11 @@ export default function InventoryPage() {
     fetchInventorySummary();
   }, [fetchProducts, fetchInventorySummary]);
 
-  const filteredItems = products.filter((product) => {
+  // Get consolidated products (same items grouped with latest prices)
+  const consolidatedProducts = getConsolidatedProducts();
+  const displayProducts = showConsolidated ? consolidatedProducts : products;
+
+  const filteredItems = displayProducts.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -119,10 +125,28 @@ export default function InventoryPage() {
     return matchesSearch && matchesCategory && matchesStockStatus;
   });
 
-  const totalItems = inventorySummary?.totalItems || 0;
-  const totalValue = inventorySummary?.totalValue || 0;
-  const lowStockItems = inventorySummary?.lowStockProducts || 0;
-  const outOfStockItems = inventorySummary?.outOfStockProducts || 0;
+  // Calculate summary based on current view
+  const currentSummary = {
+    totalItems: displayProducts.reduce(
+      (sum, p) => sum + p.inventory.currentStock,
+      0
+    ),
+    totalValue: displayProducts.reduce(
+      (sum, p) => sum + p.inventory.currentStock * p.pricing.purchasePrice,
+      0
+    ),
+    lowStockProducts: displayProducts.filter(
+      (p) => p.inventory.currentStock <= p.inventory.minimumStock
+    ).length,
+    outOfStockProducts: displayProducts.filter(
+      (p) => p.inventory.currentStock <= 0
+    ).length,
+  };
+
+  const totalItems = currentSummary.totalItems;
+  const totalValue = currentSummary.totalValue;
+  const lowStockItems = currentSummary.lowStockProducts;
+  const outOfStockItems = currentSummary.outOfStockProducts;
 
   const viewItemDetails = (item: Product) => {
     setSelectedItem(item);
@@ -157,8 +181,7 @@ export default function InventoryPage() {
               clearError();
               fetchProducts();
               fetchInventorySummary();
-            }}
-          >
+            }}>
             Try Again
           </Button>
         </div>
@@ -180,9 +203,14 @@ export default function InventoryPage() {
         </div>
         <div className="flex gap-3">
           <Button
+            variant={showConsolidated ? "default" : "outline"}
+            onClick={() => setShowConsolidated(!showConsolidated)}>
+            <BarChart3 className="w-4 h-4 mr-2" />
+            {showConsolidated ? "Consolidated View" : "Detailed View"}
+          </Button>
+          <Button
             variant="outline"
-            onClick={() => router.push("/admin/inventory/brands")}
-          >
+            onClick={() => router.push("/admin/inventory/brands")}>
             <Building2 className="w-4 h-4 mr-2" />
             Manage Brands
           </Button>
@@ -301,6 +329,20 @@ export default function InventoryPage() {
         </CardContent>
       </Card>
 
+      {/* Info Banner for Consolidated View */}
+      {showConsolidated && (
+        <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-blue-400">
+            <BarChart3 className="w-4 h-4" />
+            <p className="text-sm">
+              <strong>Consolidated View:</strong> Same items from the same brand
+              are grouped together. Total quantities are combined, and the
+              latest purchase/selling prices are displayed.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Inventory Table */}
       <Card className="bg-gray-900 border-gray-800">
         <CardHeader>
@@ -350,16 +392,30 @@ export default function InventoryPage() {
                       key={product._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
-                    >
+                      className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
                       <td className="py-4 px-4">
                         <div>
-                          <p className="font-medium text-white">
-                            {product.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-white">
+                              {product.name}
+                            </p>
+                            {/* {product._consolidated && (
+                              <span className="px-2 py-1 text-xs bg-blue-600/20 text-blue-400 rounded-full">
+                                {product._consolidated.totalEntries} entries
+                              </span>
+                            )} */}
+                          </div>
                           <p className="text-sm text-gray-400">
                             {getItemSpecifications(product)}
                           </p>
+                          {product._consolidated && (
+                            <p className="text-xs text-blue-400 mt-1">
+                              Latest price updated:{" "}
+                              {new Date(
+                                product._consolidated.latestPriceUpdate
+                              ).toLocaleDateString()}
+                            </p>
+                          )}
                         </div>
                       </td>
                       <td className="py-4 px-4">
@@ -375,8 +431,7 @@ export default function InventoryPage() {
                           <span
                             className={`font-medium ${getStockStatusColor(
                               stockStatus.status
-                            )}`}
-                          >
+                            )}`}>
                             {product.inventory.currentStock}{" "}
                             {product.pricing.unit}
                           </span>
@@ -412,8 +467,7 @@ export default function InventoryPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => viewItemDetails(product)}
-                          >
+                            onClick={() => viewItemDetails(product)}>
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Button
@@ -423,15 +477,13 @@ export default function InventoryPage() {
                               router.push(
                                 `/admin/inventory/edit/${product._id}`
                               )
-                            }
-                          >
+                            }>
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-400 hover:text-red-300"
-                          >
+                            className="text-red-400 hover:text-red-300">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -459,8 +511,7 @@ export default function InventoryPage() {
         isOpen={showItemModal}
         onClose={() => setShowItemModal(false)}
         size="lg"
-        title={selectedItem?.name}
-      >
+        title={selectedItem?.name}>
         {selectedItem && (
           <div className="space-y-6">
             {/* Item Info */}
@@ -516,8 +567,7 @@ export default function InventoryPage() {
                         selectedItem.inventory.currentStock,
                         selectedItem.inventory.minimumStock
                       ).status
-                    )}`}
-                  >
+                    )}`}>
                     {
                       getStockStatus(
                         selectedItem.inventory.currentStock,
@@ -567,8 +617,7 @@ export default function InventoryPage() {
                 className="flex-1"
                 onClick={() =>
                   router.push(`/admin/inventory/edit/${selectedItem._id}`)
-                }
-              >
+                }>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Item
               </Button>

@@ -267,10 +267,15 @@ export const createCustomerSuccessPopup = (
 
 export const createProductSuccessPopup = (
   productData: any,
-  onReset?: () => void
+  onReset?: () => void,
+  isUpdate: boolean = false
 ): SuccessPopupData => ({
-  title: "Product Added Successfully!",
-  message: "The product has been successfully added to your inventory.",
+  title: isUpdate
+    ? "Product Updated Successfully!"
+    : "Product Added Successfully!",
+  message: isUpdate
+    ? "The existing product has been updated with new stock and latest pricing."
+    : "The product has been successfully added to your inventory.",
   type: "product",
   details: [
     {
@@ -279,20 +284,38 @@ export const createProductSuccessPopup = (
     },
     {
       label: "Category",
-      value: typeof productData.category === 'string' ? productData.category : productData.category?.name || 'N/A',
+      value:
+        typeof productData.category === "string"
+          ? productData.category
+          : productData.category?.name || "N/A",
     },
     {
       label: "Brand",
-      value: typeof productData.brand === 'string' ? productData.brand : productData.brand?.name || 'N/A',
+      value:
+        typeof productData.brand === "string"
+          ? productData.brand
+          : productData.brand?.name || "N/A",
     },
     {
-      label: "Selling Price",
-      value: `₹${productData.pricing?.sellingPrice || productData.sellingPrice || 0}`,
+      label: isUpdate ? "Updated Selling Price" : "Selling Price",
+      value: `₹${
+        productData.pricing?.sellingPrice || productData.sellingPrice || 0
+      }`,
     },
     {
-      label: "Current Stock",
-      value: (productData.inventory?.currentStock || productData.currentStock || 0).toString(),
+      label: isUpdate ? "Total Stock" : "Current Stock",
+      value: `${
+        productData.inventory?.currentStock || productData.currentStock || 0
+      } ${productData.pricing?.unit || productData.unit || "pcs"}`,
     },
+    ...(isUpdate
+      ? [
+          {
+            label: "Status",
+            value: "Stock increased with latest price applied to all items",
+          },
+        ]
+      : []),
   ],
   onReset,
 });

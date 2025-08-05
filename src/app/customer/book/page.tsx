@@ -1,103 +1,149 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocaleStore } from "@/store/locale-store";
+import { useBills } from "@/hooks/use-sanity-api";
+import { useUser } from "@clerk/nextjs";
 import {
   FileText,
   Search,
-  Filter,
   Calendar,
   MapPin,
   Eye,
   Download,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
-// Mock data - will be replaced with real data from Sanity
-const mockBills = [
-  {
-    id: "1",
-    date: "2025-01-15",
-    amount: 2500,
-    items: [
-      { name: "LED Bulbs (10W)", quantity: 5, price: 200 },
-      { name: "Switch Installation", quantity: 2, price: 750 },
-    ],
-    serviceType: "home",
-    locationType: "home",
-    homeVisitFee: 500,
-    subtotal: 2000,
-    status: "paid",
-    notes: "Replaced old bulbs with LED, installed new switches in bedroom",
-  },
-  {
-    id: "2",
-    date: "2025-01-10",
-    amount: 1800,
-    items: [
-      { name: "Fan Repair", quantity: 1, price: 1200 },
-      { name: "Wiring Check", quantity: 1, price: 600 },
-    ],
-    serviceType: "repair",
-    locationType: "shop",
-    homeVisitFee: 0,
-    subtotal: 1800,
-    status: "paid",
-    notes: "Ceiling fan motor repair and complete wiring inspection",
-  },
-  {
-    id: "3",
-    date: "2025-01-05",
-    amount: 3200,
-    items: [
-      { name: "Complete Rewiring", quantity: 1, price: 2800 },
-      { name: "Circuit Breaker", quantity: 1, price: 400 },
-    ],
-    serviceType: "custom",
-    locationType: "home",
-    homeVisitFee: 0,
-    subtotal: 3200,
-    status: "paid",
-    notes: "Complete house rewiring with new circuit breaker installation",
-  },
-  {
-    id: "4",
-    date: "2024-12-28",
-    amount: 1500,
-    items: [
-      { name: "Socket Installation", quantity: 4, price: 300 },
-      { name: "Wire Extension", quantity: 1, price: 300 },
-    ],
-    serviceType: "sale",
-    locationType: "home",
-    homeVisitFee: 300,
-    subtotal: 1200,
-    status: "paid",
-    notes: "Added new power sockets in kitchen and living room",
-  },
-];
+// Sanity API interfaces based on api-docs.md
+interface BillItem {
+  _id: string;
+  product: {
+    _id: string;
+    name: string;
+  };
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  discount: number;
+  taxAmount: number;
+  description?: string;
+  warranty?: string;
+  status: string;
+}
+
+interface Bill {
+  _id: string;
+  billId: string;
+  billNumber: string;
+  customer: {
+    _id: string;
+    name: string;
+    customerId: string;
+  };
+  customerAddress: {
+    _id: string;
+    addressLine1: string;
+    city: string;
+    type: string;
+  };
+  serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
+  locationType: "shop" | "home" | "office";
+  serviceDate: string;
+  completionDate?: string;
+  homeVisitFee: number;
+  transportationFee: number;
+  laborCharges: number;
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paymentStatus: "pending" | "partial" | "paid" | "overdue";
+  status: "draft" | "confirmed" | "in_progress" | "completed" | "cancelled";
+  priority: "low" | "medium" | "high" | "urgent";
+  items?: BillItem[];
+}
 
 export default function CustomerBillingBook() {
   const { currency } = useLocaleStore();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedBill, setSelectedBill] = useState<any>(null);
-  const [filterType, setFilterType] = useState<"all" | "home" | "shop">("all");
+  const { user } = useUser();
+  const { getCustomerBills } = useBills();
 
-  const filteredBills = mockBills.filter((bill) => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [filterType, setFilterType] = useState<
+    "all" | "home" | "shop" | "office"
+  >("all");
+
+  // Fetch customer bills on component mount
+  useEffect(() => {
+    if (user?.id) {
+      getCustomerBills.execute(user.id);
+    }
+  }, [getCustomerBills, user.id]);
+
+  const bills = getCustomerBills.data || [];
+
+  const filteredBills = bills.filter((bill: Bill) => {
     const matchesSearch =
-      bill.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.items.some((item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      searchTerm === "" ||
+      bill.serviceType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (bill.items &&
+        bill.items.some(
+          (item: BillItem) =>
+            item.product.name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            (item.description &&
+              item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+        ));
+
     const matchesFilter =
       filterType === "all" || bill.locationType === filterType;
     return matchesSearch && matchesFilter;
   });
 
-  const totalSpent = mockBills.reduce((sum, bill) => sum + bill.amount, 0);
+  const totalSpent = bills.reduce(
+    (sum: number, bill: Bill) => sum + bill.totalAmount,
+    0
+  );
+
+  // Loading state
+  if (getCustomerBills.loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-400">Loading your billing history...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (getCustomerBills.error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="p-8 bg-gray-900 border-gray-800 text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-white mb-2">
+            Failed to Load Bills
+          </h3>
+          <p className="text-gray-400 mb-4">{getCustomerBills.error}</p>
+          <Button
+            onClick={() => user?.id && getCustomerBills.execute(user.id)}
+            className="w-full">
+            Try Again
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -134,23 +180,26 @@ export default function CustomerBillingBook() {
             <Button
               variant={filterType === "all" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterType("all")}
-            >
+              onClick={() => setFilterType("all")}>
               All
             </Button>
             <Button
               variant={filterType === "home" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterType("home")}
-            >
+              onClick={() => setFilterType("home")}>
               Home Service
             </Button>
             <Button
               variant={filterType === "shop" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterType("shop")}
-            >
+              onClick={() => setFilterType("shop")}>
               Shop Service
+            </Button>
+            <Button
+              variant={filterType === "office" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterType("office")}>
+              Office Service
             </Button>
           </div>
         </div>
@@ -158,13 +207,12 @@ export default function CustomerBillingBook() {
 
       {/* Bills List */}
       <div className="space-y-4">
-        {filteredBills.map((bill, index) => (
+        {filteredBills.map((bill: Bill, index: number) => (
           <motion.div
-            key={bill.id}
+            key={bill._id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
+            transition={{ delay: index * 0.1 }}>
             <Card className="p-6 bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -172,17 +220,21 @@ export default function CustomerBillingBook() {
                     <FileText className="w-6 h-6 text-blue-400" />
                   </div>
                   <div>
-                    <p className="text-white font-semibold">Bill #{bill.id}</p>
+                    <p className="text-white font-semibold">
+                      Bill #{bill.billNumber}
+                    </p>
                     <div className="flex items-center gap-4 text-sm text-gray-400">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {bill.date}
+                        {new Date(bill.serviceDate).toLocaleDateString()}
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
                         {bill.locationType === "home"
                           ? "Home Service"
-                          : "Shop Service"}
+                          : bill.locationType === "shop"
+                          ? "Shop Service"
+                          : "Office Service"}
                       </div>
                     </div>
                   </div>
@@ -190,10 +242,19 @@ export default function CustomerBillingBook() {
                 <div className="text-right">
                   <p className="text-2xl font-bold text-white">
                     {currency}
-                    {bill.amount.toLocaleString()}
+                    {bill.totalAmount.toLocaleString()}
                   </p>
-                  <span className="text-xs px-2 py-1 rounded-full bg-green-900 text-green-300">
-                    {bill.status}
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      bill.paymentStatus === "paid"
+                        ? "bg-green-900 text-green-300"
+                        : bill.paymentStatus === "partial"
+                        ? "bg-yellow-900 text-yellow-300"
+                        : bill.paymentStatus === "overdue"
+                        ? "bg-red-900 text-red-300"
+                        : "bg-gray-900 text-gray-300"
+                    }`}>
+                    {bill.paymentStatus}
                   </span>
                 </div>
               </div>
@@ -204,17 +265,23 @@ export default function CustomerBillingBook() {
                     Items & Services
                   </p>
                   <div className="space-y-1">
-                    {bill.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-gray-400">
-                          {item.name} × {item.quantity}
-                        </span>
-                        <span className="text-white">
-                          {currency}
-                          {item.price.toLocaleString()}
-                        </span>
+                    {bill.items && bill.items.length > 0 ? (
+                      bill.items.map((item: BillItem, idx: number) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-gray-400">
+                            {item.product.name} × {item.quantity}
+                          </span>
+                          <span className="text-white">
+                            {currency}
+                            {item.unitPrice.toLocaleString()}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-400">
+                        Service: {bill.serviceType}
                       </div>
-                    ))}
+                    )}
                     {bill.homeVisitFee > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-400">Home Visit Fee</span>
@@ -224,13 +291,32 @@ export default function CustomerBillingBook() {
                         </span>
                       </div>
                     )}
+                    {bill.laborCharges > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Labor Charges</span>
+                        <span className="text-white">
+                          {currency}
+                          {bill.laborCharges.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-300 mb-2">
-                    Service Notes
+                    Service Details
                   </p>
-                  <p className="text-sm text-gray-400">{bill.notes}</p>
+                  <div className="space-y-1 text-sm text-gray-400">
+                    <p>Type: {bill.serviceType}</p>
+                    <p>Status: {bill.status}</p>
+                    <p>Priority: {bill.priority}</p>
+                    {bill.completionDate && (
+                      <p>
+                        Completed:{" "}
+                        {new Date(bill.completionDate).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -238,15 +324,16 @@ export default function CustomerBillingBook() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
-                      bill.serviceType === "home"
+                      bill.serviceType === "installation"
                         ? "bg-blue-900 text-blue-300"
                         : bill.serviceType === "repair"
                         ? "bg-yellow-900 text-yellow-300"
                         : bill.serviceType === "custom"
                         ? "bg-purple-900 text-purple-300"
+                        : bill.serviceType === "maintenance"
+                        ? "bg-orange-900 text-orange-300"
                         : "bg-green-900 text-green-300"
-                    }`}
-                  >
+                    }`}>
                     {bill.serviceType}
                   </span>
                 </div>
@@ -254,8 +341,7 @@ export default function CustomerBillingBook() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedBill(bill)}
-                  >
+                    onClick={() => setSelectedBill(bill)}>
                     <Eye className="w-4 h-4 mr-2" />
                     View Details
                   </Button>
@@ -290,18 +376,16 @@ export default function CustomerBillingBook() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-gray-900 rounded-lg border border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-auto"
-          >
+            className="bg-gray-900 rounded-lg border border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">
-                  Bill Details #{selectedBill.id}
+                  Bill Details #{selectedBill.billNumber}
                 </h2>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedBill(null)}
-                >
+                  onClick={() => setSelectedBill(null)}>
                   ×
                 </Button>
               </div>
@@ -309,8 +393,10 @@ export default function CustomerBillingBook() {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-400">Date</p>
-                    <p className="text-white">{selectedBill.date}</p>
+                    <p className="text-sm text-gray-400">Service Date</p>
+                    <p className="text-white">
+                      {new Date(selectedBill.serviceDate).toLocaleDateString()}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">Service Type</p>
@@ -323,13 +409,27 @@ export default function CustomerBillingBook() {
                     <p className="text-white">
                       {selectedBill.locationType === "home"
                         ? "Home Service"
-                        : "Shop Service"}
+                        : selectedBill.locationType === "shop"
+                        ? "Shop Service"
+                        : "Office Service"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-400">Status</p>
+                    <p className="text-sm text-gray-400">Payment Status</p>
+                    <p className="text-white capitalize">
+                      {selectedBill.paymentStatus}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Work Status</p>
                     <p className="text-white capitalize">
                       {selectedBill.status}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Priority</p>
+                    <p className="text-white capitalize">
+                      {selectedBill.priority}
                     </p>
                   </div>
                 </div>
@@ -337,23 +437,51 @@ export default function CustomerBillingBook() {
                 <div>
                   <p className="text-sm text-gray-400 mb-3">Items & Services</p>
                   <div className="space-y-2">
-                    {selectedBill.items.map((item: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex justify-between p-3 bg-gray-800 rounded"
-                      >
-                        <div>
-                          <p className="text-white">{item.name}</p>
-                          <p className="text-sm text-gray-400">
-                            Quantity: {item.quantity}
-                          </p>
+                    {selectedBill.items && selectedBill.items.length > 0 ? (
+                      selectedBill.items.map((item: BillItem, idx: number) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between p-3 bg-gray-800 rounded">
+                          <div>
+                            <p className="text-white">{item.product.name}</p>
+                            <p className="text-sm text-gray-400">
+                              Quantity: {item.quantity} | Unit Price: {currency}
+                              {item.unitPrice.toLocaleString()}
+                            </p>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {item.description}
+                              </p>
+                            )}
+                            {item.warranty && (
+                              <p className="text-xs text-blue-400 mt-1">
+                                Warranty: {item.warranty}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white font-medium">
+                              {currency}
+                              {item.totalPrice.toLocaleString()}
+                            </p>
+                            {item.discount > 0 && (
+                              <p className="text-xs text-green-400">
+                                Discount: -{currency}
+                                {item.discount.toLocaleString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-white font-medium">
-                          {currency}
-                          {item.price.toLocaleString()}
+                      ))
+                    ) : (
+                      <div className="p-3 bg-gray-800 rounded">
+                        <p className="text-white">
+                          Service: {selectedBill.serviceType}
                         </p>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Additional charges */}
                     {selectedBill.homeVisitFee > 0 && (
                       <div className="flex justify-between p-3 bg-gray-800 rounded">
                         <p className="text-white">Home Visit Fee</p>
@@ -363,22 +491,69 @@ export default function CustomerBillingBook() {
                         </p>
                       </div>
                     )}
+                    {selectedBill.transportationFee > 0 && (
+                      <div className="flex justify-between p-3 bg-gray-800 rounded">
+                        <p className="text-white">Transportation Fee</p>
+                        <p className="text-white font-medium">
+                          {currency}
+                          {selectedBill.transportationFee.toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                    {selectedBill.laborCharges > 0 && (
+                      <div className="flex justify-between p-3 bg-gray-800 rounded">
+                        <p className="text-white">Labor Charges</p>
+                        <p className="text-white font-medium">
+                          {currency}
+                          {selectedBill.laborCharges.toLocaleString()}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="border-t border-gray-800 pt-4">
-                  <div className="flex justify-between text-lg font-bold text-white">
+                <div className="border-t border-gray-800 pt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Subtotal</span>
+                    <span className="text-white">
+                      {currency}
+                      {selectedBill.subtotal.toLocaleString()}
+                    </span>
+                  </div>
+                  {selectedBill.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Discount</span>
+                      <span className="text-green-400">
+                        -{currency}
+                        {selectedBill.discountAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Tax</span>
+                    <span className="text-white">
+                      {currency}
+                      {selectedBill.taxAmount.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold text-white border-t border-gray-700 pt-2">
                     <span>Total Amount</span>
                     <span>
                       {currency}
-                      {selectedBill.amount.toLocaleString()}
+                      {selectedBill.totalAmount.toLocaleString()}
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-sm text-gray-400 mb-2">Service Notes</p>
-                  <p className="text-white">{selectedBill.notes}</p>
+                  <p className="text-sm text-gray-400 mb-2">Service Address</p>
+                  <p className="text-white">
+                    {selectedBill.customerAddress.addressLine1},{" "}
+                    {selectedBill.customerAddress.city}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Address Type: {selectedBill.customerAddress.type}
+                  </p>
                 </div>
               </div>
             </div>

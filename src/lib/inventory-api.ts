@@ -239,10 +239,18 @@ export const inventoryApi = {
       const summary = await sanityClient.fetch(query);
       // Calculate totalItems and totalValue from products array
       const totalItems = Array.isArray(summary.products)
-        ? summary.products.reduce((sum: number, p: { currentStock: number }) => sum + (p.currentStock || 0), 0)
+        ? summary.products.reduce(
+            (sum: number, p: { currentStock: number }) =>
+              sum + (p.currentStock || 0),
+            0
+          )
         : 0;
       const totalValue = Array.isArray(summary.products)
-        ? summary.products.reduce((sum: number, p: { purchasePrice: number, currentStock: number }) => sum + ((p.purchasePrice || 0) * (p.currentStock || 0)), 0)
+        ? summary.products.reduce(
+            (sum: number, p: { purchasePrice: number; currentStock: number }) =>
+              sum + (p.purchasePrice || 0) * (p.currentStock || 0),
+            0
+          )
         : 0;
       return { success: true, data: { ...summary, totalItems, totalValue } };
     } catch (error) {
@@ -292,6 +300,97 @@ export const inventoryApi = {
         success: false,
         error:
           error instanceof Error ? error.message : "Failed to search products",
+      };
+    }
+  },
+
+  // Create new product
+  async createProduct(productData: {
+    name: string;
+    description?: string;
+    brandId: string;
+    categoryId: string;
+    specifications: any;
+    pricing: {
+      purchasePrice: number;
+      sellingPrice: number;
+      unit: string;
+    };
+    inventory: {
+      currentStock: number;
+      minimumStock: number;
+      reorderLevel: number;
+    };
+    tags: string[];
+  }): Promise<InventoryApiResponse> {
+    try {
+      const productId = Buffer.from(
+        Date.now().toString() + Math.random().toString()
+      )
+        .toString("base64")
+        .substring(0, 12);
+
+      const newProduct = {
+        _type: "product",
+        productId,
+        name: productData.name,
+        slug: {
+          _type: "slug",
+          current: productData.name
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9-]/g, ""),
+        },
+        description: productData.description,
+        brand: { _type: "reference", _ref: productData.brandId },
+        category: { _type: "reference", _ref: productData.categoryId },
+        specifications: productData.specifications,
+        pricing: {
+          ...productData.pricing,
+          taxRate: 18, // Default GST rate
+        },
+        inventory: productData.inventory,
+        images: [],
+        isActive: true,
+        isFeatured: false,
+        tags: productData.tags,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const result = await sanityClient.create(newProduct);
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Error creating product:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to create product",
+      };
+    }
+  },
+
+  // Update existing product
+  async updateProduct(
+    productId: string,
+    updateData: any
+  ): Promise<InventoryApiResponse> {
+    try {
+      const result = await sanityClient
+        .patch(productId)
+        .set({
+          ...updateData,
+          updatedAt: new Date().toISOString(),
+        })
+        .commit();
+
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Error updating product:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to update product",
       };
     }
   },

@@ -17,7 +17,7 @@ import {
 export interface ConfirmationData {
   title: string;
   message: string;
-  data?: any;
+  data?: unknown;
   type: "success" | "error" | "warning" | "info";
   details?: Array<{
     label: string;
@@ -86,31 +86,31 @@ export function ConfirmationPopup({
       case "success":
         return {
           border: "border-green-500/30",
-          bg: "bg-green-900/20",
+          bg: "bg-gray-900",
           text: "text-green-200",
         };
       case "error":
         return {
           border: "border-red-500/30",
-          bg: "bg-red-900/20",
+          bg: "bg-gray-900",
           text: "text-red-200",
         };
       case "warning":
         return {
           border: "border-yellow-500/30",
-          bg: "bg-yellow-900/20",
+          bg: "bg-gray-900",
           text: "text-yellow-200",
         };
       case "info":
         return {
           border: "border-blue-500/30",
-          bg: "bg-blue-900/20",
+          bg: "bg-gray-900",
           text: "text-blue-200",
         };
       default:
         return {
           border: "border-gray-500/30",
-          bg: "bg-gray-900/20",
+          bg: "bg-gray-900",
           text: "text-gray-200",
         };
     }
@@ -127,9 +127,8 @@ export function ConfirmationPopup({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-            onClick={onClose}
-          >
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={onClose}>
             {/* Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -137,11 +136,9 @@ export function ConfirmationPopup({
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md"
-            >
+              className="w-full max-w-md">
               <Card
-                className={`${colorClasses.bg} ${colorClasses.border} border shadow-2xl`}
-              >
+                className={`${colorClasses.bg} ${colorClasses.border} border shadow-2xl`}>
                 <div className="p-6">
                   {/* Close Button */}
                   <div className="flex justify-end mb-4">
@@ -149,8 +146,7 @@ export function ConfirmationPopup({
                       variant="ghost"
                       size="sm"
                       onClick={onClose}
-                      className="hover:bg-gray-800 p-1"
-                    >
+                      className="hover:bg-gray-800 p-1">
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -165,14 +161,12 @@ export function ConfirmationPopup({
                         type: "spring",
                         stiffness: 200,
                       }}
-                      className="flex justify-center mb-4"
-                    >
+                      className="flex justify-center mb-4">
                       {getIcon()}
                     </motion.div>
 
                     <h2
-                      className={`text-xl font-bold ${colorClasses.text} mb-2`}
-                    >
+                      className={`text-xl font-bold ${colorClasses.text} mb-2`}>
                       {data.title}
                     </h2>
 
@@ -185,8 +179,7 @@ export function ConfirmationPopup({
                       {data.details.map((detail, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700"
-                        >
+                          className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
                           <div>
                             <p className="text-gray-400 text-xs">
                               {detail.label}
@@ -203,8 +196,7 @@ export function ConfirmationPopup({
                               onClick={() =>
                                 handleCopy(detail.value, detail.label)
                               }
-                              className="hover:bg-gray-700 p-2"
-                            >
+                              className="hover:bg-gray-700 p-2">
                               {copiedField === detail.label ? (
                                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                               ) : (
@@ -225,8 +217,7 @@ export function ConfirmationPopup({
                           key={index}
                           variant={action.variant || "default"}
                           onClick={action.action}
-                          className="flex-1"
-                        >
+                          className="flex-1">
                           {action.label}
                         </Button>
                       ))
@@ -236,8 +227,7 @@ export function ConfirmationPopup({
                         className="w-full"
                         variant={
                           data.type === "error" ? "destructive" : "default"
-                        }
-                      >
+                        }>
                         {data.type === "success" ? "Great!" : "OK"}
                       </Button>
                     )}

@@ -175,13 +175,13 @@ export function Navigation() {
         <div key={item.label} className="space-y-1">
           {hasChildren ? (
             <button
+              type="button"
               onClick={() => toggleExpanded(item.label)}
               className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition-colors ${
                 active
                   ? "bg-blue-600 text-white"
                   : "text-gray-300 hover:bg-gray-800"
-              }`}
-            >
+              }`}>
               <div className="flex items-center gap-3">
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>
@@ -200,8 +200,7 @@ export function Navigation() {
                 active
                   ? "bg-blue-600 text-white"
                   : "text-gray-300 hover:bg-gray-800"
-              }`}
-            >
+              }`}>
               <div className="flex items-center gap-3">
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>
@@ -223,8 +222,7 @@ export function Navigation() {
                       childActive
                         ? "bg-blue-600/20 text-blue-400"
                         : "text-gray-400 hover:bg-gray-800 hover:text-gray-300"
-                    }`}
-                  >
+                    }`}>
                     <ChildIcon className="w-4 h-4" />
                     <span className="text-sm">{child.label}</span>
                   </Link>
@@ -240,6 +238,7 @@ export function Navigation() {
     if (hasChildren) {
       return (
         <Dropdown
+          searchable={false}
           key={item.label}
           options={item.children!.map((child) => ({
             value: child.href,
