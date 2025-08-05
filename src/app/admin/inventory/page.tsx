@@ -119,7 +119,7 @@ export default function InventoryPage() {
     return matchesSearch && matchesCategory && matchesStockStatus;
   });
 
-  const totalItems = inventorySummary?.totalProducts || 0;
+  const totalItems = inventorySummary?.totalItems || 0;
   const totalValue = inventorySummary?.totalValue || 0;
   const lowStockItems = inventorySummary?.lowStockProducts || 0;
   const outOfStockItems = inventorySummary?.outOfStockProducts || 0;
@@ -343,7 +343,7 @@ export default function InventoryPage() {
                   const StatusIcon = getStockStatusIcon(stockStatus.status);
                   const itemValue =
                     product.inventory.currentStock *
-                    product.pricing.sellingPrice;
+                    product.pricing.purchasePrice;
 
                   return (
                     <motion.tr

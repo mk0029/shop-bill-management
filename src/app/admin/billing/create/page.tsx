@@ -1172,7 +1172,6 @@ export default function CreateBillPage() {
                   {filterItemsBySpecifications().map((product) => (
                     <motion.div
                       key={product._id}
-                      whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <Button
@@ -1208,13 +1207,18 @@ export default function CreateBillPage() {
                             <p>{getItemSpecifications(product)}</p>
                             <p>
                               Purchase Price: {currency}
-                              {product.pricing.purchasePrice}
+                              <span className="relative inline-block after:absolute after:inset-0 after:backdrop-blur-sm after:z-10 after:rounded-lg">
+                             &nbsp;{product.pricing.purchasePrice}</span>
                             </p>
                             <p>
+                              Selling Price: {currency}
+                              {product.pricing.sellingPrice}
+                            </p>
+                            {/* <p>
                               Profit: {currency}
                               {product.pricing.sellingPrice -
                                 product.pricing.purchasePrice}
-                            </p>
+                            </p> */}
                           </div>
                         </div>
                       </Button>

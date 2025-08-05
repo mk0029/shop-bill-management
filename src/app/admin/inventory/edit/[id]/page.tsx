@@ -18,14 +18,12 @@ import {
   wireGauges,
   ampereRatings,
   units,
-  popularBrands,
   currency,
   getCategoryLabel,
   getLightTypeLabel,
-  getBrandLabel,
   getUnitLabel,
   getItemSpecifications,
-  mockInventoryItems
+  // Removed getBrandLabel, mockInventoryItems, and popularBrands from import
 } from "@/lib/inventory-data";
 
 export default function EditInventoryItemPage() {
@@ -53,28 +51,37 @@ export default function EditInventoryItemPage() {
     description: "",
   });
 
-  // Load item data on component mount
+  // Load item data from API on component mount
   useEffect(() => {
-    const item = mockInventoryItems.find(item => item.id === itemId);
-    if (item) {
-      setFormData({
-        category: item.category,
-        lightType: item.lightType,
-        color: item.color,
-        size: item.size,
-        watts: item.watts,
-        wireGauge: item.wireGauge,
-        ampere: item.ampere,
-        brand: item.brand,
-        purchasePrice: item.purchasePrice.toString(),
-        sellingPrice: item.sellingPrice.toString(),
-        currentStock: item.currentStock.toString(),
-        unit: item.unit,
-        description: item.description,
-      });
-    } else {
-      setItemNotFound(true);
+    async function fetchItem() {
+      setIsLoading(true);
+      try {
+        // Replace with your actual API endpoint
+        const res = await fetch(`/api/inventory/${itemId}`);
+        if (!res.ok) throw new Error("Not found");
+        const item = await res.json();
+        setFormData({
+          category: item.category || "",
+          lightType: item.lightType || "",
+          color: item.color || "",
+          size: item.size || "",
+          watts: item.watts || "",
+          wireGauge: item.wireGauge || "",
+          ampere: item.ampere || "",
+          brand: item.brand || "",
+          purchasePrice: item.purchasePrice?.toString() || "",
+          sellingPrice: item.sellingPrice?.toString() || "",
+          currentStock: item.currentStock?.toString() || "",
+          unit: item.unit || "",
+          description: item.description || "",
+        });
+      } catch (err) {
+        setItemNotFound(true);
+      } finally {
+        setIsLoading(false);
+      }
     }
+    if (itemId) fetchItem();
   }, [itemId]);
 
   const handleInputChange = (field: string, value: string) => {
@@ -124,8 +131,8 @@ export default function EditInventoryItemPage() {
 
   // Filter brands based on selected category
   const availableBrands = formData.category 
-    ? popularBrands.filter(brand => brand.categories.includes(formData.category))
-    : popularBrands;
+    ? [] // TODO: Replace with real brands data from API
+    : [];
 
   if (itemNotFound) {
     return (
@@ -469,7 +476,7 @@ export default function EditInventoryItemPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Name:</span>
-                <span className="text-white">{getCategoryLabel(formData.category)} - {getBrandLabel(formData.brand)}</span>
+                <span className="text-white">{getCategoryLabel(formData.category)} - {formData.brand}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Category:</span>

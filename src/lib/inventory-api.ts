@@ -1,6 +1,6 @@
 import { sanityClient } from "./sanity";
 
-export interface InventoryApiResponse<T = any> {
+export interface InventoryApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -17,7 +17,7 @@ export const inventoryApi = {
   }): Promise<InventoryApiResponse> {
     try {
       let query = `*[_type == "product"`;
-      const params: Record<string, any> = {};
+      const params: Record<string, unknown> = {};
 
       if (filters?.category) {
         query += ` && category->name match $category`;
@@ -224,18 +224,27 @@ export const inventoryApi = {
   // Get inventory summary
   async getInventorySummary(): Promise<InventoryApiResponse> {
     try {
+      // Fetch all products' purchasePrice and currentStock
       const query = `{
-        "totalProducts": count(*[_type == "product" && isActive == true]),
-        "activeProducts": count(*[_type == "product" && isActive == true]),
         "lowStockProducts": count(*[_type == "product" && isActive == true && inventory.currentStock <= inventory.minimumStock]),
         "outOfStockProducts": count(*[_type == "product" && isActive == true && inventory.currentStock <= 0]),
-        "totalValue": sum(*[_type == "product" && isActive == true].pricing.sellingPrice * inventory.currentStock),
+        "products": *[_type == "product" && isActive == true]{
+          "purchasePrice": pricing.purchasePrice,
+          "currentStock": inventory.currentStock
+        },
         "categories": count(*[_type == "category" && isActive == true]),
         "brands": count(*[_type == "brand" && isActive == true])
       }`;
 
       const summary = await sanityClient.fetch(query);
-      return { success: true, data: summary };
+      // Calculate totalItems and totalValue from products array
+      const totalItems = Array.isArray(summary.products)
+        ? summary.products.reduce((sum: number, p: { currentStock: number }) => sum + (p.currentStock || 0), 0)
+        : 0;
+      const totalValue = Array.isArray(summary.products)
+        ? summary.products.reduce((sum: number, p: { purchasePrice: number, currentStock: number }) => sum + ((p.purchasePrice || 0) * (p.currentStock || 0)), 0)
+        : 0;
+      return { success: true, data: { ...summary, totalItems, totalValue } };
     } catch (error) {
       console.error("Error fetching inventory summary:", error);
       return {
@@ -299,7 +308,7 @@ export const stockApi = {
   }): Promise<InventoryApiResponse> {
     try {
       let query = `*[_type == "stockTransaction"`;
-      const params: Record<string, any> = {};
+      const params: Record<string, unknown> = {};
 
       if (filters?.productId) {
         query += ` && product._ref == $productId`;
