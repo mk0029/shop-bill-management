@@ -208,8 +208,19 @@ export const useSpecificationsStore = create<SpecificationsStore>(
         return [];
       }
 
+      let filteredOptions = Array.isArray(specificationOptions)
+        ? specificationOptions
+        : [];
+
+      // Filter by category if a categoryId is provided
+      if (categoryId) {
+        filteredOptions = filteredOptions.filter((option) =>
+          option.categories?.some((ref) => ref._ref === categoryId)
+        );
+      }
+
       // Find options that are explicitly linked to the category ID
-      const categorySpecificOptions = specificationOptions.filter(
+      const categorySpecificOptions = filteredOptions.filter(
         (option) =>
           option.type === optionType &&
           option.categories?.some((ref) => ref._ref === categoryId)
@@ -223,7 +234,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       }
 
       // Fallback: if no category-specific options, return all options of that type that are not linked to any category
-      const allOptionsOfType = specificationOptions.filter(
+      const allOptionsOfType = filteredOptions.filter(
         (option) =>
           option.type === optionType &&
           (!option.categories || option.categories.length === 0)
@@ -282,7 +293,8 @@ export const useSpecificationsStore = create<SpecificationsStore>(
         const processFields = (fields: FieldDefinition[], isRequired: boolean) => {
           if (!fields) return;
           for (const field of fields) {
-            if (field.applicableCategories?.some(ref => ref._ref === categoryId)) {
+            // if (field.applicableCategories?.some(ref => ref._ref === categoryId))
+              //  {
               if (isRequired) {
                 requiredFields.push(field);
               } else {
@@ -293,7 +305,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
                 categoryType = mapping.categoryType;
                 typeFound = true;
               }
-            }
+          // }
           }
         };
 
@@ -368,7 +380,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
 
         // Update local state
         set((state) => ({
-          specificationOptions: state.specificationOptions.filter(
+          specificationOptions: (state.specificationOptions || []).filter(
             (option) => option._id !== id
           ),
         }));
