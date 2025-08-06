@@ -10,7 +10,7 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { BillForm } from "@/components/forms/bill-form";
 import { useLocaleStore } from "@/store/locale-store";
 import { useRouter } from "next/navigation";
-import { shareBillOnWhatsApp, BillDetails } from "@/lib/whatsapp-utils";
+import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import {
   FileText,
   Plus,
@@ -64,67 +64,24 @@ interface Bill {
   notes?: string;
 }
 
-// Mock data
-const mockCustomers: Customer[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    phone: "+91 9876543210",
-    location: "Mumbai, Maharashtra",
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    phone: "+91 9876543211",
-    location: "Delhi, India",
-  },
-  {
-    id: "3",
-    name: "Mike Johnson",
-    phone: "+91 9876543212",
-    location: "Bangalore, Karnataka",
-  },
-];
-
-const mockItems: Item[] = [
-  { id: "1", name: "LED Bulb 10W", price: 200, category: "lighting" },
-  { id: "2", name: "Ceiling Fan", price: 2500, category: "fan" },
-  { id: "3", name: "Switch 2-way", price: 150, category: "switch" },
-  { id: "4", name: "Wire 2.5mm", price: 50, category: "wiring" },
-  { id: "5", name: "Socket 3-pin", price: 100, category: "socket" },
-];
-
-const mockBills: Bill[] = [
-  {
-    id: "1",
-    customerName: "John Doe",
-    customerId: "1",
-    date: "2025-01-15",
-    items: [
-      { name: "LED Bulb 10W", quantity: 5, price: 200, total: 1000 },
-      { name: "Switch 2-way", quantity: 2, price: 150, total: 300 },
-    ],
-    serviceType: "home",
-    locationType: "home",
-    homeVisitFee: 500,
-    subtotal: 1300,
-    total: 1800,
-    status: "paid",
-  },
-  {
-    id: "2",
-    customerName: "Jane Smith",
-    customerId: "2",
-    date: "2025-01-14",
-    items: [{ name: "Ceiling Fan", quantity: 1, price: 2500, total: 2500 }],
-    serviceType: "sale",
-    locationType: "shop",
-    homeVisitFee: 0,
-    subtotal: 2500,
-    total: 2500,
-    status: "pending",
-  },
-];
+// WhatsApp sharing utility function
+const shareBillOnWhatsApp = (bill: Bill) => {
+  const message = `Bill Details:\n\nBill Number: ${bill.id}\nCustomer: ${
+    bill.customerName
+  }\nDate: ${bill.date}\nAmount: ₹${bill.total}\n\nItems:\n${bill.items
+    .map(
+      (item) =>
+        `- ${item.name}: ${item.quantity} x ₹${item.price} = ₹${item.total}`
+    )
+    .join("\n")}\n\nTotal: ₹${bill.total}`;
+  const encodedMessage = encodeURIComponent(message);
+  const customerPhone = bill.customerId; // Assuming customerId contains phone for now
+  const whatsappUrl = `https://wa.me/${customerPhone.replace(
+    /[^0-9]/g,
+    ""
+  )}?text=${encodedMessage}`;
+  window.open(whatsappUrl, "_blank");
+};
 
 const serviceTypeOptions = [
   { value: "sale", label: "Sale" },
@@ -140,17 +97,62 @@ const locationTypeOptions = [
 export default function BillingPage() {
   const { currency } = useLocaleStore();
   const router = useRouter();
+  const { bills, isLoading: billsLoading } = useBills();
+  const { customers, isLoading: customersLoading } = useCustomers();
+  const { products, isLoading: productsLoading } = useProducts();
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const filteredBills = mockBills.filter(
+  // Transform bills data to match the expected format
+  const transformedBills: Bill[] = bills.map((bill) => ({
+    id: bill._id,
+    customerName: bill.customer?.name || "Unknown Customer",
+    customerId: bill.customer?._id || "",
+    date: bill.serviceDate
+      ? new Date(bill.serviceDate).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
+    items:
+      bill.items?.map((item) => ({
+        name: item.productName || "Unknown Item",
+        quantity: item.quantity || 0,
+        price: item.unitPrice || 0,
+        total: item.totalPrice || 0,
+      })) || [],
+    serviceType: bill.serviceType || "sale",
+    locationType: bill.locationType || "shop",
+    homeVisitFee: bill.homeVisitFee || 0,
+    subtotal: bill.subtotal || 0,
+    total: bill.totalAmount || 0,
+    status: bill.paymentStatus === "paid" ? "paid" : "pending",
+    notes: bill.notes,
+  }));
+
+  // Transform customers data
+  const transformedCustomers: Customer[] = customers.map((customer) => ({
+    id: customer._id,
+    name: customer.name,
+    phone: customer.phone,
+    location: customer.location,
+  }));
+
+  // Transform products data
+  const transformedItems: Item[] = products.map((product) => ({
+    id: product._id,
+    name: product.name,
+    price: product.pricing?.sellingPrice || 0,
+    category: product.category?.name || "general",
+  }));
+
+  const filteredBills = transformedBills.filter(
     (bill) =>
       (bill.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bill.id.includes(searchTerm)) &&
       (filterStatus === "all" || bill.status === filterStatus)
   );
+
+  const isLoading = billsLoading || customersLoading || productsLoading;
 
   const handleCreateBill = async (billData: {
     customerId: string;
@@ -173,20 +175,12 @@ export default function BillingPage() {
   };
 
   const handleShareOnWhatsApp = (bill: Bill) => {
-    const billDetails: BillDetails = {
-      billNumber: bill.id,
-      customerName: bill.customerName,
-      customerPhone:
-        mockCustomers.find((c) => c.id === bill.customerId)?.phone || "",
-      billDate: bill.date,
-      dueDate: bill.date, // Using bill date as due date for now
-      items: bill.items,
-      subtotal: bill.subtotal,
-      total: bill.total,
-      notes: bill.notes,
+    const customer = transformedCustomers.find((c) => c.id === bill.customerId);
+    const billWithPhone = {
+      ...bill,
+      customerId: customer?.phone || bill.customerId,
     };
-
-    shareBillOnWhatsApp(billDetails);
+    shareBillOnWhatsApp(billWithPhone);
   };
 
   return (
@@ -219,7 +213,7 @@ export default function BillingPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xl sm:text-2xl font-bold text-white">
-                {mockBills.length}
+                {transformedBills.length}
               </p>
               <p className="text-xs sm:text-sm text-gray-400 truncate">
                 Total Bills
@@ -235,7 +229,7 @@ export default function BillingPage() {
             <div className="min-w-0 flex-1">
               <p className="text-lg sm:text-2xl font-bold text-white">
                 {currency}
-                {mockBills
+                {transformedBills
                   .reduce((sum, bill) => sum + bill.total, 0)
                   .toLocaleString()}
               </p>
@@ -253,7 +247,7 @@ export default function BillingPage() {
             <div className="min-w-0 flex-1">
               <p className="text-xl sm:text-2xl font-bold text-white">
                 {
-                  mockBills.filter(
+                  transformedBills.filter(
                     (b) => b.date === new Date().toISOString().split("T")[0]
                   ).length
                 }
@@ -271,7 +265,7 @@ export default function BillingPage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xl sm:text-2xl font-bold text-white">
-                {mockBills.filter((b) => b.status === "pending").length}
+                {transformedBills.filter((b) => b.status === "pending").length}
               </p>
               <p className="text-xs sm:text-sm text-gray-400 truncate">
                 Pending Bills
@@ -314,96 +308,108 @@ export default function BillingPage() {
             Recent Bills
           </h2>
           <div className="space-y-4">
-            {filteredBills.map((bill, index) => (
-              <motion.div
-                key={bill.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="p-4 bg-gray-800 rounded-lg border border-gray-700"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-blue-400" />
+            {isLoading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400">Loading bills...</p>
+              </div>
+            ) : filteredBills.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400">
+                  No bills found matching your criteria.
+                </p>
+              </div>
+            ) : (
+              filteredBills.map((bill, index) => (
+                <motion.div
+                  key={bill.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-4 bg-gray-800 rounded-lg border border-gray-700"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-white font-semibold">
+                          Bill #{bill.id}
+                        </p>
+                        <p className="text-gray-400 text-sm">
+                          {bill.customerName}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-semibold">
-                        Bill #{bill.id}
+                    <div className="text-right">
+                      <p className="text-xl font-bold text-white">
+                        {currency}
+                        {bill.total.toLocaleString()}
                       </p>
-                      <p className="text-gray-400 text-sm">
-                        {bill.customerName}
-                      </p>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          bill.status === "paid"
+                            ? "bg-green-900 text-green-300"
+                            : "bg-yellow-900 text-yellow-300"
+                        }`}
+                      >
+                        {bill.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-white">
-                      {currency}
-                      {bill.total.toLocaleString()}
-                    </p>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        bill.status === "paid"
-                          ? "bg-green-900 text-green-300"
-                          : "bg-yellow-900 text-yellow-300"
-                      }`}
-                    >
-                      {bill.status}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {bill.date}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-sm text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {bill.date}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        {bill.locationType === "home"
+                          ? "Home Service"
+                          : "Shop Service"}
+                      </div>
+                      <span className="text-xs px-2 py-1 rounded bg-gray-700">
+                        {bill.items.length} items
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      {bill.locationType === "home"
-                        ? "Home Service"
-                        : "Shop Service"}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewBill(bill)}
+                        className="hover:bg-gray-700"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewCustomerBills(bill.customerId)}
+                        className="hover:bg-gray-700"
+                      >
+                        <User className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-gray-700"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-gray-700"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <span className="text-xs px-2 py-1 rounded bg-gray-700">
-                      {bill.items.length} items
-                    </span>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewBill(bill)}
-                      className="hover:bg-gray-700"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewCustomerBills(bill.customerId)}
-                      className="hover:bg-gray-700"
-                    >
-                      <User className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-gray-700"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-gray-700"
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
       </Card>
@@ -413,8 +419,8 @@ export default function BillingPage() {
         isOpen={showCreateBill}
         onClose={() => setShowCreateBill(false)}
         onSubmit={handleCreateBill}
-        customers={mockCustomers}
-        items={mockItems}
+        customers={transformedCustomers}
+        items={transformedItems}
       />
 
       {/* Bill Detail Modal */}
