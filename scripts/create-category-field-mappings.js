@@ -24,6 +24,14 @@ const categoryMappings = [
     description: "Electrical switches requiring amperage specification",
   },
   {
+    categorySlug: "capacitor",
+    categoryType: "ampere",
+    requiredFields: ["mfd"],
+    optionalFields: ["voltage", "amperage"],
+    isActive: true,
+    description: "Capacitors requiring MFD specification",
+  },
+  {
     categorySlug: "socket",
     categoryType: "ampere",
     requiredFields: ["amperage"],
@@ -53,7 +61,7 @@ const categoryMappings = [
     categorySlug: "motor",
     categoryType: "volt-watt",
     requiredFields: ["voltage", "wattage"],
-    optionalFields: ["size", "material"],
+    optionalFields: ["size", "material", "mfd"],
     isActive: true,
     description: "Electric motors requiring voltage and wattage specifications",
   },
@@ -61,9 +69,17 @@ const categoryMappings = [
     categorySlug: "pump",
     categoryType: "volt-watt",
     requiredFields: ["voltage", "wattage"],
-    optionalFields: ["size", "material"],
+    optionalFields: ["size", "material", "mfd"],
     isActive: true,
     description: "Water pumps requiring voltage and wattage specifications",
+  },
+  {
+    categorySlug: "fan",
+    categoryType: "volt-watt",
+    requiredFields: ["voltage", "wattage"],
+    optionalFields: ["size", "material", "mfd"],
+    isActive: true,
+    description: "Electric fans requiring voltage and wattage specifications",
   },
 
   // Wire/Cable based categories

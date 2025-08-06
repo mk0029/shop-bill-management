@@ -24,6 +24,13 @@ export default {
       description: "Current rating in amperes",
     },
     {
+      name: "mfd",
+      title: "Cap MFD",
+      type: "number",
+      description: "Capacitor MFD (Microfarad) rating",
+      initialValue: 0,
+    },
+    {
       name: "loadCapacity",
       title: "Load Capacity",
       type: "string",
@@ -41,7 +48,7 @@ export default {
       type: "string",
       description: "Number of cores (for wires/cables)",
     },
-    
+
     // Light specifications
     {
       name: "lightType",
@@ -61,7 +68,7 @@ export default {
       type: "string",
       description: "Brightness in lumens",
     },
-    
+
     // Physical properties
     {
       name: "size",
@@ -81,7 +88,7 @@ export default {
       type: "string",
       description: "Material composition",
     },
-    
+
     // Product-specific fields
     {
       name: "modal",
@@ -95,7 +102,7 @@ export default {
       type: "boolean",
       description: "Whether the product is modular",
     },
-    
+
     // Warranty information
     {
       name: "hasWarranty",
@@ -109,7 +116,7 @@ export default {
       type: "number",
       description: "Warranty period in months",
     },
-    
+
     // Certifications
     {
       name: "certifications",
@@ -129,12 +136,12 @@ export default {
     prepare(selection) {
       const { voltage, amperage, lightType, wireGauge } = selection;
       let subtitle = [];
-      
+
       if (voltage) subtitle.push(`${voltage}`);
       if (amperage) subtitle.push(`${amperage}`);
       if (lightType) subtitle.push(`${lightType}`);
       if (wireGauge) subtitle.push(`${wireGauge}mm`);
-      
+
       return {
         title: "Product Specifications",
         subtitle: subtitle.join(" | "),

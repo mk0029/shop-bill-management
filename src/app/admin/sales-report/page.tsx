@@ -6,6 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocaleStore } from "@/store/locale-store";
+import { useSalesAnalytics } from "@/hooks/use-sales-analytics";
+import {
+  formatCurrency,
+  formatPercentage,
+  formatTrendValue,
+  getTrendDirection,
+} from "@/lib/format-utils";
 import {
   BarChart3,
   TrendingUp,
@@ -17,43 +24,8 @@ import {
   Download,
   Filter,
   Eye,
+  Loader2,
 } from "lucide-react";
-
-// Mock data for sales analytics
-const mockSalesData = {
-  totalRevenue: 125000,
-  totalProfit: 45000,
-  totalBills: 156,
-  averageBillValue: 801,
-  monthlyGrowth: 12.5,
-  topCustomers: [
-    { name: "John Doe", totalSpent: 15000, billCount: 8 },
-    { name: "Jane Smith", totalSpent: 12500, billCount: 6 },
-    { name: "Mike Johnson", totalSpent: 10800, billCount: 5 },
-    { name: "Sarah Wilson", totalSpent: 8500, billCount: 4 },
-    { name: "David Brown", totalSpent: 7200, billCount: 3 },
-  ],
-  topItems: [
-    { name: "LED Bulb 10W", soldCount: 45, revenue: 9000 },
-    { name: "Ceiling Fan", soldCount: 12, revenue: 30000 },
-    { name: "Switch 2-way", soldCount: 38, revenue: 5700 },
-    { name: "Wire 2.5mm", soldCount: 120, revenue: 6000 },
-    { name: "Socket 3-pin", soldCount: 25, revenue: 2500 },
-  ],
-  monthlyData: [
-    { month: "Jan", revenue: 15000, profit: 5400, bills: 18 },
-    { month: "Feb", revenue: 18000, profit: 6480, bills: 22 },
-    { month: "Mar", revenue: 22000, profit: 7920, bills: 28 },
-    { month: "Apr", revenue: 19000, profit: 6840, bills: 24 },
-    { month: "May", revenue: 25000, profit: 9000, bills: 32 },
-    { month: "Jun", revenue: 26000, profit: 9360, bills: 32 },
-  ],
-  serviceTypeBreakdown: [
-    { type: "Sale", count: 85, revenue: 68000 },
-    { type: "Repair", count: 45, revenue: 36000 },
-    { type: "Custom", count: 26, revenue: 21000 },
-  ],
-};
 
 const StatCard = ({
   title,
@@ -79,8 +51,7 @@ const StatCard = ({
           <div
             className={`flex items-center mt-2 text-sm ${
               trend === "up" ? "text-green-400" : "text-red-400"
-            }`}
-          >
+            }`}>
             {trend === "up" ? (
               <TrendingUp className="w-4 h-4 mr-1" />
             ) : (
@@ -91,8 +62,7 @@ const StatCard = ({
         )}
       </div>
       <div
-        className={`w-12 h-12 bg-${color}-600/20 rounded-lg flex items-center justify-center`}
-      >
+        className={`w-12 h-12 bg-${color}-600/20 rounded-lg flex items-center justify-center`}>
         <Icon className={`w-6 h-6 text-${color}-400`} />
       </div>
     </div>
@@ -103,6 +73,50 @@ export default function SalesReportPage() {
   const { currency } = useLocaleStore();
   const [dateRange, setDateRange] = useState("month");
   const [selectedPeriod, setSelectedPeriod] = useState("current");
+
+  const { analytics, isLoading } = useSalesAnalytics(dateRange);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center gap-2 text-white">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading sales analytics...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message if no data is available
+  if (analytics.totalBills === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Sales Reports</h1>
+            <p className="text-gray-400 mt-1">
+              Analyze your business performance and track growth
+            </p>
+          </div>
+        </div>
+
+        <Card className="p-12 bg-gray-900 border-gray-800 text-center">
+          <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className="w-8 h-8 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            No Sales Data Available
+          </h2>
+          <p className="text-gray-400 mb-4">
+            Start creating bills to see your sales analytics and reports here.
+          </p>
+          <Button onClick={() => (window.location.href = "/admin/billing")}>
+            Create First Bill
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -119,7 +133,11 @@ export default function SalesReportPage() {
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
-          <Button>
+          <Button
+            onClick={() => {
+              const url = `/api/sales-report/export?dateRange=${dateRange}&format=csv`;
+              window.open(url, "_blank");
+            }}>
             <Download className="w-4 h-4 mr-2" />
             Export Report
           </Button>
@@ -133,29 +151,25 @@ export default function SalesReportPage() {
             <Button
               variant={dateRange === "week" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("week")}
-            >
+              onClick={() => setDateRange("week")}>
               This Week
             </Button>
             <Button
               variant={dateRange === "month" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("month")}
-            >
+              onClick={() => setDateRange("month")}>
               This Month
             </Button>
             <Button
               variant={dateRange === "quarter" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("quarter")}
-            >
+              onClick={() => setDateRange("quarter")}>
               This Quarter
             </Button>
             <Button
               variant={dateRange === "year" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("year")}
-            >
+              onClick={() => setDateRange("year")}>
               This Year
             </Button>
           </div>
@@ -171,34 +185,38 @@ export default function SalesReportPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Revenue"
-          value={`${currency}${mockSalesData.totalRevenue.toLocaleString()}`}
+          value={formatCurrency(analytics.totalRevenue, currency)}
           icon={DollarSign}
-          trend="up"
-          trendValue={`+${mockSalesData.monthlyGrowth}%`}
+          trend={getTrendDirection(analytics.monthlyGrowth)}
+          trendValue={formatTrendValue(analytics.monthlyGrowth)}
           color="green"
         />
         <StatCard
           title="Total Profit"
-          value={`${currency}${mockSalesData.totalProfit.toLocaleString()}`}
+          value={formatCurrency(analytics.totalProfit, currency)}
           icon={TrendingUp}
-          trend="up"
-          trendValue="+8.2%"
+          trend={getTrendDirection(
+            analytics.performanceInsights.profitMargin - 30
+          )}
+          trendValue={`${formatPercentage(
+            analytics.performanceInsights.profitMargin
+          )} margin`}
           color="blue"
         />
         <StatCard
           title="Total Bills"
-          value={mockSalesData.totalBills}
+          value={analytics.totalBills}
           icon={FileText}
           trend="up"
-          trendValue="+15 this month"
+          trendValue={`${analytics.totalBills} bills`}
           color="purple"
         />
         <StatCard
           title="Avg Bill Value"
-          value={`${currency}${mockSalesData.averageBillValue}`}
+          value={formatCurrency(analytics.averageBillValue, currency)}
           icon={BarChart3}
-          trend="down"
-          trendValue="-2.1%"
+          trend={getTrendDirection(analytics.averageBillValue - 500)}
+          trendValue="per bill"
           color="yellow"
         />
       </div>
@@ -211,37 +229,44 @@ export default function SalesReportPage() {
             Monthly Revenue Trend
           </h2>
           <div className="space-y-4">
-            {mockSalesData.monthlyData.map((data, index) => (
-              <motion.div
-                key={data.month}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-600/20 rounded flex items-center justify-center">
-                    <span className="text-blue-400 text-sm font-medium">
-                      {data.month}
-                    </span>
+            {analytics.monthlyData.length > 0 ? (
+              analytics.monthlyData.map((data, index) => (
+                <motion.div
+                  key={data.month}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-600/20 rounded flex items-center justify-center">
+                      <span className="text-blue-400 text-sm font-medium">
+                        {data.month}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">
+                        {currency}
+                        {data.revenue.toLocaleString()}
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        {data.bills} bills
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white font-medium">
+                  <div className="text-right">
+                    <p className="text-green-400 font-medium">
                       {currency}
-                      {data.revenue.toLocaleString()}
+                      {Math.round(data.profit).toLocaleString()}
                     </p>
-                    <p className="text-gray-400 text-sm">{data.bills} bills</p>
+                    <p className="text-gray-400 text-sm">profit</p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-green-400 font-medium">
-                    {currency}
-                    {data.profit.toLocaleString()}
-                  </p>
-                  <p className="text-gray-400 text-sm">profit</p>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No monthly data available</p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -251,35 +276,42 @@ export default function SalesReportPage() {
             Service Type Breakdown
           </h2>
           <div className="space-y-4">
-            {mockSalesData.serviceTypeBreakdown.map((service, index) => (
-              <motion.div
-                key={service.type}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-              >
-                <div>
-                  <p className="text-white font-medium">{service.type}</p>
-                  <p className="text-gray-400 text-sm">
-                    {service.count} services
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-white font-bold">
-                    {currency}
-                    {service.revenue.toLocaleString()}
-                  </p>
-                  <p className="text-gray-400 text-sm">
-                    {(
-                      (service.revenue / mockSalesData.totalRevenue) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+            {analytics.serviceTypeBreakdown.length > 0 ? (
+              analytics.serviceTypeBreakdown.map((service, index) => (
+                <motion.div
+                  key={service.type}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div>
+                    <p className="text-white font-medium">{service.type}</p>
+                    <p className="text-gray-400 text-sm">
+                      {service.count} services
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white font-bold">
+                      {currency}
+                      {service.revenue.toLocaleString()}
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      {analytics.totalRevenue > 0
+                        ? (
+                            (service.revenue / analytics.totalRevenue) *
+                            100
+                          ).toFixed(1)
+                        : "0"}
+                      %
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No service data available</p>
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -296,33 +328,38 @@ export default function SalesReportPage() {
             </Button>
           </div>
           <div className="space-y-3">
-            {mockSalesData.topCustomers.map((customer, index) => (
-              <motion.div
-                key={customer.name}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">
-                      {index + 1}
-                    </span>
+            {analytics.topCustomers.length > 0 ? (
+              analytics.topCustomers.map((customer, index) => (
+                <motion.div
+                  key={customer.customerId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{customer.name}</p>
+                      <p className="text-gray-400 text-sm">
+                        {customer.billCount} bills
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white font-medium">{customer.name}</p>
-                    <p className="text-gray-400 text-sm">
-                      {customer.billCount} bills
-                    </p>
-                  </div>
-                </div>
-                <p className="text-white font-bold">
-                  {currency}
-                  {customer.totalSpent.toLocaleString()}
-                </p>
-              </motion.div>
-            ))}
+                  <p className="text-white font-bold">
+                    {currency}
+                    {customer.totalSpent.toLocaleString()}
+                  </p>
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No customer data available</p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -338,33 +375,38 @@ export default function SalesReportPage() {
             </Button>
           </div>
           <div className="space-y-3">
-            {mockSalesData.topItems.map((item, index) => (
-              <motion.div
-                key={item.name}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">
-                      {index + 1}
-                    </span>
+            {analytics.topItems.length > 0 ? (
+              analytics.topItems.map((item, index) => (
+                <motion.div
+                  key={item.name}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{item.name}</p>
+                      <p className="text-gray-400 text-sm">
+                        {item.soldCount} sold
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white font-medium">{item.name}</p>
-                    <p className="text-gray-400 text-sm">
-                      {item.soldCount} sold
-                    </p>
-                  </div>
-                </div>
-                <p className="text-white font-bold">
-                  {currency}
-                  {item.revenue.toLocaleString()}
-                </p>
-              </motion.div>
-            ))}
+                  <p className="text-white font-bold">
+                    {currency}
+                    {item.revenue.toLocaleString()}
+                  </p>
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No item data available</p>
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -382,8 +424,11 @@ export default function SalesReportPage() {
             <h3 className="text-lg font-semibold text-white mb-2">
               Revenue Growth
             </h3>
-            <p className="text-3xl font-bold text-green-400 mb-1">+12.5%</p>
-            <p className="text-gray-400 text-sm">Compared to last month</p>
+            <p className="text-3xl font-bold text-green-400 mb-1">
+              {analytics.performanceInsights.revenueGrowth >= 0 ? "+" : ""}
+              {analytics.performanceInsights.revenueGrowth.toFixed(1)}%
+            </p>
+            <p className="text-gray-400 text-sm">Compared to last period</p>
           </div>
           <div className="text-center">
             <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -392,7 +437,9 @@ export default function SalesReportPage() {
             <h3 className="text-lg font-semibold text-white mb-2">
               Customer Retention
             </h3>
-            <p className="text-3xl font-bold text-blue-400 mb-1">87%</p>
+            <p className="text-3xl font-bold text-blue-400 mb-1">
+              {analytics.performanceInsights.customerRetention.toFixed(0)}%
+            </p>
             <p className="text-gray-400 text-sm">Repeat customers</p>
           </div>
           <div className="text-center">
@@ -402,7 +449,9 @@ export default function SalesReportPage() {
             <h3 className="text-lg font-semibold text-white mb-2">
               Profit Margin
             </h3>
-            <p className="text-3xl font-bold text-purple-400 mb-1">36%</p>
+            <p className="text-3xl font-bold text-purple-400 mb-1">
+              {analytics.performanceInsights.profitMargin.toFixed(0)}%
+            </p>
             <p className="text-gray-400 text-sm">Average across all services</p>
           </div>
         </div>

@@ -67,7 +67,7 @@ export default function CustomersPage() {
     );
     const totalBills = customerBills.length;
     const totalSpent = customerBills
-      .filter((bill) => bill.paymentStatus === "paid")
+      .filter((bill) => bill.paymentStatus === "pending")
       .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
     const lastBill = customerBills.sort(
       (a, b) =>

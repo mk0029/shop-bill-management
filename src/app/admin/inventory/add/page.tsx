@@ -41,6 +41,7 @@ interface InventoryItem {
   voltage?: string;
   material?: string;
   core?: string;
+  mfd?: string;
   brand: string;
   purchasePrice: string;
   sellingPrice: string;
@@ -90,6 +91,7 @@ export default function AddInventoryItemPage() {
     voltage: "",
     material: "",
     core: "",
+    mfd: "", // Cap MFD field
     // Fixed fields
     brand: "",
     purchasePrice: "",
@@ -143,6 +145,7 @@ export default function AddInventoryItemPage() {
       voltage: "",
       material: "",
       core: "",
+      mfd: "", // Cap MFD field
       // Fixed fields
       brand: "",
       purchasePrice: "",
@@ -213,6 +216,7 @@ export default function AddInventoryItemPage() {
       if (formData.wattage) specs.push(`${formData.wattage}W`);
       if (formData.wireGauge) specs.push(formData.wireGauge);
       if (formData.amperage) specs.push(`${formData.amperage}A`);
+      if (formData.mfd) specs.push(`${formData.mfd}MFD`);
 
       if (specs.length > 0) {
         productName += ` (${specs.join(", ")})`;
@@ -349,6 +353,7 @@ export default function AddInventoryItemPage() {
       if (item.wattage) specs.push(`${item.wattage}W`);
       if (item.wireGauge) specs.push(item.wireGauge);
       if (item.amperage) specs.push(`${item.amperage}A`);
+      if (item.mfd) specs.push(`${item.mfd}MFD`);
 
       if (specs.length > 0) {
         productName += ` (${specs.join(", ")})`;
@@ -369,6 +374,7 @@ export default function AddInventoryItemPage() {
           amperage: item.amperage?.trim() || undefined,
           material: item.material?.trim() || undefined,
           core: item.core?.trim() || undefined,
+          mfd: item.mfd ? parseFloat(item.mfd) : undefined,
         },
         pricing: {
           purchasePrice: purchasePrice,
@@ -493,6 +499,7 @@ export default function AddInventoryItemPage() {
           if (item.wattage) specs.push(`${item.wattage}W`);
           if (item.wireGauge) specs.push(item.wireGauge);
           if (item.amperage) specs.push(`${item.amperage}A`);
+          if (item.mfd) specs.push(`${item.mfd}MFD`);
 
           if (specs.length > 0) {
             productName += ` (${specs.join(", ")})`;
@@ -513,6 +520,7 @@ export default function AddInventoryItemPage() {
               amperage: item.amperage || undefined,
               material: item.material || undefined,
               core: item.core || undefined,
+              mfd: item.mfd ? parseFloat(item.mfd) : undefined,
             },
             pricing: {
               purchasePrice: parseFloat(item.purchasePrice),
