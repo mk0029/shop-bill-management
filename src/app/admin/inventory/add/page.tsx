@@ -18,14 +18,7 @@ import {
 } from "@/components/ui/confirmation-popup";
 
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Save,
-  Package,
-  Zap,
-  DollarSign,
-
-} from "lucide-react";
+import { ArrowLeft, Save, Package, Zap, DollarSign } from "lucide-react";
 import { useBrandStore } from "@/store/brand-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useSpecificationsStore } from "@/store/specifications-store";
@@ -162,151 +155,230 @@ export default function AddInventoryItemPage() {
   };
 
   const validateForm = async () => {
-    const errors = await validateProduct(formData);
-    setFormErrors(errors);
+    try {
+      const errors = await validateProduct(formData);
+      setFormErrors(errors);
 
-    // Show first error as popup if there are errors
-    if (Object.keys(errors).length > 0) {
-      const firstError = Object.values(errors)[0];
+      // Show first error as popup if there are errors
+      if (Object.keys(errors).length > 0) {
+        const firstError = Object.values(errors)[0];
+        setConfirmationData({
+          title: "Validation Error",
+          message: firstError,
+          type: "error",
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Validation error:", error);
       setConfirmationData({
-        title: "Validation Error",
-        message: firstError,
+        title: "Error",
+        message:
+          "Failed to validate the form. Please check your network connection and try again.",
         type: "error",
       });
       return false;
     }
-
-    return true;
   };
 
   const addItemToList = async () => {
-    // Validate form before adding to list
-    if (!(await validateForm())) {
-      return;
-    }
+    try {
+      // Validate form before adding to list
+      if (!(await validateForm())) {
+        return;
+      }
 
-    // Get brand name for display
-    const selectedBrand = brands.find((brand) => brand._id === formData.brand);
-    const brandName = selectedBrand ? selectedBrand.name : "Unknown Brand";
+      // Get brand name for display
+      const selectedBrand = brands.find(
+        (brand) => brand._id === formData.brand
+      );
+      const brandName = selectedBrand ? selectedBrand.name : "Unknown Brand";
 
-    // Build product name with specifications
-    let productName = `${getCategoryLabel(formData.category)} - ${brandName}`;
-    const specs = [];
-    if (formData.lightType) specs.push(formData.lightType);
-    if (formData.color) specs.push(formData.color);
-    if (formData.size) specs.push(formData.size);
-    if (formData.wattage) specs.push(`${formData.wattage}W`);
-    if (formData.wireGauge) specs.push(formData.wireGauge);
-    if (formData.amperage) specs.push(`${formData.amperage}A`);
+      // Get category label safely
+      let categoryLabel = "";
+      try {
+        categoryLabel = getCategoryLabel(formData.category);
+      } catch (error) {
+        console.error("Error getting category label:", error);
+        categoryLabel = "Unknown Category";
+      }
 
-    if (specs.length > 0) {
-      productName += ` (${specs.join(", ")})`;
-    }
+      // Build product name with specifications
+      let productName = `${categoryLabel} - ${brandName}`;
+      const specs = [];
+      if (formData.lightType) specs.push(formData.lightType);
+      if (formData.color) specs.push(formData.color);
+      if (formData.size) specs.push(formData.size);
+      if (formData.wattage) specs.push(`${formData.wattage}W`);
+      if (formData.wireGauge) specs.push(formData.wireGauge);
+      if (formData.amperage) specs.push(`${formData.amperage}A`);
 
-    // Create item object
-    const newItem = {
-      id: Date.now(), // Temporary ID for list management
-      ...formData,
-      productName,
-      brandName,
-      specifications: specs.join(", "),
-    };
+      if (specs.length > 0) {
+        productName += ` (${specs.join(", ")})`;
+      }
 
-    // If there are already items in the list, automatically add without popup
-    if (itemsList.length > 0) {
-      setItemsList((prev) => [...prev, newItem]);
-      clearForm();
+      // Create item object
+      const newItem = {
+        id: Date.now(), // Temporary ID for list management
+        ...formData,
+        productName,
+        brandName,
+        specifications: specs.join(", "),
+      };
+
+      // If there are already items in the list, automatically add without popup
+      if (itemsList.length > 0) {
+        setItemsList((prev) => [...prev, newItem]);
+        clearForm();
+        setConfirmationData({
+          title: "Item Added to List",
+          message: `"${productName}" has been added to your list. You now have ${
+            itemsList.length + 1
+          } items ready to submit.`,
+          type: "success",
+        });
+        return;
+      }
+
+      // If this is the first item (no items in list), show options popup
       setConfirmationData({
-        title: "Item Added to List",
-        message: `"${productName}" has been added to your list. You now have ${
-          itemsList.length + 1
-        } items ready to submit.`,
+        title: "Item Ready to Add",
+        message: `"${productName}" is ready to be added. What would you like to do?`,
         type: "success",
+        actions: [
+          {
+            label: "Add to List & Continue",
+            action: () => {
+              try {
+                setItemsList([newItem]);
+                clearForm();
+                setConfirmationData(null);
+              } catch (error) {
+                console.error("Error adding item to list:", error);
+                setConfirmationData({
+                  title: "Error",
+                  message: "Failed to add item to list. Please try again.",
+                  type: "error",
+                });
+              }
+            },
+            variant: "default",
+          },
+          {
+            label: "Save This Item Only",
+            action: () => {
+              try {
+                handleSingleItemSubmit(newItem);
+                setConfirmationData(null);
+              } catch (error) {
+                console.error("Error saving item:", error);
+                setConfirmationData({
+                  title: "Error",
+                  message: "Failed to save the item. Please try again.",
+                  type: "error",
+                });
+              }
+            },
+            variant: "outline",
+          },
+        ],
       });
-      return;
+    } catch (error) {
+      console.error("Error in addItemToList:", error);
+      setConfirmationData({
+        title: "Error",
+        message:
+          "An unexpected error occurred while processing your request. Please try again.",
+        type: "error",
+      });
     }
-
-    // If this is the first item (no items in list), show options popup
-    setConfirmationData({
-      title: "Item Ready to Add",
-      message: `"${productName}" is ready to be added. What would you like to do?`,
-      type: "success",
-      actions: [
-        {
-          label: "Add to List & Continue",
-          action: () => {
-            setItemsList([newItem]);
-            clearForm();
-            setConfirmationData(null);
-          },
-          variant: "default",
-        },
-        {
-          label: "Save This Item Only",
-          action: () => {
-            handleSingleItemSubmit(newItem);
-            setConfirmationData(null);
-          },
-          variant: "outline",
-        },
-      ],
-    });
   };
 
   const handleSingleItemSubmit = async (item: InventoryItem) => {
     setIsLoading(true);
 
     try {
+      // // Validate required fields
+      // if (!item.productName?.trim()) {
+      //   throw new Error("Product name is required");
+      // }
+      if (!item.brand) {
+        throw new Error("Brand is required");
+      }
+      if (!item.category) {
+        throw new Error("Category is required");
+      }
+      if (!item.currentStock || isNaN(parseInt(item.currentStock))) {
+        throw new Error("Valid current stock is required");
+      }
+      if (!item.unit) {
+        throw new Error("Unit is required");
+      }
+
+      // Parse numeric values with validation
+      const purchasePrice = parseFloat(item.purchasePrice);
+      const sellingPrice = parseFloat(item.sellingPrice);
+      const currentStock = parseInt(item.currentStock);
+
+      if (isNaN(purchasePrice) || purchasePrice < 0) {
+        throw new Error("Valid purchase price is required");
+      }
+      if (isNaN(sellingPrice) || sellingPrice < 0) {
+        throw new Error("Valid selling price is required");
+      }
+      if (isNaN(currentStock) || currentStock < 0) {
+        throw new Error("Valid current stock is required");
+      }
+
       const productData = {
-        name: item.productName,
-        description: item.description,
+        name: item?.productName?.trim() || "",
+        description: item.description?.trim() || "",
         brandId: item.brand,
         categoryId: item.category,
         specifications: {
-          lightType: item.lightType || undefined,
-          color: item.color || undefined,
-          size: item.size || undefined,
+          lightType: item.lightType?.trim() || undefined,
+          color: item.color?.trim() || undefined,
+          size: item.size?.trim() || undefined,
           wattage: item.wattage ? parseFloat(item.wattage) : undefined,
-          voltage: item.voltage || undefined,
-          wireGauge: item.wireGauge || undefined,
-          amperage: item.amperage || undefined,
-          material: item.material || undefined,
-          core: item.core || undefined,
+          voltage: item.voltage?.trim() || undefined,
+          wireGauge: item.wireGauge?.trim() || undefined,
+          amperage: item.amperage?.trim() || undefined,
+          material: item.material?.trim() || undefined,
+          core: item.core?.trim() || undefined,
         },
         pricing: {
-          purchasePrice: parseFloat(item.purchasePrice),
-          sellingPrice: parseFloat(item.sellingPrice),
+          purchasePrice: purchasePrice,
+          sellingPrice: sellingPrice,
           unit: item.unit,
         },
         inventory: {
-          currentStock: parseInt(item.currentStock),
-          minimumStock: Math.max(
-            1,
-            Math.floor(parseInt(item.currentStock) * 0.1)
-          ),
-          reorderLevel: Math.max(
-            5,
-            Math.floor(parseInt(item.currentStock) * 0.2)
-          ),
+          currentStock: currentStock,
+          minimumStock: Math.max(1, Math.floor(currentStock * 0.1)),
+          reorderLevel: Math.max(5, Math.floor(currentStock * 0.2)),
         },
         tags: [
           item.category,
           item.brandName,
-          ...item.specifications.split(", ").filter(Boolean),
+          ...(item.specifications
+            ? item.specifications.split(", ").filter(Boolean)
+            : []),
         ],
       };
 
-      // Use the new store method that handles duplicates with latest pricing
       console.log("📦 Submitting product data:", productData);
-      const { addOrUpdateProduct } = useInventoryStore.getState();
+
+      const { addOrUpdateProduct, refreshData } = useInventoryStore.getState();
       const result = await addOrUpdateProduct(productData);
       console.log("📦 Submission result:", result);
 
+      if (!result) {
+        throw new Error("No response received from the server");
+      }
+
       if (result.success && result.data) {
         clearForm();
-        const resetForm = () => {
-          clearForm();
-        };
+        const resetForm = () => clearForm();
 
         // Use the enhanced success popup
         setSuccessData(
@@ -314,7 +386,6 @@ export default function AddInventoryItemPage() {
         );
 
         // Refresh inventory data in the store
-        const { refreshData } = useInventoryStore.getState();
         await refreshData();
       } else {
         setConfirmationData({
@@ -328,7 +399,10 @@ export default function AddInventoryItemPage() {
       console.error("Error adding item:", error);
       setConfirmationData({
         title: "Error",
-        message: "An unexpected error occurred. Please try again.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred. Please try again.",
         type: "error",
       });
     } finally {
@@ -644,9 +718,7 @@ export default function AddInventoryItemPage() {
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700"
               >
                 <Save className="w-4 h-4" />
-                {itemsList.length > 0
-                  ? "Add to List & Continue"
-                  : "Save Item"}
+                {itemsList.length > 0 ? "Add to List & Continue" : "Save Item"}
               </Button>
             </div>
           </form>
