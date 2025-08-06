@@ -27,7 +27,7 @@ async function createTestUsers() {
       secretKey: "admin123",
       name: "Admin User",
       email: "admin@electricianshop.com",
-      phone: "+91-9876543210",
+      phone: "7015493276",
       location: "Shop Office, Main Street",
       role: "admin",
       isActive: true,

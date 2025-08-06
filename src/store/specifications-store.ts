@@ -4,6 +4,7 @@ import {
   fetchAllSpecificationOptions,
   fetchAllCategoryFieldMappings,
 } from "@/lib/sanity-queries";
+import { useCategoryStore } from "@/store/category-store";
 
 // Specification option from Sanity
 export interface SpecificationOption {
@@ -20,7 +21,11 @@ export interface SpecificationOption {
 // Category field mapping from Sanity
 export interface SanityCategoryFieldMapping {
   _id: string;
-  categoryName: string;
+  category: {
+    _id: string;
+    name: string;
+    slug: { current: string };
+  };
   categoryType: "ampere" | "volt-watt" | "wire" | "light" | "general";
   requiredFields: FieldDefinition[];
   optionalFields: FieldDefinition[];
@@ -91,8 +96,12 @@ interface SpecificationsStore {
   getOptionsByType: (optionType: string) => SpecificationOption[];
   getOptionLabel: (value: string, optionType: string) => string;
   getCategoryFieldMapping: (categoryId: string | null) => CategoryFieldMapping;
-  getRequiredFieldsForCategory: (categoryId: string | null) => FieldDefinition[];
-  getOptionalFieldsForCategory: (categoryId: string | null) => FieldDefinition[];
+  getRequiredFieldsForCategory: (
+    categoryId: string | null
+  ) => FieldDefinition[];
+  getOptionalFieldsForCategory: (
+    categoryId: string | null
+  ) => FieldDefinition[];
 
   // Admin actions
   addSpecificationOption: (
@@ -142,7 +151,10 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       const now = new Date();
 
       // Cache for 5 minutes
-      if (lastFetched && now.getTime() - lastFetched.getTime() < 5 * 60 * 1000) {
+      if (
+        lastFetched &&
+        now.getTime() - lastFetched.getTime() < 5 * 60 * 1000
+      ) {
         return;
       }
 
@@ -208,42 +220,55 @@ export const useSpecificationsStore = create<SpecificationsStore>(
         return [];
       }
 
-      let filteredOptions = Array.isArray(specificationOptions)
+      // Get category store to get category slug for specification options matching
+      const categoryStore = useCategoryStore.getState();
+      const category = categoryStore.getCategoryById(categoryId);
+
+      if (!category || !category.slug?.current) {
+        return [];
+      }
+
+      const categorySlug = category.slug.current;
+
+      const filteredOptions = Array.isArray(specificationOptions)
         ? specificationOptions
         : [];
 
-      // Filter by category if a categoryId is provided
-      if (categoryId) {
-        filteredOptions = filteredOptions.filter((option) =>
-          option.categories?.some((ref) => ref._ref === categoryId)
-        );
-      }
-
-      // Find options that are explicitly linked to the category ID
-      const categorySpecificOptions = filteredOptions.filter(
-        (option) =>
-          option.type === optionType &&
-          option.categories?.some((ref) => ref._ref === categoryId)
+      // Filter options by type first
+      const optionsOfType = filteredOptions.filter(
+        (option) => option.type === optionType && option.isActive
       );
 
+      // Find options that are explicitly linked to the category slug
+      const categorySpecificOptions = optionsOfType.filter((option) => {
+        // The specification options should have categories as array of strings (category slugs)
+        // This matches the migration script structure
+        if (Array.isArray(option.categories) && option.categories.length > 0) {
+          return option.categories.includes(categorySlug);
+        }
+        return false;
+      });
+
       if (categorySpecificOptions.length > 0) {
-        return categorySpecificOptions.map((opt) => ({
-          value: opt.value,
-          label: opt.label,
-        }));
+        return categorySpecificOptions
+          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+          .map((opt) => ({
+            value: opt.value,
+            label: opt.label,
+          }));
       }
 
       // Fallback: if no category-specific options, return all options of that type that are not linked to any category
-      const allOptionsOfType = filteredOptions.filter(
-        (option) =>
-          option.type === optionType &&
-          (!option.categories || option.categories.length === 0)
+      const allOptionsOfType = optionsOfType.filter(
+        (option) => !option.categories || option.categories.length === 0
       );
 
-      return allOptionsOfType.map((opt) => ({
-        value: opt.value,
-        label: opt.label,
-      }));
+      return allOptionsOfType
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+        .map((opt) => ({
+          value: opt.value,
+          label: opt.label,
+        }));
     },
 
     // Get all options by type
@@ -284,39 +309,25 @@ export const useSpecificationsStore = create<SpecificationsStore>(
         };
       }
 
-      const requiredFields: FieldDefinition[] = [];
-      const optionalFields: FieldDefinition[] = [];
-      let categoryType: SanityCategoryFieldMapping['categoryType'] = "general";
-      let typeFound = false;
+      // Find the specific mapping for this category by matching category._id with categoryId
+      const specificMapping = categoryFieldMappings.find(
+        (mapping) => mapping.category?._id === categoryId
+      );
 
-      for (const mapping of categoryFieldMappings) {
-        const processFields = (fields: FieldDefinition[], isRequired: boolean) => {
-          if (!fields) return;
-          for (const field of fields) {
-            // if (field.applicableCategories?.some(ref => ref._ref === categoryId))
-              //  {
-              if (isRequired) {
-                requiredFields.push(field);
-              } else {
-                optionalFields.push(field);
-              }
-              // Set the category type from the first mapping that contains a matching field
-              if (!typeFound) {
-                categoryType = mapping.categoryType;
-                typeFound = true;
-              }
-          // }
-          }
+      // If no specific mapping found, return empty
+      if (!specificMapping) {
+        return {
+          categoryType: "general",
+          requiredFields: [],
+          optionalFields: [],
         };
-
-        processFields(mapping.requiredFields, true);
-        processFields(mapping.optionalFields, false);
       }
 
+      // Return all fields from the specific mapping
       return {
-        categoryType,
-        requiredFields,
-        optionalFields,
+        categoryType: specificMapping.categoryType,
+        requiredFields: specificMapping.requiredFields || [],
+        optionalFields: specificMapping.optionalFields || [],
       };
     },
 

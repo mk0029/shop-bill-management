@@ -279,7 +279,7 @@ export default function InventoryPage() {
               <div>
                 <p className="text-gray-400 text-sm font-medium">Total Items</p>
                 <p className="text-2xl font-bold text-white mt-1">
-                  {totalItems}
+                  {displayProducts?.length}
                 </p>
               </div>
               <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">

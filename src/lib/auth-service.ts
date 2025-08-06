@@ -239,7 +239,7 @@ export function getSupportContact() {
   return {
     email:
       process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@electricianshop.com",
-    phone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || "+91-9876543210",
-    whatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "+91-9876543210",
+    phone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || "+91-7015493276",
+    whatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "+91-7015493276",
   };
 }

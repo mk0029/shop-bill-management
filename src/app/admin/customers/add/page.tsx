@@ -14,24 +14,15 @@ import { useLocaleStore } from "@/store/locale-store";
 import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
 
 const locationOptions = [
-  { value: "new-york", label: "New York" },
-  { value: "los-angeles", label: "Los Angeles" },
-  { value: "chicago", label: "Chicago" },
-  { value: "houston", label: "Houston" },
-  { value: "phoenix", label: "Phoenix" },
-  { value: "philadelphia", label: "Philadelphia" },
-  { value: "san-antonio", label: "San Antonio" },
-  { value: "san-diego", label: "San Diego" },
-  { value: "dallas", label: "Dallas" },
-  { value: "san-jose", label: "San Jose" },
+  { value: "lilas", label: "Lilas" },
+  { value: "siwani", label: "Siwani" },
+  { value: "sainiwas", label: "Sainiwas" },
 ];
 
 const serviceTypeOptions = [
-  { value: "residential", label: "Residential" },
-  { value: "commercial", label: "Commercial" },
-  { value: "industrial", label: "Industrial" },
-  { value: "emergency", label: "Emergency" },
-  { value: "maintenance", label: "Maintenance" },
+  { value: "all", label: "All" },
+  { value: "shop", label: "Shop" },
+  { value: "home", label: "Home" },
 ];
 
 export default function AddCustomerPage() {

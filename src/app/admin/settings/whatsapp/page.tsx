@@ -60,13 +60,14 @@ export default function WhatsAppSettingsPage() {
         <Button
           variant="outline"
           onClick={() => router.back()}
-          className="flex items-center gap-2"
-        >
+          className="flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-white">WhatsApp Configuration</h1>
+          <h1 className="text-3xl font-bold text-white">
+            WhatsApp Configuration
+          </h1>
           <p className="text-gray-400 mt-1">
             Configure your business details for WhatsApp bill sharing
           </p>
@@ -94,9 +95,11 @@ export default function WhatsAppSettingsPage() {
                   id="phoneNumber"
                   type="tel"
                   value={config.phoneNumber}
-                  onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("phoneNumber", e.target.value)
+                  }
                   className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
-                  placeholder="+91 9876543210"
+                  placeholder="+91 7015493276"
                   required
                 />
               </div>
@@ -116,7 +119,9 @@ export default function WhatsAppSettingsPage() {
                   id="businessName"
                   type="text"
                   value={config.businessName}
-                  onChange={(e) => handleInputChange("businessName", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("businessName", e.target.value)
+                  }
                   className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Your Business Name"
                   required
@@ -132,7 +137,9 @@ export default function WhatsAppSettingsPage() {
               <Textarea
                 id="businessAddress"
                 value={config.businessAddress}
-                onChange={(e) => handleInputChange("businessAddress", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("businessAddress", e.target.value)
+                }
                 className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                 placeholder="Enter your complete business address"
                 rows={3}
@@ -151,7 +158,9 @@ export default function WhatsAppSettingsPage() {
                   id="businessEmail"
                   type="email"
                   value={config.businessEmail || ""}
-                  onChange={(e) => handleInputChange("businessEmail", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("businessEmail", e.target.value)
+                  }
                   className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="business@example.com"
                 />
@@ -169,7 +178,9 @@ export default function WhatsAppSettingsPage() {
                   id="businessWebsite"
                   type="url"
                   value={config.businessWebsite || ""}
-                  onChange={(e) => handleInputChange("businessWebsite", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("businessWebsite", e.target.value)
+                  }
                   className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="www.yourbusiness.com"
                 />
@@ -181,30 +192,48 @@ export default function WhatsAppSettingsPage() {
               <Label className="text-gray-300">Message Preview</Label>
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <div className="text-sm text-gray-300 space-y-1">
-                  <p><strong>*{config.businessName}*</strong></p>
-                  <p><strong>*Bill #BILL-001*</strong></p>
+                  <p>
+                    <strong>*{config.businessName}*</strong>
+                  </p>
+                  <p>
+                    <strong>*Bill #BILL-001*</strong>
+                  </p>
                   <br />
-                  <p><strong>*Customer Details:*</strong></p>
+                  <p>
+                    <strong>*Customer Details:*</strong>
+                  </p>
                   <p>Name: John Doe</p>
-                  <p>Phone: +91 9876543210</p>
+                  <p>Phone: +91 7015493276</p>
                   <br />
-                  <p><strong>*Bill Details:*</strong></p>
+                  <p>
+                    <strong>*Bill Details:*</strong>
+                  </p>
                   <p>Date: 2025-01-15</p>
                   <p>Due Date: 2025-01-30</p>
                   <br />
-                  <p><strong>*Items:*</strong></p>
+                  <p>
+                    <strong>*Items:*</strong>
+                  </p>
                   <p>• LED Bulb x5 = ₹450</p>
                   <p>• Wire x10 = ₹1500</p>
                   <br />
-                  <p><strong>*Summary:*</strong></p>
+                  <p>
+                    <strong>*Summary:*</strong>
+                  </p>
                   <p>Subtotal: ₹1950</p>
-                  <p><strong>*Total: ₹1950*</strong></p>
+                  <p>
+                    <strong>*Total: ₹1950*</strong>
+                  </p>
                   <br />
-                  <p><strong>*Contact:*</strong></p>
+                  <p>
+                    <strong>*Contact:*</strong>
+                  </p>
                   <p>{config.businessName}</p>
                   <p>{config.businessAddress}</p>
                   {config.businessEmail && <p>Email: {config.businessEmail}</p>}
-                  {config.businessWebsite && <p>Website: {config.businessWebsite}</p>}
+                  {config.businessWebsite && (
+                    <p>Website: {config.businessWebsite}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -214,16 +243,14 @@ export default function WhatsAppSettingsPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2"
-              >
+                className="flex items-center gap-2">
                 <Save className="w-4 h-4" />
                 {isLoading ? "Saving..." : "Save Configuration"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
-              >
+                onClick={() => router.back()}>
                 Cancel
               </Button>
             </div>

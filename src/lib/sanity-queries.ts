@@ -159,7 +159,11 @@ export const fetchAllCategoryFieldMappings = async () => {
   const query = `
     *[_type == "categoryFieldMapping" && isActive == true] {
       _id,
-      categoryName,
+      category-> {
+        _id,
+        name,
+        slug
+      },
       categoryType,
       requiredFields[]-> {
         _id,
@@ -191,7 +195,7 @@ export const fetchAllCategoryFieldMappings = async () => {
       },
       description,
       isActive
-    } | order(categoryName asc)
+    } | order(category->name asc)
   `;
 
   return await sanityClient.fetch(query);

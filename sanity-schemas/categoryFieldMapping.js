@@ -5,10 +5,11 @@ export default {
   type: "document",
   fields: [
     {
-      name: "categoryName",
-      title: "Category Name",
-      type: "string",
-      description: 'The category name (e.g., "switch", "socket", "light")',
+      name: "category",
+      title: "Category",
+      type: "reference",
+      to: [{ type: "category" }],
+      description: "The category this field mapping applies to",
       validation: (Rule) => Rule.required(),
     },
     {
@@ -68,13 +69,15 @@ export default {
   ],
   preview: {
     select: {
-      title: "categoryName",
+      title: "category.name",
       subtitle: "categoryType",
     },
     prepare(selection) {
       const { title, subtitle } = selection;
       return {
-        title: title.charAt(0).toUpperCase() + title.slice(1),
+        title: title
+          ? title.charAt(0).toUpperCase() + title.slice(1)
+          : "Unknown Category",
         subtitle: `${
           subtitle.charAt(0).toUpperCase() + subtitle.slice(1)
         } Category`,

@@ -28,11 +28,11 @@ export interface BillDetails {
 
 // Default configuration - can be updated from settings
 export const defaultWhatsAppConfig: WhatsAppConfig = {
-  phoneNumber: "+919876543210", // Default business number
+  phoneNumber: "+917015493276", // Default business number
   businessName: "Your Business Name",
   businessAddress: "Your Business Address",
   businessEmail: "business@example.com",
-  businessWebsite: "www.yourbusiness.com"
+  businessWebsite: "www.yourbusiness.com",
 };
 
 export function formatBillForWhatsApp(bill: BillDetails, config: WhatsAppConfig = defaultWhatsAppConfig): string {

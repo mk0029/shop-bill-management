@@ -226,7 +226,7 @@ export const fallbackData = {
       secretKey: "demo-key-1",
       name: "John Doe",
       email: "john@example.com",
-      phone: "+91 9876543210",
+      phone: "+91 7015493276",
       location: "Mumbai, Maharashtra",
       role: "customer" as const,
       isActive: true,
@@ -259,7 +259,7 @@ export const fallbackData = {
       customer: {
         _id: "user-1",
         name: "John Doe",
-        phone: "+91 9876543210",
+        phone: "+91 7015493276",
         email: "john@example.com",
         location: "Mumbai, Maharashtra",
         role: "customer" as const,

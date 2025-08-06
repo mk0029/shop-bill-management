@@ -299,10 +299,7 @@ export default function AddInventoryItemPage() {
     setIsLoading(true);
 
     try {
-      // // Validate required fields
-      // if (!item.productName?.trim()) {
-      //   throw new Error("Product name is required");
-      // }
+      // Validate required fields (productName will be generated dynamically)
       if (!item.brand) {
         throw new Error("Brand is required");
       }
@@ -331,8 +328,34 @@ export default function AddInventoryItemPage() {
         throw new Error("Valid current stock is required");
       }
 
+      // Generate product name using category name as base (same as addItemToList)
+      const selectedBrand = brands.find((brand) => brand._id === item.brand);
+      const brandName = selectedBrand ? selectedBrand.name : "Unknown Brand";
+
+      let categoryLabel = "";
+      try {
+        categoryLabel = getCategoryLabel(item.category);
+      } catch (error) {
+        console.error("Error getting category label:", error);
+        categoryLabel = "Unknown Category";
+      }
+
+      // Build product name with category as base
+      let productName = `${categoryLabel} - ${brandName}`;
+      const specs = [];
+      if (item.lightType) specs.push(item.lightType);
+      if (item.color) specs.push(item.color);
+      if (item.size) specs.push(item.size);
+      if (item.wattage) specs.push(`${item.wattage}W`);
+      if (item.wireGauge) specs.push(item.wireGauge);
+      if (item.amperage) specs.push(`${item.amperage}A`);
+
+      if (specs.length > 0) {
+        productName += ` (${specs.join(", ")})`;
+      }
+
       const productData = {
-        name: item?.productName?.trim() || "",
+        name: productName,
         description: item.description?.trim() || "",
         brandId: item.brand,
         categoryId: item.category,
@@ -380,9 +403,20 @@ export default function AddInventoryItemPage() {
         clearForm();
         const resetForm = () => clearForm();
 
+        // Enhance result data with resolved names for success popup
+        const enhancedData = {
+          ...result.data,
+          category: {
+            name: categoryLabel,
+          },
+          brand: {
+            name: brandName,
+          },
+        };
+
         // Use the enhanced success popup
         setSuccessData(
-          createProductSuccessPopup(result.data, resetForm, result.isUpdate)
+          createProductSuccessPopup(enhancedData, resetForm, result.isUpdate)
         );
 
         // Refresh inventory data in the store
@@ -434,8 +468,38 @@ export default function AddInventoryItemPage() {
 
       for (const item of itemsList) {
         try {
+          // Generate product name using category name as base (same as addItemToList)
+          const selectedBrand = brands.find(
+            (brand) => brand._id === item.brand
+          );
+          const brandName = selectedBrand
+            ? selectedBrand.name
+            : "Unknown Brand";
+
+          let categoryLabel = "";
+          try {
+            categoryLabel = getCategoryLabel(item.category);
+          } catch (error) {
+            console.error("Error getting category label:", error);
+            categoryLabel = "Unknown Category";
+          }
+
+          // Build product name with category as base
+          let productName = `${categoryLabel} - ${brandName}`;
+          const specs = [];
+          if (item.lightType) specs.push(item.lightType);
+          if (item.color) specs.push(item.color);
+          if (item.size) specs.push(item.size);
+          if (item.wattage) specs.push(`${item.wattage}W`);
+          if (item.wireGauge) specs.push(item.wireGauge);
+          if (item.amperage) specs.push(`${item.amperage}A`);
+
+          if (specs.length > 0) {
+            productName += ` (${specs.join(", ")})`;
+          }
+
           const productData = {
-            name: item.productName,
+            name: productName,
             description: item.description,
             brandId: item.brand,
             categoryId: item.category,
@@ -524,12 +588,8 @@ export default function AddInventoryItemPage() {
       return;
     }
 
-    // Check if there are items in the list
-    if (itemsList.length > 0) {
-      addItemToList(); // Add current form item to list and show popup
-    } else {
-      handleSingleItemSubmit(formData); // Submit single item directly
-    }
+    // Always call addItemToList - it handles both first item popup and subsequent items
+    addItemToList();
   };
 
   return (
@@ -539,8 +599,7 @@ export default function AddInventoryItemPage() {
         <Button
           variant="outline"
           onClick={() => router.back()}
-          className="border-gray-600 hover:bg-gray-800"
-        >
+          className="border-gray-600 hover:bg-gray-800">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Inventory
         </Button>
@@ -707,16 +766,14 @@ export default function AddInventoryItemPage() {
                 type="button"
                 variant="outline"
                 onClick={clearForm}
-                disabled={isLoading}
-              >
+                disabled={isLoading}>
                 Clear Form
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading}
                 loading={isLoading}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700"
-              >
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700">
                 <Save className="w-4 h-4" />
                 {itemsList.length > 0 ? "Add to List & Continue" : "Save Item"}
               </Button>
@@ -739,8 +796,7 @@ export default function AddInventoryItemPage() {
               {itemsList.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-gray-700/50 p-4 rounded-lg border border-gray-600"
-                >
+                  className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-semibold text-lg text-white">
@@ -788,8 +844,7 @@ export default function AddInventoryItemPage() {
                       size="sm"
                       onClick={() => removeItemFromList(item.id)}
                       className="ml-4 text-red-400 border-red-400 hover:bg-red-900/20"
-                      disabled={isSubmittingAll}
-                    >
+                      disabled={isSubmittingAll}>
                       Remove
                     </Button>
                   </div>
@@ -803,8 +858,7 @@ export default function AddInventoryItemPage() {
                   onClick={handleSubmitAll}
                   disabled={isSubmittingAll || itemsList.length === 0}
                   loading={isSubmittingAll}
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                >
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
                   <Save className="w-4 h-4" />
                   {isSubmittingAll
                     ? "Submitting All Items..."
@@ -836,8 +890,7 @@ export default function AddInventoryItemPage() {
                       ],
                     });
                   }}
-                  disabled={isSubmittingAll}
-                >
+                  disabled={isSubmittingAll}>
                   Clear All
                 </Button>
               </div>

@@ -56,9 +56,24 @@ interface Customer {
 
 // Mock data - in real app, this would come from API
 const mockCustomers: Customer[] = [
-  { id: "1", name: "John Doe", phone: "+91 9876543210", location: "Mumbai, Maharashtra" },
-  { id: "2", name: "Jane Smith", phone: "+91 9876543211", location: "Delhi, India" },
-  { id: "3", name: "Mike Johnson", phone: "+91 9876543212", location: "Bangalore, Karnataka" },
+  {
+    id: "1",
+    name: "John Doe",
+    phone: "+91 7015493276",
+    location: "Mumbai, Maharashtra",
+  },
+  {
+    id: "2",
+    name: "Jane Smith",
+    phone: "+91 9876543211",
+    location: "Delhi, India",
+  },
+  {
+    id: "3",
+    name: "Mike Johnson",
+    phone: "+91 9876543212",
+    location: "Bangalore, Karnataka",
+  },
 ];
 
 const mockBills: Bill[] = [
