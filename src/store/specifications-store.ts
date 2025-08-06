@@ -1,142 +1,124 @@
 import { create } from "zustand";
+import { sanityClient } from "@/lib/sanity";
+import {
+  fetchAllSpecificationOptions,
+  fetchAllCategoryFieldMappings,
+} from "@/lib/sanity-queries";
 
-// Static specification options based on API docs
+// Specification option from Sanity
 export interface SpecificationOption {
+  _id: string;
+  type: string;
   value: string;
   label: string;
-  category?: string[];
+  categories: Array<{ _ref: string; _type: "reference" }>;
+  sortOrder: number;
+  isActive: boolean;
+  description?: string;
+}
+
+// Category field mapping from Sanity
+export interface SanityCategoryFieldMapping {
+  _id: string;
+  categoryName: string;
+  categoryType: "ampere" | "volt-watt" | "wire" | "light" | "general";
+  requiredFields: FieldDefinition[];
+  optionalFields: FieldDefinition[];
+  isActive: boolean;
+  description?: string;
+}
+
+// Category field mapping types
+export interface FieldDefinition {
+  _id: string;
+  fieldKey: string;
+  fieldLabel: string;
+  fieldType: "text" | "number" | "select" | "multiselect" | "boolean" | "date";
+  description?: string;
+  placeholder?: string;
+  validationRules?: {
+    required?: boolean;
+    minLength?: number;
+    maxLength?: number;
+    minValue?: number;
+    maxValue?: number;
+    pattern?: string;
+    customErrorMessage?: string;
+  };
+  defaultValue?: string;
+  sortOrder: number;
+  isActive: boolean;
+  applicableCategories?: Array<{ _ref: string; _type: "reference" }>;
+  conditionalLogic?: {
+    dependsOn: string;
+    condition: string;
+    value: string;
+  };
+}
+
+export interface CategoryFieldMapping {
+  categoryType: "ampere" | "volt-watt" | "wire" | "light" | "general";
+  requiredFields: FieldDefinition[];
+  optionalFields: FieldDefinition[];
 }
 
 interface SpecificationsStore {
-  // Voltage options
-  voltageOptions: SpecificationOption[];
+  // All specification options from Sanity
+  specificationOptions: SpecificationOption[];
 
-  // Amperage options
-  amperageOptions: SpecificationOption[];
+  // Category field mappings from Sanity
+  categoryFieldMappings: SanityCategoryFieldMapping[];
 
-  // Wire gauge options
-  wireGaugeOptions: SpecificationOption[];
+  // Loading states
+  isLoading: boolean;
+  error: string | null;
+  lastFetched: Date | null;
 
-  // Light type options
-  lightTypeOptions: SpecificationOption[];
-
-  // Color options
-  colorOptions: SpecificationOption[];
-
-  // Size options
-  sizeOptions: SpecificationOption[];
-
-  // Material options
-  materialOptions: SpecificationOption[];
-
-  // Unit options
-  unitOptions: SpecificationOption[];
-
-  // Certification options
-  certificationOptions: SpecificationOption[];
-
-  // Storage location options
-  storageLocationOptions: SpecificationOption[];
+  // Static unit options (these don't need to be in Sanity)
+  unitOptions: { value: string; label: string }[];
 
   // Actions
+  init: () => void;
+  fetchSpecificationOptions: () => Promise<void>;
+  fetchCategoryFieldMappings: () => Promise<void>;
+  refreshData: () => Promise<void>;
+
+  // Getters
   getOptionsByCategory: (
-    category: string,
+    categoryId: string | null,
     optionType: string
-  ) => SpecificationOption[];
+  ) => { value: string; label: string }[];
+  getOptionsByType: (optionType: string) => SpecificationOption[];
   getOptionLabel: (value: string, optionType: string) => string;
+  getCategoryFieldMapping: (categoryId: string | null) => CategoryFieldMapping;
+  getRequiredFieldsForCategory: (categoryId: string | null) => FieldDefinition[];
+  getOptionalFieldsForCategory: (categoryId: string | null) => FieldDefinition[];
+
+  // Admin actions
+  addSpecificationOption: (
+    option: Omit<SpecificationOption, "_id">
+  ) => Promise<void>;
+  updateSpecificationOption: (
+    id: string,
+    updates: Partial<SpecificationOption>
+  ) => Promise<void>;
+  deleteSpecificationOption: (id: string) => Promise<void>;
+
+  clearError: () => void;
 }
 
 export const useSpecificationsStore = create<SpecificationsStore>(
   (set, get) => ({
-    voltageOptions: [
-      { value: "12V", label: "12V", category: ["light", "motor"] },
-      { value: "24V", label: "24V", category: ["light", "motor"] },
-      { value: "110V", label: "110V", category: ["motor", "pump"] },
-      { value: "220V", label: "220V", category: ["light", "motor", "pump"] },
-      { value: "240V", label: "240V", category: ["motor", "pump"] },
-      { value: "415V", label: "415V", category: ["motor", "pump"] },
-    ],
+    // Data from Sanity
+    specificationOptions: [],
+    categoryFieldMappings: [],
 
-    amperageOptions: [
-      { value: "6A", label: "6A", category: ["switch", "socket", "mcb"] },
-      { value: "10A", label: "10A", category: ["switch", "socket", "mcb"] },
-      { value: "16A", label: "16A", category: ["switch", "socket", "mcb"] },
-      { value: "20A", label: "20A", category: ["switch", "socket", "mcb"] },
-      { value: "25A", label: "25A", category: ["switch", "socket", "mcb"] },
-      { value: "32A", label: "32A", category: ["switch", "socket", "mcb"] },
-      { value: "40A", label: "40A", category: ["mcb"] },
-      { value: "50A", label: "50A", category: ["mcb"] },
-      { value: "63A", label: "63A", category: ["mcb"] },
-      { value: "80A", label: "80A", category: ["mcb"] },
-      { value: "100A", label: "100A", category: ["mcb"] },
-    ],
+    // Loading states
+    isLoading: false,
+    error: null,
+    lastFetched: null,
 
-    wireGaugeOptions: [
-      { value: "1.0mm", label: "1.0 sq mm", category: ["wire"] },
-      { value: "1.5mm", label: "1.5 sq mm", category: ["wire"] },
-      { value: "2.5mm", label: "2.5 sq mm", category: ["wire"] },
-      { value: "4.0mm", label: "4.0 sq mm", category: ["wire"] },
-      { value: "6.0mm", label: "6.0 sq mm", category: ["wire"] },
-      { value: "10.0mm", label: "10.0 sq mm", category: ["wire"] },
-      { value: "16.0mm", label: "16.0 sq mm", category: ["wire"] },
-      { value: "25.0mm", label: "25.0 sq mm", category: ["wire"] },
-      { value: "35.0mm", label: "35.0 sq mm", category: ["wire"] },
-      { value: "50.0mm", label: "50.0 sq mm", category: ["wire"] },
-    ],
-
-    lightTypeOptions: [
-      { value: "LED", label: "LED", category: ["light"] },
-      { value: "Bulb", label: "Bulb", category: ["light"] },
-      { value: "Tube Light", label: "Tube Light", category: ["light"] },
-      { value: "Panel Light", label: "Panel Light", category: ["light"] },
-      {
-        value: "Concealed Light",
-        label: "Concealed Light",
-        category: ["light"],
-      },
-      { value: "Street Light", label: "Street Light", category: ["light"] },
-      { value: "Flood Light", label: "Flood Light", category: ["light"] },
-    ],
-
-    colorOptions: [
-      { value: "White", label: "White", category: ["light"] },
-      { value: "Warm White", label: "Warm White", category: ["light"] },
-      { value: "Cool White", label: "Cool White", category: ["light"] },
-      { value: "Yellow", label: "Yellow", category: ["light"] },
-      { value: "Multicolor", label: "Multicolor", category: ["light"] },
-      { value: "Red", label: "Red", category: ["wire"] },
-      { value: "Black", label: "Black", category: ["wire"] },
-      { value: "Blue", label: "Blue", category: ["wire"] },
-      { value: "Green", label: "Green", category: ["wire"] },
-    ],
-
-    sizeOptions: [
-      { value: "1ft", label: "1 ft", category: ["light"] },
-      { value: "2ft", label: "2 ft", category: ["light"] },
-      { value: "3ft", label: "3 ft", category: ["light"] },
-      { value: "4ft", label: "4 ft", category: ["light"] },
-      { value: "Small", label: "Small", category: ["light", "motor", "pump"] },
-      {
-        value: "Medium",
-        label: "Medium",
-        category: ["light", "motor", "pump"],
-      },
-      { value: "Large", label: "Large", category: ["light", "motor", "pump"] },
-    ],
-
-    materialOptions: [
-      { value: "Plastic", label: "Plastic", category: ["switch", "socket"] },
-      {
-        value: "Metal",
-        label: "Metal",
-        category: ["switch", "socket", "light"],
-      },
-      { value: "Copper", label: "Copper", category: ["wire"] },
-      { value: "Aluminum", label: "Aluminum", category: ["wire", "light"] },
-      { value: "PVC", label: "PVC", category: ["wire"] },
-      { value: "Ceramic", label: "Ceramic", category: ["socket"] },
-    ],
-
+    // Static unit options (these don't change often)
     unitOptions: [
       { value: "piece", label: "Piece" },
       { value: "meter", label: "Meter" },
@@ -148,80 +130,256 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       { value: "liter", label: "Liter" },
     ],
 
-    certificationOptions: [
-      { value: "ISI Mark", label: "ISI Mark" },
-      { value: "BIS", label: "BIS" },
-      { value: "CE", label: "CE" },
-      { value: "RoHS", label: "RoHS" },
-      { value: "ISO 9001", label: "ISO 9001" },
-    ],
+    // Initializer
+    init: () => {
+      get().fetchSpecificationOptions();
+      get().fetchCategoryFieldMappings();
+    },
 
-    storageLocationOptions: [
-      { value: "main-store", label: "Main Store" },
-      { value: "warehouse-a", label: "Warehouse A" },
-      { value: "warehouse-b", label: "Warehouse B" },
-      { value: "display", label: "Display Area" },
-      { value: "back-room", label: "Back Room" },
-    ],
+    // Fetch specification options from Sanity
+    fetchSpecificationOptions: async () => {
+      const { lastFetched } = get();
+      const now = new Date();
 
-    getOptionsByCategory: (category: string, optionType: string) => {
-      const {
-        voltageOptions,
-        amperageOptions,
-        wireGaugeOptions,
-        lightTypeOptions,
-        colorOptions,
-        sizeOptions,
-        materialOptions,
-      } = get();
+      // Cache for 5 minutes
+      if (lastFetched && now.getTime() - lastFetched.getTime() < 5 * 60 * 1000) {
+        return;
+      }
 
-      const optionMap: Record<string, SpecificationOption[]> = {
-        voltage: voltageOptions,
-        amperage: amperageOptions,
-        wireGauge: wireGaugeOptions,
-        lightType: lightTypeOptions,
-        color: colorOptions,
-        size: sizeOptions,
-        material: materialOptions,
-      };
+      set({ isLoading: true, error: null });
+      try {
+        const options = await fetchAllSpecificationOptions();
+        set({
+          specificationOptions: options,
+          isLoading: false,
+          lastFetched: now,
+          error: null,
+        });
+      } catch (error) {
+        console.error("Error fetching specification options:", error);
+        set({
+          isLoading: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch specification options",
+        });
+      }
+    },
 
-      const options = optionMap[optionType] || [];
+    // Fetch category field mappings from Sanity
+    fetchCategoryFieldMappings: async () => {
+      set({ isLoading: true, error: null });
 
-      return options.filter(
-        (option) => !option.category || option.category.includes(category)
+      try {
+        const mappings = await fetchAllCategoryFieldMappings();
+
+        set({
+          categoryFieldMappings: mappings,
+          isLoading: false,
+          error: null,
+        });
+      } catch (error) {
+        console.error("Error fetching category field mappings:", error);
+        set({
+          isLoading: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to fetch category field mappings",
+        });
+      }
+    },
+
+    // Refresh all data
+    refreshData: async () => {
+      const { fetchSpecificationOptions, fetchCategoryFieldMappings } = get();
+      await Promise.all([
+        fetchSpecificationOptions(),
+        fetchCategoryFieldMappings(),
+      ]);
+    },
+
+    // Get options by category and type
+    getOptionsByCategory: (categoryId: string | null, optionType: string) => {
+      const { specificationOptions } = get();
+
+      if (!categoryId) {
+        return [];
+      }
+
+      // Find options that are explicitly linked to the category ID
+      const categorySpecificOptions = specificationOptions.filter(
+        (option) =>
+          option.type === optionType &&
+          option.categories?.some((ref) => ref._ref === categoryId)
+      );
+
+      if (categorySpecificOptions.length > 0) {
+        return categorySpecificOptions.map((opt) => ({
+          value: opt.value,
+          label: opt.label,
+        }));
+      }
+
+      // Fallback: if no category-specific options, return all options of that type that are not linked to any category
+      const allOptionsOfType = specificationOptions.filter(
+        (option) =>
+          option.type === optionType &&
+          (!option.categories || option.categories.length === 0)
+      );
+
+      return allOptionsOfType.map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+      }));
+    },
+
+    // Get all options by type
+    getOptionsByType: (optionType: string) => {
+      const { specificationOptions } = get();
+
+      return specificationOptions.filter(
+        (option) => option.type === optionType && option.isActive
       );
     },
 
+    // Get option label
     getOptionLabel: (value: string, optionType: string) => {
-      const {
-        voltageOptions,
-        amperageOptions,
-        wireGaugeOptions,
-        lightTypeOptions,
-        colorOptions,
-        sizeOptions,
-        materialOptions,
-        unitOptions,
-        certificationOptions,
-        storageLocationOptions,
-      } = get();
+      const { specificationOptions, unitOptions } = get();
 
-      const optionMap: Record<string, SpecificationOption[]> = {
-        voltage: voltageOptions,
-        amperage: amperageOptions,
-        wireGauge: wireGaugeOptions,
-        lightType: lightTypeOptions,
-        color: colorOptions,
-        size: sizeOptions,
-        material: materialOptions,
-        unit: unitOptions,
-        certification: certificationOptions,
-        storageLocation: storageLocationOptions,
-      };
+      // Handle unit options separately (static)
+      if (optionType === "unit") {
+        const found = unitOptions.find((option) => option.value === value);
+        return found ? found.label : value;
+      }
 
-      const options = optionMap[optionType] || [];
-      const found = options.find((option) => option.value === value);
+      // Handle dynamic options from Sanity
+      const found = specificationOptions.find(
+        (option) => option.type === optionType && option.value === value
+      );
       return found ? found.label : value;
+    },
+
+    // Get category field mapping by Category ID
+    getCategoryFieldMapping: (categoryId: string | null) => {
+      const { categoryFieldMappings } = get();
+
+      if (!categoryId) {
+        return {
+          categoryType: "general",
+          requiredFields: [],
+          optionalFields: [],
+        };
+      }
+
+      const requiredFields: FieldDefinition[] = [];
+      const optionalFields: FieldDefinition[] = [];
+      let categoryType: SanityCategoryFieldMapping['categoryType'] = "general";
+      let typeFound = false;
+
+      for (const mapping of categoryFieldMappings) {
+        const processFields = (fields: FieldDefinition[], isRequired: boolean) => {
+          if (!fields) return;
+          for (const field of fields) {
+            if (field.applicableCategories?.some(ref => ref._ref === categoryId)) {
+              if (isRequired) {
+                requiredFields.push(field);
+              } else {
+                optionalFields.push(field);
+              }
+              // Set the category type from the first mapping that contains a matching field
+              if (!typeFound) {
+                categoryType = mapping.categoryType;
+                typeFound = true;
+              }
+            }
+          }
+        };
+
+        processFields(mapping.requiredFields, true);
+        processFields(mapping.optionalFields, false);
+      }
+
+      return {
+        categoryType,
+        requiredFields,
+        optionalFields,
+      };
+    },
+
+    // Get required fields for category
+    getRequiredFieldsForCategory: (categoryId: string | null) => {
+      const { getCategoryFieldMapping } = get();
+      return getCategoryFieldMapping(categoryId).requiredFields;
+    },
+
+    // Get optional fields for category
+    getOptionalFieldsForCategory: (categoryId: string | null) => {
+      const { getCategoryFieldMapping } = get();
+      return getCategoryFieldMapping(categoryId).optionalFields;
+    },
+
+    // Admin actions
+    addSpecificationOption: async (
+      option: Omit<SpecificationOption, "_id">
+    ) => {
+      try {
+        const newOption = await sanityClient.create({
+          _type: "specificationOption",
+          ...option,
+        });
+
+        // Update local state
+        set((state) => ({
+          specificationOptions: [...state.specificationOptions, newOption],
+        }));
+      } catch (error) {
+        console.error("Error adding specification option:", error);
+        throw error;
+      }
+    },
+
+    updateSpecificationOption: async (
+      id: string,
+      updates: Partial<SpecificationOption>
+    ) => {
+      try {
+        const updatedOption = await sanityClient
+          .patch(id)
+          .set(updates)
+          .commit();
+
+        // Update local state
+        set((state) => ({
+          specificationOptions: state.specificationOptions.map((option) =>
+            option._id === id ? { ...option, ...updatedOption } : option
+          ),
+        }));
+      } catch (error) {
+        console.error("Error updating specification option:", error);
+        throw error;
+      }
+    },
+
+    deleteSpecificationOption: async (id: string) => {
+      try {
+        await sanityClient.delete(id);
+
+        // Update local state
+        set((state) => ({
+          specificationOptions: state.specificationOptions.filter(
+            (option) => option._id !== id
+          ),
+        }));
+      } catch (error) {
+        console.error("Error deleting specification option:", error);
+        throw error;
+      }
+    },
+
+    clearError: () => {
+      set({ error: null });
     },
   })
 );

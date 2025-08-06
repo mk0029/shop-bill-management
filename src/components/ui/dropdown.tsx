@@ -36,10 +36,11 @@ export function Dropdown({
   disabled = false,
   className,
   size = "md",
-  searchable = true,
+  searchable,
   searchPlaceholder = "Search...",
 }: DropdownProps) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isSearchAvialable] = React.useState(searchable || options.length > 10);
   const [searchTerm, setSearchTerm] = React.useState("");
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -48,13 +49,13 @@ export function Dropdown({
 
   // Filter options based on search term
   const filteredOptions = React.useMemo(() => {
-    if (!searchable || !searchTerm.trim()) {
+    if (!isSearchAvialable || !searchTerm.trim()) {
       return options;
     }
     return options.filter((option) =>
       option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [options, searchTerm, searchable]);
+  }, [options, searchTerm, isSearchAvialable]);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,12 +74,12 @@ export function Dropdown({
 
   // Focus search input when dropdown opens
   React.useEffect(() => {
-    if (isOpen && searchable && searchInputRef.current) {
+    if (isOpen && isSearchAvialable && searchInputRef.current) {
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
     }
-  }, [isOpen, searchable]);
+  }, [isOpen, isSearchAvialable]);
 
   // Handle keyboard navigation
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -98,7 +99,8 @@ export function Dropdown({
     <div
       className={cn("relative", className)}
       ref={dropdownRef}
-      onKeyDown={handleKeyDown}>
+      onKeyDown={handleKeyDown}
+    >
       <Button
         type="button"
         variant="outline"
@@ -107,7 +109,8 @@ export function Dropdown({
         className={cn(
           "w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600",
           sizeClasses[size]
-        )}>
+        )}
+      >
         <span className={selectedOption ? "text-white" : "text-gray-400"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
@@ -121,7 +124,7 @@ export function Dropdown({
 
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-50 max-h-60 overflow-hidden">
-          {searchable && (
+          {isSearchAvialable && (
             <div className="p-2 border-b border-gray-700">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -155,7 +158,8 @@ export function Dropdown({
                       : "text-white hover:bg-gray-700 cursor-pointer",
                     option.value === value &&
                       "bg-blue-600 text-white hover:bg-blue-700"
-                  )}>
+                  )}
+                >
                   <span>{option.label}</span>
                   {option.value === value && <Check className="h-4 w-4" />}
                 </button>

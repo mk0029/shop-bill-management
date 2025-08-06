@@ -7,7 +7,7 @@ export const sanityClient = createClient({
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
   useCdn: false, // Real-time updates require CDN to be false
   apiVersion: "2024-01-01",
-  token: process.env.NEXT_PUBLIC_SANITY_API_TOKEN, // Server-side token (not NEXT_PUBLIC_)
+  token: process.env.SANITY_API_TOKEN, // Server-side token (not NEXT_PUBLIC_)
   ignoreBrowserTokenWarning: true,
   perspective: "published",
 });
@@ -17,7 +17,7 @@ if (typeof window === "undefined") {
   // Server-side
   console.log(
     "Server-side Sanity token available:",
-    !!process.env.NEXT_PUBLIC_SANITY_API_TOKEN
+    !!process.env.SANITY_API_TOKEN
   );
 } else {
   // Client-side - should not have access to server token
