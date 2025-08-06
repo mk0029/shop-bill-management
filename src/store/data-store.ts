@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { sanityClient, queries, setupRealtimeListeners } from "@/lib/sanity";
+import { sanityClient, queries } from "@/lib/sanity";
 import { fallbackData } from "./fallback-data";
+import type { Subscription } from "@sanity/client";
 
 // Types for our data entities
 interface Brand {
@@ -117,6 +118,10 @@ interface DataStore {
   lastSyncTime: Date | null;
   error: string | null;
 
+  // Real-time connection
+  realtimeSubscription: Subscription | null;
+  isRealtimeConnected: boolean;
+
   // Data maps for fast lookups
   brands: Map<string, Brand>;
   categories: Map<string, Category>;
@@ -133,6 +138,8 @@ interface DataStore {
   // Actions
   loadInitialData: () => Promise<void>;
   syncWithSanity: () => Promise<void>;
+  setupRealtimeListeners: () => void;
+  cleanupRealtimeListeners: () => void;
   handleRealtimeUpdate: (update: any) => void;
 
   // Getters
@@ -164,6 +171,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
   loadingProgress: 0,
   lastSyncTime: null,
   error: null,
+
+  // Real-time state
+  realtimeSubscription: null,
+  isRealtimeConnected: false,
 
   brands: new Map(),
   categories: new Map(),
@@ -287,7 +298,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
       });
 
       // Setup real-time listeners
-      setupRealtimeListeners(get().handleRealtimeUpdate);
+      get().setupRealtimeListeners();
     } catch (error) {
       console.error("Failed to load initial data:", error);
       console.log("Loading fallback data...");
@@ -378,63 +389,186 @@ export const useDataStore = create<DataStore>((set, get) => ({
     await get().loadInitialData();
   },
 
+  // Setup Sanity real-time listeners
+  setupRealtimeListeners: () => {
+    const { realtimeSubscription } = get();
+    if (realtimeSubscription) return; // Already connected
+
+    console.log("🔌 Setting up Sanity real-time listeners...");
+
+    const subscription = sanityClient
+      .listen(
+        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction"]]'
+      )
+      .subscribe({
+        next: (update) => {
+          console.log("📡 Sanity real-time update:", update);
+          set({ isRealtimeConnected: true });
+          get().handleRealtimeUpdate(update);
+        },
+        error: (error) => {
+          console.error("❌ Sanity real-time error:", error);
+          set({ isRealtimeConnected: false });
+        },
+      });
+
+    set({
+      realtimeSubscription: subscription,
+      isRealtimeConnected: true,
+    });
+
+    console.log("✅ Sanity real-time listeners connected");
+  },
+
+  // Cleanup real-time listeners
+  cleanupRealtimeListeners: () => {
+    const { realtimeSubscription } = get();
+    if (realtimeSubscription) {
+      realtimeSubscription.unsubscribe();
+      set({
+        realtimeSubscription: null,
+        isRealtimeConnected: false,
+      });
+      console.log("❌ Sanity real-time listeners disconnected");
+    }
+  },
+
   // Handle real-time updates from Sanity
   handleRealtimeUpdate: (update) => {
-    const { mutation, document } = update;
+    const documentType =
+      update.result?._type || update.documentId?.split(".")[0];
+    const document = update.result;
+    const documentId = update.documentId;
 
-    if (!document) return;
+    if (!documentType) return;
 
     const currentState = get();
+    console.log(
+      `🔔 Real-time ${update.transition}: ${documentType} - ${documentId}`
+    );
 
-    switch (document._type) {
+    switch (documentType) {
       case "product":
         const products = new Map(currentState.products);
-        if (mutation === "delete") {
-          products.delete(document._id);
-        } else {
-          products.set(document._id, document);
+        if (update.transition === "disappear") {
+          products.delete(documentId);
+          console.log(`🗑️ Product deleted: ${documentId}`);
+        } else if (document) {
+          products.set(documentId, document);
+          console.log(`📦 Product ${update.transition}: ${document.name}`);
+
+          // Update lookup maps for products
+          if (update.transition === "appear") {
+            const { productsByCategory, productsByBrand } = currentState;
+
+            if (document.category?._id) {
+              const categoryProducts =
+                productsByCategory.get(document.category._id) || [];
+              if (!categoryProducts.includes(documentId)) {
+                categoryProducts.push(documentId);
+                productsByCategory.set(document.category._id, categoryProducts);
+              }
+            }
+
+            if (document.brand?._id) {
+              const brandProducts =
+                productsByBrand.get(document.brand._id) || [];
+              if (!brandProducts.includes(documentId)) {
+                brandProducts.push(documentId);
+                productsByBrand.set(document.brand._id, brandProducts);
+              }
+            }
+
+            set({ productsByCategory, productsByBrand });
+          }
         }
         set({ products });
         break;
 
       case "user":
         const users = new Map(currentState.users);
-        if (mutation === "delete") {
-          users.delete(document._id);
-        } else {
-          users.set(document._id, document);
+        if (update.transition === "disappear") {
+          users.delete(documentId);
+          // Also remove from clerkId lookup
+          const usersByClerkId = new Map(currentState.usersByClerkId);
+          for (const [clerkId, userId] of usersByClerkId.entries()) {
+            if (userId === documentId) {
+              usersByClerkId.delete(clerkId);
+              break;
+            }
+          }
+          set({ usersByClerkId });
+          console.log(`🗑️ User deleted: ${documentId}`);
+        } else if (document) {
+          users.set(documentId, document);
+          // Update clerkId lookup
+          if (document.clerkId) {
+            const usersByClerkId = new Map(currentState.usersByClerkId);
+            usersByClerkId.set(document.clerkId, documentId);
+            set({ usersByClerkId });
+          }
+          console.log(`👤 User ${update.transition}: ${document.name}`);
         }
         set({ users });
         break;
 
       case "bill":
         const bills = new Map(currentState.bills);
-        if (mutation === "delete") {
-          bills.delete(document._id);
-        } else {
-          bills.set(document._id, document);
+        if (update.transition === "disappear") {
+          bills.delete(documentId);
+          console.log(`🗑️ Bill deleted: ${documentId}`);
+        } else if (document) {
+          bills.set(documentId, document);
+
+          // Update customer lookup
+          if (document.customer?._id && update.transition === "appear") {
+            const billsByCustomer = new Map(currentState.billsByCustomer);
+            const customerBills =
+              billsByCustomer.get(document.customer._id) || [];
+            if (!customerBills.includes(documentId)) {
+              customerBills.push(documentId);
+              billsByCustomer.set(document.customer._id, customerBills);
+              set({ billsByCustomer });
+            }
+          }
+
+          console.log(`📄 Bill ${update.transition}: ${document.billNumber}`);
         }
         set({ bills });
         break;
 
       case "brand":
         const brands = new Map(currentState.brands);
-        if (mutation === "delete") {
-          brands.delete(document._id);
-        } else {
-          brands.set(document._id, document);
+        if (update.transition === "disappear") {
+          brands.delete(documentId);
+          console.log(`🗑️ Brand deleted: ${documentId}`);
+        } else if (document) {
+          brands.set(documentId, document);
+          console.log(`🏷️ Brand ${update.transition}: ${document.name}`);
         }
         set({ brands });
         break;
 
       case "category":
         const categories = new Map(currentState.categories);
-        if (mutation === "delete") {
-          categories.delete(document._id);
-        } else {
-          categories.set(document._id, document);
+        if (update.transition === "disappear") {
+          categories.delete(documentId);
+          console.log(`🗑️ Category deleted: ${documentId}`);
+        } else if (document) {
+          categories.set(documentId, document);
+          console.log(`📂 Category ${update.transition}: ${document.name}`);
         }
         set({ categories });
+        break;
+
+      case "stockTransaction":
+        // Handle stock transactions for inventory updates
+        if (document && update.transition === "appear") {
+          console.log(
+            `📊 Stock transaction created: ${document.type} - ${document.quantity} units`
+          );
+          // You could trigger inventory recalculation here if needed
+        }
         break;
     }
   },

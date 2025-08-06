@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
+import type { Subscription } from "@sanity/client";
 
 export interface Category {
   _id: string;
@@ -20,6 +21,10 @@ interface CategoryStore {
   error: string | null;
   lastFetched: Date | null;
 
+  // Real-time connection
+  realtimeSubscription: Subscription | null;
+  isRealtimeConnected: boolean;
+
   // Actions
   fetchCategories: () => Promise<void>;
   getActiveCategories: () => Category[];
@@ -28,6 +33,10 @@ interface CategoryStore {
   getMainCategories: () => Category[];
   getSubCategories: (parentId: string) => Category[];
   clearError: () => void;
+
+  // Real-time methods
+  setupRealtimeListeners: () => void;
+  cleanupRealtimeListeners: () => void;
 }
 
 export const useCategoryStore = create<CategoryStore>((set, get) => ({
@@ -35,6 +44,10 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
   isLoading: false,
   error: null,
   lastFetched: null,
+
+  // Real-time state
+  realtimeSubscription: null,
+  isRealtimeConnected: false,
 
   fetchCategories: async () => {
     const { lastFetched } = get();
@@ -73,6 +86,9 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
         lastFetched: now,
         error: null,
       });
+
+      // Setup real-time listeners after initial fetch
+      get().setupRealtimeListeners();
     } catch (error) {
       console.error("Error fetching categories:", error);
       set({
@@ -117,5 +133,77 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  // Setup Sanity real-time listeners for categories
+  setupRealtimeListeners: () => {
+    const { realtimeSubscription } = get();
+    if (realtimeSubscription) return; // Already connected
+
+    console.log("🔌 Setting up category real-time listeners...");
+
+    const subscription = sanityClient
+      .listen('*[_type == "category"]')
+      .subscribe({
+        next: (update) => {
+          console.log("📡 Category real-time update:", update);
+          set({ isRealtimeConnected: true });
+
+          const { categories } = get();
+          const documentId = update.documentId;
+          const document = update.result;
+
+          switch (update.transition) {
+            case "appear":
+              if (document && !categories.find((c) => c._id === documentId)) {
+                set({ categories: [...categories, document] });
+                console.log(`✅ Category created: ${document.name}`);
+              }
+              break;
+
+            case "update":
+              if (document) {
+                const updatedCategories = categories.map((category) =>
+                  category._id === documentId
+                    ? { ...category, ...document }
+                    : category
+                );
+                set({ categories: updatedCategories });
+                console.log(`🔄 Category updated: ${document.name}`);
+              }
+              break;
+
+            case "disappear":
+              const filteredCategories = categories.filter(
+                (category) => category._id !== documentId
+              );
+              set({ categories: filteredCategories });
+              console.log(`🗑️ Category deleted: ${documentId}`);
+              break;
+          }
+        },
+        error: (error) => {
+          console.error("❌ Category real-time error:", error);
+          set({ isRealtimeConnected: false });
+        },
+      });
+
+    set({
+      realtimeSubscription: subscription,
+      isRealtimeConnected: true,
+    });
+  },
+
+  // Cleanup real-time listeners
+  cleanupRealtimeListeners: () => {
+    const { realtimeSubscription } = get();
+    if (realtimeSubscription) {
+      realtimeSubscription.unsubscribe();
+      set({
+        realtimeSubscription: null,
+        isRealtimeConnected: false,
+      });
+      console.log("❌ Category real-time listeners disconnected");
+    }
   },
 }));

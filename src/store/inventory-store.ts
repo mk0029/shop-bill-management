@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
+import { useSanityRealtimeStore } from "./sanity-realtime-store";
 
 export interface Product {
   _id: string;
@@ -168,6 +169,11 @@ interface InventoryStore {
 
   // Product deletion
   deleteProduct: (productId: string) => Promise<boolean>;
+
+  // Real-time methods
+  initializeRealtime: () => void;
+  cleanupRealtime: () => void;
+  handleBillCreated: (bill: any) => void;
 
   // Utilities
   clearError: () => void;
@@ -822,6 +828,77 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       await get().fetchProducts();
       return false;
     }
+  },
+
+  // Real-time methods
+  initializeRealtime: () => {
+    const { on } = useSanityRealtimeStore.getState();
+
+    // Listen for bill creation to update inventory
+    on("bill:created", (bill: any) => {
+      get().handleBillCreated(bill);
+    });
+
+    // Listen for direct inventory updates
+    on(
+      "inventory:updated",
+      ({ productId, updates }: { productId: string; updates: any }) => {
+        console.log("🔔 Real-time: Inventory updated", productId);
+        const { products } = get();
+        const updatedProducts = products.map((product) =>
+          product._id === productId ? { ...product, ...updates } : product
+        );
+        set({ products: updatedProducts });
+      }
+    );
+
+    on("inventory:low_stock", (data: any) => {
+      console.log("🔔 Real-time: Low stock alert", data.productName);
+      // You could trigger notifications here
+    });
+  },
+
+  cleanupRealtime: () => {
+    const { off } = useSanityRealtimeStore.getState();
+    off("bill:created");
+    off("inventory:updated");
+    off("inventory:low_stock");
+  },
+
+  handleBillCreated: (bill: any) => {
+    const { products, updateProductInventory, createStockTransaction } = get();
+
+    // Update inventory for each item in the bill
+    bill.items?.forEach(async (item: any) => {
+      const product = products.find((p) => p._id === item.product);
+      if (product) {
+        const newStock = Math.max(
+          0,
+          product.inventory.currentStock - item.quantity
+        );
+
+        // Update local state immediately
+        const updatedProducts = products.map((p) =>
+          p._id === item.product
+            ? { ...p, inventory: { ...p.inventory, currentStock: newStock } }
+            : p
+        );
+        set({ products: updatedProducts });
+
+        // Create stock transaction
+        await createStockTransaction({
+          productId: item.product,
+          type: "sale",
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          billId: bill._id,
+          notes: `Sold via bill ${bill.billNumber}`,
+        });
+      }
+    });
+
+    // Refresh inventory summary
+    get().fetchInventorySummary();
   },
 
   // Utilities

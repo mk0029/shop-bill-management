@@ -1,12 +1,17 @@
 import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
 import { Brand, CreateBrandData } from "@/types";
+import type { Subscription } from "@sanity/client";
 
 interface BrandStore {
   brands: Brand[];
   isLoading: boolean;
   error: string | null;
   lastFetched: Date | null;
+
+  // Real-time connection
+  realtimeSubscription: Subscription | null;
+  isRealtimeConnected: boolean;
 
   // Actions
   fetchBrands: () => Promise<void>;
@@ -17,6 +22,10 @@ interface BrandStore {
   getBrandById: (id: string) => Brand | undefined;
   getBrandBySlug: (slug: string) => Brand | undefined;
   clearError: () => void;
+
+  // Real-time methods
+  setupRealtimeListeners: () => void;
+  cleanupRealtimeListeners: () => void;
 }
 
 export const useBrandStore = create<BrandStore>((set, get) => ({
@@ -24,6 +33,10 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
   isLoading: false,
   error: null,
   lastFetched: null,
+
+  // Real-time state
+  realtimeSubscription: null,
+  isRealtimeConnected: false,
 
   fetchBrands: async () => {
     const { lastFetched } = get();
@@ -58,6 +71,9 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
         lastFetched: now,
         error: null,
       });
+
+      // Setup real-time listeners after initial fetch
+      get().setupRealtimeListeners();
     } catch (error) {
       console.error("Error fetching brands:", error);
       set({
@@ -204,5 +220,73 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  // Setup Sanity real-time listeners for brands
+  setupRealtimeListeners: () => {
+    const { realtimeSubscription } = get();
+    if (realtimeSubscription) return; // Already connected
+
+    console.log("🔌 Setting up brand real-time listeners...");
+
+    const subscription = sanityClient.listen('*[_type == "brand"]').subscribe({
+      next: (update) => {
+        console.log("📡 Brand real-time update:", update);
+        set({ isRealtimeConnected: true });
+
+        const { brands } = get();
+        const documentId = update.documentId;
+        const document = update.result;
+
+        switch (update.transition) {
+          case "appear":
+            if (document && !brands.find((b) => b._id === documentId)) {
+              set({ brands: [...brands, document] });
+              console.log(`✅ Brand created: ${document.name}`);
+            }
+            break;
+
+          case "update":
+            if (document) {
+              const updatedBrands = brands.map((brand) =>
+                brand._id === documentId ? { ...brand, ...document } : brand
+              );
+              set({ brands: updatedBrands });
+              console.log(`🔄 Brand updated: ${document.name}`);
+            }
+            break;
+
+          case "disappear":
+            const filteredBrands = brands.filter(
+              (brand) => brand._id !== documentId
+            );
+            set({ brands: filteredBrands });
+            console.log(`🗑️ Brand deleted: ${documentId}`);
+            break;
+        }
+      },
+      error: (error) => {
+        console.error("❌ Brand real-time error:", error);
+        set({ isRealtimeConnected: false });
+      },
+    });
+
+    set({
+      realtimeSubscription: subscription,
+      isRealtimeConnected: true,
+    });
+  },
+
+  // Cleanup real-time listeners
+  cleanupRealtimeListeners: () => {
+    const { realtimeSubscription } = get();
+    if (realtimeSubscription) {
+      realtimeSubscription.unsubscribe();
+      set({
+        realtimeSubscription: null,
+        isRealtimeConnected: false,
+      });
+      console.log("❌ Brand real-time listeners disconnected");
+    }
   },
 }));
