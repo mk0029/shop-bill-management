@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { DataProvider } from "@/components/providers/data-provider";
+import { Toaster } from "sonner";
 import Script from "next/script";
 import "./globals.css";
 
@@ -32,7 +33,18 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
         >
           <DataProvider>{children}</DataProvider>
-          
+          <Toaster
+            theme="dark"
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: "#1f2937",
+                border: "1px solid #374151",
+                color: "#f9fafb",
+              },
+            }}
+          />
+
           <Script id="disable-number-input-scroll" strategy="afterInteractive">
             {`
               function disableNumberInputScroll() {

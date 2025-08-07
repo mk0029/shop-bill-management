@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
 import { useLocaleStore } from "@/store/locale-store";
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
+import {
+  RealtimeStockHistory,
+  RealtimeStockSummary,
+} from "@/components/realtime/realtime-stock-history";
 import {
   Search,
   Filter,
@@ -22,6 +27,8 @@ import {
   Minus,
   AlertTriangle,
   Loader2,
+  Wifi,
+  Zap,
 } from "lucide-react";
 import { StockTransaction } from "@/types";
 import {
@@ -157,423 +164,302 @@ export default function StockHistoryPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Stock History</h1>
-          <p className="text-gray-400 mt-1">
-            Track all inventory transactions and stock movements
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={fetchStockData}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <BarChart3 className="w-4 h-4" />
-            )}
-            Refresh
-          </Button>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              const { demoStockData } = await import("@/lib/demo-stock-data");
-              const result = await demoStockData.initializeDemoData();
-              console.log("Demo data result:", result);
-              if (result.success) {
-                fetchStockData(); // Refresh data after creating demo data
-              }
-            }}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            <Package className="w-4 h-4" />
-            Demo Data
-          </Button>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              const { debugStockHistory } = await import(
-                "@/lib/stock-history-api"
-              );
-              await debugStockHistory();
-              const { testStockHistory } = await import(
-                "@/lib/test-stock-history"
-              );
-              await testStockHistory.runAllTests();
-            }}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Debug
-          </Button>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              // Create a test purchase transaction
-              const { sanityClient } = await import("@/lib/sanity");
-
-              // Get a product to create transaction for
-              const products =
-                await sanityClient.fetch(`*[_type == "product" && !defined(deleted) && isActive == true][0...1] {
-                _id,
-                name,
-                pricing
-              }`);
-
-              if (products.length > 0) {
-                const product = products[0];
-                const testTransaction = {
-                  _type: "stockTransaction",
-                  transactionId: `TEST_PURCHASE_${Date.now()}`,
-                  type: "purchase",
-                  product: { _type: "reference", _ref: product._id },
-                  quantity: 5,
-                  unitPrice: 100,
-                  totalAmount: 500,
-                  notes: "Test purchase transaction",
-                  status: "completed",
-                  transactionDate: new Date().toISOString(),
-                  createdAt: new Date().toISOString(),
-                };
-
-                await sanityClient.create(testTransaction);
-                console.log("✅ Created test purchase transaction");
-                fetchStockData(); // Refresh data
-              } else {
-                console.log("❌ No products found to create transaction");
-              }
-            }}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Test Purchase
-          </Button>
-        </div>
-      </div>
-
-      {/* Error State */}
-      {error && (
-        <Card className="bg-red-900/20 border-red-800">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-              <p className="text-red-300">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchStockData}
-                className="ml-auto"
-              >
-                Retry
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">
-                  Total Transactions
-                </p>
-                <p className="text-2xl font-bold text-white mt-1">
-                  {totalTransactions}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">
-                  Total Purchases
-                </p>
-                <p className="text-2xl font-bold text-green-400 mt-1">
-                  {currency}
-                  {totalPurchaseAmount.toLocaleString()}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-600/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Total Sales</p>
-                <p className="text-2xl font-bold text-blue-400 mt-1">
-                  {currency}
-                  {totalSalesAmount.toLocaleString()}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                <TrendingDown className="w-6 h-6 text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Net Profit</p>
-                <p
-                  className={`text-2xl font-bold mt-1 ${
-                    profit >= 0 ? "text-green-400" : "text-red-400"
-                  }`}
-                >
-                  {currency}
-                  {profit.toLocaleString()}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-600/20 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-purple-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search by item name, notes, or transaction ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
-                disabled={loading}
-              />
-            </div>
-            <div className="flex gap-3">
-              <Dropdown
-                options={transactionTypeOptions}
-                value={typeFilter}
-                onValueChange={setTypeFilter}
-                placeholder="Filter by type"
-                className="bg-gray-800 border-gray-700"
-                disabled={loading}
-              />
-              <Dropdown
-                options={timeRangeOptions}
-                value={timeRange}
-                onValueChange={setTimeRange}
-                placeholder="Time range"
-                className="bg-gray-800 border-gray-700"
-                disabled={loading}
-              />
-              <Button variant="outline" disabled={loading}>
-                <Filter className="w-4 h-4 mr-2" />
-                More Filters
-              </Button>
-            </div>
+    <RealtimeProvider enableNotifications={false}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <BarChart3 className="w-8 h-8 text-purple-400" />
+              Stock History
+            </h1>
+            <p className="text-gray-400 mt-1">
+              Track all inventory transactions with real-time updates
+            </p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Transactions List */}
-      <Card className="bg-gray-900 border-gray-800">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            Transaction History
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
-              <p className="ml-3 text-gray-400">Loading transactions...</p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-green-400">Live Updates</span>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredTransactions.map((transaction) => {
-                const TypeIcon = getTransactionTypeIcon(transaction.type);
-                return (
-                  <motion.div
-                    key={transaction.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                        <TypeIcon className="w-6 h-6 text-blue-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-white">
-                          {transaction.itemName}
-                        </h3>
-                        <p className="text-sm text-gray-400">
-                          {transaction.type} • {transaction.quantity} units •{" "}
-                          {new Date(transaction.date).toLocaleDateString()}
-                        </p>
-                        {transaction.notes && (
-                          <p className="text-sm text-gray-500">
-                            {transaction.notes}
+            <Button
+              variant="outline"
+              onClick={fetchStockData}
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <BarChart3 className="w-4 h-4" />
+              )}
+              Refresh
+            </Button>
+          </div>
+        </div>
+
+        {/* Error State */}
+        {error && (
+          <Card className="bg-red-900/20 border-red-800">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <p className="text-red-300">{error}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchStockData}
+                  className="ml-auto"
+                >
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Real-time Stock Summary */}
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-400" />
+            Live Stock Transaction Statistics
+          </h2>
+          <RealtimeStockSummary />
+        </div>
+
+        {/* Filters */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by item name, notes, or transaction ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                  disabled={loading}
+                />
+              </div>
+              <div className="flex gap-3">
+                <Dropdown
+                  options={transactionTypeOptions}
+                  value={typeFilter}
+                  onValueChange={setTypeFilter}
+                  placeholder="Filter by type"
+                  className="bg-gray-800 border-gray-700"
+                  disabled={loading}
+                />
+                <Dropdown
+                  options={timeRangeOptions}
+                  value={timeRange}
+                  onValueChange={setTimeRange}
+                  placeholder="Time range"
+                  className="bg-gray-800 border-gray-700"
+                  disabled={loading}
+                />
+                <Button variant="outline" disabled={loading}>
+                  <Filter className="w-4 h-4 mr-2" />
+                  More Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Real-time Transaction History */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Live Transaction History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RealtimeStockHistory
+              initialTransactions={filteredTransactions}
+              showNewTransactionAnimation={true}
+              onTransactionClick={viewTransactionDetails}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Legacy Transaction List (fallback) */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white">
+              Transaction History (Legacy)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+                <p className="ml-3 text-gray-400">Loading transactions...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredTransactions.map((transaction) => {
+                  const TypeIcon = getTransactionTypeIcon(transaction.type);
+                  return (
+                    <motion.div
+                      key={transaction.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                          <TypeIcon className="w-6 h-6 text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white">
+                            {transaction.itemName}
+                          </h3>
+                          <p className="text-sm text-gray-400">
+                            {transaction.type} • {transaction.quantity} units •{" "}
+                            {new Date(transaction.date).toLocaleDateString()}
                           </p>
-                        )}
+                          {transaction.notes && (
+                            <p className="text-sm text-gray-500">
+                              {transaction.notes}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="font-semibold text-white">
-                          {currency}
-                          {transaction.totalAmount.toLocaleString()}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          {currency}
-                          {transaction.price} each
-                        </p>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full ${getTransactionTypeColor(
-                            transaction.type
-                          )}`}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-semibold text-white">
+                            {currency}
+                            {transaction.totalAmount.toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {currency}
+                            {transaction.price} each
+                          </p>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${getTransactionTypeColor(
+                              transaction.type
+                            )}`}
+                          >
+                            {transaction.type}
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => viewTransactionDetails(transaction)}
                         >
-                          {transaction.type}
-                        </span>
+                          <Eye className="w-4 h-4 mr-2" />
+                          View
+                        </Button>
                       </div>
+                    </motion.div>
+                  );
+                })}
+
+                {!loading && filteredTransactions.length === 0 && (
+                  <div className="text-center py-12">
+                    <Package className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">
+                      {error
+                        ? "Failed to load transactions."
+                        : "No transactions found matching your criteria."}
+                    </p>
+                    {error && (
                       <Button
                         variant="outline"
-                        size="sm"
-                        onClick={() => viewTransactionDetails(transaction)}
+                        className="mt-4"
+                        onClick={fetchStockData}
                       >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View
+                        Try Again
                       </Button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-
-              {!loading && filteredTransactions.length === 0 && (
-                <div className="text-center py-12">
-                  <Package className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">
-                    {error
-                      ? "Failed to load transactions."
-                      : "No transactions found matching your criteria."}
-                  </p>
-                  {error && (
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={fetchStockData}
-                    >
-                      Try Again
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Transaction Details Modal */}
-      <Modal
-        isOpen={showTransactionModal}
-        onClose={() => setShowTransactionModal(false)}
-        size="md"
-        title={`Transaction #${selectedTransaction?.id}`}
-      >
-        {selectedTransaction && (
-          <div className="space-y-6">
-            {/* Transaction Info */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3">
-                Transaction Information
-              </h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-400">Item</p>
-                  <p className="text-white">{selectedTransaction.itemName}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Type</p>
-                  <p className="text-white capitalize">
-                    {selectedTransaction.type}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Quantity</p>
-                  <p className="text-white">
-                    {selectedTransaction.quantity} units
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Price per Unit</p>
-                  <p className="text-white">
-                    {currency}
-                    {selectedTransaction.price}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Total Amount</p>
-                  <p className="text-white font-semibold">
-                    {currency}
-                    {selectedTransaction.totalAmount.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Date</p>
-                  <p className="text-white">
-                    {new Date(selectedTransaction.date).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {selectedTransaction.notes && (
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h4 className="font-medium text-white mb-2">Notes</h4>
-                <p className="text-gray-300">{selectedTransaction.notes}</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
+          </CardContent>
+        </Card>
 
-            <div className="flex gap-3">
-              <Button className="flex-1">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                View Item Details
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowTransactionModal(false)}
-              >
-                Close
-              </Button>
+        {/* Transaction Details Modal */}
+        <Modal
+          isOpen={showTransactionModal}
+          onClose={() => setShowTransactionModal(false)}
+          size="md"
+          title={`Transaction #${selectedTransaction?.id || "Unknown"}`}
+        >
+          {selectedTransaction && (
+            <div className="space-y-6">
+              {/* Transaction Info */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <h4 className="font-medium text-white mb-3">
+                  Transaction Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400">Item</p>
+                    <p className="text-white">{selectedTransaction.itemName}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Type</p>
+                    <p className="text-white capitalize">
+                      {selectedTransaction.type}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Quantity</p>
+                    <p className="text-white">
+                      {selectedTransaction.quantity} units
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Price per Unit</p>
+                    <p className="text-white">
+                      {currency}
+                      {selectedTransaction.price}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Total Amount</p>
+                    <p className="text-white font-semibold">
+                      {currency}
+                      {selectedTransaction.totalAmount.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">Date</p>
+                    <p className="text-white">
+                      {new Date(selectedTransaction.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedTransaction.notes && (
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <h4 className="font-medium text-white mb-2">Notes</h4>
+                  <p className="text-gray-300">{selectedTransaction.notes}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button className="flex-1">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  View Item Details
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTransactionModal(false)}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-      </Modal>
-    </div>
+          )}
+        </Modal>
+      </div>
+    </RealtimeProvider>
   );
 }

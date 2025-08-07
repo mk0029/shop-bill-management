@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -7,9 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
+import { Badge } from "@/components/ui/badge";
 import { useLocaleStore } from "@/store/locale-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useBills } from "@/hooks/use-sanity-data";
+import { useSeamlessRealtime } from "@/hooks/use-seamless-realtime";
+import {
+  RealtimeBillList,
+  RealtimeBillStats,
+} from "@/components/realtime/realtime-bill-list";
 import {
   Search,
   Filter,
@@ -65,6 +72,9 @@ export default function CustomerBillsPage() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
 
+  // Enable seamless real-time updates in the background
+  useSeamlessRealtime();
+
   // Get real bills for the current customer
   const bills = user ? getBillsByCustomer(user.id) : [];
 
@@ -80,20 +90,6 @@ export default function CustomerBillsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalSpent = bills
-    .filter((bill) => bill.paymentStatus === "paid")
-    .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
-  const totalBills = bills.length;
-  const paidBills = bills.filter(
-    (bill) => bill.paymentStatus === "paid"
-  ).length;
-  const pendingBills = bills.filter(
-    (bill) => bill.paymentStatus === "pending"
-  ).length;
-  const overdueBills = bills.filter(
-    (bill) => bill.paymentStatus === "overdue"
-  ).length;
-
   const viewBillDetails = (bill: any) => {
     setSelectedBill(bill);
     setShowBillModal(true);
@@ -102,77 +98,17 @@ export default function CustomerBillsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">My Bills</h1>
-        <p className="text-gray-400 mt-1">
-          View and manage all your bills and payments
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">My Bills</h1>
+          <p className="text-gray-400 mt-1">
+            View and manage all your bills and payments
+          </p>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Total Spent</p>
-                <p className="text-2xl font-bold text-white mt-1">
-                  {currency}
-                  {totalSpent.toLocaleString()}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-600/20 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Total Bills</p>
-                <p className="text-2xl font-bold text-white mt-1">
-                  {totalBills}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                <Receipt className="w-6 h-6 text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Paid Bills</p>
-                <p className="text-2xl font-bold text-green-400 mt-1">
-                  {paidBills}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-600/20 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm font-medium">Pending</p>
-                <p className="text-2xl font-bold text-yellow-400 mt-1">
-                  {pendingBills + overdueBills}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-600/20 rounded-lg flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Bill Stats */}
+      <RealtimeBillStats customerId={user?.id} initialBills={bills} />
 
       {/* Filters */}
       <Card className="bg-gray-900 border-gray-800">
@@ -208,80 +144,18 @@ export default function CustomerBillsPage() {
       {/* Bills List */}
       <Card className="bg-gray-900 border-gray-800">
         <CardHeader>
-          <CardTitle className="text-white">All Bills</CardTitle>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Receipt className="w-5 h-5" />
+            All Bills
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredBills.map((bill) => {
-              const StatusIcon = getStatusIcon(
-                bill.paymentStatus || bill.status
-              );
-              return (
-                <motion.div
-                  key={bill._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                      <StatusIcon className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-white">
-                        Bill #{bill.billNumber}
-                      </h3>
-                      <p className="text-sm text-gray-400">
-                        {bill.serviceType} {bill.locationType}
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        {bill.serviceDate
-                          ? new Date(bill.serviceDate).toLocaleDateString()
-                          : "-"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-semibold text-white">
-                        {currency}
-                        {(bill.totalAmount || 0).toLocaleString()}
-                      </p>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                          bill.paymentStatus || bill.status
-                        )}`}
-                      >
-                        {bill.paymentStatus || bill.status}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => viewBillDetails(bill)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {filteredBills.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-400">
-                No bills found matching your criteria.
-              </p>
-            </div>
-          )}
+          <RealtimeBillList
+            initialBills={filteredBills}
+            customerId={user?.id}
+            onBillClick={viewBillDetails}
+            showNewBillAnimation={true}
+          />
         </CardContent>
       </Card>
 

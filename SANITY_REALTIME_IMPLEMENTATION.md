@@ -1,240 +1,400 @@
-# Sanity Real-time Implementation Guide
+# Sanity Real-Time Implementation Guide
 
-Your shop management system now has **comprehensive real-time synchronization** across all data operations using Sanity's built-in real-time capabilities.
+This document provides a comprehensive guide to the real-time data synchronization implementation using Sanity's real-time features across both Admin and Customer panels.
 
-## 🎯 **What's Implemented**
+## Overview
 
-### **✅ Real-time Enabled Stores:**
-- **Data Store** (`src/store/data-store.ts`) - Main data hub with real-time listeners
-- **Brand Store** (`src/store/brand-store.ts`) - Real-time brand management
-- **Category Store** (`src/store/category-store.ts`) - Real-time category updates
-- **Inventory Store** (`src/store/inventory-store.ts`) - Real-time inventory tracking
+The real-time implementation enables automatic data synchronization across all connected clients without requiring page refreshes. This ensures that changes made in the admin panel are immediately reflected in customer-facing pages and vice versa.
 
-### **✅ Real-time Operations:**
-- **CREATE** - New items appear instantly on all devices
-- **UPDATE** - Changes sync immediately across all clients
-- **DELETE** - Removals reflect instantly everywhere
-- **INVENTORY** - Stock levels update in real-time when bills are created
+## Architecture
 
-### **✅ Document Types Covered:**
-- `bill` - Bills and invoices
-- `product` - Inventory items
-- `user` - Customers and admins
-- `brand` - Product brands
-- `category` - Product categories
-- `stockTransaction` - Inventory movements
+### Core Components
 
-## 🚀 **How to Use**
+1. **Real-Time Hooks** (`src/hooks/use-realtime-sync.ts`)
 
-### **1. Wrap Your App with Real-time Provider**
+   - Main hook for managing real-time connections
+   - Document-specific listeners
+   - Customer-specific bill synchronization
 
-```tsx
-// In your layout.tsx or main app component
-import { SanityRealtimeProvider } from '@/components/providers/SanityRealtimeProvider'
+2. **Real-Time Provider** (`src/components/providers/realtime-provider.tsx`)
 
-export default function Layout({ children }) {
-  return (
-    <SanityRealtimeProvider>
-      {children}
-    </SanityRealtimeProvider>
-  )
-}
+   - Global context for real-time state management
+   - Connection status monitoring
+   - Manual refresh capabilities
+
+3. **Real-Time Components**
+
+   - `RealtimeBillList` - Live bill updates with animations
+   - `RealtimeInventory` - Live inventory tracking
+   - `RealtimeStockHistory` - Live stock transaction monitoring
+
+4. **Enhanced API Service** (`src/lib/realtime-api-service.ts`)
+   - Transactional operations with real-time notifications
+   - Bulk operations with live updates
+   - Real-time statistics
+
+## Implementation Details
+
+### 1. Real-Time Connection Setup
+
+```typescript
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+
+const { isConnected, connect, disconnect, refreshData } = useRealtimeSync({
+  enableNotifications: true,
+  enableAutoRefresh: true,
+  documentTypes: [
+    "bill",
+    "product",
+    "user",
+    "stockTransaction",
+    "brand",
+    "category",
+  ],
+});
 ```
 
-### **2. Use Real-time Hooks in Components**
+### 2. Document Listeners
 
-```tsx
-import { useSanityRealtime, useSanityOperations, useSanityAlerts } from '@/hooks/useSanityRealtime'
+```typescript
+import { useDocumentListener } from "@/hooks/use-realtime-sync";
 
-function MyComponent() {
-  const { isConnected, data } = useSanityRealtime()
-  const operations = useSanityOperations()
-  const alerts = useSanityAlerts()
-  
-  // All data is automatically real-time!
-  const { products, bills, users } = data
-  
-  // Operations automatically sync across devices
-  const createBrand = async () => {
-    await operations.brands.create({
-      name: 'New Brand',
-      description: 'Brand description',
-      isActive: true
-    })
-    // Appears instantly on all connected devices!
+useDocumentListener("bill", undefined, (update) => {
+  const { transition, result } = update;
+
+  switch (transition) {
+    case "appear":
+      // Handle new document
+      break;
+    case "update":
+      // Handle document update
+      break;
+    case "disappear":
+      // Handle document deletion
+      break;
   }
-  
+});
+```
+
+### 3. Provider Integration
+
+```typescript
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
+
+export default function Page() {
   return (
-    <div>
-      Status: {isConnected ? '🟢 Live' : '🔴 Offline'}
-      Products: {products.length}
-      Low Stock Alerts: {alerts.inventory.lowStockCount}
-    </div>
-  )
+    <RealtimeProvider enableNotifications={true} showConnectionStatus={true}>
+      {/* Your page content */}
+    </RealtimeProvider>
+  );
 }
 ```
 
-### **3. Access Individual Stores**
+## Features Implemented
 
-```tsx
-import { useDataStore } from '@/store/data-store'
-import { useBrandStore } from '@/store/brand-store'
-import { useCategoryStore } from '@/store/category-store'
+### Admin Panel Features
 
-function ProductForm() {
-  const { createProduct } = useDataStore()
-  const { brands } = useBrandStore()
-  const { categories } = useCategoryStore()
-  
-  // All data is real-time synchronized
-  const handleSubmit = async (productData) => {
-    await createProduct(productData)
-    // Product appears on all devices instantly!
+1. **Real-Time Dashboard**
+
+   - Live bill statistics
+   - Live inventory overview
+   - Connection status indicator
+   - Manual refresh capability
+
+2. **Inventory Management**
+
+   - Live stock level updates
+   - Low stock alerts
+   - Real-time transaction history
+   - Animated updates for new transactions
+
+3. **Bill Management**
+   - Live bill creation/updates
+   - Payment status changes
+   - Customer notifications
+
+### Customer Panel Features
+
+1. **Bill Tracking**
+
+   - Real-time bill updates
+   - Payment status changes
+   - New bill notifications
+   - Animated bill list updates
+
+2. **Live Statistics**
+   - Real-time spending totals
+   - Bill count updates
+   - Payment status tracking
+
+## Real-Time Events
+
+### Bill Events
+
+- `bill:created` - New bill created
+- `bill:updated` - Bill status/payment updated
+- `bill:deleted` - Bill removed
+
+### Inventory Events
+
+- `inventory:created` - New product added
+- `inventory:updated` - Stock levels changed
+- `inventory:low_stock` - Low stock alert
+- `inventory:deleted` - Product removed
+
+### Stock Transaction Events
+
+- `stock:purchase` - New purchase transaction
+- `stock:sale` - New sale transaction
+- `stock:adjustment` - Stock adjustment made
+
+## Usage Examples
+
+### 1. Admin Dashboard with Real-Time Updates
+
+```typescript
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
+import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
+import { RealtimeInventoryStats } from "@/components/realtime/realtime-inventory";
+
+export default function AdminDashboard() {
+  return (
+    <RealtimeProvider enableNotifications={true} showConnectionStatus={true}>
+      <div className="space-y-6">
+        <h1>Admin Dashboard</h1>
+
+        {/* Real-time Bill Statistics */}
+        <RealtimeBillStats />
+
+        {/* Real-time Inventory Statistics */}
+        <RealtimeInventoryStats />
+      </div>
+    </RealtimeProvider>
+  );
+}
+```
+
+### 2. Customer Bills Page with Live Updates
+
+```typescript
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
+import {
+  RealtimeBillList,
+  RealtimeBillStats,
+} from "@/components/realtime/realtime-bill-list";
+
+export default function CustomerBillsPage() {
+  const { user } = useAuthStore();
+
+  return (
+    <RealtimeProvider enableNotifications={true}>
+      <div className="space-y-6">
+        <h1>My Bills</h1>
+
+        {/* Real-time Bill Statistics */}
+        <RealtimeBillStats customerId={user?.id} />
+
+        {/* Real-time Bill List */}
+        <RealtimeBillList
+          initialBills={[]}
+          customerId={user?.id}
+          showNewBillAnimation={true}
+        />
+      </div>
+    </RealtimeProvider>
+  );
+}
+```
+
+### 3. Inventory Management with Live Updates
+
+```typescript
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
+import { RealtimeInventory } from "@/components/realtime/realtime-inventory";
+
+export default function InventoryPage() {
+  return (
+    <RealtimeProvider enableNotifications={true}>
+      <div className="space-y-6">
+        <h1>Inventory Management</h1>
+
+        {/* Real-time Inventory List */}
+        <RealtimeInventory
+          initialProducts={[]}
+          showLowStockOnly={false}
+          maxItems={50}
+        />
+      </div>
+    </RealtimeProvider>
+  );
+}
+```
+
+### 4. Stock History with Live Transactions
+
+```typescript
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
+import {
+  RealtimeStockHistory,
+  RealtimeStockSummary,
+} from "@/components/realtime/realtime-stock-history";
+
+export default function StockHistoryPage() {
+  return (
+    <RealtimeProvider enableNotifications={true}>
+      <div className="space-y-6">
+        <h1>Stock History</h1>
+
+        {/* Real-time Stock Summary */}
+        <RealtimeStockSummary />
+
+        {/* Real-time Transaction History */}
+        <RealtimeStockHistory
+          initialTransactions={[]}
+          showNewTransactionAnimation={true}
+        />
+      </div>
+    </RealtimeProvider>
+  );
+}
+```
+
+## API Integration
+
+### Creating Documents with Real-Time Updates
+
+```typescript
+import { realtimeApiService } from "@/lib/realtime-api-service";
+
+// Create a bill with inventory updates
+const createBill = async (billData) => {
+  const result = await realtimeApiService.createBillWithInventoryUpdate(
+    billData,
+    true // Show notification
+  );
+
+  if (result.success) {
+    // Bill created and inventory updated
+    // Real-time listeners will automatically update UI
   }
-}
+};
+
+// Update product inventory
+const updateInventory = async (productId, inventoryUpdate, transactionData) => {
+  const result = await realtimeApiService.updateProductInventory(
+    productId,
+    inventoryUpdate,
+    transactionData,
+    true // Show notification
+  );
+
+  if (result.success) {
+    // Inventory updated with stock transaction
+    // Real-time listeners will automatically update UI
+  }
+};
 ```
 
-## 🔧 **Key Features**
+### Bulk Operations
 
-### **1. Automatic Conflict Resolution**
-- Multiple users can work simultaneously
-- Sanity handles document versioning and conflicts
-- Last write wins for simple conflicts
-- Complex conflicts are handled gracefully
+```typescript
+// Bulk inventory update
+const bulkUpdateInventory = async (updates) => {
+  const result = await realtimeApiService.bulkUpdateInventory(
+    updates,
+    true // Show notification
+  );
 
-### **2. Optimistic Updates**
-- UI updates immediately for better UX
-- Real-time sync confirms changes
-- Automatic rollback on errors
-
-### **3. Connection Management**
-- Automatic reconnection on network issues
-- Connection status indicators
-- Graceful degradation when offline
-
-### **4. Performance Optimized**
-- Efficient data structures using Maps
-- Lookup tables for fast queries
-- Minimal re-renders with targeted updates
-
-## 📊 **Real-time Dashboard**
-
-Visit `/dashboard/realtime` to see the real-time system in action:
-
-- Live statistics that update automatically
-- Real-time alerts for low stock, overdue payments
-- Connection status monitoring
-- Test operations to see instant synchronization
-
-## 🔄 **How Real-time Works**
-
-### **1. Document Changes**
-```
-User creates/updates document → Sanity detects change → All clients receive update → UI updates automatically
+  if (result.success) {
+    // Multiple products updated
+    // Real-time listeners will automatically update UI
+  }
+};
 ```
 
-### **2. Multi-device Synchronization**
+## Notifications
+
+The system includes toast notifications for real-time events:
+
+- **Success notifications**: Document created/updated successfully
+- **Info notifications**: Status changes, stock updates
+- **Warning notifications**: Low stock alerts
+- **Error notifications**: Connection issues, operation failures
+
+## Connection Management
+
+### Connection Status
+
+The system provides visual indicators for connection status:
+
+- Green badge: Connected and syncing
+- Red badge: Connection lost
+- Refresh button: Manual data refresh
+- Reconnect button: Attempt to reconnect
+
+### Auto-Reconnection
+
+The system automatically attempts to reconnect when connection is lost:
+
+- 5-second delay before reconnection attempt
+- Visual feedback during reconnection
+- Toast notification on successful reconnection
+
+## Performance Considerations
+
+1. **Selective Listening**: Only listen to relevant document types
+2. **Debounced Updates**: Prevent excessive UI updates
+3. **Efficient Queries**: Use specific queries to reduce data transfer
+4. **Memory Management**: Properly cleanup subscriptions on unmount
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Not Established**
+
+   - Check Sanity token configuration
+   - Verify project ID and dataset
+   - Ensure `useCdn: false` in Sanity client config
+
+2. **Updates Not Received**
+
+   - Check document type filters
+   - Verify subscription is active
+   - Check browser console for errors
+
+3. **Performance Issues**
+   - Limit the number of concurrent subscriptions
+   - Use specific queries instead of broad listeners
+   - Implement proper cleanup in useEffect
+
+### Debug Mode
+
+Enable debug logging by setting:
+
+```typescript
+const { isConnected } = useRealtimeSync({
+  enableNotifications: true,
+  enableAutoRefresh: true,
+  debug: true, // Enable debug logging
+});
 ```
-Device A: Create Bill → Sanity → Device B: Bill appears instantly
-Device B: Update Product → Sanity → Device A: Product updates immediately
-Device C: Delete Brand → Sanity → All devices: Brand removed
-```
 
-### **3. Inventory Integration**
-```
-Create Bill with Items → Sanity → Inventory automatically decreases → Stock alerts trigger → All devices see new levels
-```
+## Security Considerations
 
-## 🛠️ **Store Architecture**
+1. **Token Management**: Use appropriate Sanity tokens with minimal required permissions
+2. **Data Filtering**: Filter sensitive data before sending to client
+3. **Rate Limiting**: Implement rate limiting for API operations
+4. **User Authentication**: Ensure proper user authentication before establishing connections
 
-### **Data Store (Main Hub)**
-- Manages all core data (products, bills, users, brands, categories)
-- Uses Maps for O(1) lookups
-- Maintains lookup tables for relationships
-- Single source of truth for all data
+## Future Enhancements
 
-### **Specialized Stores**
-- **Brand Store**: Focused brand operations
-- **Category Store**: Category management
-- **Inventory Store**: Stock tracking and transactions
+1. **Offline Support**: Queue operations when offline
+2. **Conflict Resolution**: Handle concurrent edits
+3. **Advanced Filtering**: More granular event filtering
+4. **Performance Metrics**: Monitor connection quality and performance
+5. **Custom Events**: Support for custom business events
 
-### **Real-time Integration**
-- Each store has its own Sanity listener
-- Automatic state synchronization
-- Event-driven updates
+## Conclusion
 
-## 🚨 **Error Handling**
-
-### **Connection Issues**
-- Automatic retry logic
-- Fallback to cached data
-- User notifications for connection status
-
-### **Data Conflicts**
-- Sanity's built-in conflict resolution
-- Optimistic updates with rollback
-- Error boundaries for graceful failures
-
-## 📈 **Performance Considerations**
-
-### **Efficient Updates**
-- Only affected components re-render
-- Targeted state updates
-- Debounced rapid changes
-
-### **Memory Management**
-- Automatic cleanup of listeners
-- Efficient data structures
-- Garbage collection friendly
-
-## 🔐 **Security**
-
-### **Sanity Permissions**
-- Document-level security rules
-- User role-based access
-- API token permissions
-
-### **Real-time Security**
-- Users only see data they have access to
-- Real-time updates respect permissions
-- Secure WebSocket connections
-
-## 🎯 **Benefits**
-
-### **✅ For Users**
-- Instant updates across all devices
-- No page refreshes needed
-- Real-time collaboration
-- Immediate feedback on actions
-
-### **✅ For Developers**
-- No external infrastructure needed
-- Built-in conflict resolution
-- Type-safe operations
-- Easy to extend and maintain
-
-### **✅ For Business**
-- Prevents data conflicts
-- Improves team collaboration
-- Real-time inventory tracking
-- Better customer experience
-
-## 🚀 **Next Steps**
-
-1. **Integrate with existing forms** - All your current forms will now sync in real-time
-2. **Add real-time notifications** - Show toast messages for important updates
-3. **Implement optimistic UI** - Update UI immediately, sync in background
-4. **Add real-time analytics** - Live dashboards and reports
-5. **Mobile synchronization** - Real-time updates on mobile apps
-
-## 📞 **Testing Real-time**
-
-1. **Open multiple browser tabs** to `/dashboard/realtime`
-2. **Create a test brand** in one tab
-3. **Watch it appear instantly** in other tabs
-4. **Update inventory** and see live stock changes
-5. **Create bills** and watch inventory decrease automatically
-
-Your shop management system now has **enterprise-grade real-time capabilities** powered by Sanity! 🎉
-
-**No Socket.io servers, no external infrastructure, no complex setup - just pure Sanity real-time magic!** ✨
+This real-time implementation provides a seamless, responsive user experience across both admin and customer interfaces. The system automatically synchronizes data changes, provides visual feedback, and maintains connection reliability while ensuring optimal performance.
