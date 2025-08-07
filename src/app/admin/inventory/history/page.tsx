@@ -140,9 +140,16 @@ export default function StockHistoryPage() {
 
   // Get summary data from API or calculate from transactions
   const totalTransactions = summary?.totalTransactions || transactions.length;
-  const totalPurchases = summary?.totalPurchaseAmount || 0;
-  const totalSales = summary?.totalSalesAmount || 0;
-  const profit = summary?.netProfit || totalSales - totalPurchases;
+  const totalPurchaseAmount = summary?.totalPurchaseAmount || 0;
+  const totalSalesAmount = summary?.totalSalesAmount || 0;
+  const profit = summary?.netProfit || totalSalesAmount - totalPurchaseAmount;
+
+  console.log("🔍 Summary data in component:", {
+    summary,
+    totalPurchaseAmount,
+    totalSalesAmount,
+    profit,
+  });
 
   const viewTransactionDetails = (transaction: StockTransaction) => {
     setSelectedTransaction(transaction);
@@ -207,6 +214,49 @@ export default function StockHistoryPage() {
             <BarChart3 className="w-4 h-4" />
             Debug
           </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              // Create a test purchase transaction
+              const { sanityClient } = await import("@/lib/sanity");
+
+              // Get a product to create transaction for
+              const products =
+                await sanityClient.fetch(`*[_type == "product" && !defined(deleted) && isActive == true][0...1] {
+                _id,
+                name,
+                pricing
+              }`);
+
+              if (products.length > 0) {
+                const product = products[0];
+                const testTransaction = {
+                  _type: "stockTransaction",
+                  transactionId: `TEST_PURCHASE_${Date.now()}`,
+                  type: "purchase",
+                  product: { _type: "reference", _ref: product._id },
+                  quantity: 5,
+                  unitPrice: 100,
+                  totalAmount: 500,
+                  notes: "Test purchase transaction",
+                  status: "completed",
+                  transactionDate: new Date().toISOString(),
+                  createdAt: new Date().toISOString(),
+                };
+
+                await sanityClient.create(testTransaction);
+                console.log("✅ Created test purchase transaction");
+                fetchStockData(); // Refresh data
+              } else {
+                console.log("❌ No products found to create transaction");
+              }
+            }}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Test Purchase
+          </Button>
         </div>
       </div>
 
@@ -259,7 +309,7 @@ export default function StockHistoryPage() {
                 </p>
                 <p className="text-2xl font-bold text-green-400 mt-1">
                   {currency}
-                  {totalPurchases.toLocaleString()}
+                  {totalPurchaseAmount.toLocaleString()}
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-600/20 rounded-lg flex items-center justify-center">
@@ -276,7 +326,7 @@ export default function StockHistoryPage() {
                 <p className="text-gray-400 text-sm font-medium">Total Sales</p>
                 <p className="text-2xl font-bold text-blue-400 mt-1">
                   {currency}
-                  {totalSales.toLocaleString()}
+                  {totalSalesAmount.toLocaleString()}
                 </p>
               </div>
               <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">

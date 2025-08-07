@@ -655,6 +655,15 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
           // Refresh inventory summary
           await get().fetchInventorySummary();
 
+          // Create stock transaction for the new product purchase
+          await get().createStockTransaction({
+            productId: response.data._id,
+            type: "purchase",
+            quantity: productData.inventory.currentStock,
+            unitPrice: productData.pricing.purchasePrice,
+            notes: `Initial stock purchase for new product: ${productData.name}`,
+          });
+
           return { success: true, data: response.data, isUpdate: false };
         } else {
           return {

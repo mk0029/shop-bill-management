@@ -305,16 +305,36 @@ export const stockHistoryApi = {
       let totalPurchaseAmount = 0;
       let totalSalesAmount = 0;
 
-      filteredTransactions.forEach((t: unknown) => {
+      filteredTransactions.forEach((t: any) => {
+        console.log("🔍 Processing transaction:", {
+          type: t.type,
+          totalAmount: t.totalAmount,
+        });
         totalTransactions++;
 
         if (t.type === "purchase") {
           totalPurchases++;
           totalPurchaseAmount += t.totalAmount || 0;
+          console.log("🔍 Purchase found:", {
+            totalAmount: t.totalAmount,
+            runningTotal: totalPurchaseAmount,
+          });
         } else if (t.type === "sale") {
           totalSales++;
           totalSalesAmount += t.totalAmount || 0;
+          console.log("🔍 Sale found:", {
+            totalAmount: t.totalAmount,
+            runningTotal: totalSalesAmount,
+          });
         }
+      });
+
+      console.log("🔍 Final summary calculations:", {
+        totalTransactions,
+        totalPurchases,
+        totalSales,
+        totalPurchaseAmount,
+        totalSalesAmount,
       });
 
       const netProfit = totalSalesAmount - totalPurchaseAmount;
