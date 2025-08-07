@@ -65,6 +65,7 @@ interface BillState {
   setBills: (bills: Bill[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  addBill: (bill: Bill) => void;
 
   // Real-time actions
   initializeRealtime: () => void;
@@ -164,6 +165,13 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
   setBills: (bills) => set({ bills }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+
+  // Add bill to local state (for realtime updates)
+  addBill: (bill) => {
+    set((state) => ({
+      bills: [bill, ...state.bills.filter((b) => b._id !== bill._id)],
+    }));
+  },
 
   // Initialize real-time listeners
   initializeRealtime: () => {

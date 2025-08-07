@@ -158,6 +158,10 @@ interface InventoryStore {
     isUpdate?: boolean;
   }>;
 
+  // Realtime update methods
+  handleRealtimeProductUpdate: (product: any) => void;
+  handleRealtimeStockTransaction: (transaction: any) => void;
+
   // Getters
   getProductsByCategory: (categoryName: string) => Product[];
   getProductsByBrand: (brandName: string) => Product[];
@@ -544,15 +548,26 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     try {
       console.log("🚀 Starting addOrUpdateProduct with:", productData);
 
-      // Validate required fields
-      if (!productData.brandId || !productData.categoryId) {
-        console.error("❌ Missing required fields:", {
-          brandId: productData.brandId,
-          categoryId: productData.categoryId,
-        });
+      // Comprehensive validation of required fields
+      const missingFields = [];
+      if (!productData.name?.trim()) missingFields.push("name");
+      if (!productData.brandId) missingFields.push("brandId");
+      if (!productData.categoryId) missingFields.push("categoryId");
+      if (!productData.pricing?.purchasePrice)
+        missingFields.push("pricing.purchasePrice");
+      if (!productData.pricing?.sellingPrice)
+        missingFields.push("pricing.sellingPrice");
+      if (
+        !productData.inventory?.currentStock &&
+        productData.inventory?.currentStock !== 0
+      )
+        missingFields.push("inventory.currentStock");
+
+      if (missingFields.length > 0) {
+        console.error("❌ Missing required fields:", missingFields);
         return {
           success: false,
-          error: "Brand ID and Category ID are required",
+          error: `Missing required fields: ${missingFields.join(", ")}`,
         };
       }
 
@@ -681,6 +696,68 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
             ? error.message
             : "Failed to add or update product",
       };
+    }
+  },
+
+  // Handle realtime product updates (different from form-based addOrUpdateProduct)
+  handleRealtimeProductUpdate: (product) => {
+    const { products } = get();
+
+    if (!product || !product._id) {
+      console.warn("⚠️ Invalid product data for realtime update");
+      return;
+    }
+
+    // Check if product already exists
+    const existingIndex = products.findIndex((p) => p._id === product._id);
+
+    if (existingIndex >= 0) {
+      // Update existing product
+      const updatedProducts = [...products];
+      updatedProducts[existingIndex] = {
+        ...updatedProducts[existingIndex],
+        ...product,
+      };
+      set({ products: updatedProducts });
+      console.log(`🔄 Product updated via realtime: ${product.name}`);
+    } else {
+      // Add new product
+      set({ products: [...products, product] });
+      console.log(`✅ Product added via realtime: ${product.name}`);
+    }
+  },
+
+  // Handle realtime stock transaction updates
+  handleRealtimeStockTransaction: (transaction) => {
+    const { stockTransactions } = get();
+
+    if (!transaction || !transaction._id) {
+      console.warn("⚠️ Invalid stock transaction data for realtime update");
+      return;
+    }
+
+    // Check if transaction already exists
+    const existingIndex = stockTransactions.findIndex(
+      (t) => t._id === transaction._id
+    );
+
+    if (existingIndex >= 0) {
+      // Update existing transaction
+      const updatedTransactions = [...stockTransactions];
+      updatedTransactions[existingIndex] = {
+        ...updatedTransactions[existingIndex],
+        ...transaction,
+      };
+      set({ stockTransactions: updatedTransactions });
+      console.log(
+        `🔄 Stock transaction updated via realtime: ${transaction._id}`
+      );
+    } else {
+      // Add new transaction
+      set({ stockTransactions: [transaction, ...stockTransactions] });
+      console.log(
+        `✅ Stock transaction added via realtime: ${transaction._id}`
+      );
     }
   },
 

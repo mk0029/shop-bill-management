@@ -482,6 +482,38 @@ export const stockApi = {
     notes?: string;
   }): Promise<InventoryApiResponse> {
     try {
+      // Validate required fields
+      if (
+        !transactionData.productId ||
+        typeof transactionData.productId !== "string"
+      ) {
+        console.error("❌ Invalid productId:", transactionData.productId);
+        return {
+          success: false,
+          error: "Valid product ID is required for stock transaction",
+        };
+      }
+
+      if (
+        !transactionData.type ||
+        !["purchase", "sale", "adjustment", "return", "damage"].includes(
+          transactionData.type
+        )
+      ) {
+        console.error("❌ Invalid transaction type:", transactionData.type);
+        return {
+          success: false,
+          error: "Valid transaction type is required",
+        };
+      }
+
+      if (!transactionData.quantity || transactionData.quantity <= 0) {
+        console.error("❌ Invalid quantity:", transactionData.quantity);
+        return {
+          success: false,
+          error: "Quantity must be greater than 0",
+        };
+      }
       const transactionId = Buffer.from(
         Date.now().toString() + Math.random().toString()
       )

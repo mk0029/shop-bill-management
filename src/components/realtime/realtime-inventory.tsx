@@ -390,6 +390,12 @@ export const RealtimeInventoryStats: React.FC = () => {
 
   // Recalculate stats when products change
   useEffect(() => {
+    console.log(
+      "🔢 Calculating inventory stats for",
+      products.length,
+      "products"
+    );
+    
     const newStats = products.reduce(
       (acc, product) => {
         acc.total += 1;
@@ -406,8 +412,13 @@ export const RealtimeInventoryStats: React.FC = () => {
           acc.lowStock += 1;
         }
 
-        acc.totalValue +=
-          product.inventory.currentStock * product.pricing.sellingPrice;
+        const productValue =
+          product.inventory.currentStock * product.pricing.purchasePrice;
+        acc.totalValue += productValue;
+
+        console.log(
+          `📦 ${product.name}: ${product.inventory.currentStock} × ₹${product.pricing.purchasePrice} = ₹${productValue}`
+        );
 
         return acc;
       },
@@ -420,6 +431,10 @@ export const RealtimeInventoryStats: React.FC = () => {
       }
     );
 
+    console.log(
+      "💰 Total inventory value (purchase price):",
+      newStats.totalValue
+    );
     setStats(newStats);
   }, [products]);
 
@@ -429,8 +444,7 @@ export const RealtimeInventoryStats: React.FC = () => {
         key={stats.total}
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}
-      >
+        transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -495,6 +509,7 @@ export const RealtimeInventoryStats: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-400 text-sm font-medium">Total Value</p>
+              <p className="text-xs text-gray-500">(at purchase price)</p>
               <p className="text-2xl font-bold text-purple-400 mt-1">
                 {formatCurrency(stats.totalValue)}
               </p>

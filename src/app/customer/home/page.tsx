@@ -1,10 +1,20 @@
 "use client";
 
+import React from "react";
 import { useBills } from "@/hooks/use-sanity-data";
 import { useAuthStore } from "@/store/auth-store";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  RealtimeProvider,
+  useRealtime,
+} from "@/components/providers/realtime-provider";
+import {
+  RealtimeBillList,
+  RealtimeBillStats,
+} from "@/components/realtime/realtime-bill-list";
 import {
   FileText,
   DollarSign,
@@ -19,15 +29,220 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function CustomerHome() {
-  const { bills, getBillsByCustomer, isLoading } = useBills();
+// Customer-specific bill stats component that uses filtered data
+function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
+  const stats = React.useMemo(() => {
+    const total = customerBills.length;
+    const paid = customerBills.filter(
+      (bill) => bill.paymentStatus === "paid"
+    ).length;
+    const pending = customerBills.filter(
+      (bill) => bill.paymentStatus === "pending"
+    ).length;
+    const overdue = customerBills.filter(
+      (bill) => bill.paymentStatus === "overdue"
+    ).length;
+
+    const totalAmount = customerBills.reduce(
+      (sum, bill) => sum + (bill.totalAmount || 0),
+      0
+    );
+    const paidAmount = customerBills
+      .filter((bill) => bill.paymentStatus === "paid")
+      .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+    const pendingAmount = customerBills
+      .filter((bill) => bill.paymentStatus === "pending")
+      .reduce(
+        (sum, bill) => sum + (bill.balanceAmount || bill.totalAmount || 0),
+        0
+      );
+
+    return {
+      total,
+      paid,
+      pending,
+      overdue,
+      totalAmount,
+      paidAmount,
+      pendingAmount,
+    };
+  }, [customerBills]);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm font-medium">Total Amount</p>
+              <p className="text-2xl font-bold text-white mt-1">
+                ₹{stats.totalAmount.toLocaleString()}
+              </p>
+            </div>
+            <FileText className="w-8 h-8 text-blue-400" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm font-medium">Paid Bills</p>
+              <p className="text-2xl font-bold text-green-400 mt-1">
+                {stats.paid}
+              </p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-green-400" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm font-medium">Pending</p>
+              <p className="text-2xl font-bold text-yellow-400 mt-1">
+                {stats.pending}
+              </p>
+            </div>
+            <Clock className="w-8 h-8 text-yellow-400" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm font-medium">Overdue</p>
+              <p className="text-2xl font-bold text-red-400 mt-1">
+                {stats.overdue}
+              </p>
+            </div>
+            <AlertTriangle className="w-8 h-8 text-red-400" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Customer-specific bill list component that uses filtered data
+function CustomerBillList({ customerBills }: { customerBills: any[] }) {
+  const displayBills = customerBills.slice(0, 5); // Show max 5 bills
+
+  if (displayBills.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-300 mb-2">
+          No bills found
+        </h3>
+        <p className="text-gray-400">
+          You don't have any bills yet. Contact us to create your first bill.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {displayBills.map((bill) => (
+        <div
+          key={bill._id}
+          className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0">
+                {bill.status === "completed" ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : bill.status === "in_progress" ? (
+                  <Clock className="h-5 w-5 text-yellow-500" />
+                ) : (
+                  <FileText className="h-5 w-5 text-blue-500" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-medium text-white">
+                  Bill #{bill.billNumber}
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {bill.serviceDate
+                      ? new Date(bill.serviceDate).toLocaleDateString()
+                      : new Date(bill.createdAt).toLocaleDateString()}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {bill.locationType}
+                  </span>
+                  <span className="capitalize">{bill.serviceType}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="font-medium text-white">
+                ₹{bill.totalAmount?.toLocaleString() || 0}
+              </p>
+              {bill.balanceAmount > 0 && (
+                <p className="text-sm text-yellow-500">
+                  ₹{bill.balanceAmount.toLocaleString()} pending
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Badge
+                variant={
+                  bill.status === "completed"
+                    ? "default"
+                    : bill.status === "in_progress"
+                    ? "secondary"
+                    : "outline"
+                }>
+                {bill.status?.replace("_", " ")}
+              </Badge>
+              <Badge
+                variant={
+                  bill.paymentStatus === "paid"
+                    ? "default"
+                    : bill.paymentStatus === "pending"
+                    ? "destructive"
+                    : "secondary"
+                }
+                className="text-xs">
+                {bill.paymentStatus}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CustomerHomeContent() {
   const { user } = useAuthStore();
+  const { isConnected } = useRealtime();
 
-  // Debug logs
-  console.log('CustomerHome user:', user);
-  console.log('CustomerHome bills:', bills);
+  // Use the same bill store as admin panel for realtime updates
+  const {
+    bills: allBills,
+    loading: billsLoading,
+    fetchBills,
+  } = useSanityBillStore();
 
-  if (isLoading) {
+  // Initialize the bill store and realtime listeners
+  React.useEffect(() => {
+    fetchBills();
+    // Note: Realtime listeners are automatically initialized by the RealtimeProvider
+  }, [fetchBills]);
+
+  if (billsLoading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse space-y-6">
@@ -43,8 +258,20 @@ export default function CustomerHome() {
     );
   }
 
-  // Get customer's bills using the user's _id from Sanity
-  const customerBills = user ? getBillsByCustomer(user.id) : [];
+  // Filter bills for this customer from the realtime store
+  const customerBills = user
+    ? allBills.filter(
+        (bill) =>
+          bill.customer?._ref === user.id ||
+          bill.customer?._id === user.id ||
+          bill.customer === user.id
+      )
+    : [];
+
+  // Filter bills for this customer only
+  console.log(
+    `📋 Customer ${user?.name} has ${customerBills.length} bills out of ${allBills.length} total`
+  );
 
   // Calculate stats
   const totalBills = customerBills.length;
@@ -77,81 +304,29 @@ export default function CustomerHome() {
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className="text-green-500 border-green-500"
-          >
-            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-            Connected
+            className={
+              isConnected
+                ? "text-green-500 border-green-500"
+                : "text-red-500 border-red-500"
+            }>
+            <div
+              className={`w-2 h-2 ${
+                isConnected ? "bg-green-500" : "bg-red-500"
+              } rounded-full mr-2`}></div>
+            {isConnected ? "Connected" : "Disconnected"}
           </Badge>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">
-                  Total Bills
-                </p>
-                <p className="text-2xl font-bold text-white">{totalBills}</p>
-                <p className="text-xs text-blue-500 mt-1">
-                  <FileText className="inline h-3 w-3 mr-1" />
-                  All time
-                </p>
-              </div>
-              <FileText className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Real-time Stats Cards - Only for this customer */}
+      <CustomerBillStats customerBills={customerBills} />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">
-                  Total Spent
-                </p>
-                <p className="text-2xl font-bold text-white">
-                  ₹{totalSpent.toLocaleString()}
-                </p>
-                <p className="text-xs text-green-500 mt-1">
-                  <DollarSign className="inline h-3 w-3 mr-1" />
-                  Paid bills
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">
-                  Pending Amount
-                </p>
-                <p className="text-2xl font-bold text-white">
-                  ₹{pendingAmount.toLocaleString()}
-                </p>
-                <p className="text-xs text-yellow-500 mt-1">
-                  <Clock className="inline h-3 w-3 mr-1" />
-                  {pendingBills.length} bills
-                </p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Bills */}
+      {/* Recent Bills - Real-time */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Recent Bills
+            Recent Bills (Live Updates)
           </CardTitle>
           <Link href="/customer/bills">
             <Button variant="outline" size="sm">
@@ -160,93 +335,7 @@ export default function CustomerHome() {
           </Link>
         </CardHeader>
         <CardContent>
-          {customerBills.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-300 mb-2">
-                No bills found
-              </h3>
-              <p className="text-gray-400">
-                You don&apos;t have any bills yet. Contact us to create your first bill.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {customerBills.slice(0, 5).map((bill) => (
-                <div
-                  key={bill._id}
-                  className="flex items-center justify-between p-4 bg-gray-800 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0">
-                        {bill.status === "completed" ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        ) : bill.status === "in_progress" ? (
-                          <Clock className="h-5 w-5 text-yellow-500" />
-                        ) : (
-                          <FileText className="h-5 w-5 text-blue-500" />
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-white">
-                          Bill #{bill.billNumber}
-                        </h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(bill.serviceDate).toLocaleDateString()}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {bill.locationType}
-                          </span>
-                          <span className="capitalize">{bill.serviceType}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-medium text-white">
-                        ₹{bill.totalAmount.toLocaleString()}
-                      </p>
-                      {bill.balanceAmount > 0 && (
-                        <p className="text-sm text-yellow-500">
-                          ₹{bill.balanceAmount.toLocaleString()} pending
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Badge
-                        variant={
-                          bill.status === "completed"
-                            ? "default"
-                            : bill.status === "in_progress"
-                            ? "secondary"
-                            : "outline"
-                        }
-                      >
-                        {bill.status.replace("_", " ")}
-                      </Badge>
-                      <Badge
-                        variant={
-                          bill.paymentStatus === "paid"
-                            ? "default"
-                            : bill.paymentStatus === "pending"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                        className="text-xs"
-                      >
-                        {bill.paymentStatus}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <CustomerBillList customerBills={customerBills} />
         </CardContent>
       </Card>
 
@@ -258,7 +347,9 @@ export default function CustomerHome() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link href="/customer/bills">
-              <button className="w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left">
+              <button
+                type="button"
+                className="w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left">
                 <FileText className="h-6 w-6 text-white mb-2" />
                 <h3 className="font-medium text-white">View All Bills</h3>
                 <p className="text-sm text-blue-100">
@@ -268,7 +359,9 @@ export default function CustomerHome() {
             </Link>
 
             <Link href="/customer/profile">
-              <button className="w-full p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left">
+              <button
+                type="button"
+                className="w-full p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left">
                 <User className="h-6 w-6 text-white mb-2" />
                 <h3 className="font-medium text-white">Update Profile</h3>
                 <p className="text-sm text-green-100">
@@ -280,5 +373,13 @@ export default function CustomerHome() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function CustomerHome() {
+  return (
+    <RealtimeProvider enableNotifications={true}>
+      <CustomerHomeContent />
+    </RealtimeProvider>
   );
 }

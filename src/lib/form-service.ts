@@ -5,6 +5,7 @@ import {
   updateStockForBill,
   BillItem,
 } from "./inventory-management";
+import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 
 export interface FormSubmissionResult {
   success: boolean;
@@ -16,7 +17,7 @@ export interface FormSubmissionResult {
 export interface ConfirmationData {
   title: string;
   message: string;
-  data: any;
+  data: unknown;
   type: "success" | "error" | "warning";
 }
 
@@ -379,8 +380,39 @@ export async function createBill(billData: {
   try {
     console.log("🧾 Creating bill in Sanity:", billData);
 
-    // Step 1: Validate stock availability for all items
-    const billItems: BillItem[] = billData.items.map((item) => ({
+    // Step 1: Deduplicate and validate bill items
+    const deduplicatedItems = deduplicateBillItems(
+      billData.items.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        category: item.category || "",
+        brand: item.brand || "",
+        specifications: item.specifications || "",
+        quantity: item.quantity,
+        unitPrice: item.unitPrice || 0,
+        totalPrice: item.quantity * (item.unitPrice || 0),
+        unit: item.unit || "pcs",
+      }))
+    );
+
+    console.log(
+      "🔄 Deduplicated items:",
+      deduplicatedItems.length,
+      "from",
+      billData.items.length
+    );
+
+    const itemValidation = validateBillItems(deduplicatedItems);
+    if (!itemValidation.isValid) {
+      console.error("❌ Item validation failed:", itemValidation.errors);
+      return {
+        success: false,
+        error: `Item validation failed: ${itemValidation.errors.join(", ")}`,
+      };
+    }
+
+    // Step 2: Validate stock availability for all items
+    const billItems: BillItem[] = deduplicatedItems.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
@@ -398,8 +430,8 @@ export async function createBill(billData: {
       };
     }
 
-    // Step 2: Fetch latest prices for items without prices
-    const productIds = billData.items.map((item) => item.productId);
+    // Step 3: Fetch latest prices for items without prices
+    const productIds = deduplicatedItems.map((item) => item.productId);
     console.log("💰 Fetching latest prices...");
     const latestPrices = await fetchLatestPrices(productIds);
 
@@ -410,8 +442,8 @@ export async function createBill(billData: {
       Date.now()
     ).slice(-6)}`;
 
-    // Step 3: Prepare items array with latest prices
-    const items = billData.items.map((item) => {
+    // Step 4: Prepare items array with latest prices
+    const items = deduplicatedItems.map((item) => {
       const priceInfo = latestPrices.get(item.productId);
       const unitPrice = item.unitPrice || priceInfo?.sellingPrice || 0;
 
@@ -480,11 +512,11 @@ export async function createBill(billData: {
       updatedAt: new Date().toISOString(),
     };
 
-    // Step 4: Create the bill
+    // Step 5: Create the bill
     const result = await sanityClient.create(newBill);
     console.log("✅ Bill created successfully:", result._id);
 
-    // Step 5: Update stock levels for all items
+    // Step 6: Update stock levels for all items
     console.log("📦 Updating stock levels...");
     const stockUpdateResult = await updateStockForBill(
       billItems.map((item) => ({

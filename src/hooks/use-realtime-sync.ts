@@ -6,16 +6,16 @@ import { useDataStore } from "@/store/data-store";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { useInventoryStore } from "@/store/inventory-store";
 import { toast } from "sonner";
-import type { SanityClient, SanityDocument } from "@sanity/client";
-import type { Subscription } from "@sanity/client";
+import type { SanityDocument } from "@sanity/client";
+import type { Subscription } from "rxjs";
 
 // Type definitions for real-time updates
-type DocumentTransition = 'appear' | 'update' | 'disappear';
+type DocumentTransition = "appear" | "update" | "disappear";
 
 interface RealtimeUpdate<T = any> {
   result: T | null;
   previous?: T | null;
-  visibility?: 'visible' | 'hidden';
+  visibility?: "visible" | "hidden";
   mutations: {
     transactionId: string;
     transition: DocumentTransition;
@@ -32,7 +32,7 @@ interface RealtimeUpdate<T = any> {
   timestamp: string;
   transactionId: string;
   transition: DocumentTransition;
-  version: 'v1' | 'v2';
+  version: "v1" | "v2";
   documentId: string;
 }
 
@@ -63,59 +63,58 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   const isConnectedRef = useRef(false);
 
   // Handle real-time updates
-  const handleRealtimeUpdate = useCallback(
-    (update: RealtimeUpdate) => {
-      const { transition, documentId, result, previous } = update;
-      const documentType = result?._type || documentId.split(".")[0];
+  const handleRealtimeUpdate = useCallback((update: RealtimeUpdate) => {
+    const { transition, documentId, result } = update;
+    const documentType = result?._type || documentId.split(".")[0];
 
-      console.log("🔄 Real-time update:", {
-        transition,
-        documentType,
-        documentId,
-      });
+    console.log("🔄 Real-time update:", {
+      transition,
+      documentType,
+      documentId,
+    });
 
-      switch (documentType) {
-        case "bill":
-          handleBillUpdate(transition, result, previous);
-          break;
-        case "product":
-          handleProductUpdate(transition, result, previous);
-          break;
-        case "user":
-          handleUserUpdate(transition, result, previous);
-          break;
-        case "stockTransaction":
-          handleStockTransactionUpdate(transition, result, previous);
-          break;
-        case "brand":
-          handleBrandUpdate(transition, result, previous);
-          break;
-        case "category":
-          handleCategoryUpdate(transition, result, previous);
-          break;
-      }
-    },
-    [dataStore, billStore, inventoryStore, enableNotifications]
-  );
+    switch (documentType) {
+      case "bill":
+        handleBillUpdate(transition, result);
+        break;
+      case "product":
+        handleProductUpdate(transition, result);
+        break;
+      case "user":
+        handleUserUpdate(transition, result);
+        break;
+      case "stockTransaction":
+        handleStockTransactionUpdate(transition, result);
+        break;
+      case "brand":
+        handleBrandUpdate(transition, result);
+        break;
+      case "category":
+        handleCategoryUpdate(transition, result);
+        break;
+    }
+  }, []);
 
   // Handle bill updates
   const handleBillUpdate = useCallback(
-    (transition: string, result: any, previous: any) => {
+    (transition: string, result: SanityDocument | null) => {
+      if (!result) return;
+
       switch (transition) {
         case "appear":
           // Silently add the new bill to both stores
-          billStore.addBill(result);
-          console.log(`✅ New bill added: #${result.billNumber}`);
+          billStore.addBill(result as any);
+          console.log(`✅ New bill added: #${result.billNumber || result._id}`);
           break;
         case "update":
           // Silently update the bill in both stores
-          billStore.updateBill(result._id, result);
-          console.log(`🔄 Bill updated: #${result.billNumber}`);
+          billStore.updateBill(result._id, result as any);
+          console.log(`🔄 Bill updated: #${result.billNumber || result._id}`);
           break;
         case "disappear":
           // Silently remove the bill from both stores
           billStore.deleteBill(result._id);
-          console.log(`🗑️ Bill removed: #${result.billNumber}`);
+          console.log(`🗑️ Bill removed: #${result.billNumber || result._id}`);
           break;
       }
     },
@@ -124,28 +123,45 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
   // Handle product updates
   const handleProductUpdate = useCallback(
-    (transition: string, result: any, previous: any) => {
+    (transition: string, result: SanityDocument | null) => {
+      // Validate that we have the required data for product operations
+      if (!result) {
+        console.warn("⚠️ Product update received with no result data");
+        return;
+      }
+
+      // For realtime updates, we need to handle products differently
+      // since addOrUpdateProduct expects a specific format
       switch (transition) {
         case "appear":
-          inventoryStore.addOrUpdateProduct(result);
-          console.log(`✅ New product added: ${result.name}`);
-          break;
         case "update":
-          inventoryStore.addOrUpdateProduct(result);
-          console.log(`🔄 Product updated: ${result.name}`);
+          // Check if this is a complete product with all required fields
+          if (result.brand?._id && result.category?._id && result.name) {
+            // Use the realtime-specific update method instead
+            inventoryStore.handleRealtimeProductUpdate(result);
+            console.log(`✅ Product ${transition}: ${result.name}`);
 
-          // Only show critical alerts (low stock) if notifications are enabled
-          if (
-            enableNotifications &&
-            result.inventory?.currentStock <= result.inventory?.minimumStock
-          ) {
-            toast.warning(
-              `Low stock: ${result.name} (${result.inventory.currentStock} remaining)`
+            // Only show critical alerts (low stock) if notifications are enabled
+            if (
+              enableNotifications &&
+              result.inventory?.currentStock <= result.inventory?.minimumStock
+            ) {
+              toast.warning(
+                `Low stock: ${result.name} (${result.inventory.currentStock} remaining)`
+              );
+            }
+          } else {
+            // If we don't have complete data, just refresh the inventory
+            console.warn(
+              "⚠️ Incomplete product data received, refreshing inventory..."
             );
+            inventoryStore.fetchProducts();
           }
           break;
         case "disappear":
-          console.log(`🗑️ Product removed: ${result.name}`);
+          console.log(`🗑️ Product removed: ${result?.name || "Unknown"}`);
+          // Refresh inventory to remove the deleted product
+          inventoryStore.fetchProducts();
           break;
       }
     },
@@ -154,16 +170,18 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
   // Handle user updates
   const handleUserUpdate = useCallback(
-    (transition: string, result: any, previous: any) => {
+    (transition: string, result: SanityDocument | null) => {
+      if (!result) return;
+
       switch (transition) {
         case "appear":
-          console.log(`✅ New user added: ${result.name}`);
+          console.log(`✅ New user added: ${result.name || result._id}`);
           break;
         case "update":
-          console.log(`🔄 User updated: ${result.name}`);
+          console.log(`🔄 User updated: ${result.name || result._id}`);
           break;
         case "disappear":
-          console.log(`🗑️ User removed: ${result.name}`);
+          console.log(`🗑️ User removed: ${result.name || result._id}`);
           break;
       }
     },
@@ -172,16 +190,41 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
   // Handle stock transaction updates
   const handleStockTransactionUpdate = useCallback(
-    (transition: string, result: any, previous: any) => {
+    (transition: string, result: SanityDocument | null) => {
+      // Validate that we have the required data for stock transaction operations
+      if (!result) {
+        console.warn(
+          "⚠️ Stock transaction update received with no result data"
+        );
+        return;
+      }
+
       switch (transition) {
         case "appear":
-          inventoryStore.createStockTransaction(result);
-          console.log(
-            `📊 Stock transaction: ${result.type} - ${result.quantity} units`
-          );
+          // Validate required fields for stock transaction
+          if (result.product?._ref && result.type && result.quantity) {
+            // Use the realtime-specific update method
+            inventoryStore.handleRealtimeStockTransaction(result);
+            console.log(
+              `📊 Stock transaction: ${result.type} - ${result.quantity} units`
+            );
+          } else {
+            console.warn("⚠️ Incomplete stock transaction data:", {
+              productId: result.product?._ref,
+              type: result.type,
+              quantity: result.quantity,
+            });
+            // Refresh stock transactions to get the latest data
+            inventoryStore.fetchStockTransactions();
+          }
           break;
         case "update":
-          // Handle stock transaction updates if needed
+          // For updates, just refresh the stock transactions
+          inventoryStore.fetchStockTransactions();
+          break;
+        case "disappear":
+          // Refresh stock transactions when one is deleted
+          inventoryStore.fetchStockTransactions();
           break;
       }
     },
@@ -190,16 +233,18 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
   // Handle brand updates
   const handleBrandUpdate = useCallback(
-    (transition: string, result: any, previous: any) => {
+    (transition: string, result: SanityDocument | null) => {
+      if (!result) return;
+
       switch (transition) {
         case "appear":
-          console.log(`✅ New brand added: ${result.name}`);
+          console.log(`✅ New brand added: ${result.name || result._id}`);
           break;
         case "update":
-          console.log(`🔄 Brand updated: ${result.name}`);
+          console.log(`🔄 Brand updated: ${result.name || result._id}`);
           break;
         case "disappear":
-          console.log(`🗑️ Brand removed: ${result.name}`);
+          console.log(`🗑️ Brand removed: ${result.name || result._id}`);
           break;
       }
     },
@@ -208,16 +253,18 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
   // Handle category updates
   const handleCategoryUpdate = useCallback(
-    (transition: string, result: any, previous: any) => {
+    (transition: string, result: SanityDocument | null) => {
+      if (!result) return;
+
       switch (transition) {
         case "appear":
-          console.log(`✅ New category added: ${result.name}`);
+          console.log(`✅ New category added: ${result.name || result._id}`);
           break;
         case "update":
-          console.log(`🔄 Category updated: ${result.name}`);
+          console.log(`🔄 Category updated: ${result.name || result._id}`);
           break;
         case "disappear":
-          console.log(`🗑️ Category removed: ${result.name}`);
+          console.log(`🗑️ Category removed: ${result.name || result._id}`);
           break;
       }
     },
@@ -233,15 +280,37 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
     console.log("🔌 Connecting to Sanity real-time updates...");
 
+    // Enhanced query to include referenced data for products
     const query = `*[_type in [${documentTypes
       .map((type) => `"${type}"`)
-      .join(", ")}]]`;
+      .join(", ")}]] {
+      ...,
+      _type == "product" => {
+        ...,
+        brand->{
+          _id,
+          name,
+          slug,
+          logo,
+          description,
+          isActive
+        },
+        category->{
+          _id,
+          name,
+          slug,
+          description,
+          icon,
+          isActive
+        }
+      }
+    }`;
 
     subscriptionRef.current = sanityClient
       .listen(query, {}, { includeResult: true })
       .subscribe({
         next: (update) => {
-          handleRealtimeUpdate(update as RealtimeUpdate);
+          handleRealtimeUpdate(update as unknown as RealtimeUpdate);
         },
         error: (error) => {
           console.error("❌ Real-time connection error:", error);
@@ -262,7 +331,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
     isConnectedRef.current = true;
     console.log("✅ Connected to Sanity real-time updates");
-  }, [documentTypes, handleRealtimeUpdate, enableNotifications]);
+  }, [documentTypes, handleRealtimeUpdate]);
 
   // Disconnect from real-time updates
   const disconnect = useCallback(() => {
@@ -335,50 +404,54 @@ export const useDocumentListener = <T extends SanityDocument>(
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     // Build the GROQ query
     const query = documentId
       ? `*[_type == $documentType && _id == $documentId][0]`
       : `*[_type == $documentType]`;
-    
+
     const params = { documentType };
     if (documentId) {
-      (params as any).documentId = documentId;
+      (params as Record<string, string>).documentId = documentId;
     }
 
     // Set up the listener
     subscriptionRef.current = sanityClient
-      .listen(query, params, { includeResult: true, includePreviousRevision: true })
+      .listen(query, params, {
+        includeResult: true,
+        includePreviousRevision: true,
+      })
       .subscribe({
-        next: (update: RealtimeUpdate<T>) => {
+        next: (update) => {
           const now = Date.now();
-          
+
           // Throttle updates to prevent UI jank
           if (now - lastUpdateRef.current < throttleTime) return;
           lastUpdateRef.current = now;
 
           try {
+            const realtimeUpdate = update as unknown as RealtimeUpdate<T>;
             // Handle the update based on transition type
-            switch (update.transition) {
-              case 'appear':
-                if (update.result && onAppear) {
-                  onAppear(update.result);
+            switch (realtimeUpdate.transition) {
+              case "appear":
+                if (realtimeUpdate.result && onAppear) {
+                  onAppear(realtimeUpdate.result);
                 }
                 break;
-              case 'update':
+              case "update":
                 if (onUpdate) {
-                  onUpdate(update);
+                  onUpdate(realtimeUpdate);
                 }
                 break;
-              case 'disappear':
+              case "disappear":
                 if (onDisappear) {
-                  onDisappear(update.documentId);
+                  onDisappear(realtimeUpdate.documentId);
                 }
                 break;
             }
           } catch (error) {
-            console.error('Error handling realtime update:', error);
+            console.error("Error handling realtime update:", error);
           }
         },
         error: (error) => {
@@ -397,13 +470,24 @@ export const useDocumentListener = <T extends SanityDocument>(
       });
 
     setIsConnected(true);
-    console.log(`Listening to ${documentType} changes`, documentId ? `(ID: ${documentId})` : '');
+    console.log(
+      `Listening to ${documentType} changes`,
+      documentId ? `(ID: ${documentId})` : ""
+    );
 
     // Cleanup on unmount
     return () => {
       cleanup();
     };
-  }, [documentType, documentId, onUpdate, onAppear, onDisappear, cleanup, throttleTime]);
+  }, [
+    documentType,
+    documentId,
+    onUpdate,
+    onAppear,
+    onDisappear,
+    cleanup,
+    throttleTime,
+  ]);
 
   return {
     isConnected,
@@ -418,13 +502,13 @@ export const useDocumentListener = <T extends SanityDocument>(
  */
 const useUpdatedDocuments = (cooldown = 2000) => {
   const updatedIdsRef = useRef<Map<string, number>>(new Map());
-  const cleanupTimerRef = useRef<NodeJS.Timeout>();
+  const cleanupTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Clean up old entries
   const cleanupOldEntries = useCallback(() => {
     const now = Date.now();
     const updatedIds = updatedIdsRef.current;
-    
+
     // Remove entries older than cooldown
     updatedIds.forEach((timestamp, id) => {
       if (now - timestamp > cooldown) {
@@ -441,14 +525,17 @@ const useUpdatedDocuments = (cooldown = 2000) => {
   }, [cooldown]);
 
   // Add a document ID to track
-  const addUpdatedId = useCallback((id: string) => {
-    updatedIdsRef.current.set(id, Date.now());
-    
-    // Start cleanup timer if not already running
-    if (!cleanupTimerRef.current) {
-      cleanupTimerRef.current = setTimeout(cleanupOldEntries, cooldown / 2);
-    }
-  }, [cleanupOldEntries, cooldown]);
+  const addUpdatedId = useCallback(
+    (id: string) => {
+      updatedIdsRef.current.set(id, Date.now());
+
+      // Start cleanup timer if not already running
+      if (!cleanupTimerRef.current) {
+        cleanupTimerRef.current = setTimeout(cleanupOldEntries, cooldown / 2);
+      }
+    },
+    [cleanupOldEntries, cooldown]
+  );
 
   // Check if a document was recently updated
   const isRecentlyUpdated = useCallback((id: string) => {
@@ -485,11 +572,11 @@ export const useCustomerBillSync = (customerId?: string) => {
       ) {
         switch (transition) {
           case "appear":
-            billStore.addBill(result);
+            billStore.addBill(result as any);
             console.log(`✅ New bill for customer: #${result.billNumber}`);
             break;
           case "update":
-            billStore.updateBill(result._id, result);
+            billStore.updateBill(result._id, result as any);
             console.log(`🔄 Bill updated for customer: #${result.billNumber}`);
             break;
           case "disappear":
@@ -502,12 +589,15 @@ export const useCustomerBillSync = (customerId?: string) => {
     [customerId, billStore]
   );
 
-  useDocumentListener("bill", undefined, handleBillUpdate);
+  useDocumentListener("bill", undefined, {
+    onUpdate: handleBillUpdate,
+  });
 
   return {
     bills: billStore.bills.filter(
       (bill) =>
-        bill.customer?._ref === customerId || bill.customer?._id === customerId
+        (bill.customer as any)?._ref === customerId ||
+        (bill.customer as unknown)?._id === customerId
     ),
   };
 };

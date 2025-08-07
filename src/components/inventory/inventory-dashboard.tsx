@@ -105,6 +105,7 @@ export function InventoryDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm font-medium">Total Value</p>
+                <p className="text-xs text-gray-500">(at purchase price)</p>
                 <p className="text-2xl font-bold text-white mt-1">
                   {isLoadingValue ? (
                     <span className="animate-pulse">Loading...</span>
