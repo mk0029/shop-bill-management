@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useInventoryStore } from "@/store/inventory-store";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDocumentListener } from "@/hooks/use-realtime-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -322,6 +323,15 @@ export const RealtimeInventory: React.FC<RealtimeInventoryProps> = ({
 
 // Real-time inventory stats component
 export const RealtimeInventoryStats: React.FC = () => {
+  // Format currency helper
+  const formatCurrency = (amount: number) => {
+    if (amount < 1000) {
+      return `₹${amount}`;
+    }
+    const k = amount / 1000;
+    const decimals = k < 10 ? 2 : k < 100 ? 1 : 0;
+    return `₹${k.toFixed(decimals)}K`;
+  };
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -330,7 +340,25 @@ export const RealtimeInventoryStats: React.FC = () => {
     totalValue: 0,
   });
 
-  const [products, setProducts] = useState<Product[]>([]);
+  // Get products from global inventory store
+  const {
+    products: storeProducts = [],
+    fetchProducts,
+  } = useInventoryStore();
+
+  const [products, setProducts] = useState<Product[]>(storeProducts);
+
+  // Fetch products on mount to ensure initial data
+  useEffect(() => {
+    if (storeProducts.length === 0) {
+      fetchProducts();
+    }
+  }, []);
+
+  // Keep local products in sync with global store
+  useEffect(() => {
+    setProducts(storeProducts);
+  }, [storeProducts]);
 
   // Listen to product changes and update stats
   useDocumentListener("product", undefined, (update) => {
@@ -468,7 +496,7 @@ export const RealtimeInventoryStats: React.FC = () => {
             <div>
               <p className="text-gray-400 text-sm font-medium">Total Value</p>
               <p className="text-2xl font-bold text-purple-400 mt-1">
-                ₹{(stats.totalValue / 1000).toFixed(0)}K
+                {formatCurrency(stats.totalValue)}
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-purple-400" />

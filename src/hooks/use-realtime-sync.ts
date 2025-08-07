@@ -1,18 +1,39 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { sanityClient } from "@/lib/sanity";
 import { useDataStore } from "@/store/data-store";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { useInventoryStore } from "@/store/inventory-store";
 import { toast } from "sonner";
+import type { SanityClient, SanityDocument } from "@sanity/client";
 import type { Subscription } from "@sanity/client";
 
-interface RealtimeUpdate {
-  transition: "appear" | "update" | "disappear";
+// Type definitions for real-time updates
+type DocumentTransition = 'appear' | 'update' | 'disappear';
+
+interface RealtimeUpdate<T = any> {
+  result: T | null;
+  previous?: T | null;
+  visibility?: 'visible' | 'hidden';
+  mutations: {
+    transactionId: string;
+    transition: DocumentTransition;
+    identity: string;
+    resultRev: string;
+    previousRev?: string | null;
+    mutations: unknown[];
+    timestamp: string;
+    effects?: {
+      apply: unknown;
+      revert: unknown;
+    };
+  }[];
+  timestamp: string;
+  transactionId: string;
+  transition: DocumentTransition;
+  version: 'v1' | 'v2';
   documentId: string;
-  result?: any;
-  previous?: any;
 }
 
 interface UseRealtimeSyncOptions {
@@ -282,46 +303,170 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   };
 };
 
-// Hook for listening to specific document changes
-export const useDocumentListener = (
+/**
+ * Hook for listening to real-time document changes using Sanity's .listen() API
+ * @param documentType - The Sanity document type to listen to (e.g., 'product', 'bill')
+ * @param documentId - Optional specific document ID to listen to
+ * @param options - Additional options for the listener
+ * @returns Object containing disconnect function and connection status
+ */
+export const useDocumentListener = <T extends SanityDocument>(
   documentType: string,
   documentId?: string,
-  callback?: (update: RealtimeUpdate) => void
+  options: {
+    onUpdate?: (update: RealtimeUpdate<T>) => void;
+    onAppear?: (document: T) => void;
+    onDisappear?: (documentId: string) => void;
+    throttleTime?: number;
+  } = {}
 ) => {
   const subscriptionRef = useRef<Subscription | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const lastUpdateRef = useRef<number>(0);
+  const { onUpdate, onAppear, onDisappear, throttleTime = 100 } = options;
+
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+      setIsConnected(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!callback) return;
-
+    if (typeof window === 'undefined') return;
+    
+    // Build the GROQ query
     const query = documentId
-      ? `*[_type == "${documentType}" && _id == "${documentId}"]`
-      : `*[_type == "${documentType}"]`;
+      ? `*[_type == $documentType && _id == $documentId][0]`
+      : `*[_type == $documentType]`;
+    
+    const params = { documentType };
+    if (documentId) {
+      (params as any).documentId = documentId;
+    }
 
+    // Set up the listener
     subscriptionRef.current = sanityClient
-      .listen(query, {}, { includeResult: true })
+      .listen(query, params, { includeResult: true, includePreviousRevision: true })
       .subscribe({
-        next: (update) => {
-          callback(update as RealtimeUpdate);
+        next: (update: RealtimeUpdate<T>) => {
+          const now = Date.now();
+          
+          // Throttle updates to prevent UI jank
+          if (now - lastUpdateRef.current < throttleTime) return;
+          lastUpdateRef.current = now;
+
+          try {
+            // Handle the update based on transition type
+            switch (update.transition) {
+              case 'appear':
+                if (update.result && onAppear) {
+                  onAppear(update.result);
+                }
+                break;
+              case 'update':
+                if (onUpdate) {
+                  onUpdate(update);
+                }
+                break;
+              case 'disappear':
+                if (onDisappear) {
+                  onDisappear(update.documentId);
+                }
+                break;
+            }
+          } catch (error) {
+            console.error('Error handling realtime update:', error);
+          }
         },
         error: (error) => {
-          console.error(`Error listening to ${documentType}:`, error);
+          console.error(`Error in ${documentType} listener:`, error);
+          setIsConnected(false);
+          // Attempt to reconnect after a delay
+          setTimeout(() => {
+            cleanup();
+            // Re-subscribe will happen in the next effect run
+          }, 5000);
+        },
+        complete: () => {
+          console.log(`Listener for ${documentType} completed`);
+          setIsConnected(false);
         },
       });
 
+    setIsConnected(true);
+    console.log(`Listening to ${documentType} changes`, documentId ? `(ID: ${documentId})` : '');
+
+    // Cleanup on unmount
     return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
+      cleanup();
     };
-  }, [documentType, documentId, callback]);
+  }, [documentType, documentId, onUpdate, onAppear, onDisappear, cleanup, throttleTime]);
 
   return {
-    disconnect: () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
+    isConnected,
+    disconnect: cleanup,
+  };
+};
+
+/**
+ * Hook for tracking recently updated document IDs with a cooldown period
+ * @param cooldown - Time in milliseconds to keep track of updates (default: 2000ms)
+ * @returns Object containing functions to manage updated IDs
+ */
+const useUpdatedDocuments = (cooldown = 2000) => {
+  const updatedIdsRef = useRef<Map<string, number>>(new Map());
+  const cleanupTimerRef = useRef<NodeJS.Timeout>();
+
+  // Clean up old entries
+  const cleanupOldEntries = useCallback(() => {
+    const now = Date.now();
+    const updatedIds = updatedIdsRef.current;
+    
+    // Remove entries older than cooldown
+    updatedIds.forEach((timestamp, id) => {
+      if (now - timestamp > cooldown) {
+        updatedIds.delete(id);
       }
-    },
+    });
+
+    // If we still have entries, schedule the next cleanup
+    if (updatedIds.size > 0) {
+      cleanupTimerRef.current = setTimeout(cleanupOldEntries, cooldown / 2);
+    } else {
+      cleanupTimerRef.current = undefined;
+    }
+  }, [cooldown]);
+
+  // Add a document ID to track
+  const addUpdatedId = useCallback((id: string) => {
+    updatedIdsRef.current.set(id, Date.now());
+    
+    // Start cleanup timer if not already running
+    if (!cleanupTimerRef.current) {
+      cleanupTimerRef.current = setTimeout(cleanupOldEntries, cooldown / 2);
+    }
+  }, [cleanupOldEntries, cooldown]);
+
+  // Check if a document was recently updated
+  const isRecentlyUpdated = useCallback((id: string) => {
+    return updatedIdsRef.current.has(id);
+  }, []);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (cleanupTimerRef.current) {
+        clearTimeout(cleanupTimerRef.current);
+      }
+    };
+  }, []);
+
+  return {
+    addUpdatedId,
+    isRecentlyUpdated,
   };
 };
 

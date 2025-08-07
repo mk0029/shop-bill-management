@@ -1,6 +1,7 @@
 "use client";
 
 import { Navigation } from "@/components/ui/navigation";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useAuthStore } from "@/store/auth-store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,6 +11,9 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Enable global real-time sanity sync for all admin pages
+  useRealtimeSync();
+
   const { isAuthenticated, role, isLoading } = useAuthStore();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);

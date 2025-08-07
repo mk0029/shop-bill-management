@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
 import { CustomerNavigation } from "@/components/ui/customer-navigation";
+import { useCustomerBillSync } from "@/hooks/use-realtime-sync";
 
 export default function CustomerLayout({
   children,
@@ -13,6 +14,9 @@ export default function CustomerLayout({
 }) {
   const router = useRouter();
   const { user, role, isAuthenticated, isLoading } = useAuthStore();
+
+  // Enable real-time bill sync for this customer
+  useCustomerBillSync(user?.id);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
