@@ -607,7 +607,8 @@ export default function AddInventoryItemPage() {
         <Button
           variant="outline"
           onClick={() => router.back()}
-          className="border-gray-600 hover:bg-gray-800">
+          className="border-gray-600 hover:bg-gray-800"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Inventory
         </Button>
@@ -774,14 +775,16 @@ export default function AddInventoryItemPage() {
                 type="button"
                 variant="outline"
                 onClick={clearForm}
-                disabled={isLoading}>
+                disabled={isLoading}
+              >
                 Clear Form
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading}
                 loading={isLoading}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700">
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700"
+              >
                 <Save className="w-4 h-4" />
                 {itemsList.length > 0 ? "Add to List & Continue" : "Save Item"}
               </Button>
@@ -804,7 +807,8 @@ export default function AddInventoryItemPage() {
               {itemsList.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
+                  className="bg-gray-700/50 p-4 rounded-lg border border-gray-600"
+                >
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-semibold text-lg text-white">
@@ -852,7 +856,8 @@ export default function AddInventoryItemPage() {
                       size="sm"
                       onClick={() => removeItemFromList(item.id)}
                       className="ml-4 text-red-400 border-red-400 hover:bg-red-900/20"
-                      disabled={isSubmittingAll}>
+                      disabled={isSubmittingAll}
+                    >
                       Remove
                     </Button>
                   </div>
@@ -866,7 +871,8 @@ export default function AddInventoryItemPage() {
                   onClick={handleSubmitAll}
                   disabled={isSubmittingAll || itemsList.length === 0}
                   loading={isSubmittingAll}
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                >
                   <Save className="w-4 h-4" />
                   {isSubmittingAll
                     ? "Submitting All Items..."
@@ -898,7 +904,8 @@ export default function AddInventoryItemPage() {
                       ],
                     });
                   }}
-                  disabled={isSubmittingAll}>
+                  disabled={isSubmittingAll}
+                >
                   Clear All
                 </Button>
               </div>
