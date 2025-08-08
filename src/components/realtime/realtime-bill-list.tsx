@@ -18,7 +18,6 @@ import {
 
 interface Bill {
   locationType: string;
-  locationType: string;
   homeVisitFee: number;
   subtotal: number;
   notes: string | undefined;
@@ -44,6 +43,8 @@ interface RealtimeBillListProps {
   onBillClick?: (bill: any) => void;
   showNewBillAnimation?: boolean;
   maxItems?: number;
+  searchTerm?: string;
+  filterStatus?: string;
 }
 
 export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
@@ -52,6 +53,8 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   onBillClick,
   showNewBillAnimation = true,
   maxItems,
+  searchTerm = "",
+  filterStatus = "all",
 }) => {
   const [bills, setBills] = useState<Bill[]>(initialBills);
   const [newBillIds, setNewBillIds] = useState<Set<string>>(new Set());
@@ -138,7 +141,27 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
     }
   };
 
-  const displayBills = maxItems ? bills.slice(0, maxItems) : bills;
+  // Apply search and filter
+  const filteredBills = bills.filter((bill) => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch =
+      !searchTerm ||
+      bill.customer?.name?.toLowerCase().includes(searchLower) ||
+      bill.billNumber?.toLowerCase().includes(searchLower) ||
+      bill._id?.toLowerCase().includes(searchLower) ||
+      (bill.serviceDate && bill.serviceDate.includes(searchTerm));
+
+    const matchesStatus =
+      filterStatus === "all" ||
+      bill.paymentStatus === filterStatus ||
+      bill.status === filterStatus;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const displayBills = maxItems
+    ? filteredBills.slice(0, maxItems)
+    : filteredBills;
 
   return (
     <div className="space-y-4">
@@ -265,7 +288,7 @@ export const RealtimeBillStats: React.FC<{
     pendingAmount: 0,
   });
 
-  const [bills, setBills] = useState<any[]>(initialBills);
+  const [bills, setBills] = useState<unknown[]>(initialBills);
 
   // Initialize bills with initial data
   useEffect(() => {
@@ -355,8 +378,7 @@ export const RealtimeBillStats: React.FC<{
         key={stats.totalAmount}
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}
-      >
+        transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
           <CardContent>
             <div className="flex items-center justify-between">

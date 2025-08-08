@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,14 +22,7 @@ import {
   Search,
   Calculator,
   User,
-  MapPin,
-  Calendar,
-  Eye,
   Download,
-  Edit,
-  Trash2,
-  Minus,
-  ArrowRight,
   Share2,
 } from "lucide-react";
 
@@ -89,17 +81,6 @@ const shareBillOnWhatsApp = (bill: Bill) => {
   window.open(whatsappUrl, "_blank");
 };
 
-const serviceTypeOptions = [
-  { value: "sale", label: "Sale" },
-  { value: "repair", label: "Repair" },
-  { value: "custom", label: "Custom" },
-];
-
-const locationTypeOptions = [
-  { value: "shop", label: "Shop" },
-  { value: "home", label: "Home" },
-];
-
 export default function BillingPage() {
   const { currency } = useLocaleStore();
   const router = useRouter();
@@ -118,7 +99,7 @@ export default function BillingPage() {
   const transformedBills: Bill[] = bills.map((bill) => ({
     id: bill._id,
     customerName: bill.customer?.name || "Unknown Customer",
-    customerId: bill.customer?._id || "",
+    customerId: bill.customer?._id || bill.customer?._ref || "",
     date: bill.serviceDate
       ? new Date(bill.serviceDate).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
@@ -154,14 +135,18 @@ export default function BillingPage() {
     category: product.category?.name || "general",
   }));
 
-  const filteredBills = transformedBills.filter(
-    (bill) =>
-      (bill.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.id.includes(searchTerm)) &&
-      (filterStatus === "all" || bill.status === filterStatus)
-  );
+  const filteredBills = transformedBills.filter((bill) => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch =
+      bill.customerName.toLowerCase().includes(searchLower) ||
+      bill.id.toLowerCase().includes(searchLower) ||
+      bill.date.includes(searchTerm);
 
-  const isLoading = billsLoading || customersLoading || productsLoading;
+    const matchesStatus =
+      filterStatus === "all" || bill.status === filterStatus;
+
+    return matchesSearch && matchesStatus;
+  });
 
   const handleCreateBill = async (billData: {
     customerId: string;
@@ -258,11 +243,13 @@ export default function BillingPage() {
           <div className="overflow-auto flex grow flex-col">
             <RealtimeBillList
               initialBills={bills}
+              searchTerm={searchTerm}
+              filterStatus={filterStatus}
               onBillClick={(bill) =>
                 handleViewBill({
                   id: bill._id,
                   customerName: bill.customer?.name || "Unknown Customer",
-                  customerId: bill.customer?._id || "",
+                  customerId: bill.customer?._id || bill.customer?._ref || "",
                   date: bill.serviceDate
                     ? new Date(bill.serviceDate).toISOString().split("T")[0]
                     : new Date().toISOString().split("T")[0],
@@ -379,7 +366,7 @@ export default function BillingPage() {
                   handleViewCustomerBills(selectedBill.customerId)
                 }>
                 <User className="w-4 h-4 mr-2" />
-                <span className="max-sm:hidden">View Customer Bills</span>
+                <span className="max-sm:hidden">See All Bills</span>
               </Button>
               <Button
                 variant="outline"

@@ -6,6 +6,14 @@ export interface Customer {
   location: string;
 }
 
+// Re-export customer types
+export type { 
+  Customer as CustomerBase,
+  CustomerWithStats,
+  CustomerFilters,
+  CustomerStats 
+} from "./customer";
+
 export interface Item {
   id: string;
   name: string;
