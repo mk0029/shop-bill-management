@@ -66,7 +66,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
       result?.customer?._ref !== customerId &&
       result?.customer?._id !== customerId
     ) {
-      return;
+      return; // Bill not for this customer
     }
 
     switch (transition) {
@@ -74,6 +74,10 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
         setBills((prev) => {
           const exists = prev.find((b) => b._id === result._id);
           if (!exists) {
+            console.log(
+              "✅ Adding new bill to customer view:",
+              result.billNumber
+            );
             if (showNewBillAnimation) {
               setNewBillIds((prev) => new Set(prev).add(result._id));
               // Remove the highlight after 3 seconds
@@ -156,15 +160,13 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}
-            >
+              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}>
               {isNew && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0 }}
-                  className="absolute -top-2 -right-2 z-10"
-                >
+                  className="absolute -top-2 -right-2 z-10">
                   <Badge className="bg-blue-600 text-white flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     New
@@ -202,8 +204,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         <Badge
                           className={getStatusColor(
                             bill.paymentStatus || bill.status
-                          )}
-                        >
+                          )}>
                           {bill.paymentStatus || bill.status}
                         </Badge>
                       </div>
@@ -212,8 +213,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onBillClick?.(bill)}
-                        >
+                          onClick={() => onBillClick?.(bill)}>
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
@@ -280,7 +280,7 @@ export const RealtimeBillStats: React.FC<{
       result?.customer?._ref !== customerId &&
       result?.customer?._id !== customerId
     ) {
-      return;
+      return; // Bill not for this customer
     }
 
     switch (transition) {
@@ -351,8 +351,7 @@ export const RealtimeBillStats: React.FC<{
         key={stats.totalAmount}
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}
-      >
+        transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">

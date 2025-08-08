@@ -16,8 +16,9 @@ interface BrandFormProps {
 }
 
 export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
-  const { addBrand, updateBrand, isLoading, error, clearError } = useBrandStore();
-  
+  const { addBrand, updateBrand, isLoading, error, clearError } =
+    useBrandStore();
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -61,7 +62,8 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
     }
 
     if (formData.website && !/^https?:\/\/.+/.test(formData.website)) {
-      errors.website = "Please enter a valid website URL (include http:// or https://)";
+      errors.website =
+        "Please enter a valid website URL (include http:// or https://)";
     }
 
     setFormErrors(errors);
@@ -81,11 +83,24 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
     setFormErrors({});
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent double submission
+    if (isSubmitting || isLoading) {
+      console.log("🚫 Preventing duplicate submission");
+      return;
+    }
+
+    setIsSubmitting(true);
     clearError();
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      setIsSubmitting(false);
+      return;
+    }
 
     const brandData = {
       name: formData.name.trim(),
@@ -101,35 +116,44 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
 
     let success = false;
 
-    if (brand) {
-      // Update existing brand
-      success = await updateBrand(brand._id, brandData);
-    } else {
-      // Create new brand
-      success = await addBrand(brandData);
-    }
+    try {
+      if (brand) {
+        // Update existing brand
+        success = await updateBrand(brand._id, brandData);
+      } else {
+        // Create new brand
+        console.log("🏷️ Creating brand:", brandData.name);
+        success = await addBrand(brandData);
+      }
 
-    if (success) {
-      clearForm();
-      if (onSuccess) {
-        // Get the updated/created brand from the store
-        const updatedBrand = brand 
-          ? useBrandStore.getState().getBrandById(brand._id)
-          : useBrandStore.getState().brands[useBrandStore.getState().brands.length - 1];
-        
-        if (updatedBrand) {
-          onSuccess(updatedBrand);
+      if (success) {
+        clearForm();
+        if (onSuccess) {
+          // Get the updated/created brand from the store
+          const updatedBrand = brand
+            ? useBrandStore.getState().getBrandById(brand._id)
+            : useBrandStore.getState().brands[
+                useBrandStore.getState().brands.length - 1
+              ];
+
+          if (updatedBrand) {
+            onSuccess(updatedBrand);
+          }
         }
       }
+    } catch (error) {
+      console.error("❌ Error in brand submission:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
     // Clear error when user starts typing
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: "" }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -173,7 +197,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
       {/* Contact Information */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-white">Contact Information</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-gray-300">
@@ -245,7 +269,9 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
           <Checkbox
             id="isActive"
             checked={formData.isActive}
-            onCheckedChange={(checked) => handleInputChange("isActive", checked as boolean)}
+            onCheckedChange={(checked) =>
+              handleInputChange("isActive", checked as boolean)
+            }
             disabled={isLoading}
           />
           <Label htmlFor="isActive" className="text-gray-300">
@@ -268,11 +294,10 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
       <div className="flex gap-4 pt-4">
         <Button
           type="submit"
-          loading={isLoading}
-          disabled={isLoading}
-          className="flex-1"
-        >
-          {isLoading
+          loading={isLoading || isSubmitting}
+          disabled={isLoading || isSubmitting}
+          className="flex-1">
+          {isLoading || isSubmitting
             ? "Saving..."
             : brand
             ? "Update Brand"
@@ -282,11 +307,10 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
           type="button"
           variant="outline"
           onClick={onCancel}
-          disabled={isLoading}
-        >
+          disabled={isLoading}>
           Cancel
         </Button>
       </div>
     </form>
   );
-} 
+}

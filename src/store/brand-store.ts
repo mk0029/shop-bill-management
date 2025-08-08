@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
 import { Brand, CreateBrandData } from "@/types";
-import type { Subscription } from "@sanity/client";
+import type { Subscription } from "rxjs";
 
 interface BrandStore {
   brands: Brand[];
@@ -22,6 +22,9 @@ interface BrandStore {
   getBrandById: (id: string) => Brand | undefined;
   getBrandBySlug: (slug: string) => Brand | undefined;
   clearError: () => void;
+
+  // Sync methods
+  forceSyncBrands: () => Promise<void>;
 
   // Real-time methods
   setupRealtimeListeners: () => void;
@@ -107,12 +110,13 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
       const result = await sanityClient.create(newBrand);
 
       if (result) {
-        const { brands } = get();
+        // Don't add to local state here - let the realtime listener handle it
+        // This prevents duplicates when the realtime "appear" event fires
         set({
-          brands: [...brands, result as Brand],
           isLoading: false,
           error: null,
         });
+        console.log("✅ Brand created in Sanity, waiting for realtime sync...");
         return true;
       }
       return false;
@@ -153,16 +157,13 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
         .commit();
 
       if (result) {
-        const { brands } = get();
-        const updatedBrands = brands.map((brand) =>
-          brand._id === id ? { ...brand, ...updates } : brand
-        );
-
+        // Don't update local state here - let the realtime listener handle it
+        // This prevents inconsistencies when the realtime "update" event fires
         set({
-          brands: updatedBrands,
           isLoading: false,
           error: null,
         });
+        console.log("✅ Brand updated in Sanity, waiting for realtime sync...");
         return true;
       }
       return false;
@@ -183,14 +184,13 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
     try {
       await sanityClient.delete(id);
 
-      const { brands } = get();
-      const filteredBrands = brands.filter((brand) => brand._id !== id);
-
+      // Don't update local state here - let the realtime listener handle it
+      // This prevents inconsistencies when the realtime "disappear" event fires
       set({
-        brands: filteredBrands,
         isLoading: false,
         error: null,
       });
+      console.log("✅ Brand deleted from Sanity, waiting for realtime sync...");
       return true;
     } catch (error) {
       console.error("Error deleting brand:", error);
@@ -222,6 +222,41 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
     set({ error: null });
   },
 
+  // Force sync brands from Sanity (useful for resolving inconsistencies)
+  forceSyncBrands: async () => {
+    console.log("🔄 Force syncing brands from Sanity...");
+
+    try {
+      const query = `*[_type == "brand"] | order(name asc) {
+        _id,
+        _type,
+        name,
+        slug,
+        logo,
+        description,
+        contactInfo,
+        isActive,
+        createdAt,
+        updatedAt
+      }`;
+
+      const brands = await sanityClient.fetch<Brand[]>(query);
+
+      set({
+        brands,
+        lastFetched: new Date(),
+        error: null,
+      });
+
+      console.log(`✅ Force sync completed: ${brands.length} brands loaded`);
+    } catch (error) {
+      console.error("❌ Force sync failed:", error);
+      set({
+        error: error instanceof Error ? error.message : "Failed to sync brands",
+      });
+    }
+  },
+
   // Setup Sanity real-time listeners for brands
   setupRealtimeListeners: () => {
     const { realtimeSubscription } = get();
@@ -240,28 +275,55 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
 
         switch (update.transition) {
           case "appear":
-            if (document && !brands.find((b) => b._id === documentId)) {
-              set({ brands: [...brands, document] });
-              console.log(`✅ Brand created: ${document.name}`);
+            if (document && document._type === "brand") {
+              const { brands } = get();
+              const existingBrand = brands.find((b) => b._id === documentId);
+              const brandDocument = document as unknown as Brand;
+
+              if (!existingBrand) {
+                // Add new brand
+                set({ brands: [...brands, brandDocument] });
+                console.log(
+                  `✅ Brand created via realtime: ${brandDocument.name}`
+                );
+              } else {
+                // Update existing brand (in case of data changes)
+                const updatedBrands = brands.map((brand) =>
+                  brand._id === documentId
+                    ? { ...brand, ...brandDocument }
+                    : brand
+                );
+                set({ brands: updatedBrands });
+                console.log(
+                  `🔄 Brand updated via realtime appear: ${brandDocument.name}`
+                );
+              }
             }
             break;
 
           case "update":
-            if (document) {
+            if (document && document._type === "brand") {
+              const { brands } = get();
+              const brandDocument = document as unknown as Brand;
               const updatedBrands = brands.map((brand) =>
-                brand._id === documentId ? { ...brand, ...document } : brand
+                brand._id === documentId
+                  ? { ...brand, ...brandDocument }
+                  : brand
               );
               set({ brands: updatedBrands });
-              console.log(`🔄 Brand updated: ${document.name}`);
+              console.log(
+                `🔄 Brand updated via realtime: ${brandDocument.name}`
+              );
             }
             break;
 
           case "disappear":
-            const filteredBrands = brands.filter(
+            const { brands: currentBrands } = get();
+            const filteredBrands = currentBrands.filter(
               (brand) => brand._id !== documentId
             );
             set({ brands: filteredBrands });
-            console.log(`🗑️ Brand deleted: ${documentId}`);
+            console.log(`🗑️ Brand deleted via realtime: ${documentId}`);
             break;
         }
       },
