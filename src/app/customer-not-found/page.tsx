@@ -133,7 +133,7 @@ export default function CustomerNotFoundPage() {
 
           <CardContent className="space-y-6">
             {/* Information Message */}
-            <div className="p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
+            <div className="sm:p-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
                 <div>
@@ -158,7 +158,7 @@ export default function CustomerNotFoundPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* WhatsApp */}
                 <Card className="bg-gray-800/50 border-gray-700 hover:bg-gray-800/70 transition-colors cursor-pointer">
-                  <CardContent className="p-4">
+                  <CardContent className="sm:p-4 p-3">
                     <div className="text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-green-600 rounded-full mb-3">
                         <MessageCircle className="w-6 h-6 text-white" />
@@ -201,7 +201,7 @@ export default function CustomerNotFoundPage() {
 
                 {/* Phone */}
                 <Card className="bg-gray-800/50 border-gray-700 hover:bg-gray-800/70 transition-colors cursor-pointer">
-                  <CardContent className="p-4">
+                  <CardContent className="sm:p-4 p-3">
                     <div className="text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-full mb-3">
                         <Phone className="w-6 h-6 text-white" />
@@ -241,7 +241,7 @@ export default function CustomerNotFoundPage() {
 
                 {/* Email */}
                 <Card className="bg-gray-800/50 border-gray-700 hover:bg-gray-800/70 transition-colors cursor-pointer">
-                  <CardContent className="p-4">
+                  <CardContent className="sm:p-4 p-3">
                     <div className="text-center">
                       <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-600 rounded-full mb-3">
                         <Mail className="w-6 h-6 text-white" />
@@ -282,7 +282,7 @@ export default function CustomerNotFoundPage() {
             </div>
 
             {/* Quick Account Request */}
-            <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+            <div className="sm:p-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-200 font-medium">
@@ -336,7 +336,7 @@ export default function CustomerNotFoundPage() {
           ) : (
             <form onSubmit={handleRequestAccount} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                   Full Name *
                 </label>
                 <Input
@@ -351,7 +351,7 @@ export default function CustomerNotFoundPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                   Phone Number *
                 </label>
                 <Input
@@ -366,7 +366,7 @@ export default function CustomerNotFoundPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                   Email Address
                 </label>
                 <Input
@@ -380,7 +380,7 @@ export default function CustomerNotFoundPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                   Location/Address *
                 </label>
                 <Input

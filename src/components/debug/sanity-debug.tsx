@@ -76,7 +76,7 @@ export function SanityDebug() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white flex items-center gap-2">
               <Database className="h-6 w-6" />
               Sanity Connection Debug
             </h1>
@@ -230,7 +230,9 @@ export function SanityDebug() {
               <div className="flex justify-between">
                 <span className="text-gray-400">API Token:</span>
                 <span className="text-white">
-                  {process.env.NEXT_PUBLIC_SANITY_API_TOKEN ? "✅ Set" : "❌ Missing"}
+                  {process.env.NEXT_PUBLIC_SANITY_API_TOKEN
+                    ? "✅ Set"
+                    : "❌ Missing"}
                 </span>
               </div>
             </div>

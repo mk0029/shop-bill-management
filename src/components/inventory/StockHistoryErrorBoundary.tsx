@@ -45,9 +45,9 @@ export class StockHistoryErrorBoundary extends React.Component<Props, State> {
           </div>
 
           <Card className="bg-red-900/20 border-red-800">
-            <CardContent className="p-6">
+            <CardContent>
               <div className="flex items-start gap-4">
-                <AlertTriangle className="w-8 h-8 text-red-400 flex-shrink-0 mt-1" />
+                <AlertTriangle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400 flex-shrink-0 mt-1" />
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-red-300 mb-2">
                     Something went wrong
@@ -99,7 +99,7 @@ export class StockHistoryErrorBoundary extends React.Component<Props, State> {
 
           {/* Fallback content */}
           <Card className="bg-gray-900 border-gray-800">
-            <CardContent className="p-6">
+            <CardContent>
               <h3 className="text-white font-semibold mb-3">
                 Alternative Actions
               </h3>

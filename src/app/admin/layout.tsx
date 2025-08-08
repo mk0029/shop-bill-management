@@ -53,10 +53,8 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-gray-950">
       <Navigation />
-      <main className="pt-16 lg:pt-24 lg:ml-64">
-        <div className="p-3 sm:p-4 lg:p-6">
-          {children}
-        </div>
+      <main className="pt-3 lg:pt-10 lg:ml-64">
+        <div className="p-1 sm:p-2 lg:p-6">{children}</div>
       </main>
     </div>
   );

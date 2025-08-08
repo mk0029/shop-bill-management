@@ -190,7 +190,7 @@ export const RealtimeStockHistory: React.FC<RealtimeStockHistoryProps> = ({
               )}
 
               <Card className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer">
-                <CardContent className="p-4">
+                <CardContent className="sm:p-4 p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div
@@ -370,88 +370,98 @@ export const RealtimeStockSummary: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
                   Total Transactions
                 </p>
-                <p className="text-2xl font-bold text-white mt-1">
+                <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
                   {summary.totalTransactions}
                 </p>
               </div>
-              <Package className="w-8 h-8 text-blue-400" />
+              <Package className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Purchases</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Purchases
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
                 {summary.totalPurchases}
               </p>
             </div>
-            <Plus className="w-8 h-8 text-green-400" />
+            <Plus className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Sales</p>
-              <p className="text-2xl font-bold text-blue-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Sales
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-blue-400 mt-1">
                 {summary.totalSales}
               </p>
             </div>
-            <Minus className="w-8 h-8 text-blue-400" />
+            <Minus className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Adjustments</p>
-              <p className="text-2xl font-bold text-yellow-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Adjustments
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
                 {summary.totalAdjustments}
               </p>
             </div>
-            <RotateCcw className="w-8 h-8 text-yellow-400" />
+            <RotateCcw className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Total Value</p>
-              <p className="text-2xl font-bold text-purple-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Total Value
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-purple-400 mt-1">
                 ₹{(summary.totalValue / 1000).toFixed(0)}K
               </p>
             </div>
-            <DollarSign className="w-8 h-8 text-purple-400" />
+            <DollarSign className=" h-6 w-6 sm:w-8 sm:h-8  text-purple-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Last 24h</p>
-              <p className="text-2xl font-bold text-orange-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Last 24h
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-orange-400 mt-1">
                 {summary.recentTransactions}
               </p>
             </div>
-            <TrendingUp className="w-8 h-8 text-orange-400" />
+            <TrendingUp className=" h-6 w-6 sm:w-8 sm:h-8  text-orange-400" />
           </div>
         </CardContent>
       </Card>

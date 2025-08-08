@@ -160,13 +160,15 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}>
+              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}
+            >
               {isNew && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0 }}
-                  className="absolute -top-2 -right-2 z-10">
+                  className="absolute -top-2 -right-2 z-10"
+                >
                   <Badge className="bg-blue-600 text-white flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     New
@@ -175,7 +177,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               )}
 
               <Card className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer">
-                <CardContent className="p-4">
+                <CardContent className="sm:p-4 p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
@@ -204,7 +206,8 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         <Badge
                           className={getStatusColor(
                             bill.paymentStatus || bill.status
-                          )}>
+                          )}
+                        >
                           {bill.paymentStatus || bill.status}
                         </Badge>
                       </div>
@@ -213,7 +216,8 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onBillClick?.(bill)}>
+                          onClick={() => onBillClick?.(bill)}
+                        >
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
@@ -346,67 +350,74 @@ export const RealtimeBillStats: React.FC<{
   }, [bills]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
       <motion.div
         key={stats.totalAmount}
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}>
+        transition={{ duration: 0.3 }}
+      >
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
                   Total Amount
                 </p>
-                <p className="text-2xl font-bold text-white mt-1">
+                <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
                   ₹{stats.totalAmount.toLocaleString()}
                 </p>
               </div>
-              <Receipt className="w-8 h-8 text-blue-400" />
+              <Receipt className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Paid Bills</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Paid Bills
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
                 {stats.paid}
               </p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-400" />
+            <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Pending</p>
-              <p className="text-2xl font-bold text-yellow-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Pending
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
                 {stats.pending}
               </p>
             </div>
-            <Clock className="w-8 h-8 text-yellow-400" />
+            <Clock className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Overdue</p>
-              <p className="text-2xl font-bold text-red-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Overdue
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-red-400 mt-1">
                 {stats.overdue}
               </p>
             </div>
-            <AlertCircle className="w-8 h-8 text-red-400" />
+            <AlertCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400" />
           </div>
         </CardContent>
       </Card>

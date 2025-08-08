@@ -69,59 +69,67 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
   }, [customerBills]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Total Amount</p>
-              <p className="text-2xl font-bold text-white mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Total Amount
+              </p>
+              <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
                 ₹{stats.totalAmount.toLocaleString()}
               </p>
             </div>
-            <FileText className="w-8 h-8 text-blue-400" />
+            <FileText className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Paid Bills</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Paid Bills
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
                 {stats.paid}
               </p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-400" />
+            <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Pending</p>
-              <p className="text-2xl font-bold text-yellow-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Pending
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
                 {stats.pending}
               </p>
             </div>
-            <Clock className="w-8 h-8 text-yellow-400" />
+            <Clock className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Overdue</p>
-              <p className="text-2xl font-bold text-red-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Overdue
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-red-400 mt-1">
                 {stats.overdue}
               </p>
             </div>
-            <AlertTriangle className="w-8 h-8 text-red-400" />
+            <AlertTriangle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400" />
           </div>
         </CardContent>
       </Card>
@@ -152,7 +160,8 @@ function CustomerBillList({ customerBills }: { customerBills: any[] }) {
       {displayBills.map((bill) => (
         <div
           key={bill._id}
-          className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+          className="flex items-center justify-between p-4 bg-gray-800 rounded-lg"
+        >
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <div className="flex-shrink-0">
@@ -203,7 +212,8 @@ function CustomerBillList({ customerBills }: { customerBills: any[] }) {
                     : bill.status === "in_progress"
                     ? "secondary"
                     : "outline"
-                }>
+                }
+              >
                 {bill.status?.replace("_", " ")}
               </Badge>
               <Badge
@@ -214,7 +224,8 @@ function CustomerBillList({ customerBills }: { customerBills: any[] }) {
                     ? "destructive"
                     : "secondary"
                 }
-                className="text-xs">
+                className="text-xs"
+              >
                 {bill.paymentStatus}
               </Badge>
             </div>
@@ -308,11 +319,13 @@ function CustomerHomeContent() {
               isConnected
                 ? "text-green-500 border-green-500"
                 : "text-red-500 border-red-500"
-            }>
+            }
+          >
             <div
               className={`w-2 h-2 ${
                 isConnected ? "bg-green-500" : "bg-red-500"
-              } rounded-full mr-2`}></div>
+              } rounded-full mr-2`}
+            ></div>
             {isConnected ? "Connected" : "Disconnected"}
           </Badge>
         </div>
@@ -349,8 +362,9 @@ function CustomerHomeContent() {
             <Link href="/customer/bills">
               <button
                 type="button"
-                className="w-full p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left">
-                <FileText className="h-6 w-6 text-white mb-2" />
+                className="w-full p-3 sm:p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left"
+              >
+                <FileText className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                 <h3 className="font-medium text-white">View All Bills</h3>
                 <p className="text-sm text-blue-100">
                   See your complete billing history
@@ -361,8 +375,9 @@ function CustomerHomeContent() {
             <Link href="/customer/profile">
               <button
                 type="button"
-                className="w-full p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left">
-                <User className="h-6 w-6 text-white mb-2" />
+                className="w-full p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left"
+              >
+                <User className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                 <h3 className="font-medium text-white">Update Profile</h3>
                 <p className="text-sm text-green-100">
                   Manage your account information

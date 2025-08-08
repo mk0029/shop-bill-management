@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { ActionButton } from "@/components/ui/action-button";
 import { FileText, Plus } from "lucide-react";
 import { useBillForm } from "@/hooks/useBillForm";
 import { Customer, Item, BillFormData } from "@/types";
@@ -46,9 +46,9 @@ export function BillForm({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Bill" size="xl">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Left Column - Bill Details */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <CustomerSelection
             customers={customers}
             selectedCustomerId={formData.customerId}
@@ -73,11 +73,11 @@ export function BillForm({
         </div>
 
         {/* Right Column - Selected Items & Total */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Selected Items */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <FileText className="w-5 h-5" />
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
               Selected Items
             </h3>
             <SelectedItemsList
@@ -93,35 +93,30 @@ export function BillForm({
             homeVisitFee={homeVisitFee}
             total={total}
           />
+        </div>
+      </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <Button
-              className="flex-1"
-              onClick={handleSubmit}
-              disabled={!isValid || isSubmitting || isLoading}
-            >
-              {isSubmitting || isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating Bill...
-                </div>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Bill
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={onClose}
-              disabled={isSubmitting || isLoading}
-            >
-              Cancel
-            </Button>
-          </div>
+      {/* Fixed Action Buttons for Mobile */}
+      <div className="sticky bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 p-4 sm:p-6 mt-4 sm:mt-6 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <ActionButton
+            className="flex-1 w-full"
+            onClick={handleSubmit}
+            disabled={!isValid}
+            loading={isSubmitting || isLoading}
+            variant="primary"
+            icon={<Plus className="w-4 h-4" />}
+          >
+            Create Bill
+          </ActionButton>
+          <ActionButton
+            variant="outline"
+            className="flex-1 w-full"
+            onClick={onClose}
+            disabled={isSubmitting || isLoading}
+          >
+            Cancel
+          </ActionButton>
         </div>
       </div>
     </Modal>

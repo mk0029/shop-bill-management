@@ -21,10 +21,12 @@ export function DropdownTest() {
   return (
     <div className="p-6 bg-gray-900 min-h-screen">
       <div className="max-w-md mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-white">Dropdown Test</h1>
+        <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+          Dropdown Test
+        </h1>
 
         <div className="space-y-2">
-          <label className="text-gray-300 text-sm font-medium">
+          <label className="text-gray-300 text-xs sm:text-sm font-medium">
             Select Customer (Searchable)
           </label>
           <Dropdown
@@ -38,7 +40,7 @@ export function DropdownTest() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-gray-300 text-sm font-medium">
+          <label className="text-gray-300 text-xs sm:text-sm font-medium">
             Service Type (Non-searchable)
           </label>
           <Dropdown
@@ -55,7 +57,7 @@ export function DropdownTest() {
         </div>
 
         {selectedValue && (
-          <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+          <div className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
             <p className="text-white">
               Selected:{" "}
               {testOptions.find((o) => o.value === selectedValue)?.label}

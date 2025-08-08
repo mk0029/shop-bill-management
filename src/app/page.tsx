@@ -89,7 +89,7 @@ export default function Home() {
             {/* Loading or Stats */}
             {isLoading ? (
               <Card className="bg-gray-800 border-gray-700 mb-8">
-                <CardContent className="p-6">
+                <CardContent>
                   <div className="text-gray-100 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
                     <p className="text-lg font-medium">
@@ -104,34 +104,34 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="p-4 text-center">
+                  <CardContent className="sm:p-4 p-3 text-center">
                     <Package className="h-6 w-6 text-blue-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                       {stats.totalProducts}
                     </p>
                     <p className="text-xs text-gray-400">Products</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="p-4 text-center">
+                  <CardContent className="sm:p-4 p-3 text-center">
                     <Users className="h-6 w-6 text-green-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                       {stats.totalCustomers}
                     </p>
                     <p className="text-xs text-gray-400">Customers</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="p-4 text-center">
+                  <CardContent className="sm:p-4 p-3 text-center">
                     <FileText className="h-6 w-6 text-purple-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-white">
+                    <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                       {stats.totalBills}
                     </p>
                     <p className="text-xs text-gray-400">Bills</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="p-4 text-center">
+                  <CardContent className="sm:p-4 p-3 text-center">
                     <DollarSign className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
                     <p className="text-lg font-bold text-white">
                       ₹{stats.totalRevenue.toLocaleString()}

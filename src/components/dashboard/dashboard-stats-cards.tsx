@@ -44,19 +44,25 @@ export function DashboardStatsCards({ stats }: DashboardStatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
       {statsConfig.map((stat, index) => (
         <Card key={index}>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">{stat.title}</p>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className={`text-xs ${stat.subtitleColor}`}>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
+                  {stat.title}
+                </p>
+                <p className="text-xl sm:text-2xl font-bold truncate">
+                  {stat.value}
+                </p>
+                <p className={`text-xs ${stat.subtitleColor} truncate`}>
                   {stat.subtitle}
                 </p>
               </div>
-              <stat.icon className={`h-8 w-8 ${stat.iconColor}`} />
+              <stat.icon
+                className={`h-6 w-6 sm:h-8 sm:w-8 ${stat.iconColor} flex-shrink-0 ml-2`}
+              />
             </div>
           </CardContent>
         </Card>

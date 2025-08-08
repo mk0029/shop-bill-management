@@ -119,14 +119,14 @@ export default function CustomersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-4 bg-gray-900 border-gray-800">
+      <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
+        <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
               <Users className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                 {isLoading ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
@@ -137,13 +137,13 @@ export default function CustomersPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-4 bg-gray-900 border-gray-800">
+        <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center">
               <Users className="w-5 h-5 text-green-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                 {isLoading ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
@@ -154,13 +154,13 @@ export default function CustomersPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-4 bg-gray-900 border-gray-800">
+        <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-yellow-600/20 rounded-lg flex items-center justify-center">
               <Users className="w-5 h-5 text-yellow-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                 {isLoading ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
@@ -171,13 +171,13 @@ export default function CustomersPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-4 bg-gray-900 border-gray-800">
+        <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
               <Users className="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                 {isLoading ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
@@ -193,7 +193,7 @@ export default function CustomersPage() {
       </div>
 
       {/* Search and Filter */}
-      <Card className="p-4 bg-gray-900 border-gray-800">
+      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -233,7 +233,7 @@ export default function CustomersPage() {
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+                <Loader2 className=" h-6 w-6 sm:w-8 sm:h-8  animate-spin text-blue-500 mx-auto mb-4" />
                 <p className="text-gray-400">Loading customer data...</p>
               </div>
             </div>

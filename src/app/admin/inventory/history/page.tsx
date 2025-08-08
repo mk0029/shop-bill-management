@@ -170,7 +170,7 @@ export default function StockHistoryPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-purple-400" />
+              <BarChart3 className=" h-6 w-6 sm:w-8 sm:h-8  text-purple-400" />
               Stock History
             </h1>
             <p className="text-gray-400 mt-1">
@@ -201,7 +201,7 @@ export default function StockHistoryPage() {
         {/* Error State */}
         {error && (
           <Card className="bg-red-900/20 border-red-800">
-            <CardContent className="p-4">
+            <CardContent className="sm:p-4 p-3">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-5 h-5 text-red-400" />
                 <p className="text-red-300">{error}</p>
@@ -229,7 +229,7 @@ export default function StockHistoryPage() {
 
         {/* Filters */}
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -295,7 +295,7 @@ export default function StockHistoryPage() {
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+                <Loader2 className=" h-6 w-6 sm:w-8 sm:h-8  animate-spin text-blue-400" />
                 <p className="ml-3 text-gray-400">Loading transactions...</p>
               </div>
             ) : (

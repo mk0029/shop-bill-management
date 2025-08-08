@@ -128,15 +128,15 @@ export default function BillHistoryPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
                   Total Revenue
                 </p>
-                <p className="text-2xl font-bold text-white mt-1">
+                <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
                   {currency}
                   {totalRevenue.toLocaleString()}
                 </p>
@@ -149,11 +149,13 @@ export default function BillHistoryPage() {
         </Card>
 
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">Total Bills</p>
-                <p className="text-2xl font-bold text-white mt-1">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                  Total Bills
+                </p>
+                <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
                   {transformedBills.length}
                 </p>
               </div>
@@ -165,11 +167,13 @@ export default function BillHistoryPage() {
         </Card>
 
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">Paid Bills</p>
-                <p className="text-2xl font-bold text-green-400 mt-1">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                  Paid Bills
+                </p>
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
                   {paidBills}
                 </p>
               </div>
@@ -181,11 +185,13 @@ export default function BillHistoryPage() {
         </Card>
 
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-medium">Pending</p>
-                <p className="text-2xl font-bold text-yellow-400 mt-1">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                  Pending
+                </p>
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
                   {pendingBills + overdueBills}
                 </p>
               </div>
@@ -199,7 +205,7 @@ export default function BillHistoryPage() {
 
       {/* Filters */}
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -371,7 +377,7 @@ export default function BillHistoryPage() {
                 <span className="text-lg font-semibold text-white">
                   Total Amount
                 </span>
-                <span className="text-2xl font-bold text-white">
+                <span className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                   {currency}
                   {selectedBill.amount.toLocaleString()}
                 </span>

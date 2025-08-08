@@ -18,7 +18,7 @@ export function CustomerSelection({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-300 mb-2">
+      <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
         Customer
       </label>
       <Dropdown
@@ -33,12 +33,12 @@ export function CustomerSelection({
       {selectedCustomer && (
         <div className="mt-3 p-3 bg-gray-800 rounded border border-gray-700">
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
-            <User className="w-4 h-4" />
-            {selectedCustomer.name}
+            <User className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">{selectedCustomer.name}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-400">
-            <MapPin className="w-4 h-4" />
-            {selectedCustomer.location}
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">{selectedCustomer.location}</span>
           </div>
         </div>
       )}

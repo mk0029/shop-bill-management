@@ -180,8 +180,10 @@ export function CustomerNavigation() {
               </div>
 
               {/* Navigation Items */}
-              <div className="p-4 space-y-2">
-                {customerNavigation.map((item) => renderNavigationItem(item, true))}
+              <div className="sm:p-4 p-3 space-y-2">
+                {customerNavigation.map((item) =>
+                  renderNavigationItem(item, true)
+                )}
               </div>
 
               {/* User Section */}
@@ -235,7 +237,7 @@ export function CustomerNavigation() {
         </div>
 
         {/* Navigation Items */}
-        <div className="p-4 space-y-2">
+        <div className="sm:p-4 p-3 space-y-2">
           {customerNavigation.map((item) => renderNavigationItem(item))}
         </div>
 
@@ -273,9 +275,9 @@ export function CustomerNavigation() {
         <div className="bg-gray-900 border-b border-gray-800 p-4 lg:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white">
-                {customerNavigation.find((item) => isActive(item.href))?.label ||
-                  "Customer Portal"}
+              <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                {customerNavigation.find((item) => isActive(item.href))
+                  ?.label || "Customer Portal"}
               </h1>
               <p className="text-gray-400">Manage your bills and services</p>
             </div>
@@ -289,4 +291,4 @@ export function CustomerNavigation() {
       </div>
     </>
   );
-} 
+}

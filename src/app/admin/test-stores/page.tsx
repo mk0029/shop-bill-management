@@ -32,7 +32,9 @@ export default function TestStoresPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-white">Store Testing Page</h1>
+      <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+        Store Testing Page
+      </h1>
 
       {/* Brands */}
       <div className="bg-gray-800 p-4 rounded-lg">

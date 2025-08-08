@@ -274,7 +274,7 @@ export default function PendingBillsPage() {
               key={bill.id}
               className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors"
             >
-              <CardContent className="p-6">
+              <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">

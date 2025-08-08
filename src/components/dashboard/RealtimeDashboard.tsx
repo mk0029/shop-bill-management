@@ -46,22 +46,24 @@ export function RealtimeDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Real-time Dashboard</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold">
+            Real-time Dashboard
+          </h1>
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
             Live data synchronized across all devices via Sanity
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <Button
             onClick={createTestBrand}
             disabled={isCreating || !isConnected}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             {isCreating ? "Creating..." : "Create Test Brand"}

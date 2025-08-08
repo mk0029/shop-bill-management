@@ -15,11 +15,11 @@ interface ModalProps {
 }
 
 const sizeClasses = {
-  sm: "max-w-md",
-  md: "max-w-lg",
-  lg: "max-w-2xl",
-  xl: "max-w-4xl",
-  full: "max-w-[95vw]",
+  sm: "max-w-md sm:max-w-md",
+  md: "max-w-full sm:max-w-lg",
+  lg: "max-w-full sm:max-w-2xl",
+  xl: "max-w-full sm:max-w-4xl",
+  full: "max-w-full sm:max-w-[95vw]",
 };
 
 export function Modal({
@@ -35,7 +35,7 @@ export function Modal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -44,7 +44,7 @@ export function Modal({
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={onClose}
         />
-        
+
         {/* Modal */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -52,32 +52,34 @@ export function Modal({
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className={cn(
-            "relative bg-gray-900 border border-gray-800 rounded-lg shadow-2xl w-full max-h-[90vh] overflow-hidden",
+            "relative bg-gray-900 border border-gray-800 rounded-lg shadow-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden",
             sizeClasses[size],
             className
           )}
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-800">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-800">
               {title && (
-                <h2 className="text-xl font-bold text-white">{title}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-white">
+                  {title}
+                </h2>
               )}
               {showCloseButton && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="h-8 w-8 p-0 hover:bg-gray-800"
+                  className="h-8 w-8 p-0 hover:bg-gray-800 touch-manipulation"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
           )}
-          
+
           {/* Content */}
-          <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">
+          <div className="sm:p-4 p-3 sm:p-6 overflow-auto max-h-[calc(95vh-120px)] sm:max-h-[calc(90vh-120px)]">
             {children}
           </div>
         </motion.div>

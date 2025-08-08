@@ -11,14 +11,16 @@ export function ConnectionStatusSection() {
       <CardContent>
         <DetailedRealtimeStatus />
 
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-          <h4 className="font-medium mb-2">How it works:</h4>
-          <ul className="text-sm space-y-1 text-gray-600">
+        <div className="mt-4 p-3 sm:p-4 bg-blue-50 rounded-lg">
+          <h4 className="font-medium mb-2 text-sm sm:text-base">
+            How it works:
+          </h4>
+          <ul className="text-xs sm:text-sm space-y-1 text-gray-600">
             <li>• All data changes sync automatically across devices</li>
             <li>• Create/update/delete operations appear instantly</li>
             <li>• No page refresh needed - everything updates live</li>
             <li>• Works with multiple users simultaneously</li>
-            <li>• Powered by Sanity's real-time infrastructure</li>
+            <li>• Powered by Sanity&apos;s real-time infrastructure</li>
           </ul>
         </div>
       </CardContent>

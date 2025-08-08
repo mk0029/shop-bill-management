@@ -1,25 +1,36 @@
+"use client";
+
 import React from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { MessageSquare } from "lucide-react";
 
 interface NotesSectionProps {
   notes: string;
   onNotesChange: (notes: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
 }
 
-export function NotesSection({ notes, onNotesChange }: NotesSectionProps) {
+export function NotesSection({
+  notes,
+  onNotesChange,
+  disabled = false,
+  placeholder = "Add any special instructions or notes...",
+}: NotesSectionProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-300 mb-2">
+      <h3 className="text-base sm:text-lg font-semibold text-white mb-3 flex items-center gap-2">
+        <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
         Notes
-      </label>
-      <textarea
+      </h3>
+      <Textarea
         value={notes}
         onChange={(e) => onNotesChange(e.target.value)}
-        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 resize-none"
-        rows={3}
-        placeholder="Add any notes about the service..."
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={4}
+        className="resize-none"
       />
     </div>
   );
 }
-
-export default NotesSection;

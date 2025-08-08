@@ -43,11 +43,11 @@ export function RealtimeInventoryStatus() {
       {/* Inventory Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="sm:p-4 p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Products</p>
-                <p className="text-2xl font-bold">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%]">
                   {inventorySummary?.totalProducts || 0}
                 </p>
               </div>
@@ -57,11 +57,11 @@ export function RealtimeInventoryStatus() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="sm:p-4 p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active Products</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-600">
                   {inventorySummary?.activeProducts || 0}
                 </p>
               </div>
@@ -71,11 +71,11 @@ export function RealtimeInventoryStatus() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="sm:p-4 p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Low Stock</p>
-                <p className="text-2xl font-bold text-orange-600">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-orange-600">
                   {lowStockProducts.length}
                 </p>
               </div>
@@ -85,11 +85,11 @@ export function RealtimeInventoryStatus() {
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="sm:p-4 p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Out of Stock</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-red-600">
                   {outOfStockProducts.length}
                 </p>
               </div>
@@ -113,7 +113,8 @@ export function RealtimeInventoryStatus() {
               {lowStockProducts.slice(0, 5).map((product) => (
                 <div
                   key={product._id}
-                  className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200"
+                >
                   <div className="flex-1">
                     <h4 className="font-medium">{product.name}</h4>
                     <p className="text-sm text-gray-600">
@@ -123,7 +124,8 @@ export function RealtimeInventoryStatus() {
                   <div className="text-right">
                     <Badge
                       variant="outline"
-                      className="text-orange-600 border-orange-600">
+                      className="text-orange-600 border-orange-600"
+                    >
                       {product.inventory.currentStock} {product.pricing.unit}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">
@@ -156,7 +158,8 @@ export function RealtimeInventoryStatus() {
               {outOfStockProducts.slice(0, 5).map((product) => (
                 <div
                   key={product._id}
-                  className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                  className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200"
+                >
                   <div className="flex-1">
                     <h4 className="font-medium">{product.name}</h4>
                     <p className="text-sm text-gray-600">
@@ -166,7 +169,8 @@ export function RealtimeInventoryStatus() {
                   <div className="text-right">
                     <Badge
                       variant="outline"
-                      className="text-red-600 border-red-600">
+                      className="text-red-600 border-red-600"
+                    >
                       0 {product.pricing.unit}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">

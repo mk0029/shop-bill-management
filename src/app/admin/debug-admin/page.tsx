@@ -198,7 +198,7 @@ export default function DebugAdminPage() {
           </CardHeader>
           <CardContent>
             {userCanManageAdmins ? (
-              <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+              <div className="sm:p-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-6 w-6 text-green-500" />
                   <div>
@@ -210,7 +210,7 @@ export default function DebugAdminPage() {
                 </div>
               </div>
             ) : (
-              <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+              <div className="sm:p-4 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
                 <div className="flex items-center gap-3">
                   <XCircle className="h-6 w-6 text-red-500" />
                   <div>

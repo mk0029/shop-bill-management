@@ -45,13 +45,16 @@ const StatCard = ({
   <Card className="p-6 bg-gray-900 border-gray-800">
     <div className="flex items-center justify-between">
       <div>
-        <p className="text-gray-400 text-sm font-medium">{title}</p>
-        <p className="text-2xl font-bold text-white mt-1">{value}</p>
+        <p className="text-gray-400 text-xs sm:text-sm font-medium">{title}</p>
+        <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
+          {value}
+        </p>
         {trend && trendValue && (
           <div
             className={`flex items-center mt-2 text-sm ${
               trend === "up" ? "text-green-400" : "text-red-400"
-            }`}>
+            }`}
+          >
             {trend === "up" ? (
               <TrendingUp className="w-4 h-4 mr-1" />
             ) : (
@@ -62,7 +65,8 @@ const StatCard = ({
         )}
       </div>
       <div
-        className={`w-12 h-12 bg-${color}-600/20 rounded-lg flex items-center justify-center`}>
+        className={`w-12 h-12 bg-${color}-600/20 rounded-lg flex items-center justify-center`}
+      >
         <Icon className={`w-6 h-6 text-${color}-400`} />
       </div>
     </div>
@@ -102,7 +106,7 @@ export default function SalesReportPage() {
 
         <Card className="p-12 bg-gray-900 border-gray-800 text-center">
           <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BarChart3 className="w-8 h-8 text-gray-400" />
+            <BarChart3 className=" h-6 w-6 sm:w-8 sm:h-8  text-gray-400" />
           </div>
           <h2 className="text-xl font-semibold text-white mb-2">
             No Sales Data Available
@@ -137,7 +141,8 @@ export default function SalesReportPage() {
             onClick={() => {
               const url = `/api/sales-report/export?dateRange=${dateRange}&format=csv`;
               window.open(url, "_blank");
-            }}>
+            }}
+          >
             <Download className="w-4 h-4 mr-2" />
             Export Report
           </Button>
@@ -145,31 +150,35 @@ export default function SalesReportPage() {
       </div>
 
       {/* Date Range Selector */}
-      <Card className="p-4 bg-gray-900 border-gray-800">
+      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
             <Button
               variant={dateRange === "week" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("week")}>
+              onClick={() => setDateRange("week")}
+            >
               This Week
             </Button>
             <Button
               variant={dateRange === "month" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("month")}>
+              onClick={() => setDateRange("month")}
+            >
               This Month
             </Button>
             <Button
               variant={dateRange === "quarter" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("quarter")}>
+              onClick={() => setDateRange("quarter")}
+            >
               This Quarter
             </Button>
             <Button
               variant={dateRange === "year" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("year")}>
+              onClick={() => setDateRange("year")}
+            >
               This Year
             </Button>
           </div>
@@ -236,10 +245,11 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between">
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-600/20 rounded flex items-center justify-center">
-                      <span className="text-blue-400 text-sm font-medium">
+                    <div className=" h-6 w-6 sm:w-8 sm:h-8  bg-blue-600/20 rounded flex items-center justify-center">
+                      <span className="text-blue-400 text-xs sm:text-sm font-medium">
                         {data.month}
                       </span>
                     </div>
@@ -283,7 +293,8 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
+                >
                   <div>
                     <p className="text-white font-medium">{service.type}</p>
                     <p className="text-gray-400 text-sm">
@@ -335,10 +346,11 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">
+                    <div className=" h-6 w-6 sm:w-8 sm:h-8  bg-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs sm:text-sm font-medium">
                         {index + 1}
                       </span>
                     </div>
@@ -382,10 +394,11 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">
+                    <div className=" h-6 w-6 sm:w-8 sm:h-8  bg-green-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs sm:text-sm font-medium">
                         {index + 1}
                       </span>
                     </div>
@@ -419,7 +432,7 @@ export default function SalesReportPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <TrendingUp className="w-8 h-8 text-green-400" />
+              <TrendingUp className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">
               Revenue Growth
@@ -432,7 +445,7 @@ export default function SalesReportPage() {
           </div>
           <div className="text-center">
             <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Users className="w-8 h-8 text-blue-400" />
+              <Users className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">
               Customer Retention
@@ -444,7 +457,7 @@ export default function SalesReportPage() {
           </div>
           <div className="text-center">
             <div className="w-16 h-16 bg-purple-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <BarChart3 className="w-8 h-8 text-purple-400" />
+              <BarChart3 className=" h-6 w-6 sm:w-8 sm:h-8  text-purple-400" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">
               Profit Margin

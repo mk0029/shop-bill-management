@@ -44,13 +44,13 @@ export function CustomersOverview() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
                   Total Customers
                 </p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                   {customers.length}
                 </p>
               </div>
@@ -60,13 +60,13 @@ export function CustomersOverview() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
                   Active Customers
                 </p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                   {activeCustomers.length}
                 </p>
               </div>
@@ -76,13 +76,13 @@ export function CustomersOverview() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
                   Pending Payments
                 </p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                   {customersWithPendingBills.length}
                 </p>
               </div>

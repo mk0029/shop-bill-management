@@ -23,9 +23,9 @@ interface DropdownProps {
 }
 
 const sizeClasses = {
-  sm: "h-8 text-sm",
-  md: "h-10 text-sm",
-  lg: "h-12 text-base",
+  sm: "h-10 sm:h-8 text-sm min-h-[44px] sm:min-h-[32px]",
+  md: "h-12 sm:h-10 text-sm min-h-[48px] sm:min-h-[40px]",
+  lg: "h-14 sm:h-12 text-base min-h-[52px] sm:min-h-[48px]",
 };
 
 export function Dropdown({
@@ -107,7 +107,7 @@ export function Dropdown({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600",
+          "w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation",
           sizeClasses[size]
         )}
       >
@@ -123,7 +123,7 @@ export function Dropdown({
       </Button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-50 max-h-60 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-50 max-h-60 sm:max-h-60 overflow-hidden">
           {isSearchAvialable && (
             <div className="p-2 border-b border-gray-700">
               <div className="relative">
@@ -152,7 +152,7 @@ export function Dropdown({
                   onClick={() => !option.disabled && handleSelect(option.value)}
                   disabled={option.disabled}
                   className={cn(
-                    "w-full px-3 py-2 text-left text-sm transition-colors duration-150 flex items-center justify-between",
+                    "w-full px-3 py-3 sm:py-2 text-left text-sm transition-colors duration-150 flex items-center justify-between touch-manipulation min-h-[44px] sm:min-h-[36px]",
                     option.disabled
                       ? "text-gray-500 cursor-not-allowed"
                       : "text-white hover:bg-gray-700 cursor-pointer",

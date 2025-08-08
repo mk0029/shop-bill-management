@@ -2,12 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useDocumentListener, useUpdatedDocuments } from "@/hooks/use-realtime-sync";
+import {
+  useDocumentListener,
+  useUpdatedDocuments,
+} from "@/hooks/use-realtime-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Product } from "@/types";
-import { Package, AlertTriangle, TrendingUp, Zap, Eye, Edit } from "lucide-react";
+import {
+  Package,
+  AlertTriangle,
+  TrendingUp,
+  Zap,
+  Eye,
+  Edit,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RealtimeProductListProps {
@@ -123,7 +133,8 @@ export const RealtimeProductList: React.FC<RealtimeProductListProps> = ({
           const status = getStockStatus(product);
           const isUpdated = isRecentlyUpdated(product._id);
           const stockPercentage = Math.min(
-            (product.inventory.currentStock / product.inventory.maximumStock) * 100,
+            (product.inventory.currentStock / product.inventory.maximumStock) *
+              100,
             100
           );
 
@@ -155,12 +166,10 @@ export const RealtimeProductList: React.FC<RealtimeProductListProps> = ({
                   exit={{ opacity: 0, scale: 0.5 }}
                   className="absolute -top-2 -right-2 z-10"
                 >
-                  <Badge className="bg-green-500 animate-pulse">
-                    Updated
-                  </Badge>
+                  <Badge className="bg-green-500 animate-pulse">Updated</Badge>
                 </motion.div>
               )}
-              
+
               <Card
                 className={cn(
                   "cursor-pointer transition-all hover:shadow-md overflow-hidden",
@@ -168,7 +177,7 @@ export const RealtimeProductList: React.FC<RealtimeProductListProps> = ({
                 )}
                 onClick={() => onProductClick?.(product)}
               >
-                <CardContent className="p-4">
+                <CardContent className="sm:p-4 p-3">
                   <div className="flex items-start justify-between">
                     <div className="space-y-2 flex-1">
                       <div className="flex items-center space-x-2">
@@ -180,13 +189,13 @@ export const RealtimeProductList: React.FC<RealtimeProductListProps> = ({
                           {product.brand?.name || "No Brand"}
                         </Badge>
                       </div>
-                      
+
                       <div className="flex items-center text-sm text-muted-foreground">
                         <span>Stock: {product.inventory.currentStock}</span>
                         <span className="mx-2">•</span>
                         <span>Min: {product.inventory.minimumStock}</span>
                       </div>
-                      
+
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div
                           className={cn("h-2.5 rounded-full", status.color)}
@@ -194,7 +203,7 @@ export const RealtimeProductList: React.FC<RealtimeProductListProps> = ({
                         />
                       </div>
                     </div>
-                    
+
                     <div className="text-right ml-4">
                       <div className="font-bold text-lg">
                         ₹{product.pricing.sellingPrice.toFixed(2)}

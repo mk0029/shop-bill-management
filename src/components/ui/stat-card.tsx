@@ -25,11 +25,13 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <Card className="bg-gray-900 border-gray-800">
-      <CardContent className="p-6">
+      <CardContent className="sm:p-4 p-3 sm:p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-gray-400 text-sm font-medium">{title}</p>
-            <p className="text-2xl font-bold text-white mt-1">
+          <div className="flex-1 min-w-0">
+            <p className="text-gray-400  text-xs sm:text-sm font-medium truncate">
+              {title}
+            </p>
+            <p className="text-xl sm:text-xl md:text-2xl font-bold text-white sm:mt-1 truncate">
               {isLoading ? (
                 <span className="animate-pulse">Loading...</span>
               ) : error ? (
@@ -41,13 +43,13 @@ export function StatCard({
               )}
             </p>
             {subtitle && (
-              <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
+              <p className="text-xs text-gray-400 mt-1 truncate">{subtitle}</p>
             )}
           </div>
           <div
-            className={`w-12 h-12 ${iconBgColor} rounded-lg flex items-center justify-center`}
+            className={`w-10 h-10 sm:w-12 sm:h-12 ${iconBgColor} rounded-lg flex items-center justify-center flex-shrink-0 ml-3`}
           >
-            <Icon className={`w-6 h-6 ${iconColor}`} />
+            <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${iconColor}`} />
           </div>
         </div>
       </CardContent>

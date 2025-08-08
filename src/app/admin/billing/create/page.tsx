@@ -131,10 +131,7 @@ export default function CreateBillPage() {
   const router = useRouter();
   const { currency } = useLocaleStore();
   const { customers, isLoading: customersLoading } = useCustomers();
-  const {
-    activeProducts,
-    isLoading: productsLoading,
-  } = useProducts();
+  const { activeProducts, isLoading: productsLoading } = useProducts();
   const { brands } = useBrands();
   const { categories } = useCategories();
   const [isLoading, setIsLoading] = useState(false);
@@ -164,7 +161,7 @@ export default function CreateBillPage() {
 
   const handleInputChange = (field: string, value: string) => {
     // Convert numeric fields to numbers
-    if (['repairCharges', 'homeVisitFee', 'laborCharges'].includes(field)) {
+    if (["repairCharges", "homeVisitFee", "laborCharges"].includes(field)) {
       const numericValue = Number(value) || 0;
       setFormData((prev) => ({ ...prev, [field]: numericValue }));
     } else {
@@ -291,11 +288,13 @@ export default function CreateBillPage() {
     } else {
       setSelectedItems((prev) =>
         prev.map((i) =>
-          i.id === itemId ? { 
-            ...i, 
-            quantity: clampedQuantity, 
-            total: Number(clampedQuantity) * Number(i.price) 
-          } : i
+          i.id === itemId
+            ? {
+                ...i,
+                quantity: clampedQuantity,
+                total: Number(clampedQuantity) * Number(i.price),
+              }
+            : i
         )
       );
     }
@@ -333,7 +332,12 @@ export default function CreateBillPage() {
           unitPrice: Number(item.price),
           unit: item.unit,
         })),
-        serviceType: formData.serviceType as "sale" | "repair" | "custom" | "installation" | "maintenance",
+        serviceType: formData.serviceType as
+          | "sale"
+          | "repair"
+          | "custom"
+          | "installation"
+          | "maintenance",
         locationType: formData.location as "home" | "shop" | "office",
         homeVisitFee: Number(formData.homeVisitFee),
         repairCharges: Number(formData.repairCharges),
@@ -341,14 +345,14 @@ export default function CreateBillPage() {
         notes: formData.notes,
       };
 
-      console.log('Sending bill data:', billData);
-      console.log('Bill data types:', {
+      console.log("Sending bill data:", billData);
+      console.log("Bill data types:", {
         homeVisitFeeType: typeof billData.homeVisitFee,
         repairChargesType: typeof billData.repairCharges,
         laborChargesType: typeof billData.laborCharges,
         homeVisitFeeValue: billData.homeVisitFee,
         repairChargesValue: billData.repairCharges,
-        laborChargesValue: billData.laborCharges
+        laborChargesValue: billData.laborCharges,
       });
       const result = await createBill(billData);
       if (result.success) {
@@ -638,7 +642,7 @@ export default function CreateBillPage() {
                 {/* Show loading state if categories are loading */}
                 {productsLoading && (
                   <div className="col-span-full text-center py-8">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <div className=" h-6 w-6 sm:w-8 sm:h-8  border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-gray-400">Loading categories...</p>
                   </div>
                 )}
@@ -663,7 +667,7 @@ export default function CreateBillPage() {
                   {selectedItems.map((item) => (
                     <div
                       key={item.id}
-                      className="p-4 bg-gray-800 rounded-lg border border-gray-700"
+                      className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
@@ -702,7 +706,7 @@ export default function CreateBillPage() {
                               onClick={() =>
                                 updateItemQuantity(item.id, item.quantity - 1)
                               }
-                              className="w-8 h-8 p-0 text-xs"
+                              className=" h-6 w-6 sm:w-8 sm:h-8  p-0 text-xs"
                             >
                               -
                             </Button>
@@ -715,7 +719,7 @@ export default function CreateBillPage() {
                               onClick={() =>
                                 updateItemQuantity(item.id, item.quantity + 1)
                               }
-                              className="w-8 h-8 p-0 text-xs"
+                              className=" h-6 w-6 sm:w-8 sm:h-8  p-0 text-xs"
                             >
                               +
                             </Button>
@@ -827,7 +831,9 @@ export default function CreateBillPage() {
                 <hr className="border-gray-700" />
 
                 {/* Additional Charges */}
-                {(formData.repairCharges > 0 || formData.homeVisitFee > 0 || formData.laborCharges > 0) && (
+                {(formData.repairCharges > 0 ||
+                  formData.homeVisitFee > 0 ||
+                  formData.laborCharges > 0) && (
                   <div className="space-y-2">
                     {formData.repairCharges > 0 && (
                       <div className="flex justify-between text-gray-400">
@@ -908,7 +914,7 @@ export default function CreateBillPage() {
         <div className="space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-white" />
+              <FileText className=" h-6 w-6 sm:w-8 sm:h-8  text-white" />
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">
               Bill Generated Successfully
@@ -986,7 +992,7 @@ export default function CreateBillPage() {
           {productsLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <div className=" h-6 w-6 sm:w-8 sm:h-8  border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-gray-400">Loading products...</p>
               </div>
             </div>
@@ -1230,7 +1236,7 @@ export default function CreateBillPage() {
               ) && (
                 <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-blue-400 text-sm font-medium">
+                    <span className="text-blue-400 text-xs sm:text-sm font-medium">
                       Active Filters:
                     </span>
                   </div>
@@ -1279,10 +1285,7 @@ export default function CreateBillPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                   {filterItemsBySpecifications().map((product) => (
-                    <motion.div
-                      key={product._id}
-                      whileTap={{ scale: 0.98 }}
-                    >
+                    <motion.div key={product._id} whileTap={{ scale: 0.98 }}>
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -1317,7 +1320,8 @@ export default function CreateBillPage() {
                             <p>
                               Purchase Price: {currency}
                               <span className="relative inline-block after:absolute after:inset-0 after:backdrop-blur-sm after:z-10 after:rounded-lg">
-                             &nbsp;{product.pricing.purchasePrice}</span>
+                                &nbsp;{product.pricing.purchasePrice}
+                              </span>
                             </p>
                             <p>
                               Selling Price: {currency}

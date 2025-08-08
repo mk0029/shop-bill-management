@@ -71,6 +71,49 @@ export interface DropdownOption {
   label: string;
 }
 
+// Service and location types
+export type ServiceType = "sale" | "repair" | "maintenance";
+export type LocationType = "shop" | "home";
+
+// UI Component types
+export interface LoadingState {
+  isLoading: boolean;
+  error?: string | null;
+}
+
+export interface ActionButtonProps {
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  variant?: "primary" | "secondary" | "outline" | "danger";
+  size?: "sm" | "md" | "lg";
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+// Modal and Dialog types
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  size?: "sm" | "md" | "lg" | "xl";
+  children: React.ReactNode;
+}
+
+// Stats and metrics types
+export interface StatCardData {
+  title: string;
+  value: string | number;
+  change?: {
+    value: number;
+    type: "increase" | "decrease";
+    period: string;
+  };
+  icon?: React.ReactNode;
+  loading?: boolean;
+  error?: string;
+}
+
 // Dashboard types
 export interface DashboardStats {
   products: {
@@ -89,16 +132,39 @@ export interface DashboardStats {
   };
 }
 
+export interface LowStockItem {
+  id: string;
+  name: string;
+  currentStock: number;
+  minimumStock: number;
+  brand?: string;
+}
+
+export interface OutOfStockItem {
+  id: string;
+  name: string;
+  brand?: string;
+  lastStockDate?: string;
+}
+
+export interface OverdueBill {
+  id: string;
+  customerName: string;
+  amount: number;
+  dueDate: string;
+  daysPastDue: number;
+}
+
 export interface AlertData {
   totalAlerts: number;
   inventory: {
     lowStockCount: number;
     outOfStockCount: number;
-    lowStock: any[];
-    outOfStock: any[];
+    lowStock: LowStockItem[];
+    outOfStock: OutOfStockItem[];
   };
   bills: {
     overdueCount: number;
-    overdue: any[];
+    overdue: OverdueBill[];
   };
 }

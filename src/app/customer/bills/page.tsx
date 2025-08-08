@@ -71,59 +71,67 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
   }, [customerBills]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Total Amount</p>
-              <p className="text-2xl font-bold text-white mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Total Amount
+              </p>
+              <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
                 ₹{stats.totalAmount.toLocaleString()}
               </p>
             </div>
-            <Receipt className="w-8 h-8 text-blue-400" />
+            <Receipt className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Paid Bills</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Paid Bills
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
                 {stats.paid}
               </p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-400" />
+            <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Pending</p>
-              <p className="text-2xl font-bold text-yellow-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Pending
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
                 {stats.pending}
               </p>
             </div>
-            <Clock className="w-8 h-8 text-yellow-400" />
+            <Clock className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-400" />
           </div>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-6">
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-400 text-sm font-medium">Overdue</p>
-              <p className="text-2xl font-bold text-red-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Overdue
+              </p>
+              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-red-400 mt-1">
                 {stats.overdue}
               </p>
             </div>
-            <AlertCircle className="w-8 h-8 text-red-400" />
+            <AlertCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400" />
           </div>
         </CardContent>
       </Card>
@@ -223,7 +231,7 @@ export default function CustomerBillsPage() {
 
         {/* Filters */}
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -275,7 +283,8 @@ export default function CustomerBillsPage() {
           isOpen={showBillModal}
           onClose={() => setShowBillModal(false)}
           size="lg"
-          title={`Bill #${selectedBill?.billNumber}`}>
+          title={`Bill #${selectedBill?.billNumber}`}
+        >
           {selectedBill && (
             <div className="space-y-6">
               {/* Bill Info */}
@@ -323,7 +332,8 @@ export default function CustomerBillsPage() {
                     selectedBill.items.map((item: any, index: number) => (
                       <div
                         key={index}
-                        className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                        className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0"
+                      >
                         <div>
                           <p className="text-white">
                             {item.productName || "Product"}
@@ -435,7 +445,8 @@ export default function CustomerBillsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowBillModal(false)}>
+                  onClick={() => setShowBillModal(false)}
+                >
                   Close
                 </Button>
               </div>

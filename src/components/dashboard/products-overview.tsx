@@ -46,13 +46,13 @@ export function ProductsOverview() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
                   Total Products
                 </p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                   {products.length}
                 </p>
               </div>
@@ -62,13 +62,13 @@ export function ProductsOverview() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
                   Active Products
                 </p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                   {activeProducts.length}
                 </p>
               </div>
@@ -78,11 +78,13 @@ export function ProductsOverview() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">Brands</p>
-                <p className="text-2xl font-bold text-white">{brands.length}</p>
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                  {brands.length}
+                </p>
               </div>
               <Package className="h-8 w-8 text-purple-500" />
             </div>
@@ -90,11 +92,11 @@ export function ProductsOverview() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">Categories</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                   {categories.length}
                 </p>
               </div>

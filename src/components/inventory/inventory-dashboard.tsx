@@ -39,12 +39,14 @@ export function InventoryDashboard({
   };
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <div className={`space-y-4 sm:space-y-6 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Inventory Dashboard</h2>
-          <p className="text-gray-400 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">
+            Inventory Dashboard
+          </h2>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
             Real-time stock monitoring and management
           </p>
         </div>
@@ -54,6 +56,7 @@ export function InventoryDashboard({
             size="sm"
             onClick={refreshData}
             disabled={isLoading}
+            className="w-full sm:w-auto"
           >
             <RefreshCw
               className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}

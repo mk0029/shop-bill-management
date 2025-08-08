@@ -21,19 +21,23 @@ export function ConfirmationModal({
   message,
   type = "confirm",
   confirmText = "Confirm",
-  cancelText = "Cancel"
+  cancelText = "Cancel",
 }: ConfirmationModalProps) {
   const getIcon = () => {
     switch (type) {
       case "alert":
       case "confirm":
-        return <AlertTriangle className="w-8 h-8 text-yellow-500" />;
+        return (
+          <AlertTriangle className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-500" />
+        );
       case "success":
-        return <CheckCircle className="w-8 h-8 text-green-500" />;
+        return (
+          <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-500" />
+        );
       case "error":
-        return <XCircle className="w-8 h-8 text-red-500" />;
+        return <XCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-500" />;
       default:
-        return <Info className="w-8 h-8 text-blue-500" />;
+        return <Info className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-500" />;
     }
   };
 
@@ -49,17 +53,10 @@ export function ConfirmationModal({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="sm"
-      title=""
-    >
+    <Modal isOpen={isOpen} onClose={onClose} size="sm" title="">
       <div className="text-center space-y-4">
-        <div className="flex justify-center">
-          {getIcon()}
-        </div>
-        
+        <div className="flex justify-center">{getIcon()}</div>
+
         <div>
           <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
           <p className="text-gray-400">{message}</p>
@@ -67,11 +64,7 @@ export function ConfirmationModal({
 
         <div className="flex gap-3 pt-4">
           {type === "confirm" && (
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
+            <Button variant="outline" onClick={onClose} className="flex-1">
               {cancelText}
             </Button>
           )}
@@ -89,4 +82,4 @@ export function ConfirmationModal({
       </div>
     </Modal>
   );
-} 
+}

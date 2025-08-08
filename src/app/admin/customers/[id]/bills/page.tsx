@@ -98,9 +98,7 @@ const mockBills: Bill[] = [
     customerName: "John Doe",
     customerId: "1",
     date: "2025-01-10",
-    items: [
-      { name: "Ceiling Fan", quantity: 1, price: 2500, total: 2500 },
-    ],
+    items: [{ name: "Ceiling Fan", quantity: 1, price: 2500, total: 2500 }],
     serviceType: "sale",
     locationType: "shop",
     homeVisitFee: 0,
@@ -135,8 +133,10 @@ export default function CustomerBillsPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
   const customerId = params.id as string;
-  const customer = mockCustomers.find(c => c.id === customerId);
-  const customerBills = mockBills.filter(bill => bill.customerId === customerId);
+  const customer = mockCustomers.find((c) => c.id === customerId);
+  const customerBills = mockBills.filter(
+    (bill) => bill.customerId === customerId
+  );
 
   const filteredBills = customerBills.filter(
     (bill) =>
@@ -154,21 +154,25 @@ export default function CustomerBillsPage() {
       items: bill.items,
       subtotal: bill.subtotal,
       total: bill.total,
-      notes: bill.notes
+      notes: bill.notes,
     };
-    
+
     shareBillOnWhatsApp(billDetails);
   };
 
   const totalRevenue = customerBills.reduce((sum, bill) => sum + bill.total, 0);
-  const paidBills = customerBills.filter(bill => bill.status === "paid");
-  const pendingBills = customerBills.filter(bill => bill.status === "pending");
+  const paidBills = customerBills.filter((bill) => bill.status === "paid");
+  const pendingBills = customerBills.filter(
+    (bill) => bill.status === "pending"
+  );
 
   if (!customer) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Customer Not Found</h1>
+          <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white mb-4">
+            Customer Not Found
+          </h1>
           <Button onClick={() => router.push("/admin/customers")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Customers
@@ -200,7 +204,7 @@ export default function CustomerBillsPage() {
             </p>
           </div>
         </div>
-        <Button 
+        <Button
           onClick={() => router.push("/admin/billing/create")}
           className="w-full sm:w-auto"
         >
@@ -210,7 +214,7 @@ export default function CustomerBillsPage() {
       </div>
 
       {/* Customer Info */}
-      <Card className="p-4 sm:p-6 bg-gray-900 border-gray-800">
+      <Card className="sm:p-4 p-3 sm:p-6 bg-gray-900 border-gray-800">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -219,7 +223,9 @@ export default function CustomerBillsPage() {
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg sm:text-xl font-bold text-white truncate">{customer.name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-white truncate">
+                {customer.name}
+              </h2>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-gray-400 mt-1">
                 <div className="flex items-center gap-1 text-sm">
                   <User className="w-4 h-4 flex-shrink-0" />
@@ -234,7 +240,8 @@ export default function CustomerBillsPage() {
           </div>
           <div className="text-center sm:text-right">
             <p className="text-xl sm:text-2xl font-bold text-white">
-              {currency}{totalRevenue.toLocaleString()}
+              {currency}
+              {totalRevenue.toLocaleString()}
             </p>
             <p className="text-xs sm:text-sm text-gray-400">Total Revenue</p>
           </div>
@@ -245,47 +252,53 @@ export default function CustomerBillsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
         <Card className="p-3 sm:p-4 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className=" h-6 w-6 sm:w-8 sm:h-8  sm:w-10 sm:h-10 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
               <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xl sm:text-2xl font-bold text-white">
                 {customerBills.length}
               </p>
-              <p className="text-xs sm:text-sm text-gray-400 truncate">Total Bills</p>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                Total Bills
+              </p>
             </div>
           </div>
         </Card>
         <Card className="p-3 sm:p-4 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className=" h-6 w-6 sm:w-8 sm:h-8  sm:w-10 sm:h-10 bg-green-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
               <Calculator className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xl sm:text-2xl font-bold text-white">
                 {paidBills.length}
               </p>
-              <p className="text-xs sm:text-sm text-gray-400 truncate">Paid Bills</p>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                Paid Bills
+              </p>
             </div>
           </div>
         </Card>
         <Card className="p-3 sm:p-4 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className=" h-6 w-6 sm:w-8 sm:h-8  sm:w-10 sm:h-10 bg-yellow-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
               <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xl sm:text-2xl font-bold text-white">
                 {pendingBills.length}
               </p>
-              <p className="text-xs sm:text-sm text-gray-400 truncate">Pending Bills</p>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">
+                Pending Bills
+              </p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Search and Filter */}
-      <Card className="p-4 bg-gray-900 border-gray-800">
+      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -335,7 +348,7 @@ export default function CustomerBillsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="p-4 bg-gray-800 rounded-lg border border-gray-700"
+                className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-4">
@@ -347,7 +360,10 @@ export default function CustomerBillsPage() {
                         Bill #{bill.id}
                       </p>
                       <p className="text-gray-400 text-sm capitalize">
-                        {bill.serviceType} • {bill.locationType === "home" ? "Home Service" : "Shop Service"}
+                        {bill.serviceType} •{" "}
+                        {bill.locationType === "home"
+                          ? "Home Service"
+                          : "Shop Service"}
                       </p>
                     </div>
                   </div>
@@ -387,18 +403,26 @@ export default function CustomerBillsPage() {
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleShareOnWhatsApp(bill)}
                       className="hover:bg-gray-700 text-green-400 hover:text-green-300"
                     >
                       <Share2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="hover:bg-gray-700">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:bg-gray-700"
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="hover:bg-gray-700">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="hover:bg-gray-700"
+                    >
                       <Download className="w-4 h-4" />
                     </Button>
                   </div>
@@ -494,8 +518,8 @@ export default function CustomerBillsPage() {
             </div>
 
             <div className="flex gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="flex-1"
                 onClick={() => handleShareOnWhatsApp(selectedBill)}
               >
@@ -516,4 +540,4 @@ export default function CustomerBillsPage() {
       </Modal>
     </div>
   );
-} 
+}

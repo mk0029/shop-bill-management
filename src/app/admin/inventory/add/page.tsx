@@ -698,7 +698,7 @@ export default function AddInventoryItemPage() {
 
       <Card className="bg-gray-800 border-gray-700 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-white flex items-center gap-2">
+          <CardTitle className="text-xl sm:text-2xl font-bold !leading-[125%] text-white flex items-center gap-2">
             <Package className="w-6 h-6 text-indigo-400" />
             Add New Inventory Item
           </CardTitle>

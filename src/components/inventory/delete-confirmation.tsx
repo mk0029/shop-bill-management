@@ -110,7 +110,8 @@ export function DeleteConfirmation({
                   <span
                     className={`ml-2 font-medium ${
                       hasStock ? "text-yellow-400" : "text-green-400"
-                    }`}>
+                    }`}
+                  >
                     {product.inventory.currentStock} {product.pricing.unit}
                   </span>
                 </div>
@@ -257,7 +258,8 @@ export function DeleteConfirmation({
             variant="outline"
             onClick={onClose}
             disabled={isDeleting}
-            className="flex-1">
+            className="flex-1"
+          >
             Cancel
           </Button>
 
@@ -266,7 +268,8 @@ export function DeleteConfirmation({
               variant="outline"
               onClick={() => checkReferences()}
               disabled={isCheckingReferences}
-              className="flex-1">
+              className="flex-1"
+            >
               {isCheckingReferences ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin mr-2" />
@@ -284,7 +287,8 @@ export function DeleteConfirmation({
               variant="destructive"
               onClick={onConfirm}
               disabled={isDeleting || !canDelete || isCheckingReferences}
-              className="flex-1">
+              className="flex-1"
+            >
               {isDeleting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
@@ -333,7 +337,7 @@ export function QuickDeleteConfirmation({
     <Modal isOpen={isOpen} onClose={onClose} size="sm" title="Confirm Deletion">
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="w-8 h-8 text-red-400" />
+          <AlertTriangle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400" />
           <div>
             <h4 className="font-medium text-white">Delete Product?</h4>
             <p className="text-sm text-gray-400 mt-1">{productName}</p>
@@ -361,14 +365,16 @@ export function QuickDeleteConfirmation({
             variant="outline"
             onClick={onClose}
             disabled={isDeleting}
-            className="flex-1">
+            className="flex-1"
+          >
             Cancel
           </Button>
           <Button
             variant="destructive"
             onClick={onConfirm}
             disabled={isDeleting}
-            className="flex-1">
+            className="flex-1"
+          >
             {isDeleting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />

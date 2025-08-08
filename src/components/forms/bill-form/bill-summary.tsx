@@ -16,13 +16,13 @@ export function BillSummary({
   const { currency } = useLocaleStore();
 
   return (
-    <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
-      <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-        <Calculator className="w-5 h-5" />
+    <div className="p-3 sm:p-4 bg-gray-800 rounded-lg border border-gray-700">
+      <h3 className="text-base sm:text-lg font-semibold text-white mb-3 flex items-center gap-2">
+        <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
         Bill Summary
       </h3>
       <div className="space-y-2">
-        <div className="flex justify-between text-gray-300">
+        <div className="flex justify-between text-gray-300 text-sm sm:text-base">
           <span>Subtotal</span>
           <span>
             {currency}
@@ -30,7 +30,7 @@ export function BillSummary({
           </span>
         </div>
         {homeVisitFee > 0 && (
-          <div className="flex justify-between text-gray-300">
+          <div className="flex justify-between text-gray-300 text-sm sm:text-base">
             <span>Home Visit Fee</span>
             <span>
               {currency}
@@ -39,7 +39,7 @@ export function BillSummary({
           </div>
         )}
         <div className="border-t border-gray-700 pt-2">
-          <div className="flex justify-between text-white font-bold text-lg">
+          <div className="flex justify-between text-white font-bold text-base sm:text-lg">
             <span>Total</span>
             <span>
               {currency}

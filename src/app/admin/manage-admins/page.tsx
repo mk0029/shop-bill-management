@@ -268,7 +268,7 @@ export default function ManageAdminsPage() {
 
         {/* Warning Banner */}
         <Card className="border-yellow-500/20 bg-yellow-900/10">
-          <CardContent className="p-4">
+          <CardContent className="sm:p-4 p-3">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
               <div>
@@ -419,7 +419,7 @@ export default function ManageAdminsPage() {
         >
           <form onSubmit={handleCreateAdmin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Full Name
               </label>
               <Input
@@ -434,7 +434,7 @@ export default function ManageAdminsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Email Address
               </label>
               <Input
@@ -449,7 +449,7 @@ export default function ManageAdminsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Phone Number
               </label>
               <Input
@@ -464,7 +464,7 @@ export default function ManageAdminsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Admin Role
               </label>
               <select

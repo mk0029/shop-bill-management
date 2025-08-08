@@ -209,7 +209,7 @@ export default function TestDynamicSpecsPage() {
       {/* Error Display */}
       {error && (
         <Card className="bg-red-900 border-red-800">
-          <CardContent className="p-4">
+          <CardContent className="sm:p-4 p-3">
             <div className="flex justify-between items-center">
               <p className="text-red-200">{error}</p>
               <Button
@@ -227,7 +227,7 @@ export default function TestDynamicSpecsPage() {
       {/* Loading State */}
       {isLoading && (
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-4 text-center">
+          <CardContent className="sm:p-4 p-3 text-center">
             <p className="text-gray-300">Loading specification data...</p>
           </CardContent>
         </Card>

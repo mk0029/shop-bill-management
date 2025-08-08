@@ -181,7 +181,8 @@ export function Navigation() {
                 active
                   ? "bg-blue-600 text-white"
                   : "text-gray-300 hover:bg-gray-800"
-              }`}>
+              }`}
+            >
               <div className="flex items-center gap-3">
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>
@@ -200,7 +201,8 @@ export function Navigation() {
                 active
                   ? "bg-blue-600 text-white"
                   : "text-gray-300 hover:bg-gray-800"
-              }`}>
+              }`}
+            >
               <div className="flex items-center gap-3">
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>
@@ -222,7 +224,8 @@ export function Navigation() {
                       childActive
                         ? "bg-blue-600/20 text-blue-400"
                         : "text-gray-400 hover:bg-gray-800 hover:text-gray-300"
-                    }`}>
+                    }`}
+                  >
                     <ChildIcon className="w-4 h-4" />
                     <span className="text-sm">{child.label}</span>
                   </Link>
@@ -316,7 +319,7 @@ export function Navigation() {
               </div>
 
               {/* Navigation Items */}
-              <div className="p-4 space-y-2">
+              <div className="sm:p-4 p-3 space-y-2">
                 {navigation.map((item) => renderNavigationItem(item, true))}
               </div>
 
@@ -367,7 +370,7 @@ export function Navigation() {
         </div>
 
         {/* Navigation Items */}
-        <div className="p-4 space-y-2">
+        <div className="sm:p-4 p-3 space-y-2">
           {navigation.map((item) => renderNavigationItem(item))}
         </div>
 
@@ -399,7 +402,7 @@ export function Navigation() {
         <div className="bg-gray-900 border-b border-gray-800 p-4 lg:p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                 {navigation.find((item) => isActive(item.href))?.label ||
                   "Dashboard"}
               </h1>

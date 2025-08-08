@@ -49,39 +49,41 @@ export function AlertCard({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="text-center py-8">
-            <RefreshCw className="w-6 h-6 animate-spin text-blue-400 mx-auto mb-2" />
-            <p className="text-gray-400">Loading alerts...</p>
+          <div className="text-center py-6 sm:py-8">
+            <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-400 mx-auto mb-2" />
+            <p className="text-gray-400 text-sm">Loading alerts...</p>
           </div>
         ) : error ? (
-          <div className="text-center py-8">
-            <AlertTriangle className="w-6 h-6 text-red-400 mx-auto mb-2" />
-            <p className="text-red-400">{error}</p>
+          <div className="text-center py-6 sm:py-8">
+            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-400 mx-auto mb-2" />
+            <p className="text-red-400 text-sm">{error}</p>
           </div>
         ) : alerts.length === 0 ? (
-          <div className="text-center py-8">
+          <div className="text-center py-6 sm:py-8">
             {emptyIcon || (
-              <Package className="w-6 h-6 text-green-400 mx-auto mb-2" />
+              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 mx-auto mb-2" />
             )}
-            <p className="text-green-400">{emptyMessage}</p>
+            <p className="text-green-400 text-sm">{emptyMessage}</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {displayAlerts.map((alert, index) => (
               <div
                 key={index}
                 className={`flex items-center justify-between p-3 rounded-lg ${alertClassName}`}
               >
-                <div className="flex items-center gap-3">
-                  {icon}
-                  <div>
-                    <p className="text-sm font-medium text-white">
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                  <div className="flex-shrink-0">{icon}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white truncate">
                       {alert.productName}
                     </p>
-                    <p className="text-xs text-gray-400">{alert.brandName}</p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {alert.brandName}
+                    </p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex-shrink-0 ml-2">
                   <p className="text-sm font-medium">
                     {alert.currentStock} left
                   </p>

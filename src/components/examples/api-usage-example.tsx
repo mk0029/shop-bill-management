@@ -1,37 +1,39 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useSanityApi } from '../../hooks/use-sanity-api';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Badge } from '../ui/badge';
-import { Table } from '../ui/table';
+import React, { useState } from "react";
+import { useSanityApi } from "../../hooks/use-sanity-api";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { Badge } from "../ui/badge";
+import { Table } from "../ui/table";
 
 export const ApiUsageExample: React.FC = () => {
   const api = useSanityApi();
-  const [selectedTab, setSelectedTab] = useState<'users' | 'products' | 'bills'>('users');
+  const [selectedTab, setSelectedTab] = useState<
+    "users" | "products" | "bills"
+  >("users");
 
   // Example user creation
   const handleCreateUser = async () => {
     await api.users.createUser.execute({
-      name: 'John Doe',
-      email: 'john@example.com',
-      phone: '+1234567890',
-      location: 'New York',
-      role: 'customer',
+      name: "John Doe",
+      email: "john@example.com",
+      phone: "+1234567890",
+      location: "New York",
+      role: "customer",
     });
   };
 
   // Example product creation
   const handleCreateProduct = async () => {
     await api.products.createProduct.execute({
-      name: 'LED Bulb 10W',
-      description: 'Energy efficient LED bulb',
-      brand: { _type: 'reference', _ref: 'brand-id' },
-      category: { _type: 'reference', _ref: 'category-id' },
+      name: "LED Bulb 10W",
+      description: "Energy efficient LED bulb",
+      brand: { _type: "reference", _ref: "brand-id" },
+      category: { _type: "reference", _ref: "category-id" },
       pricing: {
         costPrice: 50,
         sellingPrice: 100,
@@ -41,7 +43,7 @@ export const ApiUsageExample: React.FC = () => {
         currentStock: 100,
         minimumStock: 10,
         maximumStock: 500,
-        unit: 'pcs',
+        unit: "pcs",
       },
     });
   };
@@ -49,13 +51,13 @@ export const ApiUsageExample: React.FC = () => {
   // Example bill creation
   const handleCreateBill = async () => {
     await api.bills.createBill.execute({
-      customer: { _type: 'reference', _ref: 'user-id' },
-      serviceType: 'sale',
-      locationType: 'shop',
+      customer: { _type: "reference", _ref: "user-id" },
+      serviceType: "sale",
+      locationType: "shop",
       totalAmount: 500,
       items: [
         {
-          product: { _type: 'reference', _ref: 'product-id' },
+          product: { _type: "reference", _ref: "product-id" },
           quantity: 2,
           unitPrice: 250,
           totalPrice: 500,
@@ -70,20 +72,20 @@ export const ApiUsageExample: React.FC = () => {
         <h1 className="text-3xl font-bold">Sanity API Usage Examples</h1>
         <div className="flex space-x-2">
           <Button
-            variant={selectedTab === 'users' ? 'default' : 'outline'}
-            onClick={() => setSelectedTab('users')}
+            variant={selectedTab === "users" ? "default" : "outline"}
+            onClick={() => setSelectedTab("users")}
           >
             Users
           </Button>
           <Button
-            variant={selectedTab === 'products' ? 'default' : 'outline'}
-            onClick={() => setSelectedTab('products')}
+            variant={selectedTab === "products" ? "default" : "outline"}
+            onClick={() => setSelectedTab("products")}
           >
             Products
           </Button>
           <Button
-            variant={selectedTab === 'bills' ? 'default' : 'outline'}
-            onClick={() => setSelectedTab('bills')}
+            variant={selectedTab === "bills" ? "default" : "outline"}
+            onClick={() => setSelectedTab("bills")}
           >
             Bills
           </Button>
@@ -91,11 +93,11 @@ export const ApiUsageExample: React.FC = () => {
       </div>
 
       {/* Users Tab */}
-      {selectedTab === 'users' && (
+      {selectedTab === "users" && (
         <div className="space-y-6">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">User Management</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <Label htmlFor="userName">Name</Label>
@@ -116,22 +118,29 @@ export const ApiUsageExample: React.FC = () => {
             </div>
 
             <div className="flex space-x-4">
-              <Button onClick={handleCreateUser} disabled={api.users.createUser.loading}>
-                {api.users.createUser.loading ? 'Creating...' : 'Create User'}
+              <Button
+                onClick={handleCreateUser}
+                disabled={api.users.createUser.loading}
+              >
+                {api.users.createUser.loading ? "Creating..." : "Create User"}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => api.users.getAllUsers.execute()}
                 disabled={api.users.getAllUsers.loading}
               >
-                {api.users.getAllUsers.loading ? 'Loading...' : 'Load All Users'}
+                {api.users.getAllUsers.loading
+                  ? "Loading..."
+                  : "Load All Users"}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => api.users.getCustomers.execute()}
                 disabled={api.users.getCustomers.loading}
               >
-                {api.users.getCustomers.loading ? 'Loading...' : 'Load Customers'}
+                {api.users.getCustomers.loading
+                  ? "Loading..."
+                  : "Load Customers"}
               </Button>
             </div>
 
@@ -162,19 +171,29 @@ export const ApiUsageExample: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(api.users.getAllUsers.data || api.users.getCustomers.data || []).map((user: any) => (
+                    {(
+                      api.users.getAllUsers.data ||
+                      api.users.getCustomers.data ||
+                      []
+                    ).map((user: any) => (
                       <tr key={user._id}>
                         <td>{user.name}</td>
-                        <td>{user.email || '-'}</td>
+                        <td>{user.email || "-"}</td>
                         <td>{user.phone}</td>
                         <td>
-                          <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                          <Badge
+                            variant={
+                              user.role === "admin" ? "default" : "secondary"
+                            }
+                          >
                             {user.role}
                           </Badge>
                         </td>
                         <td>
-                          <Badge variant={user.isActive ? 'default' : 'destructive'}>
-                            {user.isActive ? 'Active' : 'Inactive'}
+                          <Badge
+                            variant={user.isActive ? "default" : "destructive"}
+                          >
+                            {user.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </td>
                       </tr>
@@ -188,11 +207,11 @@ export const ApiUsageExample: React.FC = () => {
       )}
 
       {/* Products Tab */}
-      {selectedTab === 'products' && (
+      {selectedTab === "products" && (
         <div className="space-y-6">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Product Management</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <Label htmlFor="productName">Product Name</Label>
@@ -200,35 +219,55 @@ export const ApiUsageExample: React.FC = () => {
               </div>
               <div>
                 <Label htmlFor="productDescription">Description</Label>
-                <Textarea id="productDescription" placeholder="Enter product description" />
+                <Textarea
+                  id="productDescription"
+                  placeholder="Enter product description"
+                />
               </div>
               <div>
                 <Label htmlFor="productCost">Cost Price</Label>
-                <Input id="productCost" type="number" placeholder="Enter cost price" />
+                <Input
+                  id="productCost"
+                  type="number"
+                  placeholder="Enter cost price"
+                />
               </div>
               <div>
                 <Label htmlFor="productSelling">Selling Price</Label>
-                <Input id="productSelling" type="number" placeholder="Enter selling price" />
+                <Input
+                  id="productSelling"
+                  type="number"
+                  placeholder="Enter selling price"
+                />
               </div>
             </div>
 
             <div className="flex space-x-4">
-              <Button onClick={handleCreateProduct} disabled={api.products.createProduct.loading}>
-                {api.products.createProduct.loading ? 'Creating...' : 'Create Product'}
+              <Button
+                onClick={handleCreateProduct}
+                disabled={api.products.createProduct.loading}
+              >
+                {api.products.createProduct.loading
+                  ? "Creating..."
+                  : "Create Product"}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => api.products.getAllProducts.execute()}
                 disabled={api.products.getAllProducts.loading}
               >
-                {api.products.getAllProducts.loading ? 'Loading...' : 'Load All Products'}
+                {api.products.getAllProducts.loading
+                  ? "Loading..."
+                  : "Load All Products"}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => api.products.getActiveProducts.execute()}
                 disabled={api.products.getActiveProducts.loading}
               >
-                {api.products.getActiveProducts.loading ? 'Loading...' : 'Load Active Products'}
+                {api.products.getActiveProducts.loading
+                  ? "Loading..."
+                  : "Load Active Products"}
               </Button>
             </div>
 
@@ -240,12 +279,14 @@ export const ApiUsageExample: React.FC = () => {
 
             {api.products.createProduct.data && (
               <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-                Product created successfully: {api.products.createProduct.data.name}
+                Product created successfully:{" "}
+                {api.products.createProduct.data.name}
               </div>
             )}
 
             {/* Display Products */}
-            {(api.products.getAllProducts.data || api.products.getActiveProducts.data) && (
+            {(api.products.getAllProducts.data ||
+              api.products.getActiveProducts.data) && (
               <div className="mt-6">
                 <h3 className="text-lg font-medium mb-3">Products</h3>
                 <Table>
@@ -260,16 +301,24 @@ export const ApiUsageExample: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(api.products.getAllProducts.data || api.products.getActiveProducts.data || []).map((product: any) => (
+                    {(
+                      api.products.getAllProducts.data ||
+                      api.products.getActiveProducts.data ||
+                      []
+                    ).map((product: any) => (
                       <tr key={product._id}>
                         <td>{product.name}</td>
-                        <td>{product.brand?.name || '-'}</td>
-                        <td>{product.category?.name || '-'}</td>
+                        <td>{product.brand?.name || "-"}</td>
+                        <td>{product.category?.name || "-"}</td>
                         <td>₹{product.pricing?.sellingPrice || 0}</td>
                         <td>{product.inventory?.currentStock || 0}</td>
                         <td>
-                          <Badge variant={product.isActive ? 'default' : 'destructive'}>
-                            {product.isActive ? 'Active' : 'Inactive'}
+                          <Badge
+                            variant={
+                              product.isActive ? "default" : "destructive"
+                            }
+                          >
+                            {product.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </td>
                       </tr>
@@ -283,11 +332,11 @@ export const ApiUsageExample: React.FC = () => {
       )}
 
       {/* Bills Tab */}
-      {selectedTab === 'bills' && (
+      {selectedTab === "bills" && (
         <div className="space-y-6">
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Bill Management</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <Label htmlFor="billCustomer">Customer</Label>
@@ -295,7 +344,10 @@ export const ApiUsageExample: React.FC = () => {
               </div>
               <div>
                 <Label htmlFor="billServiceType">Service Type</Label>
-                <select id="billServiceType" className="w-full p-2 border rounded">
+                <select
+                  id="billServiceType"
+                  className="w-full p-2 border rounded"
+                >
                   <option value="sale">Sale</option>
                   <option value="repair">Repair</option>
                   <option value="installation">Installation</option>
@@ -312,20 +364,29 @@ export const ApiUsageExample: React.FC = () => {
               </div>
               <div>
                 <Label htmlFor="billAmount">Total Amount</Label>
-                <Input id="billAmount" type="number" placeholder="Enter total amount" />
+                <Input
+                  id="billAmount"
+                  type="number"
+                  placeholder="Enter total amount"
+                />
               </div>
             </div>
 
             <div className="flex space-x-4">
-              <Button onClick={handleCreateBill} disabled={api.bills.createBill.loading}>
-                {api.bills.createBill.loading ? 'Creating...' : 'Create Bill'}
+              <Button
+                onClick={handleCreateBill}
+                disabled={api.bills.createBill.loading}
+              >
+                {api.bills.createBill.loading ? "Creating..." : "Create Bill"}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => api.bills.getAllBills.execute()}
                 disabled={api.bills.getAllBills.loading}
               >
-                {api.bills.getAllBills.loading ? 'Loading...' : 'Load All Bills'}
+                {api.bills.getAllBills.loading
+                  ? "Loading..."
+                  : "Load All Bills"}
               </Button>
             </div>
 
@@ -337,7 +398,8 @@ export const ApiUsageExample: React.FC = () => {
 
             {api.bills.createBill.data && (
               <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-                Bill created successfully: {api.bills.createBill.data.billNumber}
+                Bill created successfully:{" "}
+                {api.bills.createBill.data.billNumber}
               </div>
             )}
 
@@ -360,23 +422,30 @@ export const ApiUsageExample: React.FC = () => {
                     {api.bills.getAllBills.data.map((bill: any) => (
                       <tr key={bill._id}>
                         <td>{bill.billNumber}</td>
-                        <td>{bill.customer?.name || '-'}</td>
+                        <td>{bill.customer?.name || "-"}</td>
                         <td>
-                          <Badge variant="outline">
-                            {bill.serviceType}
-                          </Badge>
+                          <Badge variant="outline">{bill.serviceType}</Badge>
                         </td>
                         <td>₹{bill.totalAmount || 0}</td>
                         <td>
-                          <Badge variant={bill.status === 'completed' ? 'default' : 'secondary'}>
+                          <Badge
+                            variant={
+                              bill.status === "completed"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
                             {bill.status}
                           </Badge>
                         </td>
                         <td>
-                          <Badge 
+                          <Badge
                             variant={
-                              bill.paymentStatus === 'paid' ? 'default' : 
-                              bill.paymentStatus === 'pending' ? 'secondary' : 'destructive'
+                              bill.paymentStatus === "paid"
+                                ? "default"
+                                : bill.paymentStatus === "pending"
+                                ? "secondary"
+                                : "destructive"
                             }
                           >
                             {bill.paymentStatus}
@@ -395,12 +464,19 @@ export const ApiUsageExample: React.FC = () => {
       {/* Error Display */}
       <div className="space-y-4">
         {Object.entries(api).map(([serviceName, service]) => {
-          const errors = Object.values(service).filter((operation: any) => operation.error);
+          const errors = Object.values(service).filter(
+            (operation: any) => operation.error
+          );
           if (errors.length === 0) return null;
 
           return (
-            <Card key={serviceName} className="p-4 border-red-200 bg-red-50">
-              <h3 className="font-medium text-red-800 mb-2">{serviceName} Errors:</h3>
+            <Card
+              key={serviceName}
+              className="sm:p-4 p-3 border-red-200 bg-red-50"
+            >
+              <h3 className="font-medium text-red-800 mb-2">
+                {serviceName} Errors:
+              </h3>
               {errors.map((operation: any, index: number) => (
                 <div key={index} className="text-red-700 text-sm">
                   {operation.error}
@@ -412,4 +488,4 @@ export const ApiUsageExample: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};

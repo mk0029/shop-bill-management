@@ -69,21 +69,21 @@ export default function CustomerProfile() {
   const uploadImageToSanity = async (file: File): Promise<string | null> => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch('/api/upload-image', {
-        method: 'POST',
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload-image", {
+        method: "POST",
         body: formData,
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        throw new Error("Failed to upload image");
       }
-      
+
       const result = await response.json();
       return result.url;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error("Error uploading image:", error);
       return null;
     }
   };
@@ -239,7 +239,7 @@ export default function CustomerProfile() {
               )}
             </div>
             {isEditing && (
-              <label className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors">
+              <label className="absolute bottom-0 right-0  h-6 w-6 sm:w-8 sm:h-8  bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors">
                 <Camera className="w-4 h-4 text-white" />
                 <input
                   type="file"
@@ -285,7 +285,7 @@ export default function CustomerProfile() {
         <div className="space-y-6">
           {/* Customer ID (Read-only) */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               Customer ID
             </label>
             <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg">
@@ -299,7 +299,7 @@ export default function CustomerProfile() {
 
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               Full Name
             </label>
             <div className="relative">
@@ -319,7 +319,7 @@ export default function CustomerProfile() {
 
           {/* Phone */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               Phone Number
             </label>
             <div className="relative">
@@ -336,7 +336,7 @@ export default function CustomerProfile() {
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
               Location
             </label>
             <div className="relative">
@@ -367,7 +367,7 @@ export default function CustomerProfile() {
           <div className="space-y-6">
             {/* Current Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Current Password
               </label>
               <div className="relative">
@@ -406,7 +406,7 @@ export default function CustomerProfile() {
 
             {/* New Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 New Password
               </label>
               <div className="relative">
@@ -445,7 +445,7 @@ export default function CustomerProfile() {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
                 Confirm New Password
               </label>
               <div className="relative">
@@ -488,9 +488,9 @@ export default function CustomerProfile() {
       {/* Action Buttons */}
       {isEditing && (
         <div className="flex gap-4">
-          <Button 
-            onClick={handleSave} 
-            disabled={isLoading || isUploading} 
+          <Button
+            onClick={handleSave}
+            disabled={isLoading || isUploading}
             className="flex-1"
           >
             <Save className="w-4 h-4 mr-2" />

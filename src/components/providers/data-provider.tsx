@@ -53,7 +53,7 @@ export function DataProvider({ children }: DataProviderProps) {
             </a>
           </div>
           <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded text-left">
-            <p className="text-yellow-200 text-sm font-medium mb-1">
+            <p className="text-yellow-200 text-xs sm:text-sm font-medium mb-1">
               Quick Fix:
             </p>
             <p className="text-yellow-300 text-xs">

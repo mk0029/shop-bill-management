@@ -198,7 +198,7 @@ export default function BillingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-            <FileText className="w-8 h-8 text-blue-400" />
+            <FileText className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
             Billing Management
           </h1>
           <p className="text-gray-400 mt-1 text-sm sm:text-base">
@@ -224,7 +224,7 @@ export default function BillingPage() {
       </div>
 
       {/* Search and Filter */}
-      <Card className="p-4 bg-gray-900 border-gray-800">
+      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

@@ -9,7 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Save, Package, Zap, DollarSign, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Package,
+  Zap,
+  DollarSign,
+  AlertTriangle,
+} from "lucide-react";
 import {
   itemCategories,
   lightTypes,
@@ -30,7 +37,7 @@ export default function EditInventoryItemPage() {
   const router = useRouter();
   const params = useParams();
   const itemId = params.id as string;
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [itemNotFound, setItemNotFound] = useState(false);
@@ -85,17 +92,17 @@ export default function EditInventoryItemPage() {
   }, [itemId]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       console.log("Updated item data:", formData);
       setShowSuccessModal(true);
     } catch (error) {
@@ -112,7 +119,8 @@ export default function EditInventoryItemPage() {
 
   const getItemSpecifications = () => {
     const specs = [];
-    if (formData.lightType) specs.push(`Type: ${getLightTypeLabel(formData.lightType)}`);
+    if (formData.lightType)
+      specs.push(`Type: ${getLightTypeLabel(formData.lightType)}`);
     if (formData.color) specs.push(`Color: ${formData.color}`);
     if (formData.size) specs.push(`Size: ${formData.size}`);
     if (formData.watts) specs.push(`${formData.watts}W`);
@@ -124,13 +132,15 @@ export default function EditInventoryItemPage() {
   // Conditional field visibility
   const isLightItem = formData.category === "light";
   const needsColor = isLightItem;
-  const needsSize = isLightItem && ["panel", "concealed", "tubelight"].includes(formData.lightType);
+  const needsSize =
+    isLightItem &&
+    ["panel", "concealed", "tubelight"].includes(formData.lightType);
   const needsWatts = ["light", "motor", "pump"].includes(formData.category);
   const needsWireGauge = formData.category === "wire";
   const needsAmpere = ["switch", "socket", "mcb"].includes(formData.category);
 
   // Filter brands based on selected category
-  const availableBrands = formData.category 
+  const availableBrands = formData.category
     ? [] // TODO: Replace with real brands data from API
     : [];
 
@@ -147,13 +157,16 @@ export default function EditInventoryItemPage() {
             Back
           </Button>
         </div>
-        
+
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-8 text-center">
             <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-2">Item Not Found</h2>
+            <h2 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white mb-2">
+              Item Not Found
+            </h2>
             <p className="text-gray-400 mb-6">
-              The item you&apos;re looking for doesn&apos;t exist or has been removed.
+              The item you&apos;re looking for doesn&apos;t exist or has been
+              removed.
             </p>
             <Button onClick={() => router.push("/admin/inventory")}>
               Go to Inventory
@@ -217,7 +230,9 @@ export default function EditInventoryItemPage() {
                 <Dropdown
                   options={lightTypes}
                   value={formData.lightType}
-                  onValueChange={(value) => handleInputChange("lightType", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("lightType", value)
+                  }
                   placeholder="Select light type"
                   className="bg-gray-800 border-gray-700"
                 />
@@ -286,7 +301,9 @@ export default function EditInventoryItemPage() {
                 <Dropdown
                   options={wireGauges}
                   value={formData.wireGauge}
-                  onValueChange={(value) => handleInputChange("wireGauge", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("wireGauge", value)
+                  }
                   placeholder="Select wire gauge"
                   className="bg-gray-800 border-gray-700"
                 />
@@ -319,7 +336,9 @@ export default function EditInventoryItemPage() {
                   options={availableBrands}
                   value={formData.brand}
                   onValueChange={(value) => handleInputChange("brand", value)}
-                  placeholder={formData.category ? "Select brand" : "Select category first"}
+                  placeholder={
+                    formData.category ? "Select brand" : "Select category first"
+                  }
                   className="bg-gray-800 border-gray-700"
                   disabled={!formData.category}
                 />
@@ -337,7 +356,9 @@ export default function EditInventoryItemPage() {
                     step="0.01"
                     min="0"
                     value={formData.purchasePrice}
-                    onChange={(e) => handleInputChange("purchasePrice", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("purchasePrice", e.target.value)
+                    }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter purchase price"
                     required
@@ -357,7 +378,9 @@ export default function EditInventoryItemPage() {
                     step="0.01"
                     min="0"
                     value={formData.sellingPrice}
-                    onChange={(e) => handleInputChange("sellingPrice", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("sellingPrice", e.target.value)
+                    }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter selling price"
                     required
@@ -377,7 +400,9 @@ export default function EditInventoryItemPage() {
                   type="number"
                   min="0"
                   value={formData.currentStock}
-                  onChange={(e) => handleInputChange("currentStock", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("currentStock", e.target.value)
+                  }
                   className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Enter purchased quantity"
                   required
@@ -406,7 +431,9 @@ export default function EditInventoryItemPage() {
               <textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
                 className="w-full h-24 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none"
                 placeholder="Add any additional description..."
               />
@@ -417,14 +444,44 @@ export default function EditInventoryItemPage() {
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <h4 className="font-medium text-white mb-3">Item Preview</h4>
                 <div className="space-y-2 text-sm">
-                  <p><span className="text-gray-400">Category:</span> <span className="text-white">{getCategoryLabel(formData.category)}</span></p>
-                  <p><span className="text-gray-400">Category:</span> <span className="text-white capitalize">{formData.category}</span></p>
-                  <p><span className="text-gray-400">Brand:</span> <span className="text-white">{formData.brand}</span></p>
+                  <p>
+                    <span className="text-gray-400">Category:</span>{" "}
+                    <span className="text-white">
+                      {getCategoryLabel(formData.category)}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Category:</span>{" "}
+                    <span className="text-white capitalize">
+                      {formData.category}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Brand:</span>{" "}
+                    <span className="text-white">{formData.brand}</span>
+                  </p>
                   {getItemSpecifications() && (
-                    <p><span className="text-gray-400">Specifications:</span> <span className="text-white">{getItemSpecifications()}</span></p>
+                    <p>
+                      <span className="text-gray-400">Specifications:</span>{" "}
+                      <span className="text-white">
+                        {getItemSpecifications()}
+                      </span>
+                    </p>
                   )}
-                  <p><span className="text-gray-400">Pricing:</span> <span className="text-white">{currency}{formData.purchasePrice} → {currency}{formData.sellingPrice}</span></p>
-                  <p><span className="text-gray-400">Stock:</span> <span className="text-white">{formData.currentStock} {formData.unit}</span></p>
+                  <p>
+                    <span className="text-gray-400">Pricing:</span>{" "}
+                    <span className="text-white">
+                      {currency}
+                      {formData.purchasePrice} → {currency}
+                      {formData.sellingPrice}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-gray-400">Stock:</span>{" "}
+                    <span className="text-white">
+                      {formData.currentStock} {formData.unit}
+                    </span>
+                  </p>
                 </div>
               </div>
             )}
@@ -461,7 +518,7 @@ export default function EditInventoryItemPage() {
         <div className="space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Package className="w-8 h-8 text-white" />
+              <Package className=" h-6 w-6 sm:w-8 sm:h-8  text-white" />
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">
               Item Updated Successfully
@@ -472,15 +529,21 @@ export default function EditInventoryItemPage() {
           </div>
 
           <div className="bg-gray-800 rounded-lg p-4">
-            <h4 className="font-medium text-white mb-2">Updated Item Details</h4>
+            <h4 className="font-medium text-white mb-2">
+              Updated Item Details
+            </h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Name:</span>
-                <span className="text-white">{getCategoryLabel(formData.category)} - {formData.brand}</span>
+                <span className="text-white">
+                  {getCategoryLabel(formData.category)} - {formData.brand}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Category:</span>
-                <span className="text-white capitalize">{formData.category}</span>
+                <span className="text-white capitalize">
+                  {formData.category}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Brand:</span>
@@ -488,7 +551,9 @@ export default function EditInventoryItemPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Stock:</span>
-                <span className="text-white">{formData.currentStock} {formData.unit}</span>
+                <span className="text-white">
+                  {formData.currentStock} {formData.unit}
+                </span>
               </div>
             </div>
           </div>
@@ -508,4 +573,4 @@ export default function EditInventoryItemPage() {
       </Modal>
     </div>
   );
-} 
+}

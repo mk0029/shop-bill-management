@@ -26,19 +26,21 @@ export function AlertsSection({ alerts }: AlertsSectionProps) {
           {/* Inventory Alerts */}
           {alerts.inventory.lowStockCount > 0 && (
             <div>
-              <h4 className="font-medium mb-2">
+              <h4 className="font-medium mb-2 text-sm sm:text-base">
                 Low Stock Products ({alerts.inventory.lowStockCount})
               </h4>
               <div className="space-y-2">
                 {alerts.inventory.lowStock.slice(0, 3).map((product) => (
                   <div
                     key={product._id}
-                    className="flex items-center justify-between p-2 bg-orange-50 rounded"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-orange-50 rounded gap-2"
                   >
-                    <span className="text-sm">{product.name}</span>
+                    <span className="text-sm truncate flex-1">
+                      {product.name}
+                    </span>
                     <Badge
                       variant="outline"
-                      className="text-orange-600 border-orange-600"
+                      className="text-orange-600 border-orange-600 text-xs flex-shrink-0"
                     >
                       {product.inventory.currentStock} left
                     </Badge>
@@ -56,19 +58,21 @@ export function AlertsSection({ alerts }: AlertsSectionProps) {
           {/* Out of Stock */}
           {alerts.inventory.outOfStockCount > 0 && (
             <div>
-              <h4 className="font-medium mb-2">
+              <h4 className="font-medium mb-2 text-sm sm:text-base">
                 Out of Stock ({alerts.inventory.outOfStockCount})
               </h4>
               <div className="space-y-2">
                 {alerts.inventory.outOfStock.slice(0, 3).map((product) => (
                   <div
                     key={product._id}
-                    className="flex items-center justify-between p-2 bg-red-50 rounded"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-red-50 rounded gap-2"
                   >
-                    <span className="text-sm">{product.name}</span>
+                    <span className="text-sm truncate flex-1">
+                      {product.name}
+                    </span>
                     <Badge
                       variant="outline"
-                      className="text-red-600 border-red-600"
+                      className="text-red-600 border-red-600 text-xs flex-shrink-0"
                     >
                       Out of Stock
                     </Badge>
@@ -81,19 +85,21 @@ export function AlertsSection({ alerts }: AlertsSectionProps) {
           {/* Overdue Payments */}
           {alerts.bills.overdueCount > 0 && (
             <div>
-              <h4 className="font-medium mb-2">
+              <h4 className="font-medium mb-2 text-sm sm:text-base">
                 Overdue Payments ({alerts.bills.overdueCount})
               </h4>
               <div className="space-y-2">
                 {alerts.bills.overdue.slice(0, 3).map((bill) => (
                   <div
                     key={bill._id}
-                    className="flex items-center justify-between p-2 bg-red-50 rounded"
+                    className="flex items-center justify-between p-2 sm:p-3 bg-red-50 rounded gap-2"
                   >
-                    <span className="text-sm">{bill.billNumber}</span>
+                    <span className="text-sm truncate flex-1">
+                      {bill.billNumber}
+                    </span>
                     <Badge
                       variant="outline"
-                      className="text-red-600 border-red-600"
+                      className="text-red-600 border-red-600 text-xs flex-shrink-0"
                     >
                       ₹{bill.balanceAmount}
                     </Badge>

@@ -1,27 +1,44 @@
 "use client";
 
-import { useDashboardStats } from "@/hooks/use-sanity-data";
-import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { CustomersOverview } from "@/components/dashboard/customers-overview";
+import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { RealtimeInventoryStats } from "@/components/realtime/realtime-inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Package,
-  Users,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Wifi,
-} from "lucide-react";
+import { CheckCircle, FileText, Package, Users } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminDashboard() {
-  const stats = useDashboardStats();
+  const quickActions = [
+    {
+      icon: FileText,
+      title: "Create New Bill",
+      description: "Generate a new customer bill",
+      bg: "bg-blue-600",
+      hover: "hover:bg-blue-700",
+      text: "text-blue-100",
+      url: "/admin/billing/create",
+    },
+    {
+      icon: Users,
+      title: "Add Customer",
+      description: "Register a new customer",
+      bg: "bg-green-600",
+      hover: "hover:bg-green-700",
+      text: "text-green-100",
+      url: "/admin/customers/add",
+    },
+    {
+      icon: Package,
+      title: "Add Product",
+      description: "Add new product to inventory",
+      bg: "bg-purple-600",
+      hover: "hover:bg-purple-700",
+      text: "text-purple-100",
+      url: "/admin/inventory/add",
+    },
+  ];
 
   return (
     <RealtimeProvider enableNotifications={false}>
@@ -35,21 +52,12 @@ export default function AdminDashboard() {
                 Welcome back! Here's what's happening with your shop.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className="text-green-500 border-green-500"
-              >
-                <Wifi className="w-3 h-3 mr-2" />
-                Real-time Sync Active
-              </Badge>
-            </div>
           </div>
 
           {/* Real-time Bill Stats */}
           <div>
             <h2 className="text-xl font-semibold text-white mb-4">
-              Bill Analytics (Real-time)
+              Bill Analytics
             </h2>
             <RealtimeBillStats />
           </div>
@@ -57,7 +65,7 @@ export default function AdminDashboard() {
           {/* Real-time Inventory Stats */}
           <div>
             <h2 className="text-xl font-semibold text-white mb-4">
-              Inventory Overview (Real-time)
+              Inventory Overview
             </h2>
             <RealtimeInventoryStats />
           </div>
@@ -72,29 +80,26 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left">
-                  <FileText className="h-6 w-6 text-white mb-2" />
-                  <h3 className="font-medium text-white">Create New Bill</h3>
-                  <p className="text-sm text-blue-100">
-                    Generate a new customer bill
-                  </p>
-                </button>
-
-                <button className="p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left">
-                  <Users className="h-6 w-6 text-white mb-2" />
-                  <h3 className="font-medium text-white">Add Customer</h3>
-                  <p className="text-sm text-green-100">
-                    Register a new customer
-                  </p>
-                </button>
-
-                <button className="p-4 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-left">
-                  <Package className="h-6 w-6 text-white mb-2" />
-                  <h3 className="font-medium text-white">Add Product</h3>
-                  <p className="text-sm text-purple-100">
-                    Add new product to inventory
-                  </p>
-                </button>
+                {quickActions.map((action, index) => {
+                  const Icon = action.icon;
+                  return (
+                    <Link
+                      href={action.url}
+                      key={index}
+                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}
+                    >
+                      <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
+                      <div>
+                        <h3 className="font-medium text-white">
+                          {action.title}
+                        </h3>
+                        <p className={`text-sm ${action.text}`}>
+                          {action.description}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
