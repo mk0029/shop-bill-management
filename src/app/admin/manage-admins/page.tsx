@@ -238,7 +238,7 @@ export default function ManageAdminsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
               <ShieldCheck className="h-8 w-8 text-blue-500" />
               Admin Management
             </h1>
@@ -250,16 +250,14 @@ export default function ManageAdminsPage() {
           <div className="flex items-center gap-4">
             <Badge
               variant="outline"
-              className="text-green-500 border-green-500"
-            >
+              className="text-green-500 border-green-500">
               <Shield className="h-3 w-3 mr-1" />
               Super Admin
             </Badge>
 
             <Button
               onClick={() => setIsCreateModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
+              className="bg-blue-600 hover:bg-blue-700">
               <UserPlus className="h-4 w-4 mr-2" />
               Create Admin
             </Button>
@@ -329,8 +327,7 @@ export default function ManageAdminsPage() {
                           {admin.email === superAdminEmail && (
                             <Badge
                               variant="outline"
-                              className="text-xs mt-1 text-purple-400 border-purple-400"
-                            >
+                              className="text-xs mt-1 text-purple-400 border-purple-400">
                               Super Admin
                             </Badge>
                           )}
@@ -343,8 +340,7 @@ export default function ManageAdminsPage() {
                               admin.role === "super_admin"
                                 ? "text-purple-400 border-purple-400"
                                 : "text-blue-400 border-blue-400"
-                            }
-                          >
+                            }>
                             {admin.role === "super_admin"
                               ? "Super Admin"
                               : "Admin"}
@@ -357,8 +353,7 @@ export default function ManageAdminsPage() {
                               admin.isActive
                                 ? "text-green-400 border-green-400"
                                 : "text-red-400 border-red-400"
-                            }
-                          >
+                            }>
                             {admin.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </td>
@@ -373,8 +368,7 @@ export default function ManageAdminsPage() {
                               onClick={() =>
                                 toggleAdminStatus(admin._id, admin.isActive)
                               }
-                              className="text-xs"
-                            >
+                              className="text-xs">
                               {admin.isActive ? (
                                 <EyeOff className="h-3 w-3" />
                               ) : (
@@ -389,8 +383,7 @@ export default function ManageAdminsPage() {
                                 onClick={() =>
                                   deleteAdmin(admin._id, admin.email)
                                 }
-                                className="text-xs text-red-400 border-red-400 hover:bg-red-900/20"
-                              >
+                                className="text-xs text-red-400 border-red-400 hover:bg-red-900/20">
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             )}
@@ -415,8 +408,7 @@ export default function ManageAdminsPage() {
         <Modal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
-          title="Create New Admin"
-        >
+          title="Create New Admin">
           <form onSubmit={handleCreateAdmin} className="space-y-4">
             <div>
               <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-2">
@@ -475,8 +467,7 @@ export default function ManageAdminsPage() {
                     role: e.target.value as "admin" | "super_admin",
                   })
                 }
-                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white"
-              >
+                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white">
                 <option value="admin">Admin</option>
                 <option value="super_admin">Super Admin</option>
               </select>
@@ -494,15 +485,13 @@ export default function ManageAdminsPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="flex-1"
-              >
+                className="flex-1">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
+                className="flex-1 bg-blue-600 hover:bg-blue-700">
                 {isLoading ? "Creating..." : "Create Admin"}
               </Button>
             </div>

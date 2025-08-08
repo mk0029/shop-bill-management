@@ -177,7 +177,9 @@ export default function CustomerProfile() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Profile Settings
+          </h1>
           <p className="text-gray-400 mt-1">
             Manage your account information and security settings
           </p>
@@ -195,8 +197,7 @@ export default function CustomerProfile() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-green-900/50 border border-green-800 text-green-200 px-4 py-3 rounded-lg flex items-center gap-2"
-        >
+          className="bg-green-900/50 border border-green-800 text-green-200 px-4 py-3 rounded-lg flex items-center gap-2">
           <Check className="w-4 h-4" />
           {success}
         </motion.div>
@@ -207,8 +208,7 @@ export default function CustomerProfile() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg flex items-center gap-2"
-        >
+          className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg flex items-center gap-2">
           <X className="w-4 h-4" />
           {errors.general}
         </motion.div>
@@ -266,8 +266,7 @@ export default function CustomerProfile() {
                 onClick={() => {
                   setProfileImage(null);
                   setImagePreview(null);
-                }}
-              >
+                }}>
                 <X className="w-4 h-4 mr-2" />
                 Remove
               </Button>
@@ -388,8 +387,7 @@ export default function CustomerProfile() {
                   variant="ghost"
                   size="sm"
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 sm:h-8 sm:w-8 h-6 w-6  p-0"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
                   {showCurrentPassword ? (
                     <EyeOff className="w-4 h-4" />
                   ) : (
@@ -427,8 +425,7 @@ export default function CustomerProfile() {
                   variant="ghost"
                   size="sm"
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 sm:h-8 sm:w-8 h-6 w-6  p-0"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                >
+                  onClick={() => setShowNewPassword(!showNewPassword)}>
                   {showNewPassword ? (
                     <EyeOff className="w-4 h-4" />
                   ) : (
@@ -466,8 +463,7 @@ export default function CustomerProfile() {
                   variant="ghost"
                   size="sm"
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 sm:h-8 sm:w-8 h-6 w-6  p-0"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                   {showConfirmPassword ? (
                     <EyeOff className="w-4 h-4" />
                   ) : (
@@ -491,8 +487,7 @@ export default function CustomerProfile() {
           <Button
             onClick={handleSave}
             disabled={isLoading || isUploading}
-            className="flex-1"
-          >
+            className="flex-1">
             <Save className="w-4 h-4 mr-2" />
             {isLoading || isUploading ? "Saving..." : "Save Changes"}
           </Button>
@@ -500,8 +495,7 @@ export default function CustomerProfile() {
             variant="outline"
             onClick={handleCancel}
             disabled={isLoading || isUploading}
-            className="flex-1"
-          >
+            className="flex-1">
             <X className="w-4 h-4 mr-2" />
             Cancel
           </Button>

@@ -190,8 +190,7 @@ export default function CustomerBillsPage() {
           <Button
             variant="ghost"
             onClick={() => router.push("/admin/customers")}
-            className="hover:bg-gray-800 p-2 sm:p-2"
-          >
+            className="hover:bg-gray-800 p-2 sm:p-2">
             <ArrowLeft className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Back</span>
           </Button>
@@ -206,8 +205,7 @@ export default function CustomerBillsPage() {
         </div>
         <Button
           onClick={() => router.push("/admin/billing/create")}
-          className="w-full sm:w-auto"
-        >
+          className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Create New Bill
         </Button>
@@ -313,22 +311,19 @@ export default function CustomerBillsPage() {
             <Button
               variant={filterStatus === "all" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("all")}
-            >
+              onClick={() => setFilterStatus("all")}>
               All
             </Button>
             <Button
               variant={filterStatus === "paid" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("paid")}
-            >
+              onClick={() => setFilterStatus("paid")}>
               Paid
             </Button>
             <Button
               variant={filterStatus === "pending" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterStatus("pending")}
-            >
+              onClick={() => setFilterStatus("pending")}>
               Pending
             </Button>
           </div>
@@ -337,7 +332,7 @@ export default function CustomerBillsPage() {
 
       {/* Bills List */}
       <Card className="bg-gray-900 border-gray-800">
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           <h2 className="text-xl font-semibold text-white mb-4">
             Bill History
           </h2>
@@ -348,8 +343,7 @@ export default function CustomerBillsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700"
-              >
+                className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
@@ -377,8 +371,7 @@ export default function CustomerBillsPage() {
                         bill.status === "paid"
                           ? "bg-green-900 text-green-300"
                           : "bg-yellow-900 text-yellow-300"
-                      }`}
-                    >
+                      }`}>
                       {bill.status}
                     </span>
                   </div>
@@ -399,30 +392,26 @@ export default function CustomerBillsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedBill(bill)}
-                      className="hover:bg-gray-700"
-                    >
+                      className="hover:bg-gray-700">
                       <Eye className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleShareOnWhatsApp(bill)}
-                      className="hover:bg-gray-700 text-green-400 hover:text-green-300"
-                    >
+                      className="hover:bg-gray-700 text-green-400 hover:text-green-300">
                       <Share2 className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="hover:bg-gray-700"
-                    >
+                      className="hover:bg-gray-700">
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="hover:bg-gray-700"
-                    >
+                      className="hover:bg-gray-700">
                       <Download className="w-4 h-4" />
                     </Button>
                   </div>
@@ -445,8 +434,7 @@ export default function CustomerBillsPage() {
         isOpen={!!selectedBill}
         onClose={() => setSelectedBill(null)}
         title={`Bill Details #${selectedBill?.id}`}
-        size="lg"
-      >
+        size="lg">
         {selectedBill && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
@@ -480,8 +468,7 @@ export default function CustomerBillsPage() {
                 {selectedBill.items.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex justify-between p-3 bg-gray-800 rounded border border-gray-700"
-                  >
+                    className="flex justify-between p-3 bg-gray-800 rounded border border-gray-700">
                     <div>
                       <p className="text-white">{item.name}</p>
                       <p className="text-sm text-gray-400">
@@ -521,8 +508,7 @@ export default function CustomerBillsPage() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => handleShareOnWhatsApp(selectedBill)}
-              >
+                onClick={() => handleShareOnWhatsApp(selectedBill)}>
                 <Share2 className="w-4 h-4 mr-2" />
                 Share on WhatsApp
               </Button>

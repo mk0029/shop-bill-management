@@ -66,7 +66,9 @@ export default function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white">Settings</h1>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+          Settings
+        </h1>
         <p className="text-gray-400 mt-1">
           Configure your application preferences and business settings
         </p>
@@ -80,14 +82,12 @@ export default function SettingsPage() {
             <Card
               key={option.title}
               className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors cursor-pointer"
-              onClick={() => router.push(option.href)}
-            >
+              onClick={() => router.push(option.href)}>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className={`w-12 h-12 rounded-lg bg-gray-800 flex items-center justify-center`}
-                    >
+                      className={`w-12 h-12 rounded-lg bg-gray-800 flex items-center justify-center`}>
                       <Icon className={`w-6 h-6 ${option.color}`} />
                     </div>
                     <div>
@@ -120,24 +120,21 @@ export default function SettingsPage() {
             <Button
               variant="outline"
               onClick={() => router.push("/admin/settings/whatsapp")}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4" />
               Configure WhatsApp
             </Button>
             <Button
               variant="outline"
               onClick={() => router.push("/admin/settings/profile")}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <User className="w-4 h-4" />
               Edit Profile
             </Button>
             <Button
               variant="outline"
               onClick={() => router.push("/admin/settings/security")}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               <Shield className="w-4 h-4" />
               Security Settings
             </Button>

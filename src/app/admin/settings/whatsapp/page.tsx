@@ -65,7 +65,7 @@ export default function WhatsAppSettingsPage() {
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
             WhatsApp Configuration
           </h1>
           <p className="text-gray-400 mt-1">
@@ -239,7 +239,7 @@ export default function WhatsAppSettingsPage() {
             </div>
 
             {/* Submit Button */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-4 pt-2 md:pt-4">
               <Button
                 type="submit"
                 disabled={isLoading}

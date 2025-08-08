@@ -160,15 +160,13 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}
-            >
+              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}>
               {isNew && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0 }}
-                  className="absolute -top-2 -right-2 z-10"
-                >
+                  className="absolute -top-2 -right-2 z-10">
                   <Badge className="bg-blue-600 text-white flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     New
@@ -178,10 +176,10 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
 
               <Card className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer">
                 <CardContent className="sm:p-4 p-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-y-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                        <StatusIcon className="w-6 h-6 text-blue-400" />
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                        <StatusIcon className="min-w-6 min-h-6 text-blue-400" />
                       </div>
                       <div>
                         <h3 className="font-medium text-white">
@@ -198,16 +196,15 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
+                    <div className="flex items-end sm:items-center max-sm:justify-between gap-4">
+                      <div className="sm:text-right">
                         <p className="font-semibold text-white">
                           ₹{bill.totalAmount?.toLocaleString() || 0}
                         </p>
                         <Badge
                           className={getStatusColor(
                             bill.paymentStatus || bill.status
-                          )}
-                        >
+                          )}>
                           {bill.paymentStatus || bill.status}
                         </Badge>
                       </div>
@@ -217,11 +214,14 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                           variant="outline"
                           size="sm"
                           onClick={() => onBillClick?.(bill)}
-                        >
+                          className="!w-full !py-1.5">
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="!w-full !py-1.5">
                           <Download className="w-4 h-4 mr-2" />
                           PDF
                         </Button>

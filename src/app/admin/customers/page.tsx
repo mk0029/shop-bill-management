@@ -103,18 +103,20 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Customer Management</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Customer Management
+          </h1>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
             Manage customer accounts and view their activity
           </p>
         </div>
-        <Button onClick={() => router.push("/admin/customers/add")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Customer
+        <Button size="sm" onClick={() => router.push("/admin/customers/add")}>
+          <Plus className="w-4 h-4 mr-1 sm:mr-2" />
+          Add <span className="max-sm:hidden">Customer</span>
         </Button>
       </div>
 
@@ -219,7 +221,7 @@ export default function CustomersPage() {
 
       {/* Customers Table */}
       <Card className="bg-gray-900 border-gray-800">
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">Customers</h2>
             {isLoading && (
@@ -255,13 +257,13 @@ export default function CustomersPage() {
                     <th className="text-left py-3 px-4 text-gray-300 font-medium">
                       Customer
                     </th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium  max-sm:hidden">
                       Contact
                     </th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium max-sm:hidden">
                       Activity
                     </th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-medium">
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium  max-sm:hidden">
                       Status
                     </th>
                     <th className="text-left py-3 px-4 text-gray-300 font-medium">
@@ -276,9 +278,8 @@ export default function CustomersPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="border-b border-gray-800 hover:bg-gray-800/50"
-                    >
-                      <td className="py-4 px-4">
+                      className="border-b border-gray-800 hover:bg-gray-800/50">
+                      <td className="p-3 sm:p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                             <span className="text-white font-medium text-sm">
@@ -295,7 +296,7 @@ export default function CustomersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4  max-sm:hidden">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-sm">
                             <Phone className="w-4 h-4 text-gray-400" />
@@ -317,7 +318,7 @@ export default function CustomersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4  max-sm:hidden">
                         <div className="space-y-1">
                           <p className="text-white text-sm">
                             {customer.totalBills} bills • {currency}
@@ -330,14 +331,13 @@ export default function CustomersPage() {
                           </p>
                         </div>
                       </td>
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4  max-sm:hidden">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
                             customer.isActive
                               ? "bg-green-900 text-green-300"
                               : "bg-red-900 text-red-300"
-                          }`}
-                        >
+                          }`}>
                           {customer.isActive ? "Active" : "Inactive"}
                         </span>
                       </td>
@@ -347,23 +347,20 @@ export default function CustomersPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setSelectedCustomer(customer)}
-                            className="hover:bg-gray-800"
-                          >
+                            className="hover:bg-gray-800">
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="hover:bg-gray-800"
-                          >
+                            className="hover:bg-gray-800  max-sm:hidden">
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteCustomer(customer._id)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                          >
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -382,8 +379,7 @@ export default function CustomersPage() {
         isOpen={!!selectedCustomer}
         onClose={() => setSelectedCustomer(null)}
         title="Customer Details"
-        size="lg"
-      >
+        size="lg">
         {selectedCustomer && (
           <div className="space-y-6">
             <div className="flex items-center gap-4">

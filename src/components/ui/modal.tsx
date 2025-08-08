@@ -31,6 +31,15 @@ export function Modal({
   showCloseButton = true,
   className,
 }: ModalProps) {
+ 
+  React.useEffect(() => {
+    if (isOpen) {
+      document.documentElement.classList.add("overflow-hidden");
+    } else {
+      document.documentElement.classList.remove("overflow-hidden");
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -52,14 +61,13 @@ export function Modal({
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className={cn(
-            "relative bg-gray-900 border border-gray-800 rounded-lg shadow-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden",
+            "relative bg-gray-900 border border-gray-800 rounded-lg shadow-2xl w-full max-h-[99dvh] sm:max-h-[90dvh] overflow-hidden h-fit",
             sizeClasses[size],
             className
-          )}
-        >
+          )}>
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-800">
+            <div className="flex items-center justify-between py-2 px-4 sm:p-6 border-b border-gray-800">
               {title && (
                 <h2 className="text-lg sm:text-xl font-bold text-white">
                   {title}
@@ -70,8 +78,7 @@ export function Modal({
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="h-8 w-8 p-0 hover:bg-gray-800 touch-manipulation"
-                >
+                  className="h-8 w-8 p-0 hover:bg-gray-800 touch-manipulation">
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -79,7 +86,7 @@ export function Modal({
           )}
 
           {/* Content */}
-          <div className="sm:p-4 p-3 sm:p-6 overflow-auto max-h-[calc(95vh-120px)] sm:max-h-[calc(90vh-120px)]">
+          <div className="sm:p-4 p-3 md:p-6 overflow-auto max-h-[calc(99vh-120px)] sm:max-h-[calc(90vh-120px)]">
             {children}
           </div>
         </motion.div>

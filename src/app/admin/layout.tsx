@@ -53,7 +53,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-gray-950">
       <Navigation />
-      <main className="pt-3 lg:pt-10 lg:ml-64">
+      <main className="pt-3 lg:pt-10 lg:ml-64 max-md:px-3">
         <div className="p-1 sm:p-2 lg:p-6">{children}</div>
       </main>
     </div>

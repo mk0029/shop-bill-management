@@ -73,20 +73,17 @@ export const ApiUsageExample: React.FC = () => {
         <div className="flex space-x-2">
           <Button
             variant={selectedTab === "users" ? "default" : "outline"}
-            onClick={() => setSelectedTab("users")}
-          >
+            onClick={() => setSelectedTab("users")}>
             Users
           </Button>
           <Button
             variant={selectedTab === "products" ? "default" : "outline"}
-            onClick={() => setSelectedTab("products")}
-          >
+            onClick={() => setSelectedTab("products")}>
             Products
           </Button>
           <Button
             variant={selectedTab === "bills" ? "default" : "outline"}
-            onClick={() => setSelectedTab("bills")}
-          >
+            onClick={() => setSelectedTab("bills")}>
             Bills
           </Button>
         </div>
@@ -95,7 +92,7 @@ export const ApiUsageExample: React.FC = () => {
       {/* Users Tab */}
       {selectedTab === "users" && (
         <div className="space-y-6">
-          <Card className="p-6">
+          <Card className="p-4 md:p-6">
             <h2 className="text-xl font-semibold mb-4">User Management</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -120,15 +117,13 @@ export const ApiUsageExample: React.FC = () => {
             <div className="flex space-x-4">
               <Button
                 onClick={handleCreateUser}
-                disabled={api.users.createUser.loading}
-              >
+                disabled={api.users.createUser.loading}>
                 {api.users.createUser.loading ? "Creating..." : "Create User"}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => api.users.getAllUsers.execute()}
-                disabled={api.users.getAllUsers.loading}
-              >
+                disabled={api.users.getAllUsers.loading}>
                 {api.users.getAllUsers.loading
                   ? "Loading..."
                   : "Load All Users"}
@@ -136,8 +131,7 @@ export const ApiUsageExample: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => api.users.getCustomers.execute()}
-                disabled={api.users.getCustomers.loading}
-              >
+                disabled={api.users.getCustomers.loading}>
                 {api.users.getCustomers.loading
                   ? "Loading..."
                   : "Load Customers"}
@@ -184,15 +178,13 @@ export const ApiUsageExample: React.FC = () => {
                           <Badge
                             variant={
                               user.role === "admin" ? "default" : "secondary"
-                            }
-                          >
+                            }>
                             {user.role}
                           </Badge>
                         </td>
                         <td>
                           <Badge
-                            variant={user.isActive ? "default" : "destructive"}
-                          >
+                            variant={user.isActive ? "default" : "destructive"}>
                             {user.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </td>
@@ -209,7 +201,7 @@ export const ApiUsageExample: React.FC = () => {
       {/* Products Tab */}
       {selectedTab === "products" && (
         <div className="space-y-6">
-          <Card className="p-6">
+          <Card className="p-4 md:p-6">
             <h2 className="text-xl font-semibold mb-4">Product Management</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -245,8 +237,7 @@ export const ApiUsageExample: React.FC = () => {
             <div className="flex space-x-4">
               <Button
                 onClick={handleCreateProduct}
-                disabled={api.products.createProduct.loading}
-              >
+                disabled={api.products.createProduct.loading}>
                 {api.products.createProduct.loading
                   ? "Creating..."
                   : "Create Product"}
@@ -254,8 +245,7 @@ export const ApiUsageExample: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => api.products.getAllProducts.execute()}
-                disabled={api.products.getAllProducts.loading}
-              >
+                disabled={api.products.getAllProducts.loading}>
                 {api.products.getAllProducts.loading
                   ? "Loading..."
                   : "Load All Products"}
@@ -263,8 +253,7 @@ export const ApiUsageExample: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => api.products.getActiveProducts.execute()}
-                disabled={api.products.getActiveProducts.loading}
-              >
+                disabled={api.products.getActiveProducts.loading}>
                 {api.products.getActiveProducts.loading
                   ? "Loading..."
                   : "Load Active Products"}
@@ -316,8 +305,7 @@ export const ApiUsageExample: React.FC = () => {
                           <Badge
                             variant={
                               product.isActive ? "default" : "destructive"
-                            }
-                          >
+                            }>
                             {product.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </td>
@@ -334,7 +322,7 @@ export const ApiUsageExample: React.FC = () => {
       {/* Bills Tab */}
       {selectedTab === "bills" && (
         <div className="space-y-6">
-          <Card className="p-6">
+          <Card className="p-4 md:p-6">
             <h2 className="text-xl font-semibold mb-4">Bill Management</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -346,8 +334,7 @@ export const ApiUsageExample: React.FC = () => {
                 <Label htmlFor="billServiceType">Service Type</Label>
                 <select
                   id="billServiceType"
-                  className="w-full p-2 border rounded"
-                >
+                  className="w-full p-2 border rounded">
                   <option value="sale">Sale</option>
                   <option value="repair">Repair</option>
                   <option value="installation">Installation</option>
@@ -375,15 +362,13 @@ export const ApiUsageExample: React.FC = () => {
             <div className="flex space-x-4">
               <Button
                 onClick={handleCreateBill}
-                disabled={api.bills.createBill.loading}
-              >
+                disabled={api.bills.createBill.loading}>
                 {api.bills.createBill.loading ? "Creating..." : "Create Bill"}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => api.bills.getAllBills.execute()}
-                disabled={api.bills.getAllBills.loading}
-              >
+                disabled={api.bills.getAllBills.loading}>
                 {api.bills.getAllBills.loading
                   ? "Loading..."
                   : "Load All Bills"}
@@ -433,8 +418,7 @@ export const ApiUsageExample: React.FC = () => {
                               bill.status === "completed"
                                 ? "default"
                                 : "secondary"
-                            }
-                          >
+                            }>
                             {bill.status}
                           </Badge>
                         </td>
@@ -446,8 +430,7 @@ export const ApiUsageExample: React.FC = () => {
                                 : bill.paymentStatus === "pending"
                                 ? "secondary"
                                 : "destructive"
-                            }
-                          >
+                            }>
                             {bill.paymentStatus}
                           </Badge>
                         </td>
@@ -472,8 +455,7 @@ export const ApiUsageExample: React.FC = () => {
           return (
             <Card
               key={serviceName}
-              className="sm:p-4 p-3 border-red-200 bg-red-50"
-            >
+              className="sm:p-4 p-3 border-red-200 bg-red-50">
               <h3 className="font-medium text-red-800 mb-2">
                 {serviceName} Errors:
               </h3>

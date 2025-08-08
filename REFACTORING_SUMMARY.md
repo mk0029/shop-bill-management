@@ -121,7 +121,7 @@ src/
 import { InventoryDashboard } from "@/components/inventory/inventory-dashboard";
 
 export default function InventoryPage() {
-  return <InventoryDashboard className="p-6" />;
+  return <InventoryDashboard className="p-4 md:p-6" />;
 }
 ```
 

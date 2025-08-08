@@ -207,8 +207,7 @@ export default function BillingPage() {
         </div>
         <Button
           onClick={() => router.push("/admin/billing/create")}
-          className="w-full sm:w-auto"
-        >
+          className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Create Bill
         </Button>
@@ -251,39 +250,41 @@ export default function BillingPage() {
 
       {/* Bills List */}
       <Card className="bg-gray-900 border-gray-800">
-        <div className="p-6">
+        <div className="p-4 md:p-6 max-h-dvh  flex flex-col">
           <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            All Bills
+            All Bill
           </h2>
-          <RealtimeBillList
-            initialBills={bills}
-            onBillClick={(bill) =>
-              handleViewBill({
-                id: bill._id,
-                customerName: bill.customer?.name || "Unknown Customer",
-                customerId: bill.customer?._id || "",
-                date: bill.serviceDate
-                  ? new Date(bill.serviceDate).toISOString().split("T")[0]
-                  : new Date().toISOString().split("T")[0],
-                items:
-                  bill.items?.map((item: any) => ({
-                    name: item.productName || "Unknown Item",
-                    quantity: item.quantity || 0,
-                    price: item.unitPrice || 0,
-                    total: item.totalPrice || 0,
-                  })) || [],
-                serviceType: bill.serviceType || "sale",
-                locationType: bill.locationType || "shop",
-                homeVisitFee: bill.homeVisitFee || 0,
-                subtotal: bill.subtotal || 0,
-                total: bill.totalAmount || 0,
-                status: bill.paymentStatus === "paid" ? "paid" : "pending",
-                notes: bill.notes,
-              })
-            }
-            showNewBillAnimation={true}
-          />
+          <div className="overflow-auto flex grow flex-col">
+            <RealtimeBillList
+              initialBills={bills}
+              onBillClick={(bill) =>
+                handleViewBill({
+                  id: bill._id,
+                  customerName: bill.customer?.name || "Unknown Customer",
+                  customerId: bill.customer?._id || "",
+                  date: bill.serviceDate
+                    ? new Date(bill.serviceDate).toISOString().split("T")[0]
+                    : new Date().toISOString().split("T")[0],
+                  items:
+                    bill.items?.map((item: any) => ({
+                      name: item.productName || "Unknown Item",
+                      quantity: item.quantity || 0,
+                      price: item.unitPrice || 0,
+                      total: item.totalPrice || 0,
+                    })) || [],
+                  serviceType: bill.serviceType || "sale",
+                  locationType: bill.locationType || "shop",
+                  homeVisitFee: bill.homeVisitFee || 0,
+                  subtotal: bill.subtotal || 0,
+                  total: bill.totalAmount || 0,
+                  status: bill.paymentStatus === "paid" ? "paid" : "pending",
+                  notes: bill.notes,
+                })
+              }
+              showNewBillAnimation={true}
+            />
+          </div>
         </div>
       </Card>
 
@@ -301,8 +302,7 @@ export default function BillingPage() {
         isOpen={!!selectedBill}
         onClose={() => setSelectedBill(null)}
         title={`Bill Details #${selectedBill?.id}`}
-        size="lg"
-      >
+        size="lg">
         {selectedBill && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
@@ -336,8 +336,7 @@ export default function BillingPage() {
                 {selectedBill.items.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex justify-between p-3 bg-gray-800 rounded border border-gray-700"
-                  >
+                    className="flex justify-between p-3 bg-gray-800 rounded border border-gray-700">
                     <div>
                       <p className="text-white">{item.name}</p>
                       <p className="text-sm text-gray-400">
@@ -376,22 +375,22 @@ export default function BillingPage() {
             <div className="flex gap-3">
               <Button
                 className="flex-1"
-                onClick={() => handleViewCustomerBills(selectedBill.customerId)}
-              >
+                onClick={() =>
+                  handleViewCustomerBills(selectedBill.customerId)
+                }>
                 <User className="w-4 h-4 mr-2" />
-                View Customer Bills
+                <span className="max-sm:hidden">View Customer Bills</span>
               </Button>
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => handleShareOnWhatsApp(selectedBill)}
-              >
+                onClick={() => handleShareOnWhatsApp(selectedBill)}>
                 <Share2 className="w-4 h-4 mr-2" />
-                Share on WhatsApp
+                <span className="max-sm:hidden">Share on WhatsApp</span>
               </Button>
               <Button variant="outline" className="flex-1">
                 <Download className="w-4 h-4 mr-2" />
-                Download Bill
+                <span className="max-sm:hidden">Download Bill</span>
               </Button>
             </div>
           </div>

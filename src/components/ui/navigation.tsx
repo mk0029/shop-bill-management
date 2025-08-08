@@ -275,14 +275,6 @@ export function Navigation() {
   return (
     <>
       {/* Mobile Menu Button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="lg:hidden fixed top-4 right-4 z-50 bg-gray-900 border border-gray-700"
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
 
       {/* Mobile Navigation Overlay */}
       <AnimatePresence>
@@ -303,8 +295,7 @@ export function Navigation() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 lg:hidden"
-            >
+              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 lg:hidden">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
                 <h2 className="text-xl font-bold text-white">Menu</h2>
@@ -312,8 +303,7 @@ export function Navigation() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="hover:bg-gray-800"
-                >
+                  className="hover:bg-gray-800">
                   <X className="w-5 h-5" />
                 </Button>
               </div>
@@ -341,8 +331,7 @@ export function Navigation() {
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="w-full"
-                >
+                  className="w-full">
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
@@ -410,10 +399,20 @@ export function Navigation() {
                 {role === "admin" ? "Admin Panel" : "Customer Portal"}
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+            <div className="flex items-center gap-x-3">
+              {" "}
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" className="relative">
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute top-0.5 sm:-top-1 right-0.5 sm:-right-1 h-2 w-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></span>
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="lg:hidden bg-gray-900 border border-gray-700">
+                <Menu className="w-5 h-5" />
               </Button>
             </div>
           </div>

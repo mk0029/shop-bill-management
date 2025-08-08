@@ -110,20 +110,18 @@ export default function CustomerNotFoundPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-2xl"
-      >
+        className="w-full max-w-2xl">
         <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-800 shadow-2xl">
           <CardHeader className="text-center pb-6">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-full mb-6 mx-auto shadow-lg"
-            >
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-full mb-6 mx-auto shadow-lg">
               <UserX className="w-10 h-10 text-white" />
             </motion.div>
 
-            <CardTitle className="text-3xl font-bold text-white mb-3">
+            <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-3">
               Customer Not Found
             </CardTitle>
             <p className="text-gray-400 text-lg">
@@ -171,8 +169,7 @@ export default function CustomerNotFoundPage() {
                         <Button
                           onClick={handleWhatsAppContact}
                           className="w-full bg-green-600 hover:bg-green-700 text-white"
-                          size="sm"
-                        >
+                          size="sm">
                           <ExternalLink className="w-4 h-4 mr-2" />
                           Chat Now
                         </Button>
@@ -185,8 +182,7 @@ export default function CustomerNotFoundPage() {
                           }
                           variant="outline"
                           size="sm"
-                          className="w-full"
-                        >
+                          className="w-full">
                           {copiedText === "whatsapp" ? (
                             <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                           ) : (
@@ -214,8 +210,7 @@ export default function CustomerNotFoundPage() {
                         <Button
                           onClick={handlePhoneContact}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                          size="sm"
-                        >
+                          size="sm">
                           <Phone className="w-4 h-4 mr-2" />
                           Call Now
                         </Button>
@@ -225,8 +220,7 @@ export default function CustomerNotFoundPage() {
                           }
                           variant="outline"
                           size="sm"
-                          className="w-full"
-                        >
+                          className="w-full">
                           {copiedText === "phone" ? (
                             <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                           ) : (
@@ -254,8 +248,7 @@ export default function CustomerNotFoundPage() {
                         <Button
                           onClick={handleEmailContact}
                           className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                          size="sm"
-                        >
+                          size="sm">
                           <Mail className="w-4 h-4 mr-2" />
                           Send Email
                         </Button>
@@ -265,8 +258,7 @@ export default function CustomerNotFoundPage() {
                           }
                           variant="outline"
                           size="sm"
-                          className="w-full"
-                        >
+                          className="w-full">
                           {copiedText === "email" ? (
                             <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                           ) : (
@@ -294,8 +286,7 @@ export default function CustomerNotFoundPage() {
                 </div>
                 <Button
                   onClick={() => setIsRequestModalOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
+                  className="bg-blue-600 hover:bg-blue-700">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Request Account
                 </Button>
@@ -307,8 +298,7 @@ export default function CustomerNotFoundPage() {
               <Button
                 onClick={() => router.push("/login")}
                 variant="outline"
-                className="flex items-center gap-2"
-              >
+                className="flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Login
               </Button>
@@ -320,8 +310,7 @@ export default function CustomerNotFoundPage() {
         <Modal
           isOpen={isRequestModalOpen}
           onClose={() => setIsRequestModalOpen(false)}
-          title="Request Customer Account"
-        >
+          title="Request Customer Account">
           {requestStatus === "success" ? (
             <div className="text-center py-6">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -406,15 +395,13 @@ export default function CustomerNotFoundPage() {
                   variant="outline"
                   onClick={() => setIsRequestModalOpen(false)}
                   className="flex-1"
-                  disabled={isLoading}
-                >
+                  disabled={isLoading}>
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                >
+                  className="flex-1 bg-blue-600 hover:bg-blue-700">
                   {isLoading ? "Creating..." : "Create Account"}
                 </Button>
               </div>

@@ -64,8 +64,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
+        className="w-full max-w-md">
         {/* Language Selector */}
         <div className="flex justify-end mb-6">
           <div className="flex items-center gap-2">
@@ -88,11 +87,10 @@ export default function LoginPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full mb-6 shadow-lg"
-            >
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full mb-6 shadow-lg">
               <Zap className="w-10 h-10 text-white" />
             </motion.div>
-            <h1 className="text-3xl font-bold text-white mb-3">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-3">
               {t("app.title")}
             </h1>
             <p className="text-gray-400 text-lg">
@@ -105,8 +103,7 @@ export default function LoginPage() {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg mb-6"
-            >
+              className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg mb-6">
               <div className="flex items-center gap-2">
                 <Info className="w-4 h-4" />
                 <span className="text-sm">{error}</span>

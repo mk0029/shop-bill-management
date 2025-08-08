@@ -291,7 +291,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
       )}
 
       {/* Submit Buttons */}
-      <div className="flex gap-4 pt-4">
+      <div className="flex gap-4 pt-2 md:pt-4">
         <Button
           type="submit"
           loading={isLoading || isSubmitting}

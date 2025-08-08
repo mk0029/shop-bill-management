@@ -26,7 +26,9 @@ export default function DebugAdminPage() {
         <div className="flex items-center gap-3">
           <Settings className="h-8 w-8 text-blue-500" />
           <div>
-            <h1 className="text-3xl font-bold text-white">Admin Debug Panel</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+              Admin Debug Panel
+            </h1>
             <p className="text-gray-400">
               Debug admin management configuration
             </p>
@@ -57,8 +59,7 @@ export default function DebugAdminPage() {
                       adminManagementEnabled
                         ? "text-green-400 border-green-400"
                         : "text-red-400 border-red-400"
-                    }
-                  >
+                    }>
                     {adminManagementEnabled ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
@@ -78,8 +79,7 @@ export default function DebugAdminPage() {
                       superAdminEmail
                         ? "text-green-400 border-green-400"
                         : "text-red-400 border-red-400"
-                    }
-                  >
+                    }>
                     {superAdminEmail ? "Set" : "Not Set"}
                   </Badge>
                 </div>
@@ -130,8 +130,7 @@ export default function DebugAdminPage() {
                     userIsSuperAdmin
                       ? "text-purple-400 border-purple-400"
                       : "text-gray-400 border-gray-400"
-                  }
-                >
+                  }>
                   {userIsSuperAdmin ? "Yes" : "No"}
                 </Badge>
               </div>
@@ -144,8 +143,7 @@ export default function DebugAdminPage() {
                     userCanManageAdmins
                       ? "text-green-400 border-green-400"
                       : "text-red-400 border-red-400"
-                  }
-                >
+                  }>
                   {userCanManageAdmins ? "Yes" : "No"}
                 </Badge>
               </div>
@@ -154,8 +152,7 @@ export default function DebugAdminPage() {
                 <span className="text-gray-300">Clerk User ID</span>
                 <Badge
                   variant="outline"
-                  className="text-blue-400 border-blue-400"
-                >
+                  className="text-blue-400 border-blue-400">
                   {clerkUser?.id ? "Set" : "Not Set"}
                 </Badge>
               </div>

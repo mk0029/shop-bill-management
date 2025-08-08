@@ -161,7 +161,7 @@ export default function PendingBillsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:pb-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -175,8 +175,7 @@ export default function PendingBillsPage() {
         <Button
           onClick={() => router.push("/admin/billing")}
           variant="outline"
-          className="flex items-center gap-2 w-full sm:w-auto"
-        >
+          className="flex items-center gap-2 w-full sm:w-auto">
           <ArrowLeft className="w-4 h-4" />
           Back to Billing
         </Button>
@@ -236,120 +235,120 @@ export default function PendingBillsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search by customer name, bill number, or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+      <div className="flex max-h-dvh flex-col gap-y-3 md:gap-y-4 pt-8 !-mt-3 md:!-mt-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by customer name, bill number, or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+            />
+          </div>
+          <Dropdown
+            options={[
+              { value: "all", label: "All Status" },
+              { value: "pending", label: "Pending" },
+              { value: "overdue", label: "Overdue" },
+            ]}
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            placeholder="Filter by status"
+            className="bg-gray-800 border-gray-700 w-full sm:w-auto"
           />
         </div>
-        <Dropdown
-          options={[
-            { value: "all", label: "All Status" },
-            { value: "pending", label: "Pending" },
-            { value: "overdue", label: "Overdue" },
-          ]}
-          value={statusFilter}
-          onValueChange={setStatusFilter}
-          placeholder="Filter by status"
-          className="bg-gray-800 border-gray-700 w-full sm:w-auto"
-        />
-      </div>
 
-      {/* Bills List */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400">Loading pending bills...</p>
-          </div>
-        ) : (
-          filteredBills.map((bill) => (
-            <Card
-              key={bill.id}
-              className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors"
-            >
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-white">
-                        {bill.billNumber}
-                      </h3>
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
-                          bill.status
-                        )} text-white`}
-                      >
-                        {getStatusText(bill.status)}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
-                      <div className="min-w-0">
-                        <p className="text-gray-400 text-xs">Customer</p>
-                        <p className="text-white font-medium truncate">
-                          {bill.customerName}
-                        </p>
-                        <p className="text-gray-400 text-xs truncate">
-                          {bill.customerPhone}
-                        </p>
+        {/* Bills List */}
+        <div className="space-y-3 md:space-y-4 flex flex-col grow overflow-auto">
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-400">Loading pending bills...</p>
+            </div>
+          ) : (
+            filteredBills.map((bill) => (
+              <Card
+                key={bill.id}
+                className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors">
+                <CardContent>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between relative">
+                    <div className="flex-1">
+                      <div className="flex items-center sm:gap-3 sm:mb-2">
+                        <h3 className="font-semibold text-white hidden sm:block">
+                          {bill.billNumber}
+                        </h3>
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded-full max-md:absolute right-0 top-9 ${getStatusColor(
+                            bill.status
+                          )} text-white`}>
+                          {getStatusText(bill.status)}
+                        </span>
                       </div>
 
-                      <div className="min-w-0">
-                        <p className="text-gray-400 text-xs">Dates</p>
-                        <p className="text-white text-xs">
-                          Bill: {bill.billDate}
-                        </p>
-                        <p className="text-white text-xs">
-                          Due: {bill.dueDate}
-                        </p>
-                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-gray-400 text-xs">Customer</p>
+                          <p className="text-white font-medium truncate">
+                            {bill.customerName}
+                          </p>
+                          <p className="text-gray-400 text-xs truncate">
+                            {bill.customerPhone}
+                          </p>
+                        </div>
 
-                      <div className="min-w-0">
-                        <p className="text-gray-400 text-xs">Amount</p>
-                        <p className="text-white font-semibold truncate">
-                          {currency}
-                          {bill.total.toLocaleString()}
-                        </p>
-                        <p className="text-gray-400 text-xs">
-                          {bill.items.length} items
-                        </p>
+                        <div className="flex md:block max-md:justify-between max-sm:items-end">
+                          {" "}
+                          <div className="min-w-0">
+                            <p className="text-gray-400 text-xs">Dates</p>
+                            <p className="text-white text-xs">
+                              Bill: {bill.billDate}
+                            </p>
+                            <p className="text-white text-xs">
+                              Due: {bill.dueDate}
+                            </p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-gray-400 text-xs hidden sm:block">
+                              Amount
+                            </p>
+                            <p className="text-white font-semibold truncate">
+                              {currency}
+                              {bill.total.toLocaleString()}
+                            </p>
+                            <p className="text-gray-400 text-xs">
+                              {bill.items.length} items
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleViewBill(bill)}
-                      className="flex items-center gap-1 text-xs"
-                    >
-                      <Eye className="w-3 h-3" />
-                      <span className="hidden sm:inline">View</span>
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleShareOnWhatsApp(bill)}
-                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-xs"
-                    >
-                      <Share2 className="w-3 h-3" />
-                      <span className="hidden sm:inline">Share</span>
-                    </Button>
+                    <div className="flex gap-2 max-md:absolute top-0 right-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewBill(bill)}
+                        className="flex items-center gap-1 text-xs max-sm:!py-2 max-sm:!px-3">
+                        <Eye className="w-3 h-3" />
+                        <span className="hidden sm:inline">View</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleShareOnWhatsApp(bill)}
+                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-xs max-sm:!py-2 max-sm:!px-3">
+                        <Share2 className="w-3 h-3" />
+                        <span className="hidden sm:inline">Share</span>
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
       </div>
-
       {!isLoading && filteredBills.length === 0 && (
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-8 text-center">
@@ -369,8 +368,7 @@ export default function PendingBillsPage() {
         isOpen={showBillModal}
         onClose={() => setShowBillModal(false)}
         size="lg"
-        title={`Bill Details - ${selectedBill?.billNumber}`}
-      >
+        title={`Bill Details - ${selectedBill?.billNumber}`}>
         {selectedBill && (
           <div className="space-y-6">
             {/* Customer Info */}
@@ -405,8 +403,7 @@ export default function PendingBillsPage() {
                 {selectedBill.items.map((item, index: number) => (
                   <div
                     key={index}
-                    className="flex justify-between items-center p-3 bg-gray-800 rounded-lg"
-                  >
+                    className="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
                     <div className="flex-1">
                       <p className="text-white font-medium">{item.name}</p>
                       <p className="text-gray-400 text-sm">
@@ -456,8 +453,7 @@ export default function PendingBillsPage() {
             <div className="flex gap-3">
               <Button
                 onClick={() => handleShareOnWhatsApp(selectedBill)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              >
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
                 <Share2 className="w-4 h-4" />
                 Share on WhatsApp
               </Button>

@@ -97,7 +97,9 @@ export default function SalesReportPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Sales Reports</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+              Sales Reports
+            </h1>
             <p className="text-gray-400 mt-1">
               Analyze your business performance and track growth
             </p>
@@ -127,7 +129,9 @@ export default function SalesReportPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Sales Reports</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Sales Reports
+          </h1>
           <p className="text-gray-400 mt-1">
             Analyze your business performance and track growth
           </p>
@@ -141,8 +145,7 @@ export default function SalesReportPage() {
             onClick={() => {
               const url = `/api/sales-report/export?dateRange=${dateRange}&format=csv`;
               window.open(url, "_blank");
-            }}
-          >
+            }}>
             <Download className="w-4 h-4 mr-2" />
             Export Report
           </Button>
@@ -156,29 +159,25 @@ export default function SalesReportPage() {
             <Button
               variant={dateRange === "week" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("week")}
-            >
+              onClick={() => setDateRange("week")}>
               This Week
             </Button>
             <Button
               variant={dateRange === "month" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("month")}
-            >
+              onClick={() => setDateRange("month")}>
               This Month
             </Button>
             <Button
               variant={dateRange === "quarter" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("quarter")}
-            >
+              onClick={() => setDateRange("quarter")}>
               This Quarter
             </Button>
             <Button
               variant={dateRange === "year" ? "default" : "outline"}
               size="sm"
-              onClick={() => setDateRange("year")}
-            >
+              onClick={() => setDateRange("year")}>
               This Year
             </Button>
           </div>
@@ -245,8 +244,7 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between"
-                >
+                  className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className=" h-6 w-6 sm:w-8 sm:h-8  bg-blue-600/20 rounded flex items-center justify-center">
                       <span className="text-blue-400 text-xs sm:text-sm font-medium">
@@ -293,8 +291,7 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-                >
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                   <div>
                     <p className="text-white font-medium">{service.type}</p>
                     <p className="text-gray-400 text-sm">
@@ -346,8 +343,7 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-                >
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className=" h-6 w-6 sm:w-8 sm:h-8  bg-blue-600 rounded-full flex items-center justify-center">
                       <span className="text-white text-xs sm:text-sm font-medium">
@@ -394,8 +390,7 @@ export default function SalesReportPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg"
-                >
+                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className=" h-6 w-6 sm:w-8 sm:h-8  bg-green-600 rounded-full flex items-center justify-center">
                       <span className="text-white text-xs sm:text-sm font-medium">

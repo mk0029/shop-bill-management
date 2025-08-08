@@ -378,20 +378,21 @@ export default function CreateBillPage() {
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" onClick={() => router.back()} className="p-2">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-white">Create New Bill</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Create New Bill
+          </h1>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">
             Generate a new invoice for your customer
           </p>
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bill Form */}
         <div className="lg:col-span-2 space-y-6">
@@ -436,8 +437,7 @@ export default function CreateBillPage() {
                         variant="link"
                         size="sm"
                         onClick={() => router.push("/admin/customers/add")}
-                        className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs"
-                      >
+                        className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs">
                         Add your first customer →
                       </Button>
                     </div>
@@ -543,48 +543,49 @@ export default function CreateBillPage() {
               )}
 
               {/* Home Visit Fee */}
+              {formData.location === "home" ||
+                (formData.serviceType === "repair" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="homeVisitFee" className="text-gray-300">
+                      Home Visit Fee ({currency})
+                    </Label>
+                    <Input
+                      id="homeVisitFee"
+                      type="number"
+                      min="50"
+                      max="200"
+                      step="1"
+                      value={formData.homeVisitFee || ""}
+                      onChange={(e) =>
+                        handleInputChange("homeVisitFee", e.target.value)
+                      }
+                      className="bg-gray-800 border-gray-700 text-white"
+                      placeholder="50-200"
+                    />
+                    <p className="text-xs text-gray-400">
+                      Minimum ₹50, Maximum ₹200
+                    </p>
+                  </div>
+                ))}
               {formData.location === "home" && (
                 <div className="space-y-2">
-                  <Label htmlFor="homeVisitFee" className="text-gray-300">
-                    Home Visit Fee ({currency})
+                  <Label htmlFor="laborCharges" className="text-gray-300">
+                    Labor Charges ({currency})
                   </Label>
                   <Input
-                    id="homeVisitFee"
+                    id="laborCharges"
                     type="number"
-                    min="50"
-                    max="200"
-                    step="1"
-                    value={formData.homeVisitFee || ""}
+                    min="0"
+                    step="0.01"
+                    value={formData.laborCharges || ""}
                     onChange={(e) =>
-                      handleInputChange("homeVisitFee", e.target.value)
+                      handleInputChange("laborCharges", e.target.value)
                     }
                     className="bg-gray-800 border-gray-700 text-white"
-                    placeholder="50-200"
+                    placeholder="Enter labor charges"
                   />
-                  <p className="text-xs text-gray-400">
-                    Minimum ₹50, Maximum ₹200
-                  </p>
                 </div>
               )}
-
-              {/* Labor Charges */}
-              <div className="space-y-2">
-                <Label htmlFor="laborCharges" className="text-gray-300">
-                  Labor Charges ({currency})
-                </Label>
-                <Input
-                  id="laborCharges"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.laborCharges || ""}
-                  onChange={(e) =>
-                    handleInputChange("laborCharges", e.target.value)
-                  }
-                  className="bg-gray-800 border-gray-700 text-white"
-                  placeholder="Enter labor charges"
-                />
-              </div>
             </CardContent>
           </Card>
 
@@ -612,16 +613,14 @@ export default function CreateBillPage() {
                     <motion.div
                       key={category._id}
                       whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
+                      whileTap={{ scale: 0.98 }}>
                       <Button
                         variant="outline"
                         onClick={() =>
                           openItemSelectionModal(category.name.toLowerCase())
                         }
                         className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                        disabled={categoryProducts.length === 0}
-                      >
+                        disabled={categoryProducts.length === 0}>
                         <div className="text-left">
                           <p className="font-medium text-white">
                             {category.name}
@@ -650,7 +649,7 @@ export default function CreateBillPage() {
 
               {/* Selected Items */}
               {selectedItems.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium text-white">
                       Selected Items ({selectedItems.length})
@@ -659,16 +658,14 @@ export default function CreateBillPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedItems([])}
-                      className="text-red-400 hover:text-red-300 text-xs"
-                    >
+                      className="text-red-400 hover:text-red-300 text-xs">
                       Clear All
                     </Button>
                   </div>
                   {selectedItems.map((item) => (
                     <div
                       key={item.id}
-                      className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700"
-                    >
+                      className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -706,8 +703,7 @@ export default function CreateBillPage() {
                               onClick={() =>
                                 updateItemQuantity(item.id, item.quantity - 1)
                               }
-                              className=" h-6 w-6 sm:w-8 sm:h-8  p-0 text-xs"
-                            >
+                              className=" h-6 w-6 sm:w-8 sm:h-8  p-0 text-xs">
                               -
                             </Button>
                             <span className="text-white font-medium w-8 text-center text-sm">
@@ -719,8 +715,7 @@ export default function CreateBillPage() {
                               onClick={() =>
                                 updateItemQuantity(item.id, item.quantity + 1)
                               }
-                              className=" h-6 w-6 sm:w-8 sm:h-8  p-0 text-xs"
-                            >
+                              className=" h-6 w-6 sm:w-8 sm:h-8  p-0 text-xs">
                               +
                             </Button>
                           </div>
@@ -741,8 +736,7 @@ export default function CreateBillPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeItem(item.id)}
-                            className="text-red-400 hover:text-red-300"
-                          >
+                            className="text-red-400 hover:text-red-300">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -754,8 +748,6 @@ export default function CreateBillPage() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Bill Summary */}
         <div className="space-y-6">
           <Card className="bg-gray-900 border-gray-800 sticky top-6">
             <CardHeader>
@@ -786,7 +778,7 @@ export default function CreateBillPage() {
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {/* Items Breakdown */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-gray-400 text-sm">
@@ -812,8 +804,7 @@ export default function CreateBillPage() {
                       ([category, total]) => (
                         <div
                           key={category}
-                          className="flex justify-between text-xs text-gray-500 ml-4"
-                        >
+                          className="flex justify-between text-xs text-gray-500 ml-4">
                           <span>
                             {category.charAt(0).toUpperCase() +
                               category.slice(1)}
@@ -894,8 +885,7 @@ export default function CreateBillPage() {
               <Button
                 onClick={handleSubmit}
                 disabled={isLoading || selectedItems.length === 0}
-                className="w-full"
-              >
+                className="w-full">
                 <Save className="w-4 h-4 mr-2" />
                 {isLoading ? "Creating Bill..." : "Create Bill"}
               </Button>
@@ -903,14 +893,12 @@ export default function CreateBillPage() {
           </Card>
         </div>
       </div>
-
       {/* Success Modal */}
       <Modal
         isOpen={showSuccessModal}
         onClose={handleSuccessClose}
         size="md"
-        title="Bill Created Successfully!"
-      >
+        title="Bill Created Successfully!">
         <div className="space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -970,15 +958,13 @@ export default function CreateBillPage() {
                   homeVisitFee: 0,
                   laborCharges: 0,
                 });
-              }}
-            >
+              }}>
               Create Another Bill
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Enhanced Item Selection Modal */}
       <Modal
         isOpen={itemSelectionModal.isOpen}
         onClose={closeItemSelectionModal}
@@ -986,8 +972,7 @@ export default function CreateBillPage() {
         title={`Select ${
           itemSelectionModal.selectedCategory.charAt(0).toUpperCase() +
           itemSelectionModal.selectedCategory.slice(1)
-        } Items`}
-      >
+        } Items`}>
         <div className="space-y-6">
           {productsLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -1000,7 +985,7 @@ export default function CreateBillPage() {
             <>
               {/* Quick Filters */}
               <div className="bg-gray-800 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-2 md:mb-4">
                   <h4 className="font-medium text-white">Quick Filters</h4>
                   <Button
                     variant="ghost"
@@ -1011,13 +996,12 @@ export default function CreateBillPage() {
                         selectedSpecifications: {},
                       }))
                     }
-                    className="text-xs text-gray-400 hover:text-white"
-                  >
+                    className="text-xs text-gray-400 hover:text-white max-sm:!py-1">
                     Clear All
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
                   {/* Brand Filter */}
                   <div className="space-y-2">
                     <Label className="text-gray-300 text-sm">Brand</Label>
@@ -1234,12 +1218,7 @@ export default function CreateBillPage() {
               {Object.values(itemSelectionModal.selectedSpecifications).some(
                 (val) => val
               ) && (
-                <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-blue-400 text-xs sm:text-sm font-medium">
-                      Active Filters:
-                    </span>
-                  </div>
+                <div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(
                       itemSelectionModal.selectedSpecifications
@@ -1247,22 +1226,19 @@ export default function CreateBillPage() {
                       if (!value) return null;
                       return (
                         <span
+                          onClick={() =>
+                            setItemSelectionModal((prev) => ({
+                              ...prev,
+                              selectedSpecifications: {
+                                ...prev.selectedSpecifications,
+                                [key]: undefined,
+                              },
+                            }))
+                          }
                           key={key}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300"
-                        >
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600/20 border border-blue-600/30 rounded text-xs text-blue-300">
                           {key}: {value}
-                          <button
-                            onClick={() =>
-                              setItemSelectionModal((prev) => ({
-                                ...prev,
-                                selectedSpecifications: {
-                                  ...prev.selectedSpecifications,
-                                  [key]: undefined,
-                                },
-                              }))
-                            }
-                            className="ml-1 hover:text-blue-100"
-                          >
+                          <button className="ml-1 hover:text-blue-100">
                             ×
                           </button>
                         </span>
@@ -1273,7 +1249,7 @@ export default function CreateBillPage() {
               )}
 
               {/* Available Items */}
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3 flex flex-col max-h-[300px]">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium text-white">
                     Available Items ({filterItemsBySpecifications().length})
@@ -1282,61 +1258,61 @@ export default function CreateBillPage() {
                     Showing filtered results
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-                  {filterItemsBySpecifications().map((product) => (
-                    <motion.div key={product._id} whileTap={{ scale: 0.98 }}>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          addItemToBill(product);
-                          closeItemSelectionModal();
-                        }}
-                        className="w-full h-auto p-4 flex flex-col items-start gap-3 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                      >
-                        <div className="text-left w-full">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-white text-sm">
-                                {getItemDisplayName(product)}
-                              </p>
-                              <p className="text-xs text-gray-400 mt-1">
-                                {product.brand?.name || "Unknown Brand"}
-                              </p>
+                <div className="flex flex-col overflow-auto">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                    {filterItemsBySpecifications().map((product) => (
+                      <motion.div key={product._id} whileTap={{ scale: 0.98 }}>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            addItemToBill(product);
+                            closeItemSelectionModal();
+                          }}
+                          className="w-full h-auto p-4 flex flex-col items-start gap-3 bg-gray-800 border-gray-700 hover:bg-gray-700">
+                          <div className="text-left w-full">
+                            <div className="flex justify-between items-start md:mb-2">
+                              <div className="flex-1">
+                                <p className="font-medium text-white text-sm">
+                                  {getItemDisplayName(product)}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {product.brand?.name || "Unknown Brand"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-blue-400 font-medium">
+                                  {currency}
+                                  {product.pricing.sellingPrice}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Stock: {product.inventory.currentStock}
+                                </p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm text-blue-400 font-medium">
-                                {currency}
+
+                            <div className="text-xs text-gray-400 space-y-1 hidden md:block">
+                              <p>{getItemSpecifications(product)}</p>
+                              <p>
+                                Purchase Price: {currency}
+                                <span className="relative inline-block after:absolute after:inset-0 after:backdrop-blur-sm after:z-10 after:rounded-lg">
+                                  &nbsp;{product.pricing.purchasePrice}
+                                </span>
+                              </p>
+                              <p>
+                                Selling Price: {currency}
                                 {product.pricing.sellingPrice}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                Stock: {product.inventory.currentStock}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="text-xs text-gray-400 space-y-1">
-                            <p>{getItemSpecifications(product)}</p>
-                            <p>
-                              Purchase Price: {currency}
-                              <span className="relative inline-block after:absolute after:inset-0 after:backdrop-blur-sm after:z-10 after:rounded-lg">
-                                &nbsp;{product.pricing.purchasePrice}
-                              </span>
-                            </p>
-                            <p>
-                              Selling Price: {currency}
-                              {product.pricing.sellingPrice}
-                            </p>
-                            {/* <p>
+                              {/* <p>
                               Profit: {currency}
                               {product.pricing.sellingPrice -
                                 product.pricing.purchasePrice}
                             </p> */}
+                            </div>
                           </div>
-                        </div>
-                      </Button>
-                    </motion.div>
-                  ))}
+                        </Button>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
 
                 {filterItemsBySpecifications().length === 0 && (
@@ -1358,8 +1334,7 @@ export default function CreateBillPage() {
             <Button
               variant="outline"
               onClick={closeItemSelectionModal}
-              className="flex-1"
-            >
+              className="flex-1">
               Close
             </Button>
             <Button
@@ -1370,15 +1345,13 @@ export default function CreateBillPage() {
                   selectedSpecifications: {},
                 }))
               }
-              className="flex-1"
-            >
+              className="flex-1">
               Clear Filters
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Alert Modal */}
       <ConfirmationModal
         isOpen={showAlertModal}
         onClose={() => setShowAlertModal(false)}

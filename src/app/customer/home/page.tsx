@@ -305,7 +305,7 @@ function CustomerHomeContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
             Welcome back, {user?.name || "Customer"}!
           </h1>
           <p className="text-gray-400 mt-1">
@@ -319,13 +319,11 @@ function CustomerHomeContent() {
               isConnected
                 ? "text-green-500 border-green-500"
                 : "text-red-500 border-red-500"
-            }
-          >
+            }>
             <div
               className={`w-2 h-2 ${
                 isConnected ? "bg-green-500" : "bg-red-500"
-              } rounded-full mr-2`}
-            ></div>
+              } rounded-full mr-2`}></div>
             {isConnected ? "Connected" : "Disconnected"}
           </Badge>
         </div>
@@ -336,7 +334,7 @@ function CustomerHomeContent() {
 
       {/* Recent Bills - Real-time */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between max-sm:pb-1">
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Recent Bills (Live Updates)
@@ -362,8 +360,7 @@ function CustomerHomeContent() {
             <Link href="/customer/bills">
               <button
                 type="button"
-                className="w-full p-3 sm:p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left"
-              >
+                className="w-full p-3 sm:p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left">
                 <FileText className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                 <h3 className="font-medium text-white">View All Bills</h3>
                 <p className="text-sm text-blue-100">
@@ -375,8 +372,7 @@ function CustomerHomeContent() {
             <Link href="/customer/profile">
               <button
                 type="button"
-                className="w-full p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left"
-              >
+                className="w-full p-4 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-left">
                 <User className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                 <h3 className="font-medium text-white">Update Profile</h3>
                 <p className="text-sm text-green-100">

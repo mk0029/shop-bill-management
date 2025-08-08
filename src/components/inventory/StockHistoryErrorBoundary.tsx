@@ -38,7 +38,9 @@ export class StockHistoryErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-white">Stock History</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+              Stock History
+            </h1>
             <p className="text-gray-400 mt-1">
               Track all inventory transactions and stock movements
             </p>
@@ -78,16 +80,14 @@ export class StockHistoryErrorBoundary extends React.Component<Props, State> {
                       onClick={() => {
                         this.setState({ hasError: false, error: undefined });
                       }}
-                      className="flex items-center gap-2"
-                    >
+                      className="flex items-center gap-2">
                       <RefreshCw className="w-4 h-4" />
                       Try Again
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => window.location.reload()}
-                      className="flex items-center gap-2"
-                    >
+                      className="flex items-center gap-2">
                       <RefreshCw className="w-4 h-4" />
                       Reload Page
                     </Button>

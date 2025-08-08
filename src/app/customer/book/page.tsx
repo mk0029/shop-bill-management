@@ -151,7 +151,9 @@ export default function CustomerBillingBook() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">My Billing Book</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            My Billing Book
+          </h1>
           <p className="text-gray-400 mt-1">
             Complete history of your electrical services and payments
           </p>
@@ -181,29 +183,25 @@ export default function CustomerBillingBook() {
             <Button
               variant={filterType === "all" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterType("all")}
-            >
+              onClick={() => setFilterType("all")}>
               All
             </Button>
             <Button
               variant={filterType === "home" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterType("home")}
-            >
+              onClick={() => setFilterType("home")}>
               Home Service
             </Button>
             <Button
               variant={filterType === "shop" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterType("shop")}
-            >
+              onClick={() => setFilterType("shop")}>
               Shop Service
             </Button>
             <Button
               variant={filterType === "office" ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilterType("office")}
-            >
+              onClick={() => setFilterType("office")}>
               Office Service
             </Button>
           </div>
@@ -217,8 +215,7 @@ export default function CustomerBillingBook() {
             key={bill._id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
+            transition={{ delay: index * 0.1 }}>
             <Card className="p-6 bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
@@ -259,8 +256,7 @@ export default function CustomerBillingBook() {
                         : bill.paymentStatus === "overdue"
                         ? "bg-red-900 text-red-300"
                         : "bg-gray-900 text-gray-300"
-                    }`}
-                  >
+                    }`}>
                     {bill.paymentStatus}
                   </span>
                 </div>
@@ -340,8 +336,7 @@ export default function CustomerBillingBook() {
                         : bill.serviceType === "maintenance"
                         ? "bg-orange-900 text-orange-300"
                         : "bg-green-900 text-green-300"
-                    }`}
-                  >
+                    }`}>
                     {bill.serviceType}
                   </span>
                 </div>
@@ -349,8 +344,7 @@ export default function CustomerBillingBook() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSelectedBill(bill)}
-                  >
+                    onClick={() => setSelectedBill(bill)}>
                     <Eye className="w-4 h-4 mr-2" />
                     View Details
                   </Button>
@@ -385,9 +379,8 @@ export default function CustomerBillingBook() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-gray-900 rounded-lg border border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-auto"
-          >
-            <div className="p-6">
+            className="bg-gray-900 rounded-lg border border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-auto">
+            <div className="p-4 md:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">
                   Bill Details #{selectedBill.billNumber}
@@ -395,8 +388,7 @@ export default function CustomerBillingBook() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedBill(null)}
-                >
+                  onClick={() => setSelectedBill(null)}>
                   ×
                 </Button>
               </div>
@@ -452,8 +444,7 @@ export default function CustomerBillingBook() {
                       selectedBill.items.map((item: BillItem, idx: number) => (
                         <div
                           key={idx}
-                          className="flex justify-between p-3 bg-gray-800 rounded"
-                        >
+                          className="flex justify-between p-3 bg-gray-800 rounded">
                           <div>
                             <p className="text-white">{item.product.name}</p>
                             <p className="text-sm text-gray-400">

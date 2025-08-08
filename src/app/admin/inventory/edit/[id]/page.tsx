@@ -184,13 +184,14 @@ export default function EditInventoryItemPage() {
         <Button
           variant="outline"
           onClick={() => router.back()}
-          className="flex items-center gap-2"
-        >
+          className="flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
           Back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-white">Edit Inventory Item</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Edit Inventory Item
+          </h1>
           <p className="text-gray-400 mt-1">
             Update item details and specifications
           </p>
@@ -487,20 +488,18 @@ export default function EditInventoryItemPage() {
             )}
 
             {/* Submit Button */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-4 pt-2 md:pt-4">
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2"
-              >
+                className="flex items-center gap-2">
                 <Save className="w-4 h-4" />
                 {isLoading ? "Updating Item..." : "Update Item"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
-              >
+                onClick={() => router.back()}>
                 Cancel
               </Button>
             </div>
@@ -513,8 +512,7 @@ export default function EditInventoryItemPage() {
         isOpen={showSuccessModal}
         onClose={handleSuccessClose}
         size="md"
-        title="Item Updated Successfully!"
-      >
+        title="Item Updated Successfully!">
         <div className="space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -564,8 +562,7 @@ export default function EditInventoryItemPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => router.push("/admin/inventory")}
-            >
+              onClick={() => router.push("/admin/inventory")}>
               Go to Inventory
             </Button>
           </div>

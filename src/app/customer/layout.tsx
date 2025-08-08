@@ -54,13 +54,12 @@ export default function CustomerLayout({
   return (
     <div className="min-h-screen bg-gray-950">
       <CustomerNavigation />
-      <main className="pt-3 lg:pt-10 lg:ml-64">
+      <main className="pt-3 lg:pt-10 lg:ml-64 max-md:px-3">
         <div className="p-1 sm:p-2 lg:p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+            transition={{ duration: 0.3 }}>
             {children}
           </motion.div>
         </div>

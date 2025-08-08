@@ -139,7 +139,9 @@ export default function CustomerBillHistoryPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white">Bill History</h1>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+          Bill History
+        </h1>
         <p className="text-gray-400 mt-1">
           View your complete billing history and payment records
         </p>
@@ -165,8 +167,9 @@ export default function CustomerBillHistoryPage() {
                     <TrendingDown className="w-4 h-4 text-red-400 mr-1" />
                   )}
                   <span
-                    className={isTrendingUp ? "text-green-400" : "text-red-400"}
-                  >
+                    className={
+                      isTrendingUp ? "text-green-400" : "text-red-400"
+                    }>
                     {isTrendingUp ? "Increasing" : "Decreasing"}
                   </span>
                 </div>
@@ -290,8 +293,7 @@ export default function CustomerBillHistoryPage() {
                   key={bill._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
-                >
+                  className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
                       <StatusIcon className="w-6 h-6 text-blue-400" />
@@ -319,8 +321,7 @@ export default function CustomerBillHistoryPage() {
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
                           bill.paymentStatus || bill.status
-                        )}`}
-                      >
+                        )}`}>
                         {bill.paymentStatus || bill.status}
                       </span>
                     </div>
@@ -328,8 +329,7 @@ export default function CustomerBillHistoryPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => viewBillDetails(bill)}
-                      >
+                        onClick={() => viewBillDetails(bill)}>
                         <Eye className="w-4 h-4 mr-2" />
                         View
                       </Button>
@@ -359,8 +359,7 @@ export default function CustomerBillHistoryPage() {
         isOpen={showBillModal}
         onClose={() => setShowBillModal(false)}
         size="lg"
-        title={`Bill #${selectedBill?.billNumber} - ${selectedBill?.serviceType}`}
-      >
+        title={`Bill #${selectedBill?.billNumber} - ${selectedBill?.serviceType}`}>
         {selectedBill && (
           <div className="space-y-6">
             {/* Bill Info */}
@@ -413,8 +412,7 @@ export default function CustomerBillHistoryPage() {
                     return (
                       <div
                         key={index}
-                        className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0"
-                      >
+                        className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
                         <div>
                           <p className="text-white">
                             {item.productName || "Product"}

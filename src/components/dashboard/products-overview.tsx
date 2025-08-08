@@ -120,8 +120,7 @@ export function ProductsOverview() {
               {lowStockProducts.slice(0, 5).map((product) => (
                 <div
                   key={product._id}
-                  className="flex items-center justify-between p-2 bg-gray-800 rounded"
-                >
+                  className="flex items-center justify-between p-2 bg-gray-800 rounded">
                   <div>
                     <p className="font-medium text-white">{product.name}</p>
                     <p className="text-sm text-gray-400">
@@ -150,7 +149,7 @@ export function ProductsOverview() {
 
       {/* Recent Products */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between max-sm:pb-1">
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Recent Products
@@ -167,8 +166,7 @@ export function ProductsOverview() {
             {products.slice(0, 5).map((product) => (
               <div
                 key={product._id}
-                className="flex items-center justify-between p-4 bg-gray-800 rounded-lg"
-              >
+                className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
                     <div>

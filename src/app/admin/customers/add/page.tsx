@@ -127,16 +127,14 @@ export default function AddCustomerPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="p-2"
-        >
+        <Button variant="ghost" onClick={() => router.back()} className="p-2">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-white">Add New Customer</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Add New Customer
+          </h1>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
             Create a new customer account with login credentials
           </p>
         </div>
@@ -214,7 +212,9 @@ export default function AddCustomerPage() {
                 <Dropdown
                   options={locationOptions}
                   value={formData.location}
-                  onValueChange={(value) => handleInputChange("location", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("location", value)
+                  }
                   placeholder="Select location"
                   className="bg-gray-800 border-gray-700"
                   disabled={isLoading}
@@ -231,7 +231,9 @@ export default function AddCustomerPage() {
                 <Dropdown
                   options={serviceTypeOptions}
                   value={formData.serviceType}
-                  onValueChange={(value) => handleInputChange("serviceType", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("serviceType", value)
+                  }
                   placeholder="Select service type"
                   className="bg-gray-800 border-gray-700"
                   disabled={isLoading}
@@ -248,7 +250,9 @@ export default function AddCustomerPage() {
                     id="address"
                     type="text"
                     value={formData.address}
-                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("address", e.target.value)
+                    }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter full address"
                     disabled={isLoading}
@@ -269,7 +273,9 @@ export default function AddCustomerPage() {
                     id="customerId"
                     type="text"
                     value={formData.customerId}
-                    onChange={(e) => handleInputChange("customerId", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("customerId", e.target.value)
+                    }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter custom customer ID (optional)"
                     disabled={isLoading}
@@ -290,7 +296,9 @@ export default function AddCustomerPage() {
                     id="secretKey"
                     type="text"
                     value={formData.secretKey}
-                    onChange={(e) => handleInputChange("secretKey", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("secretKey", e.target.value)
+                    }
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter custom secret key (optional)"
                     disabled={isLoading}
@@ -318,12 +326,11 @@ export default function AddCustomerPage() {
             </div>
 
             {/* Submit Button */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-4 pt-2 md:pt-4">
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2"
-              >
+                className="flex items-center gap-2">
                 <Save className="w-4 h-4" />
                 {isLoading ? "Creating Customer..." : "Create Customer"}
               </Button>
@@ -331,8 +338,7 @@ export default function AddCustomerPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                disabled={isLoading}
-              >
+                disabled={isLoading}>
                 Cancel
               </Button>
             </div>

@@ -196,7 +196,7 @@ export default function TestDynamicSpecsPage() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
             Dynamic Specifications Test
           </h1>
           <p className="text-gray-400 mt-1">
@@ -215,8 +215,7 @@ export default function TestDynamicSpecsPage() {
               <Button
                 variant="ghost"
                 onClick={clearError}
-                className="text-red-200"
-              >
+                className="text-red-200">
                 ✕
               </Button>
             </div>
@@ -290,8 +289,7 @@ export default function TestDynamicSpecsPage() {
                 <Button
                   onClick={runValidationTest}
                   className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={!selectedCategory}
-                >
+                  disabled={!selectedCategory}>
                   <TestTube className="w-4 h-4 mr-2" />
                   Run Validation Test
                 </Button>
@@ -330,8 +328,7 @@ export default function TestDynamicSpecsPage() {
                           : result.startsWith("❌")
                           ? "text-red-400"
                           : "text-gray-300"
-                      }`}
-                    >
+                      }`}>
                       {result}
                     </p>
                   ))}

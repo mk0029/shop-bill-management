@@ -94,12 +94,12 @@ export function CustomersOverview() {
 
       {/* Recent Customers */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between max-sm:pb-1">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             Recent Customers
           </CardTitle>
-          <Button size="sm" className="flex items-center gap-2">
+          <Button size="sm" className="flex items-center gap-1 sm:gap-2">
             <Plus className="h-4 w-4" />
             Add Customer
           </Button>
@@ -120,8 +120,7 @@ export function CustomersOverview() {
               return (
                 <div
                   key={customer._id}
-                  className="flex items-center justify-between p-4 bg-gray-800 rounded-lg"
-                >
+                  className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
@@ -157,8 +156,7 @@ export function CustomersOverview() {
                     </div>
                     <div className=" hidden md:flex flex-col gap-1">
                       <Badge
-                        variant={customer.isActive ? "default" : "secondary"}
-                      >
+                        variant={customer.isActive ? "default" : "secondary"}>
                         {customer.isActive ? "Active" : "Inactive"}
                       </Badge>
                       {pendingBills.length > 0 && (

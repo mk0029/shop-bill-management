@@ -122,7 +122,9 @@ export default function BillHistoryPage() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-white">Bill History</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Bill History
+          </h1>
           <p className="text-gray-400 mt-1">View and manage all your bills</p>
         </div>
       </div>
@@ -246,8 +248,7 @@ export default function BillHistoryPage() {
                 key={bill.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
-              >
+                className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
                     <User className="w-6 h-6 text-blue-400" />
@@ -274,8 +275,7 @@ export default function BillHistoryPage() {
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
                         bill.status
-                      )}`}
-                    >
+                      )}`}>
                       {bill.status}
                     </span>
                   </div>
@@ -283,8 +283,7 @@ export default function BillHistoryPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => viewBillDetails(bill)}
-                    >
+                      onClick={() => viewBillDetails(bill)}>
                       <Eye className="w-4 h-4 mr-2" />
                       View
                     </Button>
@@ -313,8 +312,7 @@ export default function BillHistoryPage() {
         isOpen={showBillModal}
         onClose={() => setShowBillModal(false)}
         size="lg"
-        title={`Bill #${selectedBill?.id} - ${selectedBill?.customerName}`}
-      >
+        title={`Bill #${selectedBill?.id} - ${selectedBill?.customerName}`}>
         {selectedBill && (
           <div className="space-y-6">
             {/* Customer Info */}
@@ -353,8 +351,7 @@ export default function BillHistoryPage() {
                 {selectedBill.items.map((item: any, index: number) => (
                   <div
                     key={index}
-                    className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0"
-                  >
+                    className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
                     <div>
                       <p className="text-white">{item.name}</p>
                       <p className="text-sm text-gray-400">
@@ -386,8 +383,7 @@ export default function BillHistoryPage() {
                 <span
                   className={`text-sm px-3 py-1 rounded-full ${getStatusColor(
                     selectedBill.status
-                  )}`}
-                >
+                  )}`}>
                   {selectedBill.status}
                 </span>
               </div>

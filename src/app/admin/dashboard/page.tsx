@@ -47,7 +47,9 @@ export default function AdminDashboard() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+                Admin Dashboard
+              </h1>
               <p className="text-gray-400 mt-1">
                 Welcome back! Here's what's happening with your shop.
               </p>
@@ -86,8 +88,7 @@ export default function AdminDashboard() {
                     <Link
                       href={action.url}
                       key={index}
-                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}
-                    >
+                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}>
                       <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                       <div>
                         <h3 className="font-medium text-white">

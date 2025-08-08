@@ -17,7 +17,9 @@ export default function TestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">Authentication Test Page</h1>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+          Authentication Test Page
+        </h1>
         <p className="text-gray-400 mt-1">
           This page tests if authentication is working properly
         </p>
@@ -31,24 +33,40 @@ export default function TestPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-gray-400">Authenticated:</p>
-              <p className="text-white font-semibold">{isAuthenticated ? "Yes" : "No"}</p>
+              <p className="text-white font-semibold">
+                {isAuthenticated ? "Yes" : "No"}
+              </p>
             </div>
             <div>
               <p className="text-gray-400">Role:</p>
               <p className="text-white font-semibold">{role || "None"}</p>
             </div>
           </div>
-          
+
           {user && (
             <div className="bg-gray-800 p-4 rounded-lg">
               <h3 className="text-white font-medium mb-2">User Details:</h3>
               <div className="space-y-1 text-sm">
-                <p><span className="text-gray-400">ID:</span> {user.id}</p>
-                <p><span className="text-gray-400">Name:</span> {user.name}</p>
-                <p><span className="text-gray-400">Phone:</span> {user.phone}</p>
-                <p><span className="text-gray-400">Location:</span> {user.location}</p>
-                <p><span className="text-gray-400">Role:</span> {user.role}</p>
-                <p><span className="text-gray-400">Active:</span> {user.isActive ? "Yes" : "No"}</p>
+                <p>
+                  <span className="text-gray-400">ID:</span> {user.id}
+                </p>
+                <p>
+                  <span className="text-gray-400">Name:</span> {user.name}
+                </p>
+                <p>
+                  <span className="text-gray-400">Phone:</span> {user.phone}
+                </p>
+                <p>
+                  <span className="text-gray-400">Location:</span>{" "}
+                  {user.location}
+                </p>
+                <p>
+                  <span className="text-gray-400">Role:</span> {user.role}
+                </p>
+                <p>
+                  <span className="text-gray-400">Active:</span>{" "}
+                  {user.isActive ? "Yes" : "No"}
+                </p>
               </div>
             </div>
           )}
