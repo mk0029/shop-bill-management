@@ -341,10 +341,7 @@ export const RealtimeInventoryStats: React.FC = () => {
   });
 
   // Get products from global inventory store
-  const {
-    products: storeProducts = [],
-    fetchProducts,
-  } = useInventoryStore();
+  const { products: storeProducts = [], fetchProducts } = useInventoryStore();
 
   const [products, setProducts] = useState<Product[]>(storeProducts);
 
@@ -407,7 +404,7 @@ export const RealtimeInventoryStats: React.FC = () => {
         }
 
         acc.totalValue +=
-          product.inventory.currentStock * product.pricing.sellingPrice;
+          product.inventory.currentStock * product.pricing.purchasePrice;
 
         return acc;
       },

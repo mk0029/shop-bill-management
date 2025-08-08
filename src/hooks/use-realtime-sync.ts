@@ -10,12 +10,12 @@ import type { SanityClient, SanityDocument } from "@sanity/client";
 import type { Subscription } from "@sanity/client";
 
 // Type definitions for real-time updates
-type DocumentTransition = 'appear' | 'update' | 'disappear';
+type DocumentTransition = "appear" | "update" | "disappear";
 
 interface RealtimeUpdate<T = any> {
   result: T | null;
   previous?: T | null;
-  visibility?: 'visible' | 'hidden';
+  visibility?: "visible" | "hidden";
   mutations: {
     transactionId: string;
     transition: DocumentTransition;
@@ -32,7 +32,7 @@ interface RealtimeUpdate<T = any> {
   timestamp: string;
   transactionId: string;
   transition: DocumentTransition;
-  version: 'v1' | 'v2';
+  version: "v1" | "v2";
   documentId: string;
 }
 
@@ -125,13 +125,38 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   // Handle product updates
   const handleProductUpdate = useCallback(
     (transition: string, result: any, previous: any) => {
+      // Get the current state from the store
+      const store = useInventoryStore.getState();
+
       switch (transition) {
         case "appear":
-          inventoryStore.addOrUpdateProduct(result);
+          // For realtime updates, just update the local state directly instead of calling addOrUpdateProduct
+          const existingIndex = store.products.findIndex(
+            (p) => p._id === result._id
+          );
+          if (existingIndex >= 0) {
+            // Update existing product
+            const updatedProducts = [...store.products];
+            updatedProducts[existingIndex] = result;
+            useInventoryStore.setState({ products: updatedProducts });
+          } else {
+            // Add new product
+            useInventoryStore.setState({
+              products: [...store.products, result],
+            });
+          }
           console.log(`✅ New product added: ${result.name}`);
           break;
         case "update":
-          inventoryStore.addOrUpdateProduct(result);
+          // For realtime updates, just update the local state directly
+          const updateIndex = store.products.findIndex(
+            (p) => p._id === result._id
+          );
+          if (updateIndex >= 0) {
+            const updatedProducts = [...store.products];
+            updatedProducts[updateIndex] = result;
+            useInventoryStore.setState({ products: updatedProducts });
+          }
           console.log(`🔄 Product updated: ${result.name}`);
 
           // Only show critical alerts (low stock) if notifications are enabled
@@ -145,11 +170,16 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
           }
           break;
         case "disappear":
+          // Remove product from local state
+          const filteredProducts = store.products.filter(
+            (p) => p._id !== result._id
+          );
+          useInventoryStore.setState({ products: filteredProducts });
           console.log(`🗑️ Product removed: ${result.name}`);
           break;
       }
     },
-    [inventoryStore, enableNotifications]
+    [enableNotifications]
   );
 
   // Handle user updates
@@ -175,17 +205,37 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
     (transition: string, result: any, previous: any) => {
       switch (transition) {
         case "appear":
-          inventoryStore.createStockTransaction(result);
+          // For realtime updates, just update the local state directly
+          const store = useInventoryStore.getState();
+          const existingTransaction = store.stockTransactions.find(
+            (t) => t._id === result._id
+          );
+          if (!existingTransaction) {
+            useInventoryStore.setState({
+              stockTransactions: [...store.stockTransactions, result],
+            });
+          }
           console.log(
             `📊 Stock transaction: ${result.type} - ${result.quantity} units`
           );
           break;
         case "update":
           // Handle stock transaction updates if needed
+          const updateStore = useInventoryStore.getState();
+          const transactionIndex = updateStore.stockTransactions.findIndex(
+            (t) => t._id === result._id
+          );
+          if (transactionIndex >= 0) {
+            const updatedTransactions = [...updateStore.stockTransactions];
+            updatedTransactions[transactionIndex] = result;
+            useInventoryStore.setState({
+              stockTransactions: updatedTransactions,
+            });
+          }
           break;
       }
     },
-    [inventoryStore]
+    []
   );
 
   // Handle brand updates
@@ -335,25 +385,28 @@ export const useDocumentListener = <T extends SanityDocument>(
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     // Build the GROQ query
     const query = documentId
       ? `*[_type == $documentType && _id == $documentId][0]`
       : `*[_type == $documentType]`;
-    
+
     const params = { documentType };
     if (documentId) {
-      (params as any).documentId = documentId;
+      (params as unknown).documentId = documentId;
     }
 
     // Set up the listener
     subscriptionRef.current = sanityClient
-      .listen(query, params, { includeResult: true, includePreviousRevision: true })
+      .listen(query, params, {
+        includeResult: true,
+        includePreviousRevision: true,
+      })
       .subscribe({
         next: (update: RealtimeUpdate<T>) => {
           const now = Date.now();
-          
+
           // Throttle updates to prevent UI jank
           if (now - lastUpdateRef.current < throttleTime) return;
           lastUpdateRef.current = now;
@@ -361,24 +414,24 @@ export const useDocumentListener = <T extends SanityDocument>(
           try {
             // Handle the update based on transition type
             switch (update.transition) {
-              case 'appear':
+              case "appear":
                 if (update.result && onAppear) {
                   onAppear(update.result);
                 }
                 break;
-              case 'update':
+              case "update":
                 if (onUpdate) {
                   onUpdate(update);
                 }
                 break;
-              case 'disappear':
+              case "disappear":
                 if (onDisappear) {
                   onDisappear(update.documentId);
                 }
                 break;
             }
           } catch (error) {
-            console.error('Error handling realtime update:', error);
+            console.error("Error handling realtime update:", error);
           }
         },
         error: (error) => {
@@ -397,13 +450,24 @@ export const useDocumentListener = <T extends SanityDocument>(
       });
 
     setIsConnected(true);
-    console.log(`Listening to ${documentType} changes`, documentId ? `(ID: ${documentId})` : '');
+    console.log(
+      `Listening to ${documentType} changes`,
+      documentId ? `(ID: ${documentId})` : ""
+    );
 
     // Cleanup on unmount
     return () => {
       cleanup();
     };
-  }, [documentType, documentId, onUpdate, onAppear, onDisappear, cleanup, throttleTime]);
+  }, [
+    documentType,
+    documentId,
+    onUpdate,
+    onAppear,
+    onDisappear,
+    cleanup,
+    throttleTime,
+  ]);
 
   return {
     isConnected,
@@ -424,7 +488,7 @@ const useUpdatedDocuments = (cooldown = 2000) => {
   const cleanupOldEntries = useCallback(() => {
     const now = Date.now();
     const updatedIds = updatedIdsRef.current;
-    
+
     // Remove entries older than cooldown
     updatedIds.forEach((timestamp, id) => {
       if (now - timestamp > cooldown) {
@@ -441,14 +505,17 @@ const useUpdatedDocuments = (cooldown = 2000) => {
   }, [cooldown]);
 
   // Add a document ID to track
-  const addUpdatedId = useCallback((id: string) => {
-    updatedIdsRef.current.set(id, Date.now());
-    
-    // Start cleanup timer if not already running
-    if (!cleanupTimerRef.current) {
-      cleanupTimerRef.current = setTimeout(cleanupOldEntries, cooldown / 2);
-    }
-  }, [cleanupOldEntries, cooldown]);
+  const addUpdatedId = useCallback(
+    (id: string) => {
+      updatedIdsRef.current.set(id, Date.now());
+
+      // Start cleanup timer if not already running
+      if (!cleanupTimerRef.current) {
+        cleanupTimerRef.current = setTimeout(cleanupOldEntries, cooldown / 2);
+      }
+    },
+    [cleanupOldEntries, cooldown]
+  );
 
   // Check if a document was recently updated
   const isRecentlyUpdated = useCallback((id: string) => {

@@ -480,6 +480,7 @@ export const stockApi = {
     supplierId?: string;
     billId?: string;
     notes?: string;
+    updateInventory?: boolean; // New parameter to control inventory update
   }): Promise<InventoryApiResponse> {
     try {
       const transactionId = Buffer.from(
@@ -510,16 +511,18 @@ export const stockApi = {
 
       const result = await sanityClient.create(newTransaction);
 
-      // Update product inventory based on transaction type
-      const stockChange = ["sale", "damage"].includes(transactionData.type)
-        ? -transactionData.quantity
-        : transactionData.quantity;
+      // Update product inventory based on transaction type (only if updateInventory is true)
+      if (transactionData.updateInventory !== false) {
+        const stockChange = ["sale", "damage"].includes(transactionData.type)
+          ? -transactionData.quantity
+          : transactionData.quantity;
 
-      await sanityClient
-        .patch(transactionData.productId)
-        .inc({ "inventory.currentStock": stockChange })
-        .set({ updatedAt: new Date().toISOString() })
-        .commit();
+        await sanityClient
+          .patch(transactionData.productId)
+          .inc({ "inventory.currentStock": stockChange })
+          .set({ updatedAt: new Date().toISOString() })
+          .commit();
+      }
 
       return { success: true, data: result };
     } catch (error) {

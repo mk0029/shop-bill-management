@@ -86,7 +86,8 @@ export function InventoryDashboard({
               refreshAlerts();
               refreshInventoryValue();
             }}
-            disabled={isLoadingAlerts || isLoadingValue}>
+            disabled={isLoadingAlerts || isLoadingValue}
+          >
             <RefreshCw
               className={`w-4 h-4 mr-2 ${
                 isLoadingAlerts || isLoadingValue ? "animate-spin" : ""
@@ -224,7 +225,8 @@ export function InventoryDashboard({
                 {criticalAlerts.slice(0, 5).map((alert, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 bg-red-900/10 border border-red-800/50 rounded-lg">
+                    className="flex items-center justify-between p-3 bg-red-900/10 border border-red-800/50 rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
                       <TrendingDown className="w-4 h-4 text-red-400" />
                       <div>
@@ -265,7 +267,8 @@ export function InventoryDashboard({
               {warningAlerts.length > 0 && (
                 <Badge
                   variant="secondary"
-                  className="ml-2 bg-yellow-600/20 text-yellow-400">
+                  className="ml-2 bg-yellow-600/20 text-yellow-400"
+                >
                   {warningAlerts.length}
                 </Badge>
               )}
@@ -282,7 +285,8 @@ export function InventoryDashboard({
                 {warningAlerts.slice(0, 5).map((alert, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 bg-yellow-900/10 border border-yellow-800/50 rounded-lg">
+                    className="flex items-center justify-between p-3 bg-yellow-900/10 border border-yellow-800/50 rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
                       <AlertTriangle className="w-4 h-4 text-yellow-400" />
                       <div>
@@ -329,7 +333,8 @@ export function InventoryDashboard({
               {inventoryValue.breakdown.slice(0, 10).map((product, index) => (
                 <div
                   key={product.productId}
-                  className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                  className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-600/20 rounded-lg flex items-center justify-center">
                       <span className="text-sm font-medium text-blue-400">
@@ -372,25 +377,29 @@ export function InventoryDashboard({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Button
               variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2">
+              className="h-auto p-4 flex flex-col items-center gap-2"
+            >
               <ShoppingCart className="w-5 h-5" />
               <span className="text-sm">Create Purchase Order</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2">
+              className="h-auto p-4 flex flex-col items-center gap-2"
+            >
               <Package className="w-5 h-5" />
               <span className="text-sm">Bulk Stock Update</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2">
+              className="h-auto p-4 flex flex-col items-center gap-2"
+            >
               <History className="w-5 h-5" />
               <span className="text-sm">Stock History</span>
             </Button>
             <Button
               variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2">
+              className="h-auto p-4 flex flex-col items-center gap-2"
+            >
               <BarChart3 className="w-5 h-5" />
               <span className="text-sm">Generate Report</span>
             </Button>

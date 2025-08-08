@@ -425,7 +425,16 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   },
 
   // Create stock transaction
-  createStockTransaction: async (transactionData) => {
+  createStockTransaction: async (transactionData: {
+    productId: string;
+    type: "purchase" | "sale" | "adjustment" | "return" | "damage";
+    quantity: number;
+    unitPrice: number;
+    supplierId?: string;
+    billId?: string;
+    notes?: string;
+    updateInventory?: boolean;
+  }) => {
     try {
       const response = await stockApi.createStockTransaction(transactionData);
 
@@ -621,13 +630,14 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
           // Refresh inventory summary
           await get().fetchInventorySummary();
 
-          // Create stock transaction for the addition
+          // Create stock transaction for the addition (without updating inventory since we already did that)
           await get().createStockTransaction({
             productId: existingProduct._id,
             type: "purchase",
             quantity: productData.inventory.currentStock,
             unitPrice: productData.pricing.purchasePrice,
             notes: `Stock updated with latest price. New total: ${newTotalStock} ${productData.pricing.unit}`,
+            updateInventory: false, // Don't update inventory since we already set it above
           });
 
           return {
@@ -655,13 +665,14 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
           // Refresh inventory summary
           await get().fetchInventorySummary();
 
-          // Create stock transaction for the new product purchase
+          // Create stock transaction for the new product purchase (without updating inventory since we already set it)
           await get().createStockTransaction({
             productId: response.data._id,
             type: "purchase",
             quantity: productData.inventory.currentStock,
             unitPrice: productData.pricing.purchasePrice,
             notes: `Initial stock purchase for new product: ${productData.name}`,
+            updateInventory: false, // Don't update inventory since we already set it during product creation
           });
 
           return { success: true, data: response.data, isUpdate: false };

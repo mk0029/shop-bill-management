@@ -160,7 +160,7 @@ export function DynamicSpecificationFields({
             disabled={disabled || fieldOptions[fieldName]?.length === 0}
             className={`bg-gray-800 border-gray-700 ${
               hasError ? "border-red-500" : ""
-            }`}
+            } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
           />
         ) : (
           <Input
@@ -172,7 +172,7 @@ export function DynamicSpecificationFields({
             disabled={disabled}
             className={`bg-gray-800 border-gray-700 ${
               hasError ? "border-red-500" : ""
-            }`}
+            } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
           />
         )}
 
