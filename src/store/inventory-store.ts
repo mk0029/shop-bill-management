@@ -202,7 +202,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
 
       if (response.success) {
         set({
-          products: response.data || [],
+          products: (response.data as any) || [],
           isLoading: false,
           lastFetched: new Date(),
           error: null,
@@ -224,12 +224,12 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   },
 
   // Fetch product by ID
-  fetchProductById: async (productId) => {
+  fetchProductById: async (productId: string) => {
     try {
       const response = await inventoryApi.getProductById(productId);
 
       if (response.success) {
-        return response.data;
+        return response.data as any;
       } else {
         set({ error: response.error || "Product not found" });
         return null;
@@ -258,7 +258,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
 
         // Merge with existing products or replace if needed
         const updatedProducts = products.map((product) => {
-          const lowStockProduct = lowStockProducts.find(
+          const lowStockProduct = (lowStockProducts as any[]).find(
             (p: Product) => p._id === product._id
           );
           return lowStockProduct || product;
@@ -298,7 +298,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
         const featuredProducts = response.data || [];
 
         const updatedProducts = products.map((product) => {
-          const featuredProduct = featuredProducts.find(
+          const featuredProduct = (featuredProducts as any[]).find(
             (p: Product) => p._id === product._id
           );
           return featuredProduct || product;
@@ -325,7 +325,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       const response = await inventoryApi.getInventorySummary();
 
       if (response.success) {
-        set({ inventorySummary: response.data });
+        set({ inventorySummary: response.data as any });
       } else {
         set({ error: response.error || "Failed to fetch inventory summary" });
       }
@@ -349,7 +349,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
 
       if (response.success) {
         set({
-          stockTransactions: response.data || [],
+          stockTransactions: (response.data as any) || [],
           isLoading: false,
           error: null,
         });
@@ -372,12 +372,12 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   },
 
   // Search products
-  searchProducts: async (searchTerm, limit = 10) => {
+  searchProducts: async (searchTerm: string, limit = 10) => {
     try {
       const response = await inventoryApi.searchProducts(searchTerm, limit);
 
       if (response.success) {
-        return response.data || [];
+        return (response.data as any) || [];
       } else {
         set({ error: response.error || "Failed to search products" });
         return [];

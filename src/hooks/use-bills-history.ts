@@ -4,7 +4,7 @@ import { useBills } from "@/hooks/use-sanity-data";
 
 export const useBillsHistory = () => {
   const { user } = useAuthStore();
-  const { getAllBills } = useBills();
+  const { getAllBills } = useBills() as any;
   const [bills, setBills] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<any>(null);
@@ -19,11 +19,11 @@ export const useBillsHistory = () => {
       setIsLoading(true);
       getAllBills
         .execute()
-        .then((result) => {
+        .then((result: any) => {
           setBills(result.data || []);
           setError(null);
         })
-        .catch((err) => setError(err))
+        .catch((err: any) => setError(err))
         .finally(() => setIsLoading(false));
     }
   }, [user?.id, getAllBills]);

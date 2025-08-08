@@ -18,8 +18,8 @@ export const useCustomerBills = () => {
       setIsLoading(true);
       getCustomerBills
         .execute(user.id)
-        .then((result) => {
-          setBills(result.data || []);
+        .then((result: any) => {
+          setBills(result?.data || []);
           setError(null);
         })
         .catch((err) => setError(err))

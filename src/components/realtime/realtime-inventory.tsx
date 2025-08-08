@@ -35,25 +35,27 @@ export const RealtimeInventoryStats = () => {
     setProducts(storeProducts);
   }, [storeProducts]);
 
-  useDocumentListener("product", undefined, (update) => {
-    const { transition, result } = update;
+  useDocumentListener("product", undefined, {
+    onUpdate: (update: any) => {
+      const { transition, result } = update;
 
-    setProducts((prev) => {
-      switch (transition) {
-        case "appear":
-          return prev.find((p) => p._id === result._id)
-            ? prev
-            : [...prev, result];
-        case "update":
-          return prev.map((p) =>
-            p._id === result._id ? { ...p, ...result } : p
-          );
-        case "disappear":
-          return prev.filter((p) => p._id !== result._id);
-        default:
-          return prev;
-      }
-    });
+      setProducts((prev) => {
+        switch (transition) {
+          case "appear":
+            return prev.find((p) => p._id === result._id)
+              ? prev
+              : [...prev, result];
+          case "update":
+            return prev.map((p) =>
+              p._id === result._id ? { ...p, ...result } : p
+            );
+          case "disappear":
+            return prev.filter((p) => p._id !== result._id);
+          default:
+            return prev;
+        }
+      });
+    },
   });
 
   useEffect(() => {

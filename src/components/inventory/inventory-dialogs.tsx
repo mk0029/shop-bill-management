@@ -42,9 +42,9 @@ const DialogTitle = ({ children }: { children: React.ReactNode }) => (
 interface InventoryDialogsProps {
   showDeleteDialog: boolean;
   showEditDialog: boolean;
-  selectedProduct: any;
+  selectedProduct: unknown;
   onDeleteConfirm: () => void;
-  onEditSave: (product: any) => void;
+  onEditSave: (product: unknown) => void;
   onDeleteCancel: () => void;
   onEditCancel: () => void;
 }
@@ -110,7 +110,7 @@ export const InventoryDialogs = ({
                   step="0.01"
                   value={editFormData.purchasePrice || ""}
                   onChange={(e) =>
-                    setEditFormData((prev) => ({
+                    setEditFormData((prev: any) => ({
                       ...prev,
                       purchasePrice: e.target.value,
                     }))
@@ -125,7 +125,7 @@ export const InventoryDialogs = ({
                   step="0.01"
                   value={editFormData.sellingPrice || ""}
                   onChange={(e) =>
-                    setEditFormData((prev) => ({
+                    setEditFormData((prev: any) => ({
                       ...prev,
                       sellingPrice: e.target.value,
                     }))
@@ -141,7 +141,7 @@ export const InventoryDialogs = ({
                 type="number"
                 value={editFormData.currentStock || ""}
                 onChange={(e) =>
-                  setEditFormData((prev) => ({
+                  setEditFormData((prev: any) => ({
                     ...prev,
                     currentStock: e.target.value,
                   }))
@@ -155,7 +155,7 @@ export const InventoryDialogs = ({
               <textarea
                 value={editFormData.description || ""}
                 onChange={(e) =>
-                  setEditFormData((prev) => ({
+                  setEditFormData((prev: any) => ({
                     ...prev,
                     description: e.target.value,
                   }))

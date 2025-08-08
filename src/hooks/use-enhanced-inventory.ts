@@ -40,7 +40,7 @@ export interface UseEnhancedInventoryReturn {
   restoreProduct: (productId: string) => Promise<boolean>;
 
   // Stock history
-  getStockHistory: (productId: string, limit?: number) => Promise<any[]>;
+  getStockHistory: (productId: string, limit?: number) => Promise<unknown[]>;
 
   // Alerts and monitoring
   lowStockAlerts: StockAlert[];
@@ -50,7 +50,7 @@ export interface UseEnhancedInventoryReturn {
   inventoryValue: {
     totalValue: number;
     totalItems: number;
-    breakdown: any[];
+    breakdown: unknown[];
   } | null;
   refreshInventoryValue: () => Promise<void>;
 
@@ -77,7 +77,7 @@ export function useEnhancedInventory(): UseEnhancedInventoryReturn {
   const [inventoryValue, setInventoryValue] = useState<{
     totalValue: number;
     totalItems: number;
-    breakdown: any[];
+    breakdown: unknown[];
   } | null>(null);
 
   // Loading states

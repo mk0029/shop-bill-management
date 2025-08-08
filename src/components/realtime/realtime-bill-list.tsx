@@ -60,56 +60,58 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   const [newBillIds, setNewBillIds] = useState<Set<string>>(new Set());
 
   // Listen to bill changes
-  useDocumentListener("bill", undefined, (update) => {
-    const { transition, result } = update;
+  useDocumentListener("bill", undefined, {
+    onUpdate: (update: any) => {
+      const { transition, result } = update;
 
-    // Filter by customer if specified
-    if (
-      customerId &&
-      result?.customer?._ref !== customerId &&
-      result?.customer?._id !== customerId
-    ) {
-      return; // Bill not for this customer
-    }
+      // Filter by customer if specified
+      if (
+        customerId &&
+        result?.customer?._ref !== customerId &&
+        result?.customer?._id !== customerId
+      ) {
+        return; // Bill not for this customer
+      }
 
-    switch (transition) {
-      case "appear":
-        setBills((prev) => {
-          const exists = prev.find((b) => b._id === result._id);
-          if (!exists) {
-            console.log(
-              "✅ Adding new bill to customer view:",
-              result.billNumber
-            );
-            if (showNewBillAnimation) {
-              setNewBillIds((prev) => new Set(prev).add(result._id));
-              // Remove the highlight after 3 seconds
-              setTimeout(() => {
-                setNewBillIds((prev) => {
-                  const newSet = new Set(prev);
-                  newSet.delete(result._id);
-                  return newSet;
-                });
-              }, 3000);
+      switch (transition) {
+        case "appear":
+          setBills((prev) => {
+            const exists = prev.find((b) => b._id === result._id);
+            if (!exists) {
+              console.log(
+                "✅ Adding new bill to customer view:",
+                result.billNumber
+              );
+              if (showNewBillAnimation) {
+                setNewBillIds((prev) => new Set(prev).add(result._id));
+                // Remove the highlight after 3 seconds
+                setTimeout(() => {
+                  setNewBillIds((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(result._id);
+                    return newSet;
+                  });
+                }, 3000);
+              }
+              return [result, ...prev];
             }
-            return [result, ...prev];
-          }
-          return prev;
-        });
-        break;
+            return prev;
+          });
+          break;
 
-      case "update":
-        setBills((prev) =>
-          prev.map((bill) =>
-            bill._id === result._id ? { ...bill, ...result } : bill
-          )
-        );
-        break;
+        case "update":
+          setBills((prev) =>
+            prev.map((bill) =>
+              bill._id === result._id ? { ...bill, ...result } : bill
+            )
+          );
+          break;
 
-      case "disappear":
-        setBills((prev) => prev.filter((bill) => bill._id !== result._id));
-        break;
-    }
+        case "disappear":
+          setBills((prev) => prev.filter((bill) => bill._id !== result._id));
+          break;
+      }
+    },
   });
 
   const getStatusColor = (status: string) => {
@@ -298,44 +300,46 @@ export const RealtimeBillStats: React.FC<{
   }, [initialBills]);
 
   // Listen to bill changes and update stats
-  useDocumentListener("bill", undefined, (update) => {
-    const { transition, result } = update;
+  useDocumentListener("bill", undefined, {
+    onUpdate: (update: any) => {
+      const { transition, result } = update;
 
-    // Filter by customer if specified
-    if (
-      customerId &&
-      result?.customer?._ref !== customerId &&
-      result?.customer?._id !== customerId
-    ) {
-      return; // Bill not for this customer
-    }
+      // Filter by customer if specified
+      if (
+        customerId &&
+        result?.customer?._ref !== customerId &&
+        result?.customer?._id !== customerId
+      ) {
+        return; // Bill not for this customer
+      }
 
-    switch (transition) {
-      case "appear":
-        setBills((prev) => {
-          const exists = prev.find((b) => b._id === result._id);
-          return exists ? prev : [...prev, result];
-        });
-        break;
+      switch (transition) {
+        case "appear":
+          setBills((prev) => {
+            const exists = prev.find((b: any) => b._id === result._id);
+            return exists ? prev : [...prev, result];
+          });
+          break;
 
-      case "update":
-        setBills((prev) =>
-          prev.map((bill) =>
-            bill._id === result._id ? { ...bill, ...result } : bill
-          )
-        );
-        break;
+        case "update":
+          setBills((prev) =>
+            prev.map((bill) =>
+              bill._id === result._id ? { ...bill, ...result } : bill
+            )
+          );
+          break;
 
-      case "disappear":
-        setBills((prev) => prev.filter((bill) => bill._id !== result._id));
-        break;
-    }
+        case "disappear":
+          setBills((prev) => prev.filter((bill) => bill._id !== result._id));
+          break;
+      }
+    },
   });
 
   // Recalculate stats when bills change
   useEffect(() => {
     const newStats = bills.reduce(
-      (acc, bill) => {
+      (acc: any, bill: unknown) => {
         acc.total += 1;
         acc.totalAmount += bill.totalAmount || 0;
 

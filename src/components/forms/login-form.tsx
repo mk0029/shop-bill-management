@@ -53,10 +53,13 @@ export function LoginForm({
   };
 
   const handleInputChange = (field: keyof LoginCredentials, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev: LoginCredentials) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+      setFormErrors((prev: Partial<LoginCredentials>) => ({
+        ...prev,
+        [field]: undefined,
+      }));
     }
   };
 

@@ -644,10 +644,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       // Update local store
       const products = new Map(get().products);
-      products.set(productId, product as Product);
+      products.set(productId, product as unknown as Product);
       set({ products });
 
-      return product as Product;
+      return product as unknown as Product;
     } catch (error) {
       console.error("Failed to update product:", error);
       throw error;
@@ -679,10 +679,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       // Update local store
       const bills = new Map(get().bills);
-      bills.set(bill._id, bill as Bill);
+      bills.set(bill._id, bill as unknown as Bill);
       set({ bills });
 
-      return bill as Bill;
+      return bill as unknown as Bill;
     } catch (error) {
       console.error("Failed to create bill:", error);
       throw error;
@@ -698,10 +698,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       // Update local store
       const bills = new Map(get().bills);
-      bills.set(billId, bill as Bill);
+      bills.set(billId, bill as unknown as Bill);
       set({ bills });
 
-      return bill as Bill;
+      return bill as unknown as Bill;
     } catch (error) {
       console.error("Failed to update bill:", error);
       throw error;
@@ -719,10 +719,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       // Update local store
       const users = new Map(get().users);
-      users.set(user._id, user as User);
+      users.set(user._id, user as unknown as User);
       set({ users });
 
-      return user as User;
+      return user as unknown as User;
     } catch (error) {
       console.error("Failed to create user:", error);
       throw error;
@@ -738,10 +738,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       // Update local store
       const users = new Map(get().users);
-      users.set(userId, user as User);
+      users.set(userId, user as unknown as User);
       set({ users });
 
-      return user as User;
+      return user as unknown as User;
     } catch (error) {
       console.error("Failed to update user:", error);
       throw error;

@@ -500,7 +500,7 @@ export const useDocumentListener = <T extends SanityDocument>(
  * @param cooldown - Time in milliseconds to keep track of updates (default: 2000ms)
  * @returns Object containing functions to manage updated IDs
  */
-const useUpdatedDocuments = (cooldown = 2000) => {
+export const useUpdatedDocuments = (cooldown = 2000) => {
   const updatedIdsRef = useRef<Map<string, number>>(new Map());
   const cleanupTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 

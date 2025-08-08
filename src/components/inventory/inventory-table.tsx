@@ -2,11 +2,32 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Package } from "lucide-react";
 
+interface Product {
+  _id: string;
+  name: string;
+  description?: string;
+  category: {
+    _id: string;
+    name: string;
+  };
+  brand: {
+    _id: string;
+    name: string;
+  };
+  pricing: {
+    sellingPrice: number;
+    unit: string;
+  };
+  inventory: {
+    currentStock: number;
+  };
+}
+
 interface InventoryTableProps {
-  products: any[];
+  products: Product[];
   isLoading: boolean;
-  onEditProduct: (product: any) => void;
-  onDeleteProduct: (product: any) => void;
+  onEditProduct: (product: Product) => void;
+  onDeleteProduct: (product: Product) => void;
   getStockStatus: (stock: number) => {
     status: string;
     color: string;
@@ -77,13 +98,16 @@ export const InventoryTable = ({
           </thead>
           <tbody className="divide-y divide-gray-800">
             {products.map((product, index) => {
-              const stockStatus = getStockStatus(Number(product.currentStock));
+              const stockStatus = getStockStatus(
+                Number(product.inventory?.currentStock || 0)
+              );
               const totalValue =
-                Number(product.sellingPrice) * Number(product.currentStock);
+                Number(product.pricing?.sellingPrice || 0) *
+                Number(product.inventory?.currentStock || 0);
 
               return (
                 <motion.tr
-                  key={product.id}
+                  key={product._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -92,7 +116,9 @@ export const InventoryTable = ({
                     <div>
                       <div className="text-sm font-medium text-white">
                         {product.name ||
-                          `${product.category} - ${product.brand}`}
+                          `${product.category?.name || "Unknown Category"} - ${
+                            product.brand?.name || "Unknown Brand"
+                          }`}
                       </div>
                       {product.description && (
                         <div className="text-sm text-gray-400 truncate max-w-xs">
@@ -103,20 +129,21 @@ export const InventoryTable = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 py-1 text-xs font-medium bg-blue-600/20 text-blue-400 rounded">
-                      {product.category}
+                      {product.category?.name || "Unknown Category"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {product.brand}
+                    {product.brand?.name || "Unknown Brand"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 py-1 text-xs font-medium rounded ${stockStatus.bg} ${stockStatus.color}`}>
-                      {product.currentStock} {product.unit}
+                      {product.inventory?.currentStock || 0}{" "}
+                      {product.pricing?.unit || "units"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    ₹{Number(product.sellingPrice).toFixed(2)}
+                    ₹{Number(product.pricing?.sellingPrice || 0).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                     ₹{totalValue.toFixed(2)}

@@ -1,178 +1,296 @@
 // Core entity types
-export interface Customer {
+export interface User {
+  _id: string;
   id: string;
+  clerkId: string;
+  customerId: string;
+  secretKey: string;
+  name: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  profileImage?: string;
+  role: "admin" | "customer";
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Customer {
+  _id: string;
+  customerId: string;
+  name: string;
+  phone: string;
+  location: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  _id: string;
+  id?: string;
+  productId: string;
+  price?: number;
+  name: string;
+  slug: string;
+  brand: {
+    _id: string;
+    name: string;
+  };
+  category: {
+    _id: string;
+    name: string;
+    slug: string;
+  };
+  description?: string;
+  specifications: Record<string, any>;
+  pricing: {
+    basePrice: number;
+    salePrice?: number;
+    costPrice: number;
+    sellingPrice?: number;
+    purchasePrice?: number;
+  };
+  inventory: {
+    currentStock: number;
+    minStockLevel: number;
+    maxStockLevel: number;
+    reorderPoint: number;
+    minimumStock?: number;
+    maximumStock?: number;
+  };
+  images: string[];
+  isActive: boolean;
+  isFeatured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Brand {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logo?: string;
+  isActive: boolean;
+  sortOrder: number;
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+  parentCategory?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Bill {
+  _id: string;
+  billId: string;
+  billNumber: string;
+  customer: Customer;
+  items: BillItem[];
+  subtotal: number;
+  tax: number;
+  discount: number;
+  totalAmount: number;
+  paymentStatus: "paid" | "pending" | "overdue";
+  paymentMethod?: string;
+  notes?: string;
+  serviceLocation?: string;
+  dueDate?: string;
+  paidDate?: string;
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BillItem {
+  _id: string;
+  id?: string;
+  product: Product;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  price?: number;
+  total?: number;
+  specifications?: Record<string, any>;
+}
+
+export interface StockTransaction {
+  _id: string;
+  id?: string;
+  product: {
+    _id: string;
+    name: string;
+  };
+  type: "in" | "out" | "adjustment";
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  transactionDate: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+// Form data types
+export interface LoginCredentials {
+  customerId: string;
+  secretKey: string;
+}
+
+export interface ProfileData {
+  name: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  profileImage?: string;
+}
+
+export interface CreateBrandData {
+  name: string;
+  description?: string;
+  logo?: string;
+  isActive: boolean;
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
+  };
+}
+
+export interface CreateCustomerData {
   name: string;
   phone: string;
   location: string;
 }
 
-// Re-export customer types
-export type { 
-  Customer as CustomerBase,
-  CustomerWithStats,
-  CustomerFilters,
-  CustomerStats 
-} from "./customer";
-
-export interface Item {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-}
-
-export interface BillItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  total: number;
-}
-
 export interface BillFormData {
-  customerId: string;
-  serviceType: string;
-  locationType: string;
+  customer: Customer | null;
+  customerId?: string;
   items: BillItem[];
-  notes: string;
+  serviceLocation?: string;
+  serviceType?: string;
+  locationType?: string;
+  notes?: string;
+  dueDate?: string;
+  paymentMethod?: string;
 }
 
-// Inventory types
-export interface StockAlert {
-  productId: string;
-  productName: string;
-  brandName: string;
-  currentStock: number;
-  minimumStock: number;
-  alertLevel: "out_of_stock" | "low_stock" | "reorder_needed";
+// UI component types
+export interface DropdownOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+export interface ActionButtonProps {
+  onClick: () => void | Promise<void>;
+  children: React.ReactNode;
+  variant?:
+    | "default"
+    | "destructive"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link"
+    | "primary";
+  size?: "default" | "sm" | "lg" | "icon" | "md";
+  disabled?: boolean;
+  loading?: boolean;
+  className?: string;
+  icon?: React.ReactNode;
+}
+
+export interface FormFieldProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  required?: boolean;
+  placeholder?: string;
+  type?: "text" | "email" | "password" | "number" | "tel" | "textarea";
+  disabled?: boolean;
+}
+
+// Dashboard and analytics types
+export interface DashboardStats {
+  totalCustomers: number;
+  totalProducts: number;
+  totalBills: number;
+  totalRevenue: number;
+  pendingBills: number;
+  lowStockItems: number;
 }
 
 export interface InventoryValue {
-  totalValue: number;
-  totalItems: number;
-  breakdown: ProductValue[];
-}
-
-export interface ProductValue {
   productId: string;
   name: string;
   brand: string;
-  stock: number;
-  unit: string;
+  currentStock: number;
   unitPrice: number;
   totalValue: number;
 }
 
-// Form types
-export interface FormFieldProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-  placeholder?: string;
-}
-
-export interface DropdownOption {
-  value: string;
-  label: string;
-}
-
-// Service and location types
-export type ServiceType = "sale" | "repair" | "maintenance";
-export type LocationType = "shop" | "home";
-
-// UI Component types
-export interface LoadingState {
-  isLoading: boolean;
-  error?: string | null;
-}
-
-export interface ActionButtonProps {
-  onClick: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  variant?: "primary" | "secondary" | "outline" | "danger";
-  size?: "sm" | "md" | "lg";
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-}
-
-// Modal and Dialog types
-export interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title?: string;
-  size?: "sm" | "md" | "lg" | "xl";
-  children: React.ReactNode;
-}
-
-// Stats and metrics types
-export interface StatCardData {
-  title: string;
-  value: string | number;
-  change?: {
-    value: number;
-    type: "increase" | "decrease";
-    period: string;
-  };
-  icon?: React.ReactNode;
-  loading?: boolean;
-  error?: string;
-}
-
-// Dashboard types
-export interface DashboardStats {
-  products: {
-    total: number;
-    active: number;
-  };
-  users: {
-    total: number;
-    customers: number;
-  };
-  bills: {
-    total: number;
-    pending: number;
-    completed: number;
-    totalRevenue: number;
-  };
-}
-
-export interface LowStockItem {
-  id: string;
-  name: string;
+export interface StockAlert {
+  _id: string;
+  productId: string;
+  productName: string;
+  brand: string;
+  brandName?: string;
   currentStock: number;
-  minimumStock: number;
-  brand?: string;
-}
-
-export interface OutOfStockItem {
-  id: string;
-  name: string;
-  brand?: string;
-  lastStockDate?: string;
-}
-
-export interface OverdueBill {
-  id: string;
-  customerName: string;
-  amount: number;
-  dueDate: string;
-  daysPastDue: number;
+  minStockLevel: number;
+  minimumStock?: number;
+  alertType: "low_stock" | "out_of_stock" | "overstock";
+  severity: "low" | "medium" | "high" | "critical";
+  createdAt: string;
 }
 
 export interface AlertData {
-  totalAlerts: number;
-  inventory: {
-    lowStockCount: number;
-    outOfStockCount: number;
-    lowStock: LowStockItem[];
-    outOfStock: OutOfStockItem[];
-  };
-  bills: {
-    overdueCount: number;
-    overdue: OverdueBill[];
-  };
+  _id: string;
+  type: "stock" | "payment" | "system";
+  title: string;
+  message: string;
+  severity: "low" | "medium" | "high" | "critical";
+  isRead: boolean;
+  createdAt: string;
 }
+
+// Inventory summary type
+export interface InventorySummary {
+  totalProducts: number;
+  totalItems?: number;
+  totalValue: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  topValueProducts: InventoryValue[];
+  breakdown?: unknown[];
+}
+
+// Generic API response type
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data: T;
+  message?: string;
+  error?: string;
+}
+
+// Utility types
+export type Item = Product;

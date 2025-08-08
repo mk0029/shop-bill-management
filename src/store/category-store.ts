@@ -156,7 +156,9 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
           switch (update.transition) {
             case "appear":
               if (document && !categories.find((c) => c._id === documentId)) {
-                set({ categories: [...categories, document] });
+                set({
+                  categories: [...categories, document as unknown as Category],
+                });
                 console.log(`✅ Category created: ${document.name}`);
               }
               break;

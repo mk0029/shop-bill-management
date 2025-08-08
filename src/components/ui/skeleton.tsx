@@ -39,8 +39,8 @@ export function Skeleton({
             key={index}
             className={cn(baseClasses, variantClasses.text)}
             style={{
-              width: index === lines - 1 ? "75%" : "100%",
               ...style,
+              width: index === lines - 1 ? "75%" : "100%",
             }}
           />
         ))}

@@ -8,7 +8,7 @@ import { useCategoryStore } from "@/store/category-store";
 export const useInventoryManagement = () => {
   const router = useRouter();
   const { products, fetchProducts, deleteProduct, updateProduct } =
-    useInventoryStore();
+    useInventoryStore() as any;
   const { brands, fetchBrands } = useBrandStore();
   const { categories, fetchCategories } = useCategoryStore();
 
@@ -18,7 +18,7 @@ export const useInventoryManagement = () => {
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<unknown>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -76,7 +76,7 @@ export const useInventoryManagement = () => {
     }
   });
 
-  const handleDeleteProduct = async (product: any) => {
+  const handleDeleteProduct = async (product: unknown) => {
     setSelectedProduct(product);
     setShowDeleteDialog(true);
   };
@@ -95,7 +95,7 @@ export const useInventoryManagement = () => {
     }
   };
 
-  const handleEditProduct = (product: any) => {
+  const handleEditProduct = (product: unknown) => {
     setSelectedProduct(product);
     setShowEditDialog(true);
   };

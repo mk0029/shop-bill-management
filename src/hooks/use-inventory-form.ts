@@ -22,7 +22,7 @@ export const useInventoryForm = () => {
   const { brands } = useBrandStore();
   const { categories } = useCategoryStore();
   const { specificationOptions: specifications } = useSpecificationsStore();
-  const { createProduct: addProduct } = useInventoryStore();
+  const { createProduct: addProduct } = useInventoryStore() as any;
 
   const [formData, setFormData] = useState<InventoryFormData>({
     category: "",

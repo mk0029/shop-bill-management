@@ -127,10 +127,13 @@ export function CustomerForm({
     field: keyof CreateCustomerData,
     value: string
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev: CreateCustomerData) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (formErrors[field]) {
-      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+      setFormErrors((prev: Partial<CreateCustomerData>) => ({
+        ...prev,
+        [field]: undefined,
+      }));
     }
   };
 

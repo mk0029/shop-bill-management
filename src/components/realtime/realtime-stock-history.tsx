@@ -57,62 +57,64 @@ export const RealtimeStockHistory: React.FC<RealtimeStockHistoryProps> = ({
   );
 
   // Listen to stock transaction changes
-  useDocumentListener("stockTransaction", undefined, (update) => {
-    const { transition, result } = update;
+  useDocumentListener("stockTransaction", undefined, {
+    onUpdate: (update: any) => {
+      const { transition, result } = update;
 
-    switch (transition) {
-      case "appear":
-        setTransactions((prev) => {
-          const exists = prev.find((t) => t._id === result._id);
-          if (!exists) {
-            if (showNewTransactionAnimation) {
-              setNewTransactionIds((prev) => new Set(prev).add(result._id));
-              // Remove the highlight after 3 seconds
-              setTimeout(() => {
-                setNewTransactionIds((prev) => {
-                  const newSet = new Set(prev);
-                  newSet.delete(result._id);
-                  return newSet;
-                });
-              }, 3000);
-            }
-
-            toast.success(
-              `New ${result.type} transaction: ${result.quantity} units of ${
-                result.product?.name || "Product"
-              }`,
-              {
-                icon:
-                  result.type === "purchase" ? (
-                    <Plus className="w-4 h-4" />
-                  ) : (
-                    <Minus className="w-4 h-4" />
-                  ),
+      switch (transition) {
+        case "appear":
+          setTransactions((prev) => {
+            const exists = prev.find((t) => t._id === result._id);
+            if (!exists) {
+              if (showNewTransactionAnimation) {
+                setNewTransactionIds((prev) => new Set(prev).add(result._id));
+                // Remove the highlight after 3 seconds
+                setTimeout(() => {
+                  setNewTransactionIds((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(result._id);
+                    return newSet;
+                  });
+                }, 3000);
               }
-            );
 
-            return [result, ...prev];
-          }
-          return prev;
-        });
-        break;
+              toast.success(
+                `New ${result.type} transaction: ${result.quantity} units of ${
+                  result.product?.name || "Product"
+                }`,
+                {
+                  icon:
+                    result.type === "purchase" ? (
+                      <Plus className="w-4 h-4" />
+                    ) : (
+                      <Minus className="w-4 h-4" />
+                    ),
+                }
+              );
 
-      case "update":
-        setTransactions((prev) =>
-          prev.map((transaction) =>
-            transaction._id === result._id
-              ? { ...transaction, ...result }
-              : transaction
-          )
-        );
-        break;
+              return [result, ...prev];
+            }
+            return prev;
+          });
+          break;
 
-      case "disappear":
-        setTransactions((prev) =>
-          prev.filter((transaction) => transaction._id !== result._id)
-        );
-        break;
-    }
+        case "update":
+          setTransactions((prev) =>
+            prev.map((transaction) =>
+              transaction._id === result._id
+                ? { ...transaction, ...result }
+                : transaction
+            )
+          );
+          break;
+
+        case "disappear":
+          setTransactions((prev) =>
+            prev.filter((transaction) => transaction._id !== result._id)
+          );
+          break;
+      }
+    },
   });
 
   const getTransactionIcon = (type: string) => {
@@ -288,33 +290,35 @@ export const RealtimeStockSummary: React.FC = () => {
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
 
   // Listen to stock transaction changes and update summary
-  useDocumentListener("stockTransaction", undefined, (update) => {
-    const { transition, result } = update;
+  useDocumentListener("stockTransaction", undefined, {
+    onUpdate: (update: any) => {
+      const { transition, result } = update;
 
-    switch (transition) {
-      case "appear":
-        setTransactions((prev) => {
-          const exists = prev.find((t) => t._id === result._id);
-          return exists ? prev : [...prev, result];
-        });
-        break;
+      switch (transition) {
+        case "appear":
+          setTransactions((prev) => {
+            const exists = prev.find((t) => t._id === result._id);
+            return exists ? prev : [...prev, result];
+          });
+          break;
 
-      case "update":
-        setTransactions((prev) =>
-          prev.map((transaction) =>
-            transaction._id === result._id
-              ? { ...transaction, ...result }
-              : transaction
-          )
-        );
-        break;
+        case "update":
+          setTransactions((prev) =>
+            prev.map((transaction) =>
+              transaction._id === result._id
+                ? { ...transaction, ...result }
+                : transaction
+            )
+          );
+          break;
 
-      case "disappear":
-        setTransactions((prev) =>
-          prev.filter((transaction) => transaction._id !== result._id)
-        );
-        break;
-    }
+        case "disappear":
+          setTransactions((prev) =>
+            prev.filter((transaction) => transaction._id !== result._id)
+          );
+          break;
+      }
+    },
   });
 
   // Recalculate summary when transactions change
