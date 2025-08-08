@@ -91,7 +91,7 @@ export default function Home() {
               <Card className="bg-gray-800 border-gray-700 mb-8">
                 <CardContent>
                   <div className="text-gray-100 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <div className="animate-spin rounded-full sm:h-8 sm:w-8 h-6 w-6  border-b-2 border-blue-500 mx-auto mb-4"></div>
                     <p className="text-lg font-medium">
                       Loading data from Sanity...
                     </p>

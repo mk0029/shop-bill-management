@@ -28,7 +28,7 @@ export function OptionalFieldsSection({
       <h4 className="text-sm font-medium text-gray-400 border-b border-gray-700 pb-2">
         Optional Specifications
       </h4>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {optionalFields.map((field) => (
           <SpecificationField
             key={field._id}

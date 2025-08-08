@@ -141,7 +141,7 @@ export default function BrandsPage() {
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full sm:h-8 sm:w-8 h-6 w-6  border-b-2 border-blue-500"></div>
               <span className="ml-2 text-gray-400">Loading brands...</span>
             </div>
           ) : brands.length === 0 ? (

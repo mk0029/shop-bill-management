@@ -52,7 +52,7 @@ export function SelectedItemsList({
                 variant="ghost"
                 size="sm"
                 onClick={() => onQuantityUpdate(item.id, item.quantity - 1)}
-                className="hover:bg-gray-700 h-8 w-8 p-0"
+                className="hover:bg-gray-700 sm:h-8 sm:w-8 h-6 w-6  p-0"
               >
                 <Minus className="w-3 h-3" />
               </Button>
@@ -63,7 +63,7 @@ export function SelectedItemsList({
                 variant="ghost"
                 size="sm"
                 onClick={() => onQuantityUpdate(item.id, item.quantity + 1)}
-                className="hover:bg-gray-700 h-8 w-8 p-0"
+                className="hover:bg-gray-700 sm:h-8 sm:w-8 h-6 w-6  p-0"
               >
                 <span className="text-sm">+</span>
               </Button>
@@ -78,7 +78,7 @@ export function SelectedItemsList({
                 variant="ghost"
                 size="sm"
                 onClick={() => onItemRemove(item.id)}
-                className="hover:bg-red-900/20 text-red-400 h-8 w-8 p-0"
+                className="hover:bg-red-900/20 text-red-400 sm:h-8 sm:w-8 h-6 w-6  p-0"
               >
                 <Trash2 className="w-3 h-3" />
               </Button>

@@ -42,7 +42,7 @@ export function CustomersOverview() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         <Card>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -114,7 +114,7 @@ export function CustomersOverview() {
                 (bill) => bill.paymentStatus === "pending"
               );
               const totalSpent = customerBills
-                .filter((bill) => bill.paymentStatus === "paid")
+                .filter((bill) => bill.paymentStatus === "pending")
                 .reduce((sum, bill) => sum + bill.totalAmount, 0);
 
               return (
@@ -146,7 +146,7 @@ export function CustomersOverview() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 md:gap-4">
                     <div className="text-right">
                       <p className="font-medium text-white">
                         ₹{totalSpent.toLocaleString()}
@@ -155,7 +155,7 @@ export function CustomersOverview() {
                         {customerBills.length} bills
                       </p>
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className=" hidden md:flex flex-col gap-1">
                       <Badge
                         variant={customer.isActive ? "default" : "secondary"}
                       >

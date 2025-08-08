@@ -42,8 +42,8 @@ export default function AdminDashboard() {
 
   return (
     <RealtimeProvider enableNotifications={false}>
-      <div className="min-h-screen bg-gray-900 p-6">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                 {quickActions.map((action, index) => {
                   const Icon = action.icon;
                   return (

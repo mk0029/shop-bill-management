@@ -21,7 +21,7 @@ export default function DebugAdminPage() {
   const userCanManageAdmins = canManageAdmins(userEmail);
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
+    <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-3">
           <Settings className="h-8 w-8 text-blue-500" />
@@ -121,7 +121,7 @@ export default function DebugAdminPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
               <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                 <span className="text-gray-300">Is Super Admin</span>
                 <Badge

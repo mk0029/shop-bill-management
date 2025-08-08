@@ -77,7 +77,7 @@ export function DataLoadingSpinner({
   return (
     <div className="flex items-center justify-center p-8">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+        <div className="animate-spin rounded-full sm:h-8 sm:w-8 h-6 w-6  border-b-2 border-blue-500 mx-auto mb-2"></div>
         <p className="text-gray-400 text-sm">{message}</p>
       </div>
     </div>

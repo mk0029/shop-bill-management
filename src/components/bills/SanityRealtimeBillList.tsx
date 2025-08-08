@@ -117,7 +117,7 @@ export function SanityRealtimeBillList() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full sm:h-8 sm:w-8 h-6 w-6  border-b-2 border-blue-600"></div>
           </div>
         </CardContent>
       </Card>
@@ -133,7 +133,8 @@ export function SanityRealtimeBillList() {
             <Button
               onClick={createTestBill}
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700">
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               Create Test Bill
             </Button>
             <SanityRealtimeStatus />
@@ -150,7 +151,8 @@ export function SanityRealtimeBillList() {
             bills.map((bill) => (
               <div
                 key={bill._id || bill.billId}
-                className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
@@ -159,7 +161,8 @@ export function SanityRealtimeBillList() {
                         {bill.status}
                       </Badge>
                       <Badge
-                        className={getPaymentStatusColor(bill.paymentStatus)}>
+                        className={getPaymentStatusColor(bill.paymentStatus)}
+                      >
                         {bill.paymentStatus}
                       </Badge>
                     </div>
@@ -211,7 +214,8 @@ export function SanityRealtimeBillList() {
                       {bill.items.slice(0, 3).map((item, index) => (
                         <div
                           key={index}
-                          className="text-sm text-gray-600 flex justify-between">
+                          className="text-sm text-gray-600 flex justify-between"
+                        >
                           <span>
                             {item.productName} x{item.quantity}
                           </span>

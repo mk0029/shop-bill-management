@@ -155,7 +155,7 @@ export default function CustomerNotFoundPage() {
                 Contact Support
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                 {/* WhatsApp */}
                 <Card className="bg-gray-800/50 border-gray-700 hover:bg-gray-800/70 transition-colors cursor-pointer">
                   <CardContent className="sm:p-4 p-3">
