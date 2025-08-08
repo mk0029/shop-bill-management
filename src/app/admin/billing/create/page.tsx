@@ -378,7 +378,7 @@ export default function CreateBillPage() {
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-6 max-md:pb-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" onClick={() => router.back()} className="p-2">

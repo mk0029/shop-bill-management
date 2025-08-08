@@ -103,7 +103,7 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="space-y-6 pb-3">
+    <div className="space-y-6 max-md:pb-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
