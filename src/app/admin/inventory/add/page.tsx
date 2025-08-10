@@ -59,6 +59,17 @@ export default function AddInventoryItemPage() {
             brands={brands}
             errors={errors}
             onInputChange={handleInputChange}
+            dynamicSpecificationFields={
+           
+              <div className="lg:col-span-2">
+                <DynamicSpecificationFields
+                  categoryId={formData.category}
+                  formData={formData.specifications}
+                  onFieldChange={handleSpecificationChange}
+                  errors={errors}
+                />
+              </div>
+            }
           />
 
           {/* Pricing Information */}
@@ -67,17 +78,9 @@ export default function AddInventoryItemPage() {
             errors={errors}
             onInputChange={handleInputChange}
           />
-        </div>
 
-        {/* Dynamic Specifications */}
-        {formData.category && (
-          <DynamicSpecificationFields
-            selectedCategory={formData.category}
-            specifications={formData.specifications}
-            onSpecificationChange={handleSpecificationChange}
-            errors={errors}
-          />
-        )}
+      
+        </div>
 
         {/* Action Buttons */}
         <div className="flex gap-4 justify-end">
@@ -110,28 +113,47 @@ export default function AddInventoryItemPage() {
       {/* Success Popup */}
       {showSuccessPopup && (
         <SuccessPopup
-          {...createProductSuccessPopup({
-            productName: `${formData.category} - ${formData.brand}`,
-            category: formData.category,
-            stock: formData.currentStock,
-            onViewInventory: handleSuccessClose,
-            onAddAnother: () => {
-              resetForm();
+          isOpen={showSuccessPopup}
+          onClose={handleSuccessClose}
+          data={createProductSuccessPopup(
+            {
+              name: `${formData.category} - ${formData.brand}`,
+              category: formData.category,
+              brand: formData.brand,
+              currentStock: formData.currentStock,
+              sellingPrice: formData.sellingPrice,
+              unit: formData.unit,
             },
-          })}
+            () => {
+              resetForm();
+              handleSuccessClose();
+            }
+          )}
         />
       )}
 
       {/* Confirmation Popup */}
       {showConfirmationPopup && (
         <ConfirmationPopup
-          title="Add Product"
-          message="Are you sure you want to add this product to inventory?"
-          confirmText="Add Product"
-          cancelText="Cancel"
-          onConfirm={confirmSubmit}
-          onCancel={() => setShowConfirmationPopup(false)}
-          isLoading={isLoading}
+          isOpen={showConfirmationPopup}
+          onClose={() => setShowConfirmationPopup(false)}
+          data={{
+            title: "Add Product",
+            message: "Are you sure you want to add this product to inventory?",
+            type: "info",
+            actions: [
+              {
+                label: isLoading ? "Adding..." : "Add Product",
+                action: confirmSubmit,
+                variant: "default",
+              },
+              {
+                label: "Cancel",
+                action: () => setShowConfirmationPopup(false),
+                variant: "outline",
+              },
+            ],
+          }}
         />
       )}
     </div>

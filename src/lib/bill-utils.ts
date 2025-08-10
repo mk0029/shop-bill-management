@@ -3,7 +3,7 @@
  */
 
 export interface BillItem {
-  productId: string;
+  productId?: string;
   productName: string;
   category?: string;
   brand?: string;
@@ -21,7 +21,7 @@ export function deduplicateBillItems(items: BillItem[]): BillItem[] {
   const itemMap = new Map<string, BillItem>();
 
   items.forEach((item) => {
-    const key = item.productId;
+    const key = item.productId || `custom-${item.productName}`;
 
     if (itemMap.has(key)) {
       const existing = itemMap.get(key)!;
@@ -57,8 +57,8 @@ export function validateBillItems(items: BillItem[]): {
   }
 
   items.forEach((item, index) => {
-    if (!item.productId) {
-      errors.push(`Item ${index + 1}: Product ID is required`);
+    if (!item.productId && !item.productName.toLowerCase().includes('rewinding')) {
+      errors.push(`Item ${index + 1}: Product ID is required for standard items`);
     }
     if (!item.productName?.trim()) {
       errors.push(`Item ${index + 1}: Product name is required`);

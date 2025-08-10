@@ -4,7 +4,6 @@ import { DropdownOption } from "@/types";
 
 interface RequiredFieldsSectionProps {
   requiredFields: any[];
-  fieldOptions: Record<string, DropdownOption[]>;
   formData: Record<string, string>;
   errors: Record<string, string>;
   disabled: boolean;
@@ -13,7 +12,6 @@ interface RequiredFieldsSectionProps {
 
 export function RequiredFieldsSection({
   requiredFields,
-  fieldOptions,
   formData,
   errors,
   disabled,
@@ -24,14 +22,13 @@ export function RequiredFieldsSection({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
       {requiredFields.map((field) => (
         <SpecificationField
           key={field._id}
           fieldDefinition={field}
           fieldName={field.fieldKey}
           fieldValue={formData[field.fieldKey] || ""}
-          fieldOptions={fieldOptions[field.fieldKey] || []}
           isRequired={true}
           hasError={!!errors[field.fieldKey]}
           errorMessage={errors[field.fieldKey]}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBill } from "@/lib/form-service";
 
-interface BillFormData {
+export interface BillFormData {
   customerId: string;
   serviceType: string;
   location: string;
@@ -12,9 +12,20 @@ interface BillFormData {
   repairCharges: number;
   homeVisitFee: number;
   laborCharges: number;
+  // Rewinding Kit Fields
+  kitName?: string;
+  kitBoreSize?: number;
+  kitSizeInInches?: number;
+  isMultiSpeed?: boolean;
+  heavyLoadOptions?: string[];
+  oldWindingMaterial?: 'copper' | 'aluminum';
+  newWindingMaterial?: 'copper' | 'aluminum';
+  priceDifference?: number;
+  windingRate?: number;
+  kitType?: 'cooler' | 'motor' | 'other';
 }
 
-interface BillItem {
+export interface BillItem {
   id: string;
   name: string;
   price: number;
@@ -24,6 +35,7 @@ interface BillItem {
   brand: string;
   specifications: string;
   unit: string;
+  itemType: 'standard' | 'rewinding';
 }
 
 export const useBillForm = () => {
@@ -44,12 +56,21 @@ export const useBillForm = () => {
     repairCharges: 0,
     homeVisitFee: 0,
     laborCharges: 0,
+    kitName: "",
+    kitBoreSize: 0,
+    kitSizeInInches: 0,
+    isMultiSpeed: false,
+    heavyLoadOptions: [],
+    oldWindingMaterial: 'copper',
+    newWindingMaterial: 'copper',
+    priceDifference: 0,
+    windingRate: 0,
   });
 
-  const handleInputChange = (field: string, value: string) => {
-    if (["repairCharges", "homeVisitFee", "laborCharges"].includes(field)) {
-      const numericValue = Number(value) || 0;
-      setFormData((prev) => ({ ...prev, [field]: numericValue }));
+  const handleInputChange = (field: keyof BillFormData, value: any) => {
+    const numericFields = ["repairCharges", "homeVisitFee", "laborCharges", "kitBoreSize", "kitSizeInInches", "priceDifference", "windingRate"];
+    if (numericFields.includes(field)) {
+      setFormData((prev) => ({ ...prev, [field]: Number(value) || 0 }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
@@ -90,9 +111,37 @@ export const useBillForm = () => {
           brand: product.brand?.name || "Unknown",
           specifications,
           unit: product.pricing.unit,
+          itemType: 'standard',
         },
       ]);
     }
+  };
+
+  const addRewindingItemToBill = () => {
+    const { kitName, windingRate, kitSizeInInches, priceDifference, oldWindingMaterial, newWindingMaterial } = formData;
+
+    if (!kitName || !windingRate || !kitSizeInInches) {
+        setAlertMessage("Please fill in all required rewinding kit details.");
+        setShowAlertModal(true);
+        return;
+    }
+
+    const price = (Number(windingRate) * Number(kitSizeInInches)) + (oldWindingMaterial !== newWindingMaterial ? Number(priceDifference) : 0);
+
+    const rewindingItem: BillItem = {
+        id: `rewinding-${Date.now()}`,
+        name: `Rewinding Kit - ${kitName}`,
+        price: price,
+        quantity: 1,
+        total: price,
+        category: 'Rewinding',
+        brand: 'Custom',
+        specifications: `Bore: ${formData.kitBoreSize}", Size: ${formData.kitSizeInInches}", Load: ${formData.heavyLoadOptions?.join(', ')}`,
+        unit: 'kit',
+        itemType: 'rewinding',
+    };
+
+    setSelectedItems(prev => [...prev, rewindingItem]);
   };
 
   const updateItemQuantity = (
@@ -142,7 +191,7 @@ export const useBillForm = () => {
       const billData = {
         customerId: formData.customerId,
         items: selectedItems.map((item) => ({
-          productId: item.id,
+          productId: item.itemType === 'standard' ? item.id : undefined,
           productName: item.name,
           category: item.category,
           brand: item.brand,
@@ -150,6 +199,7 @@ export const useBillForm = () => {
           quantity: Number(item.quantity),
           unitPrice: Number(item.price),
           unit: item.unit,
+          isRewinding: item.itemType === 'rewinding',
         })),
         serviceType: formData.serviceType as
           | "sale"
@@ -201,6 +251,7 @@ export const useBillForm = () => {
     handleSuccessClose,
     setShowAlertModal,
     setSelectedItems,
+    addRewindingItemToBill,
   };
 };
 

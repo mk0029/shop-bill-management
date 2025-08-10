@@ -361,13 +361,13 @@ export async function createCategory(categoryData: {
 export async function createBill(billData: {
   customerId: string;
   items: Array<{
-    productId: string;
+    productId?: string;
     productName: string;
     category?: string;
     brand?: string;
     specifications?: string;
     quantity: number;
-    unitPrice?: number; // Made optional - will fetch latest if not provided
+    unitPrice?: number;
     unit?: string;
   }>;
   serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
@@ -380,20 +380,20 @@ export async function createBill(billData: {
   try {
     console.log("🧾 Creating bill in Sanity:", billData);
 
-    // Step 1: Deduplicate and validate bill items
-    const deduplicatedItems = deduplicateBillItems(
-      billData.items.map((item) => ({
-        productId: item.productId,
-        productName: item.productName,
-        category: item.category || "",
-        brand: item.brand || "",
-        specifications: item.specifications || "",
-        quantity: item.quantity,
-        unitPrice: item.unitPrice || 0,
-        totalPrice: item.quantity * (item.unitPrice || 0),
-        unit: item.unit || "pcs",
-      }))
-    );
+    // Step 1: Map and deduplicate bill items
+    const mappedItems = billData.items.map((item) => ({
+      productId: item.productId,
+      productName: item.productName,
+      category: item.category || "",
+      brand: item.brand || "",
+      specifications: item.specifications || "",
+      quantity: item.quantity,
+      unitPrice: item.unitPrice || 0,
+      totalPrice: item.quantity * (item.unitPrice || 0),
+      unit: item.unit || "pcs",
+    }));
+
+    const deduplicatedItems = deduplicateBillItems(mappedItems);
 
     console.log(
       "🔄 Deduplicated items:",
@@ -402,6 +402,7 @@ export async function createBill(billData: {
       billData.items.length
     );
 
+    // Step 2: Validate all items for basic integrity
     const itemValidation = validateBillItems(deduplicatedItems);
     if (!itemValidation.isValid) {
       console.error("❌ Item validation failed:", itemValidation.errors);
@@ -411,29 +412,32 @@ export async function createBill(billData: {
       };
     }
 
-    // Step 2: Validate stock availability for all items
-    const billItems: BillItem[] = deduplicatedItems.map((item) => ({
-      productId: item.productId,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-    }));
+    // Step 3: Filter for standard items to perform inventory checks
+    const standardItems = deduplicatedItems.filter(
+      (item): item is typeof item & { productId: string } => !!item.productId
+    );
 
-    console.log("📊 Validating stock availability...");
-    const stockValidation = await validateStockAvailability(billItems);
-
-    if (!stockValidation.isValid) {
-      console.error("❌ Stock validation failed:", stockValidation.errors);
-      return {
-        success: false,
-        error: `Stock validation failed: ${stockValidation.errors.join(", ")}`,
-        data: { validationResults: stockValidation.validationResults },
-      };
+    // Step 4: Validate stock availability for standard items only
+    if (standardItems.length > 0) {
+      console.log("📊 Validating stock availability for standard items...");
+      const stockValidation = await validateStockAvailability(standardItems);
+      if (!stockValidation.isValid) {
+        console.error("❌ Stock validation failed:", stockValidation.errors);
+        return {
+          success: false,
+          error: `Stock validation failed: ${stockValidation.errors.join(", ")}`,
+          data: { validationResults: stockValidation.validationResults },
+        };
+      }
     }
 
-    // Step 3: Fetch latest prices for items without prices
-    const productIds = deduplicatedItems.map((item) => item.productId);
-    console.log("💰 Fetching latest prices...");
-    const latestPrices = await fetchLatestPrices(productIds);
+    // Step 5: Fetch latest prices for standard items
+    const latestPrices =
+      standardItems.length > 0
+        ? await fetchLatestPrices(standardItems.map((item) => item.productId))
+        : new Map();
+
+    console.log("💰 Fetched latest prices for standard items.");
 
     const billId = Buffer.from(Date.now().toString() + Math.random().toString())
       .toString("base64")
@@ -442,13 +446,14 @@ export async function createBill(billData: {
       Date.now()
     ).slice(-6)}`;
 
-    // Step 4: Prepare items array with latest prices
-    const items = deduplicatedItems.map((item) => {
-      const priceInfo = latestPrices.get(item.productId);
+    // Step 6: Prepare final items array for Sanity, including both standard and custom items
+    const finalItems = deduplicatedItems.map((item) => {
+      const priceInfo = item.productId
+        ? latestPrices.get(item.productId)
+        : null;
       const unitPrice = item.unitPrice || priceInfo?.sellingPrice || 0;
 
-      return {
-        product: { _type: "reference", _ref: item.productId },
+      const sanityItem: any = {
         productName: item.productName,
         category: item.category || "",
         brand: item.brand || "",
@@ -458,10 +463,16 @@ export async function createBill(billData: {
         totalPrice: item.quantity * unitPrice,
         unit: item.unit || priceInfo?.unit || "pcs",
       };
+
+      if (item.productId) {
+        sanityItem.product = { _type: "reference", _ref: item.productId };
+      }
+
+      return sanityItem;
     });
 
-    // Calculate totals
-    const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+    // Calculate totals from the final prepared items
+    const subtotal = finalItems.reduce((sum, item) => sum + item.totalPrice, 0);
     const homeVisitFee = Number(
       billData.locationType !== "shop" ? billData.homeVisitFee || 0 : 0
     );
@@ -472,22 +483,6 @@ export async function createBill(billData: {
     const totalAmount =
       Number(subtotal) + homeVisitFee + repairCharges + laborCharges;
 
-    console.log("Bill calculation breakdown:", {
-      subtotal,
-      homeVisitFee,
-      repairCharges,
-      laborCharges,
-      totalAmount,
-    });
-
-    console.log("Bill data types:", {
-      subtotalType: typeof subtotal,
-      homeVisitFeeType: typeof homeVisitFee,
-      repairChargesType: typeof repairCharges,
-      laborChargesType: typeof laborCharges,
-      totalAmountType: typeof totalAmount,
-    });
-
     const newBill = {
       _type: "bill",
       billId,
@@ -495,7 +490,7 @@ export async function createBill(billData: {
       customer: { _type: "reference", _ref: billData.customerId },
       serviceType: billData.serviceType,
       locationType: billData.locationType,
-      items, // NEW: Items array embedded in bill
+      items: finalItems,
       serviceDate: new Date().toISOString(),
       homeVisitFee,
       repairCharges,
@@ -512,31 +507,27 @@ export async function createBill(billData: {
       updatedAt: new Date().toISOString(),
     };
 
-    // Step 5: Create the bill
+    // Step 7: Create the bill in Sanity
     const result = await sanityClient.create(newBill);
     console.log("✅ Bill created successfully:", result._id);
 
-    // Step 6: Update stock levels for all items
-    console.log("📦 Updating stock levels...");
-    const stockUpdateResult = await updateStockForBill(
-      billItems.map((item) => ({
-        ...item,
-        unitPrice:
-          items.find((i) => i.product._ref === item.productId)?.unitPrice || 0,
-      })),
-      result._id,
-      "reduce"
-    );
-
-    if (!stockUpdateResult.success) {
-      console.warn(
-        "⚠️ Stock update failed, but bill was created:",
-        stockUpdateResult.errors
+    // Step 8: Update stock levels for standard items only
+    if (standardItems.length > 0) {
+      console.log("📦 Updating stock levels for standard items...");
+      const stockUpdateResult = await updateStockForBill(
+        standardItems,
+        result._id,
+        "reduce"
       );
-      // Note: Bill is already created, so we don't fail the entire operation
-      // but we should log this for manual intervention
-    } else {
-      console.log("✅ Stock updated successfully");
+
+      if (!stockUpdateResult.success) {
+        console.warn(
+          "⚠️ Stock update failed, but bill was created:",
+          stockUpdateResult.errors
+        );
+      } else {
+        console.log("✅ Stock updated successfully");
+      }
     }
 
     return {
@@ -545,13 +536,8 @@ export async function createBill(billData: {
         ...result,
         billNumber,
         totalAmount,
-        stockUpdateResult: stockUpdateResult.success ? "success" : "failed",
       },
-      message: `Bill ${billNumber} has been created successfully! Total: ₹${totalAmount}${
-        stockUpdateResult.success
-          ? ""
-          : " (Note: Stock update had issues - please check inventory)"
-      }`,
+      message: `Bill ${billNumber} has been created successfully! Total: ₹${totalAmount}`,
     };
   } catch (error) {
     console.error("❌ Failed to create bill:", error);

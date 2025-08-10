@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useBrandStore } from "@/store/brand-store";
 import { useCategoryStore } from "@/store/category-store";
@@ -19,10 +19,20 @@ interface InventoryFormData {
 
 export const useInventoryForm = () => {
   const router = useRouter();
-  const { brands } = useBrandStore();
-  const { categories } = useCategoryStore();
-  const { specificationOptions: specifications } = useSpecificationsStore();
-  const { createProduct: addProduct } = useInventoryStore() as any;
+  const brands = useBrandStore((state) => state.brands);
+  const forceSyncBrands = useBrandStore((state) => state.forceSyncBrands);
+  const allCategories = useCategoryStore((state) => state.categories);
+  const forceSyncCategories = useCategoryStore((state) => state.forceSyncCategories);
+  const categories = useMemo(() => allCategories.filter(c => c.isActive), [allCategories]);
+  const specifications = useSpecificationsStore((state) => state.specificationOptions);
+  const forceSyncSpecifications = useSpecificationsStore((state) => state.forceSyncSpecifications);
+  const { addOrUpdateProduct: addProduct } = useInventoryStore();
+
+  useEffect(() => {
+    forceSyncBrands();
+    forceSyncCategories();
+    forceSyncSpecifications();
+  }, [forceSyncBrands, forceSyncCategories, forceSyncSpecifications]);
 
   const [formData, setFormData] = useState<InventoryFormData>({
     category: "",
@@ -39,6 +49,8 @@ export const useInventoryForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
+
+
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -78,15 +90,22 @@ export const useInventoryForm = () => {
     try {
       // Create product object
       const newProduct = {
-        id: Date.now(),
-        category: formData.category,
-        brand: formData.brand,
-        purchasePrice: formData.purchasePrice,
-        sellingPrice: formData.sellingPrice,
-        currentStock: formData.currentStock,
-        unit: formData.unit,
+        name: `New Product - ${Date.now()}`,
+        brandId: formData.brand,
+        categoryId: formData.category,
+        specifications: formData.specifications,
+        pricing: {
+          purchasePrice: parseFloat(formData.purchasePrice) || 0,
+          sellingPrice: parseFloat(formData.sellingPrice) || 0,
+          unit: formData.unit,
+        },
+        inventory: {
+          currentStock: parseInt(formData.currentStock, 10) || 0,
+          minimumStock: 10, // Default value, consider making this configurable
+          reorderLevel: 5, // Default value
+        },
         description: formData.description,
-        ...formData.specifications,
+        tags: [], // Default value
       };
 
       await addProduct(newProduct);

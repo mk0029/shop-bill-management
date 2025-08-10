@@ -27,8 +27,18 @@ export interface StockUpdateResult {
   error?: string;
 }
 
-export interface BillItem {
+export interface InventoryValueBreakdownItem {
   productId: string;
+  name: string;
+  brand: string;
+  stock: number;
+  unitPrice: number;
+  totalValue: number;
+  unit: string;
+}
+
+export interface BillItem {
+  productId?: string;
   quantity: number;
   unitPrice?: number; // Will be fetched if not provided
 }
@@ -187,6 +197,14 @@ export async function updateStockForBill(
 
     // Process each item
     for (const item of items) {
+      if (!item.productId) {
+        const errorMsg = "Skipping stock update for item without a productId.";
+        console.warn(errorMsg);
+        errors.push(errorMsg);
+        results.push({ success: false, newStock: 0, error: errorMsg });
+        continue;
+      }
+
       try {
         const multiplier = operation === "reduce" ? -1 : 1;
         const stockChange = item.quantity * multiplier;
@@ -370,7 +388,7 @@ export async function calculateInventoryValue(): Promise<{
   success: boolean;
   totalValue: number;
   totalItems: number;
-  breakdown: any[];
+  breakdown: InventoryValueBreakdownItem[];
   error?: string;
 }> {
   try {
@@ -392,7 +410,7 @@ export async function calculateInventoryValue(): Promise<{
 
     let totalValue = 0;
     let totalItems = 0;
-    const breakdown = [];
+    const breakdown: InventoryValueBreakdownItem[] = [];
 
     products.forEach((product: any) => {
       const stock = product.inventory.currentStock;

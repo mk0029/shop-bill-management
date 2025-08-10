@@ -2,6 +2,10 @@ import { create } from "zustand";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
 
+export interface Specification {
+  [key: string]: string | number | boolean | string[] | undefined;
+}
+
 export interface Product {
   _id: string;
   productId: string;
@@ -20,33 +24,12 @@ export interface Product {
     slug: { current: string };
     icon?: string;
   };
-  specifications: {
-    voltage?: string;
-    wattage?: number;
-    amperage?: string;
-    loadCapacity?: number;
-    wireGauge?: string;
-    lightType?: string;
-    color?: string;
-    lumens?: number;
-    size?: string;
-    weight?: number;
-    material?: string;
-    modal?: string;
-    modular?: boolean;
-    hasWarranty?: boolean;
-    warrantyMonths?: number;
-    certifications?: string[];
-  };
+  specifications: Specification;
   pricing: {
     purchasePrice: number;
     sellingPrice: number;
     standardPrice?: number;
     modularPrice?: number;
-    mrp?: number;
-    discount?: number;
-    taxRate: number;
-    unit: string;
   };
   inventory: {
     currentStock: number;
@@ -64,10 +47,8 @@ export interface Product {
   seoDescription?: string;
   createdAt: string;
   updatedAt: string;
-  // Soft delete fields
   deleted?: boolean;
   deletedAt?: string;
-  // Optional property for consolidated products
   _consolidated?: {
     totalEntries: number;
     originalIds: string[];
@@ -106,15 +87,12 @@ export interface InventorySummary {
 }
 
 interface InventoryStore {
-  // State
   products: Product[];
   stockTransactions: StockTransaction[];
   inventorySummary: InventorySummary | null;
   isLoading: boolean;
   error: string | null;
   lastFetched: Date | null;
-
-  // Actions
   fetchProducts: (filters?: any) => Promise<void>;
   fetchProductById: (productId: string) => Promise<Product | null>;
   fetchLowStockProducts: () => Promise<void>;
@@ -124,45 +102,26 @@ interface InventoryStore {
   searchProducts: (searchTerm: string, limit?: number) => Promise<Product[]>;
   updateProductInventory: (
     productId: string,
-    inventoryUpdate: any
+    inventoryUpdate: Partial<Product['inventory'] & Product['pricing']>
   ) => Promise<boolean>;
-  createStockTransaction: (transactionData: any) => Promise<boolean>;
-
-  // New methods for handling duplicate products with latest pricing
+  createStockTransaction: (transactionData: Partial<StockTransaction>) => Promise<boolean>;
   findExistingProduct: (productData: {
     brandId: string;
-    categoryId: string; // Category ID as per API documentation
-    specifications: any;
+    categoryId: string;
+    specifications: Specification;
   }) => Product | undefined;
   addOrUpdateProduct: (productData: {
     name: string;
     description?: string;
     brandId: string;
-    categoryId: string; // Category ID as per API documentation
-    specifications: unknown;
-    pricing: {
-      purchasePrice: number;
-      sellingPrice: number;
-      unit: string;
-    };
-    inventory: {
-      currentStock: number;
-      minimumStock: number;
-      reorderLevel: number;
-    };
+    categoryId: string;
+    specifications: Specification;
+    pricing: { purchasePrice: number; sellingPrice: number; unit: string };
+    inventory: { currentStock: number; minimumStock: number; reorderLevel: number };
     tags: string[];
-  }) => Promise<{
-    success: boolean;
-    data?: unknown;
-    error?: string;
-    isUpdate?: boolean;
-  }>;
-
-  // Realtime update methods
-  handleRealtimeProductUpdate: (product: any) => void;
-  handleRealtimeStockTransaction: (transaction: any) => void;
-
-  // Getters
+  }) => Promise<{ success: boolean; data?: Product; error?: string; isUpdate?: boolean }>;
+  handleRealtimeProductUpdate: (product: Product) => void;
+  handleRealtimeStockTransaction: (transaction: StockTransaction) => void;
   getProductsByCategory: (categoryName: string) => Product[];
   getProductsByBrand: (brandName: string) => Product[];
   getLowStockProducts: () => Product[];
@@ -170,22 +129,17 @@ interface InventoryStore {
   getFeaturedProducts: () => Product[];
   getProductById: (productId: string) => Product | undefined;
   getConsolidatedProducts: () => Product[];
-
-  // Product deletion
+  softDeleteProduct: (productId: string) => Promise<boolean>;
+  restoreProduct: (productId: string) => Promise<boolean>;
   deleteProduct: (productId: string) => Promise<boolean>;
-
-  // Real-time methods
+  clearError: () => void;
+  refreshData: () => Promise<void>;
   initializeRealtime: () => void;
   cleanupRealtime: () => void;
   handleBillCreated: (bill: any) => void;
-
-  // Utilities
-  clearError: () => void;
-  refreshData: () => Promise<void>;
 }
 
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
-  // Initial state
   products: [],
   stockTransactions: [],
   inventorySummary: null,
@@ -193,208 +147,383 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   error: null,
   lastFetched: null,
 
-  // Fetch all products
   fetchProducts: async (filters) => {
     set({ isLoading: true, error: null });
-
     try {
       const response = await inventoryApi.getProducts(filters);
-
       if (response.success) {
-        set({
-          products: (response.data as any) || [],
-          isLoading: false,
-          lastFetched: new Date(),
-          error: null,
-        });
+        set({ products: (response.data as Product[]) || [], isLoading: false, lastFetched: new Date() });
       } else {
-        set({
-          isLoading: false,
-          error: response.error || "Failed to fetch products",
-        });
+        set({ isLoading: false, error: response.error || "Failed to fetch products" });
       }
     } catch (error) {
-      console.error("Error in fetchProducts:", error);
-      set({
-        isLoading: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch products",
-      });
+      set({ isLoading: false, error: error instanceof Error ? error.message : "An unknown error occurred" });
     }
   },
 
-  // Fetch product by ID
-  fetchProductById: async (productId: string) => {
+  fetchProductById: async (productId) => {
+    set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.getProductById(productId);
-
       if (response.success) {
-        return response.data as any;
+        set({ isLoading: false });
+        return response.data as Product;
       } else {
-        set({ error: response.error || "Product not found" });
+        set({ isLoading: false, error: response.error || "Product not found" });
         return null;
       }
     } catch (error) {
-      console.error("Error in fetchProductById:", error);
-      set({
-        error:
-          error instanceof Error ? error.message : "Failed to fetch product",
-      });
+      set({ isLoading: false, error: error instanceof Error ? error.message : "An unknown error occurred" });
       return null;
     }
   },
 
-  // Fetch low stock products
   fetchLowStockProducts: async () => {
     set({ isLoading: true, error: null });
-
     try {
       const response = await inventoryApi.getLowStockProducts();
-
       if (response.success) {
-        // Update the products array with low stock products
-        const { products } = get();
-        const lowStockProducts = response.data || [];
-
-        // Merge with existing products or replace if needed
-        const updatedProducts = products.map((product) => {
-          const lowStockProduct = (lowStockProducts as any[]).find(
-            (p: Product) => p._id === product._id
-          );
-          return lowStockProduct || product;
-        });
-
-        set({
-          products: updatedProducts,
-          isLoading: false,
-          error: null,
-        });
+        set({ products: (response.data as Product[]) || [], isLoading: false });
       } else {
-        set({
-          isLoading: false,
-          error: response.error || "Failed to fetch low stock products",
-        });
+        set({ isLoading: false, error: response.error || "Failed to fetch low stock products" });
       }
     } catch (error) {
-      console.error("Error in fetchLowStockProducts:", error);
-      set({
-        isLoading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch low stock products",
-      });
+      set({ isLoading: false, error: error instanceof Error ? error.message : "An unknown error occurred" });
     }
   },
 
-  // Fetch featured products
   fetchFeaturedProducts: async () => {
+    set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.getFeaturedProducts();
-
       if (response.success) {
-        // Update products with featured products
-        const { products } = get();
-        const featuredProducts = response.data || [];
-
-        const updatedProducts = products.map((product) => {
-          const featuredProduct = (featuredProducts as any[]).find(
-            (p: Product) => p._id === product._id
-          );
-          return featuredProduct || product;
-        });
-
-        set({ products: updatedProducts });
+        const featuredProducts = (response.data as Product[]) || [];
+        set((state) => ({ 
+          products: state.products.map(p => featuredProducts.find(fp => fp._id === p._id) || p),
+          isLoading: false 
+        }));
       } else {
-        set({ error: response.error || "Failed to fetch featured products" });
+        set({ isLoading: false, error: response.error || "Failed to fetch featured products" });
       }
     } catch (error) {
-      console.error("Error in fetchFeaturedProducts:", error);
-      set({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch featured products",
-      });
+      set({ isLoading: false, error: error instanceof Error ? error.message : "An unknown error occurred" });
     }
   },
 
-  // Fetch inventory summary
   fetchInventorySummary: async () => {
+    set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.getInventorySummary();
-
       if (response.success) {
-        set({ inventorySummary: response.data as any });
+        set({ inventorySummary: response.data as InventorySummary, isLoading: false });
       } else {
-        set({ error: response.error || "Failed to fetch inventory summary" });
+        set({ isLoading: false, error: response.error || "Failed to fetch inventory summary" });
       }
     } catch (error) {
-      console.error("Error in fetchInventorySummary:", error);
-      set({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch inventory summary",
-      });
+      set({ isLoading: false, error: error instanceof Error ? error.message : "An unknown error occurred" });
     }
   },
 
-  // Fetch stock transactions
   fetchStockTransactions: async (filters) => {
     set({ isLoading: true, error: null });
-
     try {
       const response = await stockApi.getStockTransactions(filters);
-
       if (response.success) {
-        set({
-          stockTransactions: (response.data as any) || [],
-          isLoading: false,
-          error: null,
-        });
+        set({ stockTransactions: (response.data as StockTransaction[]) || [], isLoading: false });
       } else {
-        set({
-          isLoading: false,
-          error: response.error || "Failed to fetch stock transactions",
-        });
+        set({ isLoading: false, error: response.error || "Failed to fetch stock transactions" });
       }
     } catch (error) {
-      console.error("Error in fetchStockTransactions:", error);
-      set({
-        isLoading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch stock transactions",
-      });
+      set({ isLoading: false, error: error instanceof Error ? error.message : "An unknown error occurred" });
     }
   },
 
-  // Search products
-  searchProducts: async (searchTerm: string, limit = 10) => {
+  searchProducts: async (searchTerm, limit = 10) => {
+    set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.searchProducts(searchTerm, limit);
-
+      set({ isLoading: false });
       if (response.success) {
-        return (response.data as any) || [];
+        return (response.data as Product[]) || [];
       } else {
         set({ error: response.error || "Failed to search products" });
         return [];
       }
     } catch (error) {
-      console.error("Error in searchProducts:", error);
-      set({
-        error:
-          error instanceof Error ? error.message : "Failed to search products",
-      });
+      set({ isLoading: false, error: error instanceof Error ? error.message : "An unknown error occurred" });
       return [];
     }
   },
 
-  // Update product inventory
   updateProductInventory: async (productId, inventoryUpdate) => {
     try {
+      const response = await inventoryApi.updateProductInventory(productId, inventoryUpdate);
+      if (response.success) {
+        set((state) => ({ 
+          products: state.products.map((p) => 
+            p._id === productId 
+              ? { ...p, inventory: { ...p.inventory, ...inventoryUpdate } } 
+              : p
+          )
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to update inventory" });
+        return false;
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "An unknown error occurred" });
+      return false;
+    }
+  },
+
+  createStockTransaction: async (transactionData) => {
+    try {
+      const response = await stockApi.createStockTransaction(transactionData);
+      if (response.success) {
+        get().fetchStockTransactions(); 
+        get().fetchInventorySummary();
+        return true;
+      } else {
+        set({ error: response.error || "Failed to create transaction" });
+        return false;
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "An unknown error occurred" });
+      return false;
+    }
+  },
+
+  findExistingProduct: (productData) => {
+    const { products } = get();
+    return products.find((product) => {
+      if (product.brand._id !== productData.brandId || product.category._id !== productData.categoryId) {
+        return false;
+      }
+      const existingSpecs = product.specifications;
+      const newSpecs = productData.specifications;
+      const allKeys = new Set([...Object.keys(existingSpecs), ...Object.keys(newSpecs)]);
+      for (const key of allKeys) {
+        if (existingSpecs[key] !== newSpecs[key]) {
+          return false;
+        }
+      }
+      return true;
+    });
+  },
+
+  addOrUpdateProduct: async (productData) => {
+    const { findExistingProduct, updateProductInventory } = get();
+    const existingProduct = findExistingProduct(productData);
+
+    if (existingProduct) {
+      const newStock = existingProduct.inventory.currentStock + productData.inventory.currentStock;
+      await updateProductInventory(existingProduct._id, {
+        currentStock: newStock,
+        purchasePrice: productData.pricing.purchasePrice,
+        sellingPrice: productData.pricing.sellingPrice,
+      });
+      return { 
+        success: true, 
+        data: { ...existingProduct, inventory: { ...existingProduct.inventory, currentStock: newStock } }, 
+        isUpdate: true 
+      };
+    }
+
+    try {
+      const response = await inventoryApi.createProduct(productData);
+      if (response.success) {
+        const newProduct = response.data as Product;
+        set((state) => ({ products: [...state.products, newProduct] }));
+        await get().fetchInventorySummary();
+        await get().createStockTransaction({
+          productId: newProduct._id,
+          type: "purchase",
+          quantity: productData.inventory.currentStock,
+          unitPrice: productData.pricing.purchasePrice,
+          notes: `Initial stock for ${newProduct.name}`,
+        });
+        return { success: true, data: newProduct, isUpdate: false };
+      } else {
+        set({ error: response.error || "Failed to create product" });
+        return { success: false, error: response.error };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      set({ error: errorMessage });
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  handleRealtimeProductUpdate: (product) => {
+    set((state) => ({ 
+      products: state.products.map((p) => (p._id === product._id ? { ...p, ...product } : p))
+    }));
+    get().fetchInventorySummary();
+  },
+
+  handleRealtimeStockTransaction: (transaction) => {
+    set((state) => ({ stockTransactions: [transaction, ...state.stockTransactions] }));
+    const { products } = get();
+    const productIndex = products.findIndex((p) => p._id === transaction.product._id);
+    if (productIndex > -1) {
+      const updatedProducts = [...products];
+      const productToUpdate = updatedProducts[productIndex];
+      let newStock = productToUpdate.inventory.currentStock;
+      if (["sale", "damage"].includes(transaction.type)) {
+        newStock -= transaction.quantity;
+      } else if (["purchase", "return"].includes(transaction.type)) {
+        newStock += transaction.quantity;
+      }
+      updatedProducts[productIndex] = { 
+        ...productToUpdate, 
+        inventory: { ...productToUpdate.inventory, currentStock: newStock }
+      };
+      set({ products: updatedProducts });
+    }
+  },
+
+  getProductsByCategory: (categoryName) => get().products.filter((p) => p.category.name.toLowerCase() === categoryName.toLowerCase()),
+  getProductsByBrand: (brandName) => get().products.filter((p) => p.brand.name.toLowerCase() === brandName.toLowerCase()),
+  getLowStockProducts: () => get().products.filter((p) => p.isActive && !p.deleted && p.inventory.currentStock <= p.inventory.minimumStock),
+  getOutOfStockProducts: () => get().products.filter((p) => p.isActive && !p.deleted && p.inventory.currentStock <= 0),
+  getFeaturedProducts: () => get().products.filter((p) => p.isActive && !p.deleted && p.isFeatured),
+  getProductById: (productId) => get().products.find((p) => p._id === productId),
+
+  getConsolidatedProducts: () => {
+    const { products } = get();
+    const activeProducts = products.filter((p) => !p.deleted);
+    const groupedProducts = new Map<string, Product[]>();
+
+    activeProducts.forEach((product) => {
+      const key = `${product.name.toLowerCase()}-${product.brand.name.toLowerCase()}-${JSON.stringify(product.specifications)}`;
+      if (!groupedProducts.has(key)) {
+        groupedProducts.set(key, []);
+      }
+      groupedProducts.get(key)!.push(product);
+    });
+
+    const consolidatedProducts: Product[] = [];
+    groupedProducts.forEach((group) => {
+      if (group.length === 1) {
+        consolidatedProducts.push(group[0]);
+      } else {
+        const latest = group.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+        const totalStock = group.reduce((sum, p) => sum + p.inventory.currentStock, 0);
+        const consolidated: Product = {
+          ...latest,
+          inventory: { ...latest.inventory, currentStock: totalStock },
+          _consolidated: { totalEntries: group.length, originalIds: group.map((p) => p._id), latestPriceUpdate: latest.updatedAt },
+        };
+        consolidatedProducts.push(consolidated);
+      }
+    });
+    return consolidatedProducts;
+  },
+
+  softDeleteProduct: async (productId) => {
+    try {
+      const response = await inventoryApi.updateProduct(productId, { deleted: true });
+      if (response.success) {
+        set((state) => ({ 
+          products: state.products.map((p) => p._id === productId ? { ...p, deleted: true, deletedAt: new Date().toISOString() } : p)
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to soft delete product" });
+        return false;
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "An unknown error occurred" });
+      return false;
+    }
+  },
+
+  restoreProduct: async (productId) => {
+    try {
+      const response = await inventoryApi.updateProduct(productId, { deleted: false });
+      if (response.success) {
+        set((state) => ({ 
+          products: state.products.map((p) => p._id === productId ? { ...p, deleted: false, deletedAt: undefined } : p)
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to restore product" });
+        return false;
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "An unknown error occurred" });
+      return false;
+    }
+  },
+
+  deleteProduct: async (productId) => {
+    try {
+      const response = await inventoryApi.deleteProduct(productId);
+      if (response.success) {
+        set((state) => ({ products: state.products.filter((p) => p._id !== productId) }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to permanently delete product" });
+        return false;
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "An unknown error occurred" });
+      return false;
+    }
+  },
+
+  clearError: () => set({ error: null }),
+
+  refreshData: async () => {
+    await get().fetchProducts();
+    await get().fetchInventorySummary();
+  },
+
+  initializeRealtime: () => {
+    const { on } = useSanityRealtimeStore.getState();
+    on("bill:created", (bill) => get().handleBillCreated(bill));
+    on("inventory:updated", ({ productId, updates }) => get().handleRealtimeProductUpdate({ _id: productId, ...updates } as Product));
+    on("inventory:low_stock", (data) => console.log(`Low stock alert: ${data.productName}`));
+  },
+
+  cleanupRealtime: () => {
+    const { off } = useSanityRealtimeStore.getState();
+    off("bill:created");
+    off("inventory:updated");
+    off("inventory:low_stock");
+  },
+
+  handleBillCreated: (bill) => {
+    bill.items?.forEach(async (item: any) => {
+      const { products, createStockTransaction } = get();
+      const product = products.find((p) => p._id === item.product);
+      if (product) {
+        const newStock = product.inventory.currentStock - item.quantity;
+        set((state) => ({ 
+          products: state.products.map((p) =>
+            p._id === item.product ? { ...p, inventory: { ...p.inventory, currentStock: newStock } } : p
+          )
+        }));
+        await createStockTransaction({
+          productId: item.product,
+          type: "sale",
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          billId: bill._id,
+          notes: `Sold via bill ${bill.billNumber}`,
+        });
+      }
+    });
+    get().fetchInventorySummary();
+  },
+}));  
+
+  refreshData: async () => {
+    const { fetchProducts, fetchInventorySummary } = get();
+    await Promise.all([fetchProducts(), fetchInventorySummary()]);
+  },
+}));
       const response = await inventoryApi.updateProductInventory(
         productId,
         inventoryUpdate
@@ -466,7 +595,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   findExistingProduct: (productData: {
     brandId: string;
     categoryId: string;
-    specifications: unknown;
+    specifications: Specification;
   }) => {
     const { products } = get();
 
@@ -493,19 +622,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
           brandMatches,
           categoryMatches,
         });
-        return false;
-      }
-
-      // Check if specifications match
-      const existingSpecs = product.specifications;
-      const newSpecs = productData.specifications;
-
-      // Compare key specifications
-      const specsToCompare = [
-        "lightType",
-        "color",
-        "size",
-        "watts",
         "wireGauge",
         "amperage",
       ];
@@ -567,8 +683,8 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       if (!productData.pricing?.sellingPrice)
         missingFields.push("pricing.sellingPrice");
       if (
-        !productData.inventory?.currentStock &&
-        productData.inventory?.currentStock !== 0
+        productData.inventory?.currentStock === undefined ||
+        productData.inventory?.currentStock === null
       )
         missingFields.push("inventory.currentStock");
 
@@ -673,24 +789,23 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
 
         console.log("📝 Create response:", response);
         if (response.success) {
-          // Add to local state
-          const { products } = get();
-          set({ products: [...products, response.data] });
+          const newProduct = response.data as Product;
+          set((state) => ({ products: [...state.products, newProduct] }));
 
           // Refresh inventory summary
           await get().fetchInventorySummary();
 
           // Create stock transaction for the new product purchase (without updating inventory since we already set it)
           await get().createStockTransaction({
-            productId: response.data._id,
+            productId: newProduct._id,
             type: "purchase",
             quantity: productData.inventory.currentStock,
             unitPrice: productData.pricing.purchasePrice,
-            notes: `Initial stock purchase for new product: ${productData.name}`,
-            updateInventory: false, // Don't update inventory since we already set it during product creation
+            notes: `Initial stock for ${newProduct.name}`,
+            updateInventory: false, // Already set
           });
 
-          return { success: true, data: response.data, isUpdate: false };
+          return { success: true, data: newProduct, isUpdate: false };
         } else {
           return {
             success: false,
@@ -820,23 +935,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
 
     // Filter out soft deleted products
     const activeProducts = products.filter((product) => !product.deleted);
-
-    // Group products by unique identifier (name + brand + key specifications)
-    const groupedProducts = new Map<string, Product[]>();
-
-    activeProducts.forEach((product) => {
-      // Create a unique key based on name, brand, and key specifications
-      const keySpecs = {
-        lightType: product.specifications.lightType,
-        color: product.specifications.color,
-        size: product.specifications.size,
-        watts: product.specifications.wattage,
-        wireGauge: product.specifications.wireGauge,
-        amperage: product.specifications.amperage,
-        material: product.specifications.material,
-        modal: product.specifications.modal,
-      };
-
       const uniqueKey = `${product.name.toLowerCase()}-${product.brand.name.toLowerCase()}-${JSON.stringify(
         keySpecs
       )}`;

@@ -21,11 +21,13 @@ export function DynamicSpecificationFields({
   errors = {},
   disabled = false,
 }: DynamicSpecificationFieldsProps) {
-  const { fieldMapping, fieldOptions, isLoading } = useDynamicSpecifications({
+  const { fieldMapping, isLoading } = useDynamicSpecifications({
     categoryId,
     formData,
     onFieldChange,
   });
+
+
 
   // Early return if no valid category ID
   if (!categoryId) {
@@ -40,28 +42,24 @@ export function DynamicSpecificationFields({
     );
   }
 
-  const requiredFields = fieldMapping.requiredFields || [];
-  const optionalFields = fieldMapping.optionalFields || [];
-
   return (
     <div className="space-y-6">
       {/* Required Fields */}
+      {/* Required Fields */}
       <RequiredFieldsSection
-        requiredFields={requiredFields}
-        fieldOptions={fieldOptions}
+        requiredFields={fieldMapping.requiredFields}
         formData={formData}
         errors={errors}
-        disabled={disabled}
+        disabled={isLoading}
         onFieldChange={onFieldChange}
       />
 
       {/* Optional Fields */}
       <OptionalFieldsSection
-        optionalFields={optionalFields}
-        fieldOptions={fieldOptions}
+        optionalFields={fieldMapping.optionalFields}
         formData={formData}
         errors={errors}
-        disabled={disabled}
+        disabled={isLoading}
         onFieldChange={onFieldChange}
       />
     </div>

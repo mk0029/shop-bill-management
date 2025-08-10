@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
-import type { Subscription } from "@sanity/client";
+import type { Subscription } from "rxjs";
 
 export interface Category {
   _id: string;
@@ -33,6 +33,8 @@ interface CategoryStore {
   getMainCategories: () => Category[];
   getSubCategories: (parentId: string) => Category[];
   clearError: () => void;
+
+  forceSyncCategories: () => Promise<void>;
 
   // Real-time methods
   setupRealtimeListeners: () => void;
@@ -133,6 +135,48 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  forceSyncCategories: async () => {
+    console.log("🔄 Force syncing categories from Sanity...");
+    set({ isLoading: true, error: null });
+
+    try {
+      const query = `*[_type == "category"] | order(sortOrder asc, name asc) {
+        _id,
+        name,
+        slug,
+        description,
+        icon,
+        parentCategory->{
+          _id,
+          name,
+          slug
+        },
+        isActive,
+        sortOrder,
+        createdAt,
+        updatedAt
+      }`;
+
+      const categories = await sanityClient.fetch<Category[]>(query);
+
+      set({
+        categories,
+        isLoading: false,
+        lastFetched: new Date(),
+        error: null,
+      });
+
+      console.log(`✅ Force sync completed: ${categories.length} categories loaded`);
+    } catch (error) {
+      console.error("❌ Force sync failed:", error);
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "Failed to sync categories",
+      });
+    }
   },
 
   // Setup Sanity real-time listeners for categories

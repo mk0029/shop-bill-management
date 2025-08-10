@@ -86,7 +86,8 @@ interface SpecificationsStore {
   init: () => void;
   fetchSpecificationOptions: () => Promise<void>;
   fetchCategoryFieldMappings: () => Promise<void>;
-  refreshData: () => Promise<void>;
+
+  forceSyncSpecifications: () => Promise<void>;
 
   // Getters
   getOptionsByCategory: (
@@ -145,6 +146,15 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       get().fetchCategoryFieldMappings();
     },
 
+
+
+    forceSyncSpecifications: async () => {
+      set({ isLoading: true });
+      await get().fetchSpecificationOptions();
+      await get().fetchCategoryFieldMappings();
+      set({ isLoading: false });
+    },
+
     // Fetch specification options from Sanity
     fetchSpecificationOptions: async () => {
       const { lastFetched } = get();
@@ -181,25 +191,18 @@ export const useSpecificationsStore = create<SpecificationsStore>(
 
     // Fetch category field mappings from Sanity
     fetchCategoryFieldMappings: async () => {
-      set({ isLoading: true, error: null });
-
+      set({ isLoading: true });
       try {
-        const mappings = await fetchAllCategoryFieldMappings();
-
+        const query = `*[_type == "categoryFieldMapping" && isActive == true]{..., category->{_id, name, slug}, requiredFields[]->, optionalFields[]->}`;
+        const mappings = await sanityClient.fetch(query);
         set({
           categoryFieldMappings: mappings,
           isLoading: false,
-          error: null,
+          lastFetched: new Date(),
         });
       } catch (error) {
         console.error("Error fetching category field mappings:", error);
-        set({
-          isLoading: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to fetch category field mappings",
-        });
+        set({ error: "Failed to fetch category field mappings", isLoading: false });
       }
     },
 
@@ -216,59 +219,35 @@ export const useSpecificationsStore = create<SpecificationsStore>(
     getOptionsByCategory: (categoryId: string | null, optionType: string) => {
       const { specificationOptions } = get();
 
-      if (!categoryId) {
-        return [];
-      }
-
-      // Get category store to get category slug for specification options matching
-      const categoryStore = useCategoryStore.getState();
-      const category = categoryStore.getCategoryById(categoryId);
-
-      if (!category || !category.slug?.current) {
-        return [];
-      }
-
-      const categorySlug = category.slug.current;
-
-      const filteredOptions = Array.isArray(specificationOptions)
-        ? specificationOptions
-        : [];
-
       // Filter options by type first
-      const optionsOfType = filteredOptions.filter(
+      const optionsForType = specificationOptions.filter(
         (option) => option.type === optionType && option.isActive
       );
 
-      // Find options that are explicitly linked to the category slug
-      const categorySpecificOptions = optionsOfType.filter((option) => {
-        // The specification options should have categories as array of strings (category slugs)
-        // This matches the migration script structure
-        if (Array.isArray(option.categories) && option.categories.length > 0) {
-          return option.categories.includes(categorySlug);
-        }
-        return false;
-      });
+      let finalOptions: SpecificationOption[] = [];
 
-      if (categorySpecificOptions.length > 0) {
-        return categorySpecificOptions
-          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-          .map((opt) => ({
-            value: opt.value,
-            label: opt.label,
-          }));
+      // Filter by category if a category ID is provided
+      if (categoryId) {
+        const categorySpecificOptions = optionsForType.filter((option) =>
+          option.categories?.some((cat) => cat._ref === categoryId)
+        );
+        finalOptions.push(...categorySpecificOptions);
       }
 
-      // Fallback: if no category-specific options, return all options of that type that are not linked to any category
-      const allOptionsOfType = optionsOfType.filter(
+      // Also include options that are not linked to any specific category (general options)
+      const generalOptions = optionsForType.filter(
         (option) => !option.categories || option.categories.length === 0
       );
+      finalOptions.push(...generalOptions);
 
-      return allOptionsOfType
+      // Remove duplicates that might be added if an option is both general and category-specific
+      const uniqueOptions = Array.from(
+        new Map(finalOptions.map((option) => [option._id, option])).values()
+      );
+
+      return uniqueOptions
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-        .map((opt) => ({
-          value: opt.value,
-          label: opt.label,
-        }));
+        .map((opt) => ({ value: opt.value, label: opt.label }));
     },
 
     // Get all options by type
@@ -311,7 +290,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
 
       // Find the specific mapping for this category by matching category._id with categoryId
       const specificMapping = categoryFieldMappings.find(
-        (mapping) => mapping.category?._id === categoryId
+        (mapping) => mapping.category?._id === categoryId && mapping.isActive
       );
 
       // If no specific mapping found, return empty

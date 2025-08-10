@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -18,6 +19,7 @@ import { ItemSelectionSection } from "@/components/billing/item-selection-sectio
 import { SelectedItemsList } from "@/components/billing/selected-items-list";
 import { BillSummarySidebar } from "@/components/billing/bill-summary-sidebar";
 import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
+import { RewindingKitForm } from "@/components/billing/RewindingKitForm";
 
 export default function CreateBillPage() {
   const router = useRouter();
@@ -54,6 +56,7 @@ export default function CreateBillPage() {
 
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
   const filteredItems = filterItemsBySpecifications(activeProducts);
+  const [showRewindingForm, setShowRewindingForm] = useState(false);
 
   return (
     <div className="space-y-6 max-md:pb-4">
@@ -79,7 +82,7 @@ export default function CreateBillPage() {
             formData={formData}
             customers={customers}
             customersLoading={customersLoading}
-            onInputChange={handleInputChange}
+            onInputChange={(field, value) => handleInputChange(field as any, value)}
           />
 
           <ItemSelectionSection
@@ -88,6 +91,18 @@ export default function CreateBillPage() {
             productsLoading={productsLoading}
             onOpenItemModal={openItemSelectionModal}
           />
+
+          {!showRewindingForm && (
+            <Button 
+              variant="outline"
+              onClick={() => setShowRewindingForm(true)} 
+              className="w-full"
+            >
+              Add Rewinding Service
+            </Button>
+          )}
+
+          {showRewindingForm && <RewindingKitForm onAddItem={addItemToBill} />}
 
           <SelectedItemsList
             selectedItems={selectedItems}

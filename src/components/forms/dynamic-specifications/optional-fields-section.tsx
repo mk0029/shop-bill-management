@@ -4,7 +4,7 @@ import { DropdownOption } from "@/types";
 
 interface OptionalFieldsSectionProps {
   optionalFields: any[];
-  fieldOptions: Record<string, DropdownOption[]>;
+
   formData: Record<string, string>;
   errors: Record<string, string>;
   disabled: boolean;
@@ -13,7 +13,6 @@ interface OptionalFieldsSectionProps {
 
 export function OptionalFieldsSection({
   optionalFields,
-  fieldOptions,
   formData,
   errors,
   disabled,
@@ -28,14 +27,13 @@ export function OptionalFieldsSection({
       <h4 className="text-sm font-medium text-gray-400 border-b border-gray-700 pb-2">
         Optional Specifications
       </h4>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         {optionalFields.map((field) => (
           <SpecificationField
             key={field._id}
             fieldDefinition={field}
             fieldName={field.fieldKey}
             fieldValue={formData[field.fieldKey] || ""}
-            fieldOptions={fieldOptions[field.fieldKey] || []}
             isRequired={false}
             hasError={!!errors[field.fieldKey]}
             errorMessage={errors[field.fieldKey]}

@@ -8,6 +8,7 @@ interface BasicInfoSectionProps {
   formData: any;
   categories: any[];
   brands: any[];
+  dynamicSpecificationFields: any;
   errors: Record<string, string>;
   onInputChange: (field: string, value: string) => void;
 }
@@ -26,6 +27,7 @@ export const BasicInfoSection = ({
   categories,
   brands,
   errors,
+  dynamicSpecificationFields,
   onInputChange,
 }: BasicInfoSectionProps) => {
   return (
@@ -44,7 +46,7 @@ export const BasicInfoSection = ({
             </Label>
             <Dropdown
               options={categories.map((cat) => ({
-                value: cat.name,
+                value: cat._id,
                 label: cat.name,
               }))}
               value={formData.category}
@@ -63,7 +65,7 @@ export const BasicInfoSection = ({
             </Label>
             <Dropdown
               options={brands.map((brand) => ({
-                value: brand.name,
+                value: brand._id,
                 label: brand.name,
               }))}
               value={formData.brand}
@@ -75,7 +77,7 @@ export const BasicInfoSection = ({
               <p className="text-red-400 text-sm">{errors.brand}</p>
             )}
           </div>
-
+{dynamicSpecificationFields&&dynamicSpecificationFields}
           <div className="space-y-2">
             <Label htmlFor="unit" className="text-gray-300">
               Unit *
