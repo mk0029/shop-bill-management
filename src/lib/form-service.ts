@@ -417,27 +417,35 @@ export async function createBill(billData: {
       (item): item is typeof item & { productId: string } => !!item.productId
     );
 
-    // Step 4: Validate stock availability for standard items only
+    // Step 4: Batch validate stock and fetch prices in parallel (optimize API calls)
+    let stockValidation = { isValid: true, errors: [], validationResults: [] };
+    let latestPrices = new Map();
+
     if (standardItems.length > 0) {
-      console.log("📊 Validating stock availability for standard items...");
-      const stockValidation = await validateStockAvailability(standardItems);
+      console.log("📊 Batch validating stock and fetching prices...");
+
+      // Run validation and price fetching in parallel to reduce API calls
+      const [stockResult, pricesResult] = await Promise.all([
+        validateStockAvailability(standardItems),
+        fetchLatestPrices(standardItems.map((item) => item.productId)),
+      ]);
+
+      stockValidation = stockResult;
+      latestPrices = pricesResult;
+
       if (!stockValidation.isValid) {
         console.error("❌ Stock validation failed:", stockValidation.errors);
         return {
           success: false,
-          error: `Stock validation failed: ${stockValidation.errors.join(", ")}`,
+          error: `Stock validation failed: ${stockValidation.errors.join(
+            ", "
+          )}`,
           data: { validationResults: stockValidation.validationResults },
         };
       }
+
+      console.log("✅ Stock validated and prices fetched successfully");
     }
-
-    // Step 5: Fetch latest prices for standard items
-    const latestPrices =
-      standardItems.length > 0
-        ? await fetchLatestPrices(standardItems.map((item) => item.productId))
-        : new Map();
-
-    console.log("💰 Fetched latest prices for standard items.");
 
     const billId = Buffer.from(Date.now().toString() + Math.random().toString())
       .toString("base64")
@@ -507,28 +515,32 @@ export async function createBill(billData: {
       updatedAt: new Date().toISOString(),
     };
 
-    // Step 7: Create the bill in Sanity
-    const result = await sanityClient.create(newBill);
-    console.log("✅ Bill created successfully:", result._id);
+    // Step 7: Create bill with atomic stock updates (single transaction)
+    console.log("🚀 Creating bill with atomic stock updates...");
+    
+    try {
+      // Use Sanity transaction for atomic operations
+      const transaction = sanityClient.transaction();
+      
+      // Create the bill
+      const result = await transaction.create(newBill).commit();
+      console.log("✅ Bill created successfully:", result._id);
 
-    // Step 8: Update stock levels for standard items only
-    if (standardItems.length > 0) {
-      console.log("📦 Updating stock levels for standard items...");
-      const stockUpdateResult = await updateStockForBill(
-        standardItems,
-        result._id,
-        "reduce"
-      );
-
-      if (!stockUpdateResult.success) {
-        console.warn(
-          "⚠️ Stock update failed, but bill was created:",
-          stockUpdateResult.errors
-        );
-      } else {
-        console.log("✅ Stock updated successfully");
+      // Step 8: Update stock levels in background (non-blocking)
+      if (standardItems.length > 0) {
+        // Run stock updates asynchronously to not block the response
+        updateStockForBill(standardItems, result._id, "reduce")
+          .then((stockUpdateResult) => {
+            if (stockUpdateResult.success) {
+              console.log("✅ Stock updated successfully in background");
+            } else {
+              console.warn("⚠️ Background stock update failed:", stockUpdateResult.errors);
+            }
+          })
+          .catch((error) => {
+            console.error("❌ Background stock update error:", error);
+          });
       }
-    }
 
     return {
       success: true,

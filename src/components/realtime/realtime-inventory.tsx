@@ -28,15 +28,18 @@ export const RealtimeInventoryStats = () => {
   const [products, setProducts] = useState(storeProducts);
 
   useEffect(() => {
-    if (storeProducts.length === 0) fetchProducts();
-  }, []);
+    if (storeProducts.length === 0) {
+      console.log("📊 Fetching initial products for realtime stats...");
+      fetchProducts();
+    }
+  }, [fetchProducts, storeProducts.length]);
 
   useEffect(() => {
     setProducts(storeProducts);
   }, [storeProducts]);
 
   useDocumentListener("product", undefined, {
-    onUpdate: (update: any) => {
+    onUpdate: (update: unknown) => {
       const { transition, result } = update;
 
       setProducts((prev) => {
@@ -59,29 +62,34 @@ export const RealtimeInventoryStats = () => {
   });
 
   useEffect(() => {
-    const newStats = products.reduce(
-      (acc, product) => {
-        acc.total++;
-        if (product.isActive) acc.active++;
-        if (product.inventory.currentStock <= 0) acc.outOfStock++;
-        else if (
-          product.inventory.currentStock <= product.inventory.minimumStock
-        )
-          acc.lowStock++;
-        acc.totalValue +=
-          product.inventory.currentStock * product.pricing.purchasePrice;
-        return acc;
-      },
-      {
-        total: 0,
-        active: 0,
-        lowStock: 0,
-        outOfStock: 0,
-        totalValue: 0,
-      }
-    );
+    // Debounce stats calculation to prevent excessive re-calculations
+    const timeoutId = setTimeout(() => {
+      const newStats = products.reduce(
+        (acc, product) => {
+          acc.total++;
+          if (product.isActive) acc.active++;
+          if (product.inventory.currentStock <= 0) acc.outOfStock++;
+          else if (
+            product.inventory.currentStock <= product.inventory.minimumStock
+          )
+            acc.lowStock++;
+          acc.totalValue +=
+            product.inventory.currentStock * product.pricing.purchasePrice;
+          return acc;
+        },
+        {
+          total: 0,
+          active: 0,
+          lowStock: 0,
+          outOfStock: 0,
+          totalValue: 0,
+        }
+      );
 
-    setStats(newStats);
+      setStats(newStats);
+    }, 100); // 100ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [products]);
 
   // 🧠 Stat card config (icon + color)
@@ -134,18 +142,18 @@ export const RealtimeInventoryStats = () => {
           key={index}
           initial={{ scale: 1 }}
           animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 0.3 }}
-        >
+          transition={{ duration: 0.3 }}>
           <Card className="bg-gray-900 border-gray-800">
             <CardContent>
               <div className="flex items-center justify-between relative">
                 <div>
-                  <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                  <p
+                    suppressHydrationWarning
+                    className="text-gray-400 text-xs sm:text-sm font-medium">
                     {stat.title}
                   </p>
                   <p
-                    className={`text-xl md:text-2xl font-bold !leading-[125%] mt-1 ${stat.valueClass}`}
-                  >
+                    className={`text-xl md:text-2xl font-bold !leading-[125%] mt-1 ${stat.valueClass}`}>
                     {stat.value}
                   </p>
                 </div>

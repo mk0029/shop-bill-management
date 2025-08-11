@@ -677,10 +677,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
         updatedAt: new Date().toISOString(),
       });
 
-      // Update local store
-      const bills = new Map(get().bills);
-      bills.set(bill._id, bill as unknown as Bill);
-      set({ bills });
+      // Don't add to local state here - let the realtime listener handle it
+      // This prevents duplicates when the realtime "appear" event fires
+      console.log("✅ Bill created in Sanity, waiting for realtime sync...");
 
       return bill as unknown as Bill;
     } catch (error) {
@@ -717,10 +716,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
         updatedAt: new Date().toISOString(),
       });
 
-      // Update local store
-      const users = new Map(get().users);
-      users.set(user._id, user as unknown as User);
-      set({ users });
+      // Don't add to local state here - let the realtime listener handle it
+      // This prevents duplicates when the realtime "appear" event fires
+      console.log("✅ User created in Sanity, waiting for realtime sync...");
 
       return user as unknown as User;
     } catch (error) {

@@ -14,7 +14,7 @@ interface InventoryFormData {
   currentStock: string;
   unit: string;
   description: string;
-  specifications: Record<string, any>;
+  specifications: Record<string, unknown>;
 }
 
 export const useInventoryForm = () => {
@@ -22,10 +22,19 @@ export const useInventoryForm = () => {
   const brands = useBrandStore((state) => state.brands);
   const forceSyncBrands = useBrandStore((state) => state.forceSyncBrands);
   const allCategories = useCategoryStore((state) => state.categories);
-  const forceSyncCategories = useCategoryStore((state) => state.forceSyncCategories);
-  const categories = useMemo(() => allCategories.filter(c => c.isActive), [allCategories]);
-  const specifications = useSpecificationsStore((state) => state.specificationOptions);
-  const forceSyncSpecifications = useSpecificationsStore((state) => state.forceSyncSpecifications);
+  const forceSyncCategories = useCategoryStore(
+    (state) => state.forceSyncCategories
+  );
+  const categories = useMemo(
+    () => allCategories.filter((c) => c.isActive),
+    [allCategories]
+  );
+  const specifications = useSpecificationsStore(
+    (state) => state.specificationOptions
+  );
+  const forceSyncSpecifications = useSpecificationsStore(
+    (state) => state.forceSyncSpecifications
+  );
   const { addOrUpdateProduct: addProduct } = useInventoryStore();
 
   useEffect(() => {
@@ -50,8 +59,6 @@ export const useInventoryForm = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
 
-
-
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
@@ -60,7 +67,7 @@ export const useInventoryForm = () => {
     }
   };
 
-  const handleSpecificationChange = (field: string, value: any) => {
+  const handleSpecificationChange = (field: string, value: unknown) => {
     setFormData((prev) => ({
       ...prev,
       specifications: { ...prev.specifications, [field]: value },
@@ -83,14 +90,45 @@ export const useInventoryForm = () => {
     setShowConfirmationPopup(true);
   };
 
+  // Helper function to generate product name based on specifications
+  const generateProductName = () => {
+    const category = categories.find((cat) => cat._id === formData.category);
+    const brand = brands.find((br) => br._id === formData.brand);
+
+    const categoryTitle = category?.name || "Unknown Category";
+    const brandTitle = brand?.name || "Unknown Brand";
+
+    // Find any key ending with "For" that has a non-empty value
+    const forKey = Object.keys(formData.specifications).find(
+      (key) =>
+        key.endsWith("For") &&
+        formData.specifications[key] &&
+        formData.specifications[key].toString().trim() !== ""
+    );
+
+    if (forKey && formData.specifications[forKey]) {
+      return `${categoryTitle} - ${formData.specifications[forKey]}`;
+    }
+
+    return `${categoryTitle} - ${brandTitle}`;
+  };
+
   const confirmSubmit = async () => {
+    // Prevent multiple submissions
+    if (isLoading) {
+      console.log(
+        "⚠️ Submission already in progress, ignoring duplicate request"
+      );
+      return;
+    }
+
     setIsLoading(true);
     setShowConfirmationPopup(false);
 
     try {
-      // Create product object
+      // Create product object with single API call optimization
       const newProduct = {
-        name: `New Product - ${Date.now()}`,
+        name: generateProductName(),
         brandId: formData.brand,
         categoryId: formData.category,
         specifications: formData.specifications,
@@ -108,8 +146,15 @@ export const useInventoryForm = () => {
         tags: [], // Default value
       };
 
-      await addProduct(newProduct);
-      setShowSuccessPopup(true);
+      console.log("🚀 Submitting product with single API call...");
+      const result = await addProduct(newProduct);
+
+      if (result.success) {
+        setShowSuccessPopup(true);
+        console.log("✅ Product created successfully");
+      } else {
+        console.error("❌ Failed to create product:", result.error);
+      }
     } catch (error) {
       console.error("Error adding product:", error);
     } finally {
@@ -152,5 +197,6 @@ export const useInventoryForm = () => {
     resetForm,
     handleSuccessClose,
     setShowConfirmationPopup,
+    generateProductName,
   };
 };

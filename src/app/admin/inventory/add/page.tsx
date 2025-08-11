@@ -31,6 +31,7 @@ export default function AddInventoryItemPage() {
     resetForm,
     handleSuccessClose,
     setShowConfirmationPopup,
+    generateProductName,
   } = useInventoryForm();
 
   return (
@@ -60,7 +61,6 @@ export default function AddInventoryItemPage() {
             errors={errors}
             onInputChange={handleInputChange}
             dynamicSpecificationFields={
-           
               <div className="lg:col-span-2">
                 <DynamicSpecificationFields
                   categoryId={formData.category}
@@ -78,8 +78,6 @@ export default function AddInventoryItemPage() {
             errors={errors}
             onInputChange={handleInputChange}
           />
-
-      
         </div>
 
         {/* Action Buttons */}
@@ -117,7 +115,7 @@ export default function AddInventoryItemPage() {
           onClose={handleSuccessClose}
           data={createProductSuccessPopup(
             {
-              name: `${formData.category} - ${formData.brand}`,
+              name: generateProductName(),
               category: formData.category,
               brand: formData.brand,
               currentStock: formData.currentStock,
@@ -139,13 +137,14 @@ export default function AddInventoryItemPage() {
           onClose={() => setShowConfirmationPopup(false)}
           data={{
             title: "Add Product",
-            message: "Are you sure you want to add this product to inventory?",
+            message: `Are you sure you want to add "${generateProductName()}" to inventory?`,
             type: "info",
             actions: [
               {
                 label: isLoading ? "Adding..." : "Add Product",
                 action: confirmSubmit,
                 variant: "default",
+                disabled: isLoading,
               },
               {
                 label: "Cancel",

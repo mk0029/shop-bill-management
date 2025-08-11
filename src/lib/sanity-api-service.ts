@@ -177,12 +177,15 @@ export const userApiService = {
 
       const createdUser = await sanityClient.create(newUser);
 
-      // Sync to Strapi
-      try {
-        await strapiService.sync.syncUserToStrapi(createdUser);
-      } catch (strapiError) {
-        console.warn('Failed to sync user to Strapi:', strapiError);
-      }
+      // Sync to Strapi in background (non-blocking)
+      strapiService.sync
+        .syncUserToStrapi(createdUser)
+        .then(() => {
+          console.log("✅ User synced to Strapi successfully");
+        })
+        .catch((strapiError) => {
+          console.warn("⚠️ Failed to sync user to Strapi:", strapiError);
+        });
 
       return { success: true, data: createdUser };
     } catch (error) {
