@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Label } from "./label";
-import { AlertCircle, ChevronDown } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { Dropdown } from "./dropdown";
 import { DropdownOption } from "@/types";
 
 interface SelectFieldProps {
@@ -40,37 +41,15 @@ export function SelectField({
         {required && <span className="text-red-500">*</span>}
       </Label>
 
-      <div className="relative">
-        <select
-          id={fieldId}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          className={`
-            w-full px-3 py-2 border rounded-md bg-white text-gray-900
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            disabled:bg-gray-100 disabled:cursor-not-allowed
-            appearance-none pr-10
-            ${
-              hasError
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                : "border-gray-300"
-            }
-            ${className}
-          `}
-        >
-          <option value="" disabled>
-            {placeholder}
-          </option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-      </div>
+      <Dropdown
+        options={options}
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={`${hasError ? "border-red-500" : ""} ${className}`}
+        searchable={options.length > 10}
+      />
 
       {helpText && !error && (
         <p className="text-xs text-gray-500">{helpText}</p>

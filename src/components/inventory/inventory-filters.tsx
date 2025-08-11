@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Search, Filter, SortAsc, SortDesc } from "lucide-react";
 
 interface InventoryFiltersProps {
@@ -56,52 +57,58 @@ export const InventoryFilters = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <label className="text-sm text-gray-300">Category</label>
-            <select
+            <Dropdown
+              options={[
+                { value: "all", label: "All Categories" },
+                ...categories.map((category) => ({
+                  value: category.name,
+                  label: category.name,
+                })),
+              ]}
               value={selectedCategory}
-              onChange={(e) => onCategoryChange(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="all">All Categories</option>
-              {categories.map((category) => (
-                <option key={category._id} value={category.name}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={onCategoryChange}
+              placeholder="Select Category"
+            />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm text-gray-300">Brand</label>
-            <select
+            <Dropdown
+              options={[
+                { value: "all", label: "All Brands" },
+                ...brands.map((brand) => ({
+                  value: brand.name,
+                  label: brand.name,
+                })),
+              ]}
               value={selectedBrand}
-              onChange={(e) => onBrandChange(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="all">All Brands</option>
-              {brands.map((brand) => (
-                <option key={brand._id} value={brand.name}>
-                  {brand.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={onBrandChange}
+              placeholder="Select Brand"
+            />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm text-gray-300">Sort By</label>
             <div className="flex gap-2">
-              <select
+              <Dropdown
+                options={[
+                  { value: "name", label: "Name" },
+                  { value: "category", label: "Category" },
+                  { value: "brand", label: "Brand" },
+                  { value: "currentStock", label: "Stock" },
+                  { value: "sellingPrice", label: "Price" },
+                ]}
                 value={sortBy}
-                onChange={(e) => onSortChange(e.target.value)}
-                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="name">Name</option>
-                <option value="category">Category</option>
-                <option value="brand">Brand</option>
-                <option value="currentStock">Stock</option>
-                <option value="sellingPrice">Price</option>
-              </select>
+                onValueChange={onSortChange}
+                placeholder="Sort By"
+                className="flex-1"
+              />
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onSortOrderToggle}
-                className="px-3">
+                className="px-3"
+              >
                 {sortOrder === "asc" ? (
                   <SortAsc className="w-4 h-4" />
                 ) : (

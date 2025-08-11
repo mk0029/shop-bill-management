@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Core entity types
 export interface User {
   _id: string;
@@ -271,6 +272,9 @@ export interface AlertData {
   severity: "low" | "medium" | "high" | "critical";
   isRead: boolean;
   createdAt: string;
+  totalAlerts: any;
+  inventory: any;
+  bills: any;
 }
 
 // Inventory summary type

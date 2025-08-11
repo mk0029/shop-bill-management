@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Dropdown } from "@/components/ui/dropdown";
 import { UserPlus, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 
@@ -52,7 +53,8 @@ export const AdminModals = ({
       <Modal
         isOpen={showAddModal}
         onClose={onCloseAddModal}
-        title="Add New Admin">
+        title="Add New Admin"
+      >
         <div className="space-y-4">
           {errors.general && (
             <div className="bg-red-900/20 border border-red-800 rounded-lg p-3">
@@ -102,26 +104,30 @@ export const AdminModals = ({
 
           <div className="space-y-2">
             <Label className="text-gray-300">Role *</Label>
-            <select
+            <Dropdown
+              options={[
+                { value: "admin", label: "Admin" },
+                { value: "super_admin", label: "Super Admin" },
+              ]}
               value={newAdminForm.role}
-              onChange={(e) => onFormChange("role", e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="admin">Admin</option>
-              <option value="super_admin">Super Admin</option>
-            </select>
+              onValueChange={(value) => onFormChange("role", value)}
+              placeholder="Select Role"
+            />
           </div>
 
           <div className="flex gap-3 justify-end pt-4">
             <Button
               variant="outline"
               onClick={onCloseAddModal}
-              disabled={isLoading}>
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
               onClick={onAddAdmin}
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700">
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -142,7 +148,8 @@ export const AdminModals = ({
       <Modal
         isOpen={showDeleteModal}
         onClose={onCloseDeleteModal}
-        title="Delete Admin">
+        title="Delete Admin"
+      >
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-4 bg-red-900/20 border border-red-800 rounded-lg">
             <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
@@ -159,13 +166,15 @@ export const AdminModals = ({
             <Button
               variant="outline"
               onClick={onCloseDeleteModal}
-              disabled={isLoading}>
+              disabled={isLoading}
+            >
               Cancel
             </Button>
             <Button
               onClick={onDeleteAdmin}
               disabled={isLoading}
-              className="bg-red-600 hover:bg-red-700">
+              className="bg-red-600 hover:bg-red-700"
+            >
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -183,7 +192,8 @@ export const AdminModals = ({
       <Modal
         isOpen={showCredentials}
         onClose={onCloseCredentials}
-        title="Admin Credentials Generated">
+        title="Admin Credentials Generated"
+      >
         <div className="space-y-4">
           <div className="bg-green-900/20 border border-green-800 rounded-lg p-4">
             <h3 className="font-medium text-white mb-2">
@@ -219,7 +229,8 @@ export const AdminModals = ({
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white">
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
                     ) : (
@@ -242,7 +253,8 @@ export const AdminModals = ({
           <div className="flex justify-end">
             <Button
               onClick={onCloseCredentials}
-              className="bg-blue-600 hover:bg-blue-700">
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               Got it
             </Button>
           </div>

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Search, Filter } from "lucide-react";
 
 interface BillsFiltersProps {
@@ -46,16 +47,12 @@ export const BillsFilters = ({
         {/* Status Filter */}
         <div className="space-y-2">
           <label className="text-sm text-gray-300">Status</label>
-          <select
+          <Dropdown
+            options={statusOptions}
             value={selectedStatus}
-            onChange={(e) => onStatusChange(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={onStatusChange}
+            placeholder="Select Status"
+          />
         </div>
       </CardContent>
     </Card>

@@ -5,6 +5,7 @@ import { useCategoryStore } from "@/store/category-store";
 import { useSpecificationsStore } from "@/store/specifications-store";
 import { useInventoryStore } from "@/store/inventory-store";
 import { validateProduct } from "@/lib/dynamic-validation";
+import { generateEnhancedProductName } from "@/lib/product-naming";
 
 interface InventoryFormData {
   category: string;
@@ -14,7 +15,7 @@ interface InventoryFormData {
   currentStock: string;
   unit: string;
   description: string;
-  specifications: Record<string, any>;
+  specifications: Record<string, unknown>;
 }
 
 export const useInventoryForm = () => {
@@ -22,10 +23,19 @@ export const useInventoryForm = () => {
   const brands = useBrandStore((state) => state.brands);
   const forceSyncBrands = useBrandStore((state) => state.forceSyncBrands);
   const allCategories = useCategoryStore((state) => state.categories);
-  const forceSyncCategories = useCategoryStore((state) => state.forceSyncCategories);
-  const categories = useMemo(() => allCategories.filter(c => c.isActive), [allCategories]);
-  const specifications = useSpecificationsStore((state) => state.specificationOptions);
-  const forceSyncSpecifications = useSpecificationsStore((state) => state.forceSyncSpecifications);
+  const forceSyncCategories = useCategoryStore(
+    (state) => state.forceSyncCategories
+  );
+  const categories = useMemo(
+    () => allCategories.filter((c) => c.isActive),
+    [allCategories]
+  );
+  const specifications = useSpecificationsStore(
+    (state) => state.specificationOptions
+  );
+  const forceSyncSpecifications = useSpecificationsStore(
+    (state) => state.forceSyncSpecifications
+  );
   const { addOrUpdateProduct: addProduct } = useInventoryStore();
 
   useEffect(() => {
@@ -50,8 +60,6 @@ export const useInventoryForm = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
 
-
-
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
@@ -60,7 +68,7 @@ export const useInventoryForm = () => {
     }
   };
 
-  const handleSpecificationChange = (field: string, value: any) => {
+  const handleSpecificationChange = (field: string, value: unknown) => {
     setFormData((prev) => ({
       ...prev,
       specifications: { ...prev.specifications, [field]: value },
@@ -88,9 +96,25 @@ export const useInventoryForm = () => {
     setShowConfirmationPopup(false);
 
     try {
+      // Get resolved category and brand names for intelligent naming
+      const selectedCategory = categories.find(
+        (c) => c._id === formData.category
+      );
+      const selectedBrand = brands.find((b) => b._id === formData.brand);
+
+      // Create product object for intelligent naming
+      const productForNaming = {
+        category: { name: selectedCategory?.name || "Unknown Category" },
+        brand: { name: selectedBrand?.name || "Unknown Brand" },
+        specifications: formData.specifications,
+      };
+
+      // Generate intelligent product name
+      const intelligentName = generateEnhancedProductName(productForNaming);
+
       // Create product object
       const newProduct = {
-        name: `New Product - ${Date.now()}`,
+        name: intelligentName,
         brandId: formData.brand,
         categoryId: formData.category,
         specifications: formData.specifications,
@@ -108,8 +132,13 @@ export const useInventoryForm = () => {
         tags: [], // Default value
       };
 
-      await addProduct(newProduct);
-      setShowSuccessPopup(true);
+      const result = await addProduct(newProduct);
+      if (result.success) {
+        setShowSuccessPopup(true);
+      } else {
+        console.error("Failed to add product:", result.error);
+        // You might want to show an error popup here
+      }
     } catch (error) {
       console.error("Error adding product:", error);
     } finally {
@@ -136,6 +165,31 @@ export const useInventoryForm = () => {
     router.push("/admin/inventory");
   };
 
+  // Get resolved product data for success popup
+  const getResolvedProductData = () => {
+    const selectedCategory = categories.find(
+      (c) => c._id === formData.category
+    );
+    const selectedBrand = brands.find((b) => b._id === formData.brand);
+
+    // Create product object for intelligent naming
+    const productForNaming = {
+      category: { name: selectedCategory?.name || "Unknown Category" },
+      brand: { name: selectedBrand?.name || "Unknown Brand" },
+      specifications: formData.specifications,
+    };
+
+    return {
+      name: generateEnhancedProductName(productForNaming),
+      category: selectedCategory?.name || "Unknown Category",
+      brand: selectedBrand?.name || "Unknown Brand",
+      currentStock: formData.currentStock,
+      sellingPrice: formData.sellingPrice,
+      unit: formData.unit,
+      specifications: formData.specifications,
+    };
+  };
+
   return {
     formData,
     errors,
@@ -152,5 +206,6 @@ export const useInventoryForm = () => {
     resetForm,
     handleSuccessClose,
     setShowConfirmationPopup,
+    getResolvedProductData,
   };
 };

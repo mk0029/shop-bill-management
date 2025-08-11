@@ -13,6 +13,7 @@ import {
   Package,
   FileText,
 } from "lucide-react";
+import { generateEnhancedProductName } from "@/lib/product-naming";
 
 export interface SuccessPopupData {
   title: string;
@@ -101,7 +102,8 @@ export function SuccessPopup({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-            onClick={onClose}>
+            onClick={onClose}
+          >
             {/* Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -109,7 +111,8 @@ export function SuccessPopup({
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md">
+              className="w-full max-w-md"
+            >
               <Card className="bg-gray-900 border-green-500/30 border shadow-2xl">
                 <div className="p-4 md:p-6">
                   {/* Close Button */}
@@ -118,7 +121,8 @@ export function SuccessPopup({
                       variant="ghost"
                       size="sm"
                       onClick={onClose}
-                      className="hover:bg-gray-800 p-1">
+                      className="hover:bg-gray-800 p-1"
+                    >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -133,7 +137,8 @@ export function SuccessPopup({
                         type: "spring",
                         stiffness: 200,
                       }}
-                      className="flex justify-center mb-4">
+                      className="flex justify-center mb-4"
+                    >
                       {getIcon()}
                     </motion.div>
 
@@ -150,7 +155,8 @@ export function SuccessPopup({
                       {data.details.map((detail, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700"
+                        >
                           <div>
                             <p className="text-gray-400 text-xs">
                               {detail.label}
@@ -167,7 +173,8 @@ export function SuccessPopup({
                               onClick={() =>
                                 handleCopy(detail.value, detail.label)
                               }
-                              className="hover:bg-gray-700 p-2">
+                              className="hover:bg-gray-700 p-2"
+                            >
                               {copiedField === detail.label ? (
                                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                               ) : (
@@ -188,7 +195,8 @@ export function SuccessPopup({
                           key={index}
                           variant={action.variant || "default"}
                           onClick={action.action}
-                          className="flex-1">
+                          className="flex-1"
+                        >
                           {action.label}
                         </Button>
                       ))
@@ -197,7 +205,8 @@ export function SuccessPopup({
                         <Button
                           onClick={handleCreateAnother}
                           variant="outline"
-                          className="flex-1">
+                          className="flex-1"
+                        >
                           Create Another
                         </Button>
                         <Button onClick={handleDone} className="flex-1">
@@ -261,56 +270,78 @@ export const createProductSuccessPopup = (
   productData: any,
   onReset?: () => void,
   isUpdate: boolean = false
-): SuccessPopupData => ({
-  title: isUpdate
-    ? "Product Updated Successfully!"
-    : "Product Added Successfully!",
-  message: isUpdate
-    ? "The existing product has been updated with new stock and latest pricing."
-    : "The product has been successfully added to your inventory.",
-  type: "product",
-  details: [
-    {
-      label: "Product Name",
-      value: productData.name,
-    },
-    {
-      label: "Category",
-      value:
+): SuccessPopupData => {
+  // Create a product object for intelligent naming
+  const productForNaming = {
+    category: {
+      name:
         typeof productData.category === "string"
           ? productData.category
-          : productData.category?.name || "N/A",
+          : productData.category?.name,
     },
-    {
-      label: "Brand",
-      value:
+    brand: {
+      name:
         typeof productData.brand === "string"
           ? productData.brand
-          : productData.brand?.name || "N/A",
+          : productData.brand?.name,
     },
-    {
-      label: isUpdate ? "Updated Selling Price" : "Selling Price",
-      value: `₹${
-        productData.pricing?.sellingPrice || productData.sellingPrice || 0
-      }`,
-    },
-    {
-      label: isUpdate ? "Total Stock" : "Current Stock",
-      value: `${
-        productData.inventory?.currentStock || productData.currentStock || 0
-      } ${productData.pricing?.unit || productData.unit || "pcs"}`,
-    },
-    ...(isUpdate
-      ? [
-          {
-            label: "Status",
-            value: "Stock increased with latest price applied to all items",
-          },
-        ]
-      : []),
-  ],
-  onReset,
-});
+    specifications: productData.specifications || {},
+  };
+
+  // Generate intelligent product name
+  const intelligentName = generateEnhancedProductName(productForNaming);
+
+  return {
+    title: isUpdate
+      ? "Product Updated Successfully!"
+      : "Product Added Successfully!",
+    message: isUpdate
+      ? "The existing product has been updated with new stock and latest pricing."
+      : "The product has been successfully added to your inventory.",
+    type: "product",
+    details: [
+      {
+        label: "Product Name",
+        value: intelligentName,
+      },
+      {
+        label: "Category",
+        value:
+          typeof productData.category === "string"
+            ? productData.category
+            : productData.category?.name || "N/A",
+      },
+      {
+        label: "Brand",
+        value:
+          typeof productData.brand === "string"
+            ? productData.brand
+            : productData.brand?.name || "N/A",
+      },
+      {
+        label: isUpdate ? "Updated Selling Price" : "Selling Price",
+        value: `₹${
+          productData.pricing?.sellingPrice || productData.sellingPrice || 0
+        }`,
+      },
+      {
+        label: isUpdate ? "Total Stock" : "Current Stock",
+        value: `${
+          productData.inventory?.currentStock || productData.currentStock || 0
+        } ${productData.pricing?.unit || productData.unit || "pcs"}`,
+      },
+      ...(isUpdate
+        ? [
+            {
+              label: "Status",
+              value: "Stock increased with latest price applied to all items",
+            },
+          ]
+        : []),
+    ],
+    onReset,
+  };
+};
 
 export const createBillSuccessPopup = (
   billData: any,
@@ -339,4 +370,4 @@ export const createBillSuccessPopup = (
     },
   ],
   onReset,
-}); 
+});

@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
 import { AlertData } from "@/types";
+import { formatProductNameForContext } from "@/lib/product-naming";
 
 interface AlertsSectionProps {
   alerts: AlertData;
@@ -30,13 +32,13 @@ export function AlertsSection({ alerts }: AlertsSectionProps) {
                 Low Stock Products ({alerts.inventory.lowStockCount})
               </h4>
               <div className="space-y-2">
-                {alerts.inventory.lowStock.slice(0, 3).map((product) => (
+                {alerts.inventory.lowStock.slice(0, 3).map((product: any) => (
                   <div
                     key={product._id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-orange-50 rounded gap-2"
                   >
                     <span className="text-sm truncate flex-1">
-                      {product.name}
+                      {formatProductNameForContext(product, "alert")}
                     </span>
                     <Badge
                       variant="outline"
@@ -62,13 +64,13 @@ export function AlertsSection({ alerts }: AlertsSectionProps) {
                 Out of Stock ({alerts.inventory.outOfStockCount})
               </h4>
               <div className="space-y-2">
-                {alerts.inventory.outOfStock.slice(0, 3).map((product) => (
+                {alerts.inventory.outOfStock.slice(0, 3).map((product: any) => (
                   <div
                     key={product._id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-red-50 rounded gap-2"
                   >
                     <span className="text-sm truncate flex-1">
-                      {product.name}
+                      {formatProductNameForContext(product, "alert")}
                     </span>
                     <Badge
                       variant="outline"
@@ -89,7 +91,7 @@ export function AlertsSection({ alerts }: AlertsSectionProps) {
                 Overdue Payments ({alerts.bills.overdueCount})
               </h4>
               <div className="space-y-2">
-                {alerts.bills.overdue.slice(0, 3).map((bill) => (
+                {alerts.bills.overdue.slice(0, 3).map((bill: any) => (
                   <div
                     key={bill._id}
                     className="flex items-center justify-between p-2 sm:p-3 bg-red-50 rounded gap-2"

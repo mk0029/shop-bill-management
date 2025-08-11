@@ -31,6 +31,7 @@ export default function AddInventoryItemPage() {
     resetForm,
     handleSuccessClose,
     setShowConfirmationPopup,
+    getResolvedProductData,
   } = useInventoryForm();
 
   return (
@@ -60,7 +61,6 @@ export default function AddInventoryItemPage() {
             errors={errors}
             onInputChange={handleInputChange}
             dynamicSpecificationFields={
-           
               <div className="lg:col-span-2">
                 <DynamicSpecificationFields
                   categoryId={formData.category}
@@ -78,8 +78,6 @@ export default function AddInventoryItemPage() {
             errors={errors}
             onInputChange={handleInputChange}
           />
-
-      
         </div>
 
         {/* Action Buttons */}
@@ -88,13 +86,15 @@ export default function AddInventoryItemPage() {
             type="button"
             variant="outline"
             onClick={resetForm}
-            disabled={isLoading}>
+            disabled={isLoading}
+          >
             Reset Form
           </Button>
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700">
+            className="bg-blue-600 hover:bg-blue-700"
+          >
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -115,20 +115,10 @@ export default function AddInventoryItemPage() {
         <SuccessPopup
           isOpen={showSuccessPopup}
           onClose={handleSuccessClose}
-          data={createProductSuccessPopup(
-            {
-              name: `${formData.category} - ${formData.brand}`,
-              category: formData.category,
-              brand: formData.brand,
-              currentStock: formData.currentStock,
-              sellingPrice: formData.sellingPrice,
-              unit: formData.unit,
-            },
-            () => {
-              resetForm();
-              handleSuccessClose();
-            }
-          )}
+          data={createProductSuccessPopup(getResolvedProductData(), () => {
+            resetForm();
+            handleSuccessClose();
+          })}
         />
       )}
 

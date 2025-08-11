@@ -3,6 +3,10 @@ import { useDataStore } from "@/store/data-store";
 import { useBrandStore } from "@/store/brand-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useInventoryStore } from "@/store/inventory-store";
+import {
+  generateEnhancedProductName,
+  getDisplayName,
+} from "@/lib/product-naming";
 
 // Main hook for accessing all real-time functionality
 export const useSanityRealtime = () => {
@@ -120,15 +124,77 @@ export const useSanityAlerts = () => {
   const { data } = useSanityRealtime();
 
   // Calculate alerts based on real-time data
-  const lowStockProducts = data.products.filter(
-    (product) =>
-      product.isActive &&
-      product.inventory.currentStock <= product.inventory.minimumStock
-  );
+  const lowStockProducts = data.products
+    .filter(
+      (product) =>
+        product.isActive &&
+        product.inventory.currentStock <= product.inventory.minimumStock
+    )
+    .map((product) => {
+      // Debug logging to see what we're getting
+      console.log("🔍 Low stock product data:", {
+        _id: product._id,
+        name: product.name,
+        productId: product.productId,
+        brand: product.brand,
+        category: product.category,
+        specifications: product.specifications,
+        nameType: typeof product.name,
+        isUUID:
+          product.name &&
+          typeof product.name === "string" &&
+          product.name.includes("-"),
+      });
 
-  const outOfStockProducts = data.products.filter(
-    (product) => product.isActive && product.inventory.currentStock <= 0
-  );
+      return {
+        ...product,
+        // Use intelligent product naming
+        name: generateEnhancedProductName(product),
+        brand: {
+          ...product.brand,
+          name: getDisplayName(product.brand?.name, "Unknown Brand"),
+        },
+        category: {
+          ...product.category,
+          name: getDisplayName(product.category?.name, "Unknown Category"),
+        },
+      };
+    });
+
+  const outOfStockProducts = data.products
+    .filter(
+      (product) => product.isActive && product.inventory.currentStock <= 0
+    )
+    .map((product) => {
+      // Debug logging to see what we're getting
+      console.log("🔍 Out of stock product data:", {
+        _id: product._id,
+        name: product.name,
+        productId: product.productId,
+        brand: product.brand,
+        category: product.category,
+        specifications: product.specifications,
+        nameType: typeof product.name,
+        isUUID:
+          product.name &&
+          typeof product.name === "string" &&
+          product.name.includes("-"),
+      });
+
+      return {
+        ...product,
+        // Use intelligent product naming
+        name: generateEnhancedProductName(product),
+        brand: {
+          ...product.brand,
+          name: getDisplayName(product.brand?.name, "Unknown Brand"),
+        },
+        category: {
+          ...product.category,
+          name: getDisplayName(product.category?.name, "Unknown Category"),
+        },
+      };
+    });
 
   const pendingBills = data.bills.filter(
     (bill) => bill.paymentStatus === "pending" || bill.status === "draft"
