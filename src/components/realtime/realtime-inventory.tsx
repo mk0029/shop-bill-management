@@ -24,42 +24,16 @@ export const RealtimeInventoryStats = () => {
     totalValue: 0,
   });
 
-  const { products: storeProducts = [], fetchProducts } = useInventoryStore();
+  // Use store products directly - no independent fetching or listening
+  const { products: storeProducts = [] } = useInventoryStore();
   const [products, setProducts] = useState(storeProducts);
 
-  useEffect(() => {
-    if (storeProducts.length === 0) {
-      console.log("📊 Fetching initial products for realtime stats...");
-      fetchProducts();
-    }
-  }, [fetchProducts, storeProducts.length]);
-
+  // Only sync with store products, don't fetch independently
   useEffect(() => {
     setProducts(storeProducts);
   }, [storeProducts]);
 
-  useDocumentListener("product", undefined, {
-    onUpdate: (update: unknown) => {
-      const { transition, result } = update;
-
-      setProducts((prev) => {
-        switch (transition) {
-          case "appear":
-            return prev.find((p) => p._id === result._id)
-              ? prev
-              : [...prev, result];
-          case "update":
-            return prev.map((p) =>
-              p._id === result._id ? { ...p, ...result } : p
-            );
-          case "disappear":
-            return prev.filter((p) => p._id !== result._id);
-          default:
-            return prev;
-        }
-      });
-    },
-  });
+  // Remove independent useDocumentListener - rely on store's real-time handling
 
   useEffect(() => {
     // Debounce stats calculation to prevent excessive re-calculations

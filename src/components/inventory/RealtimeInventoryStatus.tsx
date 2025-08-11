@@ -17,23 +17,15 @@ export function RealtimeInventoryStatus() {
     getOutOfStockProducts,
   } = useInventoryStore();
 
-  // Listen for real-time inventory updates
-  useRealtimeEvent("inventory:updated", (data) => {
-    console.log("🔔 Inventory updated:", data.productId);
-    // Refresh inventory data
-    fetchProducts?.();
-    fetchInventorySummary?.();
-  });
+  // Remove redundant real-time listeners and fetching
+  // The store already handles real-time updates via SanityRealtimeProvider
 
   useRealtimeEvent("inventory:low_stock", (data) => {
     console.log("🔔 Low stock alert:", data.productName);
     // You could show a toast notification here
   });
 
-  useEffect(() => {
-    fetchProducts?.();
-    fetchInventorySummary?.();
-  }, []);
+  // Remove redundant useEffect - data is already managed by the store
 
   const lowStockProducts = getLowStockProducts();
   const outOfStockProducts = getOutOfStockProducts();
@@ -113,8 +105,7 @@ export function RealtimeInventoryStatus() {
               {lowStockProducts.slice(0, 5).map((product) => (
                 <div
                   key={product._id}
-                  className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200"
-                >
+                  className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
                   <div className="flex-1">
                     <h4 className="font-medium">{product.name}</h4>
                     <p className="text-sm text-gray-600">
@@ -124,8 +115,7 @@ export function RealtimeInventoryStatus() {
                   <div className="text-right">
                     <Badge
                       variant="outline"
-                      className="text-orange-600 border-orange-600"
-                    >
+                      className="text-orange-600 border-orange-600">
                       {product.inventory.currentStock} {product.pricing.unit}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">
@@ -158,8 +148,7 @@ export function RealtimeInventoryStatus() {
               {outOfStockProducts.slice(0, 5).map((product) => (
                 <div
                   key={product._id}
-                  className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200"
-                >
+                  className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
                   <div className="flex-1">
                     <h4 className="font-medium">{product.name}</h4>
                     <p className="text-sm text-gray-600">
@@ -169,8 +158,7 @@ export function RealtimeInventoryStatus() {
                   <div className="text-right">
                     <Badge
                       variant="outline"
-                      className="text-red-600 border-red-600"
-                    >
+                      className="text-red-600 border-red-600">
                       0 {product.pricing.unit}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">

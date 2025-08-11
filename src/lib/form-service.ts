@@ -521,7 +521,7 @@ export async function createBill(billData: {
     try {
       // Use Sanity transaction for atomic operations
       const transaction = sanityClient.transaction();
-      
+
       // Create the bill
       const result = await transaction.create(newBill).commit();
       console.log("✅ Bill created successfully:", result._id);
@@ -534,7 +534,10 @@ export async function createBill(billData: {
             if (stockUpdateResult.success) {
               console.log("✅ Stock updated successfully in background");
             } else {
-              console.warn("⚠️ Background stock update failed:", stockUpdateResult.errors);
+              console.warn(
+                "⚠️ Background stock update failed:",
+                stockUpdateResult.errors
+              );
             }
           })
           .catch((error) => {
@@ -542,15 +545,25 @@ export async function createBill(billData: {
           });
       }
 
-    return {
-      success: true,
-      data: {
-        ...result,
-        billNumber,
-        totalAmount,
-      },
-      message: `Bill ${billNumber} has been created successfully! Total: ₹${totalAmount}`,
-    };
+      return {
+        success: true,
+        data: {
+          ...result,
+          billNumber,
+          totalAmount,
+        },
+        message: `Bill ${billNumber} has been created successfully! Total: ₹${totalAmount}`,
+      };
+    } catch (transactionError) {
+      console.error("❌ Failed to create bill transaction:", transactionError);
+      return {
+        success: false,
+        error:
+          transactionError instanceof Error
+            ? transactionError.message
+            : "Failed to create bill",
+      };
+    }
   } catch (error) {
     console.error("❌ Failed to create bill:", error);
     return {

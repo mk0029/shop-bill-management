@@ -20,6 +20,8 @@ import { SelectedItemsList } from "@/components/billing/selected-items-list";
 import { BillSummarySidebar } from "@/components/billing/bill-summary-sidebar";
 import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
 import { RewindingKitForm } from "@/components/billing/RewindingKitForm";
+import { ManualItemForm } from "@/components/billing/manual-item-form";
+import { ManualItemModal } from "@/components/billing/manual-item-modal";
 
 export default function CreateBillPage() {
   const router = useRouter();
@@ -57,6 +59,7 @@ export default function CreateBillPage() {
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
   const filteredItems = filterItemsBySpecifications(activeProducts);
   const [showRewindingForm, setShowRewindingForm] = useState(false);
+  const [showManualItemModal, setShowManualItemModal] = useState(false);
 
   return (
     <div className="space-y-6 max-md:pb-4">
@@ -82,7 +85,9 @@ export default function CreateBillPage() {
             formData={formData}
             customers={customers}
             customersLoading={customersLoading}
-            onInputChange={(field, value) => handleInputChange(field as any, value)}
+            onInputChange={(field, value) =>
+              handleInputChange(field as unknown, value)
+            }
           />
 
           <ItemSelectionSection
@@ -90,19 +95,42 @@ export default function CreateBillPage() {
             activeProducts={activeProducts}
             productsLoading={productsLoading}
             onOpenItemModal={openItemSelectionModal}
+            onOpenManualItemModal={() => setShowManualItemModal(true)}
+          />
+
+          {/* Manual Item Entry */}
+          <ManualItemForm
+            onAddItem={addItemToBill}
+            categories={categories}
+            brands={brands}
           />
 
           {!showRewindingForm && (
-            <Button 
+            <Button
               variant="outline"
-              onClick={() => setShowRewindingForm(true)} 
-              className="w-full"
-            >
+              onClick={() => setShowRewindingForm(true)}
+              className="w-full">
               Add Rewinding Service
             </Button>
           )}
 
-          {showRewindingForm && <RewindingKitForm onAddItem={addItemToBill} />}
+          {showRewindingForm && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">
+                  Rewinding Services
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRewindingForm(false)}
+                  className="text-gray-400 hover:text-white">
+                  Hide Rewinding Forms
+                </Button>
+              </div>
+              <RewindingKitForm onAddItem={addItemToBill} />
+            </div>
+          )}
 
           <SelectedItemsList
             selectedItems={selectedItems}
@@ -157,6 +185,14 @@ export default function CreateBillPage() {
         message={alertMessage}
         confirmText="OK"
         onConfirm={() => setShowAlertModal(false)}
+      />
+
+      <ManualItemModal
+        isOpen={showManualItemModal}
+        onClose={() => setShowManualItemModal(false)}
+        onAddItem={addItemToBill}
+        categories={categories}
+        brands={brands}
       />
     </div>
   );

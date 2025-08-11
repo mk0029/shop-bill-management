@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 
 interface ItemSelectionSectionProps {
   categories: any[];
   activeProducts: any[];
   productsLoading: boolean;
   onOpenItemModal: (category: string) => void;
+  onOpenManualItemModal?: () => void;
 }
 
 export const ItemSelectionSection = ({
@@ -18,6 +19,7 @@ export const ItemSelectionSection = ({
   activeProducts,
   productsLoading,
   onOpenItemModal,
+  onOpenManualItemModal,
 }: ItemSelectionSectionProps) => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -52,6 +54,19 @@ export const ItemSelectionSection = ({
             className="bg-gray-800 border-gray-700"
           />
         </div>
+
+        {/* Quick Actions */}
+        {onOpenManualItemModal && (
+          <div className="mb-4">
+            <Button
+              onClick={onOpenManualItemModal}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              variant="default">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Custom Item/Service
+            </Button>
+          </div>
+        )}
 
         {/* Category Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
+import { apiDebouncer } from "@/lib/api-debounce";
 
 export interface Specification {
   [key: string]: string | number | boolean | string[] | undefined;
@@ -160,6 +161,16 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   lastFetched: null,
 
   fetchProducts: async (filters) => {
+    const { isLoading } = get();
+
+    // Use global debouncer to prevent rapid successive calls
+    if (isLoading || apiDebouncer.wasCalledRecently("fetch-products", 2000)) {
+      console.log(
+        "⏳ Skipping fetchProducts - recent fetch or already loading"
+      );
+      return;
+    }
+
     set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.getProducts(filters);
@@ -254,6 +265,14 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   },
 
   fetchInventorySummary: async () => {
+    const { isLoading } = get();
+
+    // Debounce: Don't fetch if already loading
+    if (isLoading) {
+      console.log("⏳ Skipping fetchInventorySummary - already loading");
+      return;
+    }
+
     set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.getInventorySummary();
@@ -472,7 +491,9 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     if (!existingProduct) {
       set((state) => ({ products: [...state.products, product] }));
       console.log(`✅ Product created via realtime: ${product.name}`);
-      get().fetchInventorySummary();
+
+      // Debounced summary refresh to prevent rapid successive calls
+      setTimeout(() => get().fetchInventorySummary(), 500);
     } else {
       console.log(
         `🔄 Product already exists, skipping duplicate: ${product.name}`
@@ -682,7 +703,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   },
 
   handleBillCreated: (bill) => {
-    bill.items?.forEach(async (item: any) => {
+    bill.items?.forEach(async (item: unknown) => {
       const { products, createStockTransaction } = get();
       const product = products.find((p) => p._id === item.product);
       if (product) {
