@@ -299,42 +299,8 @@ export const RealtimeBillStats: React.FC<{
     }
   }, [initialBills]);
 
-  // Listen to bill changes and update stats
-  useDocumentListener("bill", undefined, {
-    onUpdate: (update: any) => {
-      const { transition, result } = update;
-
-      // Filter by customer if specified
-      if (
-        customerId &&
-        result?.customer?._ref !== customerId &&
-        result?.customer?._id !== customerId
-      ) {
-        return; // Bill not for this customer
-      }
-
-      switch (transition) {
-        case "appear":
-          setBills((prev) => {
-            const exists = prev.find((b: any) => b._id === result._id);
-            return exists ? prev : [...prev, result];
-          });
-          break;
-
-        case "update":
-          setBills((prev) =>
-            prev.map((bill) =>
-              bill._id === result._id ? { ...bill, ...result } : bill
-            )
-          );
-          break;
-
-        case "disappear":
-          setBills((prev) => prev.filter((bill) => bill._id !== result._id));
-          break;
-      }
-    },
-  });
+  // Remove duplicate bill listener - use bill store's real-time handling instead
+  // This prevents redundant API calls when bills change
 
   // Recalculate stats when bills change
   useEffect(() => {

@@ -56,7 +56,7 @@ export const RealtimeStockHistory: React.FC<RealtimeStockHistoryProps> = ({
     new Set()
   );
 
-  // Listen to stock transaction changes
+  // Consolidated stock transaction listener (handles both list and summary updates)
   useDocumentListener("stockTransaction", undefined, {
     onUpdate: (update: any) => {
       const { transition, result } = update;
@@ -175,15 +175,13 @@ export const RealtimeStockHistory: React.FC<RealtimeStockHistoryProps> = ({
               }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className={`relative ${isNew ? "ring-2 ring-green-500" : ""}`}
-            >
+              className={`relative ${isNew ? "ring-2 ring-green-500" : ""}`}>
               {isNew && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0 }}
-                  className="absolute -top-2 -right-2 z-10"
-                >
+                  className="absolute -top-2 -right-2 z-10">
                   <Badge className="bg-green-600 text-white flex items-center gap-1">
                     <Zap className="w-3 h-3" />
                     New
@@ -198,8 +196,7 @@ export const RealtimeStockHistory: React.FC<RealtimeStockHistoryProps> = ({
                       <div
                         className={`w-12 h-12 rounded-lg flex items-center justify-center ${getTransactionColor(
                           transaction.type
-                        )}`}
-                      >
+                        )}`}>
                         <TransactionIcon className="w-6 h-6" />
                       </div>
                       <div>
@@ -228,8 +225,7 @@ export const RealtimeStockHistory: React.FC<RealtimeStockHistoryProps> = ({
                           @ ₹{transaction.unitPrice?.toLocaleString() || 0}/unit
                         </p>
                         <Badge
-                          className={getTransactionColor(transaction.type)}
-                        >
+                          className={getTransactionColor(transaction.type)}>
                           {transaction.type}
                         </Badge>
                       </div>
@@ -238,8 +234,7 @@ export const RealtimeStockHistory: React.FC<RealtimeStockHistoryProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onTransactionClick?.(transaction)}
-                        >
+                          onClick={() => onTransactionClick?.(transaction)}>
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
@@ -289,37 +284,8 @@ export const RealtimeStockSummary: React.FC = () => {
 
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
 
-  // Listen to stock transaction changes and update summary
-  useDocumentListener("stockTransaction", undefined, {
-    onUpdate: (update: any) => {
-      const { transition, result } = update;
-
-      switch (transition) {
-        case "appear":
-          setTransactions((prev) => {
-            const exists = prev.find((t) => t._id === result._id);
-            return exists ? prev : [...prev, result];
-          });
-          break;
-
-        case "update":
-          setTransactions((prev) =>
-            prev.map((transaction) =>
-              transaction._id === result._id
-                ? { ...transaction, ...result }
-                : transaction
-            )
-          );
-          break;
-
-        case "disappear":
-          setTransactions((prev) =>
-            prev.filter((transaction) => transaction._id !== result._id)
-          );
-          break;
-      }
-    },
-  });
+  // Remove duplicate listener - use inventory store's stock transactions instead
+  // This prevents redundant API calls when stock transactions change
 
   // Recalculate summary when transactions change
   useEffect(() => {
@@ -371,8 +337,7 @@ export const RealtimeStockSummary: React.FC = () => {
         key={summary.totalTransactions}
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}
-      >
+        transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
           <CardContent>
             <div className="flex items-center justify-between">

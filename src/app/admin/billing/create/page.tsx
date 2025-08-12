@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
+
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { ArrowLeft } from "lucide-react";
 import {
@@ -12,7 +12,7 @@ import {
   useBrands,
   useCategories,
 } from "@/hooks/use-sanity-data";
-import { useBillForm } from "@/hooks/use-bill-form";
+import { useBillForm, BillFormData } from "@/hooks/use-bill-form";
 import { useItemSelection } from "@/hooks/use-item-selection";
 import { CustomerInfoSection } from "@/components/billing/customer-info-section";
 import { ItemSelectionSection } from "@/components/billing/item-selection-section";
@@ -82,7 +82,9 @@ export default function CreateBillPage() {
             formData={formData}
             customers={customers}
             customersLoading={customersLoading}
-            onInputChange={(field, value) => handleInputChange(field as any, value)}
+            onInputChange={(field, value) =>
+              handleInputChange(field as keyof BillFormData, value)
+            }
           />
 
           <ItemSelectionSection
@@ -93,16 +95,40 @@ export default function CreateBillPage() {
           />
 
           {!showRewindingForm && (
-            <Button 
+            <Button
               variant="outline"
-              onClick={() => setShowRewindingForm(true)} 
+              onClick={() => setShowRewindingForm(true)}
               className="w-full"
             >
-              Add Rewinding Service
+              Add Custom Service/Item
             </Button>
           )}
 
-          {showRewindingForm && <RewindingKitForm onAddItem={addItemToBill} />}
+          {showRewindingForm && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">
+                  Custom Services & Items
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRewindingForm(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  Hide Custom Forms
+                </Button>
+              </div>
+              <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                <p className="text-sm text-gray-300 mb-4">
+                  Fill out multiple custom services or items below. All entries
+                  will be added to your bill when you click "Submit All
+                  Services&quot;.
+                </p>
+                <RewindingKitForm onAddItem={addItemToBill} />
+              </div>
+            </div>
+          )}
 
           <SelectedItemsList
             selectedItems={selectedItems}

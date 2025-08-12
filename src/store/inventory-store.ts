@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
-import { generateEnhancedProductName } from "@/lib/product-naming";
+import { apiDebouncer } from "@/lib/api-debounce";
 
 export interface Specification {
   [key: string]: string | number | boolean | string[] | undefined;
@@ -133,6 +133,7 @@ interface InventoryStore {
     isUpdate?: boolean;
   }>;
   handleRealtimeProductUpdate: (product: Product) => void;
+  handleRealtimeProductCreated: (product: Product) => void;
   handleRealtimeStockTransaction: (transaction: StockTransaction) => void;
   getProductsByCategory: (categoryName: string) => Product[];
   getProductsByBrand: (brandName: string) => Product[];
@@ -160,6 +161,16 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   lastFetched: null,
 
   fetchProducts: async (filters) => {
+    const { isLoading } = get();
+
+    // Use global debouncer to prevent rapid successive calls
+    if (isLoading || apiDebouncer.wasCalledRecently("fetch-products", 2000)) {
+      console.log(
+        "⏳ Skipping fetchProducts - recent fetch or already loading"
+      );
+      return;
+    }
+
     set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.getProducts(filters);
@@ -254,6 +265,14 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   },
 
   fetchInventorySummary: async () => {
+    const { isLoading } = get();
+
+    // Debounce: Don't fetch if already loading
+    if (isLoading) {
+      console.log("⏳ Skipping fetchInventorySummary - already loading");
+      return;
+    }
+
     set({ isLoading: true, error: null });
     try {
       const response = await inventoryApi.getInventorySummary();
@@ -418,18 +437,31 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
 
     try {
-      const response = await inventoryApi.createProduct(productData);
-      if (response.success) {
-        const newProduct = response.data as Product;
-        set((state) => ({ products: [...state.products, newProduct] }));
-        await get().fetchInventorySummary();
-        await get().createStockTransaction({
-          productId: newProduct._id,
+      // Single API call to create product with initial stock transaction
+      const response = await inventoryApi.createProduct({
+        ...productData,
+        // Include initial stock transaction data in the product creation
+        initialStockTransaction: {
           type: "purchase",
           quantity: productData.inventory.currentStock,
           unitPrice: productData.pricing.purchasePrice,
-          notes: `Initial stock for ${generateEnhancedProductName(newProduct)}`,
-        });
+          notes: `Initial stock for ${productData.name}`,
+        },
+      });
+
+      if (response.success) {
+        const newProduct = response.data as Product;
+
+        // Don't add to local state here - let the realtime listener handle it
+        // This prevents duplicates when the realtime "appear" event fires
+        console.log(
+          "✅ Product created in Sanity with initial stock, waiting for realtime sync..."
+        );
+
+        // Only refresh summary once, no additional API calls needed
+        // The backend should handle creating both product and stock transaction
+        setTimeout(() => get().fetchInventorySummary(), 1000);
+
         return { success: true, data: newProduct, isUpdate: false };
       } else {
         set({ error: response.error || "Failed to create product" });
@@ -450,6 +482,23 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       ),
     }));
     get().fetchInventorySummary();
+  },
+
+  handleRealtimeProductCreated: (product) => {
+    const { products } = get();
+    const existingProduct = products.find((p) => p._id === product._id);
+
+    if (!existingProduct) {
+      set((state) => ({ products: [...state.products, product] }));
+      console.log(`✅ Product created via realtime: ${product.name}`);
+
+      // Debounced summary refresh to prevent rapid successive calls
+      setTimeout(() => get().fetchInventorySummary(), 500);
+    } else {
+      console.log(
+        `🔄 Product already exists, skipping duplicate: ${product.name}`
+      );
+    }
   },
 
   handleRealtimeStockTransaction: (transaction) => {
@@ -507,9 +556,9 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     const groupedProducts = new Map<string, Product[]>();
 
     activeProducts.forEach((product) => {
-      const key = `${generateEnhancedProductName(
-        product
-      ).toLowerCase()}-${JSON.stringify(product.specifications)}`;
+      const key = `${product.name.toLowerCase()}-${product.brand.name.toLowerCase()}-${JSON.stringify(
+        product.specifications
+      )}`;
       if (!groupedProducts.has(key)) {
         groupedProducts.set(key, []);
       }
@@ -626,6 +675,9 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   initializeRealtime: () => {
     const { on } = useSanityRealtimeStore.getState();
     on("bill:created", (bill) => get().handleBillCreated(bill));
+    on("inventory:created", (product) =>
+      get().handleRealtimeProductCreated(product)
+    );
     on("inventory:updated", ({ productId, updates }) =>
       get().handleRealtimeProductUpdate({
         _id: productId,
@@ -640,6 +692,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   cleanupRealtime: () => {
     const { off } = useSanityRealtimeStore.getState();
     off("bill:created");
+    off("inventory:created");
     off("inventory:updated");
     off("inventory:low_stock");
   },
@@ -647,21 +700,21 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   handleBillCreated: (bill) => {
     bill.items?.forEach(async (item: unknown) => {
       const { products, createStockTransaction } = get();
-      const product = products.find((p) => p._id === item.product);
+      const product = products.find((p) => p._id === item?.product);
       if (product) {
-        const newStock = product.inventory.currentStock - item.quantity;
+        const newStock = product.inventory.currentStock - item?.quantity;
         set((state) => ({
           products: state.products.map((p) =>
-            p._id === item.product
+            p._id === item?.product
               ? { ...p, inventory: { ...p.inventory, currentStock: newStock } }
               : p
           ),
         }));
         await createStockTransaction({
-          productId: item.product,
+          productId: item?.product,
           type: "sale",
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
+          quantity: item?.quantity,
+          unitPrice: item?.unitPrice,
           billId: bill._id,
           notes: `Sold via bill ${bill.billNumber}`,
         });

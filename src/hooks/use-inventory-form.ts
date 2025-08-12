@@ -91,30 +91,45 @@ export const useInventoryForm = () => {
     setShowConfirmationPopup(true);
   };
 
+  // Helper function to generate product name based on specifications
+  const generateProductName = () => {
+    const category = categories.find((cat) => cat._id === formData.category);
+    const brand = brands.find((br) => br._id === formData.brand);
+
+    const categoryTitle = category?.name || "Unknown Category";
+    const brandTitle = brand?.name || "Unknown Brand";
+
+    // Find any key ending with "For" that has a non-empty value
+    const forKey = Object.keys(formData.specifications).find(
+      (key) =>
+        key.endsWith("For") &&
+        formData.specifications[key] &&
+        formData.specifications[key].toString().trim() !== ""
+    );
+
+    if (forKey && formData.specifications[forKey]) {
+      return `${categoryTitle} - ${formData.specifications[forKey]}`;
+    }
+
+    return `${categoryTitle} - ${brandTitle}`;
+  };
+
   const confirmSubmit = async () => {
+    // Prevent multiple submissions
+    if (isLoading) {
+      console.log(
+        "⚠️ Submission already in progress, ignoring duplicate request"
+      );
+      return;
+    }
+
     setIsLoading(true);
     setShowConfirmationPopup(false);
 
     try {
-      // Get resolved category and brand names for intelligent naming
-      const selectedCategory = categories.find(
-        (c) => c._id === formData.category
-      );
-      const selectedBrand = brands.find((b) => b._id === formData.brand);
-
-      // Create product object for intelligent naming
-      const productForNaming = {
-        category: { name: selectedCategory?.name || "Unknown Category" },
-        brand: { name: selectedBrand?.name || "Unknown Brand" },
-        specifications: formData.specifications,
-      };
-
-      // Generate intelligent product name
-      const intelligentName = generateEnhancedProductName(productForNaming);
-
-      // Create product object
+      // Create product object with single API call optimization
       const newProduct = {
-        name: intelligentName,
+        name: generateProductName(),
         brandId: formData.brand,
         categoryId: formData.category,
         specifications: formData.specifications,
@@ -132,12 +147,14 @@ export const useInventoryForm = () => {
         tags: [], // Default value
       };
 
+      console.log("🚀 Submitting product with single API call...");
       const result = await addProduct(newProduct);
+
       if (result.success) {
         setShowSuccessPopup(true);
+        console.log("✅ Product created successfully");
       } else {
-        console.error("Failed to add product:", result.error);
-        // You might want to show an error popup here
+        console.error("❌ Failed to create product:", result.error);
       }
     } catch (error) {
       console.error("Error adding product:", error);
@@ -206,6 +223,6 @@ export const useInventoryForm = () => {
     resetForm,
     handleSuccessClose,
     setShowConfirmationPopup,
-    getResolvedProductData,
+    generateProductName,
   };
 };

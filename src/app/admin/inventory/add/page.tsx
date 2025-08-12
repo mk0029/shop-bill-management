@@ -31,7 +31,7 @@ export default function AddInventoryItemPage() {
     resetForm,
     handleSuccessClose,
     setShowConfirmationPopup,
-    getResolvedProductData,
+    generateProductName,
   } = useInventoryForm();
 
   return (
@@ -115,10 +115,20 @@ export default function AddInventoryItemPage() {
         <SuccessPopup
           isOpen={showSuccessPopup}
           onClose={handleSuccessClose}
-          data={createProductSuccessPopup(getResolvedProductData(), () => {
-            resetForm();
-            handleSuccessClose();
-          })}
+          data={createProductSuccessPopup(
+            {
+              name: generateProductName(),
+              category: formData.category,
+              brand: formData.brand,
+              currentStock: formData.currentStock,
+              sellingPrice: formData.sellingPrice,
+              unit: formData.unit,
+            },
+            () => {
+              resetForm();
+              handleSuccessClose();
+            }
+          )}
         />
       )}
 
@@ -129,13 +139,14 @@ export default function AddInventoryItemPage() {
           onClose={() => setShowConfirmationPopup(false)}
           data={{
             title: "Add Product",
-            message: "Are you sure you want to add this product to inventory?",
+            message: `Are you sure you want to add "${generateProductName()}" to inventory?`,
             type: "info",
             actions: [
               {
                 label: isLoading ? "Adding..." : "Add Product",
                 action: confirmSubmit,
                 variant: "default",
+                disabled: isLoading,
               },
               {
                 label: "Cancel",

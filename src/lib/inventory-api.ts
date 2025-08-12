@@ -330,6 +330,12 @@ export const inventoryApi = {
       reorderLevel: number;
     };
     tags: string[];
+    initialStockTransaction?: {
+      type: "purchase" | "sale" | "adjustment" | "return" | "damage";
+      quantity: number;
+      unitPrice: number;
+      notes?: string;
+    };
   }): Promise<InventoryApiResponse> {
     try {
       const productId = Buffer.from(
@@ -366,8 +372,48 @@ export const inventoryApi = {
         updatedAt: new Date().toISOString(),
       };
 
-      const result = await sanityClient.create(newProduct);
-      return { success: true, data: result };
+      // Use transaction to create product and initial stock transaction atomically
+      if (productData.initialStockTransaction) {
+        const transaction = sanityClient.transaction();
+
+        // Create the product
+        const productResult = await transaction.create(newProduct).commit();
+
+        // Create initial stock transaction
+        const stockTransactionId = Buffer.from(
+          Date.now().toString() + Math.random().toString()
+        )
+          .toString("base64")
+          .substring(0, 12);
+
+        const stockTransaction = {
+          _type: "stockTransaction",
+          transactionId: stockTransactionId,
+          type: productData.initialStockTransaction.type,
+          product: { _type: "reference", _ref: productResult._id },
+          quantity: productData.initialStockTransaction.quantity,
+          unitPrice: productData.initialStockTransaction.unitPrice,
+          totalAmount:
+            productData.initialStockTransaction.quantity *
+            productData.initialStockTransaction.unitPrice,
+          notes: productData.initialStockTransaction.notes,
+          status: "completed",
+          transactionDate: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        };
+
+        // Create stock transaction in a separate call (since we need the product ID)
+        await sanityClient.create(stockTransaction);
+
+        console.log(
+          "✅ Product and initial stock transaction created successfully"
+        );
+        return { success: true, data: productResult };
+      } else {
+        // Just create the product without stock transaction
+        const result = await sanityClient.create(newProduct);
+        return { success: true, data: result };
+      }
     } catch (error) {
       console.error("Error creating product:", error);
       return {
@@ -381,7 +427,7 @@ export const inventoryApi = {
   // Update existing product
   async updateProduct(
     productId: string,
-    updateData: any
+    updateData: unknown
   ): Promise<InventoryApiResponse> {
     try {
       const result = await sanityClient

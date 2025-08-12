@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 
 interface ItemSelectionSectionProps {
   categories: any[];
@@ -68,12 +68,14 @@ export const ItemSelectionSection = ({
               <motion.div
                 key={category._id}
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}>
+                whileTap={{ scale: 0.98 }}
+              >
                 <Button
                   variant="outline"
                   onClick={() => onOpenItemModal(category.name.toLowerCase())}
                   className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  disabled={categoryProducts.length === 0}>
+                  disabled={categoryProducts.length === 0}
+                >
                   <div className="text-left">
                     <p className="font-medium text-white">{category.name}</p>
                     <p className="text-sm text-gray-400">
