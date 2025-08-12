@@ -227,6 +227,21 @@ export const useSanityAlerts = () => {
   };
 };
 
+// Generic hook for subscribing to Sanity real-time events
+export const useSanityRealtimeEvent = <T = unknown>(
+  eventName: string,
+  callback: (payload: T) => void
+) => {
+  useEffect(() => {
+    console.debug(`[useSanityRealtimeEvent] subscribe -> ${eventName}`);
+    // TODO: connect to real event bus and call callback(payload)
+
+    return () => {
+      console.debug(`[useSanityRealtimeEvent] unsubscribe -> ${eventName}`);
+    };
+  }, [eventName, callback]);
+};
+
 // Hook for real-time statistics
 export const useSanityStats = () => {
   const { data } = useSanityRealtime();

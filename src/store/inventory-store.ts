@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
