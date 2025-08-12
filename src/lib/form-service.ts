@@ -369,6 +369,8 @@ export async function createBill(billData: {
     quantity: number;
     unitPrice?: number;
     unit?: string;
+    isCustom?: boolean;
+    isRewinding?: boolean;
   }>;
   serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
   locationType: "shop" | "home" | "office";
@@ -391,6 +393,8 @@ export async function createBill(billData: {
       unitPrice: item.unitPrice || 0,
       totalPrice: item.quantity * (item.unitPrice || 0),
       unit: item.unit || "pcs",
+      isCustom: item.isCustom || false,
+      isRewinding: item.isRewinding || false,
     }));
 
     const deduplicatedItems = deduplicateBillItems(mappedItems);
@@ -412,9 +416,10 @@ export async function createBill(billData: {
       };
     }
 
-    // Step 3: Filter for standard items to perform inventory checks
+    // Step 3: Filter for standard items to perform inventory checks (exclude custom items)
     const standardItems = deduplicatedItems.filter(
-      (item): item is typeof item & { productId: string } => !!item.productId
+      (item): item is typeof item & { productId: string } =>
+        !!item.productId && !item.isCustom && !item.isRewinding
     );
 
     // Step 4: Batch validate stock and fetch prices in parallel (optimize API calls)
@@ -517,7 +522,7 @@ export async function createBill(billData: {
 
     // Step 7: Create bill with atomic stock updates (single transaction)
     console.log("🚀 Creating bill with atomic stock updates...");
-    
+
     try {
       // Use Sanity transaction for atomic operations
       const transaction = sanityClient.transaction();

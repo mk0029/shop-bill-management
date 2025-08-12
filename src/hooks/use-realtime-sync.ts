@@ -406,10 +406,37 @@ export const useDocumentListener = <T extends SanityDocument>(
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Build the GROQ query
-    const query = documentId
-      ? `*[_type == $documentType && _id == $documentId][0]`
-      : `*[_type == $documentType]`;
+    // Build the GROQ query with customer data for bills
+    let query: string;
+    if (documentType === "bill") {
+      query = documentId
+        ? `*[_type == $documentType && _id == $documentId][0] {
+            ...,
+            customer->{
+              _id,
+              name,
+              phone,
+              email,
+              location,
+              role
+            }
+          }`
+        : `*[_type == $documentType] {
+            ...,
+            customer->{
+              _id,
+              name,
+              phone,
+              email,
+              location,
+              role
+            }
+          }`;
+    } else {
+      query = documentId
+        ? `*[_type == $documentType && _id == $documentId][0]`
+        : `*[_type == $documentType]`;
+    }
 
     const params = { documentType };
     if (documentId) {

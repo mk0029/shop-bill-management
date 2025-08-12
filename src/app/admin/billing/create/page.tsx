@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, XIcon } from "lucide-react";
 import {
   useCustomers,
   useProducts,
@@ -37,6 +37,7 @@ export default function CreateBillPage() {
     alertMessage,
     handleInputChange,
     addItemToBill,
+    addCustomItemToBill,
     updateItemQuantity,
     removeItem,
     calculateTotal,
@@ -86,21 +87,13 @@ export default function CreateBillPage() {
               handleInputChange(field as keyof BillFormData, value)
             }
           />
-
-          <ItemSelectionSection
-            categories={categories}
-            activeProducts={activeProducts}
-            productsLoading={productsLoading}
-            onOpenItemModal={openItemSelectionModal}
-          />
-
           {!showRewindingForm && (
             <Button
               variant="outline"
               onClick={() => setShowRewindingForm(true)}
               className="w-full"
             >
-              Add Custom Service/Item
+              Add Rewinding Service/Item
             </Button>
           )}
 
@@ -108,7 +101,7 @@ export default function CreateBillPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">
-                  Custom Services & Items
+                  Rewinding Services & Items
                 </h3>
                 <Button
                   variant="ghost"
@@ -116,19 +109,26 @@ export default function CreateBillPage() {
                   onClick={() => setShowRewindingForm(false)}
                   className="text-gray-400 hover:text-white"
                 >
-                  Hide Custom Forms
+                  <XIcon />
                 </Button>
               </div>
               <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
                 <p className="text-sm text-gray-300 mb-4">
                   Fill out multiple custom services or items below. All entries
-                  will be added to your bill when you click "Submit All
+                  will be added to your bill when you click &quot;Submit All
                   Services&quot;.
                 </p>
-                <RewindingKitForm onAddItem={addItemToBill} />
+                <RewindingKitForm onAddItem={addCustomItemToBill} />
               </div>
             </div>
           )}
+
+          <ItemSelectionSection
+            categories={categories}
+            activeProducts={activeProducts}
+            productsLoading={productsLoading}
+            onOpenItemModal={openItemSelectionModal}
+          />
 
           <SelectedItemsList
             selectedItems={selectedItems}

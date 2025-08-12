@@ -18,11 +18,11 @@ export interface BillFormData {
   kitSizeInInches?: number;
   isMultiSpeed?: boolean;
   heavyLoadOptions?: string[];
-  oldWindingMaterial?: 'copper' | 'aluminum';
-  newWindingMaterial?: 'copper' | 'aluminum';
+  oldWindingMaterial?: "copper" | "aluminum";
+  newWindingMaterial?: "copper" | "aluminum";
   priceDifference?: number;
   windingRate?: number;
-  kitType?: 'cooler' | 'motor' | 'other';
+  kitType?: "cooler" | "motor" | "other";
 }
 
 export interface BillItem {
@@ -35,7 +35,7 @@ export interface BillItem {
   brand: string;
   specifications: string;
   unit: string;
-  itemType: 'standard' | 'rewinding';
+  itemType: "standard" | "rewinding" | "custom";
 }
 
 export const useBillForm = () => {
@@ -61,14 +61,22 @@ export const useBillForm = () => {
     kitSizeInInches: 0,
     isMultiSpeed: false,
     heavyLoadOptions: [],
-    oldWindingMaterial: 'copper',
-    newWindingMaterial: 'copper',
+    oldWindingMaterial: "copper",
+    newWindingMaterial: "copper",
     priceDifference: 0,
     windingRate: 0,
   });
 
   const handleInputChange = (field: keyof BillFormData, value: any) => {
-    const numericFields = ["repairCharges", "homeVisitFee", "laborCharges", "kitBoreSize", "kitSizeInInches", "priceDifference", "windingRate"];
+    const numericFields = [
+      "repairCharges",
+      "homeVisitFee",
+      "laborCharges",
+      "kitBoreSize",
+      "kitSizeInInches",
+      "priceDifference",
+      "windingRate",
+    ];
     if (numericFields.includes(field)) {
       setFormData((prev) => ({ ...prev, [field]: Number(value) || 0 }));
     } else {
@@ -111,37 +119,86 @@ export const useBillForm = () => {
           brand: product.brand?.name || "Unknown",
           specifications,
           unit: product.pricing.unit,
-          itemType: 'standard',
+          itemType: "standard",
         },
       ]);
     }
   };
 
   const addRewindingItemToBill = () => {
-    const { kitName, windingRate, kitSizeInInches, priceDifference, oldWindingMaterial, newWindingMaterial } = formData;
+    const {
+      kitName,
+      windingRate,
+      kitSizeInInches,
+      priceDifference,
+      oldWindingMaterial,
+      newWindingMaterial,
+    } = formData;
 
     if (!kitName || !windingRate || !kitSizeInInches) {
-        setAlertMessage("Please fill in all required rewinding kit details.");
-        setShowAlertModal(true);
-        return;
+      setAlertMessage("Please fill in all required rewinding kit details.");
+      setShowAlertModal(true);
+      return;
     }
 
-    const price = (Number(windingRate) * Number(kitSizeInInches)) + (oldWindingMaterial !== newWindingMaterial ? Number(priceDifference) : 0);
+    const price =
+      Number(windingRate) * Number(kitSizeInInches) +
+      (oldWindingMaterial !== newWindingMaterial ? Number(priceDifference) : 0);
 
     const rewindingItem: BillItem = {
-        id: `rewinding-${Date.now()}`,
-        name: `Rewinding Kit - ${kitName}`,
-        price: price,
-        quantity: 1,
-        total: price,
-        category: 'Rewinding',
-        brand: 'Custom',
-        specifications: `Bore: ${formData.kitBoreSize}", Size: ${formData.kitSizeInInches}", Load: ${formData.heavyLoadOptions?.join(', ')}`,
-        unit: 'kit',
-        itemType: 'rewinding',
+      id: `rewinding-${Date.now()}`,
+      name: `Rewinding Kit - ${kitName}`,
+      price: price,
+      quantity: 1,
+      total: price,
+      category: "Rewinding",
+      brand: "Custom",
+      specifications: `Bore: ${formData.kitBoreSize}", Size: ${
+        formData.kitSizeInInches
+      }", Load: ${formData.heavyLoadOptions?.join(", ")}`,
+      unit: "kit",
+      itemType: "rewinding",
     };
 
-    setSelectedItems(prev => [...prev, rewindingItem]);
+    setSelectedItems((prev) => [...prev, rewindingItem]);
+  };
+
+  const addCustomItemToBill = (customItem: {
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    specifications?: string;
+    category?: string;
+    brand?: string;
+    unit?: string;
+  }) => {
+    if (
+      !customItem.productName ||
+      !customItem.quantity ||
+      customItem.quantity <= 0
+    ) {
+      setAlertMessage("Please provide a valid product name and quantity.");
+      setShowAlertModal(true);
+      return;
+    }
+
+    const price = Number(customItem.unitPrice) || 0;
+    const quantity = Number(customItem.quantity) || 1;
+
+    const billItem: BillItem = {
+      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: customItem.productName,
+      price: price,
+      quantity: quantity,
+      total: price * quantity,
+      category: customItem.category || "Custom",
+      brand: customItem.brand || "Custom",
+      specifications: customItem.specifications || "",
+      unit: customItem.unit || "pcs",
+      itemType: "custom",
+    };
+
+    setSelectedItems((prev) => [...prev, billItem]);
   };
 
   const updateItemQuantity = (
@@ -191,7 +248,7 @@ export const useBillForm = () => {
       const billData = {
         customerId: formData.customerId,
         items: selectedItems.map((item) => ({
-          productId: item.itemType === 'standard' ? item.id : undefined,
+          productId: item.itemType === "standard" ? item.id : undefined,
           productName: item.name,
           category: item.category,
           brand: item.brand,
@@ -199,7 +256,8 @@ export const useBillForm = () => {
           quantity: Number(item.quantity),
           unitPrice: Number(item.price),
           unit: item.unit,
-          isRewinding: item.itemType === 'rewinding',
+          isRewinding: item.itemType === "rewinding",
+          isCustom: item.itemType === "custom",
         })),
         serviceType: formData.serviceType as
           | "sale"
@@ -252,11 +310,12 @@ export const useBillForm = () => {
     setShowAlertModal,
     setSelectedItems,
     addRewindingItemToBill,
+    addCustomItemToBill,
   };
 };
 
 // Helper functions
-const getItemDisplayName = (product: any) => {
+const getItemDisplayName = (product: unknown) => {
   const specs = [];
   if (product.specifications) {
     const spec = product.specifications;
@@ -275,7 +334,7 @@ const getItemDisplayName = (product: any) => {
   return `${categoryName} - ${brandName}${specString}`;
 };
 
-const getItemSpecifications = (product: any) => {
+const getItemSpecifications = (product: unknown) => {
   const specs = [];
   if (product.specifications) {
     const spec = product.specifications;

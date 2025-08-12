@@ -12,6 +12,8 @@ export interface BillItem {
   unitPrice: number;
   totalPrice: number;
   unit: string;
+  isCustom?: boolean;
+  isRewinding?: boolean;
 }
 
 /**
@@ -57,8 +59,11 @@ export function validateBillItems(items: BillItem[]): {
   }
 
   items.forEach((item, index) => {
-    if (!item.productId && !item.productName.toLowerCase().includes('rewinding')) {
-      errors.push(`Item ${index + 1}: Product ID is required for standard items`);
+    // Only require productId for standard items (not custom or rewinding items)
+    if (!item.productId && !item.isCustom && !item.isRewinding) {
+      errors.push(
+        `Item ${index + 1}: Product ID is required for standard items`
+      );
     }
     if (!item.productName?.trim()) {
       errors.push(`Item ${index + 1}: Product name is required`);

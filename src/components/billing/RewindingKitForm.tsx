@@ -12,7 +12,15 @@ import { X, Plus } from "lucide-react";
 import { useProducts } from "@/hooks/use-sanity-data";
 
 interface RewindingKitFormProps {
-  onAddItem: (item: Omit<BillItem, "productId">) => void;
+  onAddItem: (item: {
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    specifications?: string;
+    category?: string;
+    brand?: string;
+    unit?: string;
+  }) => void;
 }
 
 interface RewindingFormData {
@@ -78,7 +86,7 @@ function SingleRewindingForm({
   onUpdate: (id: string, data: Partial<RewindingFormData>) => void;
   onRemove: (id: string) => void;
   canRemove: boolean;
-  starterProducts: any[];
+  starterProducts: unknown[];
 }) {
   const selectedStarter = starterProducts.find(
     (p) => p._id === formData.selectedStarterId
@@ -345,18 +353,49 @@ export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
     }
 
     validForms.forEach((formData) => {
-      const { kitName, windingRate, priceDifference, quantity } = formData;
+      const {
+        kitName,
+        windingRate,
+        priceDifference,
+        quantity,
+        kitType,
+        boreSize,
+        sizeInInches,
+        multiSpeed,
+        heavyLoadOption,
+        oldWindingMaterial,
+        newWindingMaterial,
+      } = formData;
+
       const totalUnitPrice =
         parseFloat(windingRate) + (parseFloat(priceDifference) || 0);
 
+      // Create a readable specifications string
+      const specs = [];
+      if (boreSize) specs.push(`Bore: ${boreSize}`);
+      if (sizeInInches) specs.push(`Size: ${sizeInInches}"`);
+      if (multiSpeed) specs.push("Multi-Speed");
+      if (heavyLoadOption) specs.push(`Load: ${heavyLoadOption}`);
+      if (oldWindingMaterial !== newWindingMaterial) {
+        specs.push(`Material: ${oldWindingMaterial} → ${newWindingMaterial}`);
+      } else {
+        specs.push(`Material: ${oldWindingMaterial}`);
+      }
+
+      const specificationsText =
+        specs.length > 0 ? specs.join(", ") : "Custom service";
+
       const newItem = {
-        productName: `Rewinding Kit - ${kitName}`,
+        productName: `${kitType} Kit - ${kitName}`,
         quantity: quantity,
         unitPrice: totalUnitPrice,
-        specifications: JSON.stringify(formData, null, 2),
+        specifications: specificationsText,
+        category: "Rewinding Service",
+        brand: "Custom",
+        unit: "service",
       };
 
-      onAddItem(newItem as unknown);
+      onAddItem(newItem);
     });
 
     // Reset forms after successful submission

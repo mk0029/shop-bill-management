@@ -74,7 +74,8 @@ export const CustomerInfoSection = ({
                   variant="link"
                   size="sm"
                   onClick={() => router.push("/admin/customers/add")}
-                  className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs">
+                  className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs"
+                >
                   Add your first customer →
                 </Button>
               </div>
@@ -169,8 +170,7 @@ export const CustomerInfoSection = ({
           </div>
         )}
 
-        {(formData.location === "home" ||
-          formData.serviceType === "repair") && (
+        {formData.location === "home" && (
           <div className="space-y-2">
             <Label htmlFor="homeVisitFee" className="text-gray-300">
               Home Visit Fee ({currency})
