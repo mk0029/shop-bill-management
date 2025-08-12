@@ -30,7 +30,6 @@ import {
   getLightTypeLabel,
   getUnitLabel,
   getItemSpecifications,
-  // Removed getBrandLabel, mockInventoryItems, and popularBrands from import
 } from "@/lib/inventory-data";
 
 export default function EditInventoryItemPage() {
@@ -184,7 +183,8 @@ export default function EditInventoryItemPage() {
         <Button
           variant="outline"
           onClick={() => router.back()}
-          className="flex items-center gap-2">
+          className="flex items-center gap-2"
+        >
           <ArrowLeft className="w-4 h-4" />
           Back
         </Button>
@@ -492,14 +492,16 @@ export default function EditInventoryItemPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2">
+                className="flex items-center gap-2"
+              >
                 <Save className="w-4 h-4" />
                 {isLoading ? "Updating Item..." : "Update Item"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}>
+                onClick={() => router.back()}
+              >
                 Cancel
               </Button>
             </div>
@@ -512,7 +514,8 @@ export default function EditInventoryItemPage() {
         isOpen={showSuccessModal}
         onClose={handleSuccessClose}
         size="md"
-        title="Item Updated Successfully!">
+        title="Item Updated Successfully!"
+      >
         <div className="space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -562,7 +565,8 @@ export default function EditInventoryItemPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => router.push("/admin/inventory")}>
+              onClick={() => router.push("/admin/inventory")}
+            >
               Go to Inventory
             </Button>
           </div>

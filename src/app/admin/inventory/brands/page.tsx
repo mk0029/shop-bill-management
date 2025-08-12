@@ -23,7 +23,6 @@ import {
   Globe,
   MapPin,
 } from "lucide-react";
-import { RealtimeDebugPanel } from "@/components/debug/realtime-debug";
 
 export default function BrandsPage() {
   const router = useRouter();
@@ -106,7 +105,8 @@ export default function BrandsPage() {
         </div>
         <Button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2">
+          className="flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           Add Brand
         </Button>
@@ -122,7 +122,8 @@ export default function BrandsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={clearError}
-                className="text-red-400 hover:text-red-300">
+                className="text-red-400 hover:text-red-300"
+              >
                 ×
               </Button>
             </div>
@@ -155,7 +156,8 @@ export default function BrandsPage() {
               </p>
               <Button
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2">
+                className="flex items-center gap-2"
+              >
                 <Plus className="w-4 h-4" />
                 Add Brand
               </Button>
@@ -186,7 +188,8 @@ export default function BrandsPage() {
                   {brands.map((brand) => (
                     <tr
                       key={brand._id}
-                      className="border-b border-gray-800 hover:bg-gray-800/50">
+                      className="border-b border-gray-800 hover:bg-gray-800/50"
+                    >
                       <td className="py-4 px-4">
                         <div>
                           <h4 className="font-medium text-white">
@@ -220,7 +223,8 @@ export default function BrandsPage() {
                                 href={brand.contactInfo.website}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="hover:text-blue-400">
+                                className="hover:text-blue-400"
+                              >
                                 {brand.contactInfo.website.replace(
                                   /^https?:\/\//,
                                   ""
@@ -250,14 +254,16 @@ export default function BrandsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setEditingBrand(brand)}
-                            className="text-blue-400 hover:text-blue-300">
+                            className="text-blue-400 hover:text-blue-300"
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(brand)}
-                            className="text-red-400 hover:text-red-300">
+                            className="text-red-400 hover:text-red-300"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -275,7 +281,8 @@ export default function BrandsPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Create New Brand">
+        title="Create New Brand"
+      >
         <BrandForm
           onSuccess={handleCreateSuccess}
           onCancel={() => setShowCreateModal(false)}
@@ -286,7 +293,8 @@ export default function BrandsPage() {
       <Modal
         isOpen={!!editingBrand}
         onClose={() => setEditingBrand(null)}
-        title="Edit Brand">
+        title="Edit Brand"
+      >
         {editingBrand && (
           <BrandForm
             brand={editingBrand}
@@ -300,7 +308,8 @@ export default function BrandsPage() {
       <Modal
         isOpen={!!deletingBrand}
         onClose={() => setDeletingBrand(null)}
-        title="Delete Brand">
+        title="Delete Brand"
+      >
         {deletingBrand && (
           <div className="space-y-4">
             <p className="text-gray-300">
@@ -315,13 +324,15 @@ export default function BrandsPage() {
               <Button
                 variant="destructive"
                 onClick={confirmDelete}
-                className="flex-1">
+                className="flex-1"
+              >
                 Delete Brand
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setDeletingBrand(null)}
-                className="flex-1">
+                className="flex-1"
+              >
                 Cancel
               </Button>
             </div>

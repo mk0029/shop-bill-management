@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { CustomersOverview } from "@/components/dashboard/customers-overview";
 import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
@@ -7,9 +8,21 @@ import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { RealtimeInventoryStats } from "@/components/realtime/realtime-inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, FileText, Package, Users } from "lucide-react";
+import { useInventoryStore } from "@/store/inventory-store";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import Link from "next/link";
 
 export default function AdminDashboard() {
+  const { fetchProducts, fetchInventorySummary } = useInventoryStore();
+  const { fetchBills } = useSanityBillStore();
+
+  // Initialize realtime sync for the dashboard
+  const { refreshData } = useRealtimeSync({
+    enableNotifications: false, // Disable notifications on dashboard
+    enableAutoRefresh: true,
+    documentTypes: ["bill", "product", "stockTransaction"],
+  });
   const quickActions = [
     {
       icon: FileText,
@@ -39,6 +52,34 @@ export default function AdminDashboard() {
       url: "/admin/inventory/add",
     },
   ];
+
+  // Initialize data when dashboard loads
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      try {
+        console.log("🚀 Initializing dashboard data...");
+        await Promise.all([
+          fetchProducts(),
+          fetchInventorySummary(),
+          fetchBills(),
+        ]);
+        console.log("✅ Dashboard data initialized");
+      } catch (error) {
+        console.error("❌ Error initializing dashboard:", error);
+      }
+    };
+
+    initializeDashboard();
+  }, [fetchProducts, fetchInventorySummary, fetchBills]);
+
+  // Refresh data periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshData();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [refreshData]);
 
   return (
     <RealtimeProvider enableNotifications={false}>
@@ -88,7 +129,8 @@ export default function AdminDashboard() {
                     <Link
                       href={action.url}
                       key={index}
-                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}>
+                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}
+                    >
                       <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                       <div>
                         <h3 className="font-medium text-white">

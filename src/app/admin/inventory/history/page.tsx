@@ -142,7 +142,6 @@ export default function StockHistoryPage() {
     fetchStockData();
   }, [fetchStockData]);
 
-  // Use real data instead of mock data
   const filteredTransactions = transactions;
 
   // Get summary data from API or calculate from transactions
@@ -186,7 +185,8 @@ export default function StockHistoryPage() {
               variant="outline"
               onClick={fetchStockData}
               disabled={loading}
-              className="flex items-center gap-2">
+              className="flex items-center gap-2"
+            >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
@@ -208,7 +208,8 @@ export default function StockHistoryPage() {
                   variant="outline"
                   size="sm"
                   onClick={fetchStockData}
-                  className="ml-auto">
+                  className="ml-auto"
+                >
                   Retry
                 </Button>
               </div>
@@ -305,7 +306,8 @@ export default function StockHistoryPage() {
                       key={transaction.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
+                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
+                    >
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
                           <TypeIcon className="w-6 h-6 text-blue-400" />
@@ -338,14 +340,16 @@ export default function StockHistoryPage() {
                           <span
                             className={`text-xs px-2 py-1 rounded-full ${getTransactionTypeColor(
                               transaction.type
-                            )}`}>
+                            )}`}
+                          >
                             {transaction.type}
                           </span>
                         </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => viewTransactionDetails(transaction)}>
+                          onClick={() => viewTransactionDetails(transaction)}
+                        >
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
@@ -366,7 +370,8 @@ export default function StockHistoryPage() {
                       <Button
                         variant="outline"
                         className="mt-4"
-                        onClick={fetchStockData}>
+                        onClick={fetchStockData}
+                      >
                         Try Again
                       </Button>
                     )}
@@ -382,7 +387,8 @@ export default function StockHistoryPage() {
           isOpen={showTransactionModal}
           onClose={() => setShowTransactionModal(false)}
           size="md"
-          title={`Transaction #${selectedTransaction?.id || "Unknown"}`}>
+          title={`Transaction #${selectedTransaction?.id || "Unknown"}`}
+        >
           {selectedTransaction && (
             <div className="space-y-6">
               {/* Transaction Info */}
@@ -444,7 +450,8 @@ export default function StockHistoryPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowTransactionModal(false)}>
+                  onClick={() => setShowTransactionModal(false)}
+                >
                   Close
                 </Button>
               </div>

@@ -43,7 +43,6 @@ interface Bill {
   notes?: string;
 }
 
-// Mock pending bills data
 // WhatsApp sharing utility function
 const shareBillOnWhatsApp = (bill: Bill) => {
   const message = `Bill Details:\n\nBill Number: ${
@@ -175,7 +174,8 @@ export default function PendingBillsPage() {
         <Button
           onClick={() => router.push("/admin/billing")}
           variant="outline"
-          className="flex items-center gap-2 w-full sm:w-auto">
+          className="flex items-center gap-2 w-full sm:w-auto"
+        >
           <ArrowLeft className="w-4 h-4" />
           Back to Billing
         </Button>
@@ -271,7 +271,8 @@ export default function PendingBillsPage() {
             filteredBills.map((bill) => (
               <Card
                 key={bill.id}
-                className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors">
+                className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors"
+              >
                 <CardContent>
                   <div className="flex flex-col md:flex-row md:items-center justify-between relative">
                     <div className="flex-1">
@@ -282,7 +283,8 @@ export default function PendingBillsPage() {
                         <span
                           className={`px-2 py-0.5 text-xs rounded-full max-md:absolute right-0 top-9 ${getStatusColor(
                             bill.status
-                          )} text-white`}>
+                          )} text-white`}
+                        >
                           {getStatusText(bill.status)}
                         </span>
                       </div>
@@ -330,14 +332,16 @@ export default function PendingBillsPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleViewBill(bill)}
-                        className="flex items-center gap-1 text-xs max-sm:!py-2 max-sm:!px-3">
+                        className="flex items-center gap-1 text-xs max-sm:!py-2 max-sm:!px-3"
+                      >
                         <Eye className="w-3 h-3" />
                         <span className="hidden sm:inline">View</span>
                       </Button>
                       <Button
                         size="sm"
                         onClick={() => handleShareOnWhatsApp(bill)}
-                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-xs max-sm:!py-2 max-sm:!px-3">
+                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-xs max-sm:!py-2 max-sm:!px-3"
+                      >
                         <Share2 className="w-3 h-3" />
                         <span className="hidden sm:inline">Share</span>
                       </Button>
@@ -368,7 +372,8 @@ export default function PendingBillsPage() {
         isOpen={showBillModal}
         onClose={() => setShowBillModal(false)}
         size="lg"
-        title={`Bill Details - ${selectedBill?.billNumber}`}>
+        title={`Bill Details - ${selectedBill?.billNumber}`}
+      >
         {selectedBill && (
           <div className="space-y-6">
             {/* Customer Info */}
@@ -403,7 +408,8 @@ export default function PendingBillsPage() {
                 {selectedBill.items.map((item, index: number) => (
                   <div
                     key={index}
-                    className="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
+                    className="flex justify-between items-center p-3 bg-gray-800 rounded-lg"
+                  >
                     <div className="flex-1">
                       <p className="text-white font-medium">{item.name}</p>
                       <p className="text-gray-400 text-sm">
@@ -453,7 +459,8 @@ export default function PendingBillsPage() {
             <div className="flex gap-3">
               <Button
                 onClick={() => handleShareOnWhatsApp(selectedBill)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              >
                 <Share2 className="w-4 h-4" />
                 Share on WhatsApp
               </Button>

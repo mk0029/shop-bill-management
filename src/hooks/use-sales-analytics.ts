@@ -90,7 +90,7 @@ export function useSalesAnalytics(dateRange: string = "month"): {
       0
     );
 
-    // Estimate profit (assuming 36% margin as in mock data)
+    // Estimate profit (assuming 36% margin)
     const totalProfit = totalRevenue * 0.36;
 
     const totalBills = filteredBills.length;

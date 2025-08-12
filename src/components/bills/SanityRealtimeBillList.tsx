@@ -62,50 +62,6 @@ export function SanityRealtimeBillList() {
     }
   };
 
-  // Demo function to create a test bill in Sanity
-  const createTestBill = async () => {
-    const testBill = {
-      billId: `BILL-${Date.now()}`,
-      billNumber: `BILL-2024-${String(
-        Math.floor(Math.random() * 1000)
-      ).padStart(4, "0")}`,
-      customer: "test-customer-id",
-      customerAddress: "test-address-id",
-      serviceType: "repair",
-      locationType: "home",
-      items: [
-        {
-          product: "test-product-id",
-          productName: "Test LED Bulb",
-          category: "Lighting",
-          brand: "Test Brand",
-          specifications: "9W, White Light",
-          quantity: 2,
-          unitPrice: 150,
-          totalPrice: 300,
-          unit: "pcs",
-        },
-      ],
-      serviceDate: new Date().toISOString(),
-      homeVisitFee: 100,
-      repairCharges: 200,
-      transportationFee: 50,
-      laborCharges: 150,
-      subtotal: 300,
-      taxAmount: 54,
-      discountAmount: 0,
-      totalAmount: 854,
-      paymentStatus: "pending",
-      paidAmount: 0,
-      balanceAmount: 854,
-      status: "confirmed",
-      priority: "medium",
-      notes: "Test bill created for Sanity real-time demo",
-    };
-
-    await createBill(testBill);
-  };
-
   if (loading) {
     return (
       <Card>
@@ -129,16 +85,7 @@ export function SanityRealtimeBillList() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           Sanity Real-time Bills ({bills.length})
-          <div className="flex items-center gap-4">
-            <Button
-              onClick={createTestBill}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Create Test Bill
-            </Button>
-            <SanityRealtimeStatus />
-          </div>
+          <SanityRealtimeStatus />
         </CardTitle>
       </CardHeader>
       <CardContent>

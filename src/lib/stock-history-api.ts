@@ -29,50 +29,6 @@ export interface StockHistorySummary {
   netProfit: number;
 }
 
-// Debug function to check database content
-export const debugStockHistory = async () => {
-  try {
-    console.log("🔍 DEBUG: Checking database content...");
-
-    // Check all stock transactions
-    const allTransactions =
-      await sanityClient.fetch(`*[_type == "stockTransaction"] {
-      _id,
-      type,
-      transactionId,
-      deleted,
-      product->{
-        _id,
-        name,
-        isActive,
-        deleted
-      }
-    }`);
-
-    console.log("🔍 All transactions in DB:", allTransactions.length);
-    console.log("🔍 Sample transactions:", allTransactions.slice(0, 3));
-
-    // Check products
-    const allProducts = await sanityClient.fetch(`*[_type == "product"] {
-      _id,
-      name,
-      isActive,
-      deleted
-    }`);
-
-    console.log("🔍 All products in DB:", allProducts.length);
-    console.log(
-      "🔍 Active products:",
-      allProducts.filter((p) => p.isActive && !p.deleted).length
-    );
-
-    return { allTransactions, allProducts };
-  } catch (error) {
-    console.error("🔍 Debug error:", error);
-    return null;
-  }
-};
-
 export const stockHistoryApi = {
   /**
    * Get stock transactions with filters
@@ -137,9 +93,6 @@ export const stockHistoryApi = {
       console.log("🔍 Query params:", params);
 
       const transactions = await sanityClient.fetch(query, params);
-
-      console.log("🔍 Raw transactions from DB:", transactions.length);
-      console.log("🔍 Sample transaction:", transactions[0]);
 
       // Filter out unwanted transactions
       const filteredTransactions = transactions.filter((t: any) => {
@@ -269,9 +222,6 @@ export const stockHistoryApi = {
 
       const result = await sanityClient.fetch(query, params);
       const transactions = result.allTransactions || [];
-
-      console.log("🔍 Summary raw transactions:", transactions.length);
-      console.log("🔍 Sample summary transaction:", transactions[0]);
 
       // Filter out unwanted transactions (same logic as main query)
       const filteredTransactions = transactions.filter((t: any) => {

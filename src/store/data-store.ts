@@ -366,7 +366,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
           billsByCustomer,
           isLoading: false,
           lastSyncTime: new Date(),
-          error: `Sanity connection failed. Using demo data. Error: ${
+          error: `Sanity connection failed. Using fallback data. Error: ${
             error instanceof Error ? error.message : "Unknown error"
           }`,
         });

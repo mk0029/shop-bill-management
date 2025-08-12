@@ -31,14 +31,17 @@ export const defaultWhatsAppConfig: WhatsAppConfig = {
   phoneNumber: "+917015493276", // Default business number
   businessName: "Your Business Name",
   businessAddress: "Your Business Address",
-  businessEmail: "business@example.com",
+  businessEmail: "[business-email]",
   businessWebsite: "www.yourbusiness.com",
 };
 
-export function formatBillForWhatsApp(bill: BillDetails, config: WhatsAppConfig = defaultWhatsAppConfig): string {
-  const itemsList = bill.items.map(item => 
-    `• ${item.name} x${item.quantity} = ₹${item.total}`
-  ).join('\n');
+export function formatBillForWhatsApp(
+  bill: BillDetails,
+  config: WhatsAppConfig = defaultWhatsAppConfig
+): string {
+  const itemsList = bill.items
+    .map((item) => `• ${item.name} x${item.quantity} = ₹${item.total}`)
+    .join("\n");
 
   const message = `*${config.businessName}*
 *Bill #${bill.billNumber}*
@@ -56,26 +59,37 @@ ${itemsList}
 
 *Summary:*
 Subtotal: ₹${bill.subtotal}
-${bill.tax ? `Tax: ₹${bill.tax}\n` : ''}*Total: ₹${bill.total}*
+${bill.tax ? `Tax: ₹${bill.tax}\n` : ""}*Total: ₹${bill.total}*
 
-${bill.notes ? `*Notes:*\n${bill.notes}\n` : ''}
+${bill.notes ? `*Notes:*\n${bill.notes}\n` : ""}
 *Contact:*
 ${config.businessName}
 ${config.businessAddress}
-${config.businessEmail ? `Email: ${config.businessEmail}\n` : ''}${config.businessWebsite ? `Website: ${config.businessWebsite}` : ''}`;
+${config.businessEmail ? `Email: ${config.businessEmail}\n` : ""}${
+    config.businessWebsite ? `Website: ${config.businessWebsite}` : ""
+  }`;
 
   return message;
 }
 
-export function shareBillOnWhatsApp(bill: BillDetails, config: WhatsAppConfig = defaultWhatsAppConfig): void {
+export function shareBillOnWhatsApp(
+  bill: BillDetails,
+  config: WhatsAppConfig = defaultWhatsAppConfig
+): void {
   const message = formatBillForWhatsApp(bill, config);
   const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/${config.phoneNumber.replace(/\D/g, '')}?text=${encodedMessage}`;
-  
-  window.open(whatsappUrl, '_blank');
+  const whatsappUrl = `https://wa.me/${config.phoneNumber.replace(
+    /\D/g,
+    ""
+  )}?text=${encodedMessage}`;
+
+  window.open(whatsappUrl, "_blank");
 }
 
-export function shareBillAsPDF(bill: BillDetails, config: WhatsAppConfig = defaultWhatsAppConfig): void {
+export function shareBillAsPDF(
+  bill: BillDetails,
+  config: WhatsAppConfig = defaultWhatsAppConfig
+): void {
   // This would generate a PDF and share it
   // For now, we'll just share the formatted message
   shareBillOnWhatsApp(bill, config);
@@ -90,4 +104,4 @@ export function updateWhatsAppConfig(newConfig: Partial<WhatsAppConfig>): void {
 // Function to get current WhatsApp configuration
 export function getWhatsAppConfig(): WhatsAppConfig {
   return { ...defaultWhatsAppConfig };
-} 
+}

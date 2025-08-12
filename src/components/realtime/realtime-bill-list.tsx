@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDocumentListener } from "@/hooks/use-realtime-sync";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -185,13 +186,15 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}>
+              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}
+            >
               {isNew && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0 }}
-                  className="absolute -top-2 -right-2 z-10">
+                  className="absolute -top-2 -right-2 z-10"
+                >
                   <Badge className="bg-blue-600 text-white flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     New
@@ -229,7 +232,8 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         <Badge
                           className={getStatusColor(
                             bill.paymentStatus || bill.status
-                          )}>
+                          )}
+                        >
                           {bill.paymentStatus || bill.status}
                         </Badge>
                       </div>
@@ -239,14 +243,16 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                           variant="outline"
                           size="sm"
                           onClick={() => onBillClick?.(bill)}
-                          className="!w-full !py-1.5">
+                          className="!w-full !py-1.5"
+                        >
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="!w-full !py-1.5">
+                          className="!w-full !py-1.5"
+                        >
                           <Download className="w-4 h-4 mr-2" />
                           PDF
                         </Button>
@@ -290,22 +296,23 @@ export const RealtimeBillStats: React.FC<{
     pendingAmount: 0,
   });
 
-  const [bills, setBills] = useState<unknown[]>(initialBills);
+  // Use bills from the store instead of local state
+  const { bills: storeBills } = useSanityBillStore();
 
-  // Initialize bills with initial data
-  useEffect(() => {
-    if (initialBills.length > 0) {
-      setBills(initialBills);
-    }
-  }, [initialBills]);
-
-  // Remove duplicate bill listener - use bill store's real-time handling instead
-  // This prevents redundant API calls when bills change
+  // Filter bills by customer if specified
+  const bills = customerId
+    ? storeBills.filter(
+        (bill) =>
+          bill.customer === customerId ||
+          (bill.customer as any)?._ref === customerId ||
+          (bill.customer as any)?._id === customerId
+      )
+    : storeBills;
 
   // Recalculate stats when bills change
   useEffect(() => {
     const newStats = bills.reduce(
-      (acc: any, bill: unknown) => {
+      (acc: any, bill: any) => {
         acc.total += 1;
         acc.totalAmount += bill.totalAmount || 0;
 
@@ -348,7 +355,8 @@ export const RealtimeBillStats: React.FC<{
         key={stats.totalAmount}
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}>
+        transition={{ duration: 0.3 }}
+      >
         <Card className="bg-gray-900 border-gray-800">
           <CardContent>
             <div className="flex items-center justify-between">
