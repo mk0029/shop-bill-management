@@ -54,8 +54,8 @@ export const InventoryFilters = ({
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+          <div className="space-y-1 md:space-y-2">
             <label className="text-sm text-gray-300">Category</label>
             <Dropdown
               options={[

@@ -16,7 +16,8 @@ const Dialog = ({
   <div
     className={`fixed inset-0 z-50 flex items-center justify-center ${
       open ? "block" : "hidden"
-    }`}>
+    }`}
+  >
     <div
       className="fixed inset-0 bg-black/50"
       onClick={() => onOpenChange(false)}
@@ -87,7 +88,8 @@ export const InventoryDialogs = ({
               <Button
                 variant="destructive"
                 onClick={onDeleteConfirm}
-                className="bg-red-600 hover:bg-red-700">
+                className="bg-red-600 hover:bg-red-700"
+              >
                 Delete
               </Button>
             </div>
@@ -160,7 +162,7 @@ export const InventoryDialogs = ({
                     description: e.target.value,
                   }))
                 }
-                className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none   focus:border-transparent"
                 placeholder="Product description..."
               />
             </div>

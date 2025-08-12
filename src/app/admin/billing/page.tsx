@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useLocaleStore } from "@/store/locale-store";
 import { useRouter } from "next/navigation";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { useSeamlessRealtime } from "@/hooks/use-seamless-realtime";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import {
   RealtimeBillList,
   RealtimeBillStats,
@@ -91,6 +92,12 @@ export default function BillingPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+
+  // Ensure the real-time bill store has initial data so stats render immediately
+  const { fetchBills } = useSanityBillStore();
+  useEffect(() => {
+    fetchBills();
+  }, [fetchBills]);
 
   // Enable seamless real-time updates in the background
   useSeamlessRealtime();

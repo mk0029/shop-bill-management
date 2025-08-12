@@ -15,7 +15,12 @@ interface SpecificationFieldProps {
   disabled?: boolean;
   onFieldChange: (field: string, value: string) => void;
 }
-
+function convertBoldToEm(text: string) {
+  return text.replace(/\*\*(.*?)\*\*/g, "&nbsp;<sup>$1</sup>");
+}
+function removeBold(text: string) {
+  return text.replace(/\*\*(.*?)\*\*/g, " $1");
+}
 export function SpecificationField({
   fieldDefinition,
   fieldName,
@@ -29,18 +34,26 @@ export function SpecificationField({
   const { fieldLabel, fieldType, options } = fieldDefinition;
 
   const label = `${fieldLabel}${isRequired ? " *" : ""}`;
-  const placeholder = fieldDefinition.placeholder || `Enter ${fieldLabel.toLowerCase()}`;
-  const fieldClassName = `bg-gray-800 border-gray-700 ${hasError ? "border-red-500" : ""} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`;
+  const placeholder =
+    fieldDefinition.placeholder || `Enter ${fieldLabel.toLowerCase()}`;
+  const fieldClassName = `bg-gray-800 border-gray-700 ${
+    hasError ? "border-red-500" : ""
+  } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`;
 
   const renderField = () => {
     switch (fieldType) {
       case "select":
         return (
           <Dropdown
-            options={options?.map((opt: any) => ({ value: opt.value, label: opt.title })) || []}
+            options={
+              options?.map((opt: any) => ({
+                value: opt.value,
+                label: opt.title,
+              })) || []
+            }
             value={fieldValue}
             onValueChange={(value) => onFieldChange(fieldName, value)}
-            placeholder={placeholder}
+            placeholder={removeBold(placeholder)}
             disabled={disabled || !options || options.length === 0}
             className={fieldClassName}
           />
@@ -53,7 +66,7 @@ export function SpecificationField({
             type={fieldType}
             value={fieldValue}
             onChange={(e) => onFieldChange(fieldName, e.target.value)}
-            placeholder={placeholder}
+            placeholder={removeBold(placeholder)}
             disabled={disabled}
             className={fieldClassName}
           />
@@ -71,11 +84,15 @@ export function SpecificationField({
                   checked={fieldValue === opt.value}
                   onChange={() => onFieldChange(fieldName, opt.value)}
                   disabled={disabled}
-                  className="form-radio h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 focus:ring-blue-500"
+                  className="form-radio h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 "
                 />
-                <Label htmlFor={`${fieldName}-${opt.value}`} className="text-gray-300">
-                  {opt.title}
-                </Label>
+                <Label
+                  htmlFor={`${fieldName}-${opt.value}`}
+                  className="text-gray-300"
+                  dangerouslySetInnerHTML={{
+                    __html: convertBoldToEm(opt.title),
+                  }}
+                />
               </div>
             ))}
           </div>
@@ -86,16 +103,20 @@ export function SpecificationField({
             <Checkbox
               id={fieldName}
               checked={fieldValue === "true"}
-              onCheckedChange={(checked) => onFieldChange(fieldName, String(checked))}
+              onCheckedChange={(checked) =>
+                onFieldChange(fieldName, String(checked))
+              }
               disabled={disabled}
             />
-            <Label htmlFor={fieldName} className="text-gray-300">
-              {fieldLabel}
-            </Label>
+            <Label
+              htmlFor={fieldName}
+              className="text-gray-300"
+              dangerouslySetInnerHTML={{ __html: convertBoldToEm(fieldLabel) }}
+            />
           </div>
         );
       case "multiselect":
-        const selectedValues = fieldValue ? fieldValue.split(',') : [];
+        const selectedValues = fieldValue ? fieldValue.split(",") : [];
         return (
           <div className="flex flex-col space-y-2 pt-2">
             {options?.map((opt: any) => (
@@ -107,26 +128,40 @@ export function SpecificationField({
                     const newValues = checked
                       ? [...selectedValues, opt.value]
                       : selectedValues.filter((v) => v !== opt.value);
-                    onFieldChange(fieldName, newValues.join(','));
+                    onFieldChange(fieldName, newValues.join(","));
                   }}
                   disabled={disabled}
                 />
-                <Label htmlFor={`${fieldName}-${opt.value}`} className="text-gray-300">
-                  {opt.title}
-                </Label>
+                <Label
+                  htmlFor={`${fieldName}-${opt.value}`}
+                  className="text-gray-300"
+                  dangerouslySetInnerHTML={{
+                    __html: convertBoldToEm(opt.title),
+                  }}
+                />
               </div>
             ))}
           </div>
         );
       default:
-        return <p className="text-red-400 text-sm">Unsupported field type: {fieldType}</p>;
+        return (
+          <p className="text-red-400 text-sm">
+            Unsupported field type: {fieldType}
+          </p>
+        );
     }
   };
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={fieldName} className="text-gray-300">
-        {label}
+      <Label
+        htmlFor={fieldName}
+        suppressHydrationWarning
+        suppressContentEditableWarning
+        dangerouslySetInnerHTML={{ __html: convertBoldToEm(label) }}
+        className="text-gray-300"
+      >
+        {/* {label} */}
       </Label>
       {renderField()}
       {hasError && errorMessage && (

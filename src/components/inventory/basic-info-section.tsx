@@ -77,7 +77,7 @@ export const BasicInfoSection = ({
               <p className="text-red-400 text-sm">{errors.brand}</p>
             )}
           </div>
-{dynamicSpecificationFields&&dynamicSpecificationFields}
+          {dynamicSpecificationFields && dynamicSpecificationFields}
           <div className="space-y-2">
             <Label htmlFor="unit" className="text-gray-300">
               Unit *
@@ -121,7 +121,7 @@ export const BasicInfoSection = ({
             id="description"
             value={formData.description}
             onChange={(e) => onInputChange("description", e.target.value)}
-            className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none   focus:border-transparent"
             placeholder="Enter product description..."
           />
         </div>

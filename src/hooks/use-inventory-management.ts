@@ -132,7 +132,7 @@ export const useInventoryManagement = () => {
     return sortedProducts.reduce((total, product) => {
       return (
         total +
-        Number(product.pricing?.sellingPrice || 0) *
+        Number(product.pricing?.purchasePrice || 0) *
           Number(product.inventory?.currentStock || 0)
       );
     }, 0);

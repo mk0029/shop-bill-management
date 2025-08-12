@@ -23,9 +23,9 @@ interface DropdownProps {
 }
 
 const sizeClasses = {
-  sm: "h-10 sm:h-8 text-sm min-h-[44px] sm:min-h-[32px]",
-  md: "h-12 sm:h-10 text-sm min-h-[48px] sm:min-h-[40px]",
-  lg: "h-14 sm:h-12 text-base min-h-[52px] sm:min-h-[48px]",
+  sm: "!leading-none h-auto sm:h-8 text-sm  sm:min-h-[32px]",
+  md: "!leading-none h-auto sm:h-10 text-sm  sm:min-h-[40px]",
+  lg: "!leading-none h-auto sm:h-12 text-base sm:min-h-[48px]",
 };
 
 export function Dropdown({
@@ -99,17 +99,23 @@ export function Dropdown({
     <div
       className={cn("relative", className)}
       ref={dropdownRef}
-      onKeyDown={handleKeyDown}>
+      onKeyDown={handleKeyDown}
+    >
       <Button
         type="button"
         variant="outline"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation max-md:px-2",
+          " w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation max-md:px-2",
           sizeClasses[size]
-        )}>
-        <span className={selectedOption ? "text-white" : "text-gray-400"}>
+        )}
+      >
+        <span
+          className={`leading-none ${
+            selectedOption ? "text-white" : "text-gray-400"
+          }`}
+        >
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
@@ -123,7 +129,7 @@ export function Dropdown({
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl shadow-black/50 z-50 max-h-60 sm:max-h-60 overflow-hidden">
           {isSearchAvialable && (
-            <div className="p-2 border-b border-gray-700">
+            <div className="p-1 sm:p-2 border-b border-gray-700">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
@@ -132,7 +138,7 @@ export function Dropdown({
                   placeholder={searchPlaceholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 "
                 />
               </div>
             </div>
@@ -156,7 +162,8 @@ export function Dropdown({
                       : "text-white hover:bg-gray-700 cursor-pointer",
                     option.value === value &&
                       "bg-blue-600 text-white hover:bg-blue-700"
-                  )}>
+                  )}
+                >
                   <span>{option.label}</span>
                   {option.value === value && <Check className="h-4 w-4" />}
                 </button>

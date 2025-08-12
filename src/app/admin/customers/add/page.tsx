@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { SuccessPopup, createCustomerSuccessPopup } from "@/components/ui/success-popup";
+import {
+  SuccessPopup,
+  createCustomerSuccessPopup,
+} from "@/components/ui/success-popup";
 import { createCustomer } from "@/lib/form-service";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
@@ -44,12 +47,15 @@ export default function AddCustomerPage() {
   });
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const generateCredentials = () => {
-    const customerId = formData.customerId || `CUST${Date.now().toString().slice(-6)}`;
-    const secretKey = formData.secretKey || Math.random().toString(36).substring(2, 10).toUpperCase();
+    const customerId =
+      formData.customerId || `CUST${Date.now().toString().slice(-6)}`;
+    const secretKey =
+      formData.secretKey ||
+      Math.random().toString(36).substring(2, 10).toUpperCase();
     return { customerId, secretKey };
   };
 
@@ -85,12 +91,12 @@ export default function AddCustomerPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form before submission
     if (!validateForm()) {
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
@@ -105,11 +111,11 @@ export default function AddCustomerPage() {
       if (result.success && result.data) {
         // Clear form after successful submission
         clearForm();
-        
+
         const resetForm = () => {
           clearForm();
         };
-        
+
         setSuccessData(createCustomerSuccessPopup(result.data, resetForm));
       } else {
         // Show error alert
@@ -319,7 +325,7 @@ export default function AddCustomerPage() {
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => handleInputChange("notes", e.target.value)}
-                className="w-full h-24 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-24 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none   focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Add any additional notes about the customer..."
                 disabled={isLoading}
               />
@@ -330,7 +336,8 @@ export default function AddCustomerPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2">
+                className="flex items-center gap-2"
+              >
                 <Save className="w-4 h-4" />
                 {isLoading ? "Creating Customer..." : "Create Customer"}
               </Button>
@@ -338,7 +345,8 @@ export default function AddCustomerPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                disabled={isLoading}>
+                disabled={isLoading}
+              >
                 Cancel
               </Button>
             </div>
@@ -356,4 +364,4 @@ export default function AddCustomerPage() {
       )}
     </div>
   );
-} 
+}

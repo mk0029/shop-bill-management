@@ -79,7 +79,7 @@ export function LoginForm({
               value={formData.customerId}
               onChange={(e) => handleInputChange("customerId", e.target.value)}
               disabled={isLoading}
-              className={`pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 ${
+              className={`pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500  ${
                 formErrors.customerId
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                   : ""
@@ -104,7 +104,7 @@ export function LoginForm({
               value={formData.secretKey}
               onChange={(e) => handleInputChange("secretKey", e.target.value)}
               disabled={isLoading}
-              className={`pl-10 pr-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 ${
+              className={`pl-10 pr-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500  ${
                 formErrors.secretKey
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                   : ""

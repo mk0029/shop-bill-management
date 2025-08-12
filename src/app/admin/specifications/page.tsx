@@ -166,7 +166,8 @@ export default function SpecificationsManagementPage() {
         <Button
           onClick={refreshData}
           disabled={isLoading}
-          className="bg-blue-600 hover:bg-blue-700">
+          className="bg-blue-600 hover:bg-blue-700"
+        >
           <RefreshCw
             className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
           />
@@ -183,7 +184,8 @@ export default function SpecificationsManagementPage() {
               <Button
                 variant="ghost"
                 onClick={clearError}
-                className="text-red-200">
+                className="text-red-200"
+              >
                 ✕
               </Button>
             </div>
@@ -249,7 +251,8 @@ export default function SpecificationsManagementPage() {
                   getCurrentOptions().map((option) => (
                     <div
                       key={option._id}
-                      className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                      className="bg-gray-800 p-3 rounded-lg border border-gray-700"
+                    >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <p className="text-white font-medium">
@@ -276,7 +279,8 @@ export default function SpecificationsManagementPage() {
                           className="text-red-400 hover:text-red-300"
                           onClick={() =>
                             handleDeleteOption(option._id, option.label)
-                          }>
+                          }
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -370,7 +374,8 @@ export default function SpecificationsManagementPage() {
                 {categoryOptions.map((category) => (
                   <label
                     key={category.value}
-                    className="flex items-center space-x-2">
+                    className="flex items-center space-x-2"
+                  >
                     <input
                       type="checkbox"
                       checked={newOption.categories.includes(category.value)}
@@ -400,7 +405,7 @@ export default function SpecificationsManagementPage() {
                   }))
                 }
                 placeholder="Optional description for this specification option"
-                className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none  "
               />
             </div>
 
@@ -408,7 +413,8 @@ export default function SpecificationsManagementPage() {
             <Button
               onClick={addNewOption}
               className="w-full bg-blue-600 hover:bg-blue-700"
-              disabled={!newOption.value || !newOption.label || isLoading}>
+              disabled={!newOption.value || !newOption.label || isLoading}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add to Sanity CMS
             </Button>

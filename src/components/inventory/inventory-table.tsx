@@ -15,6 +15,7 @@ interface Product {
     name: string;
   };
   pricing: {
+    purchasePrice: number;
     sellingPrice: number;
     unit: string;
   };
@@ -68,10 +69,10 @@ export const InventoryTable = ({
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden max-h-[90dvh] flex flex-col">
+      <div className="overflow-auto flex-1">
         <table className="w-full">
-          <thead className="bg-gray-800">
+          <thead className="bg-gray-800 sticky top-0 z-10">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 Product
@@ -80,7 +81,7 @@ export const InventoryTable = ({
                 Category
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Brand
+                Purchase Price
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 Stock
@@ -102,7 +103,7 @@ export const InventoryTable = ({
                 Number(product.inventory?.currentStock || 0)
               );
               const totalValue =
-                Number(product.pricing?.sellingPrice || 0) *
+                Number(product.pricing?.purchasePrice || 0) *
                 Number(product.inventory?.currentStock || 0);
 
               return (
@@ -111,10 +112,11 @@ export const InventoryTable = ({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="hover:bg-gray-800/50">
+                  className="hover:bg-gray-800/50"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-white">
+                      <div className="text-sm font-medium text-white capitalize">
                         {product.name ||
                           `${product.category?.name || "Unknown Category"} - ${
                             product.brand?.name || "Unknown Brand"
@@ -133,11 +135,12 @@ export const InventoryTable = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {product.brand?.name || "Unknown Brand"}
+                    ₹{Number(product.pricing?.purchasePrice || 0).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`px-2 py-1 text-xs font-medium rounded ${stockStatus.bg} ${stockStatus.color}`}>
+                      className={`px-2 py-1 text-xs font-medium rounded ${stockStatus.bg} ${stockStatus.color}`}
+                    >
                       {product.inventory?.currentStock || 0}{" "}
                       {product.pricing?.unit || "units"}
                     </span>
@@ -154,14 +157,16 @@ export const InventoryTable = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onEditProduct(product)}
-                        className="text-blue-400 hover:text-blue-300">
+                        className="text-blue-400 hover:text-blue-300"
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onDeleteProduct(product)}
-                        className="text-red-400 hover:text-red-300">
+                        className="text-red-400 hover:text-red-300"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
