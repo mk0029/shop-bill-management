@@ -273,8 +273,8 @@ function CustomerHomeContent() {
   const customerBills = user
     ? allBills.filter(
         (bill) =>
-          bill.customer?._ref === user.id ||
-          bill.customer?._id === user.id ||
+          (bill.customer as any)?._ref === user.id ||
+          (bill.customer as any)?._id === user.id ||
           bill.customer === user.id
       )
     : [];

@@ -77,8 +77,8 @@ export const InventoryDialogs = ({
           <div className="space-y-4">
             <p className="text-gray-300">
               Are you sure you want to delete "
-              {selectedProduct?.name ||
-                `${selectedProduct?.category} - ${selectedProduct?.brand}`}
+              {(selectedProduct as any)?.name ||
+                `${(selectedProduct as any)?.category} - ${(selectedProduct as any)?.brand}`}
               "? This action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
@@ -88,8 +88,7 @@ export const InventoryDialogs = ({
               <Button
                 variant="destructive"
                 onClick={onDeleteConfirm}
-                className="bg-red-600 hover:bg-red-700"
-              >
+                className="bg-red-600 hover:bg-red-700">
                 Delete
               </Button>
             </div>
@@ -110,7 +109,7 @@ export const InventoryDialogs = ({
                 <Input
                   type="number"
                   step="0.01"
-                  value={editFormData.purchasePrice || ""}
+                  value={(editFormData as any).purchasePrice || ""}
                   onChange={(e) =>
                     setEditFormData((prev: any) => ({
                       ...prev,
@@ -125,7 +124,7 @@ export const InventoryDialogs = ({
                 <Input
                   type="number"
                   step="0.01"
-                  value={editFormData.sellingPrice || ""}
+                  value={(editFormData as any).sellingPrice || ""}
                   onChange={(e) =>
                     setEditFormData((prev: any) => ({
                       ...prev,
@@ -141,7 +140,7 @@ export const InventoryDialogs = ({
               <Label className="text-gray-300">Current Stock</Label>
               <Input
                 type="number"
-                value={editFormData.currentStock || ""}
+                value={(editFormData as any).currentStock || ""}
                 onChange={(e) =>
                   setEditFormData((prev: any) => ({
                     ...prev,
@@ -155,7 +154,7 @@ export const InventoryDialogs = ({
             <div className="space-y-2">
               <Label className="text-gray-300">Description</Label>
               <textarea
-                value={editFormData.description || ""}
+                value={(editFormData as any).description || ""}
                 onChange={(e) =>
                   setEditFormData((prev: any) => ({
                     ...prev,

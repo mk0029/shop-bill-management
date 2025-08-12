@@ -34,7 +34,7 @@ export function InventorySummaryCards({
 
       <StatCard
         title="Total Items"
-        value={inventoryValue?.totalItems || 0}
+        value={(inventoryValue as any)?.totalItems || 0}
         icon={Package}
         iconColor="text-blue-400"
         iconBgColor="bg-blue-600/20"

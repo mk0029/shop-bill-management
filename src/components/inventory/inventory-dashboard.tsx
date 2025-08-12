@@ -56,8 +56,7 @@ export function InventoryDashboard({
             size="sm"
             onClick={refreshData}
             disabled={isLoading}
-            className="w-full sm:w-auto"
-          >
+            className="w-full sm:w-auto">
             <RefreshCw
               className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
             />
@@ -68,7 +67,7 @@ export function InventoryDashboard({
 
       {/* Summary Cards */}
       <InventorySummaryCards
-        inventoryValue={inventoryValue}
+        inventoryValue={inventoryValue as any}
         criticalAlertsCount={alertCategories.critical.length}
         warningAlertsCount={alertCategories.warning.length}
         isLoadingValue={isLoadingValue}
@@ -78,14 +77,14 @@ export function InventoryDashboard({
 
       {/* Stock Alerts */}
       <InventoryAlertsSection
-        criticalAlerts={alertCategories.critical}
-        warningAlerts={alertCategories.warning}
+        criticalAlerts={alertCategories.critical as any}
+        warningAlerts={alertCategories.warning as any}
         isLoadingAlerts={isLoadingAlerts}
         alertsError={alertsError}
       />
 
       {/* Top Value Products */}
-      <TopValueProducts inventoryValue={inventoryValue} />
+      <TopValueProducts inventoryValue={inventoryValue as any} />
 
       {/* Quick Actions */}
       <QuickActionsPanel {...handleQuickActions} />

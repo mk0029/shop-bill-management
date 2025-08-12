@@ -36,7 +36,7 @@ export default function CustomerSearchFilters({
         <Dropdown
           options={filterOptions}
           value={filters.filterActive}
-          onValueChange={onFilterChange}
+          onValueChange={onFilterChange as any}
           placeholder="Filter customers"
           searchable={false}
           className="w-full sm:w-48"

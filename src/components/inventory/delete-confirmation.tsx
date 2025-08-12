@@ -110,9 +110,9 @@ export function DeleteConfirmation({
                   <span
                     className={`ml-2 font-medium ${
                       hasStock ? "text-yellow-400" : "text-green-400"
-                    }`}
-                  >
-                    {product.inventory.currentStock} {product.pricing.unit}
+                    }`}>
+                    {product.inventory.currentStock}{" "}
+                    {(product.pricing as any).unit || "units"}
                   </span>
                 </div>
                 <div>
@@ -201,8 +201,8 @@ export function DeleteConfirmation({
                   <h5 className="font-medium text-yellow-400">Stock Warning</h5>
                   <p className="text-sm text-yellow-300 mt-1">
                     This product has {product.inventory.currentStock}{" "}
-                    {product.pricing.unit} in stock. Deleting will remove all
-                    stock from inventory.
+                    {(product.pricing as any).unit || "units"} in stock.
+                    Deleting will remove all stock from inventory.
                   </p>
                 </div>
               </div>
@@ -258,8 +258,7 @@ export function DeleteConfirmation({
             variant="outline"
             onClick={onClose}
             disabled={isDeleting}
-            className="flex-1"
-          >
+            className="flex-1">
             Cancel
           </Button>
 
@@ -268,8 +267,7 @@ export function DeleteConfirmation({
               variant="outline"
               onClick={() => checkReferences()}
               disabled={isCheckingReferences}
-              className="flex-1"
-            >
+              className="flex-1">
               {isCheckingReferences ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin mr-2" />
@@ -287,8 +285,7 @@ export function DeleteConfirmation({
               variant="destructive"
               onClick={onConfirm}
               disabled={isDeleting || !canDelete || isCheckingReferences}
-              className="flex-1"
-            >
+              className="flex-1">
               {isDeleting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />

@@ -185,8 +185,7 @@ export default function StockHistoryPage() {
               variant="outline"
               onClick={fetchStockData}
               disabled={loading}
-              className="flex items-center gap-2"
-            >
+              className="flex items-center gap-2">
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
@@ -208,8 +207,7 @@ export default function StockHistoryPage() {
                   variant="outline"
                   size="sm"
                   onClick={fetchStockData}
-                  className="ml-auto"
-                >
+                  className="ml-auto">
                   Retry
                 </Button>
               </div>
@@ -277,9 +275,9 @@ export default function StockHistoryPage() {
           </CardHeader>
           <CardContent>
             <RealtimeStockHistory
-              initialTransactions={filteredTransactions}
+              initialTransactions={filteredTransactions as any}
               showNewTransactionAnimation={true}
-              onTransactionClick={viewTransactionDetails}
+              onTransactionClick={viewTransactionDetails as any}
             />
           </CardContent>
         </Card>
@@ -306,19 +304,20 @@ export default function StockHistoryPage() {
                       key={transaction.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors"
-                    >
+                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
                           <TypeIcon className="w-6 h-6 text-blue-400" />
                         </div>
                         <div>
                           <h3 className="font-medium text-white">
-                            {transaction.itemName}
+                            {transaction.product.name}
                           </h3>
                           <p className="text-sm text-gray-400">
                             {transaction.type} • {transaction.quantity} units •{" "}
-                            {new Date(transaction.date).toLocaleDateString()}
+                            {new Date(
+                              transaction.transactionDate
+                            ).toLocaleDateString()}
                           </p>
                           {transaction.notes && (
                             <p className="text-sm text-gray-500">
@@ -335,21 +334,19 @@ export default function StockHistoryPage() {
                           </p>
                           <p className="text-sm text-gray-400">
                             {currency}
-                            {transaction.price} each
+                            {transaction.unitPrice} each
                           </p>
                           <span
                             className={`text-xs px-2 py-1 rounded-full ${getTransactionTypeColor(
                               transaction.type
-                            )}`}
-                          >
+                            )}`}>
                             {transaction.type}
                           </span>
                         </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => viewTransactionDetails(transaction)}
-                        >
+                          onClick={() => viewTransactionDetails(transaction)}>
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
@@ -370,8 +367,7 @@ export default function StockHistoryPage() {
                       <Button
                         variant="outline"
                         className="mt-4"
-                        onClick={fetchStockData}
-                      >
+                        onClick={fetchStockData}>
                         Try Again
                       </Button>
                     )}
@@ -387,8 +383,7 @@ export default function StockHistoryPage() {
           isOpen={showTransactionModal}
           onClose={() => setShowTransactionModal(false)}
           size="md"
-          title={`Transaction #${selectedTransaction?.id || "Unknown"}`}
-        >
+          title={`Transaction #${selectedTransaction?.id || "Unknown"}`}>
           {selectedTransaction && (
             <div className="space-y-6">
               {/* Transaction Info */}
@@ -399,7 +394,9 @@ export default function StockHistoryPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-400">Item</p>
-                    <p className="text-white">{selectedTransaction.itemName}</p>
+                    <p className="text-white">
+                      {selectedTransaction.product.name}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-400">Type</p>
@@ -417,7 +414,7 @@ export default function StockHistoryPage() {
                     <p className="text-gray-400">Price per Unit</p>
                     <p className="text-white">
                       {currency}
-                      {selectedTransaction.price}
+                      {selectedTransaction.unitPrice}
                     </p>
                   </div>
                   <div>
@@ -430,7 +427,9 @@ export default function StockHistoryPage() {
                   <div>
                     <p className="text-gray-400">Date</p>
                     <p className="text-white">
-                      {new Date(selectedTransaction.date).toLocaleDateString()}
+                      {new Date(
+                        selectedTransaction.transactionDate
+                      ).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -450,8 +449,7 @@ export default function StockHistoryPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowTransactionModal(false)}
-                >
+                  onClick={() => setShowTransactionModal(false)}>
                   Close
                 </Button>
               </div>

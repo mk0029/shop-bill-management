@@ -34,11 +34,10 @@ export function SelectedItemsList({
       {items.map((item) => (
         <div
           key={item.id}
-          className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-800 rounded border border-gray-700"
-        >
+          className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-800 rounded border border-gray-700">
           <div className="flex-1 min-w-0">
             <p className="text-white text-xs sm:text-sm font-medium truncate">
-              {item.name}
+              {item.product.name}
             </p>
             <p className="text-gray-400 text-xs">
               {currency}
@@ -52,8 +51,7 @@ export function SelectedItemsList({
                 variant="ghost"
                 size="sm"
                 onClick={() => onQuantityUpdate(item.id, item.quantity - 1)}
-                className="hover:bg-gray-700 sm:h-8 sm:w-8 h-6 w-6  p-0"
-              >
+                className="hover:bg-gray-700 sm:h-8 sm:w-8 h-6 w-6  p-0">
                 <Minus className="w-3 h-3" />
               </Button>
               <span className="text-white w-8 text-center font-medium">
@@ -63,8 +61,7 @@ export function SelectedItemsList({
                 variant="ghost"
                 size="sm"
                 onClick={() => onQuantityUpdate(item.id, item.quantity + 1)}
-                className="hover:bg-gray-700 sm:h-8 sm:w-8 h-6 w-6  p-0"
-              >
+                className="hover:bg-gray-700 sm:h-8 sm:w-8 h-6 w-6  p-0">
                 <span className="text-sm">+</span>
               </Button>
             </div>
@@ -78,8 +75,7 @@ export function SelectedItemsList({
                 variant="ghost"
                 size="sm"
                 onClick={() => onItemRemove(item.id)}
-                className="hover:bg-red-900/20 text-red-400 sm:h-8 sm:w-8 h-6 w-6  p-0"
-              >
+                className="hover:bg-red-900/20 text-red-400 sm:h-8 sm:w-8 h-6 w-6  p-0">
                 <Trash2 className="w-3 h-3" />
               </Button>
             </div>

@@ -51,15 +51,15 @@ export function BillForm({
         <div className="space-y-4 sm:space-y-6">
           <CustomerSelection
             customers={customers}
-            selectedCustomerId={formData.customerId}
+            selectedCustomerId={formData.customerId || ""}
             onCustomerChange={(customerId) =>
               updateField("customerId", customerId)
             }
           />
 
           <ServiceLocationSelection
-            serviceType={formData.serviceType}
-            locationType={formData.locationType}
+            serviceType={formData.serviceType || ""}
+            locationType={formData.locationType || ""}
             onServiceTypeChange={(value) => updateField("serviceType", value)}
             onLocationTypeChange={(value) => updateField("locationType", value)}
           />
@@ -67,7 +67,7 @@ export function BillForm({
           <AvailableItemsList items={items} onItemAdd={addItemToBill} />
 
           <NotesSection
-            notes={formData.notes}
+            notes={formData.notes || ""}
             onNotesChange={(notes) => updateField("notes", notes)}
           />
         </div>
@@ -105,16 +105,14 @@ export function BillForm({
             disabled={!isValid}
             loading={isSubmitting || isLoading}
             variant="primary"
-            icon={<Plus className="w-4 h-4" />}
-          >
+            icon={<Plus className="w-4 h-4" />}>
             Create Bill
           </ActionButton>
           <ActionButton
             variant="outline"
             className="flex-1 w-full"
             onClick={onClose}
-            disabled={isSubmitting || isLoading}
-          >
+            disabled={isSubmitting || isLoading}>
             Cancel
           </ActionButton>
         </div>

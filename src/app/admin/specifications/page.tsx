@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 
 export default function SpecificationsManagementPage() {
   const router = useRouter();
+  const store = useSpecificationsStore();
   const {
     specificationOptions,
     categoryFieldMappings,
@@ -26,12 +27,12 @@ export default function SpecificationsManagementPage() {
     error,
     fetchSpecificationOptions,
     fetchCategoryFieldMappings,
-    refreshData,
     getOptionsByType,
     addSpecificationOption,
     deleteSpecificationOption,
     clearError,
-  } = useSpecificationsStore();
+  } = store;
+  const refreshData = (store as any).refreshData;
 
   // Initialize data on component mount
   useEffect(() => {
@@ -105,7 +106,10 @@ export default function SpecificationsManagementPage() {
         type: newOption.type,
         value: newOption.value,
         label: newOption.label,
-        categories: newOption.categories,
+        categories: newOption.categories.map((cat: string) => ({
+          _ref: cat,
+          _type: "reference",
+        })),
         sortOrder: newOption.sortOrder,
         isActive: newOption.isActive,
         description: newOption.description,

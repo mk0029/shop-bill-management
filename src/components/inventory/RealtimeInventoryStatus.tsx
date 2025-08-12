@@ -116,7 +116,8 @@ export function RealtimeInventoryStatus() {
                     <Badge
                       variant="outline"
                       className="text-orange-600 border-orange-600">
-                      {product.inventory.currentStock} {product.pricing.unit}
+                      {product.inventory.currentStock}{" "}
+                      {(product.pricing as any).unit || "units"}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">
                       Min: {product.inventory.minimumStock}
@@ -159,7 +160,7 @@ export function RealtimeInventoryStatus() {
                     <Badge
                       variant="outline"
                       className="text-red-600 border-red-600">
-                      0 {product.pricing.unit}
+                      0 {(product.pricing as any).unit || "units"}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">
                       Reorder: {product.inventory.reorderLevel}

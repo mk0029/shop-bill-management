@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
 
       const csvContent = [
         csvHeaders.join(","),
-        ...csvRows.map((row) => row.join(",")),
+        ...csvRows.map((row: any) => row.join(",")),
       ].join("\n");
 
       return new NextResponse(csvContent, {

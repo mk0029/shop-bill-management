@@ -89,7 +89,7 @@ function SingleRewindingForm({
   starterProducts: unknown[];
 }) {
   const selectedStarter = starterProducts.find(
-    (p) => p._id === formData.selectedStarterId
+    (p: any) => p._id === formData.selectedStarterId
   );
 
   const handleInputChange = (
@@ -107,16 +107,16 @@ function SingleRewindingForm({
   };
 
   const handleStarterSelect = (starterId: string) => {
-    const starter = starterProducts.find((p) => p._id === starterId);
+    const starter = starterProducts.find((p: any) => p._id === starterId);
     if (starter) {
       // Auto-fill form fields based on starter data
       const updates: Partial<RewindingFormData> = {
         selectedStarterId: starterId,
-        kitName: starter.name,
-        kitType: starter.specifications?.kitType || "Cooler",
-        boreSize: starter.specifications?.boreSize || "",
-        sizeInInches: starter.specifications?.sizeInInches || "",
-        windingRate: starter.pricing?.sellingPrice?.toString() || "",
+        kitName: (starter as any).name,
+        kitType: (starter as any).specifications?.kitType || "Cooler",
+        boreSize: (starter as any).specifications?.boreSize || "",
+        sizeInInches: (starter as any).specifications?.sizeInInches || "",
+        windingRate: (starter as any).pricing?.sellingPrice?.toString() || "",
       };
       onUpdate(formData.id, updates);
     } else {
@@ -134,7 +134,7 @@ function SingleRewindingForm({
 
   const starterOptions = [
     { value: "", label: "Select existing starter data..." },
-    ...starterProducts.map((product) => ({
+    ...starterProducts.map((product: any) => ({
       value: product._id,
       label: `${product.name} - ${product.brand?.name || "No Brand"}`,
     })),
@@ -149,8 +149,7 @@ function SingleRewindingForm({
             variant="ghost"
             size="sm"
             onClick={() => onRemove(formData.id)}
-            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-          >
+            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -165,10 +164,10 @@ function SingleRewindingForm({
             onValueChange={handleStarterSelect}
             placeholder="Choose from existing starter data..."
           />
-          {selectedStarter && (
+          {!!selectedStarter && (
             <p className="text-sm text-gray-500 mt-1">
-              Selected: {selectedStarter.name} - Fields will be auto-filled and
-              disabled
+              Selected: {(selectedStarter as any).name} - Fields will be
+              auto-filled and disabled
             </p>
           )}
         </div>

@@ -64,7 +64,7 @@ export default function AddInventoryItemPage() {
               <div className="lg:col-span-2">
                 <DynamicSpecificationFields
                   categoryId={formData.category}
-                  formData={formData.specifications}
+                  formData={formData.specifications as Record<string, string>}
                   onFieldChange={handleSpecificationChange}
                   errors={errors}
                 />
@@ -86,15 +86,13 @@ export default function AddInventoryItemPage() {
             type="button"
             variant="outline"
             onClick={resetForm}
-            disabled={isLoading}
-          >
+            disabled={isLoading}>
             Reset Form
           </Button>
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
+            className="bg-blue-600 hover:bg-blue-700">
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -146,7 +144,6 @@ export default function AddInventoryItemPage() {
                 label: isLoading ? "Adding..." : "Add Product",
                 action: confirmSubmit,
                 variant: "default",
-                disabled: isLoading,
               },
               {
                 label: "Cancel",

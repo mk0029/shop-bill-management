@@ -37,10 +37,19 @@ export function RealtimeDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <DashboardStatsCards stats={stats} />
+      <DashboardStatsCards
+        stats={{
+          totalCustomers: (stats as any).users?.customers || 0,
+          totalProducts: (stats as any).products?.total || 0,
+          totalBills: (stats as any).bills?.total || 0,
+          totalRevenue: (stats as any).bills?.totalRevenue || 0,
+          pendingBills: (stats as any).bills?.pending || 0,
+          lowStockItems: 0,
+        }}
+      />
 
       {/* Alerts Section */}
-      <AlertsSection alerts={alerts} />
+      <AlertsSection alerts={alerts as any} />
 
       {/* Connection Details */}
       <ConnectionStatusSection />

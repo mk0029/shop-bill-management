@@ -13,15 +13,15 @@ export function SanityRealtimeBillList() {
   const { bills, loading, fetchBills, createBill } = useSanityBillStore();
 
   // Listen for real-time bill updates
-  useSanityRealtimeEvent("bill:created", (newBill) => {
+  useSanityRealtimeEvent("bill:created", (newBill: any) => {
     console.log("🔔 New bill received via Sanity:", newBill.billNumber);
   });
 
-  useSanityRealtimeEvent("bill:updated", (data) => {
+  useSanityRealtimeEvent("bill:updated", (data: any) => {
     console.log("🔔 Bill updated via Sanity:", data.billId);
   });
 
-  useSanityRealtimeEvent("bill:deleted", (data) => {
+  useSanityRealtimeEvent("bill:deleted", (data: any) => {
     console.log("🔔 Bill deleted via Sanity:", data.billId);
   });
 

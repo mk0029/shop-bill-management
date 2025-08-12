@@ -37,7 +37,7 @@ export default function ManageAdminsPage() {
   }
 
   const totalAdmins = admins.length;
-  const activeAdmins = admins.filter((admin) => admin.isActive).length;
+  const activeAdmins = admins.filter((admin: any) => admin.isActive).length;
 
   return (
     <div className="space-y-6 max-md:pb-4">
@@ -52,8 +52,8 @@ export default function ManageAdminsPage() {
         isLoading={isLoading}
         onToggleStatus={handleToggleAdminStatus}
         onDeleteAdmin={openDeleteModal}
-        getAdminRoleLabel={getAdminRoleLabel}
-        getAdminRoleColor={getAdminRoleColor}
+        getAdminRoleLabel={getAdminRoleLabel as any}
+        getAdminRoleColor={getAdminRoleColor as any}
         isSuperAdmin={isSuperAdmin}
       />
 

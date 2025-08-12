@@ -14,7 +14,7 @@ export function CustomerSelection({
   selectedCustomerId,
   onCustomerChange,
 }: CustomerSelectionProps) {
-  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+  const selectedCustomer = customers.find((c) => c._id === selectedCustomerId);
 
   return (
     <div>
@@ -23,7 +23,7 @@ export function CustomerSelection({
       </label>
       <Dropdown
         options={customers.map((c) => ({
-          value: c.id,
+          value: c._id,
           label: `${c.name} - ${c.phone}`,
         }))}
         value={selectedCustomerId}

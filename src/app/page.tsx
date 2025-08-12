@@ -2,16 +2,10 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth-store";
-import { useDataStore } from "@/store/data-store";
-import { useDashboardStats } from "@/hooks/use-sanity-data";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Zap,
-  Database,
-  RefreshCw,
   Package,
   Users,
   FileText,
@@ -22,31 +16,15 @@ import Link from "next/link";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, role } = useAuthStore();
-  const { isLoading, lastSyncTime } = useDataStore();
-  const stats = useDashboardStats();
 
+  // Simple redirect to login after showing the landing page
   useEffect(() => {
-    if (isAuthenticated && role) {
-      // Redirect based on role after a short delay to show the integration
-      const timer = setTimeout(() => {
-        if (role === "admin") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/customer/home");
-        }
-      }, 2000);
+    const timer = setTimeout(() => {
+      router.push("/login");
+    }, 5000);
 
-      return () => clearTimeout(timer);
-    } else {
-      // Redirect to login if not authenticated after showing integration
-      const timer = setTimeout(() => {
-        router.push("/login");
-      }, 3000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, role, router]);
+    return () => clearTimeout(timer);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -66,84 +44,46 @@ export default function Home() {
               integration.
             </p>
 
-            {/* Sync Status */}
-            <div className="flex items-center justify-center gap-4 mb-8">
-              <Badge
-                variant="outline"
-                className="text-green-500 border-green-500"
-              >
-                <Database className="h-3 w-3 mr-2" />
-                Sanity Connected
-              </Badge>
-              {lastSyncTime && (
-                <Badge
-                  variant="outline"
-                  className="text-blue-500 border-blue-500"
-                >
-                  <RefreshCw className="h-3 w-3 mr-2" />
-                  Synced: {lastSyncTime.toLocaleTimeString()}
-                </Badge>
-              )}
-            </div>
-
-            {/* Loading or Stats */}
-            {isLoading ? (
-              <Card className="bg-gray-800 border-gray-700 mb-8">
-                <CardContent>
-                  <div className="text-gray-100 text-center">
-                    <div className="animate-spin rounded-full sm:h-8 sm:w-8 h-6 w-6  border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-lg font-medium">
-                      Loading data from Sanity...
-                    </p>
-                    <p className="text-sm text-gray-400 mt-2">
-                      Syncing products, customers, and bills
-                    </p>
-                  </div>
+            {/* Static Stats for Demo */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <Card className="bg-gray-800 border-gray-700">
+                <CardContent className="sm:p-4 p-3 text-center">
+                  <Package className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+                  <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                    150+
+                  </p>
+                  <p className="text-xs text-gray-400">Products</p>
                 </CardContent>
               </Card>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="sm:p-4 p-3 text-center">
-                    <Package className="h-6 w-6 text-blue-500 mx-auto mb-2" />
-                    <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                      {stats.totalProducts}
-                    </p>
-                    <p className="text-xs text-gray-400">Products</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="sm:p-4 p-3 text-center">
-                    <Users className="h-6 w-6 text-green-500 mx-auto mb-2" />
-                    <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                      {stats.totalCustomers}
-                    </p>
-                    <p className="text-xs text-gray-400">Customers</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="sm:p-4 p-3 text-center">
-                    <FileText className="h-6 w-6 text-purple-500 mx-auto mb-2" />
-                    <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                      {stats.totalBills}
-                    </p>
-                    <p className="text-xs text-gray-400">Bills</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardContent className="sm:p-4 p-3 text-center">
-                    <DollarSign className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
-                    <p className="text-lg font-bold text-white">
-                      ₹{stats.totalRevenue.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-gray-400">Revenue</p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+              <Card className="bg-gray-800 border-gray-700">
+                <CardContent className="sm:p-4 p-3 text-center">
+                  <Users className="h-6 w-6 text-green-500 mx-auto mb-2" />
+                  <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                    50+
+                  </p>
+                  <p className="text-xs text-gray-400">Customers</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-800 border-gray-700">
+                <CardContent className="sm:p-4 p-3 text-center">
+                  <FileText className="h-6 w-6 text-purple-500 mx-auto mb-2" />
+                  <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                    200+
+                  </p>
+                  <p className="text-xs text-gray-400">Bills</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-800 border-gray-700">
+                <CardContent className="sm:p-4 p-3 text-center">
+                  <DollarSign className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
+                  <p className="text-lg font-bold text-white">₹2,50,000</p>
+                  <p className="text-xs text-gray-400">Revenue</p>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
               <Link href="/admin/dashboard">
                 <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
                   Admin Dashboard
@@ -158,21 +98,12 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Redirect Message */}
-            {isAuthenticated && (
-              <div className="mt-8 p-4 bg-blue-600/20 border border-blue-500/30 rounded-lg">
-                <p className="text-blue-200">
-                  Redirecting to{" "}
-                  {role === "admin" ? "Admin Dashboard" : "Customer Portal"}...
-                </p>
-              </div>
-            )}
-
-            {!isAuthenticated && (
-              <div className="mt-8 p-4 bg-yellow-600/20 border border-yellow-500/30 rounded-lg">
-                <p className="text-yellow-200">Redirecting to login page...</p>
-              </div>
-            )}
+            {/* Auto-redirect Message */}
+            <div className="mt-8 p-4 bg-blue-600/20 border border-blue-500/30 rounded-lg">
+              <p className="text-blue-200">
+                Redirecting to login page in 5 seconds...
+              </p>
+            </div>
           </div>
         </div>
       </div>

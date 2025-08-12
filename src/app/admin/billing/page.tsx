@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { useSeamlessRealtime } from "@/hooks/use-seamless-realtime";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { BillFormData, Customer, Item } from "@/types";
 import {
   RealtimeBillList,
   RealtimeBillStats,
@@ -26,20 +27,6 @@ import {
   Download,
   Share2,
 } from "lucide-react";
-
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  location: string;
-}
-
-interface Item {
-  id: string;
-  name: string;
-  price: number;
-  category: string;
-}
 
 interface BillItem {
   name: string;
@@ -106,7 +93,7 @@ export default function BillingPage() {
   const transformedBills: Bill[] = bills.map((bill) => ({
     id: bill._id,
     customerName: bill.customer?.name || "Unknown Customer",
-    customerId: bill.customer?._id || bill.customer?._ref || "",
+    customerId: bill.customer?._id || "",
     date: bill.serviceDate
       ? new Date(bill.serviceDate).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
@@ -126,21 +113,20 @@ export default function BillingPage() {
     notes: bill.notes,
   }));
 
-  // Transform customers data
+  // Transform customers data (users with customer role)
   const transformedCustomers: Customer[] = customers.map((customer) => ({
-    id: customer._id,
+    _id: customer._id,
+    customerId: customer.customerId,
     name: customer.name,
-    phone: customer.phone,
-    location: customer.location,
+    phone: customer.phone || "",
+    location: customer.location || "",
+    isActive: customer.isActive,
+    createdAt: customer.createdAt,
+    updatedAt: (customer as any).updatedAt || customer.createdAt,
   }));
 
-  // Transform products data
-  const transformedItems: Item[] = products.map((product) => ({
-    id: product._id,
-    name: product.name,
-    price: product.pricing?.sellingPrice || 0,
-    category: product.category?.name || "general",
-  }));
+  // Transform products data - use type assertion to handle structure differences
+  const transformedItems: Item[] = products as any;
 
   const filteredBills = transformedBills.filter((bill) => {
     const searchLower = searchTerm.toLowerCase();
@@ -155,13 +141,7 @@ export default function BillingPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleCreateBill = async (billData: {
-    customerId: string;
-    serviceType: string;
-    locationType: string;
-    items: BillItem[];
-    notes: string;
-  }) => {
+  const handleCreateBill = async (billData: BillFormData) => {
     console.log("Creating bill:", billData);
     // TODO: Implement bill creation
     setShowCreateBill(false);
@@ -176,7 +156,9 @@ export default function BillingPage() {
   };
 
   const handleShareOnWhatsApp = (bill: Bill) => {
-    const customer = transformedCustomers.find((c) => c.id === bill.customerId);
+    const customer = transformedCustomers.find(
+      (c) => c._id === bill.customerId
+    );
     const billWithPhone = {
       ...bill,
       customerId: customer?.phone || bill.customerId,
