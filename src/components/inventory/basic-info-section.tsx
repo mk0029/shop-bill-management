@@ -3,6 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Package } from "lucide-react";
+import { DynamicForm } from "@/components/dynamic-fields/dynamic-form";
+import { useDynamicFieldRegistry } from "@/hooks/use-dynamic-field-registry";
 
 interface BasicInfoSectionProps {
   formData: any;
@@ -13,6 +15,7 @@ interface BasicInfoSectionProps {
   errors: Record<string, string>;
   onInputChange: (field: string, value: string) => void;
   onExistingProductSelect: (productId: string) => void;
+  onSpecificationChange?: (field: string, value: any) => void;
 }
 
 const unitOptions = [
@@ -33,8 +36,10 @@ export const BasicInfoSection = ({
   dynamicSpecificationFields,
   onInputChange,
   onExistingProductSelect,
+  onSpecificationChange,
 }: BasicInfoSectionProps) => {
   const isExistingProductSelected = !!formData.selectedExistingProduct;
+  const { isReady } = useDynamicFieldRegistry();
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
@@ -162,6 +167,34 @@ export const BasicInfoSection = ({
             disabled={isExistingProductSelected}
           />
         </div>
+
+        {/* Dynamic Specification Fields */}
+        {formData.category && isReady && (
+          <div className="md:col-span-2">
+            <div className="border-t border-gray-700 pt-4 mt-4">
+              <h3 className="text-lg font-medium text-white mb-4">
+                Specifications
+              </h3>
+              <DynamicForm
+                key={`${formData.category}-${formData.selectedExistingProduct || "new"}`}
+                categoryId={formData.category}
+                initialValues={formData.specifications || {}}
+                onFieldChange={(fieldKey, value, allValues) => {
+                  if (onSpecificationChange) {
+                    onSpecificationChange(fieldKey, value);
+                  }
+                }}
+                disabled={isExistingProductSelected}
+                showSubmitButton={false}
+                showResetButton={false}
+                layout="grid"
+                columns={2}
+                className="bg-transparent"
+                renderAsForm={false}
+              />
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

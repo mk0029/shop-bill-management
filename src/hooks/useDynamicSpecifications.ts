@@ -12,17 +12,24 @@ export function useDynamicSpecifications({
   categoryId,
 }: UseDynamicSpecificationsProps) {
   const { getCategoryFieldMapping } = useSpecificationsStore();
-  const [isLoading, setIsLoading] = useState(false); // Kept for potential future async operations
+  const [isLoading, setIsLoading] = useState(false);
 
   // Get field mapping for this category, memoized to prevent re-renders
   const fieldMapping = useMemo(() => {
     if (!categoryId) {
       return { requiredFields: [], optionalFields: [] };
     }
-    setIsLoading(true);
-    const mapping = getCategoryFieldMapping(categoryId);
-    setIsLoading(false);
-    return mapping;
+
+    try {
+      setIsLoading(true);
+      const mapping = getCategoryFieldMapping(categoryId);
+      return mapping;
+    } catch (error) {
+      console.error("Error getting field mapping:", error);
+      return { requiredFields: [], optionalFields: [] };
+    } finally {
+      setIsLoading(false);
+    }
   }, [categoryId, getCategoryFieldMapping]);
 
   return {

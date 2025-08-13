@@ -6,6 +6,8 @@ import { useSpecificationsStore } from "@/store/specifications-store";
 import { useInventoryStore, Product } from "@/store/inventory-store";
 import { validateProduct } from "@/lib/dynamic-validation";
 import { generateEnhancedProductName } from "@/lib/product-naming";
+import { useDynamicFieldRegistry } from "@/hooks/use-dynamic-field-registry";
+import { initFieldRegistry } from "@/lib/field-registry-init";
 
 interface InventoryFormData {
   category: string;
@@ -43,16 +45,25 @@ export const useInventoryForm = () => {
     fetchProducts,
   } = useInventoryStore();
 
+  // Initialize dynamic field registry
+  const { isReady: isDynamicFieldsReady } = useDynamicFieldRegistry();
+
   useEffect(() => {
     forceSyncBrands();
     forceSyncCategories();
     forceSyncSpecifications();
     fetchProducts(); // Fetch existing products for the dropdown
+
+    // Initialize dynamic field registry
+    if (!isDynamicFieldsReady) {
+      initFieldRegistry().catch(console.error);
+    }
   }, [
     forceSyncBrands,
     forceSyncCategories,
     forceSyncSpecifications,
     fetchProducts,
+    isDynamicFieldsReady,
   ]);
 
   const [formData, setFormData] = useState<InventoryFormData>({
@@ -99,7 +110,8 @@ export const useInventoryForm = () => {
 
     const selectedProduct = products.find((p) => p._id === productId);
     if (selectedProduct) {
-      setFormData({
+      setFormData((prev) => ({
+        ...prev,
         category: selectedProduct.category._id,
         brand: selectedProduct.brand._id,
         purchasePrice: selectedProduct.pricing.purchasePrice.toString(),
@@ -107,9 +119,9 @@ export const useInventoryForm = () => {
         currentStock: "", // Keep empty as requested
         unit: (selectedProduct.pricing as any).unit || "piece",
         description: selectedProduct.description || "",
-        specifications: selectedProduct.specifications,
+        specifications: selectedProduct.specifications || {},
         selectedExistingProduct: productId,
-      });
+      }));
     }
   };
 
@@ -118,6 +130,18 @@ export const useInventoryForm = () => {
       ...prev,
       specifications: { ...prev.specifications, [field]: value },
     }));
+  };
+
+  const handleDynamicSpecificationChange = (field: string, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      specifications: { ...prev.specifications, [field]: value },
+    }));
+
+    // Clear any errors for this field
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
   };
 
   const validateForm = async () => {
@@ -265,6 +289,7 @@ export const useInventoryForm = () => {
     products,
     handleInputChange,
     handleSpecificationChange,
+    handleDynamicSpecificationChange,
     handleExistingProductSelect,
     handleSubmit,
     confirmSubmit,

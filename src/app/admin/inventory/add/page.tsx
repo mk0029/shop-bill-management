@@ -27,6 +27,7 @@ export default function AddInventoryItemPage() {
     products,
     handleInputChange,
     handleSpecificationChange,
+    handleDynamicSpecificationChange,
     handleExistingProductSelect,
     handleSubmit,
     confirmSubmit,
@@ -64,6 +65,7 @@ export default function AddInventoryItemPage() {
             errors={errors}
             onInputChange={handleInputChange}
             onExistingProductSelect={handleExistingProductSelect}
+            onSpecificationChange={handleDynamicSpecificationChange}
             dynamicSpecificationFields={
               <div className="lg:col-span-2">
                 <DynamicSpecificationFields
