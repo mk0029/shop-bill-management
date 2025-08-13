@@ -135,7 +135,7 @@ export const formatSpecifications = (specs: any) => {
   if (specs.lightType) formatted.push(`Type: ${specs.lightType}`);
   if (specs.color) formatted.push(`Color: ${specs.color}`);
   if (specs.size) formatted.push(`Size: ${specs.size}`);
-  if (specs.wattage) formatted.push(`${specs.wattage}W`);
+  if (specs.watts) formatted.push(`${specs.watts}W`);
   if (specs.wireGauge) formatted.push(`Gauge: ${specs.wireGauge}`);
   if (specs.amperage) formatted.push(`${specs.amperage}`);
   if (specs.voltage) formatted.push(`${specs.voltage}`);

@@ -86,17 +86,17 @@ export const ItemSelectionModal = ({
             </div>
           )}
 
-          {getUniqueValues("wattage").length > 0 && (
+          {getUniqueValues("watts").length > 0 && (
             <div className="space-y-2">
-              <Label className="text-gray-300">Wattage</Label>
+              <Label className="text-gray-300">Watts</Label>
               <Dropdown
                 options={[
-                  { value: "", label: "All Wattages" },
-                  ...getUniqueValues("wattage"),
+                  { value: "", label: "All Watts" },
+                  ...getUniqueValues("watts"),
                 ]}
                 value={selectedSpecifications.watts || ""}
                 onValueChange={(value) => onUpdateSpecification("watts", value)}
-                placeholder="Select wattage"
+                placeholder="Select watts"
                 className="bg-gray-800 border-gray-700"
               />
             </div>

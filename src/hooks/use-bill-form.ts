@@ -322,7 +322,7 @@ const getItemDisplayName = (product: unknown) => {
     if (spec.lightType) specs.push(spec.lightType);
     if (spec.color) specs.push(spec.color);
     if (spec.size) specs.push(spec.size);
-    if (spec.wattage) specs.push(`${spec.wattage}W`);
+    if (spec.watts) specs.push(`${spec.watts}W`);
     if (spec.wireGauge) specs.push(`${spec.wireGauge}mm`);
     if (spec.amperage) specs.push(`${spec.amperage}A`);
   }
@@ -341,7 +341,7 @@ const getItemSpecifications = (product: unknown) => {
     if (spec.lightType) specs.push(`Type: ${spec.lightType}`);
     if (spec.color) specs.push(`Color: ${spec.color}`);
     if (spec.size) specs.push(`Size: ${spec.size}`);
-    if (spec.wattage) specs.push(`${spec.wattage}W`);
+    if (spec.watts) specs.push(`${spec.watts}W`);
     if (spec.wireGauge) specs.push(`Gauge: ${spec.wireGauge}mm`);
     if (spec.amperage) specs.push(`${spec.amperage}A`);
   }

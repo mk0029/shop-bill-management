@@ -58,7 +58,7 @@ export const validateProduct = async (formData: Record<string, any>) => {
           const fieldLabels: Record<string, string> = {
             amperage: "Amperage",
             voltage: "Voltage",
-            wattage: "Wattage",
+            watts: "Watts",
             wireGauge: "Wire Gauge",
             core: "Core Type",
             lightType: "Light Type",
@@ -153,14 +153,14 @@ export const validateFieldValue = (
     );
   }
 
-  // Special validation for wattage
-  if (fieldDefinition.fieldKey === "wattage") {
-    const wattageValue = parseFloat(stringValue);
-    if (isNaN(wattageValue) || wattageValue <= 0) {
-      errors.push("Please enter a valid wattage value");
+  // Special validation for watts
+  if (fieldDefinition.fieldKey === "watts") {
+    const wattsValue = parseFloat(stringValue);
+    if (isNaN(wattsValue) || wattsValue <= 0) {
+      errors.push("Please enter a valid watts value");
     }
-    if (wattageValue > 2000) {
-      errors.push("Wattage cannot exceed 2000W");
+    if (wattsValue > 2000) {
+      errors.push("Watts cannot exceed 2000W");
     }
   }
 

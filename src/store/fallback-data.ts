@@ -187,7 +187,7 @@ export const fallbackData = {
         isActive: true,
       },
       specifications: {
-        wattage: 9,
+        watts: 9,
         voltage: "220V",
         lightType: "led",
         color: "warm-white",

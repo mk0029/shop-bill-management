@@ -75,7 +75,7 @@ export const useItemSelection = () => {
     if (selectedSpecifications.watts) {
       filteredItems = filteredItems.filter(
         (product) =>
-          product.specifications?.wattage?.toString() ===
+          product.specifications?.watts?.toString() ===
           selectedSpecifications.watts
       );
     }
