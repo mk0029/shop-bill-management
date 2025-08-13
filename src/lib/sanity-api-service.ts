@@ -148,6 +148,11 @@ export const userApiService = {
     role: 'admin' | 'customer';
   }): Promise<ApiResponse<any>> {
     try {
+      // Format phone number
+      const formattedPhone = userData.phone.startsWith('+91')
+        ? userData.phone
+        : `+91${userData.phone.replace(/\s/g, '')}`;
+
       // Generate credentials
       const customerId = Buffer.from(
         Date.now().toString() + Math.random().toString()
@@ -167,7 +172,7 @@ export const userApiService = {
         secretKey,
         name: userData.name,
         email: userData.email,
-        phone: userData.phone,
+        phone: formattedPhone, // Use formatted phone number
         location: userData.location,
         role: userData.role,
         isActive: true,
@@ -176,6 +181,9 @@ export const userApiService = {
       };
 
       const createdUser = await sanityClient.create(newUser);
+
+      // Send secret key via WhatsApp (placeholder)
+      console.log(`Sending secret key ${secretKey} to ${formattedPhone} via WhatsApp.`);
 
       // Sync to Strapi in background (non-blocking)
       strapiService.sync
@@ -240,6 +248,47 @@ export const userApiService = {
     } catch (error) {
       console.error('Error deleting user:', error);
       return { success: false, error: 'Failed to delete user' };
+    }
+  },
+
+  /**
+   * Login user with phone and secret key
+   */
+  async loginUser(credentials: { phone: string; secretKey: string }): Promise<ApiResponse<any>> {
+    try {
+      const { phone, secretKey } = credentials;
+      const query = `*[_type == "user" && (phone == $phone || phone == $prefixedPhone) && secretKey == $secretKey][0] {
+        _id,
+        clerkId,
+        customerId,
+        name,
+        email,
+        phone,
+        location,
+        role,
+        isActive,
+        createdAt,
+        updatedAt
+      }`;
+
+      const user = await sanityClient.fetch(query, {
+        phone,
+        prefixedPhone: `+91${phone}`,
+        secretKey,
+      });
+
+      if (!user) {
+        return { success: false, error: 'Invalid phone number or secret key' };
+      }
+
+      if (!user.isActive) {
+        return { success: false, error: 'User account is inactive' };
+      }
+
+      return { success: true, data: user };
+    } catch (error) {
+      console.error('Error logging in user:', error);
+      return { success: false, error: 'Failed to login' };
     }
   },
 };
@@ -418,7 +467,7 @@ export const productApiService = {
    * Update product
    */
   async updateProduct(
-    productId: string,
+    productId: string, // This is Sanity's _id
     productData: any
   ): Promise<ApiResponse<any>> {
     try {
@@ -432,7 +481,15 @@ export const productApiService = {
 
       // Sync to Strapi
       try {
-        await strapiService.products.updateProduct(updatedProduct._id, updatedProduct);
+        // First, find the product in Strapi by its Sanity ID to get the numeric Strapi ID
+        const strapiProduct = await strapiService.products.getProductBySanityId(updatedProduct.productId);
+        if (strapiProduct) {
+          await strapiService.products.updateProduct(strapiProduct.id, updatedProduct);
+        } else {
+          // If it doesn't exist in Strapi, maybe we should create it?
+          await strapiService.products.createProduct(updatedProduct);
+          console.log('Product not found in Strapi, creating a new one.');
+        }
       } catch (strapiError) {
         console.warn('Failed to sync product to Strapi:', strapiError);
       }

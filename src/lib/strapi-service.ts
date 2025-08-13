@@ -213,6 +213,21 @@ export const strapiProductService = {
   },
 
   /**
+   * Get product by Sanity ID
+   */
+  async getProductBySanityId(sanityProductId: string): Promise<any | null> {
+    try {
+      const response = await strapiRequest<StrapiResponse<any[]>>(
+        `${STRAPI_ENDPOINTS.products}?filters[productId][$eq]=${sanityProductId}`
+      );
+      return response.data[0] || null;
+    } catch (error) {
+      console.error('Error fetching product from Strapi by Sanity ID:', error);
+      return null;
+    }
+  },
+
+  /**
    * Update product
    */
   async updateProduct(productId: number, productData: any): Promise<any> {

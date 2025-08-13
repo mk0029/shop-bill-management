@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoginCredentials } from "@/types";
-import { Eye, EyeOff, User, Lock } from "lucide-react";
+import { Eye, EyeOff, Phone, Lock } from "lucide-react";
 
 interface LoginFormProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
@@ -19,7 +19,7 @@ export function LoginForm({
   error,
 }: LoginFormProps) {
   const [formData, setFormData] = useState<LoginCredentials>({
-    customerId: "",
+    phone: "",
     secretKey: "",
   });
   const [formErrors, setFormErrors] = useState<Partial<LoginCredentials>>({});
@@ -28,8 +28,12 @@ export function LoginForm({
   const validateForm = (): boolean => {
     const errors: Partial<LoginCredentials> = {};
 
-    if (!formData.customerId.trim()) {
-      errors.customerId = "Customer ID is required";
+    if (!formData.phone.trim()) {
+      errors.phone = "Phone number is required";
+    }
+
+    if (!/^\+?[1-9]\d{1,14}$/.test(formData.phone.trim())) {
+      errors.phone = "Please enter a valid phone number";
     }
 
     if (!formData.secretKey.trim()) {
@@ -67,27 +71,27 @@ export function LoginForm({
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="customerId" className="text-gray-300 font-medium">
-            Customer ID
+          <Label htmlFor="phone" className="text-gray-300 font-medium">
+            Phone Number
           </Label>
           <div className="relative">
-            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
-              id="customerId"
-              type="text"
-              placeholder="Enter your customer ID"
-              value={formData.customerId}
-              onChange={(e) => handleInputChange("customerId", e.target.value)}
+              id="phone"
+              type="number"
+              placeholder="Enter your phone number"
+              value={formData.phone}
+              onChange={(e) => handleInputChange("phone", e.target.value)}
               disabled={isLoading}
               className={`pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500  ${
-                formErrors.customerId
+                formErrors.phone
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                   : ""
               }`}
             />
           </div>
-          {formErrors.customerId && (
-            <p className="text-red-400 text-sm mt-1">{formErrors.customerId}</p>
+          {formErrors.phone && (
+            <p className="text-red-400 text-sm mt-1">{formErrors.phone}</p>
           )}
         </div>
 

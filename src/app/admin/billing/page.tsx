@@ -27,6 +27,8 @@ import {
   Download,
   Share2,
 } from "lucide-react";
+import { useWhatsAppMessaging } from "@/hooks/use-whatsapp-config";
+import { BillDetails } from "@/lib/whatsapp-utils";
 
 interface BillItem {
   name: string;
@@ -50,25 +52,6 @@ interface Bill {
   notes?: string;
 }
 
-// WhatsApp sharing utility function
-const shareBillOnWhatsApp = (bill: Bill) => {
-  const message = `Bill Details:\n\nBill Number: ${bill.id}\nCustomer: ${
-    bill.customerName
-  }\nDate: ${bill.date}\nAmount: ₹${bill.total}\n\nItems:\n${bill.items
-    .map(
-      (item) =>
-        `- ${item.name}: ${item.quantity} x ₹${item.price} = ₹${item.total}`
-    )
-    .join("\n")}\n\nTotal: ₹${bill.total}`;
-  const encodedMessage = encodeURIComponent(message);
-  const customerPhone = bill.customerId; // Assuming customerId contains phone for now
-  const whatsappUrl = `https://wa.me/${customerPhone.replace(
-    /[^0-9]/g,
-    ""
-  )}?text=${encodedMessage}`;
-  window.open(whatsappUrl, "_blank");
-};
-
 export default function BillingPage() {
   const { currency } = useLocaleStore();
   const router = useRouter();
@@ -78,6 +61,7 @@ export default function BillingPage() {
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const { sendBillMessage, isConfigured } = useWhatsAppMessaging();
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
   // Ensure the real-time bill store has initial data so stats render immediately
@@ -155,15 +139,65 @@ export default function BillingPage() {
     setSelectedBill(bill);
   };
 
-  const handleShareOnWhatsApp = (bill: Bill) => {
-    const customer = transformedCustomers.find(
-      (c) => c._id === bill.customerId
-    );
-    const billWithPhone = {
-      ...bill,
-      customerId: customer?.phone || bill.customerId,
-    };
-    shareBillOnWhatsApp(billWithPhone);
+  const handleShareOnWhatsApp = async (bill: Bill) => {
+    if (!isConfigured) {
+      alert(
+        "WhatsApp Business is not configured. Please configure it in settings."
+      );
+      return;
+    }
+
+    try {
+      // Find customer phone number
+      const customer = transformedCustomers.find(
+        (c) => c._id === bill.customerId
+      );
+
+      if (!customer?.phone) {
+        alert(
+          "Customer phone number not found. Please update customer details."
+        );
+        return;
+      }
+
+      // Convert Bill to BillDetails format
+      const billDetails: BillDetails = {
+        billNumber: bill.id,
+        customerName: bill.customerName,
+        customerPhone: customer.phone,
+        billDate: bill.date,
+        dueDate:
+          bill.dueDate ||
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+        items: bill.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.total,
+        })),
+        subtotal: bill.subtotal || bill.total,
+        tax: bill.taxAmount,
+        total: bill.total,
+        notes: bill.notes || "Thank you for your business!",
+        userId: `customer_${bill.customerId}`,
+        passKey: `bill_${bill.id}`,
+      };
+
+      const result = await sendBillMessage(billDetails);
+
+      if (result.status === "sent") {
+        alert(`WhatsApp message sent successfully via ${result.deviceUsed}!`);
+      } else {
+        alert(
+          `Failed to send message: ${result.error || "Unknown error"}. Please check your configuration.`
+        );
+      }
+    } catch (error) {
+      console.error("WhatsApp send error:", error);
+      alert("Failed to send WhatsApp message. Please try again.");
+    }
   };
 
   return (

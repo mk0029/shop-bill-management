@@ -14,7 +14,7 @@ export interface User {
   role: "admin" | "customer";
   isActive: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Customer {
@@ -25,7 +25,7 @@ export interface Customer {
   location: string;
   isActive: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Product {
@@ -65,7 +65,7 @@ export interface Product {
   isActive: boolean;
   isFeatured: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Brand {
@@ -83,7 +83,7 @@ export interface Brand {
     address?: string;
   };
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Category {
@@ -95,7 +95,7 @@ export interface Category {
   sortOrder: number;
   parentCategory?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Bill {
@@ -117,7 +117,7 @@ export interface Bill {
   status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
   createdBy: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface BillItem {
@@ -151,7 +151,7 @@ export interface StockTransaction {
 
 // Form data types
 export interface LoginCredentials {
-  customerId: string;
+  phone: string;
   secretKey: string;
 }
 

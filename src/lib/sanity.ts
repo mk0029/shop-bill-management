@@ -26,7 +26,7 @@ if (typeof window === "undefined") {
 // Image URL builder
 const builder = imageUrlBuilder(sanityClient);
 
-export const urlFor = (source: any) => builder.image(source);
+export const urlFor = (source: unknown) => builder.image(source);
 
 // Real-time listener setup
 export const setupRealtimeListeners = (callback: (update: unknown) => void) => {
@@ -313,6 +313,34 @@ export const queries = {
   simpleProducts: '*[_type == "product"][0...5]',
 
   // Get all document types in the dataset
-  documentTypes:
-    '*[] | { "type": _type } | group(type) | { "documentType": type, "count": count() }',
+  documentTypes: "*[]._type",
+
+  // WhatsApp Configuration queries
+  whatsappConfigs: `*[_type == "whatsappConfig" && isActive == true] | order(priority asc) {
+    _id,
+    configName,
+    isActive,
+    businessInfo,
+    devices,
+    messageTemplate,
+    loadBalancing,
+    analytics,
+    createdAt,
+    updatedAt
+  }`,
+
+  whatsappConfig: (
+    configId: string
+  ) => `*[_type == "whatsappConfig" && _id == "${configId}"][0] {
+    _id,
+    configName,
+    isActive,
+    businessInfo,
+    devices,
+    messageTemplate,
+    loadBalancing,
+    analytics,
+    createdAt,
+    updatedAt
+  }`,
 };

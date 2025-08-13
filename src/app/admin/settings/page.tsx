@@ -23,9 +23,10 @@ export default function SettingsPage() {
   const settingsOptions = [
     {
       title: "WhatsApp Configuration",
-      description: "Configure business details for WhatsApp bill sharing",
+      description:
+        "Manage multiple WhatsApp devices with authentication and load balancing",
       icon: MessageCircle,
-      href: "/admin/settings/whatsapp",
+      href: "/admin/settings/whatsapp-enhanced",
       color: "text-green-500",
     },
     {
@@ -122,7 +123,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             <Button
               variant="outline"
-              onClick={() => router.push("/admin/settings/whatsapp")}
+              onClick={() => router.push("/admin/settings/whatsapp-enhanced")}
               className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4" />
               Configure WhatsApp
