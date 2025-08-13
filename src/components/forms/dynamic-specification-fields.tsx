@@ -45,12 +45,11 @@ export function DynamicSpecificationFields({
   return (
     <div className="space-y-6">
       {/* Required Fields */}
-      {/* Required Fields */}
       <RequiredFieldsSection
         requiredFields={fieldMapping.requiredFields}
         formData={formData}
         errors={errors}
-        disabled={isLoading}
+        disabled={disabled || isLoading}
         onFieldChange={onFieldChange}
       />
 
@@ -59,7 +58,7 @@ export function DynamicSpecificationFields({
         optionalFields={fieldMapping.optionalFields}
         formData={formData}
         errors={errors}
-        disabled={isLoading}
+        disabled={disabled || isLoading}
         onFieldChange={onFieldChange}
       />
     </div>

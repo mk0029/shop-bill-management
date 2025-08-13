@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { useBrandStore } from "@/store/brand-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useSpecificationsStore } from "@/store/specifications-store";
-import { useInventoryStore } from "@/store/inventory-store";
+import { useInventoryStore, Product } from "@/store/inventory-store";
 import { validateProduct } from "@/lib/dynamic-validation";
 import { generateEnhancedProductName } from "@/lib/product-naming";
 
@@ -16,6 +16,7 @@ interface InventoryFormData {
   unit: string;
   description: string;
   specifications: Record<string, unknown>;
+  selectedExistingProduct: string; // New field for existing product selection
 }
 
 export const useInventoryForm = () => {
@@ -36,13 +37,23 @@ export const useInventoryForm = () => {
   const forceSyncSpecifications = useSpecificationsStore(
     (state) => state.forceSyncSpecifications
   );
-  const { addOrUpdateProduct: addProduct } = useInventoryStore();
+  const {
+    addOrUpdateProduct: addProduct,
+    products,
+    fetchProducts,
+  } = useInventoryStore();
 
   useEffect(() => {
     forceSyncBrands();
     forceSyncCategories();
     forceSyncSpecifications();
-  }, [forceSyncBrands, forceSyncCategories, forceSyncSpecifications]);
+    fetchProducts(); // Fetch existing products for the dropdown
+  }, [
+    forceSyncBrands,
+    forceSyncCategories,
+    forceSyncSpecifications,
+    fetchProducts,
+  ]);
 
   const [formData, setFormData] = useState<InventoryFormData>({
     category: "",
@@ -53,6 +64,7 @@ export const useInventoryForm = () => {
     unit: "piece",
     description: "",
     specifications: {},
+    selectedExistingProduct: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -65,6 +77,39 @@ export const useInventoryForm = () => {
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleExistingProductSelect = (productId: string) => {
+    if (!productId) {
+      // Reset form when no product is selected
+      setFormData({
+        category: "",
+        brand: "",
+        purchasePrice: "",
+        sellingPrice: "",
+        currentStock: "",
+        unit: "piece",
+        description: "",
+        specifications: {},
+        selectedExistingProduct: "",
+      });
+      return;
+    }
+
+    const selectedProduct = products.find((p) => p._id === productId);
+    if (selectedProduct) {
+      setFormData({
+        category: selectedProduct.category._id,
+        brand: selectedProduct.brand._id,
+        purchasePrice: selectedProduct.pricing.purchasePrice.toString(),
+        sellingPrice: selectedProduct.pricing.sellingPrice.toString(),
+        currentStock: "", // Keep empty as requested
+        unit: (selectedProduct.pricing as any).unit || "piece",
+        description: selectedProduct.description || "",
+        specifications: selectedProduct.specifications,
+        selectedExistingProduct: productId,
+      });
     }
   };
 
@@ -173,6 +218,7 @@ export const useInventoryForm = () => {
       unit: "piece",
       description: "",
       specifications: {},
+      selectedExistingProduct: "",
     });
     setErrors({});
   };
@@ -216,8 +262,10 @@ export const useInventoryForm = () => {
     brands,
     categories,
     specifications,
+    products,
     handleInputChange,
     handleSpecificationChange,
+    handleExistingProductSelect,
     handleSubmit,
     confirmSubmit,
     resetForm,

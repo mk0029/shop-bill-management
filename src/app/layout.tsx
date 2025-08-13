@@ -6,6 +6,9 @@ import { Toaster } from "sonner";
 import Script from "next/script";
 import "./globals.css";
 
+// Force dynamic rendering for all pages
+export const dynamic = 'force-dynamic';
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -30,8 +33,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className="dark">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
-        >
+          className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}>
           <DataProvider>{children}</DataProvider>
           <Toaster
             theme="dark"

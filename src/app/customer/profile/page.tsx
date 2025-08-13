@@ -1,5 +1,8 @@
 "use client";
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
+
 import { useCustomerProfile } from "@/hooks/use-customer-profile";
 import { ProfileHeader } from "@/components/customer/profile-header";
 import { ProfileForm } from "@/components/customer/profile-form";

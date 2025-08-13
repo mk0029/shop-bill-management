@@ -8,9 +8,11 @@ interface BasicInfoSectionProps {
   formData: any;
   categories: any[];
   brands: any[];
+  products: any[];
   dynamicSpecificationFields: any;
   errors: Record<string, string>;
   onInputChange: (field: string, value: string) => void;
+  onExistingProductSelect: (productId: string) => void;
 }
 
 const unitOptions = [
@@ -26,10 +28,13 @@ export const BasicInfoSection = ({
   formData,
   categories,
   brands,
+  products,
   errors,
   dynamicSpecificationFields,
   onInputChange,
+  onExistingProductSelect,
 }: BasicInfoSectionProps) => {
+  const isExistingProductSelected = !!formData.selectedExistingProduct;
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
@@ -39,6 +44,34 @@ export const BasicInfoSection = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Existing Product Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="existingProduct" className="text-gray-300">
+            Select Existing Product (Optional)
+          </Label>
+          <Dropdown
+            options={[
+              { value: "", label: "Create New Product" },
+              ...products
+                .filter((product) => product.isActive && !product.deleted)
+                .map((product) => ({
+                  value: product._id,
+                  label: `${product.name} - ${product.brand.name}`,
+                })),
+            ]}
+            value={formData.selectedExistingProduct}
+            onValueChange={onExistingProductSelect}
+            placeholder="Select existing product or create new"
+            className="bg-gray-800 border-gray-700"
+          />
+          {isExistingProductSelected && (
+            <p className="text-blue-400 text-sm">
+              Product details loaded. Purchase price, selling price, and stock
+              quantity can be edited.
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="category" className="text-gray-300">
@@ -53,6 +86,7 @@ export const BasicInfoSection = ({
               onValueChange={(value) => onInputChange("category", value)}
               placeholder="Select category"
               className="bg-gray-800 border-gray-700"
+              disabled={isExistingProductSelected}
             />
             {errors.category && (
               <p className="text-red-400 text-sm">{errors.category}</p>
@@ -72,6 +106,7 @@ export const BasicInfoSection = ({
               onValueChange={(value) => onInputChange("brand", value)}
               placeholder="Select brand"
               className="bg-gray-800 border-gray-700"
+              disabled={isExistingProductSelected}
             />
             {errors.brand && (
               <p className="text-red-400 text-sm">{errors.brand}</p>
@@ -88,6 +123,7 @@ export const BasicInfoSection = ({
               onValueChange={(value) => onInputChange("unit", value)}
               placeholder="Select unit"
               className="bg-gray-800 border-gray-700"
+              disabled={isExistingProductSelected}
             />
             {errors.unit && (
               <p className="text-red-400 text-sm">{errors.unit}</p>
@@ -121,8 +157,9 @@ export const BasicInfoSection = ({
             id="description"
             value={formData.description}
             onChange={(e) => onInputChange("description", e.target.value)}
-            className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none   focus:border-transparent"
+            className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder="Enter product description..."
+            disabled={isExistingProductSelected}
           />
         </div>
       </CardContent>

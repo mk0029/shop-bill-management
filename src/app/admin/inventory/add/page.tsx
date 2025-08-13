@@ -24,8 +24,10 @@ export default function AddInventoryItemPage() {
     brands,
     categories,
     specifications,
+    products,
     handleInputChange,
     handleSpecificationChange,
+    handleExistingProductSelect,
     handleSubmit,
     confirmSubmit,
     resetForm,
@@ -58,8 +60,10 @@ export default function AddInventoryItemPage() {
             formData={formData}
             categories={categories}
             brands={brands}
+            products={products}
             errors={errors}
             onInputChange={handleInputChange}
+            onExistingProductSelect={handleExistingProductSelect}
             dynamicSpecificationFields={
               <div className="lg:col-span-2">
                 <DynamicSpecificationFields
@@ -67,6 +71,7 @@ export default function AddInventoryItemPage() {
                   formData={formData.specifications as Record<string, string>}
                   onFieldChange={handleSpecificationChange}
                   errors={errors}
+                  disabled={!!formData.selectedExistingProduct}
                 />
               </div>
             }

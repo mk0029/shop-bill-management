@@ -1,5 +1,8 @@
 "use client";
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
+
 import React from "react";
 import { useBills } from "@/hooks/use-sanity-data";
 import { useAuthStore } from "@/store/auth-store";

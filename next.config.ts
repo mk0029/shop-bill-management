@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Remove experimental.forceSwcTransforms for Turbopack compatibility
+  trailingSlash: false,
+  generateBuildId: async () => {
+    return "build-" + Date.now();
+  },
 };
 
 export default nextConfig;
