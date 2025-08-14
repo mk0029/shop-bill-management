@@ -26,20 +26,27 @@ import React, { useState } from "react";
 function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
   const stats = React.useMemo(() => {
     const total = customerBills.length;
-    const paid = customerBills.filter(
-      (bill) => bill.paymentStatus === "paid"
-    ).length;
-    const pending = customerBills.filter(
-      (bill) => bill.paymentStatus === "pending"
-    ).length;
-    const overdue = customerBills.filter(
+    
+    // Count paid and partial bills
+    const paidBills = customerBills.filter(
+      (bill) => bill.paymentStatus === "paid" || bill.paymentStatus === "partial"
+    );
+    
+    const pendingBills = customerBills.filter(
+      (bill) => bill.paymentStatus === "pending" || bill.paymentStatus === "partial"
+    );
+    
+    const overdueBills = customerBills.filter(
       (bill) => bill.paymentStatus === "overdue"
-    ).length;
+    );
 
+    // Calculate amounts
     const totalAmount = customerBills.reduce(
       (sum, bill) => sum + (bill.totalAmount || 0),
       0
     );
+    
+    // Total paid amount (including partial payments)
     const paidAmount = customerBills.reduce((sum, bill) => {
       if (bill.paymentStatus === "paid") {
         return sum + (bill.totalAmount || 0);
@@ -48,18 +55,22 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
       }
       return sum;
     }, 0);
-    const pendingAmount = customerBills
-      .filter((bill) => bill.paymentStatus === "pending")
-      .reduce(
-        (sum, bill) => sum + (bill.balanceAmount || bill.totalAmount || 0),
-        0
-      );
+    
+    // Total pending amount (including remaining balance of partial payments)
+    const pendingAmount = customerBills.reduce((sum, bill) => {
+      if (bill.paymentStatus === "pending") {
+        return sum + (bill.totalAmount || 0);
+      } else if (bill.paymentStatus === "partial") {
+        return sum + (bill.balanceAmount || 0);
+      }
+      return sum;
+    }, 0);
 
     return {
       total,
-      paid,
-      pending,
-      overdue,
+      paid: paidBills.length,
+      pending: pendingBills.length,
+      overdue: overdueBills.length,
       totalAmount,
       paidAmount,
       pendingAmount,
@@ -89,10 +100,13 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Paid Bills
+                Paid Amount
               </p>
               <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
-                {stats.paid}
+                ₹{stats.paidAmount?.toLocaleString('en-IN')}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {stats.paid} {stats.paid === 1 ? 'Bill' : 'Bills'}
               </p>
             </div>
             <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
@@ -105,10 +119,13 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Pending
+                Pending Amount
               </p>
               <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
-                {stats.pending}
+                ₹{stats.pendingAmount?.toLocaleString('en-IN')}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {stats.pending} {stats.pending === 1 ? 'Bill' : 'Bills'}
               </p>
             </div>
             <Clock className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-400" />
@@ -177,32 +194,60 @@ export default function CustomerBillsPage() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
 
-  // Initialize bills
+  // State for loading state
+  const [isLoading, setIsLoading] = useState(true);
+
+  // State for customer-specific bills
+  const [customerBills, setCustomerBills] = useState<any[]>([]);
+
+  // Fetch and filter bills when component mounts or user changes
   React.useEffect(() => {
-    fetchBills();
-  }, [fetchBills]);
+    const loadBills = async () => {
+      if (!user) {
+        setCustomerBills([]);
+        setIsLoading(false);
+        return;
+      }
 
-  // Filter bills for this customer from the realtime store
-  const bills = user
-    ? allBills.filter(
-        (bill) =>
-          (bill.customer as any)?._ref === user.id ||
-          (bill.customer as any)?._id === user.id ||
-          bill.customer === user.id
-      )
-    : [];
+      setIsLoading(true);
+      
+      try {
+        // Always fetch fresh bills on initial load
+        await fetchBills();
+        
+        // Filter bills for the current customer
+        const filtered = allBills.filter(
+          (bill) =>
+            (bill.customer as any)?._ref === user.id ||
+            (bill.customer as any)?._id === user.id ||
+            bill.customer === user.id
+        );
+        
+        setCustomerBills(filtered);
+      } catch (error) {
+        console.error('Error loading bills:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const filteredBills = bills.filter((bill) => {
-    const matchesSearch =
-      bill.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.locationType?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      bill.paymentStatus === statusFilter ||
-      bill.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+    loadBills();
+  }, [user, fetchBills, allBills]);
+
+  // Filter bills based on search and status
+  const filteredBills = React.useMemo(() => {
+    return customerBills.filter((bill) => {
+      const matchesSearch =
+        bill.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.locationType?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" ||
+        bill.paymentStatus === statusFilter ||
+        bill.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [customerBills, searchTerm, statusFilter]);
 
   const viewBillDetails = (bill: any) => {
     setSelectedBill(bill);
@@ -225,7 +270,7 @@ export default function CustomerBillsPage() {
         </div>
 
         {/* Bill Stats */}
-        <CustomerBillStats customerBills={bills} />
+        <CustomerBillStats customerBills={customerBills} />
 
         {/* Filters */}
         <Card className="bg-gray-900 border-gray-800">

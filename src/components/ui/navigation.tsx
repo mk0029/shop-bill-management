@@ -109,12 +109,8 @@ const customerNavigation: NavigationItem[] = [
   },
   {
     label: "My Bills",
-    href: "/customer/book",
+    href: "/customer/bills",
     icon: Receipt,
-    children: [
-      { label: "All Bills", href: "/customer/book", icon: Receipt },
-      { label: "Bill History", href: "/customer/bills/history", icon: History },
-    ],
   },
   {
     label: "Profile",

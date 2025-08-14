@@ -60,15 +60,25 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   searchTerm = "",
   filterStatus = "all",
 }) => {
-  // Sort initial bills by creation date (newest first)
-  const sortedInitialBills = initialBills.sort((a, b) => {
-    const dateA = new Date(a.createdAt || a.serviceDate || 0);
-    const dateB = new Date(b.createdAt || b.serviceDate || 0);
-    return dateB.getTime() - dateA.getTime();
-  });
-
-  const [bills, setBills] = useState<Bill[]>(sortedInitialBills);
+  // State for bills and new bill animations
+  const [bills, setBills] = useState<Bill[]>([]);
   const [newBillIds, setNewBillIds] = useState<Set<string>>(new Set());
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Update bills when initialBills changes
+  useEffect(() => {
+    if (!isInitialized && initialBills.length > 0) {
+      // Sort initial bills by creation date (newest first)
+      const sortedBills = [...initialBills].sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.serviceDate || 0);
+        const dateB = new Date(b.createdAt || b.serviceDate || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      setBills(sortedBills);
+      setIsInitialized(true);
+    }
+  }, [initialBills, isInitialized]);
 
   // Listen to bill changes
   useDocumentListener("bill", undefined, {

@@ -1,57 +1,102 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useBills } from "@/hooks/use-sanity-data";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { useShallow } from 'zustand/react/shallow';
 
 export const useBillsHistory = () => {
   const { user } = useAuthStore();
-  const { getAllBills } = useBills() as any;
+  const { getBillsByCustomer } = useBills();
   const [bills, setBills] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [timeRange, setTimeRange] = useState("all");
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
-
-  useEffect(() => {
-    if (user?.id) {
-      setIsLoading(true);
-      getAllBills
-        .execute()
-        .then((result: any) => {
-          setBills(result.data || []);
-          setError(null);
-        })
-        .catch((err: any) => setError(err))
-        .finally(() => setIsLoading(false));
-    }
-  }, [user?.id, getAllBills]);
-
-  // Filter bills for current customer
-  const customerBills = bills.filter(
-    (bill) =>
-      bill.customer?.customerId === user?.id || bill.customer?._id === user?.id
+  
+  // Get real-time updates from the bill store
+  const { bills: allBills, initializeRealtime, cleanupRealtime } = useSanityBillStore(
+    useShallow((state) => ({
+      bills: state.bills,
+      initializeRealtime: state.initializeRealtime,
+      cleanupRealtime: state.cleanupRealtime,
+    }))
   );
 
+  // Effect to load initial bills and handle real-time updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let isMounted = true;
+    setIsLoading(true);
+
+    // Function to update bills from the store
+    const updateBillsFromStore = () => {
+      if (!isMounted) return;
+      try {
+        const customerBills = getBillsByCustomer(user.id);
+        setBills(customerBills);
+        setError(null);
+      } catch (err) {
+        console.error('Error updating bills from store:', err);
+        setError(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Initial load
+    updateBillsFromStore();
+
+    // Set up a small interval to check for updates
+    const checkInterval = setInterval(updateBillsFromStore, 1000);
+
+    // Cleanup
+    return () => {
+      isMounted = false;
+      clearInterval(checkInterval);
+    };
+  }, [user?.id, getBillsByCustomer]);
+
+  // Calculate total amount for all bills
+  const totalAmount = bills.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+  
+  // Calculate total paid amount
+  const totalPaid = bills.reduce((sum, bill) => sum + (bill.paidAmount || 0), 0);
+  
+  // Calculate total pending amount
+  const totalPending = bills.reduce((sum, bill) => {
+    if (bill.paymentStatus === 'pending' || bill.paymentStatus === 'partial') {
+      return sum + (bill.balanceAmount || bill.totalAmount || 0);
+    }
+    return sum;
+  }, 0);
+
   // Apply filters
-  const filteredBills = customerBills.filter((bill) => {
+  const filteredBills = bills.filter((bill) => {
     // Search filter
-    const matchesSearch =
-      bill.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.billId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.items?.some((item: any) =>
-        item.product?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    const matchesSearch = searchTerm === '' || 
+      (bill.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (bill.billId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (bill.customer?.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (bill.items || []).some((item: any) =>
+        (item.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.product?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+      ));
 
     // Status filter
-    const matchesStatus =
-      selectedStatus === "all" || bill.status === selectedStatus;
+    const matchesStatus = 
+      selectedStatus === "all" || 
+      (selectedStatus === 'paid' ? 
+        bill.paymentStatus === 'paid' : 
+        (bill.paymentStatus === 'pending' || bill.paymentStatus === 'partial'));
 
     // Time range filter
     let matchesTimeRange = true;
     if (timeRange !== "all") {
-      const billDate = new Date(bill.createdAt || bill.serviceDate);
+      const billDate = new Date(bill.createdAt || bill.serviceDate || new Date().toISOString());
       const daysAgo = parseInt(timeRange);
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
@@ -160,18 +205,21 @@ export const useBillsHistory = () => {
     };
   };
 
+  const stats = getStats();
+  
   return {
     bills: sortedBills,
     isLoading,
     error,
     searchTerm,
-    selectedStatus,
-    timeRange,
-    selectedBill,
-    showBillModal,
     setSearchTerm,
+    selectedStatus,
     setSelectedStatus,
+    timeRange,
     setTimeRange,
+    selectedBill,
+    setSelectedBill,
+    showBillModal,
     setShowBillModal,
     handleViewBill,
     handleDownloadBill,
@@ -179,5 +227,17 @@ export const useBillsHistory = () => {
     getTotalAmount,
     getServiceTypeLabel,
     getStats,
+    // Additional calculated values
+    totalAmount,
+    totalPaid,
+    totalPending,
+    paymentStatusCounts: {
+      pending: bills.filter(bill => bill.paymentStatus === 'pending').length,
+      partial: bills.filter(bill => bill.paymentStatus === 'partial').length,
+      paid: bills.filter(bill => bill.paymentStatus === 'paid').length,
+      overdue: bills.filter(bill => bill.paymentStatus === 'overdue').length,
+    },
+    // Stats from getStats
+    ...stats
   };
 };

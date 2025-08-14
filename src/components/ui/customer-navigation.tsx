@@ -26,18 +26,8 @@ interface NavigationItem {
 
 const customerNavigation: NavigationItem[] = [
   {
-    label: "All Bills",
+    label: "Bills",
     href: "/customer/bills",
-    icon: FileText,
-  },
-  {
-    label: "Pending Bills",
-    href: "/customer/bills/history?status=pending",
-    icon: FileText,
-  },
-  {
-    label: "Paid Bills",
-    href: "/customer/bills/history?status=paid",
     icon: FileText,
   },
   {
