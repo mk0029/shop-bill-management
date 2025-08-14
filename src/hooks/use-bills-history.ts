@@ -30,28 +30,39 @@ export const useBillsHistory = () => {
     if (!user?.id) return;
 
     let isMounted = true;
-    setIsLoading(true);
+    let checkInterval: NodeJS.Timeout;
 
-    // Function to update bills from the store
     const updateBillsFromStore = () => {
       if (!isMounted) return;
+      
       try {
         const customerBills = getBillsByCustomer(user.id);
-        setBills(customerBills);
+        
+        // Only update state if bills have actually changed
+        setBills(prevBills => {
+          if (JSON.stringify(prevBills) !== JSON.stringify(customerBills)) {
+            return customerBills;
+          }
+          return prevBills;
+        });
+        
         setError(null);
       } catch (err) {
         console.error('Error updating bills from store:', err);
         setError(err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     // Initial load
+    setIsLoading(true);
     updateBillsFromStore();
-
-    // Set up a small interval to check for updates
-    const checkInterval = setInterval(updateBillsFromStore, 1000);
+    
+    // Set up interval for updates
+    checkInterval = setInterval(updateBillsFromStore, 5000); // 5 second interval
 
     // Cleanup
     return () => {

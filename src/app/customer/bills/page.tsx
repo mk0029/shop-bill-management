@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { RealtimeProvider } from "@/components/providers/realtime-provider";
-import { RealtimeBillList } from "@/components/realtime/realtime-bill-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { useAuthStore } from "@/store/auth-store";
+import { BillsList } from "@/components/customer/bills-list";
+import { useCustomerData } from "@/hooks/use-customer-data";
 import { useLocaleStore } from "@/store/locale-store";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
 import {
   AlertCircle,
   CheckCircle,
@@ -20,34 +18,38 @@ import {
   Receipt,
   Search,
 } from "lucide-react";
-import React, { useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 
 // Customer-specific bill stats component that uses filtered data
-function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
-  const stats = React.useMemo(() => {
-    const total = customerBills.length;
+function CustomerBillStats({ bills = [] }: { bills: any[] }) {
+  const stats = useMemo(() => {
+    const total = bills.length;
     
     // Count paid and partial bills
-    const paidBills = customerBills.filter(
-      (bill) => bill.paymentStatus === "paid" || bill.paymentStatus === "partial"
+    const paidBills = bills.filter(
+      (bill) => bill.paymentStatus === "paid"
     );
     
-    const pendingBills = customerBills.filter(
-      (bill) => bill.paymentStatus === "pending" || bill.paymentStatus === "partial"
+    const pendingBills = bills.filter(
+      (bill) => bill.paymentStatus === "pending"
+    );
+
+    const partialBills = bills.filter(
+      (bill) => bill.paymentStatus === "partial"
     );
     
-    const overdueBills = customerBills.filter(
+    const overdueBills = bills.filter(
       (bill) => bill.paymentStatus === "overdue"
     );
 
     // Calculate amounts
-    const totalAmount = customerBills.reduce(
+    const totalAmount = bills.reduce(
       (sum, bill) => sum + (bill.totalAmount || 0),
       0
     );
     
     // Total paid amount (including partial payments)
-    const paidAmount = customerBills.reduce((sum, bill) => {
+    const paidAmount = bills.reduce((sum, bill) => {
       if (bill.paymentStatus === "paid") {
         return sum + (bill.totalAmount || 0);
       } else if (bill.paymentStatus === "partial") {
@@ -57,7 +59,7 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
     }, 0);
     
     // Total pending amount (including remaining balance of partial payments)
-    const pendingAmount = customerBills.reduce((sum, bill) => {
+    const pendingAmount = bills.reduce((sum, bill) => {
       if (bill.paymentStatus === "pending") {
         return sum + (bill.totalAmount || 0);
       } else if (bill.paymentStatus === "partial") {
@@ -70,84 +72,77 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
       total,
       paid: paidBills.length,
       pending: pendingBills.length,
+      partial: partialBills.length,
       overdue: overdueBills.length,
       totalAmount,
       paidAmount,
       pendingAmount,
     };
-  }, [customerBills]);
+  }, [bills]);
+
+  const statsConfig = [
+    {
+      title: "Total Amount",
+      value: `₹${stats.totalAmount.toLocaleString()}`,
+      subtitle: `${stats.total} total bills`,
+      subtitleColor: "text-gray-400",
+      icon: Receipt,
+      iconColor: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+    },
+    {
+      title: "Paid Amount",
+      value: `₹${stats.paidAmount.toLocaleString()}`,
+      subtitle: `${stats.paid} paid`,
+      subtitleColor: "text-green-500",
+      icon: CheckCircle,
+      iconColor: "text-green-500",
+      bgColor: "bg-green-500/10",
+    },
+    {
+      title: "Pending Amount",
+      value: `₹${stats.pendingAmount.toLocaleString()}`,
+      subtitle: `${stats.pending} pending, ${stats.partial} partial`,
+      subtitleColor: "text-yellow-500",
+      icon: Clock,
+      iconColor: "text-yellow-500",
+      bgColor: "bg-yellow-500/10",
+    },
+    {
+      title: "Overdue",
+      value: stats.overdue,
+      subtitle: `${stats.overdue} ${stats.overdue === 1 ? 'bill' : 'bills'}`,
+      subtitleColor: "text-red-500",
+      icon: AlertCircle,
+      iconColor: "text-red-500",
+      bgColor: "bg-red-500/10",
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Total Amount
-              </p>
-              <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
-                ₹{stats.totalAmount.toLocaleString()}
-              </p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {statsConfig.map((stat, index) => (
+        <Card key={index} className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-gray-400 font-medium truncate">
+                  {stat.title}
+                </p>
+                <p className={`text-xl sm:text-2xl font-bold mt-1 truncate ${stat.iconColor}`}>
+                  {stat.value}
+                </p>
+                <p className={`text-xs ${stat.subtitleColor} truncate`}>
+                  {stat.subtitle}
+                </p>
+              </div>
+              <div className={`p-2 rounded-full ${stat.bgColor}`}>
+                <stat.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${stat.iconColor}`} />
+              </div>
             </div>
-            <Receipt className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Paid Amount
-              </p>
-              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
-                ₹{stats.paidAmount?.toLocaleString('en-IN')}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {stats.paid} {stats.paid === 1 ? 'Bill' : 'Bills'}
-              </p>
-            </div>
-            <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Pending Amount
-              </p>
-              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
-                ₹{stats.pendingAmount?.toLocaleString('en-IN')}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {stats.pending} {stats.pending === 1 ? 'Bill' : 'Bills'}
-              </p>
-            </div>
-            <Clock className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-400" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Overdue
-              </p>
-              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-red-400 mt-1">
-                {stats.overdue}
-              </p>
-            </div>
-            <AlertCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400" />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -181,96 +176,157 @@ const getStatusIcon = (status: string) => {
     case "overdue":
       return AlertCircle;
     default:
-      return Receipt;
+      return Clock;
   }
 };
 
+const getBillStatusColor = (status: string) => {
+  switch (status) {
+    case 'paid':
+      return 'bg-green-500/20 text-green-400';
+    case 'partial':
+      return 'bg-yellow-500/20 text-yellow-400';
+    case 'overdue':
+      return 'bg-red-500/20 text-red-400';
+    default:
+      return 'bg-gray-500/20 text-gray-400';
+  }
+};
+
+const BillItem = ({ bill, onClick }: { bill: any; onClick: (bill: any) => void }) => {
+  const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
+  const statusColor = getBillStatusColor(bill.paymentStatus || bill.status);
+  
+  return (
+    <div 
+      className="p-4 border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
+      onClick={() => onClick(bill)}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-white">#{bill.billNumber}</span>
+            <span className={`text-xs px-2 py-1 rounded-full ${statusColor}`}>
+              {bill.paymentStatus || bill.status}
+            </span>
+          </div>
+          <p className="text-sm text-gray-400 mt-1">
+            {new Date(bill.serviceDate || bill._createdAt).toLocaleDateString()}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-white font-medium">₹{bill.totalAmount?.toLocaleString()}</p>
+          <p className="text-xs text-gray-400">
+            {bill.paymentStatus === 'partial' 
+              ? `Paid: ₹${bill.paidAmount?.toLocaleString()} of ${bill.totalAmount?.toLocaleString()}`
+              : bill.paymentStatus === 'paid' 
+                ? 'Paid in full' 
+                : 'Payment pending'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function CustomerBillsPage() {
-  const { t, currency } = useLocaleStore();
-  const { user } = useAuthStore();
-  const { bills: allBills, fetchBills } = useSanityBillStore();
+  const { t } = useLocaleStore();
+  // State for search and filter
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedBill, setSelectedBill] = useState<any>(null);
+  
+  // State for bill details modal
   const [showBillModal, setShowBillModal] = useState(false);
-
-  // State for loading state
-  const [isLoading, setIsLoading] = useState(true);
-
-  // State for customer-specific bills
-  const [customerBills, setCustomerBills] = useState<any[]>([]);
-
-  // Fetch and filter bills when component mounts or user changes
-  React.useEffect(() => {
-    const loadBills = async () => {
-      if (!user) {
-        setCustomerBills([]);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      
-      try {
-        // Always fetch fresh bills on initial load
-        await fetchBills();
-        
-        // Filter bills for the current customer
-        const filtered = allBills.filter(
-          (bill) =>
-            (bill.customer as any)?._ref === user.id ||
-            (bill.customer as any)?._id === user.id ||
-            bill.customer === user.id
-        );
-        
-        setCustomerBills(filtered);
-      } catch (error) {
-        console.error('Error loading bills:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBills();
-  }, [user, fetchBills, allBills]);
-
+  const [selectedBill, setSelectedBill] = useState<any>(null);
+  
+  // Use our optimized customer data hook
+  const { customer, bills: customerBills, loading, error, refresh } = useCustomerData();
+  const { currency } = useLocaleStore();
+  
   // Filter bills based on search and status
-  const filteredBills = React.useMemo(() => {
-    return customerBills.filter((bill) => {
-      const matchesSearch =
+  const filteredBills = useMemo(() => {
+    return customerBills.filter(bill => {
+      const matchesSearch = 
         bill.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.serviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.locationType?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" ||
-        bill.paymentStatus === statusFilter ||
-        bill.status === statusFilter;
+        bill.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.items?.some((item: any) => 
+          item.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      
+      const matchesStatus = 
+        statusFilter === 'all' || 
+        bill.paymentStatus?.toLowerCase() === statusFilter.toLowerCase();
+      
       return matchesSearch && matchesStatus;
     });
   }, [customerBills, searchTerm, statusFilter]);
-
-  const viewBillDetails = (bill: any) => {
+  
+  // Format currency
+  const formatCurrency = useCallback((value: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  }, []);
+  
+  // Get bill status color
+  const getBillStatusColor = useCallback((status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'paid':
+        return 'bg-green-500/10 text-green-400';
+      case 'pending':
+        return 'bg-yellow-500/10 text-yellow-400';
+      case 'overdue':
+        return 'bg-red-500/10 text-red-400';
+      case 'partial':
+        return 'bg-blue-500/10 text-blue-400';
+      default:
+        return 'bg-gray-500/10 text-gray-400';
+    }
+  }, []);
+  
+  // Get total amount for a bill
+  const getTotalAmount = useCallback((bill: any) => {
+    return bill.totalAmount || 0;
+  }, []);
+  
+  // Get service type label
+  const getServiceTypeLabel = useCallback((serviceType: string) => {
+    if (!serviceType) return 'Service';
+    return serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
+  }, []);
+  
+  // View bill details
+  const viewBillDetails = useCallback((bill: any) => {
     setSelectedBill(bill);
     setShowBillModal(true);
-  };
+  }, []);
+  
+  // Handle bill download
+  const handleDownloadBill = useCallback((bill: any) => {
+    // Implement download functionality
+    console.log('Downloading bill:', bill.billNumber);
+    // TODO: Implement actual download logic
+  }, []);
 
   return (
-    <RealtimeProvider enableNotifications={true}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-              My Bills
-            </h1>
-            <p className="text-gray-400 mt-1">
-              View and manage all your bills and payments
-            </p>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            {customer?.name ? `${customer.name}'s Bills` : 'Your Bills'}
+          </h2>
+          <p className="text-gray-400">
+            View and manage your billing history
+          </p>
         </div>
+      </div>
 
         {/* Bill Stats */}
-        <CustomerBillStats customerBills={customerBills} />
+        <CustomerBillStats bills={customerBills} />
 
         {/* Filters */}
         <Card className="bg-gray-900 border-gray-800">
@@ -311,13 +367,28 @@ export default function CustomerBillsPage() {
               All Bills
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <RealtimeBillList
-              initialBills={filteredBills}
-              customerId={user?.id}
-              onBillClick={viewBillDetails}
-              showNewBillAnimation={true}
-            />
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="p-8 text-center text-gray-400">
+                Loading bills...
+              </div>
+            ) : filteredBills.length === 0 ? (
+              <div className="p-8 text-center text-gray-400">
+                {searchTerm || statusFilter !== 'all' 
+                  ? 'No bills match your filters' 
+                  : 'No bills found'}
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-800">
+                {filteredBills.map((bill) => (
+                  <BillItem 
+                    key={bill._id} 
+                    bill={bill} 
+                    onClick={viewBillDetails} 
+                  />
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -380,8 +451,7 @@ export default function CustomerBillsPage() {
                             {item.productName || "Product"}
                           </p>
                           <p className="text-sm text-gray-400">
-                            {item.quantity} × {currency}
-                            {item.unitPrice}
+                            {item.quantity} × ₹{item.unitPrice?.toLocaleString()}
                           </p>
                           {item.specifications && (
                             <p className="text-xs text-gray-500">
@@ -390,8 +460,7 @@ export default function CustomerBillsPage() {
                           )}
                         </div>
                         <p className="font-semibold text-white">
-                          ll{currency}
-                          {item.totalPrice?.toLocaleString() || 0}
+                          ₹{item.totalPrice?.toLocaleString() || '0'}
                         </p>
                       </div>
                     ))
@@ -438,36 +507,31 @@ export default function CustomerBillsPage() {
                   <div>
                     <p className="text-gray-400">Tax</p>
                     <p className="text-white">
-                      {currency}
-                      {selectedBill.taxAmount?.toLocaleString() || "-"}
+                      {formatCurrency(selectedBill.taxAmount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-400">Discount</p>
                     <p className="text-white">
-                      {currency}
-                      {selectedBill.discountAmount?.toLocaleString() || "-"}
+                      {formatCurrency(selectedBill.discountAmount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-400">Total</p>
                     <p className="text-white font-bold text-lg">
-                      {currency}
-                      {selectedBill.totalAmount?.toLocaleString() || "-"}
+                      {formatCurrency(selectedBill.totalAmount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-400">Paid</p>
                     <p className="text-white">
-                      {currency}
-                      {selectedBill.paidAmount?.toLocaleString() || "-"}
+                      {formatCurrency(selectedBill.paidAmount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-400">Balance</p>
                     <p className="text-white">
-                      {currency}
-                      {selectedBill.balanceAmount?.toLocaleString() || "-"}
+                      {formatCurrency(selectedBill.balanceAmount)}
                     </p>
                   </div>
                 </div>
@@ -486,14 +550,14 @@ export default function CustomerBillsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowBillModal(false)}>
+                  onClick={() => setShowBillModal(false)}
+                >
                   Close
                 </Button>
-              </div>
             </div>
-          )}
-        </Modal>
-      </div>
-    </RealtimeProvider>
+          </div>
+        )}
+      </Modal>
+    </div>
   );
 }

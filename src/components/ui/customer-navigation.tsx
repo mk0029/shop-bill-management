@@ -122,6 +122,8 @@ export function CustomerNavigation() {
       </Link>
     );
   };
+  const sanityImageUrl=process.env.NEXT_PUBLIC_SANITY_URL
+
 
   return (
     <>
@@ -182,7 +184,7 @@ export function CustomerNavigation() {
                   <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
                     {user?.profileImage ? (
                       <img
-                        src={user.profileImage}
+                        src={sanityImageUrl+user.profileImage}
                         alt="Profile"
                         className="w-full h-full object-cover"
                       />
@@ -237,7 +239,7 @@ export function CustomerNavigation() {
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
               {user?.profileImage ? (
                 <img
-                  src={user.profileImage}
+                  src={sanityImageUrl+user.profileImage}
                   alt="Profile"
                   className="w-full h-full object-cover"
                 />
