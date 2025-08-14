@@ -1,20 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { LogOut, Menu, X, User, ChevronDown, FileText, MessageSquare, Wrench, Building2 } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Button } from "./button";
-import {
-  Menu,
-  X,
-  FileText,
-  User,
-  LogOut,
-  MessageSquare,
-  Wrench,
-  Building2,
-} from "lucide-react";
+import { SanityImage } from "./sanity-image";
 import { useAuthStore } from "@/store/auth-store";
 
 interface NavigationItem {
@@ -122,21 +116,11 @@ export function CustomerNavigation() {
       </Link>
     );
   };
-  const sanityImageUrl=process.env.NEXT_PUBLIC_SANITY_URL
 
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="lg:hidden fixed top-4 right-4 z-50 bg-gray-900 border border-gray-700"
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
-
+    
       {/* Mobile Navigation Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
@@ -182,15 +166,14 @@ export function CustomerNavigation() {
               <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-                    {user?.profileImage ? (
-                      <img
-                        src={sanityImageUrl+user.profileImage}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <User className="w-5 h-5 text-white" />
-                    )}
+                    <SanityImage
+                      src={user?.profileImage}
+                      alt={user?.name || 'Profile'}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      fallback={<User className="w-5 h-5 text-white" />}
+                    />
                   </div>
                   <div>
                     <p className="text-white font-medium">
@@ -212,6 +195,8 @@ export function CustomerNavigation() {
           </>
         )}
       </AnimatePresence>
+  {/* Mobile Menu Button */}
+    
 
       {/* Desktop Navigation */}
       <nav className="hidden lg:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
@@ -237,15 +222,14 @@ export function CustomerNavigation() {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-              {user?.profileImage ? (
-                <img
-                  src={sanityImageUrl+user.profileImage}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <User className="w-5 h-5 text-white" />
-              )}
+              <SanityImage
+                src={user?.profileImage}
+                alt={user?.name || 'Profile'}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                fallback={<User className="w-5 h-5 text-white" />}
+              />
             </div>
             <div>
               <p className="text-white font-medium">
@@ -264,9 +248,9 @@ export function CustomerNavigation() {
       {/* Main Content Wrapper */}
       <div className="lg:ml-64 min-h-fit bg-gray-950">
         {/* Top Bar */}
-        <div className="bg-gray-900 border-b border-gray-800 p-4 lg:p-6">
+        <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 lg:px-6 lg:py-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="max-md:hidden">
               <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                 {customerNavigation.find((item) => isActive(item.href))
                   ?.label || "Customer Portal"}
@@ -274,10 +258,18 @@ export function CustomerNavigation() {
               <p className="text-gray-400">Manage your bills and services</p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-gray-400 text-sm">
-                Welcome, {user?.name || "Customer"}
+              <span className="text-gray-400 text-base">
+                Welcome, <span className="font-semibold text-gray-200">{user?.name || "Customer"}</span>
               </span>
             </div>
+            <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="lg:hidden "
+      >
+        <Menu className="w-5 h-5" />
+      </Button>
           </div>
         </div>
       </div>

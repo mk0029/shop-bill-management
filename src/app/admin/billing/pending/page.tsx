@@ -235,7 +235,7 @@ export default function PendingBillsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-white">
             Pending Bills
           </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+          <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
             Manage and track all pending payments
           </p>
         </div>

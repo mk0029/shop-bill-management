@@ -7,6 +7,22 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3333',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.sanity.io',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
   // Remove experimental.forceSwcTransforms for Turbopack compatibility
   trailingSlash: false,
   generateBuildId: async () => {

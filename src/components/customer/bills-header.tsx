@@ -22,7 +22,7 @@ export const BillsHeader = ({
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
           My Bills
         </h1>
-        <p className="text-gray-400 mt-1 text-sm sm:text-base">
+        <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
           View and manage your billing history
         </p>
       </div>

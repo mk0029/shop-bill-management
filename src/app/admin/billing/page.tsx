@@ -235,7 +235,7 @@ export default function BillingPage() {
             <FileText className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
             Billing Management
           </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+          <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
             Create and manage customer bills
           </p>
         </div>

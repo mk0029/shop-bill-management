@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { User, Camera } from "lucide-react";
+import { SanityImage } from "@/components/ui/sanity-image";
 
 interface ProfileHeaderProps {
   user: any;
@@ -16,6 +17,7 @@ export const ProfileHeader = ({
   onEditToggle,
   onImageChange,
 }: ProfileHeaderProps) => {
+  // Using SanityImage component for consistent image handling
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -24,7 +26,7 @@ export const ProfileHeader = ({
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
             My Profile
           </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+          <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
             Manage your account information and preferences
           </p>
         </div>
@@ -42,14 +44,21 @@ export const ProfileHeader = ({
       <div className="flex items-center gap-6">
         <div className="relative">
           <div className="w-24 h-24 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden">
-            {imagePreview || user?.profileImage ? (
+            {imagePreview ? (
               <img
-                src={imagePreview || user?.profileImage}
+                src={imagePreview}
                 alt="Profile"
                 className="w-full h-full object-cover"
               />
             ) : (
-              <User className="w-12 h-12 text-gray-400" />
+              <SanityImage
+                src={user?.profileImage}
+                alt={user?.name || 'Profile'}
+                width={96}
+                height={96}
+                className="w-full h-full object-cover"
+                fallback={<User className="w-10 h-10 text-gray-400" />}
+              />
             )}
           </div>
 

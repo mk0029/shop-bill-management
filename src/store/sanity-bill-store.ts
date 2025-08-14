@@ -54,7 +54,8 @@ interface BillState {
   error: string | null;
 
   // Sanity-based actions
-  fetchBills: () => Promise<void>;
+  fetchBills: (customerId?: string) => Promise<void>;
+  fetchBillsByCustomer: (customerId: string) => Promise<Bill[]>;
   createBill: (
     billData: Omit<Bill, "_id" | "createdAt" | "updatedAt">
   ) => Promise<Bill | null>;
@@ -77,12 +78,17 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
   loading: false,
   error: null,
 
-  // Fetch bills from Sanity
-  fetchBills: async () => {
+  // Fetch all bills or bills for a specific customer
+  fetchBills: async (customerId?: string) => {
     set({ loading: true, error: null });
 
     try {
-      const bills = await sanityClient.fetch(queries.bills);
+      let bills;
+      if (customerId) {
+        bills = await sanityClient.fetch(queries.customerBills(customerId));
+      } else {
+        bills = await sanityClient.fetch(queries.bills);
+      }
       set({ bills: bills || [], loading: false });
       console.log("✅ Fetched bills:", bills?.length || 0);
     } catch (error) {
@@ -91,6 +97,25 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
         error: error instanceof Error ? error.message : "Failed to fetch bills",
         loading: false,
       });
+    }
+  },
+
+  // Fetch bills for a specific customer
+  fetchBillsByCustomer: async (customerId: string) => {
+    set({ loading: true, error: null });
+
+    try {
+      const bills = await sanityClient.fetch(queries.customerBills(customerId));
+      set({ bills: bills || [], loading: false });
+      console.log(`✅ Fetched ${bills?.length || 0} bills for customer ${customerId}`);
+      return bills || [];
+    } catch (error) {
+      console.error("❌ Error fetching customer bills:", error);
+      set({
+        error: error instanceof Error ? error.message : "Failed to fetch customer bills",
+        loading: false,
+      });
+      return [];
     }
   },
 

@@ -46,7 +46,7 @@ export function InventoryDashboard({
           <h2 className="text-xl sm:text-2xl font-bold text-white">
             Inventory Dashboard
           </h2>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">
+          <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
             Real-time stock monitoring and management
           </p>
         </div>

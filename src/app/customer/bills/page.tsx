@@ -3,50 +3,40 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
+
 import { BillsList } from "@/components/customer/bills-list";
 import { useCustomerData } from "@/hooks/use-customer-data";
 import { useLocaleStore } from "@/store/locale-store";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import {
-  AlertCircle,
   CheckCircle,
   Clock,
   Download,
   Filter,
   Receipt,
   Search,
+  AlertCircle,
 } from "lucide-react";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import type { Bill as SanityBill } from "@/store/sanity-bill-store";
+import { Modal } from "@/components/ui/modal";
 
 // Customer-specific bill stats component that uses filtered data
 function CustomerBillStats({ bills = [] }: { bills: any[] }) {
   const stats = useMemo(() => {
     const total = bills.length;
     
-    // Count paid and partial bills
-    const paidBills = bills.filter(
-      (bill) => bill.paymentStatus === "paid"
-    );
-    
-    const pendingBills = bills.filter(
-      (bill) => bill.paymentStatus === "pending"
-    );
-
-    const partialBills = bills.filter(
-      (bill) => bill.paymentStatus === "partial"
-    );
-    
-    const overdueBills = bills.filter(
-      (bill) => bill.paymentStatus === "overdue"
-    );
+    // Count bills by status
+    const paidBills = bills.filter((bill) => bill.paymentStatus === "paid");
+    const pendingBills = bills.filter((bill) => bill.paymentStatus === "pending");
+    const partialBills = bills.filter((bill) => bill.paymentStatus === "partial");
+    const overdueBills = bills.filter((bill) => bill.paymentStatus === "overdue");
 
     // Calculate amounts
-    const totalAmount = bills.reduce(
-      (sum, bill) => sum + (bill.totalAmount || 0),
-      0
-    );
+    const totalAmount = bills.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
     
     // Total paid amount (including partial payments)
     const paidAmount = bills.reduce((sum, bill) => {
@@ -94,7 +84,7 @@ function CustomerBillStats({ bills = [] }: { bills: any[] }) {
       title: "Paid Amount",
       value: `₹${stats.paidAmount.toLocaleString()}`,
       subtitle: `${stats.paid} paid`,
-      subtitleColor: "text-green-500",
+      subtitleColor: "text-green-600",
       icon: CheckCircle,
       iconColor: "text-green-500",
       bgColor: "bg-green-500/10",
@@ -193,7 +183,12 @@ const getBillStatusColor = (status: string) => {
   }
 };
 
-const BillItem = ({ bill, onClick }: { bill: any; onClick: (bill: any) => void }) => {
+interface BillItemProps {
+  bill: SanityBill;
+  onClick: (bill: SanityBill) => void;
+}
+
+const BillItem = ({ bill, onClick }: BillItemProps) => {
   const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
   const statusColor = getBillStatusColor(bill.paymentStatus || bill.status);
   
@@ -211,14 +206,31 @@ const BillItem = ({ bill, onClick }: { bill: any; onClick: (bill: any) => void }
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            {new Date(bill.serviceDate || bill._createdAt).toLocaleDateString()}
+            {new Date(bill.serviceDate || bill.createdAt).toLocaleDateString()}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-white font-medium">₹{bill.totalAmount?.toLocaleString()}</p>
+          <p className="text-white font-medium">
+            {new Intl.NumberFormat('en-IN', {
+              style: 'currency',
+              currency: 'INR',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(bill.totalAmount || 0).replace('₹', '₹')}
+          </p>
           <p className="text-xs text-gray-400">
             {bill.paymentStatus === 'partial' 
-              ? `Paid: ₹${bill.paidAmount?.toLocaleString()} of ${bill.totalAmount?.toLocaleString()}`
+              ? `Paid: ${new Intl.NumberFormat('en-IN', {
+                  style: 'currency',
+                  currency: 'INR',
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(bill.paidAmount || 0).replace('₹', '₹')} of ${new Intl.NumberFormat('en-IN', {
+                  style: 'currency',
+                  currency: 'INR',
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }).format(bill.totalAmount || 0).replace('₹', '₹')}`
               : bill.paymentStatus === 'paid' 
                 ? 'Paid in full' 
                 : 'Payment pending'}
@@ -230,29 +242,94 @@ const BillItem = ({ bill, onClick }: { bill: any; onClick: (bill: any) => void }
 };
 
 export default function CustomerBillsPage() {
+  // Hooks must be called unconditionally at the top level
+  const router = useRouter();
   const { t } = useLocaleStore();
+  const { bills: allBills = [], loading: billsLoading } = useSanityBillStore();
+  const { customer, loading: customerLoading, error, refresh } = useCustomerData();
+  
   // State for search and filter
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  
-  // State for bill details modal
   const [showBillModal, setShowBillModal] = useState(false);
-  const [selectedBill, setSelectedBill] = useState<any>(null);
+  const [selectedBill, setSelectedBill] = useState<SanityBill | null>(null);
   
-  // Use our optimized customer data hook
-  const { customer, bills: customerBills, loading, error, refresh } = useCustomerData();
-  const { currency } = useLocaleStore();
+  // Use the Sanity Bill type
+  type Bill = SanityBill;
+
+  // Filter bills based on customer, search and status
+  const customerBills = useMemo(() => {
+    console.log('All bills:', allBills);
+    console.log('Current customer:', customer);
+    
+    if (!customer?._id) {
+      console.log('No customer ID found');
+      return [];
+    }
+    
+    const filtered = allBills.filter((bill: SanityBill) => {
+      if (!bill.customer) {
+        console.log('Bill has no customer:', bill._id);
+        return false;
+      }
+      
+      try {
+        // Handle different customer reference formats
+        if (typeof bill.customer === 'string') {
+          // Direct string ID match
+          const isMatch = bill.customer === customer._id;
+          if (isMatch) {
+            console.log('Matched bill with string customer ID:', bill._id);
+          }
+          return isMatch;
+        } else if (bill.customer._ref) {
+          // Sanity reference object with _ref
+          const isMatch = bill.customer._ref === customer._id;
+          if (isMatch) {
+            console.log('Matched bill with _ref customer ID:', bill._id);
+          }
+          return isMatch;
+        } else if (bill.customer._id) {
+          // Direct _id match (shouldn't normally happen with Sanity)
+          const isMatch = bill.customer._id === customer._id;
+          if (isMatch) {
+            console.log('Matched bill with nested _id:', bill._id);
+          }
+          return isMatch;
+        } else if (typeof bill.customer === 'object' && bill.customer._id) {
+          // Another variation of direct _id match
+          const isMatch = bill.customer._id === customer._id;
+          if (isMatch) {
+            console.log('Matched bill with object _id:', bill._id);
+          }
+          return isMatch;
+        }
+        
+        console.log('Unhandled customer reference type:', bill.customer);
+        return false;
+      } catch (error) {
+        console.error('Error processing bill customer reference:', error, bill);
+        return false;
+      }
+    });
+    
+    console.log('Filtered customer bills:', filtered);
+    return filtered;
+  }, [allBills, customer?._id]);
   
-  // Filter bills based on search and status
   const filteredBills = useMemo(() => {
-    return customerBills.filter(bill => {
+    if (!customerBills.length) return [];
+    
+    return customerBills.filter((bill) => {
+      // Filter by search term
+      const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
-        bill.billNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.items?.some((item: any) => 
-          item.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        bill.billNumber?.toLowerCase().includes(searchLower) ||
+        bill.items?.some(item => 
+          item.productName?.toLowerCase().includes(searchLower)
         );
       
+      // Filter by status
       const matchesStatus = 
         statusFilter === 'all' || 
         bill.paymentStatus?.toLowerCase() === statusFilter.toLowerCase();
@@ -260,16 +337,6 @@ export default function CustomerBillsPage() {
       return matchesSearch && matchesStatus;
     });
   }, [customerBills, searchTerm, statusFilter]);
-  
-  // Format currency
-  const formatCurrency = useCallback((value: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  }, []);
   
   // Get bill status color
   const getBillStatusColor = useCallback((status: string) => {
@@ -306,10 +373,54 @@ export default function CustomerBillsPage() {
   
   // Handle bill download
   const handleDownloadBill = useCallback((bill: any) => {
-    // Implement download functionality
     console.log('Downloading bill:', bill.billNumber);
     // TODO: Implement actual download logic
   }, []);
+  
+  // Show loading state
+  if (customerLoading || billsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-red-500">
+        <AlertCircle className="h-12 w-12 mb-4" />
+        <p className="text-lg font-medium">Error loading bills</p>
+        <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+        <Button 
+          onClick={refresh}
+          className="mt-4"
+          variant="outline"
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+  
+  // Format currency helper function
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const statusOptions = [
+    { value: "all", label: "All Status" },
+    { value: "paid", label: "Paid" },
+    { value: "pending", label: "Pending" },
+    { value: "overdue", label: "Overdue" },
+    { value: "partial", label: "Partially Paid" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -343,13 +454,17 @@ export default function CustomerBillsPage() {
                 />
               </div>
               <div className="flex gap-3">
-                <Dropdown
-                  options={statusOptions}
+                <select
                   value={statusFilter}
-                  onValueChange={setStatusFilter}
-                  placeholder="Filter by status"
-                  className="bg-gray-800 border-gray-700"
-                />
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-[180px] bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
                 <Button variant="outline">
                   <Filter className="w-4 h-4 mr-2" />
                   More Filters
@@ -368,7 +483,7 @@ export default function CustomerBillsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {loading ? (
+            {billsLoading || customerLoading ? (
               <div className="p-8 text-center text-gray-400">
                 Loading bills...
               </div>
