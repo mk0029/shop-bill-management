@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown } from "@/components/ui/dropdown";
-import { FileText, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { motion } from "framer-motion";
+import { FileText } from "lucide-react";
+import { useState } from "react";
 
 interface ItemSelectionSectionProps {
   categories: any[];
@@ -68,14 +70,18 @@ export const ItemSelectionSection = ({
               <motion.div
                 key={category._id}
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenItemModal(category.name.toLowerCase())}
-                  className="w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  disabled={categoryProducts.length === 0}
-                >
+                whileTap={{ scale: 0.98 }}>
+                <div
+                  // variant="outline"
+                  onClick={() => {
+                    if (categoryProducts.length > 0) {
+                      onOpenItemModal(category.name.toLowerCase());
+                    }
+                  }}
+                  className={`w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md ${categoryProducts.length > 0 ? " cursor-pointer" : "cursor-not-allowed"}`}
+                  // disabled={categoryProducts.length === 0}>
+                  aria-disabled>
+                  {" "}
                   <div className="text-left">
                     <p className="font-medium text-white">{category.name}</p>
                     <p className="text-sm text-gray-400">
@@ -85,7 +91,7 @@ export const ItemSelectionSection = ({
                       {categoryProducts.length} items available
                     </p>
                   </div>
-                </Button>
+                </div>
               </motion.div>
             );
           })}

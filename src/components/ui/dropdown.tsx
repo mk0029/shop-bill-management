@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { ChevronDown, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -99,8 +101,7 @@ export function Dropdown({
     <div
       className={cn("relative", className)}
       ref={dropdownRef}
-      onKeyDown={handleKeyDown}
-    >
+      onKeyDown={handleKeyDown}>
       <Button
         type="button"
         variant="outline"
@@ -109,13 +110,11 @@ export function Dropdown({
         className={cn(
           " w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation max-md:px-2",
           sizeClasses[size]
-        )}
-      >
+        )}>
         <span
           className={`leading-none ${
             selectedOption ? "text-white" : "text-gray-400"
-          }`}
-        >
+          }`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
@@ -162,8 +161,7 @@ export function Dropdown({
                       : "text-white hover:bg-gray-700 cursor-pointer",
                     option.value === value &&
                       "bg-blue-600 text-white hover:bg-blue-700"
-                  )}
-                >
+                  )}>
                   <span>{option.label}</span>
                   {option.value === value && <Check className="h-4 w-4" />}
                 </button>

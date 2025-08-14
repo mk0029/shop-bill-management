@@ -1,6 +1,11 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Save } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { DollarSign, Save, CreditCard, Wallet } from "lucide-react";
 import { useLocaleStore } from "@/store/locale-store";
 
 interface BillSummarySidebarProps {
@@ -8,6 +13,13 @@ interface BillSummarySidebarProps {
   selectedItems: any[];
   formData: any;
   calculateTotal: () => number;
+  calculateGrandTotal: () => number;
+  getPaymentDetails: () => {
+    paymentStatus: "pending" | "partial" | "paid";
+    paidAmount: number;
+    balanceAmount: number;
+  };
+  onInputChange: (field: string, value: unknown) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
 }
@@ -17,6 +29,9 @@ export const BillSummarySidebar = ({
   selectedItems,
   formData,
   calculateTotal,
+  calculateGrandTotal,
+  getPaymentDetails,
+  onInputChange,
   onSubmit,
   isLoading,
 }: BillSummarySidebarProps) => {
@@ -27,7 +42,8 @@ export const BillSummarySidebar = ({
     Number(formData.repairCharges || 0) +
     Number(formData.homeVisitFee || 0) +
     Number(formData.laborCharges || 0);
-  const grandTotal = itemsTotal + additionalCharges;
+  const grandTotal = calculateGrandTotal();
+  const paymentDetails = getPaymentDetails();
 
   return (
     <Card className="bg-gray-900 border-gray-800 sticky top-6">
@@ -100,6 +116,114 @@ export const BillSummarySidebar = ({
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Payment Controls */}
+        <div className="space-y-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+          <h4 className="font-medium text-white flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            Payment Options
+          </h4>
+
+          {/* Mark as Paid Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-green-400" />
+              <Label htmlFor="mark-paid" className="text-sm text-gray-300">
+                Mark as Paid
+              </Label>
+            </div>
+            <Switch
+              id="mark-paid"
+              checked={formData.isMarkAsPaid}
+              onCheckedChange={(checked) =>
+                onInputChange("isMarkAsPaid", checked)
+              }
+            />
+          </div>
+
+          {/* Partial Payment Toggle */}
+          {!formData.isMarkAsPaid && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="partial-payment"
+                  className="text-sm text-gray-300">
+                  Enable Partial Payment
+                </Label>
+                <Switch
+                  id="partial-payment"
+                  checked={formData.enablePartialPayment}
+                  onCheckedChange={(checked) =>
+                    onInputChange("enablePartialPayment", checked)
+                  }
+                />
+              </div>
+
+              {/* Partial Payment Input */}
+              {formData.enablePartialPayment && (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="partial-amount"
+                    className="text-xs text-gray-400">
+                    Amount Received
+                  </Label>
+                  <Input
+                    id="partial-amount"
+                    type="number"
+                    min="0"
+                    max={grandTotal}
+                    step="0.01"
+                    value={formData.partialPaymentAmount || ""}
+                    onChange={(e) =>
+                      onInputChange("partialPaymentAmount", e.target.value)
+                    }
+                    placeholder="0.00"
+                    className="bg-gray-900 border-gray-600 text-white"
+                  />
+                  {formData.partialPaymentAmount > 0 && (
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Paid:</span>
+                        <span className="text-green-400">
+                          {currency}
+                          {paymentDetails.paidAmount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>Pending:</span>
+                        <span className="text-orange-400">
+                          {currency}
+                          {paymentDetails.balanceAmount.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Payment Status Display */}
+          {(formData.isMarkAsPaid ||
+            (formData.enablePartialPayment &&
+              formData.partialPaymentAmount > 0)) && (
+            <div className="p-2 bg-gray-900 rounded border border-gray-600">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">Payment Status:</span>
+                <span
+                  className={`font-medium ${
+                    paymentDetails.paymentStatus === "paid"
+                      ? "text-green-400"
+                      : paymentDetails.paymentStatus === "partial"
+                        ? "text-orange-400"
+                        : "text-gray-400"
+                  }`}>
+                  {paymentDetails.paymentStatus.toUpperCase()}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <Button

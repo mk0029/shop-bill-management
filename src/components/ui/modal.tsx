@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
@@ -31,7 +33,6 @@ export function Modal({
   showCloseButton = true,
   className,
 }: ModalProps) {
- 
   React.useEffect(() => {
     if (isOpen) {
       document.documentElement.classList.add("overflow-hidden");
@@ -76,10 +77,10 @@ export function Modal({
               {showCloseButton && (
                 <Button
                   variant="ghost"
-                  size="sm"
+                  // size="sm"
                   onClick={onClose}
-                  className="h-8 w-8 p-0 hover:bg-gray-800 touch-manipulation">
-                  <X className="h-4 w-4" />
+                  className="min-h-6 min-w-6 md:min-h-8 md:min-w-8 p-0 hover:bg-gray-800 touch-manipulation">
+                  <X className="min-h-6 min-w-6 md:min-h-8 md:min-w-8" />
                 </Button>
               )}
             </div>

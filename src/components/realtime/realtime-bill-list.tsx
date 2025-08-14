@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -30,7 +31,9 @@ interface Bill {
     phone: string;
   };
   totalAmount: number;
-  paymentStatus: "pending" | "paid" | "overdue";
+  paidAmount?: number;
+  balanceAmount?: number;
+  paymentStatus: "pending" | "paid" | "overdue" | "partial";
   status: "draft" | "confirmed" | "completed";
   serviceType: string;
   serviceDate: string;
@@ -57,7 +60,14 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   searchTerm = "",
   filterStatus = "all",
 }) => {
-  const [bills, setBills] = useState<Bill[]>(initialBills);
+  // Sort initial bills by creation date (newest first)
+  const sortedInitialBills = initialBills.sort((a, b) => {
+    const dateA = new Date(a.createdAt || a.serviceDate || 0);
+    const dateB = new Date(b.createdAt || b.serviceDate || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  const [bills, setBills] = useState<Bill[]>(sortedInitialBills);
   const [newBillIds, setNewBillIds] = useState<Set<string>>(new Set());
 
   // Listen to bill changes
@@ -69,7 +79,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
       if (
         customerId &&
         result?.customer?._ref !== customerId &&
-        result?.customer?._id !== customerId
+        (result?.customer as any)?._id !== customerId
       ) {
         return; // Bill not for this customer
       }
@@ -81,7 +91,9 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
             if (!exists) {
               console.log(
                 "✅ Adding new bill to customer view:",
-                result.billNumber
+                result.billNumber,
+                "Customer:",
+                result.customer?.name || "Unknown"
               );
               if (showNewBillAnimation) {
                 setNewBillIds((prev) => new Set(prev).add(result._id));
@@ -94,7 +106,13 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                   });
                 }, 3000);
               }
-              return [result, ...prev];
+              // Add new bill at the beginning and sort by date
+              const newBills = [result, ...prev];
+              return newBills.sort((a, b) => {
+                const dateA = new Date(a.createdAt || a.serviceDate || 0);
+                const dateB = new Date(b.createdAt || b.serviceDate || 0);
+                return dateB.getTime() - dateA.getTime();
+              });
             }
             return prev;
           });
@@ -102,9 +120,23 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
 
         case "update":
           setBills((prev) =>
-            prev.map((bill) =>
-              bill._id === result._id ? { ...bill, ...result } : bill
-            )
+            prev.map((bill) => {
+              if (bill._id === result._id) {
+                console.log(
+                  "🔄 Updating bill in real-time:",
+                  result.billNumber || result._id,
+                  {
+                    paymentStatus: result.paymentStatus,
+                    paidAmount: result.paidAmount,
+                    balanceAmount: result.balanceAmount,
+                    customer: result.customer?.name || "Unknown",
+                    serviceType: result.serviceType || "Unknown Service",
+                  }
+                );
+                return { ...bill, ...result };
+              }
+              return bill;
+            })
           );
           break;
 
@@ -162,9 +194,14 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
     return matchesSearch && matchesStatus;
   });
 
-  const displayBills = maxItems
-    ? filteredBills.slice(0, maxItems)
-    : filteredBills;
+  // Sort bills by creation date (newest first)
+  const sortedBills = filteredBills.sort((a, b) => {
+    const dateA = new Date(a.createdAt || a.serviceDate || 0);
+    const dateB = new Date(b.createdAt || b.serviceDate || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  const displayBills = maxItems ? sortedBills.slice(0, maxItems) : sortedBills;
 
   return (
     <div className="space-y-4">
@@ -186,15 +223,13 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}
-            >
+              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}>
               {isNew && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0 }}
-                  className="absolute -top-2 -right-2 z-10"
-                >
+                  className="absolute -top-2 -right-2 z-10">
                   <Badge className="bg-blue-600 text-white flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     New
@@ -203,18 +238,19 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               )}
 
               <Card className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer">
-                <CardContent className="sm:p-4 p-3">
-                  <div className="flex flex-col gap-y-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                        <StatusIcon className="min-w-6 min-h-6 text-blue-400" />
+                <CardContent className="p-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <StatusIcon className="w-6 h-6 text-blue-400" />
                       </div>
-                      <div>
-                        <h3 className="font-medium text-white">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium text-white truncate">
                           Bill #{bill.billNumber}
                         </h3>
-                        <p className="text-sm text-gray-400">
-                          {bill.customer?.name} • {bill.serviceType}
+                        <p className="text-sm text-gray-400 truncate">
+                          {bill.customer?.name || "Unknown Customer"} •{" "}
+                          {bill.serviceType || "Service"}
                         </p>
                         <p className="text-sm text-gray-400">
                           {bill.serviceDate
@@ -224,35 +260,46 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-end sm:items-center max-sm:justify-between gap-4">
-                      <div className="sm:text-right">
-                        <p className="font-semibold text-white">
-                          ₹{bill.totalAmount?.toLocaleString() || 0}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6">
+                      <div className="text-left sm:text-right">
+                        <p className="font-semibold text-white text-lg">
+                          ₹
+                          {(bill.paymentStatus === "partial"
+                            ? bill.balanceAmount ||
+                              bill.totalAmount - (bill.paidAmount || 0)
+                            : bill.totalAmount
+                          )?.toLocaleString() || 0}
                         </p>
-                        <Badge
-                          className={getStatusColor(
-                            bill.paymentStatus || bill.status
-                          )}
-                        >
-                          {bill.paymentStatus || bill.status}
-                        </Badge>
+                        <div className="flex flex-col sm:items-end gap-1 mt-1">
+                          {bill.paymentStatus === "partial" &&
+                            bill.paidAmount &&
+                            bill.paidAmount > 0 && (
+                              <p className="text-xs text-gray-300">
+                                ₹{bill.paidAmount.toLocaleString()} paid
+                              </p>
+                            )}
+                          <Badge
+                            className={getStatusColor(
+                              bill.paymentStatus || bill.status
+                            )}>
+                            {bill.paymentStatus || bill.status}
+                          </Badge>
+                        </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => onBillClick?.(bill)}
-                          className="!w-full !py-1.5"
-                        >
+                          className="flex-1 sm:flex-none">
                           <Eye className="w-4 h-4 mr-2" />
                           View
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="!w-full !py-1.5"
-                        >
+                          className="flex-1 sm:flex-none">
                           <Download className="w-4 h-4 mr-2" />
                           PDF
                         </Button>
@@ -296,18 +343,21 @@ export const RealtimeBillStats: React.FC<{
     pendingAmount: 0,
   });
 
-  // Use bills from the store instead of local state
+  // Use bills from the store, fallback to initialBills if store is empty
   const { bills: storeBills } = useSanityBillStore();
+
+  // Use store bills if available, otherwise use initialBills
+  const allBills = storeBills.length > 0 ? storeBills : initialBills;
 
   // Filter bills by customer if specified
   const bills = customerId
-    ? storeBills.filter(
+    ? allBills.filter(
         (bill) =>
           bill.customer === customerId ||
           (bill.customer as any)?._ref === customerId ||
-          (bill.customer as any)?._id === customerId
+          (bill.customer as unknown)?._id === customerId
       )
-    : storeBills;
+    : allBills;
 
   // Recalculate stats when bills change
   useEffect(() => {
@@ -323,13 +373,23 @@ export const RealtimeBillStats: React.FC<{
             acc.paidAmount += bill.totalAmount || 0;
             break;
           case "pending":
-          case "partial":
             acc.pending += 1;
             acc.pendingAmount += bill.totalAmount || 0;
             break;
+          case "partial":
+            acc.pending += 1;
+            acc.paidAmount += bill.paidAmount || 0;
+            acc.pendingAmount +=
+              bill.balanceAmount ||
+              bill.totalAmount - (bill.paidAmount || 0) ||
+              0;
+            break;
           case "overdue":
             acc.overdue += 1;
-            acc.pendingAmount += bill.totalAmount || 0;
+            acc.pendingAmount +=
+              bill.balanceAmount ||
+              bill.totalAmount - (bill.paidAmount || 0) ||
+              0;
             break;
         }
 
@@ -346,78 +406,86 @@ export const RealtimeBillStats: React.FC<{
       }
     );
 
+    console.log("📊 Stats updated in real-time:", newStats);
     setStats(newStats);
   }, [bills]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <motion.div
-        key={stats.totalAmount}
+        key="total-amount-card"
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}
-      >
+        transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">
+              <div className="min-w-0 flex-1">
+                <p className="text-gray-400 text-sm font-medium">
                   Total Amount
                 </p>
-                <p className="text-xl md:text-2xl font-bold text-white sm:mt-1">
+                <p className="text-xl lg:text-2xl font-bold text-white mt-1 truncate">
                   ₹{stats.totalAmount.toLocaleString()}
                 </p>
               </div>
-              <Receipt className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
+              <Receipt className="w-8 h-8 text-blue-400 flex-shrink-0 ml-2" />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <motion.div
+        key="paid-amount-card"
+        initial={{ scale: 1 }}
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 0.3 }}>
+        <Card className="bg-gray-900 border-gray-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-gray-400 text-sm font-medium">Paid Amount</p>
+                <p className="text-xl lg:text-2xl font-bold text-green-400 mt-1 truncate">
+                  ₹{stats.paidAmount.toLocaleString()}
+                </p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-400 flex-shrink-0 ml-2" />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <motion.div
+        key="pending-amount-card"
+        initial={{ scale: 1 }}
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 0.3 }}>
+        <Card className="bg-gray-900 border-gray-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-gray-400 text-sm font-medium">
+                  Pending Amount
+                </p>
+                <p className="text-xl lg:text-2xl font-bold text-orange-400 mt-1 truncate">
+                  ₹{stats.pendingAmount.toLocaleString()}
+                </p>
+              </div>
+              <Clock className="w-8 h-8 text-orange-400 flex-shrink-0 ml-2" />
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent>
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Paid Bills
-              </p>
-              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-green-400 mt-1">
-                {stats.paid}
-              </p>
-            </div>
-            <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-400" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Pending
-              </p>
-              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-yellow-400 mt-1">
-                {stats.pending}
-              </p>
-            </div>
-            <Clock className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-400" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">
-                Overdue
-              </p>
-              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-red-400 mt-1">
+            <div className="min-w-0 flex-1">
+              <p className="text-gray-400 text-sm font-medium">Overdue</p>
+              <p className="text-xl lg:text-2xl font-bold text-red-400 mt-1">
                 {stats.overdue}
               </p>
             </div>
-            <AlertCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400" />
+            <AlertCircle className="w-8 h-8 text-red-400 flex-shrink-0 ml-2" />
           </div>
         </CardContent>
       </Card>

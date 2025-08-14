@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -23,6 +23,9 @@ import { RewindingKitForm } from "@/components/billing/RewindingKitForm";
 
 export default function CreateBillPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preSelectedCustomerId = searchParams.get("customerId");
+
   const { customers, isLoading: customersLoading } = useCustomers();
   const { activeProducts, isLoading: productsLoading } = useProducts();
   const { brands } = useBrands();
@@ -41,6 +44,8 @@ export default function CreateBillPage() {
     updateItemQuantity,
     removeItem,
     calculateTotal,
+    calculateGrandTotal,
+    getPaymentDetails,
     handleSubmit,
     handleSuccessClose,
     setShowAlertModal,
@@ -58,6 +63,21 @@ export default function CreateBillPage() {
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
   const filteredItems = filterItemsBySpecifications(activeProducts);
   const [showRewindingForm, setShowRewindingForm] = useState(false);
+
+  // Pre-select customer if customerId is provided in URL
+  useEffect(() => {
+    if (preSelectedCustomerId && customers.length > 0 && !formData.customerId) {
+      const customer = customers.find((c) => c._id === preSelectedCustomerId);
+      if (customer) {
+        handleInputChange("customerId", preSelectedCustomerId);
+      }
+    }
+  }, [
+    preSelectedCustomerId,
+    customers,
+    formData.customerId,
+    handleInputChange,
+  ]);
 
   return (
     <div className="space-y-6 max-md:pb-4">
@@ -91,8 +111,7 @@ export default function CreateBillPage() {
             <Button
               variant="outline"
               onClick={() => setShowRewindingForm(true)}
-              className="w-full"
-            >
+              className="w-full">
               Add Rewinding Service/Item
             </Button>
           )}
@@ -107,8 +126,7 @@ export default function CreateBillPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowRewindingForm(false)}
-                  className="text-gray-400 hover:text-white"
-                >
+                  className="text-gray-400 hover:text-white">
                   <XIcon />
                 </Button>
               </div>
@@ -150,6 +168,9 @@ export default function CreateBillPage() {
           selectedItems={selectedItems}
           formData={formData}
           calculateTotal={calculateTotal}
+          calculateGrandTotal={calculateGrandTotal}
+          getPaymentDetails={getPaymentDetails}
+          onInputChange={handleInputChange}
           onSubmit={handleSubmit}
           isLoading={isLoading}
         />

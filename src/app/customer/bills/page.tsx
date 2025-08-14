@@ -1,35 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dropdown } from "@/components/ui/dropdown";
-import { Modal } from "@/components/ui/modal";
-import { Badge } from "@/components/ui/badge";
-import { useLocaleStore } from "@/store/locale-store";
-import { useAuthStore } from "@/store/auth-store";
-import { useBills } from "@/hooks/use-sanity-data";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
+import { RealtimeBillList } from "@/components/realtime/realtime-bill-list";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dropdown } from "@/components/ui/dropdown";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { useAuthStore } from "@/store/auth-store";
+import { useLocaleStore } from "@/store/locale-store";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import {
-  RealtimeBillList,
-  RealtimeBillStats,
-} from "@/components/realtime/realtime-bill-list";
-import {
-  Search,
-  Filter,
-  Eye,
-  Download,
-  Calendar,
-  DollarSign,
-  Receipt,
-  Clock,
-  CheckCircle,
   AlertCircle,
+  CheckCircle,
+  Clock,
+  Download,
+  Filter,
+  Receipt,
+  Search,
 } from "lucide-react";
+import React, { useState } from "react";
 
 // Customer-specific bill stats component that uses filtered data
 function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
@@ -49,9 +40,14 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
       (sum, bill) => sum + (bill.totalAmount || 0),
       0
     );
-    const paidAmount = customerBills
-      .filter((bill) => bill.paymentStatus === "paid")
-      .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+    const paidAmount = customerBills.reduce((sum, bill) => {
+      if (bill.paymentStatus === "paid") {
+        return sum + (bill.totalAmount || 0);
+      } else if (bill.paymentStatus === "partial") {
+        return sum + (bill.paidAmount || 0);
+      }
+      return sum;
+    }, 0);
     const pendingAmount = customerBills
       .filter((bill) => bill.paymentStatus === "pending")
       .reduce(

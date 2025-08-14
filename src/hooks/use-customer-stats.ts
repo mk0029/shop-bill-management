@@ -12,9 +12,14 @@ export function useCustomerStats() {
         (bill) => bill.customer?._id === customer._id
       );
       const totalBills = customerBills.length;
-      const totalSpent = customerBills
-        .filter((bill) => bill.paymentStatus === "pending")
-        .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+      const totalSpent = customerBills.reduce((sum, bill) => {
+        if (bill.paymentStatus === "paid") {
+          return sum + (bill.totalAmount || 0);
+        } else if (bill.paymentStatus === "partial") {
+          return sum + (bill.paidAmount || 0);
+        }
+        return sum;
+      }, 0);
       const lastBill = customerBills.sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

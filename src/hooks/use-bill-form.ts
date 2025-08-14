@@ -12,6 +12,10 @@ export interface BillFormData {
   repairCharges: number;
   homeVisitFee: number;
   laborCharges: number;
+  // Payment Fields
+  isMarkAsPaid: boolean;
+  enablePartialPayment: boolean;
+  partialPaymentAmount: number;
   // Rewinding Kit Fields
   kitName?: string;
   kitBoreSize?: number;
@@ -56,6 +60,9 @@ export const useBillForm = () => {
     repairCharges: 0,
     homeVisitFee: 0,
     laborCharges: 0,
+    isMarkAsPaid: false,
+    enablePartialPayment: false,
+    partialPaymentAmount: 0,
     kitName: "",
     kitBoreSize: 0,
     kitSizeInInches: 0,
@@ -72,13 +79,30 @@ export const useBillForm = () => {
       "repairCharges",
       "homeVisitFee",
       "laborCharges",
+      "partialPaymentAmount",
       "kitBoreSize",
       "kitSizeInInches",
       "priceDifference",
       "windingRate",
     ];
+
     if (numericFields.includes(field)) {
       setFormData((prev) => ({ ...prev, [field]: Number(value) || 0 }));
+    } else if (field === "isMarkAsPaid" && value) {
+      // When marking as paid, disable partial payment
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+        enablePartialPayment: false,
+        partialPaymentAmount: 0,
+      }));
+    } else if (field === "enablePartialPayment" && value) {
+      // When enabling partial payment, disable mark as paid
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+        isMarkAsPaid: false,
+      }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
@@ -234,6 +258,45 @@ export const useBillForm = () => {
     return selectedItems.reduce((sum, item) => sum + Number(item.total), 0);
   };
 
+  const calculateGrandTotal = () => {
+    const itemsTotal = calculateTotal();
+    const additionalCharges =
+      Number(formData.repairCharges || 0) +
+      Number(formData.homeVisitFee || 0) +
+      Number(formData.laborCharges || 0);
+    return itemsTotal + additionalCharges;
+  };
+
+  const getPaymentDetails = () => {
+    const grandTotal = calculateGrandTotal();
+
+    if (formData.isMarkAsPaid) {
+      return {
+        paymentStatus: "paid" as const,
+        paidAmount: grandTotal,
+        balanceAmount: 0,
+      };
+    } else if (
+      formData.enablePartialPayment &&
+      formData.partialPaymentAmount > 0
+    ) {
+      const paidAmount = Math.min(formData.partialPaymentAmount, grandTotal);
+      const balanceAmount = grandTotal - paidAmount;
+      return {
+        paymentStatus:
+          balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
+        paidAmount,
+        balanceAmount,
+      };
+    } else {
+      return {
+        paymentStatus: "pending" as const,
+        paidAmount: 0,
+        balanceAmount: grandTotal,
+      };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedItems.length === 0) {
@@ -245,6 +308,8 @@ export const useBillForm = () => {
     setIsLoading(true);
 
     try {
+      const paymentDetails = getPaymentDetails();
+
       const billData = {
         customerId: formData.customerId,
         items: selectedItems.map((item) => ({
@@ -270,6 +335,10 @@ export const useBillForm = () => {
         repairCharges: Number(formData.repairCharges),
         laborCharges: Number(formData.laborCharges),
         notes: formData.notes,
+        // Payment details
+        paymentStatus: paymentDetails.paymentStatus,
+        paidAmount: paymentDetails.paidAmount,
+        balanceAmount: paymentDetails.balanceAmount,
       };
 
       const result = await createBill(billData);
@@ -305,6 +374,8 @@ export const useBillForm = () => {
     updateItemQuantity,
     removeItem,
     calculateTotal,
+    calculateGrandTotal,
+    getPaymentDetails,
     handleSubmit,
     handleSuccessClose,
     setShowAlertModal,

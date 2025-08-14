@@ -1,3 +1,5 @@
+"use client";
+
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -134,7 +136,6 @@ export const ItemSelectionModal = ({
             filteredItems.map((product) => (
               <motion.div
                 key={product._id}
-                whileHover={{ scale: 1.01 }}
                 className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -146,10 +147,39 @@ export const ItemSelectionModal = ({
                         {product.inventory.currentStock} in stock
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-sm text-gray-200 capitalize">
                       {Object.entries(product.specifications || {})
-                        .filter(([_, value]) => value)
-                        .map(([key, value]) => `${key}: ${value}`)
+                        .filter(
+                          ([_, value]) =>
+                            value !== undefined &&
+                            value !== null &&
+                            value !== ""
+                        )
+                        .map(([key, value]) => {
+                          // 1️⃣ Format camelCase / PascalCase into spaced words
+                          let formattedKey = key.replace(
+                            /([a-z])([A-Z])/g,
+                            "$1 $2"
+                          );
+
+                          // 2️⃣ Split into words, remove "is", capitalize each
+                          formattedKey = formattedKey
+                            .split(" ")
+                            .filter((word) => word.toLowerCase() !== "is")
+                            .map(
+                              (word) =>
+                                word.charAt(0).toUpperCase() + word.slice(1)
+                            )
+                            .join(" ");
+
+                          // 3️⃣ Convert boolean strings to Yes/No
+                          if (String(value).toLowerCase() === "true")
+                            value = "Yes";
+                          else if (String(value).toLowerCase() === "false")
+                            value = "No";
+
+                          return `${formattedKey}: ${value}`;
+                        })
                         .join(", ")}
                     </p>
                   </div>
@@ -164,7 +194,7 @@ export const ItemSelectionModal = ({
                         onAddItem(product);
                         onClose();
                       }}
-                      className="mt-1 bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                      className="mt-1 bg-blue-600 hover:bg-blue-700 text-white text-xs !py-1">
                       Add
                     </Button>
                   </div>

@@ -5,28 +5,20 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
+import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { Dropdown } from "@/components/ui/dropdown";
 import { BillForm } from "@/components/forms/bill-form";
 import { useLocaleStore } from "@/store/locale-store";
 import { useRouter } from "next/navigation";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
-import { useSeamlessRealtime } from "@/hooks/use-seamless-realtime";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { useSeamlessRealtime } from "@/hooks/use-seamless-realtime";
 import { BillFormData, Customer, Item } from "@/types";
 import {
   RealtimeBillList,
   RealtimeBillStats,
 } from "@/components/realtime/realtime-bill-list";
-import {
-  FileText,
-  Plus,
-  Search,
-  Calculator,
-  User,
-  Download,
-  Share2,
-} from "lucide-react";
+import { FileText, Plus, Search, Calculator } from "lucide-react";
 import { useWhatsAppMessaging } from "@/hooks/use-whatsapp-config";
 import { BillDetails } from "@/lib/whatsapp-utils";
 
@@ -39,9 +31,11 @@ interface BillItem {
 
 interface Bill {
   id: string;
+  _id?: string;
   customerName: string;
   customerId: string;
   date: string;
+  dueDate?: string;
   items: BillItem[];
   serviceType: string;
   locationType: string;
@@ -49,15 +43,18 @@ interface Bill {
   subtotal: number;
   total: number;
   status: string;
+  paymentStatus?: "pending" | "partial" | "paid";
+  paidAmount?: number;
+  balanceAmount?: number;
+  taxAmount?: number;
   notes?: string;
 }
 
 export default function BillingPage() {
-  const { currency } = useLocaleStore();
   const router = useRouter();
-  const { bills, isLoading: billsLoading } = useBills();
-  const { customers, isLoading: customersLoading } = useCustomers();
-  const { products, isLoading: productsLoading } = useProducts();
+  const { bills } = useBills();
+  const { customers } = useCustomers();
+  const { products } = useProducts();
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -112,31 +109,60 @@ export default function BillingPage() {
   // Transform products data - use type assertion to handle structure differences
   const transformedItems: Item[] = products as any;
 
-  const filteredBills = transformedBills.filter((bill) => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch =
-      bill.customerName.toLowerCase().includes(searchLower) ||
-      bill.id.toLowerCase().includes(searchLower) ||
-      bill.date.includes(searchTerm);
-
-    const matchesStatus =
-      filterStatus === "all" || bill.status === filterStatus;
-
-    return matchesSearch && matchesStatus;
-  });
-
   const handleCreateBill = async (billData: BillFormData) => {
     console.log("Creating bill:", billData);
     // TODO: Implement bill creation
     setShowCreateBill(false);
   };
 
-  const handleViewCustomerBills = (customerId: string) => {
-    router.push(`/admin/customers/${customerId}/bills`);
-  };
-
   const handleViewBill = (bill: Bill) => {
     setSelectedBill(bill);
+  };
+
+  const handleDownloadPDF = (bill: any) => {
+    // TODO: Implement PDF download
+    console.log("Download PDF for bill:", bill.id || bill._id);
+  };
+
+  const handleUpdatePayment = async (
+    billId: string,
+    paymentData: {
+      paymentStatus: "pending" | "partial" | "paid";
+      paidAmount: number;
+      balanceAmount: number;
+    }
+  ) => {
+    try {
+      // TODO: Implement payment update API call with actual bill store
+      console.log("Updating payment for bill:", billId, paymentData);
+
+      // Show success notification
+      if (paymentData.paymentStatus === "paid") {
+        console.log("✅ Bill marked as fully paid!");
+      } else {
+        console.log(
+          `✅ Payment of ₹${paymentData.paidAmount.toFixed(2)} recorded successfully!`
+        );
+      }
+
+      // Force immediate UI update by updating the selected bill
+      if (
+        selectedBill &&
+        (selectedBill.id === billId || selectedBill._id === billId)
+      ) {
+        setSelectedBill({
+          ...selectedBill,
+          paymentStatus: paymentData.paymentStatus,
+          paidAmount: paymentData.paidAmount,
+          balanceAmount: paymentData.balanceAmount,
+        } as Bill);
+      }
+
+      // The real-time listener will automatically update the bills list and stats
+    } catch (error) {
+      console.error("❌ Error updating payment:", error);
+      throw error;
+    }
   };
 
   const handleShareOnWhatsApp = async (bill: Bill) => {
@@ -227,7 +253,7 @@ export default function BillingPage() {
           <Calculator className="w-5 h-5 text-blue-400" />
           Bill Statistics
         </h2>
-        <RealtimeBillStats initialBills={bills} />
+        <RealtimeBillStats key="billing-stats" initialBills={bills} />
       </div>
 
       {/* Search and Filter */}
@@ -258,12 +284,12 @@ export default function BillingPage() {
 
       {/* Bills List */}
       <Card className="bg-gray-900 border-gray-800">
-        <div className="p-4 md:p-6 max-h-dvh  flex flex-col">
+        <div className="p-4 md:p-6">
           <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            All Bill
+            All Bills
           </h2>
-          <div className="overflow-auto flex grow flex-col">
+          <div className="max-h-[600px] overflow-y-auto">
             <RealtimeBillList
               initialBills={bills}
               searchTerm={searchTerm}
@@ -271,6 +297,7 @@ export default function BillingPage() {
               onBillClick={(bill) =>
                 handleViewBill({
                   id: bill._id,
+                  _id: bill._id,
                   customerName: bill.customer?.name || "Unknown Customer",
                   customerId: bill.customer?._id || bill.customer?._ref || "",
                   date: bill.serviceDate
@@ -289,6 +316,9 @@ export default function BillingPage() {
                   subtotal: bill.subtotal || 0,
                   total: bill.totalAmount || 0,
                   status: bill.paymentStatus === "paid" ? "paid" : "pending",
+                  paymentStatus: bill.paymentStatus,
+                  paidAmount: bill.paidAmount,
+                  balanceAmount: bill.balanceAmount,
                   notes: bill.notes,
                 })
               }
@@ -308,104 +338,16 @@ export default function BillingPage() {
       />
 
       {/* Bill Detail Modal */}
-      <Modal
+      <BillDetailModal
         isOpen={!!selectedBill}
         onClose={() => setSelectedBill(null)}
-        title={`Bill Details #${selectedBill?.id}`}
-        size="lg">
-        {selectedBill && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-gray-800 rounded border border-gray-700">
-                <p className="text-sm text-gray-400">Customer</p>
-                <p className="text-white">{selectedBill.customerName}</p>
-              </div>
-              <div className="p-3 bg-gray-800 rounded border border-gray-700">
-                <p className="text-sm text-gray-400">Date</p>
-                <p className="text-white">{selectedBill.date}</p>
-              </div>
-              <div className="p-3 bg-gray-800 rounded border border-gray-700">
-                <p className="text-sm text-gray-400">Service Type</p>
-                <p className="text-white capitalize">
-                  {selectedBill.serviceType}
-                </p>
-              </div>
-              <div className="p-3 bg-gray-800 rounded border border-gray-700">
-                <p className="text-sm text-gray-400">Location</p>
-                <p className="text-white">
-                  {selectedBill.locationType === "home"
-                    ? "Home Service"
-                    : "Shop Service"}
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-400 mb-3">Items</p>
-              <div className="space-y-2">
-                {selectedBill.items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between p-3 bg-gray-800 rounded border border-gray-700">
-                    <div>
-                      <p className="text-white">{item.name}</p>
-                      <p className="text-sm text-gray-400">
-                        Qty: {item.quantity} × {currency}
-                        {item.price}
-                      </p>
-                    </div>
-                    <p className="text-white font-medium">
-                      {currency}
-                      {item.total.toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-                {selectedBill.homeVisitFee > 0 && (
-                  <div className="flex justify-between p-3 bg-gray-800 rounded border border-gray-700">
-                    <p className="text-white">Home Visit Fee</p>
-                    <p className="text-white font-medium">
-                      {currency}
-                      {selectedBill.homeVisitFee.toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="border-t border-gray-800 pt-4">
-              <div className="flex justify-between text-lg font-bold text-white">
-                <span>Total Amount</span>
-                <span>
-                  {currency}
-                  {selectedBill.total.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <Button
-                className="flex-1"
-                onClick={() =>
-                  handleViewCustomerBills(selectedBill.customerId)
-                }>
-                <User className="w-4 h-4 mr-2" />
-                <span className="max-sm:hidden">See All Bills</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => handleShareOnWhatsApp(selectedBill)}>
-                <Share2 className="w-4 h-4 mr-2" />
-                <span className="max-sm:hidden">Share on WhatsApp</span>
-              </Button>
-              <Button variant="outline" className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                <span className="max-sm:hidden">Download Bill</span>
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        bill={selectedBill}
+        onDownloadPDF={handleDownloadPDF}
+        onShare={handleShareOnWhatsApp}
+        onUpdatePayment={handleUpdatePayment}
+        showShareButton={true}
+        showPaymentControls={true}
+      />
     </div>
   );
 }

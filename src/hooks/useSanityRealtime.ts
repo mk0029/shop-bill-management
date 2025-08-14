@@ -275,9 +275,14 @@ export const useSanityStats = () => {
       pending: data.bills.filter(
         (b) => b.status === "draft" || b.status === "confirmed"
       ).length,
-      totalRevenue: data.bills
-        .filter((b) => b.paymentStatus === "paid")
-        .reduce((sum, bill) => sum + bill.totalAmount, 0),
+      totalRevenue: data.bills.reduce((sum, bill) => {
+        if (bill.paymentStatus === "paid") {
+          return sum + bill.totalAmount;
+        } else if (bill.paymentStatus === "partial") {
+          return sum + (bill.paidAmount || 0);
+        }
+        return sum;
+      }, 0),
     },
   };
 };

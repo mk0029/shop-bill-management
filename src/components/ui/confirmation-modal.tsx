@@ -1,3 +1,5 @@
+"use client";
+
 import { Modal } from "./modal";
 import { Button } from "./button";
 import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
@@ -74,8 +76,7 @@ export function ConfirmationModal({
               onConfirm();
               onClose();
             }}
-            className="flex-1"
-          >
+            className="flex-1">
             {type === "confirm" ? confirmText : "OK"}
           </Button>
         </div>

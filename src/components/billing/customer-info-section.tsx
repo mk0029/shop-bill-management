@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,8 +61,8 @@ export const CustomerInfoSection = ({
                 customersLoading
                   ? "Loading customers..."
                   : customers.length === 0
-                  ? "No customers found"
-                  : "Choose customer"
+                    ? "No customers found"
+                    : "Choose customer"
               }
               searchable={true}
               searchPlaceholder="Search customers..."
@@ -74,8 +76,7 @@ export const CustomerInfoSection = ({
                   variant="link"
                   size="sm"
                   onClick={() => router.push("/admin/customers/add")}
-                  className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs"
-                >
+                  className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs">
                   Add your first customer →
                 </Button>
               </div>

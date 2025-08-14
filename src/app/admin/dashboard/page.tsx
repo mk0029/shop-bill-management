@@ -102,7 +102,7 @@ export default function AdminDashboard() {
             <h2 className="text-xl font-semibold text-white mb-4">
               Bill Analytics
             </h2>
-            <RealtimeBillStats />
+            <RealtimeBillStats key="dashboard-stats" />
           </div>
 
           {/* Real-time Inventory Stats */}
@@ -129,8 +129,7 @@ export default function AdminDashboard() {
                     <Link
                       href={action.url}
                       key={index}
-                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}
-                    >
+                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}>
                       <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                       <div>
                         <h3 className="font-medium text-white">

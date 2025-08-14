@@ -343,12 +343,14 @@ export class RealtimeApiService {
           pending: bills.filter((b: any) => b.paymentStatus === "pending")
             .length,
           paid: bills.filter((b: any) => b.paymentStatus === "paid").length,
-          totalRevenue: bills
-            .filter((b: any) => b.paymentStatus === "paid")
-            .reduce(
-              (sum: number, bill: any) => sum + (bill.totalAmount || 0),
-              0
-            ),
+          totalRevenue: bills.reduce((sum: number, bill: any) => {
+            if (bill.paymentStatus === "paid") {
+              return sum + (bill.totalAmount || 0);
+            } else if (bill.paymentStatus === "partial") {
+              return sum + (bill.paidAmount || 0);
+            }
+            return sum;
+          }, 0),
         },
         users: {
           total: users.length,

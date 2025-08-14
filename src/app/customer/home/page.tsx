@@ -50,9 +50,14 @@ function CustomerBillStats({ customerBills }: { customerBills: any[] }) {
       (sum, bill) => sum + (bill.totalAmount || 0),
       0
     );
-    const paidAmount = customerBills
-      .filter((bill) => bill.paymentStatus === "paid")
-      .reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+    const paidAmount = customerBills.reduce((sum, bill) => {
+      if (bill.paymentStatus === "paid") {
+        return sum + (bill.totalAmount || 0);
+      } else if (bill.paymentStatus === "partial") {
+        return sum + (bill.paidAmount || 0);
+      }
+      return sum;
+    }, 0);
     const pendingAmount = customerBills
       .filter((bill) => bill.paymentStatus === "pending")
       .reduce(

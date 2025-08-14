@@ -137,9 +137,14 @@ export const useBillsHistory = () => {
       (sum, bill) => sum + getTotalAmount(bill),
       0
     );
-    const paidAmount = sortedBills
-      .filter((bill) => bill.paymentStatus === "paid")
-      .reduce((sum, bill) => sum + getTotalAmount(bill), 0);
+    const paidAmount = sortedBills.reduce((sum, bill) => {
+      if (bill.paymentStatus === "paid") {
+        return sum + getTotalAmount(bill);
+      } else if (bill.paymentStatus === "partial") {
+        return sum + (bill.paidAmount || 0);
+      }
+      return sum;
+    }, 0);
     const pendingAmount = sortedBills
       .filter((bill) => bill.paymentStatus === "pending")
       .reduce((sum, bill) => sum + getTotalAmount(bill), 0);

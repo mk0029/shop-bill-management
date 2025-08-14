@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Modal } from "@/components/ui/modal";
+import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import {
   Search,
   Filter,
@@ -23,6 +23,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { useBills } from "@/hooks/use-sanity-data";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { useWhatsAppMessaging } from "@/hooks/use-whatsapp-config";
 import { BillDetails } from "@/lib/whatsapp-utils";
 
@@ -52,6 +53,7 @@ export default function PendingBillsPage() {
   const router = useRouter();
   const { currency } = useLocaleStore();
   const { bills, isLoading } = useBills();
+  const { updateBill } = useSanityBillStore();
   const [searchTerm, setSearchTerm] = useState("");
   const { sendBillMessage, isConfigured } = useWhatsAppMessaging();
   const [statusFilter, setStatusFilter] = useState("all");
@@ -111,6 +113,42 @@ export default function PendingBillsPage() {
   const handleViewBill = (bill: Bill) => {
     setSelectedBill(bill);
     setShowBillModal(true);
+  };
+
+  const handleDownloadPDF = (bill: any) => {
+    // TODO: Implement PDF download
+    console.log("Download PDF for bill:", bill.billNumber || bill._id);
+  };
+
+  const handleShareBill = (bill: any) => {
+    // TODO: Implement bill sharing
+    console.log("Share bill:", bill.billNumber || bill._id);
+  };
+
+  const handleUpdatePayment = async (
+    billId: string,
+    paymentData: {
+      paymentStatus: "pending" | "partial" | "paid";
+      paidAmount: number;
+      balanceAmount: number;
+    }
+  ) => {
+    try {
+      const success = await updateBill(billId, {
+        paymentStatus: paymentData.paymentStatus,
+        paidAmount: paymentData.paidAmount,
+        balanceAmount: paymentData.balanceAmount,
+      });
+
+      if (success) {
+        console.log("✅ Payment updated successfully");
+      } else {
+        throw new Error("Failed to update payment");
+      }
+    } catch (error) {
+      console.error("❌ Error updating payment:", error);
+      throw error;
+    }
   };
 
   const handleShareOnWhatsApp = async (bill: Bill) => {
@@ -393,106 +431,16 @@ export default function PendingBillsPage() {
       )}
 
       {/* Bill Details Modal */}
-      <Modal
+      <BillDetailModal
         isOpen={showBillModal}
         onClose={() => setShowBillModal(false)}
-        size="lg"
-        title={`Bill Details - ${selectedBill?.billNumber}`}>
-        {selectedBill && (
-          <div className="space-y-6">
-            {/* Customer Info */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3">
-                Customer Information
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-400">Name</p>
-                  <p className="text-white">{selectedBill.customerName}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Phone</p>
-                  <p className="text-white">{selectedBill.customerPhone}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Bill Date</p>
-                  <p className="text-white">{selectedBill.billDate}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Due Date</p>
-                  <p className="text-white">{selectedBill.dueDate}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Items */}
-            <div>
-              <h4 className="font-medium text-white mb-3">Items</h4>
-              <div className="space-y-2">
-                {selectedBill.items.map((item, index: number) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
-                    <div className="flex-1">
-                      <p className="text-white font-medium">{item.name}</p>
-                      <p className="text-gray-400 text-sm">
-                        Qty: {item.quantity} × {currency}
-                        {item.price}
-                      </p>
-                    </div>
-                    <p className="text-white font-semibold">
-                      {currency}
-                      {item.total}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Summary */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3">Summary</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Subtotal</span>
-                  <span className="text-white">
-                    {currency}
-                    {selectedBill.subtotal}
-                  </span>
-                </div>
-                <div className="flex justify-between font-semibold text-lg">
-                  <span className="text-white">Total</span>
-                  <span className="text-white">
-                    {currency}
-                    {selectedBill.total}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {selectedBill.notes && (
-              <div>
-                <h4 className="font-medium text-white mb-2">Notes</h4>
-                <p className="text-gray-400 bg-gray-800 p-3 rounded-lg">
-                  {selectedBill.notes}
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <Button
-                onClick={() => handleShareOnWhatsApp(selectedBill)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
-                <Share2 className="w-4 h-4" />
-                Share on WhatsApp
-              </Button>
-              <Button variant="outline" onClick={() => setShowBillModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        bill={selectedBill}
+        onDownloadPDF={handleDownloadPDF}
+        onShare={handleShareBill}
+        onUpdatePayment={handleUpdatePayment}
+        showShareButton={true}
+        showPaymentControls={true}
+      />
     </div>
   );
 }

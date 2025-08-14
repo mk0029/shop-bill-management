@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Modal } from "@/components/ui/modal";
+import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { useBills } from "@/hooks/use-sanity-data";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import {
   ArrowLeft,
   Search,
@@ -45,6 +46,7 @@ export default function BillHistoryPage() {
   const router = useRouter();
   const { t, currency } = useLocaleStore();
   const { bills, isLoading } = useBills();
+  const { updateBill } = useSanityBillStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedBill, setSelectedBill] = useState<any>(null);
@@ -71,8 +73,8 @@ export default function BillHistoryPage() {
       bill.paymentStatus === "paid"
         ? "paid"
         : bill.paymentStatus === "pending"
-        ? "pending"
-        : "overdue",
+          ? "pending"
+          : "overdue",
     items:
       bill.items?.map((item) => ({
         name: item.productName || "Unknown Item",
@@ -112,6 +114,42 @@ export default function BillHistoryPage() {
   const viewBillDetails = (bill: any) => {
     setSelectedBill(bill);
     setShowBillModal(true);
+  };
+
+  const handleDownloadPDF = (bill: any) => {
+    // TODO: Implement PDF download
+    console.log("Download PDF for bill:", bill.id || bill._id);
+  };
+
+  const handleShareBill = (bill: any) => {
+    // TODO: Implement bill sharing
+    console.log("Share bill:", bill.id || bill._id);
+  };
+
+  const handleUpdatePayment = async (
+    billId: string,
+    paymentData: {
+      paymentStatus: "pending" | "partial" | "paid";
+      paidAmount: number;
+      balanceAmount: number;
+    }
+  ) => {
+    try {
+      const success = await updateBill(billId, {
+        paymentStatus: paymentData.paymentStatus,
+        paidAmount: paymentData.paidAmount,
+        balanceAmount: paymentData.balanceAmount,
+      });
+
+      if (success) {
+        console.log("✅ Payment updated successfully");
+      } else {
+        throw new Error("Failed to update payment");
+      }
+    } catch (error) {
+      console.error("❌ Error updating payment:", error);
+      throw error;
+    }
   };
 
   return (
@@ -308,99 +346,16 @@ export default function BillHistoryPage() {
       </Card>
 
       {/* Bill Details Modal */}
-      <Modal
+      <BillDetailModal
         isOpen={showBillModal}
         onClose={() => setShowBillModal(false)}
-        size="lg"
-        title={`Bill #${selectedBill?.id} - ${selectedBill?.customerName}`}>
-        {selectedBill && (
-          <div className="space-y-6">
-            {/* Customer Info */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3">
-                Customer Information
-              </h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-400">Name</p>
-                  <p className="text-white">{selectedBill.customerName}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Phone</p>
-                  <p className="text-white">{selectedBill.customerPhone}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Bill Date</p>
-                  <p className="text-white">
-                    {new Date(selectedBill.date).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Due Date</p>
-                  <p className="text-white">
-                    {new Date(selectedBill.dueDate).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Bill Items */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3">Bill Items</h4>
-              <div className="space-y-3">
-                {selectedBill.items.map((item: any, index: number) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-                    <div>
-                      <p className="text-white">{item.name}</p>
-                      <p className="text-sm text-gray-400">
-                        {item.quantity} × {currency}
-                        {item.price}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-white">
-                      {currency}
-                      {item.total}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Total */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-white">
-                  Total Amount
-                </span>
-                <span className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {currency}
-                  {selectedBill.amount.toLocaleString()}
-                </span>
-              </div>
-              <div className="mt-2">
-                <span
-                  className={`text-sm px-3 py-1 rounded-full ${getStatusColor(
-                    selectedBill.status
-                  )}`}>
-                  {selectedBill.status}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <Button className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
-              <Button variant="outline" onClick={() => setShowBillModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+        bill={selectedBill}
+        onDownloadPDF={handleDownloadPDF}
+        onShare={handleShareBill}
+        onUpdatePayment={handleUpdatePayment}
+        showShareButton={true}
+        showPaymentControls={true}
+      />
     </div>
   );
 }

@@ -154,9 +154,14 @@ export function useDashboardStats() {
       (b) => b.status === "completed"
     ).length;
 
-    const totalRevenue = billArray
-      .filter((b) => b.paymentStatus === "paid")
-      .reduce((sum, bill) => sum + bill.totalAmount, 0);
+    const totalRevenue = billArray.reduce((sum, bill) => {
+      if (bill.paymentStatus === "paid") {
+        return sum + bill.totalAmount;
+      } else if (bill.paymentStatus === "partial") {
+        return sum + (bill.paidAmount || 0);
+      }
+      return sum;
+    }, 0);
 
     const pendingAmount = billArray
       .filter((b) => b.paymentStatus !== "paid")
