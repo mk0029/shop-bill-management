@@ -251,9 +251,9 @@ export function CustomerNavigation() {
         <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 lg:px-6 lg:py-6">
           <div className="flex items-center justify-between">
             <div className="max-md:hidden">
-              <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+              <h1 className="text-xl font-bold !leading-[120%] text-white">
                 {customerNavigation.find((item) => isActive(item.href))
-                  ?.label || "Customer Portal"}
+                  ?.label || "Home"}
               </h1>
               <p className="text-gray-400">Manage your bills and services</p>
             </div>

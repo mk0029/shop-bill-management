@@ -4,13 +4,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
-import { BillsList } from "@/components/customer/bills-list";
 import { useCustomerData } from "@/hooks/use-customer-data";
-import { useLocaleStore } from "@/store/locale-store";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
-import { useAuthStore } from "@/store/auth-store";
-import { sanityClient } from "@/lib/sanity";
 import {
   CheckCircle,
   Clock,
@@ -21,10 +18,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import type { Bill as SanityBill } from "@/store/sanity-bill-store";
-import { Modal } from "@/components/ui/modal";
 
 // Customer-specific bill stats component that uses filtered data
 function CustomerBillStats({ bills = [] }: { bills: any[] }) {
@@ -153,26 +147,6 @@ function CustomerBillStats({ bills = [] }: { bills: any[] }) {
   );
 }
 
-const statusOptions = [
-  { value: "all", label: "All Status" },
-  { value: "paid", label: "Paid" },
-  { value: "pending", label: "Pending" },
-  { value: "overdue", label: "Overdue" },
-];
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "paid":
-      return "bg-green-900 text-green-300";
-    case "pending":
-      return "bg-yellow-900 text-yellow-300";
-    case "overdue":
-      return "bg-red-900 text-red-300";
-    default:
-      return "bg-gray-900 text-gray-300";
-  }
-};
-
 const getStatusIcon = (status: string) => {
   switch (status) {
     case "paid":
@@ -191,11 +165,11 @@ const getBillStatusColor = (status: string) => {
     case "paid":
       return "bg-green-500/20 text-green-400";
     case "partial":
-      return "bg-yellow-500/20 text-yellow-400";
+      return "bg-yellow-800/20 text-yellow-400";
     case "overdue":
       return "bg-red-500/20 text-red-400";
     default:
-      return "bg-gray-500/20 text-gray-400";
+      return "bg-yellow-500/20 text-gray-400";
   }
 };
 
@@ -205,8 +179,8 @@ interface BillItemProps {
 }
 
 const BillItem = ({ bill, onClick }: BillItemProps) => {
-  const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
   const statusColor = getBillStatusColor(bill.paymentStatus || bill.status);
+  const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
 
   return (
     <div
@@ -215,8 +189,10 @@ const BillItem = ({ bill, onClick }: BillItemProps) => {
       <div className="flex justify-between items-center">
         <div>
           <div className="flex items-center gap-2">
+            <StatusIcon />
             <span className="font-medium text-white">#{bill.billNumber}</span>
-            <span className={`text-xs px-2 py-1 rounded-full ${statusColor}`}>
+            <span
+              className={`text-xs px-2 py-1 rounded-full capitalize ${statusColor}`}>
               {bill.paymentStatus || bill.status}
             </span>
           </div>
@@ -225,37 +201,45 @@ const BillItem = ({ bill, onClick }: BillItemProps) => {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-white font-medium">
+          <p
+            className={` ${bill.totalAmount - bill.paidAmount < 1 ? "text-green-400" : "text-yellow-300"} font-medium`}>
             {new Intl.NumberFormat("en-IN", {
               style: "currency",
               currency: "INR",
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })
-              .format(bill.totalAmount || 0)
+              .format(
+                bill.totalAmount - bill.paidAmount < 1
+                  ? bill.totalAmount
+                  : bill.totalAmount - bill.paidAmount || 0
+              )
               .replace("₹", "₹")}
           </p>
-          <p className="text-xs text-gray-400">
-            {bill.paymentStatus === "partial"
-              ? `Paid: ${new Intl.NumberFormat("en-IN", {
-                  style: "currency",
-                  currency: "INR",
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })
-                  .format(bill.paidAmount || 0)
-                  .replace("₹", "₹")} of ${new Intl.NumberFormat("en-IN", {
-                  style: "currency",
-                  currency: "INR",
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })
-                  .format(bill.totalAmount || 0)
-                  .replace("₹", "₹")}`
-              : bill.paymentStatus === "paid"
-                ? "Paid in full"
+          {bill.paymentStatus === "paid" ? (
+            <span className="inline-block bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+              Paid
+            </span>
+          ) : (
+            <p className="text-xs text-gray-400">
+              {bill.paymentStatus === "partial"
+                ? `Paid: ${new Intl.NumberFormat("en-IN", {
+                    style: "currency",
+                    currency: "INR",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }).format(bill.paidAmount || 0)} of ${new Intl.NumberFormat(
+                    "en-IN",
+                    {
+                      style: "currency",
+                      currency: "INR",
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  ).format(bill.totalAmount || 0)}`
                 : "Payment pending"}
-          </p>
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -264,8 +248,6 @@ const BillItem = ({ bill, onClick }: BillItemProps) => {
 
 export default function CustomerBillsPage() {
   // Hooks must be called unconditionally at the top level
-  const router = useRouter();
-  const { t } = useLocaleStore();
   const {
     bills: allBills = [],
     loading: billsLoading,
@@ -283,9 +265,6 @@ export default function CustomerBillsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showBillModal, setShowBillModal] = useState(false);
   const [selectedBill, setSelectedBill] = useState<SanityBill | null>(null);
-
-  // Use the Sanity Bill type
-  type Bill = SanityBill;
 
   // Add currency constant
   const currency = "₹";
@@ -368,43 +347,10 @@ export default function CustomerBillsPage() {
     });
   }, [customerBills, searchTerm, statusFilter]);
 
-  // Get bill status color
-  const getBillStatusColor = useCallback((status: string) => {
-    switch (status?.toLowerCase()) {
-      case "paid":
-        return "bg-green-500/10 text-green-400";
-      case "pending":
-        return "bg-yellow-500/10 text-yellow-400";
-      case "overdue":
-        return "bg-red-500/10 text-red-400";
-      case "partial":
-        return "bg-blue-500/10 text-blue-400";
-      default:
-        return "bg-gray-500/10 text-gray-400";
-    }
-  }, []);
-
-  // Get total amount for a bill
-  const getTotalAmount = useCallback((bill: any) => {
-    return bill.totalAmount || 0;
-  }, []);
-
-  // Get service type label
-  const getServiceTypeLabel = useCallback((serviceType: string) => {
-    if (!serviceType) return "Service";
-    return serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
-  }, []);
-
   // View bill details
   const viewBillDetails = useCallback((bill: any) => {
     setSelectedBill(bill);
     setShowBillModal(true);
-  }, []);
-
-  // Handle bill download
-  const handleDownloadBill = useCallback((bill: any) => {
-    console.log("Downloading bill:", bill.billNumber);
-    // TODO: Implement actual download logic
   }, []);
 
   // Show loading state
@@ -458,54 +404,6 @@ export default function CustomerBillsPage() {
           </h2>
           <p className="text-gray-400">View and manage your billing history</p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={async () => {
-              console.log("🧪 Testing: Fetching all bills...");
-              const { fetchBills } = useSanityBillStore.getState();
-              await fetchBills();
-
-              // Also try a direct Sanity query to see bill structure
-              const directQuery = `*[_type == "bill"][0...5] {
-                _id,
-                billNumber,
-                customer,
-                customer->{_id, customerId, name}
-              }`;
-
-              try {
-                const result = await sanityClient.fetch(directQuery);
-                console.log("🧪 Direct bill query result:", result);
-              } catch (error) {
-                console.error("🧪 Direct query error:", error);
-              }
-            }}
-            variant="outline"
-            size="sm">
-            Test: Fetch All Bills
-          </Button>
-          <Button
-            onClick={() => {
-              console.log("🧪 Current customer:", customer);
-              console.log("🧪 Current bills in store:", allBills);
-              console.log("🧪 Auth user:", useAuthStore.getState().user);
-            }}
-            variant="outline"
-            size="sm">
-            Debug: Log Data
-          </Button>
-          <Button
-            onClick={async () => {
-              console.log("🧪 Manual customer fetch test...");
-              // Try to manually fetch customer with a known customer ID from the bills
-              const testCustomerId = "ecSttagJdpcXow3QAyCSNG"; // From the bill data we saw
-              await fetchBillsByCustomer(testCustomerId);
-            }}
-            variant="outline"
-            size="sm">
-            Test: Manual Fetch
-          </Button>
-        </div>
       </div>
 
       {/* Bill Stats */}
@@ -529,6 +427,7 @@ export default function CustomerBillsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter bills by status"
                 className="w-[180px] bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
