@@ -105,9 +105,55 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const bills = await sanityClient.fetch(queries.customerBills(customerId));
+      const query = queries.customerBills(customerId);
+      console.log("🔍 Executing query:", query);
+      console.log("🔍 Customer ID:", customerId);
+
+      let bills = await sanityClient.fetch(query);
+      console.log(
+        `✅ Fetched ${bills?.length || 0} bills for customer ${customerId}`
+      );
+
+      // If no bills found with customer-specific query, try fetching all bills and filter
+      if (!bills || bills.length === 0) {
+        console.log(
+          "🔄 No bills found with customer query, trying to fetch all bills..."
+        );
+        const allBills = await sanityClient.fetch(queries.bills);
+        console.log("📋 All bills fetched:", allBills?.length || 0);
+
+        // Filter bills for this customer
+        bills =
+          allBills?.filter((bill: any) => {
+            if (!bill.customer) return false;
+
+            console.log(
+              "🔍 Checking bill customer:",
+              bill.customer,
+              "against customerId:",
+              customerId
+            );
+
+            // Handle different customer reference formats
+            if (typeof bill.customer === "string") {
+              return bill.customer === customerId;
+            } else if (bill.customer._ref) {
+              return bill.customer._ref === customerId;
+            } else if (bill.customer._id) {
+              return bill.customer._id === customerId;
+            } else if (bill.customer.customerId) {
+              return bill.customer.customerId === customerId;
+            }
+            return false;
+          }) || [];
+
+        console.log(
+          `🎯 Filtered ${bills.length} bills for customer ${customerId}`
+        );
+      }
+      
       set({ bills: bills || [], loading: false });
-      console.log(`✅ Fetched ${bills?.length || 0} bills for customer ${customerId}`);
+      console.log("📋 Final bills data:", bills);
       return bills || [];
     } catch (error) {
       console.error("❌ Error fetching customer bills:", error);

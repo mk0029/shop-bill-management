@@ -5,7 +5,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, X, User, ChevronDown, FileText, MessageSquare, Wrench, Building2 } from "lucide-react";
+import {
+  LogOut,
+  Menu,
+  X,
+  User,
+  ChevronDown,
+  FileText,
+  MessageSquare,
+  Wrench,
+  Building2,
+} from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { SanityImage } from "./sanity-image";
@@ -65,8 +75,7 @@ export function CustomerNavigation() {
         return (
           <div
             key={item.label}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default"
-          >
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default">
             <Icon className="w-5 h-5" />
             <span className="font-medium">{item.label}</span>
           </div>
@@ -82,8 +91,7 @@ export function CustomerNavigation() {
             active
               ? "bg-blue-600 text-white"
               : "text-gray-300 hover:bg-gray-800 hover:text-white"
-          }`}
-        >
+          }`}>
           <Icon className="w-5 h-5" />
           <span className="font-medium">{item.label}</span>
         </Link>
@@ -95,8 +103,7 @@ export function CustomerNavigation() {
       return (
         <div
           key={item.label}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default"
-        >
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default">
           <Icon className="w-5 h-5" />
           <span className="font-medium">{item.label}</span>
         </div>
@@ -109,18 +116,15 @@ export function CustomerNavigation() {
         href={item.href!}
         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
           active ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-800"
-        }`}
-      >
+        }`}>
         <Icon className="w-5 h-5" />
         <span className="font-medium">{item.label}</span>
       </Link>
     );
   };
 
-
   return (
     <>
-    
       {/* Mobile Navigation Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
@@ -140,8 +144,7 @@ export function CustomerNavigation() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 lg:hidden"
-            >
+              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 lg:hidden">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
                 <h2 className="text-xl font-bold text-white">Customer Menu</h2>
@@ -149,8 +152,7 @@ export function CustomerNavigation() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="hover:bg-gray-800"
-                >
+                  className="hover:bg-gray-800">
                   <X className="w-5 h-5" />
                 </Button>
               </div>
@@ -168,7 +170,7 @@ export function CustomerNavigation() {
                   <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
                     <SanityImage
                       src={user?.profileImage}
-                      alt={user?.name || 'Profile'}
+                      alt={user?.name || "Profile"}
                       width={40}
                       height={40}
                       className="w-full h-full object-cover"
@@ -185,8 +187,7 @@ export function CustomerNavigation() {
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="w-full"
-                >
+                  className="w-full">
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
@@ -195,8 +196,7 @@ export function CustomerNavigation() {
           </>
         )}
       </AnimatePresence>
-  {/* Mobile Menu Button */}
-    
+      {/* Mobile Menu Button */}
 
       {/* Desktop Navigation */}
       <nav className="hidden lg:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
@@ -224,7 +224,7 @@ export function CustomerNavigation() {
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
               <SanityImage
                 src={user?.profileImage}
-                alt={user?.name || 'Profile'}
+                alt={user?.name || "Profile"}
                 width={40}
                 height={40}
                 className="w-full h-full object-cover"
@@ -259,17 +259,19 @@ export function CustomerNavigation() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-gray-400 text-base">
-                Welcome, <span className="font-semibold text-gray-200">{user?.name || "Customer"}</span>
+                Welcome,{" "}
+                <span className="font-semibold text-gray-200">
+                  {user?.name || "Customer"}
+                </span>
               </span>
             </div>
             <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="lg:hidden "
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden ">
+              <Menu className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </div>

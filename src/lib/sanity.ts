@@ -254,15 +254,21 @@ export const queries = {
     updatedAt
   } | order(createdAt desc)`,
 
-  // Get bills for specific customer
-  customerBills: (
-    customerId: string
-  ) => `*[_type == "bill" && customer._ref == "${customerId}"] {
+  // Get bills for specific customer (handle different reference formats)
+  customerBills: (customerId: string) => `*[_type == "bill" && (
+    customer._ref == "${customerId}" || 
+    customer == "${customerId}" || 
+    customer._id == "${customerId}" ||
+    customer->_id == "${customerId}" ||
+    customer->customerId == "${customerId}"
+  )] {
     _id,
     billId,
     billNumber,
+    customer,
     customer->{
       _id,
+      customerId,
       name,
       phone,
       email,

@@ -46,6 +46,7 @@ export async function GET(
       );
     }
 
+    console.log("🔍 Customer API - Found customer:", customer);
     return NextResponse.json(customer);
   } catch (error) {
     console.error('Error fetching customer:', error);
