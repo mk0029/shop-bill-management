@@ -12,6 +12,7 @@ import { initFieldRegistry } from "@/lib/field-registry-init";
 interface InventoryFormData {
   category: string;
   brand: string;
+  productName: string; // Added custom product name field
   purchasePrice: string;
   sellingPrice: string;
   currentStock: string;
@@ -69,6 +70,7 @@ export const useInventoryForm = () => {
   const [formData, setFormData] = useState<InventoryFormData>({
     category: "",
     brand: "",
+    productName: "",
     purchasePrice: "",
     sellingPrice: "",
     currentStock: "",
@@ -97,6 +99,7 @@ export const useInventoryForm = () => {
       setFormData({
         category: "",
         brand: "",
+        productName: "",
         purchasePrice: "",
         sellingPrice: "",
         currentStock: "",
@@ -114,10 +117,11 @@ export const useInventoryForm = () => {
         ...prev,
         category: selectedProduct.category._id,
         brand: selectedProduct.brand._id,
+        productName: selectedProduct.name || "",
         purchasePrice: selectedProduct.pricing.purchasePrice.toString(),
         sellingPrice: selectedProduct.pricing.sellingPrice.toString(),
         currentStock: "", // Keep empty as requested
-        unit: (selectedProduct.pricing as any).unit || "piece",
+        unit: selectedProduct.pricing.unit || "piece",
         description: selectedProduct.description || "",
         specifications: selectedProduct.specifications || {},
         selectedExistingProduct: productId,
@@ -198,7 +202,7 @@ export const useInventoryForm = () => {
     try {
       // Create product object with single API call optimization
       const newProduct = {
-        name: generateProductName(),
+        name: formData.productName || generateProductName(), // Use custom name if provided, fallback to generated name
         brandId: formData.brand,
         categoryId: formData.category,
         specifications: formData.specifications,
@@ -236,6 +240,7 @@ export const useInventoryForm = () => {
     setFormData({
       category: "",
       brand: "",
+      productName: "",
       purchasePrice: "",
       sellingPrice: "",
       currentStock: "",

@@ -24,8 +24,8 @@ import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { useBills } from "@/hooks/use-sanity-data";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
-import { useWhatsAppMessaging } from "@/hooks/use-whatsapp-config";
-import { BillDetails } from "@/lib/whatsapp-utils";
+
+
 
 interface Bill {
   id: string;
@@ -55,7 +55,7 @@ export default function PendingBillsPage() {
   const { bills, isLoading } = useBills();
   const { updateBill } = useSanityBillStore();
   const [searchTerm, setSearchTerm] = useState("");
-  const { sendBillMessage, isConfigured } = useWhatsAppMessaging();
+
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showBillModal, setShowBillModal] = useState(false);
@@ -120,11 +120,6 @@ export default function PendingBillsPage() {
     console.log("Download PDF for bill:", bill.billNumber || bill._id);
   };
 
-  const handleShareBill = (bill: any) => {
-    // TODO: Implement bill sharing
-    console.log("Share bill:", bill.billNumber || bill._id);
-  };
-
   const handleUpdatePayment = async (
     billId: string,
     paymentData: {
@@ -151,49 +146,29 @@ export default function PendingBillsPage() {
     }
   };
 
-  const handleShareOnWhatsApp = async (bill: Bill) => {
-    if (!isConfigured) {
-      alert(
-        "WhatsApp Business is not configured. Please configure it in settings."
-      );
+  const handleShareOnWhatsApp = (bill: Bill) => {
+    const items = bill.items
+      .map(
+        (item) =>
+          `• ${item.name}: ${item.quantity} x ₹${item.price.toFixed(2)} = ₹${item.total.toFixed(2)}`
+      )
+      .join("\n");
+
+    const message =
+      `*Bill #${bill.billNumber}*\n\n` +
+      `*Items:*\n${items}\n\n` +
+      `*Total Amount: ₹${bill.total.toFixed(2)}*\n\n` +
+      (bill.notes ? `*Notes:*\n${bill.notes}\n\n` : "") +
+      `Thank you for your business!`;
+
+    if (!bill.customerPhone || bill.customerPhone === "N/A") {
+      alert("Customer phone number is required for sharing on WhatsApp");
       return;
     }
 
-    try {
-      // Convert Bill to BillDetails format
-      const billDetails: BillDetails = {
-        billNumber: bill.billNumber,
-        customerName: bill.customerName,
-        customerPhone: bill.customerPhone,
-        billDate:
-          bill.createdAt?.split("T")[0] ||
-          new Date().toISOString().split("T")[0],
-        dueDate: bill.dueDate,
-        items: bill.items.map((item) => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          total: item.total,
-        })),
-        subtotal: bill.subtotal || bill.total,
-        tax: bill.taxAmount,
-        total: bill.total,
-        notes: bill.notes || "Thank you for your business!",
-        userId: `customer_${bill.customerId}`,
-        passKey: `bill_${bill.billNumber}`,
-      };
-
-      const result = await sendBillMessage(billDetails);
-
-      if (result.status === "sent") {
-        alert(`WhatsApp message sent successfully via ${result.deviceUsed}!`);
-      } else {
-        alert(`Failed to send WhatsApp message: ${result.error}`);
-      }
-    } catch (error) {
-      console.error("WhatsApp send error:", error);
-      alert("Failed to send WhatsApp message. Please try again.");
-    }
+    const phone = bill.customerPhone.replace(/\D/g, "");
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
   };
 
   const getStatusColor = (status: string) => {
@@ -436,7 +411,6 @@ export default function PendingBillsPage() {
         onClose={() => setShowBillModal(false)}
         bill={selectedBill}
         onDownloadPDF={handleDownloadPDF}
-        onShare={handleShareBill}
         onUpdatePayment={handleUpdatePayment}
         showShareButton={true}
         showPaymentControls={true}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,12 +44,32 @@ const getStatusColor = (status: string) => {
 
 export default function BillHistoryPage() {
   const router = useRouter();
-  const { t, currency } = useLocaleStore();
-  const { bills, isLoading } = useBills();
+  const { currency } = useLocaleStore();
+  const { bills } = useBills();
   const { updateBill } = useSanityBillStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedBill, setSelectedBill] = useState<any>(null);
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+
+  interface Bill {
+    id: string;
+    billNumber: string;
+    customerName: string;
+    customerPhone: string;
+    amount: number;
+    date: string;
+    dueDate: string;
+    status: "paid" | "pending" | "overdue";
+    items: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+      total: number;
+    }>;
+    serviceType?: string;
+    locationType?: string;
+    notes?: string;
+  }
   const [showBillModal, setShowBillModal] = useState(false);
 
   // Transform bills data to match the expected format
@@ -69,12 +89,11 @@ export default function BillHistoryPage() {
           .toISOString()
           .split("T")[0]
       : new Date().toISOString().split("T")[0],
-    status:
-      bill.paymentStatus === "paid"
-        ? "paid"
-        : bill.paymentStatus === "pending"
-          ? "pending"
-          : "overdue",
+    status: (bill.paymentStatus === "paid"
+      ? "paid"
+      : bill.paymentStatus === "pending"
+        ? "pending"
+        : "overdue") as "paid" | "pending" | "overdue",
     items:
       bill.items?.map((item) => ({
         name: item.productName || "Unknown Item",
@@ -111,19 +130,14 @@ export default function BillHistoryPage() {
     (bill) => bill.status === "overdue"
   ).length;
 
-  const viewBillDetails = (bill: any) => {
+  const viewBillDetails = (bill: Bill) => {
     setSelectedBill(bill);
     setShowBillModal(true);
   };
 
-  const handleDownloadPDF = (bill: any) => {
+  const handleDownloadPDF = (bill: Bill) => {
     // TODO: Implement PDF download
-    console.log("Download PDF for bill:", bill.id || bill._id);
-  };
-
-  const handleShareBill = (bill: any) => {
-    // TODO: Implement bill sharing
-    console.log("Share bill:", bill.id || bill._id);
+    console.log("Download PDF for bill:", bill.id);
   };
 
   const handleUpdatePayment = async (
@@ -351,7 +365,6 @@ export default function BillHistoryPage() {
         onClose={() => setShowBillModal(false)}
         bill={selectedBill}
         onDownloadPDF={handleDownloadPDF}
-        onShare={handleShareBill}
         onUpdatePayment={handleUpdatePayment}
         showShareButton={true}
         showPaymentControls={true}

@@ -88,10 +88,7 @@ export default function CustomerBillsPage() {
     console.log("Download PDF for bill:", bill._id);
   };
 
-  const handleShareBill = (bill: unknown) => {
-    // TODO: Implement bill sharing (WhatsApp, etc.)
-    console.log("Share bill:", bill._id);
-  };
+
 
   const handleUpdatePayment = async (
     billId: string,
@@ -176,7 +173,7 @@ export default function CustomerBillsPage() {
         <div className="flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
-            {customer.name}'s Bills
+            {customer.name}&apos;s Bills
           </h1>
           <p className="text-gray-400 mt-1">
             {customer.phone} • {customer.location}
@@ -296,7 +293,6 @@ export default function CustomerBillsPage() {
         onClose={() => setShowBillModal(false)}
         bill={selectedBill}
         onDownloadPDF={handleDownloadPDF}
-        onShare={handleShareBill}
         onUpdatePayment={handleUpdatePayment}
         showShareButton={true}
         showPaymentControls={true}

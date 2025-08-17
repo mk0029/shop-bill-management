@@ -27,7 +27,6 @@ interface BillDetailModalProps {
   onClose: () => void;
   bill: any;
   onDownloadPDF?: (bill: any) => void;
-  onShare?: (bill: any) => void;
   onUpdatePayment?: (
     billId: string,
     paymentData: {
@@ -45,7 +44,6 @@ export const BillDetailModal = ({
   onClose,
   bill,
   onDownloadPDF,
-  onShare,
   onUpdatePayment,
   showShareButton = true,
   showPaymentControls = true,
@@ -60,7 +58,6 @@ export const BillDetailModal = ({
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   if (!bill) return null;
-
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case "paid":
@@ -95,7 +92,7 @@ export const BillDetailModal = ({
     (bill.repairCharges || 0) +
     (bill.laborCharges || 0);
 
-  const grandTotal = bill.totalAmount || itemsTotal + additionalCharges;
+  const grandTotal = bill.balanceAmount || itemsTotal + additionalCharges;
 
   // Payment calculation logic
   const calculatePaymentDetails = () => {
@@ -186,6 +183,7 @@ export const BillDetailModal = ({
     setPartialAmount("");
     onClose();
   };
+  console.log("object", bill);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
@@ -267,13 +265,31 @@ export const BillDetailModal = ({
                       <p className="font-medium text-white mb-1">
                         {item.productName || item.name || "Unknown Item"}
                       </p>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {item.brand && (
+                          <Badge
+                            variant="outline"
+                            className="text-blue-400 border-blue-600">
+                            {item.brand}
+                          </Badge>
+                        )}
+                        {item.category && (
+                          <Badge
+                            variant="outline"
+                            className="text-purple-400 border-purple-600">
+                            {item.category}
+                          </Badge>
+                        )}
+                      </div>
                       {item.specifications && (
                         <p className="text-sm text-gray-400 mb-2">
                           {item.specifications}
                         </p>
                       )}
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
-                        <span>Qty: {item.quantity}</span>
+                        <span>
+                          Qty: {item.quantity} {item.unit || "piece"}
+                        </span>
                         <span>
                           Unit Price: {currency}
                           {(item.unitPrice || item.price || 0).toFixed(2)}
@@ -292,6 +308,45 @@ export const BillDetailModal = ({
                         {(item.totalPrice || item.total || 0).toFixed(2)}
                       </p>
                     </div>
+                    {item.productDetails && (
+                      <p className="text-sm text-gray-200 capitalize">
+                        {Object.entries(
+                          item.productDetails.specifications || {}
+                        )
+                          .filter(
+                            ([_, value]) =>
+                              value !== undefined &&
+                              value !== null &&
+                              value !== ""
+                          )
+                          .map(([key, value]) => {
+                            // 1️⃣ Format camelCase / PascalCase into spaced words
+                            let formattedKey = key.replace(
+                              /([a-z])([A-Z])/g,
+                              "$1 $2"
+                            );
+
+                            // 2️⃣ Split into words, remove "is", capitalize each
+                            formattedKey = formattedKey
+                              .split(" ")
+                              .filter((word) => word.toLowerCase() !== "is")
+                              .map(
+                                (word) =>
+                                  word.charAt(0).toUpperCase() + word.slice(1)
+                              )
+                              .join(" ");
+
+                            // 3️⃣ Convert boolean strings to Yes/No
+                            if (String(value).toLowerCase() === "true")
+                              value = "Yes";
+                            else if (String(value).toLowerCase() === "false")
+                              value = "No";
+
+                            return `${formattedKey}: ${value}`;
+                          })
+                          .join(", ")}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -345,7 +400,10 @@ export const BillDetailModal = ({
                 <span className="text-white">Total Amount</span>
                 <span className="text-white">
                   {currency}
-                  {grandTotal.toFixed(2)}
+                  {/* {grandTotal <= 0
+                    ? grandTotal.toFixed(2)
+                    : bill.balanceAmount?.toFixed(2)} */}
+                  {grandTotal?.toFixed(2) || bill?.balanceAmount}
                 </span>
               </div>
 
@@ -360,6 +418,7 @@ export const BillDetailModal = ({
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-orange-400">Pending Amount</span>
+
                     <span className="text-orange-400 font-medium">
                       {currency}
                       {(
@@ -535,13 +594,39 @@ export const BillDetailModal = ({
               Close
             </Button>
 
-            {showShareButton && onShare && (
+            {showShareButton && (
               <Button
                 variant="outline"
-                onClick={() => onShare(bill)}
+                onClick={() => {
+                  const items =
+                    bill.items
+                      ?.map(
+                        (item: any) =>
+                          `• ${item.productName || item.name}: ${item.quantity} x ₹${(item.unitPrice || item.price).toFixed(2)} = ₹${(item.totalPrice || item.total).toFixed(2)}`
+                      )
+                      .join("\n") || "";
+
+                  const message =
+                    `*Bill #${bill.billNumber || bill._id}*\n\n` +
+                    `*Items:*\n${items}\n\n` +
+                    `*Total Amount: ₹${grandTotal.toFixed(2)}*\n\n` +
+                    (bill.notes ? `*Notes:*\n${bill.notes}\n\n` : "") +
+                    `Thank you for your business!`;
+
+                  const phone = bill.customer?.phone?.replace(/\D/g, "") || "";
+                  if (!phone) {
+                    toast.error(
+                      "❌ Unable to share bill - Customer's phone number not found. Please add a phone number to the customer's profile."
+                    );
+                    return;
+                  }
+
+                  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+                  window.open(whatsappUrl, "_blank");
+                }}
                 className="flex-1 sm:flex-none border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white">
                 <Share2 className="w-4 h-4 mr-2" />
-                <span className="sm:inline">Share</span>
+                <span className="sm:inline">Share on WhatsApp</span>
               </Button>
             )}
 

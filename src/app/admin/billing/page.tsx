@@ -19,14 +19,21 @@ import {
   RealtimeBillStats,
 } from "@/components/realtime/realtime-bill-list";
 import { FileText, Plus, Search, Calculator } from "lucide-react";
-import { useWhatsAppMessaging } from "@/hooks/use-whatsapp-config";
-import { BillDetails } from "@/lib/whatsapp-utils";
+
 
 interface BillItem {
   name: string;
   quantity: number;
   price: number;
   total: number;
+  product: any; // Full product reference
+  brand: string;
+  category: string;
+  specifications: string;
+  unit: string;
+  productName: string;
+  productId: string;
+  productDetails: any; // Full product details
 }
 
 interface Bill {
@@ -48,6 +55,12 @@ interface Bill {
   balanceAmount?: number;
   taxAmount?: number;
   notes?: string;
+  customer?: {
+    name: string;
+    phone: string;
+    email?: string;
+    location?: string;
+  };
 }
 
 export default function BillingPage() {
@@ -58,7 +71,7 @@ export default function BillingPage() {
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-  const { sendBillMessage, isConfigured } = useWhatsAppMessaging();
+
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
   // Ensure the real-time bill store has initial data so stats render immediately
@@ -84,6 +97,15 @@ export default function BillingPage() {
         quantity: item.quantity || 0,
         price: item.unitPrice || 0,
         total: item.totalPrice || 0,
+        product: item.product || null,
+        brand: item.brand || "",
+        category: item.category || "",
+        specifications: item.specifications || "",
+        unit: item.unit || "piece",
+        productName:
+          item.product?.productName || item.productName || "Unknown Item",
+        productId: item.product?._id || item.product?._ref || "",
+        productDetails: item.product || null,
       })) || [],
     serviceType: bill.serviceType || "sale",
     locationType: bill.locationType || "shop",
@@ -164,68 +186,7 @@ export default function BillingPage() {
       throw error;
     }
   };
-
-  const handleShareOnWhatsApp = async (bill: Bill) => {
-    if (!isConfigured) {
-      alert(
-        "WhatsApp Business is not configured. Please configure it in settings."
-      );
-      return;
-    }
-
-    try {
-      // Find customer phone number
-      const customer = transformedCustomers.find(
-        (c) => c._id === bill.customerId
-      );
-
-      if (!customer?.phone) {
-        alert(
-          "Customer phone number not found. Please update customer details."
-        );
-        return;
-      }
-
-      // Convert Bill to BillDetails format
-      const billDetails: BillDetails = {
-        billNumber: bill.id,
-        customerName: bill.customerName,
-        customerPhone: customer.phone,
-        billDate: bill.date,
-        dueDate:
-          bill.dueDate ||
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split("T")[0],
-        items: bill.items.map((item) => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          total: item.total,
-        })),
-        subtotal: bill.subtotal || bill.total,
-        tax: bill.taxAmount,
-        total: bill.total,
-        notes: bill.notes || "Thank you for your business!",
-        userId: `customer_${bill.customerId}`,
-        passKey: `bill_${bill.id}`,
-      };
-
-      const result = await sendBillMessage(billDetails);
-
-      if (result.status === "sent") {
-        alert(`WhatsApp message sent successfully via ${result.deviceUsed}!`);
-      } else {
-        alert(
-          `Failed to send message: ${result.error || "Unknown error"}. Please check your configuration.`
-        );
-      }
-    } catch (error) {
-      console.error("WhatsApp send error:", error);
-      alert("Failed to send WhatsApp message. Please try again.");
-    }
-  };
-
+  console.log(bills, "bills billsbillsbills");
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -309,6 +270,18 @@ export default function BillingPage() {
                       quantity: item.quantity || 0,
                       price: item.unitPrice || 0,
                       total: item.totalPrice || 0,
+                      product: item.product || null, // Include full product reference
+                      brand: item.brand || "",
+                      category: item.category || "",
+                      specifications: item.specifications || "",
+                      unit: item.unit || "piece",
+                      // Include any other product-specific fields
+                      productName:
+                        item.product?.productName ||
+                        item.productName ||
+                        "Unknown Item",
+                      productId: item.product?._id || item.product?._ref || "",
+                      productDetails: item.product || null,
                     })) || [],
                   serviceType: bill.serviceType || "sale",
                   locationType: bill.locationType || "shop",
@@ -320,6 +293,12 @@ export default function BillingPage() {
                   paidAmount: bill.paidAmount,
                   balanceAmount: bill.balanceAmount,
                   notes: bill.notes,
+                  customer: {
+                    name: bill.customer?.name || "Unknown Customer",
+                    phone: bill.customer?.phone || "",
+                    email: bill.customer?.email || "",
+                    location: bill.customer?.location || "",
+                  },
                 })
               }
               showNewBillAnimation={true}
@@ -343,7 +322,6 @@ export default function BillingPage() {
         onClose={() => setSelectedBill(null)}
         bill={selectedBill}
         onDownloadPDF={handleDownloadPDF}
-        onShare={handleShareOnWhatsApp}
         onUpdatePayment={handleUpdatePayment}
         showShareButton={true}
         showPaymentControls={true}

@@ -24,8 +24,20 @@ interface FieldDefinition {
 export const validateProduct = async (formData: Record<string, any>) => {
   const errors: Record<string, string> = {};
 
+  // Validate required fields
   if (!formData.category) {
     errors.category = "Category is required";
+  }
+  
+  if (!formData.productName) {
+    errors.productName = "Product name is required";
+  } else if (formData.productName.length < 3) {
+    errors.productName = "Product name must be at least 3 characters long";
+  } else if (formData.productName.length > 100) {
+    errors.productName = "Product name cannot exceed 100 characters";
+  }
+
+  if (Object.keys(errors).length > 0) {
     return errors;
   }
 

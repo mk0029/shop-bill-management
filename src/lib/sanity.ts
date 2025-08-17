@@ -231,7 +231,19 @@ export const queries = {
       location,
       role
     },
-    items,
+    "items": items[]{
+      ...,
+      "product": product->{
+        _id,
+        _type,
+        name,
+        productName,
+        description,
+        specifications,
+        "brand": brand->{name, _id},
+        "category": category->{name, _id}
+      },
+    },
     serviceType,
     locationType,
     serviceDate,
@@ -275,7 +287,19 @@ export const queries = {
       location,
       role
     },
-    items,
+    "items": items[]{
+      ...,
+      "product": product->{
+        _id,
+        _type,
+        name,
+        productName,
+        description,
+        specifications,
+        "brand": brand->{name, _id},
+        "category": category->{name, _id}
+      },
+    },
     serviceType,
     locationType,
     serviceDate,

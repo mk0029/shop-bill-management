@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,26 +50,41 @@ export const BasicInfoSection = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Existing Product Selection */}
+        {/* Product Selection/Input Combined Section */}
         <div className="space-y-2">
-          <Label htmlFor="existingProduct" className="text-gray-300">
-            Select Existing Product (Optional)
+          <Label htmlFor="productName" className="text-gray-300">
+            Product Name *
           </Label>
-          <Dropdown
-            options={[
-              { value: "", label: "Create New Product" },
-              ...products
-                .filter((product) => product.isActive && !product.deleted)
-                .map((product) => ({
-                  value: product._id,
-                  label: `${product.name} - ${product.brand.name}`,
-                })),
-            ]}
-            value={formData.selectedExistingProduct}
-            onValueChange={onExistingProductSelect}
-            placeholder="Select existing product or create new"
-            className="bg-gray-800 border-gray-700"
-          />
+          <div className="flex w-full items-center gap-2">
+            <div className="flex-1">
+              <Input
+                id="productName"
+                value={formData.productName}
+                onChange={(e) => onInputChange("productName", e.target.value)}
+                className="flex-[0.8] bg-[#1e2530] border-gray-700 text-gray-300"
+                placeholder="Type new product name"
+              />
+            </div>
+
+            {products.length > 0 && (
+              <Dropdown
+                options={products
+                  .filter((product) => product.isActive && !product.deleted)
+                  .map((product) => ({
+                    value: product._id,
+                    label: product.name,
+                  }))}
+                value={formData.selectedExistingProduct}
+                onValueChange={onExistingProductSelect}
+                placeholder="Create New Product"
+                className="flex-[0.2] bg-[#1e2530] border-gray-700 hover:bg-[#2a3441]"
+                classNameButton="!py-1"
+              />
+            )}
+          </div>
+          {errors.productName && (
+            <p className="text-red-400 text-sm">{errors.productName}</p>
+          )}
           {isExistingProductSelected && (
             <p className="text-blue-400 text-sm">
               Product details loaded. Purchase price, selling price, and stock

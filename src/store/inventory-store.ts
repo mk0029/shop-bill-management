@@ -32,6 +32,7 @@ export interface Product {
     sellingPrice: number;
     standardPrice?: number;
     modularPrice?: number;
+    unit: string;
   };
   inventory: {
     currentStock: number;

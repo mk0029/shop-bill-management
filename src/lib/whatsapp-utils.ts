@@ -263,11 +263,10 @@ export async function sendWhatsAppMessage(
 ): Promise<MessageDeliveryStatus> {
   const device = selectOptimalDevice(config);
 
-  if (!device) {
-    throw new Error("No active WhatsApp device available");
-  }
-
-  const message = formatBillForWhatsApp(bill, config, device);
+  // Even if no device is configured, we can still share via web.whatsapp.com
+  const message = device 
+    ? formatBillForWhatsApp(bill, config, device)
+    : processMessageTemplate(defaultWhatsAppConfig.messageTemplate.billTemplate, bill, defaultWhatsAppConfig, defaultWhatsAppConfig.devices[0]);
   const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
@@ -376,9 +375,12 @@ export async function getWhatsAppConfig(): Promise<WhatsAppConfig> {
       "./sanity-whatsapp-service"
     );
     const config = await getWhatsAppConfigFromSanity();
+    if (!config) {
+      console.log("No WhatsApp configuration found, using direct web.whatsapp.com sharing");
+    }
     return config || defaultWhatsAppConfig;
   } catch (error) {
-    console.error("Error getting config from Sanity, using default:", error);
+    console.log("Using direct web.whatsapp.com sharing");
     return { ...defaultWhatsAppConfig };
   }
 }

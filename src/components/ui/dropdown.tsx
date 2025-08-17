@@ -22,6 +22,7 @@ interface DropdownProps {
   size?: "sm" | "md" | "lg";
   searchable?: boolean;
   searchPlaceholder?: string;
+  classNameButton?: string;
 }
 
 const sizeClasses = {
@@ -40,9 +41,10 @@ export function Dropdown({
   size = "md",
   searchable,
   searchPlaceholder = "Search...",
+  classNameButton = "",
 }: DropdownProps) {
   const [isOpen, setIsOpen] = React.useState(false);
-  const [isSearchAvialable] = React.useState(searchable || options.length > 10);
+  const [isSearchAvialable, setIsSearch] = React.useState(false || searchable); // Default to false if not provided
   const [searchTerm, setSearchTerm] = React.useState("");
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -73,6 +75,9 @@ export function Dropdown({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  React.useEffect(() => {
+    setIsSearch(options.length > 5 || searchable);
+  }, [options]);
 
   // Focus search input when dropdown opens
   React.useEffect(() => {
@@ -109,7 +114,8 @@ export function Dropdown({
         disabled={disabled}
         className={cn(
           " w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation max-md:px-2",
-          sizeClasses[size]
+          sizeClasses[size],
+          classNameButton
         )}>
         <span
           className={`leading-none ${
@@ -137,7 +143,7 @@ export function Dropdown({
                   placeholder={searchPlaceholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 "
+                  className="pl-8 bg-gray-700 !border-gray-600 text-white placeholder-gray-400 !outline-none"
                 />
               </div>
             </div>
