@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useInventoryStore } from "@/store/inventory-store";
+import { useInventoryStore, type Product } from "@/store/inventory-store";
 import { useBrandStore } from "@/store/brand-store";
 import { useCategoryStore } from "@/store/category-store";
 
 export const useInventoryManagement = () => {
   const router = useRouter();
   const { products, fetchProducts, deleteProduct, updateProduct } =
-    useInventoryStore() as any;
+    useInventoryStore();
   const { brands, fetchBrands } = useBrandStore();
   const { categories, fetchCategories } = useCategoryStore();
 
@@ -18,7 +18,7 @@ export const useInventoryManagement = () => {
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<unknown>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -76,7 +76,7 @@ export const useInventoryManagement = () => {
     }
   });
 
-  const handleDeleteProduct = async (product: unknown) => {
+  const handleDeleteProduct = async (product: Product) => {
     setSelectedProduct(product);
     setShowDeleteDialog(true);
   };
@@ -85,7 +85,7 @@ export const useInventoryManagement = () => {
     if (!selectedProduct) return;
 
     try {
-      await deleteProduct(selectedProduct.id);
+      await deleteProduct(selectedProduct._id);
       toast.success("Product deleted successfully");
       setShowDeleteDialog(false);
       setSelectedProduct(null);
@@ -95,12 +95,12 @@ export const useInventoryManagement = () => {
     }
   };
 
-  const handleEditProduct = (product: unknown) => {
+  const handleEditProduct = (product: Product) => {
     setSelectedProduct(product);
     setShowEditDialog(true);
   };
 
-  const handleUpdateProduct = async (updatedProduct: unknown) => {
+  const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
       await updateProduct(updatedProduct);
       toast.success("Product updated successfully");

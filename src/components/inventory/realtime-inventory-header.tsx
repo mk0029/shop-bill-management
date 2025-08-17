@@ -31,7 +31,7 @@ const StatCard = ({
   const hasChanged = value !== prevValue;
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4 flex items-center">
+        <div className="bg-card border border-border rounded-lg p-3 sm:p-4 flex items-center">
       <div className="flex items-center gap-2 sm:gap-3">
         <div className={`p-1 sm:p-2 rounded-lg max-sm:hidden ${stat.bg}`}>
           {stat.icon}

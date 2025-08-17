@@ -34,7 +34,7 @@ export const InventoryFilters = ({
   onSortOrderToggle,
 }: InventoryFiltersProps) => {
   return (
-    <Card className="bg-gray-900 border-gray-800">
+        <Card className="bg-card border-border">
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
           <Filter className="w-5 h-5" />
@@ -49,7 +49,7 @@ export const InventoryFilters = ({
             placeholder="Search products..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 bg-gray-800 border-gray-700 text-white"
+                        className="pl-10 bg-background border-border text-foreground"
           />
         </div>
 

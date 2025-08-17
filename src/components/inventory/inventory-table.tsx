@@ -25,7 +25,7 @@ export const InventoryTable = ({
 }: InventoryTableProps) => {
   if (isLoading) {
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-8">
+            <div className="bg-background border border-border rounded-lg p-8">
         <div className="flex items-center justify-center">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           <span className="ml-3 text-gray-400">Loading inventory...</span>
@@ -36,7 +36,7 @@ export const InventoryTable = ({
 
   if (products.length === 0) {
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-8">
+            <div className="bg-background border border-border rounded-lg p-8">
         <div className="text-center">
           <Package className="w-12 h-12 text-gray-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-white mb-2">
@@ -49,10 +49,10 @@ export const InventoryTable = ({
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden max-h-[90dvh] flex flex-col">
+        <div className="bg-background border border-gray-800 rounded-lg overflow-hidden max-h-[90dvh] flex flex-col p-4 md:p-6">
       <div className="overflow-auto flex-1">
         <table className="w-full">
-          <thead className="bg-gray-800 sticky top-0 z-10">
+                    <thead className="bg-gray-800 sticky top-0 z-10 rounded-t-lg">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 Product
@@ -80,7 +80,7 @@ export const InventoryTable = ({
           <tbody className="divide-y divide-gray-800">
             <RealtimeProductTable
               products={products}
-              renderProduct={(product, isHighlighted) => {
+                            renderProduct={(product, isHighlighted, index) => {
                 const stockStatus = getStockStatus(
                   Number(product.inventory?.currentStock || 0)
                 );
@@ -89,11 +89,14 @@ export const InventoryTable = ({
                   Number(product.inventory?.currentStock || 0);
 
                 return (
-                  <tr
+                                                      <tr
                     className={`hover:bg-gray-800/50 transition-colors ${
                       isHighlighted ? "bg-blue-900/10" : ""
                     }`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap ${
+                        index === products.length - 1 ? "rounded-bl-lg" : ""
+                      }`}>
                       <div>
                         <div className="text-sm font-medium text-white capitalize">
                           {product.name ||
@@ -129,7 +132,10 @@ export const InventoryTable = ({
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       ₹{totalValue.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td
+                      className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
+                        index === products.length - 1 ? "rounded-br-lg" : ""
+                      }`}>
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"

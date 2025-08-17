@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Product } from "@/store/inventory-store";
 
 // Simple Dialog Components
 const Dialog = ({
@@ -43,9 +44,9 @@ const DialogTitle = ({ children }: { children: React.ReactNode }) => (
 interface InventoryDialogsProps {
   showDeleteDialog: boolean;
   showEditDialog: boolean;
-  selectedProduct: unknown;
+  selectedProduct: Product | null;
   onDeleteConfirm: () => void;
-  onEditSave: (product: unknown) => void;
+  onEditSave: (product: Product) => void;
   onDeleteCancel: () => void;
   onEditCancel: () => void;
 }
@@ -59,11 +60,39 @@ export const InventoryDialogs = ({
   onDeleteCancel,
   onEditCancel,
 }: InventoryDialogsProps) => {
-  const [editFormData, setEditFormData] = useState(selectedProduct || {});
+    const [editFormData, setEditFormData] = useState<Product | null>(null);
+
+  useEffect(() => {
+    if (selectedProduct) {
+      setEditFormData(selectedProduct);
+    } else {
+      setEditFormData(null);
+    }
+  }, [selectedProduct]);
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editFormData) return;
     onEditSave(editFormData);
+  };
+
+  const handleInputChange = (
+    field: string,
+    value: string,
+    parentField?: string
+  ) => {
+    setEditFormData((prev: any) => {
+      if (parentField) {
+        return {
+          ...prev,
+          [parentField]: {
+            ...prev[parentField],
+            [field]: value,
+          },
+        };
+      }
+      return { ...prev, [field]: value };
+    });
   };
 
   return (
@@ -109,12 +138,9 @@ export const InventoryDialogs = ({
                 <Input
                   type="number"
                   step="0.01"
-                  value={(editFormData as any).purchasePrice || ""}
+                  value={editFormData?.pricing?.purchasePrice || ""}
                   onChange={(e) =>
-                    setEditFormData((prev: any) => ({
-                      ...prev,
-                      purchasePrice: e.target.value,
-                    }))
+                    handleInputChange("purchasePrice", e.target.value, "pricing")
                   }
                   className="bg-gray-800 border-gray-700 text-white"
                 />
@@ -124,12 +150,9 @@ export const InventoryDialogs = ({
                 <Input
                   type="number"
                   step="0.01"
-                  value={(editFormData as any).sellingPrice || ""}
+                  value={editFormData?.pricing?.sellingPrice || ""}
                   onChange={(e) =>
-                    setEditFormData((prev: any) => ({
-                      ...prev,
-                      sellingPrice: e.target.value,
-                    }))
+                    handleInputChange("sellingPrice", e.target.value, "pricing")
                   }
                   className="bg-gray-800 border-gray-700 text-white"
                 />
@@ -140,12 +163,9 @@ export const InventoryDialogs = ({
               <Label className="text-gray-300">Current Stock</Label>
               <Input
                 type="number"
-                value={(editFormData as any).currentStock || ""}
+                value={editFormData?.inventory?.currentStock || ""}
                 onChange={(e) =>
-                  setEditFormData((prev: any) => ({
-                    ...prev,
-                    currentStock: e.target.value,
-                  }))
+                  handleInputChange("currentStock", e.target.value, "inventory")
                 }
                 className="bg-gray-800 border-gray-700 text-white"
               />
@@ -154,13 +174,8 @@ export const InventoryDialogs = ({
             <div className="space-y-2">
               <Label className="text-gray-300">Description</Label>
               <textarea
-                value={(editFormData as any).description || ""}
-                onChange={(e) =>
-                  setEditFormData((prev: any) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
+                value={editFormData?.description || ""}
+                onChange={(e) => handleInputChange("description", e.target.value)}
                 className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none   focus:border-transparent"
                 placeholder="Product description..."
               />

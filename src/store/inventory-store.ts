@@ -1,6 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
+
+export type StockTransactionCreationPayload = {
+  productId: string;
+  type: "purchase" | "sale" | "adjustment" | "return" | "damage";
+  quantity: number;
+  unitPrice: number;
+  supplierId?: string;
+  billId?: string;
+  notes?: string;
+  updateInventory?: boolean;
+};
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
 import { apiDebouncer } from "@/lib/api-debounce";
 
@@ -147,6 +158,7 @@ interface InventoryStore {
   softDeleteProduct: (productId: string) => Promise<boolean>;
   restoreProduct: (productId: string) => Promise<boolean>;
   deleteProduct: (productId: string) => Promise<boolean>;
+  updateProduct: (product: Product) => Promise<boolean>;
   clearError: () => void;
   refreshData: () => Promise<void>;
   initializeRealtime: () => void;
@@ -371,7 +383,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
   },
 
-  createStockTransaction: async (transactionData) => {
+    createStockTransaction: async (transactionData: StockTransactionCreationPayload) => {
     try {
       const response = await stockApi.createStockTransaction(transactionData);
       if (response.success) {
@@ -477,7 +489,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
   },
 
-  handleRealtimeProductUpdate: (product) => {
+    handleRealtimeProductUpdate: (product: Product) => {
     set((state) => ({
       products: state.products.map((p) =>
         p._id === product._id ? { ...p, ...product } : p
@@ -486,15 +498,13 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     get().fetchInventorySummary();
   },
 
-  handleRealtimeProductCreated: (product) => {
+  handleRealtimeProductCreated: (product: Product) => {
     const { products } = get();
     const existingProduct = products.find((p) => p._id === product._id);
 
     if (!existingProduct) {
       set((state) => ({ products: [...state.products, product] }));
       console.log(`✅ Product created via realtime: ${product.name}`);
-
-      // Debounced summary refresh to prevent rapid successive calls
       setTimeout(() => get().fetchInventorySummary(), 500);
     } else {
       console.log(
@@ -503,7 +513,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
   },
 
-  handleRealtimeStockTransaction: (transaction) => {
+  handleRealtimeStockTransaction: (transaction: StockTransaction) => {
     set((state) => ({
       stockTransactions: [transaction, ...state.stockTransactions],
     }));
@@ -528,14 +538,16 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
   },
 
-  getProductsByCategory: (categoryName) =>
+  getProductsByCategory: (categoryName: string) =>
     get().products.filter(
       (p) => p.category.name.toLowerCase() === categoryName.toLowerCase()
     ),
-  getProductsByBrand: (brandName) =>
+
+  getProductsByBrand: (brandName: string) =>
     get().products.filter(
       (p) => p.brand.name.toLowerCase() === brandName.toLowerCase()
     ),
+
   getLowStockProducts: () =>
     get().products.filter(
       (p) =>
@@ -543,13 +555,16 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
         !p.deleted &&
         p.inventory.currentStock <= p.inventory.minimumStock
     ),
+
   getOutOfStockProducts: () =>
     get().products.filter(
       (p) => p.isActive && !p.deleted && p.inventory.currentStock <= 0
     ),
+
   getFeaturedProducts: () =>
     get().products.filter((p) => p.isActive && !p.deleted && p.isFeatured),
-  getProductById: (productId) =>
+
+  getProductById: (productId: string) =>
     get().products.find((p) => p._id === productId),
 
   getConsolidatedProducts: () => {
@@ -595,7 +610,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     return consolidatedProducts;
   },
 
-  softDeleteProduct: async (productId) => {
+  softDeleteProduct: async (productId: string) => {
     try {
       const response = await inventoryApi.updateProduct(productId, {
         deleted: true,
@@ -622,7 +637,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
   },
 
-  restoreProduct: async (productId) => {
+  restoreProduct: async (productId: string) => {
     try {
       const response = await inventoryApi.updateProduct(productId, {
         deleted: false,
@@ -649,9 +664,39 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     }
   },
 
-  deleteProduct: async (productId) => {
+  updateProduct: async (product: Product) => {
     try {
-      const response = await inventoryApi.deleteProduct(productId);
+      const response = await inventoryApi.updateProduct(product._id, product);
+      if (response.success) {
+        set((state) => ({
+          products: state.products.map((p) =>
+            p._id === product._id &&
+            response.data &&
+            typeof response.data === "object"
+              ? { ...p, ...response.data }
+              : p
+          ),
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to update product" });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  deleteProduct: async (productId: string) => {
+    try {
+      const response = await inventoryApi.updateProduct(productId, {
+        deleted: true,
+        deletedAt: new Date().toISOString(),
+      });
       if (response.success) {
         set((state) => ({
           products: state.products.filter((p) => p._id !== productId),
@@ -699,27 +744,27 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     off("inventory:low_stock");
   },
 
-  handleBillCreated: (bill) => {
-    bill.items?.forEach(async (item: unknown) => {
+  handleBillCreated: (bill: { _id: string; billNumber: string; items?: { product: string; quantity: number; unitPrice: number }[] }) => {
+    bill.items?.forEach(async (item) => {
       const { products, createStockTransaction } = get();
-      const product = products.find((p) => p._id === item?.product);
+      const product = products.find((p) => p._id === item.product);
       if (product) {
-        const newStock = product.inventory.currentStock - item?.quantity;
+        const newStock = product.inventory.currentStock - item.quantity;
         set((state) => ({
           products: state.products.map((p) =>
-            p._id === item?.product
+            p._id === item.product
               ? { ...p, inventory: { ...p.inventory, currentStock: newStock } }
               : p
           ),
         }));
-        await createStockTransaction({
-          productId: item?.product,
+                await get().createStockTransaction({
+          product: { _id: product._id, name: product.name, productId: product.productId },
           type: "sale",
-          quantity: item?.quantity,
-          unitPrice: item?.unitPrice,
-          billId: bill._id,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          bill: { _id: bill._id, billNumber: bill.billNumber },
           notes: `Sold via bill ${bill.billNumber}`,
-        });
+        } as Partial<StockTransaction>);
       }
     });
     get().fetchInventorySummary();
