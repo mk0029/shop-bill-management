@@ -1,28 +1,8 @@
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Package } from "lucide-react";
+import { RealtimeProductTable } from "@/components/inventory/realtime-product-table";
 
-interface Product {
-  _id: string;
-  name: string;
-  description?: string;
-  category: {
-    _id: string;
-    name: string;
-  };
-  brand: {
-    _id: string;
-    name: string;
-  };
-  pricing: {
-    purchasePrice: number;
-    sellingPrice: number;
-    unit: string;
-  };
-  inventory: {
-    currentStock: number;
-  };
-}
+import { Product } from "@/store/inventory-store";
 
 interface InventoryTableProps {
   products: Product[];
@@ -98,82 +78,79 @@ export const InventoryTable = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {products.map((product, index) => {
-              const stockStatus = getStockStatus(
-                Number(product.inventory?.currentStock || 0)
-              );
-              const totalValue =
-                Number(product.pricing?.purchasePrice || 0) *
-                Number(product.inventory?.currentStock || 0);
+            <RealtimeProductTable
+              products={products}
+              renderProduct={(product, isHighlighted) => {
+                const stockStatus = getStockStatus(
+                  Number(product.inventory?.currentStock || 0)
+                );
+                const totalValue =
+                  Number(product.pricing?.purchasePrice || 0) *
+                  Number(product.inventory?.currentStock || 0);
 
-              return (
-                <motion.tr
-                  key={product._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="hover:bg-gray-800/50"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-white capitalize">
-                        {product.name ||
-                          `${product.category?.name || "Unknown Category"} - ${
-                            product.brand?.name || "Unknown Brand"
-                          }`}
-                      </div>
-                      {product.description && (
-                        <div className="text-sm text-gray-400 truncate max-w-xs">
-                          {product.description}
+                return (
+                  <tr
+                    className={`hover:bg-gray-800/50 transition-colors ${
+                      isHighlighted ? "bg-blue-900/10" : ""
+                    }`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-white capitalize">
+                          {product.name ||
+                            `${product.category?.name || "Unknown Category"} - ${
+                              product.brand?.name || "Unknown Brand"
+                            }`}
                         </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 text-xs font-medium bg-blue-600/20 text-blue-400 rounded">
-                      {product.category?.name || "Unknown Category"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    ₹{Number(product.pricing?.purchasePrice || 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded ${stockStatus.bg} ${stockStatus.color}`}
-                    >
-                      {product.inventory?.currentStock || 0}{" "}
-                      {product.pricing?.unit || "units"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    ₹{Number(product.pricing?.sellingPrice || 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    ₹{totalValue.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEditProduct(product)}
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDeleteProduct(product)}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </motion.tr>
-              );
-            })}
+                        {product.description && (
+                          <div className="text-sm text-gray-400 truncate max-w-xs">
+                            {product.description}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 text-xs font-medium bg-blue-600/20 text-blue-400 rounded">
+                        {product.category?.name || "Unknown Category"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      ₹{Number(product.pricing?.purchasePrice || 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded ${stockStatus.bg} ${stockStatus.color}`}>
+                        {product.inventory?.currentStock || 0}{" "}
+                        {product.pricing?.unit || "units"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      ₹{Number(product.pricing?.sellingPrice || 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      ₹{totalValue.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEditProduct(product)}
+                          className="text-blue-400 hover:text-blue-300">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDeleteProduct(product)}
+                          className="text-red-400 hover:text-red-300">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }}
+            />
           </tbody>
         </table>
       </div>

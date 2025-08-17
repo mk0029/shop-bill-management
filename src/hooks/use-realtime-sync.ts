@@ -313,15 +313,28 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
           handleRealtimeUpdate(update as unknown as RealtimeUpdate);
         },
         error: (error) => {
-          console.error("❌ Real-time connection error:", error);
           isConnectedRef.current = false;
-          // Silently attempt to reconnect after 3 seconds
-          setTimeout(() => {
-            if (!isConnectedRef.current) {
-              console.log("🔄 Attempting to reconnect...");
-              connect();
-            }
-          }, 3000);
+          // Check if it's a timeout error
+          if (error.message?.includes("No activity within 45000 milliseconds")) {
+            toast({
+              title: "Connection Timeout",
+              description: "Please refresh the page to restore real-time updates",
+              action: {
+                label: "Refresh Now",
+                onClick: () => window.location.reload()
+              },
+              duration: 0 // Keep visible until user acts
+            });
+          } else {
+            console.error("❌ Real-time connection error:", error);
+            // Silently attempt to reconnect after 3 seconds
+            setTimeout(() => {
+              if (!isConnectedRef.current) {
+                console.log("🔄 Attempting to reconnect...");
+                connect();
+              }
+            }, 3000);
+          }
         },
         complete: () => {
           console.log("Real-time connection completed");

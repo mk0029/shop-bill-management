@@ -2,21 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
 import {
   SuccessPopup,
   createProductSuccessPopup,
 } from "@/components/ui/success-popup";
 import { ConfirmationPopup } from "@/components/ui/confirmation-popup";
 import { DynamicSpecificationFields } from "@/components/forms/dynamic-specification-fields";
-import { useInventoryForm } from "@/hooks/use-inventory-form";
+import { useMultipleInventoryForm } from "@/hooks/use-multiple-inventory-form";
 import { BasicInfoSection } from "@/components/inventory/basic-info-section";
 import { PricingSection } from "@/components/inventory/pricing-section";
+import { StaticInfoSection } from "@/components/inventory/static-info-section";
+import { Card } from "@/components/ui/card";
 
 export default function AddInventoryItemPage() {
   const router = useRouter();
   const {
-    formData,
+    formDataList,
     errors,
     isLoading,
     showSuccessPopup,
@@ -25,17 +27,19 @@ export default function AddInventoryItemPage() {
     categories,
     specifications,
     products,
+    successfulProducts,
     handleInputChange,
     handleSpecificationChange,
-    handleDynamicSpecificationChange,
     handleExistingProductSelect,
     handleSubmit,
     confirmSubmit,
-    resetForm,
+    resetForms,
     handleSuccessClose,
     setShowConfirmationPopup,
     generateProductName,
-  } = useInventoryForm();
+    addNewForm,
+    removeForm,
+  } = useMultipleInventoryForm();
 
   return (
     <div className="space-y-6 max-md:pb-4">
@@ -55,46 +59,102 @@ export default function AddInventoryItemPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Basic Information */}
-          <BasicInfoSection
-            formData={formData}
-            categories={categories}
-            brands={brands}
-            products={products}
-            errors={errors}
-            onInputChange={handleInputChange}
-            onExistingProductSelect={handleExistingProductSelect}
-            onSpecificationChange={handleDynamicSpecificationChange}
-            dynamicSpecificationFields={
-              <div className="lg:col-span-2">
-                <DynamicSpecificationFields
-                  categoryId={formData.category}
-                  formData={formData.specifications as Record<string, string>}
-                  onFieldChange={handleSpecificationChange}
-                  errors={errors}
-                  disabled={!!formData.selectedExistingProduct}
+        {formDataList.map((formData, index) => (
+          <Card key={formData.id} className="p-6 relative">
+            {/* Form number indicator */}
+            <div className="absolute top-4 right-4 flex items-center gap-4">
+              <span className="text-sm text-gray-400">
+                Product {index + 1} of {formDataList.length}
+              </span>
+              {formDataList.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeForm(formData.id)}
+                  className="text-red-500 hover:text-red-600">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              {/* Left Column: Basic Information and Specifications */}
+              <div className="space-y-6">
+                <BasicInfoSection
+                  formData={formData}
+                  categories={categories}
+                  brands={brands}
+                  products={products}
+                  errors={errors[formData.id] || {}}
+                  onInputChange={(field, value) =>
+                    handleInputChange(formData.id, field, value)
+                  }
+                  onExistingProductSelect={(productId) =>
+                    handleExistingProductSelect(formData.id, productId)
+                  }
+                  onSpecificationChange={(field, value) =>
+                    handleSpecificationChange(formData.id, field, value)
+                  }
+                  dynamicSpecificationFields={
+                    <div>
+                      <DynamicSpecificationFields
+                        categoryId={formData.category}
+                        formData={
+                          formData.specifications as Record<string, string>
+                        }
+                        onFieldChange={(field, value) =>
+                          handleSpecificationChange(formData.id, field, value)
+                        }
+                        errors={errors[formData.id] || {}}
+                        disabled={!!formData.selectedExistingProduct}
+                      />
+                    </div>
+                  }
                 />
               </div>
-            }
-          />
 
-          {/* Pricing Information */}
-          <PricingSection
-            formData={formData}
-            errors={errors}
-            onInputChange={handleInputChange}
-          />
-        </div>
+              {/* Right Column: Pricing and Static Information */}
+              <div className="space-y-6">
+                <PricingSection
+                  formData={formData}
+                  errors={errors[formData.id] || {}}
+                  onInputChange={(field, value) =>
+                    handleInputChange(formData.id, field, value)
+                  }
+                />
+
+                <StaticInfoSection
+                  formData={formData}
+                  errors={errors[formData.id] || {}}
+                  onInputChange={(field, value) =>
+                    handleInputChange(formData.id, field, value)
+                  }
+                  isExistingProductSelected={!!formData.selectedExistingProduct}
+                />
+              </div>
+            </div>
+          </Card>
+        ))}
+
+        {/* Add New Form Button */}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addNewForm}
+          className="w-full">
+          <Plus className="w-4 h-4 mr-2" />
+          Add Another Product
+        </Button>
 
         {/* Action Buttons */}
         <div className="flex gap-4 justify-end">
           <Button
             type="button"
             variant="outline"
-            onClick={resetForm}
+            onClick={resetForms}
             disabled={isLoading}>
-            Reset Form
+            Reset All
           </Button>
           <Button
             type="submit"
@@ -103,12 +163,13 @@ export default function AddInventoryItemPage() {
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Adding Product...
+                Adding Products...
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="w-4 h-4" />
-                Add Product
+                Add {formDataList.length}{" "}
+                {formDataList.length === 1 ? "Product" : "Products"}
               </div>
             )}
           </Button>
@@ -120,20 +181,26 @@ export default function AddInventoryItemPage() {
         <SuccessPopup
           isOpen={showSuccessPopup}
           onClose={handleSuccessClose}
-          data={createProductSuccessPopup(
-            {
-              name: generateProductName(),
-              category: formData.category,
-              brand: formData.brand,
-              currentStock: formData.currentStock,
-              sellingPrice: formData.sellingPrice,
-              unit: formData.unit,
-            },
-            () => {
-              resetForm();
-              handleSuccessClose();
-            }
-          )}
+          data={{
+            title: "Products Added Successfully",
+            message: `${successfulProducts.length} products have been added to your inventory:\n${successfulProducts.join("\n")}`,
+            type: "product",
+            actions: [
+              {
+                label: "View Inventory",
+                action: handleSuccessClose,
+                variant: "default",
+              },
+              {
+                label: "Add More Products",
+                action: () => {
+                  handleSuccessClose();
+                  resetForms();
+                },
+                variant: "outline",
+              },
+            ],
+          }}
         />
       )}
 
@@ -143,12 +210,14 @@ export default function AddInventoryItemPage() {
           isOpen={showConfirmationPopup}
           onClose={() => setShowConfirmationPopup(false)}
           data={{
-            title: "Add Product",
-            message: `Are you sure you want to add "${generateProductName()}" to inventory?`,
+            title: "Add Products",
+            message: `Are you sure you want to add ${formDataList.length} ${
+              formDataList.length === 1 ? "product" : "products"
+            } to your inventory?`,
             type: "info",
             actions: [
               {
-                label: isLoading ? "Adding..." : "Add Product",
+                label: isLoading ? "Adding..." : "Add Products",
                 action: confirmSubmit,
                 variant: "default",
               },

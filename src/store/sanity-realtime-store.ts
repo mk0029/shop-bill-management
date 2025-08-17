@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
+import { handleRealtimeError } from "@/lib/handle-realtime-error";
 
 
 interface RealtimeState {
@@ -208,8 +209,8 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
             ?.forEach((callback) => callback(update));
         },
         error: (error) => {
-          console.error("❌ Sanity real-time error:", error);
           set({ isConnected: false });
+          handleRealtimeError(error);
         },
       });
 

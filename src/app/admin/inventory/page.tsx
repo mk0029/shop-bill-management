@@ -1,7 +1,7 @@
 "use client";
 
 import { useInventoryManagement } from "@/hooks/use-inventory-management";
-import { InventoryHeader } from "@/components/inventory/inventory-header";
+import { RealtimeInventoryHeader } from "@/components/inventory/realtime-inventory-header";
 import { InventoryFilters } from "@/components/inventory/inventory-filters";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { InventoryDialogs } from "@/components/inventory/inventory-dialogs";
@@ -40,7 +40,7 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6 max-md:pb-4">
-      <InventoryHeader
+      <RealtimeInventoryHeader
         onAddProduct={() => router.push("/admin/inventory/add")}
         totalProducts={products.length}
         totalValue={getTotalValue()}
