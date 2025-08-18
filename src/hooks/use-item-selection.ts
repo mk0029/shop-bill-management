@@ -4,6 +4,7 @@ interface ItemSelectionModal {
   isOpen: boolean;
   selectedCategory: string;
   selectedSpecifications: {
+    subcategory?: string;
     brand?: string;
     color?: string;
     watts?: string;
@@ -56,10 +57,30 @@ export const useItemSelection = () => {
   };
 
   const filterItemsBySpecifications = (activeProducts: any[]) => {
+    const selected = itemSelectionModal.selectedCategory.trim().toLowerCase();
+
+    // Helper: does product belong to selected category or any of its parent levels?
+    const matchesCategoryOrParent = (product: any) => {
+      const catName = product.category?.name?.trim().toLowerCase();
+      const parentNameFromRel = product.category?.parentCategory?.name
+        ?.trim()
+        .toLowerCase();
+      const parentFromSpecsRaw =
+        product.specifications?.["Parent Category"] ??
+        product.specifications?.parentCategory;
+      const parentNameFromSpecs = parentFromSpecsRaw
+        ? String(parentFromSpecsRaw).trim().toLowerCase()
+        : undefined;
+      return (
+        catName === selected ||
+        parentNameFromRel === selected ||
+        parentNameFromSpecs === selected
+      );
+    };
+
     let filteredItems = activeProducts.filter(
       (product) =>
-        product.category?.name?.toLowerCase() ===
-          itemSelectionModal.selectedCategory.toLowerCase() &&
+        matchesCategoryOrParent(product) &&
         product.inventory.currentStock > 0 &&
         product.isActive
     );
@@ -67,6 +88,13 @@ export const useItemSelection = () => {
     const { selectedSpecifications } = itemSelectionModal;
 
     // Apply filters
+    if (selectedSpecifications.subcategory) {
+      const sub = selectedSpecifications.subcategory;
+      filteredItems = filteredItems.filter(
+        (product) => product.category?.name === sub
+      );
+    }
+
     if (selectedSpecifications.brand) {
       filteredItems = filteredItems.filter(
         (product) => product.brand?.name === selectedSpecifications.brand

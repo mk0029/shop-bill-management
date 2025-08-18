@@ -68,6 +68,10 @@ export const useMultipleInventoryForm = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
   const [successfulProducts, setSuccessfulProducts] = useState<string[]>([]);
+  const [progress, setProgress] = useState<{ current: number; total: number; lastName?: string }>({
+    current: 0,
+    total: 0,
+  });
 
   const addNewForm = () => {
     setFormDataList((prev) => [...prev, createEmptyForm()]);
@@ -167,7 +171,13 @@ export const useMultipleInventoryForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (await validateForms()) {
+    // show loader while validating potentially many forms
+    setIsLoading(true);
+    const valid = await validateForms();
+    setIsLoading(false);
+    if (valid) {
+      // preset progress total for the confirmation popup
+      setProgress({ current: 0, total: formDataList.length });
       setShowConfirmationPopup(true);
     }
   };
@@ -200,10 +210,12 @@ export const useMultipleInventoryForm = () => {
     }
 
     setIsLoading(true);
-    setShowConfirmationPopup(false);
+    // keep the confirmation popup open to show progress
+    setShowConfirmationPopup(true);
     const successful: string[] = [];
 
     try {
+      setProgress({ current: 0, total: formDataList.length });
       for (const formData of formDataList) {
         const brand = brands.find((b) => b._id === formData.brand);
 
@@ -235,6 +247,8 @@ export const useMultipleInventoryForm = () => {
         if (result.success) {
           successful.push(productPayload.name);
         }
+        // update progress after each attempt
+        setProgress((prev) => ({ current: Math.min(prev.current + 1, prev.total), total: prev.total, lastName: productPayload.name }));
       }
 
       if (successful.length > 0) {
@@ -245,6 +259,8 @@ export const useMultipleInventoryForm = () => {
       console.error("Error adding products:", error);
     } finally {
       setIsLoading(false);
+      // close confirmation popup after processing completes
+      setShowConfirmationPopup(false);
     }
   };
 
@@ -262,6 +278,7 @@ export const useMultipleInventoryForm = () => {
     formDataList,
     errors,
     isLoading,
+    progress,
     showSuccessPopup,
     showConfirmationPopup,
     brands,

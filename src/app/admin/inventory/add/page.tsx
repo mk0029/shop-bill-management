@@ -21,6 +21,7 @@ export default function AddInventoryItemPage() {
     formDataList,
     errors,
     isLoading,
+    progress,
     showSuccessPopup,
     showConfirmationPopup,
     brands,
@@ -211,20 +212,29 @@ export default function AddInventoryItemPage() {
           onClose={() => setShowConfirmationPopup(false)}
           data={{
             title: "Add Products",
-            message: `Are you sure you want to add ${formDataList.length} ${
-              formDataList.length === 1 ? "product" : "products"
-            } to your inventory?`,
+            message: isLoading
+              ? `Adding ${progress.current}/${progress.total} ${progress.total === 1 ? "product" : "products"}...${
+                  progress.lastName ? `\nLast processed: ${progress.lastName}` : ""
+                }`
+              : `Are you sure you want to add ${formDataList.length} ${
+                  formDataList.length === 1 ? "product" : "products"
+                } to your inventory?`,
             type: "info",
             actions: [
               {
-                label: isLoading ? "Adding..." : "Add Products",
+                label: isLoading
+                  ? `Adding ${progress.current}/${progress.total}`
+                  : "Add Products",
                 action: confirmSubmit,
                 variant: "default",
+                disabled: isLoading,
+                loading: isLoading,
               },
               {
                 label: "Cancel",
                 action: () => setShowConfirmationPopup(false),
                 variant: "outline",
+                disabled: isLoading,
               },
             ],
           }}

@@ -28,6 +28,8 @@ export interface ConfirmationData {
     label: string;
     action: () => void;
     variant?: "default" | "outline" | "destructive";
+    disabled?: boolean;
+    loading?: boolean;
   }>;
 }
 
@@ -217,7 +219,11 @@ export function ConfirmationPopup({
                           key={index}
                           variant={action.variant || "default"}
                           onClick={action.action}
-                          className="flex-1">
+                          disabled={action.disabled}
+                          className="flex-1 flex items-center justify-center gap-2">
+                          {action.loading && (
+                            <span className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                          )}
                           {action.label}
                         </Button>
                       ))

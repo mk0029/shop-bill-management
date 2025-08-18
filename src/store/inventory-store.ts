@@ -198,11 +198,11 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     try {
       const response = await inventoryApi.getProducts(filters);
       if (response.success) {
-        set({
-          products: (response.data as Product[]) || [],
-          isLoading: false,
-          lastFetched: new Date(),
-        });
+        // Ensure newest products appear first
+        const products = ((response.data as Product[]) || []).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        set({ products, isLoading: false, lastFetched: new Date() });
       } else {
         set({
           isLoading: false,
@@ -510,7 +510,8 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     const existingProduct = products.find((p) => p._id === product._id);
 
     if (!existingProduct) {
-      set((state) => ({ products: [...state.products, product] }));
+      // Prepend so the last added item shows at the top of the table
+      set((state) => ({ products: [product, ...state.products] }));
       console.log(`✅ Product created via realtime: ${product.name}`);
       setTimeout(() => get().fetchInventorySummary(), 500);
     } else {

@@ -44,6 +44,21 @@ export const ItemSelectionModal = ({
     [activeProducts]
   );
 
+  // Build subcategory list when a parent category is selected
+  const subcategoryOptions = useMemo(() => {
+    const parent = (selectedCategory || "").trim().toLowerCase();
+    if (!parent) return [] as { value: string; label: string }[];
+    const names = new Set<string>();
+    for (const p of activeProducts) {
+      const parentName = p.category?.parentCategory?.name
+        ?.trim()
+        .toLowerCase();
+      const ownName = p.category?.name?.trim();
+      if (parentName === parent && ownName) names.add(ownName);
+    }
+    return Array.from(names).map((n) => ({ value: n, label: n }));
+  }, [activeProducts, selectedCategory]);
+
   const searchResults = useMemo(() => {
     if (!search.trim()) return [] as any[];
     const q = search.toLowerCase();
@@ -162,6 +177,21 @@ export const ItemSelectionModal = ({
 
         {/* Specification Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {subcategoryOptions.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-gray-300">Subcategory</Label>
+              <Dropdown
+                options={[
+                  { value: "", label: "All Subcategories" },
+                  ...subcategoryOptions,
+                ]}
+                value={selectedSpecifications.subcategory || ""}
+                onValueChange={(value) => onUpdateSpecification("subcategory", value)}
+                placeholder="Select subcategory"
+                className="bg-gray-800 border-gray-700"
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label className="text-gray-300">Brand</Label>
             <Dropdown
