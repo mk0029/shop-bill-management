@@ -26,13 +26,8 @@ interface RewindingKitFormProps {
 
 interface RewindingFormData {
   id: string;
-  selectedStarterId: string;
+  selectedStarterId?: string;
   kitName: string;
-  kitType: any;
-  boreSize: string;
-  sizeInInches: string;
-  multiSpeed: boolean;
-  heavyLoadOption: string;
   oldWindingMaterial: "Copper" | "Aluminum";
   newWindingMaterial: "Copper" | "Aluminum";
   priceDifference: string;
@@ -44,11 +39,6 @@ const initialKitState: RewindingFormData = {
   id: "",
   selectedStarterId: "",
   kitName: "",
-  kitType: "Cooler",
-  boreSize: "",
-  sizeInInches: "",
-  multiSpeed: false,
-  heavyLoadOption: "",
   oldWindingMaterial: "Copper",
   newWindingMaterial: "Copper",
   priceDifference: "",
@@ -56,45 +46,45 @@ const initialKitState: RewindingFormData = {
   quantity: 1,
 };
 
-const kitTypeOptions = [
-  { value: "cooler", label: "Cooler Kit" },
-  { value: "madhani", label: "Madhani Kit" },
-  { value: "cellingFan", label: "Celling Fan" },
-  { value: "ap", label: "Ap" },
-  { value: "Chaki Motor", label: "Chakki Motor" },
-];
 
 const materialOptions = [
   { value: "Copper", label: "Copper" },
   { value: "Aluminum", label: "Aluminum" },
 ];
 
-const heavyLoadOptions = [
-  { value: "", label: "None" },
-  { value: "0.5hp", label: "0.5 HP" },
-  { value: "1hp", label: "1 HP" },
-  { value: "1.5hp", label: "1.5 HP" },
-  { value: "2hp", label: "2 HP" },
-  { value: "2.5hp", label: "2.5 HP" },
-  { value: "3hp", label: "3 HP" },
-];
+
+
+interface Product {
+  _id: string;
+  name: string;
+  category: { name: string };
+  // Add other product fields if needed
+}
 
 function SingleRewindingForm({
   formData,
   onUpdate,
   onRemove,
   canRemove,
-  starterProducts,
+  starters,
 }: {
   formData: RewindingFormData;
   onUpdate: (id: string, data: Partial<RewindingFormData>) => void;
   onRemove: (id: string) => void;
   canRemove: boolean;
-  starterProducts: unknown[];
+  starters: Product[];
 }) {
-  const selectedStarter = starterProducts.find(
-    (p: any) => p._id === formData.selectedStarterId
-  );
+  const { getProductById } = useProducts();
+
+  useEffect(() => {
+    if (formData.selectedStarterId) {
+      const selectedStarter = getProductById(formData.selectedStarterId);
+      if (selectedStarter) {
+        onUpdate(formData.id, { kitName: selectedStarter.name });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.selectedStarterId]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -109,40 +99,6 @@ function SingleRewindingForm({
   ) => {
     onUpdate(formData.id, { [field]: value });
   };
-
-  const handleStarterSelect = (starterId: string) => {
-    const starter = starterProducts.find((p: any) => p._id === starterId);
-    if (starter) {
-      // Auto-fill form fields based on starter data
-      const updates: Partial<RewindingFormData> = {
-        selectedStarterId: starterId,
-        kitName: (starter as any).name,
-        kitType: (starter as any).specifications?.kitType || "Cooler",
-        boreSize: (starter as any).specifications?.boreSize || "",
-        sizeInInches: (starter as any).specifications?.sizeInInches || "",
-        windingRate: (starter as any).pricing?.sellingPrice?.toString() || "",
-      };
-      onUpdate(formData.id, updates);
-    } else {
-      onUpdate(formData.id, { selectedStarterId: starterId });
-    }
-  };
-
-  const isFieldDisabled = (fieldName: string) => {
-    if (!selectedStarter) return false;
-
-    // Disable fields that are auto-filled from starter data
-    const disabledFields = ["kitName", "kitType", "boreSize", "sizeInInches"];
-    return disabledFields.includes(fieldName);
-  };
-
-  const starterOptions = [
-    { value: "", label: "Select existing starter data..." },
-    ...starterProducts.map((product: any) => ({
-      value: product._id,
-      label: `${product.name} - ${product.brand?.name || "No Brand"}`,
-    })),
-  ];
 
   return (
     <Card className="relative">
@@ -159,23 +115,6 @@ function SingleRewindingForm({
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Starter Data Dropdown */}
-        <div>
-          <Label>Select Existing Starter Data (Optional)</Label>
-          <Dropdown
-            options={starterOptions}
-            value={formData.selectedStarterId}
-            onValueChange={handleStarterSelect}
-            placeholder="Choose from existing starter data..."
-          />
-          {!!selectedStarter && (
-            <p className="text-sm text-gray-500 mt-1">
-              Selected: {(selectedStarter as any).name} - Fields will be
-              auto-filled and disabled
-            </p>
-          )}
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor={`kitName-${formData.id}`}>Kit Name</Label>
@@ -184,68 +123,17 @@ function SingleRewindingForm({
               name="kitName"
               value={formData.kitName}
               onChange={handleInputChange}
-              disabled={isFieldDisabled("kitName")}
-              className={isFieldDisabled("kitName") ? "bg-gray-100" : ""}
+              disabled={!!formData.selectedStarterId}
             />
           </div>
           <div>
-            <Label htmlFor={`kitType-${formData.id}`}>Kit Type</Label>
+            <Label>Select Starter (Optional)</Label>
             <Dropdown
-              options={kitTypeOptions}
-              value={formData.kitType}
-              onValueChange={(value) => handleSelectChange("kitType", value)}
-              disabled={isFieldDisabled("kitType")}
+              options={starters.map((s) => ({ value: s._id, label: s.name }))}
+              value={formData.selectedStarterId}
+              onValueChange={(value) => handleSelectChange("selectedStarterId", value)}
             />
           </div>
-          <div>
-            <Label htmlFor={`boreSize-${formData.id}`}>Kit Bore Size</Label>
-            <Input
-              id={`boreSize-${formData.id}`}
-              name="boreSize"
-              type="number"
-              value={formData.boreSize}
-              onChange={handleInputChange}
-              disabled={isFieldDisabled("boreSize")}
-              className={isFieldDisabled("boreSize") ? "bg-gray-100" : ""}
-            />
-          </div>
-          <div>
-            <Label htmlFor={`sizeInInches-${formData.id}`}>
-              Kit Size in Inches
-            </Label>
-            <Input
-              id={`sizeInInches-${formData.id}`}
-              name="sizeInInches"
-              type="number"
-              value={formData.sizeInInches}
-              onChange={handleInputChange}
-              disabled={isFieldDisabled("sizeInInches")}
-              className={isFieldDisabled("sizeInInches") ? "bg-gray-100" : ""}
-            />
-          </div>
-          {formData.kitType === "Cooler" && (
-            <div className="flex items-center space-x-2">
-              <Switch
-                id={`multiSpeed-${formData.id}`}
-                checked={formData.multiSpeed}
-                onCheckedChange={(checked) =>
-                  onUpdate(formData.id, { multiSpeed: checked })
-                }
-              />
-              <Label htmlFor={`multiSpeed-${formData.id}`}>Multi-Speed</Label>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <Label>Heavy Load Option</Label>
-          <Dropdown
-            options={heavyLoadOptions}
-            value={formData.heavyLoadOption}
-            onValueChange={(value) =>
-              handleSelectChange("heavyLoadOption", value)
-            }
-          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -307,23 +195,21 @@ function SingleRewindingForm({
       </CardContent>
     </Card>
   );
+
 }
 
 export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
+  const { getProductsByCategory } = useProducts();
+  const [starters, setStarters] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const starterProducts = getProductsByCategory("Starter");
+    setStarters(starterProducts as any);
+  }, [getProductsByCategory]);
+
   const [rewindingForms, setRewindingForms] = useState<RewindingFormData[]>([
     { ...initialKitState, id: crypto.randomUUID() },
   ]);
-
-  const { activeProducts } = useProducts();
-
-  // Filter products that could be starter data (you can adjust this filter based on your needs)
-  const starterProducts = activeProducts.filter(
-    (product) =>
-      product.category?.name?.toLowerCase().includes("starter") ||
-      product.name.toLowerCase().includes("starter") ||
-      product.category?.name?.toLowerCase().includes("motor") ||
-      product.category?.name?.toLowerCase().includes("cooler")
-  );
 
   const updateForm = (id: string, updates: Partial<RewindingFormData>) => {
     setRewindingForms((prev) =>
@@ -361,11 +247,6 @@ export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
         windingRate,
         priceDifference,
         quantity,
-        kitType,
-        boreSize,
-        sizeInInches,
-        multiSpeed,
-        heavyLoadOption,
         oldWindingMaterial,
         newWindingMaterial,
       } = formData;
@@ -375,21 +256,17 @@ export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
 
       // Create a readable specifications string
       const specs = [];
-      if (boreSize) specs.push(`Bore: ${boreSize}`);
-      if (sizeInInches) specs.push(`Size: ${sizeInInches}"`);
-      if (multiSpeed) specs.push("Multi-Speed");
-      if (heavyLoadOption) specs.push(`Load: ${heavyLoadOption}`);
       if (oldWindingMaterial !== newWindingMaterial) {
-        specs.push(`Material: ${oldWindingMaterial} → ${newWindingMaterial}`);
+        specs.push(`${oldWindingMaterial} → ${newWindingMaterial}`);
       } else {
-        specs.push(`Material: ${oldWindingMaterial}`);
+        specs.push(oldWindingMaterial);
       }
 
       const specificationsText =
         specs.length > 0 ? specs.join(", ") : "Custom service";
 
       const newItem = {
-        productName: `${kitType} Kit - ${kitName}`,
+        productName: kitName,
         quantity: quantity,
         unitPrice: totalUnitPrice,
         specifications: specificationsText,
@@ -407,14 +284,14 @@ export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
 
   return (
     <div className="space-y-6">
-      {rewindingForms.map((form, index) => (
+      {rewindingForms.map((form) => (
         <SingleRewindingForm
           key={form.id}
           formData={form}
           onUpdate={updateForm}
           onRemove={removeForm}
           canRemove={rewindingForms.length > 1}
-          starterProducts={starterProducts}
+          starters={starters}
         />
       ))}
 
@@ -435,4 +312,5 @@ export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
       </div>
     </div>
   );
+
 }

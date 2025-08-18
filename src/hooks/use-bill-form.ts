@@ -38,17 +38,6 @@ export interface BillFormData {
   isMarkAsPaid: boolean;
   enablePartialPayment: boolean;
   partialPaymentAmount: number;
-  // Rewinding Kit Fields
-  kitName?: string;
-  kitBoreSize?: number;
-  kitSizeInInches?: number;
-  isMultiSpeed?: boolean;
-  heavyLoadOptions?: string[];
-  oldWindingMaterial?: "copper" | "aluminum";
-  newWindingMaterial?: "copper" | "aluminum";
-  priceDifference?: number;
-  windingRate?: number;
-  kitType?: "cooler" | "motor" | "other";
 }
 
 export interface BillItem {
@@ -85,15 +74,6 @@ export const useBillForm = () => {
     isMarkAsPaid: false,
     enablePartialPayment: false,
     partialPaymentAmount: 0,
-    kitName: "",
-    kitBoreSize: 0,
-    kitSizeInInches: 0,
-    isMultiSpeed: false,
-    heavyLoadOptions: [],
-    oldWindingMaterial: "copper",
-    newWindingMaterial: "copper",
-    priceDifference: 0,
-    windingRate: 0,
   });
 
   const handleInputChange = (field: keyof BillFormData, value: any) => {
@@ -102,10 +82,6 @@ export const useBillForm = () => {
       "homeVisitFee",
       "laborCharges",
       "partialPaymentAmount",
-      "kitBoreSize",
-      "kitSizeInInches",
-      "priceDifference",
-      "windingRate",
     ];
 
     if (numericFields.includes(field)) {
@@ -169,43 +145,6 @@ export const useBillForm = () => {
     }
   };
 
-  const addRewindingItemToBill = () => {
-    const {
-      kitName,
-      windingRate,
-      kitSizeInInches,
-      priceDifference,
-      oldWindingMaterial,
-      newWindingMaterial,
-    } = formData;
-
-    if (!kitName || !windingRate || !kitSizeInInches) {
-      setAlertMessage("Please fill in all required rewinding kit details.");
-      setShowAlertModal(true);
-      return;
-    }
-
-    const price =
-      Number(windingRate) * Number(kitSizeInInches) +
-      (oldWindingMaterial !== newWindingMaterial ? Number(priceDifference) : 0);
-
-    const rewindingItem: BillItem = {
-      id: `rewinding-${Date.now()}`,
-      name: `Rewinding Kit - ${kitName}`,
-      price: price,
-      quantity: 1,
-      total: price,
-      category: "Rewinding",
-      brand: "Custom",
-      specifications: `Bore: ${formData.kitBoreSize}", Size: ${
-        formData.kitSizeInInches
-      }", Load: ${formData.heavyLoadOptions?.join(", ")}`,
-      unit: "kit",
-      itemType: "rewinding",
-    };
-
-    setSelectedItems((prev) => [...prev, rewindingItem]);
-  };
 
   const addCustomItemToBill = (customItem: {
     productName: string;
@@ -400,7 +339,6 @@ export const useBillForm = () => {
     handleSuccessClose,
     setShowAlertModal,
     setSelectedItems,
-    addRewindingItemToBill,
     addCustomItemToBill,
   };
 };

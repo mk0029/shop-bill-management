@@ -118,8 +118,13 @@ export const useInventoryManagement = () => {
       const newStock = originalStock + stockToAdd;
 
       const productToUpdate = {
+        ...originalProduct,
         ...updatedProductData,
+        category: originalProduct.category,
+        brand: originalProduct.brand,
+        specifications: originalProduct.specifications,
         inventory: {
+          ...originalProduct.inventory,
           ...updatedProductData.inventory,
           currentStock: newStock,
         },

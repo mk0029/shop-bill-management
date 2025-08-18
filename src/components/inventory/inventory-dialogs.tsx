@@ -65,12 +65,16 @@ export const InventoryDialogs = ({
   useEffect(() => {
     if (selectedProduct) {
       setEditFormData({
-        ...selectedProduct,
-        inventory: {
-          ...selectedProduct.inventory,
-          currentStock: 0,
+        _id: selectedProduct._id,
+        name: selectedProduct.name,
+        pricing: {
+          purchasePrice: selectedProduct.pricing?.purchasePrice,
+          sellingPrice: selectedProduct.pricing?.sellingPrice,
         },
-      });
+        inventory: {
+          currentStock: 0, // This field is for adding stock
+        },
+      } as Product);
     } else {
       setEditFormData(null);
     }
@@ -184,7 +188,7 @@ export const InventoryDialogs = ({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Current Stock</Label>
+              <Label className="text-gray-300">Add Stock</Label>
               <Input
                 type="number"
                 value={editFormData?.inventory?.currentStock || ""}

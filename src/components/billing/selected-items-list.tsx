@@ -56,14 +56,23 @@ export const SelectedItemsList = ({
           className="sm:p-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-medium text-white text-sm">{item.name}</p>
-                <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">
-                  {item.category}
-                </span>
-              </div>
-              <p className="text-xs text-gray-400 mb-1">{item.brand}</p>
-              <p className="text-xs text-gray-400">{item.specifications}</p>
+              {item.category === "Rewinding Service" ? (
+                <div>
+                  <p className="font-medium text-white text-sm">{item.name}</p>
+                  <p className="text-xs text-gray-400">{item.specifications}</p>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-medium text-white text-sm">{item.name}</p>
+                    <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">
+                      {item.category}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-1">{item.brand}</p>
+                  <p className="text-xs text-gray-400">{item.specifications}</p>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm text-blue-400 font-medium">
