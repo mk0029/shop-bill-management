@@ -18,6 +18,7 @@ import { ItemSelectionSection } from "@/components/billing/item-selection-sectio
 import { SelectedItemsList } from "@/components/billing/selected-items-list";
 import { BillSummarySidebar } from "@/components/billing/bill-summary-sidebar";
 import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
+import { SubcategorySelectionModal } from "@/components/billing/subcategory-selection-modal";
 import { RewindingKitForm } from "@/components/billing/RewindingKitForm";
 
 export default function CreateBillPage() {
@@ -83,6 +84,7 @@ export default function CreateBillPage() {
     itemSelectionModal,
     openItemSelectionModal,
     closeItemSelectionModal,
+    setSelectedCategory,
     updateSpecificationFilter,
     filterItemsBySpecifications,
   } = useItemSelection();
@@ -90,6 +92,29 @@ export default function CreateBillPage() {
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
   const filteredItems = filterItemsBySpecifications(activeProducts);
   const [showRewindingForm, setShowRewindingForm] = useState(false);
+  const [subcatModalOpen, setSubcatModalOpen] = useState(false);
+  const [parentForSubcat, setParentForSubcat] = useState<string | null>(null);
+
+  const handleOpenCategory = (categoryName: string) => {
+    const lower = categoryName.toLowerCase();
+    const cat = categories.find((c) => c.name?.toLowerCase() === lower);
+    if (!cat) {
+      openItemSelectionModal(lower);
+      return;
+    }
+    // check if it has subcategories
+    const hasChildren = categories.some((c) => {
+      const byId = c.parentCategory?._id === cat._id;
+      const byName = (c.parentCategory?.name || "").trim().toLowerCase() === cat.name.trim().toLowerCase();
+      return byId || byName;
+    });
+    if (hasChildren) {
+      setParentForSubcat(cat.name);
+      setSubcatModalOpen(true);
+    } else {
+      openItemSelectionModal(lower);
+    }
+  };
 
   // Intercept browser back navigation to show confirm modal if dirty
   useEffect(() => {
@@ -207,7 +232,7 @@ export default function CreateBillPage() {
             categories={categories}
             activeProducts={activeProducts}
             productsLoading={productsLoading}
-            onOpenItemModal={openItemSelectionModal}
+            onOpenItemModal={handleOpenCategory}
           />
 
           <SelectedItemsList
@@ -239,6 +264,18 @@ export default function CreateBillPage() {
       </div>
 
       {/* Modals */}
+      <SubcategorySelectionModal
+        isOpen={subcatModalOpen}
+        onClose={() => setSubcatModalOpen(false)}
+        parentCategoryName={parentForSubcat}
+        categories={categories}
+        activeProducts={activeProducts}
+        onPickSubcategory={(name) => {
+          setSubcatModalOpen(false);
+          setParentForSubcat(null);
+          openItemSelectionModal(name);
+        }}
+      />
       <ItemSelectionModal
         isOpen={itemSelectionModal.isOpen}
         onClose={closeItemSelectionModal}
@@ -248,6 +285,7 @@ export default function CreateBillPage() {
         filteredItems={filteredItems}
         brands={brands}
         onAddItem={addItemToBill}
+        activeProducts={activeProducts}
       />
 
       <ConfirmationModal

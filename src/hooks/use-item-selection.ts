@@ -37,6 +37,14 @@ export const useItemSelection = () => {
     });
   };
 
+  const setSelectedCategory = (categoryName: string) => {
+    setItemSelectionModal((prev) => ({
+      ...prev,
+      selectedCategory: categoryName,
+      selectedSpecifications: {}, // reset filters when category changes
+    }));
+  };
+
   const updateSpecificationFilter = (key: string, value: string) => {
     setItemSelectionModal((prev) => ({
       ...prev,
@@ -108,6 +116,7 @@ export const useItemSelection = () => {
     itemSelectionModal,
     openItemSelectionModal,
     closeItemSelectionModal,
+    setSelectedCategory,
     updateSpecificationFilter,
     filterItemsBySpecifications,
   };

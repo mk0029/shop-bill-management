@@ -22,8 +22,10 @@ export const ItemSelectionSection = ({
   onOpenItemModal,
 }: ItemSelectionSectionProps) => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  // Only show parent categories to reduce visual clutter
+  const parentCategories = categories.filter((c) => !c.parentCategory);
 
-  const filteredCategories = categories.filter((category) => {
+  const filteredCategories = parentCategories.filter((category) => {
     if (categoryFilter === "all") return true;
     return category.name.toLowerCase() === categoryFilter;
   });
@@ -43,7 +45,7 @@ export const ItemSelectionSection = ({
           <Dropdown
             options={[
               { value: "all", label: "All Categories" },
-              ...categories.map((cat) => ({
+              ...parentCategories.map((cat) => ({
                 value: cat.name.toLowerCase(),
                 label: cat.name,
               })),
@@ -58,14 +60,6 @@ export const ItemSelectionSection = ({
         {/* Category Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
           {filteredCategories.map((category) => {
-            const categoryProducts = activeProducts.filter(
-              (product) =>
-                product.category?.name?.toLowerCase() ===
-                  category.name.toLowerCase() &&
-                product.inventory.currentStock > 0 &&
-                product.isActive
-            );
-
             return (
               <motion.div
                 key={category._id}
@@ -73,23 +67,13 @@ export const ItemSelectionSection = ({
                 whileTap={{ scale: 0.98 }}>
                 <div
                   // variant="outline"
-                  onClick={() => {
-                    if (categoryProducts.length > 0) {
-                      onOpenItemModal(category.name.toLowerCase());
-                    }
-                  }}
-                  className={`w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md ${categoryProducts.length > 0 ? " cursor-pointer" : "cursor-not-allowed"}`}
-                  // disabled={categoryProducts.length === 0}>
+                  onClick={() => onOpenItemModal(category.name.toLowerCase())}
+                  className={`w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md cursor-pointer`}
                   aria-disabled>
                   {" "}
                   <div className="text-left">
                     <p className="font-medium text-white">{category.name}</p>
-                    <p className="text-sm text-gray-400">
-                      {category.description || `${category.name} products`}
-                    </p>
-                    <p className="text-sm text-blue-400">
-                      {categoryProducts.length} items available
-                    </p>
+                    <p className="text-sm text-gray-400">Tap to view subcategories</p>
                   </div>
                 </div>
               </motion.div>
