@@ -100,9 +100,32 @@ export const useInventoryManagement = () => {
     setShowEditDialog(true);
   };
 
-  const handleUpdateProduct = async (updatedProduct: Product) => {
+  const handleUpdateProduct = async (updatedProductData: Product) => {
+    if (!selectedProduct) {
+      toast.error("No product selected for update.");
+      return;
+    }
+
     try {
-      await updateProduct(updatedProduct);
+      const originalProduct = products.find((p) => p._id === selectedProduct._id);
+      if (!originalProduct) {
+        toast.error("Original product data not found.");
+        return;
+      }
+
+      const stockToAdd = Number(updatedProductData.inventory?.currentStock || 0);
+      const originalStock = Number(originalProduct.inventory?.currentStock || 0);
+      const newStock = originalStock + stockToAdd;
+
+      const productToUpdate = {
+        ...updatedProductData,
+        inventory: {
+          ...updatedProductData.inventory,
+          currentStock: newStock,
+        },
+      };
+
+      await updateProduct(productToUpdate);
       toast.success("Product updated successfully");
       setShowEditDialog(false);
       setSelectedProduct(null);

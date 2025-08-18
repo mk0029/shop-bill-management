@@ -121,7 +121,7 @@ export const useMultipleInventoryForm = () => {
                 ...form,
                 category: selectedProduct.category._id,
                 brand: selectedProduct.brand._id,
-                productName: selectedProduct.name || "",
+                productName: selectedProduct.name+' - '+ selectedProduct.brand.name || "",
                 purchasePrice: selectedProduct.pricing.purchasePrice.toString(),
                 sellingPrice: selectedProduct.pricing.sellingPrice.toString(),
                 currentStock: "",

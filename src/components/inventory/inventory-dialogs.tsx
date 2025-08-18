@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Product } from "@/store/inventory-store";
+import { DynamicSpecificationFields } from "@/components/forms/dynamic-specification-fields";
 
 // Simple Dialog Components
 const Dialog = ({
@@ -17,8 +18,7 @@ const Dialog = ({
   <div
     className={`fixed inset-0 z-50 flex items-center justify-center ${
       open ? "block" : "hidden"
-    }`}
-  >
+    }`}>
     <div
       className="fixed inset-0 bg-black/50"
       onClick={() => onOpenChange(false)}
@@ -60,11 +60,17 @@ export const InventoryDialogs = ({
   onDeleteCancel,
   onEditCancel,
 }: InventoryDialogsProps) => {
-    const [editFormData, setEditFormData] = useState<Product | null>(null);
+  const [editFormData, setEditFormData] = useState<Product | null>(null);
 
   useEffect(() => {
     if (selectedProduct) {
-      setEditFormData(selectedProduct);
+      setEditFormData({
+        ...selectedProduct,
+        inventory: {
+          ...selectedProduct.inventory,
+          currentStock: 0,
+        },
+      });
     } else {
       setEditFormData(null);
     }
@@ -93,6 +99,16 @@ export const InventoryDialogs = ({
       }
       return { ...prev, [field]: value };
     });
+  };
+
+  const handleSpecificationChange = (field: string, value: string) => {
+    setEditFormData(
+      (prev) =>
+        ({
+          ...prev,
+          specifications: { ...prev?.specifications, [field]: value },
+        } as Product)
+    );
   };
 
   return (
@@ -132,6 +148,14 @@ export const InventoryDialogs = ({
             <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Product Name</Label>
+              <Input
+                value={editFormData?.name || ""}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-gray-300">Purchase Price</Label>
@@ -170,18 +194,7 @@ export const InventoryDialogs = ({
                 className="bg-gray-800 border-gray-700 text-white"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label className="text-gray-300">Description</Label>
-              <textarea
-                value={editFormData?.description || ""}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                className="w-full h-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 resize-none focus:outline-none   focus:border-transparent"
-                placeholder="Product description..."
-              />
-            </div>
-
-            <div className="flex gap-3 justify-end">
+         <div className="flex gap-3 justify-end">
               <Button type="button" variant="outline" onClick={onEditCancel}>
                 Cancel
               </Button>
