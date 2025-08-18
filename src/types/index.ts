@@ -153,6 +153,8 @@ export interface StockTransaction {
 export interface LoginCredentials {
   phone: string;
   secretKey: string;
+  /** If true, persist login across browser restarts (localStorage). If false, only for the session (sessionStorage). */
+  rememberMe?: boolean;
 }
 
 export interface ProfileData {

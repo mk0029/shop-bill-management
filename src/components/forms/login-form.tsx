@@ -21,6 +21,7 @@ export function LoginForm({
   const [formData, setFormData] = useState<LoginCredentials>({
     phone: "",
     secretKey: "",
+    rememberMe: false,
   });
   const [formErrors, setFormErrors] = useState<Partial<LoginCredentials>>({});
   const [showPassword, setShowPassword] = useState(false);
@@ -131,6 +132,23 @@ export function LoginForm({
             <p className="text-red-400 text-sm mt-1">{formErrors.secretKey}</p>
           )}
         </div>
+      </div>
+
+      {/* Remember Me */}
+      <div className="flex items-center space-x-2">
+        <input
+          id="rememberMe"
+          type="checkbox"
+          className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-blue-500"
+          checked={!!formData.rememberMe}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, rememberMe: e.target.checked }))
+          }
+          disabled={isLoading}
+        />
+        <Label htmlFor="rememberMe" className="text-gray-300">
+          Remember me
+        </Label>
       </div>
 
       {error && (

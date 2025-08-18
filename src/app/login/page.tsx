@@ -27,9 +27,15 @@ export default function LoginPage() {
   const handleLogin = async (credentials: {
     phone: string;
     secretKey: string;
+    rememberMe?: boolean;
   }) => {
     try {
       setError(null);
+      // Store remember preference so the auth store uses correct storage
+      if (typeof window !== "undefined") {
+        const remember = credentials.rememberMe ? "true" : "false";
+        window.localStorage.setItem("auth-remember", remember);
+      }
       await login(credentials);
 
       // Redirect based on role

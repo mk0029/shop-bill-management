@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { User, LoginCredentials, ProfileData } from "@/types";
 import { userApiService } from "@/lib/sanity-api-service";
 import { sanityClient } from "@/lib/sanity";
@@ -49,12 +49,24 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // Clear Zustand state
         set({
           user: null,
           role: null,
           isAuthenticated: false,
           isLoading: false,
         });
+        // Also clear persisted storage in both localStorage and sessionStorage
+        if (typeof window !== "undefined") {
+          try {
+            const key = "auth-storage";
+            window.localStorage.removeItem(key);
+            window.sessionStorage.removeItem(key);
+            window.localStorage.removeItem("auth-remember");
+          } catch (e) {
+            // noop
+          }
+        }
       },
 
       updateProfile: async (data: ProfileData) => {
@@ -118,15 +130,53 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
+      storage: createJSONStorage(() => {
+        if (typeof window === "undefined") return undefined as unknown as Storage;
+        const dynamicStorage = {
+          getItem: (key: string) => {
+            try {
+              const fromLocal = window.localStorage.getItem(key);
+              if (fromLocal != null) return fromLocal;
+              return window.sessionStorage.getItem(key);
+            } catch {
+              return null;
+            }
+          },
+          setItem: (key: string, value: string) => {
+            try {
+              const remember = window.localStorage.getItem("auth-remember") === "true";
+              if (remember) {
+                window.localStorage.setItem(key, value);
+                // ensure session copy is removed to avoid duplicates
+                window.sessionStorage.removeItem(key);
+              } else {
+                window.sessionStorage.setItem(key, value);
+                // avoid persisting in local when not remembering
+                window.localStorage.removeItem(key);
+              }
+            } catch {
+              // noop
+            }
+          },
+          removeItem: (key: string) => {
+            try {
+              window.localStorage.removeItem(key);
+              window.sessionStorage.removeItem(key);
+            } catch {
+              // noop
+            }
+          },
+        } as Storage;
+        return dynamicStorage;
+      }),
       partialize: (state) => ({
         user: state.user,
         role: state.role,
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        // Dates are stored as ISO strings, no conversion needed on rehydration
         if (state?.user) {
-          // Optional: You could perform validation or logging here if needed
+          // Optional validation or logging
         }
       },
     }
