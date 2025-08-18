@@ -15,9 +15,10 @@ export function useProducts() {
   } = useDataStore();
 
   const productList = useMemo(() => Array.from(products.values()), [products]);
+  // IMPORTANT: recompute when products change, not when the function reference changes
   const activeProducts = useMemo(
-    () => getActiveProducts(),
-    [getActiveProducts]
+    () => Array.from(products.values()).filter((p) => p.isActive),
+    [products]
   );
 
   return {

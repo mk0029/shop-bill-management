@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBill } from "@/lib/form-service";
+import { createBill, saveDraftBill, updateDraftBill } from "@/lib/form-service";
 
 interface Product {
   _id: string;
@@ -56,10 +56,16 @@ export interface BillItem {
 export const useBillForm = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [selectedItems, setSelectedItems] = useState<BillItem[]>([]);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const LOCAL_KEY = "bill_create_autosave";
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [formData, setFormData] = useState<BillFormData>({
     customerId: "",
@@ -86,6 +92,7 @@ export const useBillForm = () => {
 
     if (numericFields.includes(field)) {
       setFormData((prev) => ({ ...prev, [field]: Number(value) || 0 }));
+      setIsDirty(true);
     } else if (field === "isMarkAsPaid") {
       setFormData((prev) => ({
         ...prev,
@@ -93,14 +100,17 @@ export const useBillForm = () => {
         enablePartialPayment: false,
         partialPaymentAmount: 0,
       }));
+      setIsDirty(true);
     } else if (field === "enablePartialPayment") {
       setFormData((prev) => ({
         ...prev,
         enablePartialPayment: !!value,
         isMarkAsPaid: false,
       }));
+      setIsDirty(true);
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
+      setIsDirty(true);
     }
   };
 
@@ -121,6 +131,7 @@ export const useBillForm = () => {
               : i
           )
         );
+        setIsDirty(true);
       } else {
         setAlertMessage(`Only ${maxStock} in stock!`);
         setShowAlertModal(true);
@@ -142,6 +153,7 @@ export const useBillForm = () => {
           itemType: "standard",
         },
       ]);
+      setIsDirty(true);
     }
   };
 
@@ -182,6 +194,7 @@ export const useBillForm = () => {
     };
 
     setSelectedItems((prev) => [...prev, billItem]);
+    setIsDirty(true);
   };
 
   const updateItemQuantity = (
@@ -206,11 +219,13 @@ export const useBillForm = () => {
             : i
         )
       );
+      setIsDirty(true);
     }
   };
 
   const removeItem = (itemId: string) => {
     setSelectedItems((prev) => prev.filter((i) => i.id !== itemId));
+    setIsDirty(true);
   };
 
   const calculateTotal = () => {
@@ -316,15 +331,134 @@ export const useBillForm = () => {
     }
   };
 
+  // Save or update draft without stock operations
+  const saveDraft = async () => {
+    try {
+      setSavingDraft(true);
+      const paymentDetails = getPaymentDetails();
+
+      const draftPayload = {
+        customerId: formData.customerId || undefined,
+        items: selectedItems.map((item) => ({
+          productId: item.itemType === "standard" ? item.id : undefined,
+          productName: item.name,
+          category: item.category,
+          brand: item.brand,
+          specifications: item.specifications,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.price),
+          unit: item.unit,
+          isRewinding: item.itemType === "rewinding",
+          isCustom: item.itemType === "custom",
+        })),
+        serviceType: (formData.serviceType as any) || "sale",
+        locationType: (formData.location as any) || "shop",
+        homeVisitFee: Number(formData.homeVisitFee || 0),
+        repairCharges: Number(formData.repairFee || 0),
+        laborCharges: Number(formData.laborCharges || 0),
+        notes: formData.notes,
+        paymentStatus: paymentDetails.paymentStatus,
+        paidAmount: paymentDetails.paidAmount,
+        balanceAmount: paymentDetails.balanceAmount,
+      };
+
+      let result;
+      if (draftId) {
+        result = await updateDraftBill(draftId, draftPayload as any);
+      } else {
+        result = await saveDraftBill(draftPayload as any);
+        if (result.success && result.data?._id) setDraftId(result.data._id);
+      }
+
+      if (result.success) {
+        setAlertMessage("Draft saved successfully.");
+        setShowAlertModal(true);
+        // Clear local autosave after successful draft save
+        try {
+          localStorage.removeItem(LOCAL_KEY);
+        } catch {}
+        setIsDirty(false);
+      } else {
+        setAlertMessage(result.error || "Failed to save draft");
+        setShowAlertModal(true);
+      }
+    } catch (err) {
+      console.error("Error saving draft:", err);
+      setAlertMessage("Error saving draft");
+      setShowAlertModal(true);
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  // Restore from local autosave on first mount
+  useEffect(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(LOCAL_KEY) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.formData) setFormData((prev) => ({ ...prev, ...parsed.formData }));
+        if (Array.isArray(parsed?.selectedItems)) setSelectedItems(parsed.selectedItems);
+        setAlertMessage("Restored unsaved bill from your last session.");
+        setShowAlertModal(true);
+        setIsDirty(true);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced local autosave when form or items change
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      try {
+        const payload = {
+          formData,
+          selectedItems,
+          draftId,
+          updatedAt: Date.now(),
+        };
+        if (typeof window !== "undefined") {
+          localStorage.setItem(LOCAL_KEY, JSON.stringify(payload));
+        }
+      } catch {}
+    }, 800);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [formData, selectedItems, draftId]);
+
+  // Warn before closing/refreshing the tab when there are unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes on the bill.";
+        return "You have unsaved changes on the bill.";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  const clearLocalDraft = () => {
+    try {
+      localStorage.removeItem(LOCAL_KEY);
+    } catch {}
+    setIsDirty(false);
+  };
+
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
     router.push("/admin/billing");
   };
-
   return {
     formData,
     selectedItems,
     isLoading,
+    savingDraft,
+    isDirty,
     showSuccessModal,
     showAlertModal,
     alertMessage,
@@ -336,10 +470,12 @@ export const useBillForm = () => {
     calculateGrandTotal,
     getPaymentDetails,
     handleSubmit,
+    saveDraft,
     handleSuccessClose,
     setShowAlertModal,
     setSelectedItems,
     addCustomItemToBill,
+    clearLocalDraft,
   };
 };
 

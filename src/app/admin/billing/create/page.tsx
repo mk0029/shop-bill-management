@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { ArrowLeft, XIcon } from "lucide-react";
 import {
@@ -26,6 +25,20 @@ export default function CreateBillPage() {
   const searchParams = useSearchParams();
   const preSelectedCustomerId = searchParams.get("customerId");
 
+  // Exit confirmation state and handlers
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  const confirmSaveDraftAndExit = async () => {
+    await saveDraft();
+    clearLocalDraft();
+    router.back();
+  };
+
+  const discardAndExit = () => {
+    clearLocalDraft();
+    router.back();
+  };
+
   const { customers, isLoading: customersLoading } = useCustomers();
   const { activeProducts, isLoading: productsLoading } = useProducts();
   const { brands } = useBrands();
@@ -35,6 +48,8 @@ export default function CreateBillPage() {
     formData,
     selectedItems,
     isLoading,
+    savingDraft,
+    isDirty,
     showSuccessModal,
     showAlertModal,
     alertMessage,
@@ -47,10 +62,20 @@ export default function CreateBillPage() {
     calculateGrandTotal,
     getPaymentDetails,
     handleSubmit,
+    saveDraft,
     handleSuccessClose,
     setShowAlertModal,
     setSelectedItems,
+    clearLocalDraft,
   } = useBillForm();
+
+  const handleBack = () => {
+    if (isDirty) {
+      setShowExitConfirm(true);
+    } else {
+      router.back();
+    }
+  };
 
   const {
     itemSelectionModal,
@@ -63,6 +88,22 @@ export default function CreateBillPage() {
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
   const filteredItems = filterItemsBySpecifications(activeProducts);
   const [showRewindingForm, setShowRewindingForm] = useState(false);
+
+  // Intercept browser back navigation to show confirm modal if dirty
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      if (isDirty) {
+        e.preventDefault?.();
+        setShowExitConfirm(true);
+        // Push state back to prevent leaving until user chooses
+        window.history.pushState(null, "", window.location.href);
+      }
+    };
+    // Push a new state so that back button triggers popstate here
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isDirty]);
 
   // Pre-select customer if customerId is provided in URL
   useEffect(() => {
@@ -82,17 +123,36 @@ export default function CreateBillPage() {
   return (
     <div className="space-y-6 max-md:pb-4">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => router.back()} className="p-2">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-            Create New Bill
-          </h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
-            Generate a new invoice for your customer
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={handleBack} className="p-2">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+              Create New Bill
+            </h1>
+            <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
+              Generate a new invoice for your customer
+            </p>
+          </div>
+
+      {/* Exit confirmation */}
+      <ConfirmationModal
+        isOpen={showExitConfirm}
+        onClose={discardAndExit}
+        onConfirm={confirmSaveDraftAndExit}
+        title="Unsaved bill data"
+        message="You have unsaved changes. Save as draft or discard?"
+        type="confirm"
+        confirmText="Save as Draft"
+        cancelText="Discard"
+      />
+        </div>
+        <div className="shrink-0">
+          <Button variant="outline" onClick={saveDraft} disabled={savingDraft}>
+            {savingDraft ? "Saving..." : "Save as Draft"}
+          </Button>
         </div>
       </div>
 

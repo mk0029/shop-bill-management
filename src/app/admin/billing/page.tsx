@@ -117,7 +117,7 @@ export default function BillingPage() {
     homeVisitFee: bill.homeVisitFee || 0,
     subtotal: bill.subtotal || 0,
     total: bill.totalAmount || 0,
-    status: bill.paymentStatus === "paid" ? "paid" : "pending",
+    status: bill.status || (bill.paymentStatus === "paid" ? "paid" : "pending"),
     notes: bill.notes,
   }));
 
@@ -239,6 +239,7 @@ export default function BillingPage() {
               { value: "all", label: "All Bills" },
               { value: "paid", label: "Paid" },
               { value: "pending", label: "Pending" },
+              { value: "draft", label: "Draft" },
             ]}
             value={filterStatus}
             onValueChange={setFilterStatus}

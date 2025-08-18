@@ -53,6 +53,190 @@ export async function checkExistingUserByPhone(
 }
 
 /**
+ * Save a bill as DRAFT in Sanity (no stock validation or updates)
+ */
+export async function saveDraftBill(billData: {
+  customerId?: string;
+  items?: Array<{
+    productId?: string;
+    productName: string;
+    category?: string;
+    brand?: string;
+    specifications?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    isCustom?: boolean;
+    isRewinding?: boolean;
+  }>;
+  serviceType?: "repair" | "sale" | "installation" | "maintenance" | "custom";
+  locationType?: "shop" | "home" | "office";
+  homeVisitFee?: number;
+  repairCharges?: number;
+  laborCharges?: number;
+  notes?: string;
+  paymentStatus?: "pending" | "partial" | "paid";
+  paidAmount?: number;
+  balanceAmount?: number;
+}): Promise<FormSubmissionResult> {
+  try {
+    const billId = Buffer.from(Date.now().toString() + Math.random().toString())
+      .toString("base64")
+      .substring(0, 12);
+    const billNumber = `DRAFT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+    const items = (billData.items || []).map((item) => ({
+      productName: item.productName,
+      category: item.category || "",
+      brand: item.brand || "",
+      specifications: item.specifications || "",
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unitPrice || 0),
+      totalPrice: Number(item.quantity || 0) * Number(item.unitPrice || 0),
+      unit: item.unit || "pcs",
+      ...(item.productId
+        ? { product: { _type: "reference", _ref: item.productId } }
+        : {}),
+    }));
+
+    const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+    const homeVisitFee = Number(billData.homeVisitFee || 0);
+    const repairCharges = Number(billData.repairCharges || 0);
+    const laborCharges = Number(billData.laborCharges || 0);
+    const totalAmount = subtotal + homeVisitFee + repairCharges + laborCharges;
+
+    const newDraft = {
+      _type: "bill",
+      billId,
+      billNumber,
+      customer: billData.customerId
+        ? { _type: "reference", _ref: billData.customerId }
+        : undefined,
+      serviceType: billData.serviceType || "sale",
+      locationType: billData.locationType || "shop",
+      items,
+      serviceDate: new Date().toISOString(),
+      homeVisitFee,
+      repairCharges,
+      laborCharges,
+      subtotal,
+      totalAmount,
+      paymentStatus: billData.paymentStatus || "pending",
+      paidAmount: Number(billData.paidAmount || 0),
+      balanceAmount: Number(
+        billData.balanceAmount != null ? billData.balanceAmount : totalAmount
+      ),
+      status: "draft",
+      priority: "medium",
+      notes: billData.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any;
+
+    const result = await sanityClient.create(newDraft);
+
+    return {
+      success: true,
+      data: { ...result, billNumber, totalAmount },
+      message: `Draft saved (${billNumber})`,
+    };
+  } catch (error) {
+    console.error("❌ Failed to save draft bill:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to save draft",
+    };
+  }
+}
+
+/**
+ * Update an existing DRAFT bill (by _id) in Sanity
+ */
+export async function updateDraftBill(
+  draftId: string,
+  updates: Partial<{
+    customerId: string;
+    items: Array<{
+      productId?: string;
+      productName: string;
+      category?: string;
+      brand?: string;
+      specifications?: string;
+      quantity?: number;
+      unitPrice?: number;
+      unit?: string;
+      isCustom?: boolean;
+      isRewinding?: boolean;
+    }>;
+    serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
+    locationType: "shop" | "home" | "office";
+    homeVisitFee: number;
+    repairCharges: number;
+    laborCharges: number;
+    notes: string;
+    paymentStatus: "pending" | "partial" | "paid";
+    paidAmount: number;
+    balanceAmount: number;
+  }>
+): Promise<FormSubmissionResult> {
+  try {
+    const items = (updates.items || []).map((item) => ({
+      productName: item.productName,
+      category: item.category || "",
+      brand: item.brand || "",
+      specifications: item.specifications || "",
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.unitPrice || 0),
+      totalPrice: Number(item.quantity || 0) * Number(item.unitPrice || 0),
+      unit: item.unit || "pcs",
+      ...(item.productId
+        ? { product: { _type: "reference", _ref: item.productId } }
+        : {}),
+    }));
+
+    const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+    const homeVisitFee = Number(updates.homeVisitFee || 0);
+    const repairCharges = Number(updates.repairCharges || 0);
+    const laborCharges = Number(updates.laborCharges || 0);
+    const totalAmount = subtotal + homeVisitFee + repairCharges + laborCharges;
+
+    const patch: any = {
+      ...(updates.customerId
+        ? { customer: { _type: "reference", _ref: updates.customerId } }
+        : {}),
+      ...(updates.items ? { items } : {}),
+      ...(updates.serviceType ? { serviceType: updates.serviceType } : {}),
+      ...(updates.locationType ? { locationType: updates.locationType } : {}),
+      homeVisitFee,
+      repairCharges,
+      laborCharges,
+      subtotal,
+      totalAmount,
+      paymentStatus: updates.paymentStatus || "pending",
+      paidAmount: Number(updates.paidAmount || 0),
+      balanceAmount: Number(
+        updates.balanceAmount != null ? updates.balanceAmount : totalAmount
+      ),
+      status: "draft",
+      updatedAt: new Date().toISOString(),
+    };
+
+    const result = await sanityClient
+      .patch(draftId)
+      .set(patch)
+      .commit();
+
+    return { success: true, data: result, message: "Draft updated" };
+  } catch (error) {
+    console.error("❌ Failed to update draft bill:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update draft",
+    };
+  }
+}
+
+/**
  * Create a new customer in Sanity
  */
 export async function createCustomer(customerData: {
@@ -378,6 +562,9 @@ export async function createBill(billData: {
   repairCharges?: number;
   laborCharges?: number;
   notes?: string;
+  paymentStatus?: "pending" | "partial" | "paid";
+  paidAmount?: number;
+  balanceAmount?: number;
 }): Promise<FormSubmissionResult> {
   try {
     console.log("🧾 Creating bill in Sanity:", billData);
@@ -529,12 +716,13 @@ export async function createBill(billData: {
 
       // Create the bill
       const result = await transaction.create(newBill).commit();
-      console.log("✅ Bill created successfully:", result._id);
+      const createdId = (result as any)?.results?.[0]?.id || (result as any)?._id;
+      console.log("✅ Bill created successfully:", createdId);
 
       // Step 8: Update stock levels in background (non-blocking)
       if (standardItems.length > 0) {
         // Run stock updates asynchronously to not block the response
-        updateStockForBill(standardItems, result._id, "reduce")
+        updateStockForBill(standardItems, createdId, "reduce")
           .then((stockUpdateResult) => {
             if (stockUpdateResult.success) {
               console.log("✅ Stock updated successfully in background");
