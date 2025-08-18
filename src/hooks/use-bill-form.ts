@@ -399,6 +399,7 @@ export const useBillForm = () => {
         const parsed = JSON.parse(raw);
         if (parsed?.formData) setFormData((prev) => ({ ...prev, ...parsed.formData }));
         if (Array.isArray(parsed?.selectedItems)) setSelectedItems(parsed.selectedItems);
+        if (parsed?.draftId) setDraftId(parsed.draftId);
         setAlertMessage("Restored unsaved bill from your last session.");
         setShowAlertModal(true);
         setIsDirty(true);

@@ -1,13 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Modal } from "./modal";
 import { Button } from "./button";
 import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
+  onClose: () => void | Promise<void>;
+  onConfirm: () => void | Promise<void>;
   title: string;
   message: string;
   type?: "confirm" | "alert" | "success" | "error";
@@ -25,6 +26,9 @@ export function ConfirmationModal({
   confirmText = "Confirm",
   cancelText = "Cancel",
 }: ConfirmationModalProps) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
   const getIcon = () => {
     switch (type) {
       case "alert":
@@ -54,8 +58,28 @@ export function ConfirmationModal({
     }
   };
 
+  const handleConfirm = async () => {
+    if (isConfirming) return;
+    try {
+      setIsConfirming(true);
+      await onConfirm?.();
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const handleClose = async () => {
+    if (isClosing) return;
+    try {
+      setIsClosing(true);
+      await onClose?.();
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm" title="">
+    <Modal isOpen={isOpen} onClose={handleClose} size="sm" title="">
       <div className="text-center space-y-4">
         <div className="flex justify-center">{getIcon()}</div>
 
@@ -66,18 +90,22 @@ export function ConfirmationModal({
 
         <div className="flex gap-3 pt-4">
           {type === "confirm" && (
-            <Button variant="outline" onClick={onClose} className="flex-1">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              className="flex-1"
+              disabled={isConfirming || isClosing}
+            >
               {cancelText}
             </Button>
           )}
           <Button
             variant={getButtonVariant()}
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-            className="flex-1">
-            {type === "confirm" ? confirmText : "OK"}
+            onClick={handleConfirm}
+            className="flex-1"
+            disabled={isConfirming || isClosing}
+          >
+            {type === "confirm" ? (isConfirming ? "Processing..." : confirmText) : isConfirming ? "Processing..." : "OK"}
           </Button>
         </div>
       </div>

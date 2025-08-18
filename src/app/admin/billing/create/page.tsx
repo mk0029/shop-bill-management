@@ -31,11 +31,13 @@ export default function CreateBillPage() {
   const confirmSaveDraftAndExit = async () => {
     await saveDraft();
     clearLocalDraft();
+    setShowExitConfirm(false);
     router.back();
   };
 
-  const discardAndExit = () => {
+  const discardAndExit = async () => {
     clearLocalDraft();
+    setShowExitConfirm(false);
     router.back();
   };
 

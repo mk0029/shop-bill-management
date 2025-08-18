@@ -49,6 +49,9 @@ interface RealtimeBillListProps {
   maxItems?: number;
   searchTerm?: string;
   filterStatus?: string;
+  // Optional action handlers
+  onDeleteBill?: (bill: any) => void;
+  onCompleteDraft?: (bill: any) => void;
 }
 
 export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
@@ -59,11 +62,14 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   maxItems,
   searchTerm = "",
   filterStatus = "all",
+  onDeleteBill,
+  onCompleteDraft,
 }) => {
   // State for bills and new bill animations
   const [bills, setBills] = useState<Bill[]>([]);
   const [newBillIds, setNewBillIds] = useState<Set<string>>(new Set());
   const [isInitialized, setIsInitialized] = useState(false);
+  const [rowLoading, setRowLoading] = useState<Record<string, { completing?: boolean; deleting?: boolean }>>({});
 
   // Update bills when initialBills changes
   useEffect(() => {
@@ -298,21 +304,78 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                       </div>
 
                       <div className="flex gap-2 flex-shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onBillClick?.(bill)}
-                          className="flex-1 sm:flex-none">
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 sm:flex-none">
-                          <Download className="w-4 h-4 mr-2" />
-                          PDF
-                        </Button>
+                        {bill.status !== "draft" ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onBillClick?.(bill)}
+                              className="flex-1 sm:flex-none">
+                              <Eye className="w-4 h-4 mr-2" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 sm:flex-none">
+                              <Download className="w-4 h-4 mr-2" />
+                              PDF
+                            </Button>
+                          </>
+                        ) : (
+                          (onDeleteBill || onCompleteDraft) && (
+                            <>
+                              {onCompleteDraft && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={async () => {
+                                    setRowLoading((s) => ({
+                                      ...s,
+                                      [bill._id]: { ...(s[bill._id] || {}), completing: true },
+                                    }));
+                                    try {
+                                      await onCompleteDraft(bill);
+                                    } finally {
+                                      setRowLoading((s) => ({
+                                        ...s,
+                                        [bill._id]: { ...(s[bill._id] || {}), completing: false },
+                                      }));
+                                    }
+                                  }}
+                                  disabled={rowLoading[bill._id]?.completing}
+                                  className="flex-1 sm:flex-none">
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  {rowLoading[bill._id]?.completing ? "Opening..." : "Make Complete"}
+                                </Button>
+                              )}
+                              {onDeleteBill && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={async () => {
+                                    setRowLoading((s) => ({
+                                      ...s,
+                                      [bill._id]: { ...(s[bill._id] || {}), deleting: true },
+                                    }));
+                                    try {
+                                      await onDeleteBill(bill);
+                                    } finally {
+                                      setRowLoading((s) => ({
+                                        ...s,
+                                        [bill._id]: { ...(s[bill._id] || {}), deleting: false },
+                                      }));
+                                    }
+                                  }}
+                                  disabled={rowLoading[bill._id]?.deleting}
+                                  className="flex-1 sm:flex-none">
+                                  <AlertCircle className="w-4 h-4 mr-2" />
+                                  {rowLoading[bill._id]?.deleting ? "Deleting..." : "Delete"}
+                                </Button>
+                              )}
+                            </>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>
@@ -365,7 +428,7 @@ export const RealtimeBillStats: React.FC<{
         (bill) =>
           bill.customer === customerId ||
           (bill.customer as any)?._ref === customerId ||
-          (bill.customer as unknown)?._id === customerId
+          (bill.customer as any)?._id === customerId
       )
     : allBills;
 
