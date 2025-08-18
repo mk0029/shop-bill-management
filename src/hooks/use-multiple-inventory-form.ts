@@ -207,7 +207,7 @@ export const useMultipleInventoryForm = () => {
       for (const formData of formDataList) {
         const brand = brands.find((b) => b._id === formData.brand);
 
-        const newProduct = {
+        const productPayload: any = {
           name: formData.productName || generateProductName(formData),
           brandId: formData.brand,
           brandName: brand?.name || "",
@@ -227,9 +227,13 @@ export const useMultipleInventoryForm = () => {
           tags: [],
         };
 
-        const result = await addProduct(newProduct);
+        if (formData.selectedExistingProduct) {
+          productPayload._id = formData.selectedExistingProduct;
+        }
+
+        const result = await addProduct(productPayload);
         if (result.success) {
-          successful.push(newProduct.name);
+          successful.push(productPayload.name);
         }
       }
 

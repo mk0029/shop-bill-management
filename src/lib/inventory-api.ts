@@ -449,6 +449,61 @@ export const inventoryApi = {
       };
     }
   },
+
+  // Update product details (name, pricing, and add stock)
+  async updateProductDetails(
+    productId: string,
+    details: {
+      name: string;
+      pricing: { purchasePrice?: number; sellingPrice?: number };
+      stockToAdd: number;
+    }
+  ): Promise<InventoryApiResponse> {
+    try {
+      const { name, pricing, stockToAdd } = details;
+      const patch = sanityClient.patch(productId);
+
+      if (name) {
+        patch.set({ name });
+      }
+      if (pricing.purchasePrice) {
+        patch.set({ "pricing.purchasePrice": pricing.purchasePrice });
+      }
+      if (pricing.sellingPrice) {
+        patch.set({ "pricing.sellingPrice": pricing.sellingPrice });
+      }
+      if (stockToAdd > 0) {
+        patch.inc({ "inventory.currentStock": stockToAdd });
+      }
+
+      patch.set({ updatedAt: new Date().toISOString() });
+
+      const result = await patch.commit();
+
+      // If stock was added, create a stock transaction record
+      if (stockToAdd > 0) {
+        await stockApi.createStockTransaction({
+          productId,
+          type: "adjustment",
+          quantity: stockToAdd,
+          unitPrice: pricing.purchasePrice || 0, // Assuming purchase price for adjustment
+          notes: "Stock updated from inventory edit popup",
+          updateInventory: false, // Inventory is already updated by the patch
+        });
+      }
+
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Error updating product details:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to update product details",
+      };
+    }
+  },
 };
 
 // Stock Transaction API functions

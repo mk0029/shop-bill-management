@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Product } from "@/store/inventory-store";
-import { DynamicSpecificationFields } from "@/components/forms/dynamic-specification-fields";
+import { Product, useInventoryStore } from "@/store/inventory-store";
 
 // Simple Dialog Components
 const Dialog = ({
@@ -46,7 +45,6 @@ interface InventoryDialogsProps {
   showEditDialog: boolean;
   selectedProduct: Product | null;
   onDeleteConfirm: () => void;
-  onEditSave: (product: Product) => void;
   onDeleteCancel: () => void;
   onEditCancel: () => void;
 }
@@ -56,64 +54,53 @@ export const InventoryDialogs = ({
   showEditDialog,
   selectedProduct,
   onDeleteConfirm,
-  onEditSave,
   onDeleteCancel,
   onEditCancel,
 }: InventoryDialogsProps) => {
-  const [editFormData, setEditFormData] = useState<Product | null>(null);
+  const { updateProductDetails } = useInventoryStore();
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    purchasePrice: "",
+    sellingPrice: "",
+    stockToAdd: "",
+  });
 
   useEffect(() => {
     if (selectedProduct) {
       setEditFormData({
-        _id: selectedProduct._id,
-        name: selectedProduct.name,
-        pricing: {
-          purchasePrice: selectedProduct.pricing?.purchasePrice,
-          sellingPrice: selectedProduct.pricing?.sellingPrice,
-        },
-        inventory: {
-          currentStock: 0, // This field is for adding stock
-        },
-      } as Product);
-    } else {
-      setEditFormData(null);
+        name: selectedProduct.name || "",
+        purchasePrice: selectedProduct.pricing?.purchasePrice?.toString() || "",
+        sellingPrice: selectedProduct.pricing?.sellingPrice?.toString() || "",
+        stockToAdd: "0",
+      });
     }
   }, [selectedProduct]);
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editFormData) return;
-    onEditSave(editFormData);
+    if (!selectedProduct) return;
+
+    const success = await updateProductDetails(selectedProduct._id, {
+      name: editFormData.name,
+      pricing: {
+        purchasePrice: parseFloat(editFormData.purchasePrice) || undefined,
+        sellingPrice: parseFloat(editFormData.sellingPrice) || undefined,
+      },
+      stockToAdd: parseInt(editFormData.stockToAdd, 10) || 0,
+    });
+
+    if (success) {
+      onEditCancel(); // Close dialog on success
+    }
   };
 
   const handleInputChange = (
-    field: string,
-    value: string,
-    parentField?: string
+    field: keyof typeof editFormData,
+    value: string
   ) => {
-    setEditFormData((prev: any) => {
-      if (parentField) {
-        return {
-          ...prev,
-          [parentField]: {
-            ...prev[parentField],
-            [field]: value,
-          },
-        };
-      }
-      return { ...prev, [field]: value };
-    });
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSpecificationChange = (field: string, value: string) => {
-    setEditFormData(
-      (prev) =>
-        ({
-          ...prev,
-          specifications: { ...prev?.specifications, [field]: value },
-        } as Product)
-    );
-  };
 
   return (
     <>
@@ -155,7 +142,7 @@ export const InventoryDialogs = ({
             <div className="space-y-2">
               <Label className="text-gray-300">Product Name</Label>
               <Input
-                value={editFormData?.name || ""}
+                value={editFormData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
               />
@@ -166,9 +153,9 @@ export const InventoryDialogs = ({
                 <Input
                   type="number"
                   step="0.01"
-                  value={editFormData?.pricing?.purchasePrice || ""}
+                  value={editFormData.purchasePrice}
                   onChange={(e) =>
-                    handleInputChange("purchasePrice", e.target.value, "pricing")
+                    handleInputChange("purchasePrice", e.target.value)
                   }
                   className="bg-gray-800 border-gray-700 text-white"
                 />
@@ -178,9 +165,9 @@ export const InventoryDialogs = ({
                 <Input
                   type="number"
                   step="0.01"
-                  value={editFormData?.pricing?.sellingPrice || ""}
+                  value={editFormData.sellingPrice}
                   onChange={(e) =>
-                    handleInputChange("sellingPrice", e.target.value, "pricing")
+                    handleInputChange("sellingPrice", e.target.value)
                   }
                   className="bg-gray-800 border-gray-700 text-white"
                 />
@@ -191,10 +178,8 @@ export const InventoryDialogs = ({
               <Label className="text-gray-300">Add Stock</Label>
               <Input
                 type="number"
-                value={editFormData?.inventory?.currentStock || ""}
-                onChange={(e) =>
-                  handleInputChange("currentStock", e.target.value, "inventory")
-                }
+                value={editFormData.stockToAdd}
+                onChange={(e) => handleInputChange("stockToAdd", e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
               />
             </div>

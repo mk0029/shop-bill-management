@@ -28,7 +28,6 @@ export default function InventoryPage() {
     handleDeleteProduct,
     confirmDelete,
     handleEditProduct,
-    handleUpdateProduct,
     setShowDeleteDialog,
     setShowEditDialog,
     getStockStatus,
@@ -78,7 +77,6 @@ export default function InventoryPage() {
         showEditDialog={showEditDialog}
         selectedProduct={selectedProduct}
         onDeleteConfirm={confirmDelete}
-        onEditSave={handleUpdateProduct}
         onDeleteCancel={() => setShowDeleteDialog(false)}
         onEditCancel={() => setShowEditDialog(false)}
       />
