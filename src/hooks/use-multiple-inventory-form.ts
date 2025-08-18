@@ -205,9 +205,12 @@ export const useMultipleInventoryForm = () => {
 
     try {
       for (const formData of formDataList) {
+        const brand = brands.find((b) => b._id === formData.brand);
+
         const newProduct = {
           name: formData.productName || generateProductName(formData),
           brandId: formData.brand,
+          brandName: brand?.name || "",
           categoryId: formData.category,
           specifications: formData.specifications,
           pricing: {

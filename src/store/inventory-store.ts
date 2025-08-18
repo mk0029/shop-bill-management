@@ -130,6 +130,7 @@ interface InventoryStore {
     name: string;
     description?: string;
     brandId: string;
+    brandName: string;
     categoryId: string;
     specifications: Specification;
     pricing: { purchasePrice: number; sellingPrice: number; unit: string };

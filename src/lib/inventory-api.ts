@@ -317,6 +317,7 @@ export const inventoryApi = {
     name: string;
     description?: string;
     brandId: string;
+    brandName: string;
     categoryId: string;
     specifications: any;
     pricing: {
@@ -347,7 +348,7 @@ export const inventoryApi = {
       const newProduct = {
         _type: "product",
         productId,
-        name: productData.name,
+        name: productData.name+' - '+productData.brandName,
         slug: {
           _type: "slug",
           current: productData.name
