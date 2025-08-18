@@ -702,12 +702,42 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     try {
       const response = await inventoryApi.updateProductDetails(productId, details);
       if (response.success) {
-        const updatedProductFromApi = response.data as Product;
-        set((state) => ({
-          products: state.products.map((p) =>
-            p._id === productId ? { ...p, ...updatedProductFromApi } : p
-          ),
-        }));
+        // Fetch a fully populated product (with dereferenced brand/category)
+        const fullProductRes = await inventoryApi.getProductById(productId);
+        if (fullProductRes.success && fullProductRes.data) {
+          const hydrated = fullProductRes.data as Product;
+          set((state) => ({
+            products: state.products.map((p) => (p._id === productId ? { ...p, ...hydrated } : p)),
+          }));
+        } else {
+          // Fallback: apply only the fields we know we updated without touching brand/category
+          const { name, pricing, stockToAdd } = details;
+          set((state) => ({
+            products: state.products.map((p) => {
+              if (p._id !== productId) return p;
+              return {
+                ...p,
+                name: name ?? p.name,
+                pricing: {
+                  ...p.pricing,
+                  purchasePrice:
+                    typeof pricing.purchasePrice === "number"
+                      ? pricing.purchasePrice
+                      : p.pricing.purchasePrice,
+                  sellingPrice:
+                    typeof pricing.sellingPrice === "number"
+                      ? pricing.sellingPrice
+                      : p.pricing.sellingPrice,
+                },
+                inventory: {
+                  ...p.inventory,
+                  currentStock:
+                    (p.inventory?.currentStock || 0) + (stockToAdd > 0 ? stockToAdd : 0),
+                },
+              } as Product;
+            }),
+          }));
+        }
         get().fetchInventorySummary();
         get().fetchStockTransactions({ productId });
         return true;
