@@ -155,16 +155,16 @@ export const CustomerInfoSection = ({
         {/* Conditional charges based on service type and location */}
         {formData.serviceType === "repair" && (
           <div className="space-y-2">
-            <Label htmlFor="repairCharges" className="text-gray-300">
+            <Label htmlFor="repairFee" className="text-gray-300">
               Repair Charges ({currency})
             </Label>
             <Input
-              id="repairCharges"
+              id="repairFee"
               type="number"
               min="0"
               step="0.01"
-              value={formData.repairCharges || ""}
-              onChange={(e) => onInputChange("repairCharges", e.target.value)}
+              value={formData.repairFee || ""}
+              onChange={(e) => onInputChange("repairFee", e.target.value)}
               className="bg-gray-800 border-gray-700 text-white"
               placeholder="Enter repair charges"
             />

@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
 import { fallbackData } from "./fallback-data";
-import type { Subscription } from "@sanity/client";
+import { type SanityClient } from "@sanity/client";
+import type { Subscription } from "rxjs";
 
 // Types for our data entities
 interface Brand {
@@ -94,6 +95,7 @@ interface Bill {
   serviceDate: string;
   homeVisitFee: number;
   transportationFee?: number;
+  repairFee?: number;
   laborCharges?: number;
   subtotal: number;
   taxAmount: number;

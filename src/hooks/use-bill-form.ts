@@ -2,6 +2,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBill } from "@/lib/form-service";
 
+interface Product {
+  _id: string;
+  inventory: {
+    currentStock: number;
+  };
+  pricing: {
+    sellingPrice: number;
+    unit: string;
+  };
+  category?: { name: string };
+  brand?: { name: string };
+  specifications?: {
+    lightType?: string;
+    color?: string;
+    size?: string;
+    watts?: string;
+    wireGauge?: string;
+    amperage?: string;
+  };
+  name?: string; // Add name property to handle different structures
+}
+
 export interface BillFormData {
   customerId: string;
   serviceType: string;
@@ -9,7 +31,7 @@ export interface BillFormData {
   billDate: string;
   dueDate: string;
   notes: string;
-  repairCharges: number;
+  repairFee: number;
   homeVisitFee: number;
   laborCharges: number;
   // Payment Fields
@@ -57,7 +79,7 @@ export const useBillForm = () => {
     billDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     notes: "",
-    repairCharges: 0,
+    repairFee: 0,
     homeVisitFee: 0,
     laborCharges: 0,
     isMarkAsPaid: false,
@@ -76,7 +98,7 @@ export const useBillForm = () => {
 
   const handleInputChange = (field: keyof BillFormData, value: any) => {
     const numericFields = [
-      "repairCharges",
+      "repairFee",
       "homeVisitFee",
       "laborCharges",
       "partialPaymentAmount",
@@ -88,19 +110,17 @@ export const useBillForm = () => {
 
     if (numericFields.includes(field)) {
       setFormData((prev) => ({ ...prev, [field]: Number(value) || 0 }));
-    } else if (field === "isMarkAsPaid" && value) {
-      // When marking as paid, disable partial payment
+    } else if (field === "isMarkAsPaid") {
       setFormData((prev) => ({
         ...prev,
-        [field]: value,
+        isMarkAsPaid: !!value,
         enablePartialPayment: false,
         partialPaymentAmount: 0,
       }));
-    } else if (field === "enablePartialPayment" && value) {
-      // When enabling partial payment, disable mark as paid
+    } else if (field === "enablePartialPayment") {
       setFormData((prev) => ({
         ...prev,
-        [field]: value,
+        enablePartialPayment: !!value,
         isMarkAsPaid: false,
       }));
     } else {
@@ -108,7 +128,7 @@ export const useBillForm = () => {
     }
   };
 
-  const addItemToBill = (product: any) => {
+  const addItemToBill = (product: Product) => {
     const existingItem = selectedItems.find((i) => i.id === product._id);
     const maxStock = product.inventory.currentStock;
 
@@ -261,7 +281,7 @@ export const useBillForm = () => {
   const calculateGrandTotal = () => {
     const itemsTotal = calculateTotal();
     const additionalCharges =
-      Number(formData.repairCharges || 0) +
+      Number(formData.repairFee || 0) +
       Number(formData.homeVisitFee || 0) +
       Number(formData.laborCharges || 0);
     return itemsTotal + additionalCharges;
@@ -332,7 +352,7 @@ export const useBillForm = () => {
           | "maintenance",
         locationType: formData.location as "home" | "shop" | "office",
         homeVisitFee: Number(formData.homeVisitFee),
-        repairCharges: Number(formData.repairCharges),
+        repairFee: Number(formData.repairFee),
         laborCharges: Number(formData.laborCharges),
         notes: formData.notes,
         // Payment details
@@ -386,7 +406,7 @@ export const useBillForm = () => {
 };
 
 // Helper functions
-const getItemDisplayName = (product: unknown) => {
+const getItemDisplayName = (product: Product) => {
   const specs = [];
   if (product.specifications) {
     const spec = product.specifications;
@@ -405,7 +425,7 @@ const getItemDisplayName = (product: unknown) => {
   return `${categoryName} - ${brandName}${specString}`;
 };
 
-const getItemSpecifications = (product: unknown) => {
+const getItemSpecifications = (product: Product) => {
   const specs = [];
   if (product.specifications) {
     const spec = product.specifications;

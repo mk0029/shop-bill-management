@@ -47,6 +47,9 @@ interface Bill {
   serviceType: string;
   locationType: string;
   homeVisitFee: number;
+  transportationFee?: number;
+  repairCharges?: number;
+  laborCharges?: number;
   subtotal: number;
   total: number;
   status: string;
@@ -103,8 +106,10 @@ export default function BillingPage() {
         specifications: item.specifications || "",
         unit: item.unit || "piece",
         productName:
-          item.product?.productName || item.productName || "Unknown Item",
-        productId: item.product?._id || item.product?._ref || "",
+          (item.product as any)?.productName ||
+          item.productName ||
+          "Unknown Item",
+        productId: (item.product as any)?._id || (item.product as any)?._ref || "",
         productDetails: item.product || null,
       })) || [],
     serviceType: bill.serviceType || "sale",
@@ -286,6 +291,9 @@ export default function BillingPage() {
                   serviceType: bill.serviceType || "sale",
                   locationType: bill.locationType || "shop",
                   homeVisitFee: bill.homeVisitFee || 0,
+                  transportationFee: bill.transportationFee || 0,
+                  repairCharges: bill.repairFee || 0, // Mapped from repairFee
+                  laborCharges: bill.laborCharges || 0,
                   subtotal: bill.subtotal || 0,
                   total: bill.totalAmount || 0,
                   status: bill.paymentStatus === "paid" ? "paid" : "pending",

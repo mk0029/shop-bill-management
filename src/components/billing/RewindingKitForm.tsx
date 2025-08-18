@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -27,7 +28,7 @@ interface RewindingFormData {
   id: string;
   selectedStarterId: string;
   kitName: string;
-  kitType: "Cooler" | "Motor";
+  kitType: any;
   boreSize: string;
   sizeInInches: string;
   multiSpeed: boolean;
@@ -56,8 +57,11 @@ const initialKitState: RewindingFormData = {
 };
 
 const kitTypeOptions = [
-  { value: "Cooler", label: "Cooler Kit" },
-  { value: "Motor", label: "Motor Kit" },
+  { value: "cooler", label: "Cooler Kit" },
+  { value: "madhani", label: "Madhani Kit" },
+  { value: "cellingFan", label: "Celling Fan" },
+  { value: "ap", label: "Ap" },
+  { value: "Chaki Motor", label: "Chakki Motor" },
 ];
 
 const materialOptions = [
@@ -418,16 +422,14 @@ export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
         <Button
           variant="outline"
           onClick={addNewForm}
-          className="flex-1 flex items-center gap-2"
-        >
+          className="flex-1 flex items-center gap-2">
           <Plus className="h-4 w-4" />
           Add More Service/Item
         </Button>
 
         <Button
           onClick={handleSubmitAllRewindingServices}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-        >
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
           Submit All Services
         </Button>
       </div>

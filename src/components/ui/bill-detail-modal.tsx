@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useLocaleStore } from "@/store/locale-store";
 import { toast } from "sonner";
+import { shareBillOnWhatsApp, BillDetails } from "@/lib/whatsapp-share";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -58,6 +59,7 @@ export const BillDetailModal = ({
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   if (!bill) return null;
+
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case "paid":
@@ -89,6 +91,7 @@ export const BillDetailModal = ({
 
   const additionalCharges =
     (bill.homeVisitFee || 0) +
+    (bill.transportationFee || 0) +
     (bill.repairCharges || 0) +
     (bill.laborCharges || 0);
 
@@ -360,6 +363,16 @@ export const BillDetailModal = ({
                 Additional Charges
               </h3>
               <div className="space-y-3">
+                {bill.transportationFee > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <span className="text-gray-300">Transportation Fee</span>
+                    <span className="font-medium text-white">
+                      {currency}
+                      {bill.transportationFee.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
                 {bill.homeVisitFee > 0 && (
                   <div className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700">
                     <span className="text-gray-300">Home Visit Fee</span>
@@ -598,31 +611,13 @@ export const BillDetailModal = ({
               <Button
                 variant="outline"
                 onClick={() => {
-                  const items =
-                    bill.items
-                      ?.map(
-                        (item: any) =>
-                          `• ${item.productName || item.name}: ${item.quantity} x ₹${(item.unitPrice || item.price).toFixed(2)} = ₹${(item.totalPrice || item.total).toFixed(2)}`
-                      )
-                      .join("\n") || "";
-
-                  const message =
-                    `*Bill #${bill.billNumber || bill._id}*\n\n` +
-                    `*Items:*\n${items}\n\n` +
-                    `*Total Amount: ₹${grandTotal.toFixed(2)}*\n\n` +
-                    (bill.notes ? `*Notes:*\n${bill.notes}\n\n` : "") +
-                    `Thank you for your business!`;
-
-                  const phone = bill.customer?.phone?.replace(/\D/g, "") || "";
-                  if (!phone) {
-                    toast.error(
-                      "❌ Unable to share bill - Customer's phone number not found. Please add a phone number to the customer's profile."
-                    );
-                    return;
-                  }
-
-                  const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-                  window.open(whatsappUrl, "_blank");
+                  // Transform the bill object to match the BillDetails interface
+                  const billDetails: BillDetails = {
+                    ...bill,
+                    repairFee: bill.repairCharges || 0,
+                    grandTotal: grandTotal,
+                  };
+                  shareBillOnWhatsApp(billDetails);
                 }}
                 className="flex-1 sm:flex-none border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white">
                 <Share2 className="w-4 h-4 mr-2" />
