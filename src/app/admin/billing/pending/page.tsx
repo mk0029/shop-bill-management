@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { BillDetailModal } from "@/components/ui/bill-detail-modal";
+import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import {
   Search,
   Filter,
@@ -57,14 +57,20 @@ export default function PendingBillsPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-  const [showBillModal, setShowBillModal] = useState(false);
+  // Using BillDetailTrigger for modal; no local modal state needed
+
+  // Map of raw bills for retrieving full data in the modal
+  const rawBillById = Object.fromEntries(
+    bills.map((b: any) => [b._id || b.id, b])
+  );
 
   // Transform and filter bills to show only pending/overdue ones
   const pendingBills: Bill[] = bills
     .filter(
       (bill) =>
-        bill.paymentStatus === "pending" || bill.paymentStatus === "overdue"
+        bill.paymentStatus === "pending" ||
+        bill.paymentStatus === "overdue" ||
+        bill.paymentStatus === "partial"
     )
     .map((bill) => ({
       id: bill._id,
@@ -82,7 +88,12 @@ export default function PendingBillsPage() {
             .split("T")[0]
         : new Date().toISOString().split("T")[0],
       total: bill.totalAmount || 0,
-      status: bill.paymentStatus === "pending" ? "pending" : "overdue",
+      status:
+        bill.paymentStatus === "pending"
+          ? "pending"
+          : bill.paymentStatus === "partial"
+            ? "partial"
+            : "overdue",
       items:
         bill.items?.map((item) => ({
           name: item.productName || "Unknown Item",
@@ -110,10 +121,7 @@ export default function PendingBillsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleViewBill = (bill: Bill) => {
-    setSelectedBill(bill);
-    setShowBillModal(true);
-  };
+  // View handled by BillDetailTrigger
 
   const handleDownloadPDF = (bill: any) => {
     // TODO: Implement PDF download
@@ -175,6 +183,8 @@ export default function PendingBillsPage() {
     switch (status) {
       case "pending":
         return "bg-yellow-500";
+      case "partial":
+        return "bg-orange-500";
       case "overdue":
         return "bg-red-500";
       case "paid":
@@ -188,6 +198,8 @@ export default function PendingBillsPage() {
     switch (status) {
       case "pending":
         return "Pending";
+      case "partial":
+        return "Partial";
       case "overdue":
         return "Overdue";
       case "paid":
@@ -294,6 +306,7 @@ export default function PendingBillsPage() {
             options={[
               { value: "all", label: "All Status" },
               { value: "pending", label: "Pending" },
+              { value: "partial", label: "Partial" },
               { value: "overdue", label: "Overdue" },
             ]}
             value={statusFilter}
@@ -314,75 +327,53 @@ export default function PendingBillsPage() {
               <Card
                 key={bill.id}
                 className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors">
-                <CardContent>
-                  <div className="flex flex-col md:flex-row md:items-center justify-between relative">
-                    <div className="flex-1">
-                      <div className="flex items-center sm:gap-3 sm:mb-2">
-                        <h3 className="font-semibold text-white hidden sm:block">
-                          {bill.billNumber}
-                        </h3>
-                        <span
-                          className={`px-2 py-0.5 text-xs rounded-full max-md:absolute right-0 top-9 ${getStatusColor(
-                            bill.status
-                          )} text-white`}>
-                          {getStatusText(bill.status)}
-                        </span>
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-3">
+                    {/* Header: bill no + status */}
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-semibold text-white truncate">{bill.billNumber}</h3>
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(bill.status)} text-white`}>
+                        {getStatusText(bill.status)}
+                      </span>
+                    </div>
+
+                    {/* Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="text-gray-400 text-xs">Customer</p>
+                        <p className="text-white font-medium truncate">{bill.customerName}</p>
+                        <p className="text-gray-400 text-xs truncate">{bill.customerPhone}</p>
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
-                        <div className="min-w-0">
-                          <p className="text-gray-400 text-xs">Customer</p>
-                          <p className="text-white font-medium truncate">
-                            {bill.customerName}
-                          </p>
-                          <p className="text-gray-400 text-xs truncate">
-                            {bill.customerPhone}
-                          </p>
-                        </div>
-
-                        <div className="flex md:block max-md:justify-between max-sm:items-end">
-                          {" "}
-                          <div className="min-w-0">
-                            <p className="text-gray-400 text-xs">Dates</p>
-                            <p className="text-white text-xs">
-                              Bill: {bill.billDate}
-                            </p>
-                            <p className="text-white text-xs">
-                              Due: {bill.dueDate}
-                            </p>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-gray-400 text-xs hidden sm:block">
-                              Amount
-                            </p>
-                            <p className="text-white font-semibold truncate">
-                              {currency}
-                              {bill.total.toLocaleString()}
-                            </p>
-                            <p className="text-gray-400 text-xs">
-                              {bill.items.length} items
-                            </p>
-                          </div>
-                        </div>
+                      <div className="min-w-0">
+                        <p className="text-gray-400 text-xs">Dates</p>
+                        <p className="text-white text-xs">Bill: {bill.billDate}</p>
+                        <p className="text-white text-xs">Due: {bill.dueDate}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-gray-400 text-xs">Amount</p>
+                        <p className="text-white font-semibold truncate">{currency}{bill.total.toLocaleString()}</p>
+                        <p className="text-gray-400 text-xs">{bill.items.length} items</p>
                       </div>
                     </div>
 
-                    <div className="flex gap-2 max-md:absolute top-0 right-0">
-                      <Button
-                        size="sm"
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2">
+                      <BillDetailTrigger
+                        bill={rawBillById[bill.id] || bill}
                         variant="outline"
-                        onClick={() => handleViewBill(bill)}
-                        className="flex items-center gap-1 text-xs max-sm:!py-2 max-sm:!px-3">
-                        <Eye className="w-3 h-3" />
-                        <span className="hidden sm:inline">View</span>
-                      </Button>
-                      <Button
                         size="sm"
-                        onClick={() => handleShareOnWhatsApp(bill)}
-                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-xs max-sm:!py-2 max-sm:!px-3">
-                        <Share2 className="w-3 h-3" />
-                        <span className="hidden sm:inline">Share</span>
-                      </Button>
+                        className="flex items-center gap-1"
+                        onDownloadPDF={handleDownloadPDF}
+                        onUpdatePayment={async (billId, data) => { await handleUpdatePayment(billId, data); }}
+                        showShareButton={true}
+                        showPaymentControls={true}
+                      >
+                        <span className="inline-flex items-center">
+                          <Eye className="w-3 h-3 mr-1" />
+                          View
+                        </span>
+                      </BillDetailTrigger>
+                    
                     </div>
                   </div>
                 </CardContent>
@@ -405,16 +396,7 @@ export default function PendingBillsPage() {
         </Card>
       )}
 
-      {/* Bill Details Modal */}
-      <BillDetailModal
-        isOpen={showBillModal}
-        onClose={() => setShowBillModal(false)}
-        bill={selectedBill}
-        onDownloadPDF={handleDownloadPDF}
-        onUpdatePayment={handleUpdatePayment}
-        showShareButton={true}
-        showPaymentControls={true}
-      />
+      {/* Modal handled via BillDetailTrigger per row */}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import {
   FileText,
   Calendar,
@@ -157,14 +158,19 @@ export const BillsList = ({
                     {getTotalAmount(bill).toFixed(2)}
                   </div>
                   <div className="flex gap-2">
-                    <Button
+                    <BillDetailTrigger
+                      bill={bill}
                       variant="outline"
                       size="sm"
-                      onClick={() => onViewBill(bill)}
-                      className="text-blue-400 border-blue-400 hover:bg-blue-400/10">
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
+                      className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+                      showShareButton={false}
+                      showPaymentControls={false}
+                    >
+                      <span className="inline-flex items-center">
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
+                      </span>
+                    </BillDetailTrigger>
                     <Button
                       variant="outline"
                       size="sm"

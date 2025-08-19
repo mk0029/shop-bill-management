@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+// Switch not needed after redesign of payment UI
 import {
   Download,
   Share2,
@@ -51,10 +51,9 @@ export const BillDetailModal = ({
 }: BillDetailModalProps) => {
   const { currency } = useLocaleStore();
 
-  // Payment state management
+  // Payment state management (redesigned)
   const [isEditingPayment, setIsEditingPayment] = useState(false);
-  const [markAsPaid, setMarkAsPaid] = useState(false);
-  const [enablePartialPayment, setEnablePartialPayment] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"paid" | "partial">("partial");
   const [partialAmount, setPartialAmount] = useState("");
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
@@ -89,28 +88,51 @@ export const BillDetailModal = ({
       0
     ) || 0;
 
+  // Helper to coerce possibly string numeric fields to number
+  const toNum = (v: any): number => {
+    if (typeof v === "number" && isFinite(v)) return v;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  // Normalize charge fields to numbers and coalesce keys
+  const transportationFee = toNum(bill.transportationFee);
+  const homeVisitFee = toNum(bill.homeVisitFee);
+  const laborCharges = toNum(bill.laborCharges);
+  const repairChargeValue = toNum(
+    bill.repairCharges ?? bill.repairFee ?? (bill as any).repairCharge ?? 0
+  );
+
   const additionalCharges =
-    (bill.homeVisitFee || 0) +
-    (bill.transportationFee || 0) +
-    (bill.repairCharges || 0) +
-    (bill.laborCharges || 0);
+    homeVisitFee + transportationFee + repairChargeValue + laborCharges;
 
-  const grandTotal = bill.balanceAmount || itemsTotal + additionalCharges;
+  // Show Additional Charges section if any charge field is present on the bill
+  const hasAnyCharge =
+    bill.homeVisitFee !== undefined ||
+    bill.transportationFee !== undefined ||
+    bill.repairCharges !== undefined ||
+    (bill as any).repairCharge !== undefined ||
+    bill.repairFee !== undefined ||
+    bill.laborCharges !== undefined;
 
+  // Prefer explicit totals from bill to match list cards
+  const explicitTotal = toNum((bill as any).totalAmount ?? (bill as any).total);
+  const grandTotal = explicitTotal > 0 ? explicitTotal : itemsTotal + additionalCharges;
+console.log("grandTotal", grandTotal,'fulll bill',bill);
   // Payment calculation logic
   const calculatePaymentDetails = () => {
-    if (markAsPaid) {
+    if (paymentMode === "paid") {
       return {
         paymentStatus: "paid" as const,
         paidAmount: grandTotal,
         balanceAmount: 0,
       };
-    } else if (enablePartialPayment && partialAmount) {
-      const paidAmount = Math.min(Number(partialAmount), grandTotal);
-      const balanceAmount = grandTotal - paidAmount;
+    }
+    if (paymentMode === "partial" && partialAmount) {
+      const paidAmount = Math.min(Math.max(Number(partialAmount), 0), grandTotal);
+      const balanceAmount = Math.max(0, grandTotal - paidAmount);
       return {
-        paymentStatus:
-          balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
+        paymentStatus: balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
         paidAmount,
         balanceAmount,
       };
@@ -137,8 +159,7 @@ export const BillDetailModal = ({
       }
 
       setIsEditingPayment(false);
-      setMarkAsPaid(false);
-      setEnablePartialPayment(false);
+      setPaymentMode("partial");
       setPartialAmount("");
 
       // Show success notification
@@ -160,34 +181,35 @@ export const BillDetailModal = ({
     }
   };
 
-  // Handle toggle changes
-  const handleMarkAsPaidChange = (checked: boolean) => {
-    setMarkAsPaid(checked);
-    if (checked) {
-      setEnablePartialPayment(false);
-      setPartialAmount("");
-    }
-  };
-
-  const handlePartialPaymentChange = (checked: boolean) => {
-    setEnablePartialPayment(checked);
-    if (checked) {
-      setMarkAsPaid(false);
-    } else {
-      setPartialAmount("");
-    }
-  };
+  // Quick amount helpers removed per UX request
 
   // Reset payment state when modal closes
   const handleClose = () => {
     setIsEditingPayment(false);
-    setMarkAsPaid(false);
-    setEnablePartialPayment(false);
+    setPaymentMode("partial");
     setPartialAmount("");
     onClose();
   };
-  console.log("object", bill);
-
+  console.log("bill dffjvn r fer ev fe vf ", bill);
+  const additionalChargesF = [
+    {
+      label: "Transportation Fee",
+      value: transportationFee,
+    },
+    {
+      label: "Home Visit Fee",
+      value: homeVisitFee,
+    },
+    {
+      label: "Repair Charges",
+      value: repairChargeValue,
+    },
+    {
+      label: "Labor Charges",
+      value: laborCharges,
+    },
+  ];
+  
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <div className="relative">
@@ -260,13 +282,15 @@ export const BillDetailModal = ({
             <div>
               <h3 className="font-medium text-white mb-4">Items</h3>
               <div className="space-y-3">
-                {bill.items.map((item: any, index: number) => (
+                {bill.items.map((item: any, index: number) =>
+              {
+                return    (
                   <div
                     key={index}
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <div className="flex-1">
                       <p className="font-medium text-white mb-1">
-                        {item.productName || item.name || "Unknown Item"}
+                        {item?.product?.name || "Unknown Item"}
                       </p>
                       <div className="flex flex-wrap gap-2 mb-2">
                         {item.brand && (
@@ -351,60 +375,32 @@ export const BillDetailModal = ({
                       </p>
                     )}
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           )}
 
           {/* Additional Charges */}
-          {additionalCharges > 0 && (
-            <div>
-              <h3 className="font-medium text-white mb-4">
-                Additional Charges
-              </h3>
-              <div className="space-y-3">
-                {bill.transportationFee > 0 && (
-                  <div className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <span className="text-gray-300">Transportation Fee</span>
-                    <span className="font-medium text-white">
-                      {currency}
-                      {bill.transportationFee.toFixed(2)}
-                    </span>
-                  </div>
-                )}
+          {hasAnyCharge && (
+  <div>
+    <h3 className="font-medium text-white mb-4">Additional Charges</h3>
+    <div className="space-y-3">
+      {additionalChargesF?.map((charge, index) => (
+      charge.value>0&&  <div
+          key={index}
+          className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700"
+        >
+          <span className="text-gray-300">{charge.label}</span>
+          <span className="font-medium text-white">
+            {currency}
+            {charge.value.toFixed(2)}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
-                {bill.homeVisitFee > 0 && (
-                  <div className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <span className="text-gray-300">Home Visit Fee</span>
-                    <span className="font-medium text-white">
-                      {currency}
-                      {bill.homeVisitFee.toFixed(2)}
-                    </span>
-                  </div>
-                )}
-
-                {bill.repairCharges > 0 && (
-                  <div className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <span className="text-gray-300">Repair Charges</span>
-                    <span className="font-medium text-white">
-                      {currency}
-                      {bill.repairCharges.toFixed(2)}
-                    </span>
-                  </div>
-                )}
-
-                {bill.laborCharges > 0 && (
-                  <div className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <span className="text-gray-300">Labor Charges</span>
-                    <span className="font-medium text-white">
-                      {currency}
-                      {bill.laborCharges.toFixed(2)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Total Section */}
           <div className="border-t border-gray-700 pt-6">
@@ -456,9 +452,7 @@ export const BillDetailModal = ({
           )}
 
           {/* Payment Controls */}
-          {showPaymentControls &&
-            onUpdatePayment &&
-            bill.paymentStatus !== "paid" && (
+          {showPaymentControls && onUpdatePayment && bill.paymentStatus !== "paid" && (
               <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-medium text-white flex items-center gap-2">
@@ -478,82 +472,63 @@ export const BillDetailModal = ({
 
                 {isEditingPayment && (
                   <div className="space-y-4">
-                    {/* Mark as Paid Toggle */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Wallet className="w-4 h-4 text-green-400" />
-                        <Label
-                          htmlFor="mark-paid"
-                          className="text-sm text-gray-300">
-                          Mark as Paid
-                        </Label>
-                      </div>
-                      <Switch
-                        id="mark-paid"
-                        checked={markAsPaid}
-                        onCheckedChange={handleMarkAsPaidChange}
-                      />
+                    {/* Mode selector */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant={paymentMode === "paid" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPaymentMode("paid")}
+                        className={paymentMode === "paid" ? "bg-green-600 hover:bg-green-700" : ""}
+                      >
+                        Mark Full Paid
+                      </Button>
+                      <Button
+                        variant={paymentMode === "partial" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPaymentMode("partial")}
+                      >
+                        Record Partial Payment
+                      </Button>
                     </div>
 
-                    {/* Partial Payment Toggle */}
-                    {!markAsPaid && (
+                    {/* Partial amount controls */}
+                    {paymentMode === "partial" && (
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label
-                            htmlFor="partial-payment"
-                            className="text-sm text-gray-300">
-                            Enable Partial Payment
+                        <div>
+                          <Label htmlFor="partial-amount" className="text-xs text-gray-400">
+                            Amount Received
                           </Label>
-                          <Switch
-                            id="partial-payment"
-                            checked={enablePartialPayment}
-                            onCheckedChange={handlePartialPaymentChange}
+                          <Input
+                            id="partial-amount"
+                            type="number"
+                            min="0"
+                            max={grandTotal}
+                            step="0.01"
+                            value={partialAmount}
+                            onChange={(e) => setPartialAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="bg-gray-900 border-gray-600 text-white"
                           />
                         </div>
+                        {/* Quick chips removed */}
 
-                        {/* Partial Payment Input */}
-                        {enablePartialPayment && (
-                          <div className="space-y-2">
-                            <Label
-                              htmlFor="partial-amount"
-                              className="text-xs text-gray-400">
-                              Amount Received
-                            </Label>
-                            <Input
-                              id="partial-amount"
-                              type="number"
-                              min="0"
-                              max={grandTotal}
-                              step="0.01"
-                              value={partialAmount}
-                              onChange={(e) => setPartialAmount(e.target.value)}
-                              placeholder="0.00"
-                              className="bg-gray-900 border-gray-600 text-white"
-                            />
-                            {partialAmount && Number(partialAmount) > 0 && (
-                              <div className="text-xs space-y-1">
-                                <div className="flex justify-between text-gray-400">
-                                  <span>Will be paid:</span>
-                                  <span className="text-green-400">
-                                    {currency}
-                                    {Math.min(
-                                      Number(partialAmount),
-                                      grandTotal
-                                    ).toFixed(2)}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-gray-400">
-                                  <span>Will remain pending:</span>
-                                  <span className="text-orange-400">
-                                    {currency}
-                                    {Math.max(
-                                      0,
-                                      grandTotal - Number(partialAmount)
-                                    ).toFixed(2)}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
+                        {/* Live summary */}
+                        {Number(partialAmount) >= 0 && partialAmount !== "" && (
+                          <div className="text-xs space-y-1">
+                            <div className="flex justify-between text-gray-400">
+                              <span>Will be paid:</span>
+                              <span className="text-green-400">
+                                {currency}
+                                {Math.min(Number(partialAmount), grandTotal).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-gray-400">
+                              <span>Will remain pending:</span>
+                              <span className="text-orange-400">
+                                {currency}
+                                {Math.max(0, grandTotal - Number(partialAmount)).toFixed(2)}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -565,10 +540,10 @@ export const BillDetailModal = ({
                         onClick={handlePaymentUpdate}
                         disabled={
                           isUpdatingPayment ||
-                          (!markAsPaid &&
-                            (!enablePartialPayment || !partialAmount))
+                          (paymentMode === "partial" && (!partialAmount || Number(partialAmount) <= 0))
                         }
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      >
                         {isUpdatingPayment ? (
                           <div className="flex items-center gap-2">
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -585,11 +560,11 @@ export const BillDetailModal = ({
                         variant="outline"
                         onClick={() => {
                           setIsEditingPayment(false);
-                          setMarkAsPaid(false);
-                          setEnablePartialPayment(false);
+                          setPaymentMode("partial");
                           setPartialAmount("");
                         }}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white">
+                        className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
+                      >
                         Cancel
                       </Button>
                     </div>

@@ -520,16 +520,43 @@ export const useDataStore = create<DataStore>((set, get) => ({
           bills.delete(documentId);
           console.log(`🗑️ Bill deleted: ${documentId}`);
         } else if (document) {
-          bills.set(documentId, document);
+          // 1) Create a normalized copy so UI gets customer fields immediately
+          const normalizedBill: any = { ...document };
 
-          // Update customer lookup
-          if (document.customer?._id && update.transition === "appear") {
+          // Resolve customer details if only a reference came through the realtime payload
+          const cust = document.customer;
+          const customerId =
+            (typeof cust === "string" && cust) ||
+            cust?._id ||
+            cust?._ref ||
+            undefined;
+          const customerHasName = Boolean(cust && (cust as any).name);
+
+          if (customerId && !customerHasName) {
+            const knownUser = currentState.users.get(customerId as string);
+            if (knownUser) {
+              normalizedBill.customer = {
+                _id: knownUser._id,
+                name: knownUser.name,
+                phone: knownUser.phone,
+                email: knownUser.email,
+                location: knownUser.location,
+                role: knownUser.role,
+              };
+            }
+          }
+
+          bills.set(documentId, normalizedBill);
+
+          // 2) Update customer -> bills index
+          const effectiveCustomerId =
+            normalizedBill.customer?._id || customerId;
+          if (effectiveCustomerId && update.transition === "appear") {
             const billsByCustomer = new Map(currentState.billsByCustomer);
-            const customerBills =
-              billsByCustomer.get(document.customer._id) || [];
+            const customerBills = billsByCustomer.get(effectiveCustomerId) || [];
             if (!customerBills.includes(documentId)) {
               customerBills.push(documentId);
-              billsByCustomer.set(document.customer._id, customerBills);
+              billsByCustomer.set(effectiveCustomerId, customerBills);
               set({ billsByCustomer });
             }
           }

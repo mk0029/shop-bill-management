@@ -1,3 +1,4 @@
+import { TAX_RATE } from "@/constants/defaults";
 import { sanityClient } from "./sanity";
 
 export interface InventoryApiResponse<T = unknown> {
@@ -362,7 +363,7 @@ export const inventoryApi = {
         specifications: productData.specifications,
         pricing: {
           ...productData.pricing,
-          taxRate: 18, // Default GST rate
+          taxRate: TAX_RATE, // Default GST rate
         },
         inventory: productData.inventory,
         images: [],

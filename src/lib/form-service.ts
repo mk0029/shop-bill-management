@@ -6,6 +6,7 @@ import {
   BillItem,
 } from "./inventory-management";
 import { deduplicateBillItems, validateBillItems } from "./bill-utils";
+import { TAX_RATE } from "@/constants/defaults";
 
 export interface FormSubmissionResult {
   success: boolean;
@@ -89,6 +90,8 @@ export async function saveDraftBill(billData: {
   locationType?: "shop" | "home" | "office";
   homeVisitFee?: number;
   repairCharges?: number;
+  // Backward/forward compatibility: allow repairFee as alias of repairCharges
+  repairFee?: number;
   laborCharges?: number;
   notes?: string;
   paymentStatus?: "pending" | "partial" | "paid";
@@ -123,7 +126,9 @@ export async function saveDraftBill(billData: {
 
     const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
     const homeVisitFee = Number(billData.homeVisitFee || 0);
-    const repairCharges = Number(billData.repairCharges || 0);
+    const repairCharges = Number(
+      billData.repairCharges ?? (billData as any).repairFee ?? 0
+    );
     const laborCharges = Number(billData.laborCharges || 0);
     const totalAmount = subtotal + homeVisitFee + repairCharges + laborCharges;
 
@@ -194,6 +199,8 @@ export async function updateDraftBill(
     locationType: "shop" | "home" | "office";
     homeVisitFee: number;
     repairCharges: number;
+    // Allow repairFee as alias
+    repairFee: number;
     laborCharges: number;
     notes: string;
     paymentStatus: "pending" | "partial" | "paid";
@@ -223,7 +230,9 @@ export async function updateDraftBill(
 
     const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
     const homeVisitFee = Number(updates.homeVisitFee || 0);
-    const repairCharges = Number(updates.repairCharges || 0);
+    const repairCharges = Number(
+      updates.repairCharges ?? (updates as any).repairFee ?? 0
+    );
     const laborCharges = Number(updates.laborCharges || 0);
     const totalAmount = subtotal + homeVisitFee + repairCharges + laborCharges;
 
@@ -452,7 +461,7 @@ export async function createProduct(productData: {
       specifications: productData.specifications,
       pricing: {
         ...productData.pricing,
-        taxRate: 18, // Default GST rate
+        taxRate: TAX_RATE, // Default GST rate
       },
       inventory: productData.inventory,
       images: [],
@@ -587,6 +596,8 @@ export async function createBill(billData: {
   locationType: "shop" | "home" | "office";
   homeVisitFee?: number;
   repairCharges?: number;
+  // Allow repairFee as alias
+  repairFee?: number;
   laborCharges?: number;
   notes?: string;
   paymentStatus?: "pending" | "partial" | "paid";
@@ -714,8 +725,10 @@ export async function createBill(billData: {
     const homeVisitFee = Number(
       billData.locationType !== "shop" ? billData.homeVisitFee || 0 : 0
     );
+    const repairChargesInput =
+      billData.repairCharges ?? (billData as any).repairFee ?? 0;
     const repairCharges = Number(
-      billData.serviceType === "repair" ? billData.repairCharges || 0 : 0
+      billData.serviceType === "repair" ? repairChargesInput : 0
     );
     const laborCharges = Number(billData.laborCharges || 0);
     const totalAmount =

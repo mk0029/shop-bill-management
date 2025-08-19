@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Product, useInventoryStore } from "@/store/inventory-store";
@@ -64,6 +65,7 @@ export const InventoryDialogs = ({
     sellingPrice: "",
     stockToAdd: "",
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (selectedProduct) {
@@ -79,18 +81,22 @@ export const InventoryDialogs = ({
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
+    setIsSaving(true);
+    try {
+      const success = await updateProductDetails(selectedProduct._id, {
+        name: editFormData.name,
+        pricing: {
+          purchasePrice: parseFloat(editFormData.purchasePrice) || undefined,
+          sellingPrice: parseFloat(editFormData.sellingPrice) || undefined,
+        },
+        stockToAdd: parseInt(editFormData.stockToAdd, 10) || 0,
+      });
 
-    const success = await updateProductDetails(selectedProduct._id, {
-      name: editFormData.name,
-      pricing: {
-        purchasePrice: parseFloat(editFormData.purchasePrice) || undefined,
-        sellingPrice: parseFloat(editFormData.sellingPrice) || undefined,
-      },
-      stockToAdd: parseInt(editFormData.stockToAdd, 10) || 0,
-    });
-
-    if (success) {
-      onEditCancel(); // Close dialog on success
+      if (success) {
+        onEditCancel(); // Close dialog on success
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -138,13 +144,14 @@ export const InventoryDialogs = ({
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4">
+          <form onSubmit={handleEditSubmit} className="space-y-4" aria-busy={isSaving}>
             <div className="space-y-2">
               <Label className="text-gray-300">Product Name</Label>
               <Input
                 value={editFormData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
+                disabled={isSaving}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -158,6 +165,7 @@ export const InventoryDialogs = ({
                     handleInputChange("purchasePrice", e.target.value)
                   }
                   className="bg-gray-800 border-gray-700 text-white"
+                  disabled={isSaving}
                 />
               </div>
               <div className="space-y-2">
@@ -170,6 +178,7 @@ export const InventoryDialogs = ({
                     handleInputChange("sellingPrice", e.target.value)
                   }
                   className="bg-gray-800 border-gray-700 text-white"
+                  disabled={isSaving}
                 />
               </div>
             </div>
@@ -181,14 +190,22 @@ export const InventoryDialogs = ({
                 value={editFormData.stockToAdd}
                 onChange={(e) => handleInputChange("stockToAdd", e.target.value)}
                 className="bg-gray-800 border-gray-700 text-white"
+                disabled={isSaving}
               />
             </div>
          <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={onEditCancel}>
+              <Button type="button" variant="outline" onClick={onEditCancel} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                Save Changes
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSaving}>
+                {isSaving ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </span>
+                ) : (
+                  "Save Changes"
+                )}
               </Button>
             </div>
           </form>

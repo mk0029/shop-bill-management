@@ -253,7 +253,12 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                 </motion.div>
               )}
 
-              <Card className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer">
+              <Card
+                className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer"
+                onClick={() => onBillClick?.(bill)}
+                role="button"
+                aria-label={`View details for bill ${bill.billNumber}`}
+              >
                 <CardContent className="p-4">
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -309,7 +314,10 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => onBillClick?.(bill)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBillClick?.(bill);
+                              }}
                               className="flex-1 sm:flex-none">
                               <Eye className="w-4 h-4 mr-2" />
                               View
@@ -317,6 +325,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={(e) => e.stopPropagation()}
                               className="flex-1 sm:flex-none">
                               <Download className="w-4 h-4 mr-2" />
                               PDF

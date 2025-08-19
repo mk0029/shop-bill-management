@@ -270,7 +270,8 @@ export const ItemSelectionModal = ({
               <p className="text-gray-400">No items match your filters</p>
             </div>
           ) : (
-            filteredItems.map((product) => (
+            filteredItems.map((product) => 
+            { return (
               <motion.div
                 key={product._id}
                 className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600">
@@ -278,7 +279,7 @@ export const ItemSelectionModal = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-white text-sm">
-                        {product.category?.name} - {product.brand?.name}
+                        {`${product.name}`}
                       </p>
                       <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded">
                         {product.inventory.currentStock} in stock
@@ -337,7 +338,7 @@ export const ItemSelectionModal = ({
                   </div>
                 </div>
               </motion.div>
-            ))
+            )})
           )}
         </div>
       </div>

@@ -5,7 +5,7 @@ import { useCustomerBills } from "@/hooks/use-customer-bills";
 import { BillsHeader } from "@/components/customer/bills-header";
 import { BillsFilters } from "@/components/customer/bills-filters";
 import { BillsList } from "@/components/customer/bills-list";
-import { BillDetailModal } from "@/components/customer/bill-detail-modal";
+// Using shared BillDetailTrigger within BillsList; no separate modal here
 
 export default function CustomerBillingBook() {
   const { currency } = useLocaleStore();
@@ -65,16 +65,7 @@ export default function CustomerBillingBook() {
         getServiceTypeLabel={getServiceTypeLabel}
       />
 
-      <BillDetailModal
-        isOpen={showBillModal}
-        onClose={() => setShowBillModal(false)}
-        bill={selectedBill}
-        currency={currency}
-        getBillStatusColor={getBillStatusColor}
-        getTotalAmount={getTotalAmount}
-        getServiceTypeLabel={getServiceTypeLabel}
-        onDownloadBill={handleDownloadBill}
-      />
+      {/* Bill details handled per row via BillDetailTrigger */}
     </div>
   );
 }

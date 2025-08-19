@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
-import { BillDetailModal } from "@/components/ui/bill-detail-modal";
+import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { useBills } from "@/hooks/use-sanity-data";
@@ -49,7 +49,6 @@ export default function BillHistoryPage() {
   const { updateBill } = useSanityBillStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
 
   interface Bill {
     id: string;
@@ -70,7 +69,12 @@ export default function BillHistoryPage() {
     locationType?: string;
     notes?: string;
   }
-  const [showBillModal, setShowBillModal] = useState(false);
+  // Using BillDetailTrigger for modal; no local modal state needed
+
+  // Map of raw bills for retrieving full data in the modal
+  const rawBillById = Object.fromEntries(
+    bills.map((b: any) => [b._id || b.id, b])
+  );
 
   // Transform bills data to match the expected format
   const transformedBills = bills.map((bill) => ({
@@ -130,10 +134,7 @@ export default function BillHistoryPage() {
     (bill) => bill.status === "overdue"
   ).length;
 
-  const viewBillDetails = (bill: Bill) => {
-    setSelectedBill(bill);
-    setShowBillModal(true);
-  };
+  // View handled by BillDetailTrigger
 
   const handleDownloadPDF = (bill: Bill) => {
     // TODO: Implement PDF download
@@ -332,13 +333,20 @@ export default function BillHistoryPage() {
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    <Button
+                    <BillDetailTrigger
+                      bill={rawBillById[bill.id] || bill}
                       variant="outline"
                       size="sm"
-                      onClick={() => viewBillDetails(bill)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View
-                    </Button>
+                      onDownloadPDF={handleDownloadPDF}
+                      onUpdatePayment={handleUpdatePayment}
+                      showShareButton={true}
+                      showPaymentControls={true}
+                    >
+                      <span className="inline-flex items-center">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View
+                      </span>
+                    </BillDetailTrigger>
                     <Button variant="outline" size="sm">
                       <Download className="w-4 h-4 mr-2" />
                       Download
@@ -359,16 +367,7 @@ export default function BillHistoryPage() {
         </CardContent>
       </Card>
 
-      {/* Bill Details Modal */}
-      <BillDetailModal
-        isOpen={showBillModal}
-        onClose={() => setShowBillModal(false)}
-        bill={selectedBill}
-        onDownloadPDF={handleDownloadPDF}
-        onUpdatePayment={handleUpdatePayment}
-        showShareButton={true}
-        showPaymentControls={true}
-      />
+      {/* Modal handled via BillDetailTrigger per row */}
     </div>
   );
 }

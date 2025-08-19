@@ -39,7 +39,7 @@ export const BillSummarySidebar = ({
 
   const itemsTotal = calculateTotal();
   const additionalCharges =
-    Number(formData.repairCharges || 0) +
+    Number(formData.repairFee || 0) +
     Number(formData.homeVisitFee || 0) +
     Number(formData.laborCharges || 0);
   const grandTotal = calculateGrandTotal();
@@ -77,12 +77,12 @@ export const BillSummarySidebar = ({
             </span>
           </div>
 
-          {formData.repairCharges > 0 && (
+          {formData.repairFee > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Repair Charges</span>
               <span className="text-white">
                 {currency}
-                {Number(formData.repairCharges).toFixed(2)}
+                {Number(formData.repairFee).toFixed(2)}
               </span>
             </div>
           )}

@@ -1,3 +1,5 @@
+import { TAX_RATE } from "@/constants/defaults";
+
 // Fallback data for when Sanity is not available
 export const fallbackData = {
   brands: [
@@ -103,7 +105,7 @@ export const fallbackData = {
         sellingPrice: 65,
         mrp: 75,
         discount: 0,
-        taxRate: 18,
+        taxRate: TAX_RATE,
         unit: "piece",
       },
       inventory: {
@@ -150,7 +152,7 @@ export const fallbackData = {
         sellingPrice: 150,
         mrp: 180,
         discount: 0,
-        taxRate: 18,
+        taxRate: TAX_RATE,
         unit: "meter",
       },
       inventory: {
@@ -198,7 +200,7 @@ export const fallbackData = {
         sellingPrice: 120,
         mrp: 150,
         discount: 0,
-        taxRate: 18,
+        taxRate: TAX_RATE,
         unit: "piece",
       },
       inventory: {
