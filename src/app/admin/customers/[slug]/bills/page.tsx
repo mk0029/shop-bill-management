@@ -80,7 +80,8 @@ export default function CustomerBillsPage() {
   };
 
   const handleCreateBill = () => {
-    router.push(`/admin/billing/create?customerId=${customerId}`);
+    try { localStorage.setItem("bill_create_skip_restore", "1"); } catch {}
+    router.push(`/admin/billing/create?customerId=${customerId}&fresh=1`);
   };
 
   const handleDownloadPDF = (bill: unknown) => {

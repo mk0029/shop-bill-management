@@ -25,7 +25,8 @@ export function useCustomerActions() {
 
   const navigateToCreateBill = useCallback(
     (customerId: string) => {
-      router.push(`/admin/billing/create?customerId=${customerId}`);
+      try { localStorage.setItem("bill_create_skip_restore", "1"); } catch {}
+      router.push(`/admin/billing/create?customerId=${customerId}&fresh=1`);
     },
     [router]
   );

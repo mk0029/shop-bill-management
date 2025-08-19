@@ -22,6 +22,7 @@ interface RewindingKitFormProps {
     brand?: string;
     unit?: string;
   }) => void;
+  onSubmitted?: () => void;
 }
 
 interface RewindingFormData {
@@ -198,7 +199,7 @@ function SingleRewindingForm({
 
 }
 
-export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
+export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormProps) {
   const { getProductsByCategory } = useProducts();
   const [starters, setStarters] = useState<Product[]>([]);
 
@@ -280,6 +281,8 @@ export function RewindingKitForm({ onAddItem }: RewindingKitFormProps) {
 
     // Reset forms after successful submission
     setRewindingForms([{ ...initialKitState, id: crypto.randomUUID() }]);
+    // Inform parent to close the rewinding form if provided
+    try { onSubmitted?.(); } catch {}
   };
 
   return (

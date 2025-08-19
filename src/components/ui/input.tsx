@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -11,6 +12,15 @@ export interface InputProps
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, error, ...props }, ref) => {
     return (
+      <motion.div
+              
+                initial={{ opacity:0.1,filter: 'blur(1px)' }} // starting state
+                whileInView={{opacity:1,filter: 'blur(0px)' }} // when it enters viewport
+                transition={{ duration: 0.3, ease: "linear" }} 
+                viewport={{ once: false, amount: 0.5 }}  // 👈 viewport settings
+              
+  
+                >
       <div className="space-y-1">
         <input
           type={type}
@@ -24,6 +34,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
+      </motion.div>
     );
   }
 );

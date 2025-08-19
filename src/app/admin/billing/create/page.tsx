@@ -205,7 +205,10 @@ export default function CreateBillPage() {
                   will be added to your bill when you click &quot;Submit All
                   Services&quot;.
                 </p>
-                <RewindingKitForm onAddItem={addCustomItemToBill} />
+                <RewindingKitForm
+                  onAddItem={addCustomItemToBill}
+                  onSubmitted={() => setShowRewindingForm(false)}
+                />
               </div>
             </div>
           )}

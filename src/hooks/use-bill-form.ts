@@ -363,7 +363,26 @@ export const useBillForm = () => {
       setAlertMessage("Draft saved locally.");
       setShowAlertModal(true);
       setIsDirty(false);
+      // Clear autosave cache to avoid restoring the just-saved draft
       try { localStorage.removeItem(LOCAL_KEY); } catch {}
+
+      // Reset the form for a fresh start after saving draft
+      setFormData({
+        customerId: "",
+        serviceType: "",
+        location: "",
+        billDate: new Date().toISOString().split("T")[0],
+        dueDate: "",
+        notes: "",
+        repairFee: 0,
+        homeVisitFee: 0,
+        laborCharges: 0,
+        isMarkAsPaid: false,
+        enablePartialPayment: false,
+        partialPaymentAmount: 0,
+      });
+      setSelectedItems([]);
+      setDraftId(null);
     } catch (err) {
       console.error("Error saving local draft:", err);
       setAlertMessage("Error saving draft locally");
@@ -378,10 +397,12 @@ export const useBillForm = () => {
     try {
       if (typeof window === "undefined") return;
       const skip = localStorage.getItem("bill_create_skip_restore");
+      const params = new URLSearchParams(window.location.search);
+      const isFresh = params.get("fresh") === "1";
       const raw = localStorage.getItem(LOCAL_KEY);
 
       // If user explicitly chose to create a fresh bill, don't restore or prompt
-      if (skip === "1") {
+      if (skip === "1" || isFresh) {
         try { localStorage.removeItem("bill_create_skip_restore"); } catch {}
         // Do not restore previous autosave; ensure it's cleared to avoid future prompts
         try { localStorage.removeItem(LOCAL_KEY); } catch {}

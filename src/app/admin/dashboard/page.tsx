@@ -31,7 +31,7 @@ export default function AdminDashboard() {
       bg: "bg-blue-600",
       hover: "hover:bg-blue-700",
       text: "text-blue-100",
-      url: "/admin/billing/create",
+      url: "/admin/billing/create?fresh=1",
     },
     {
       icon: Users,
@@ -129,6 +129,13 @@ export default function AdminDashboard() {
                     <Link
                       href={action.url}
                       key={index}
+                      onClick={() => {
+                        try {
+                          if (action.url.startsWith("/admin/billing/create")) {
+                            localStorage.setItem("bill_create_skip_restore", "1");
+                          }
+                        } catch {}
+                      }}
                       className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}>
                       <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
                       <div>

@@ -61,7 +61,7 @@ const adminNavigation: NavigationItem[] = [
     children: [
       { label: "All Bills", href: "/admin/billing", icon: FileText },
       { label: "Pending Bills", href: "/admin/billing/pending", icon: Clock },
-      { label: "Create Bill", href: "/admin/billing/create", icon: Plus },
+      { label: "Create Bill", href: "/admin/billing/create?fresh=1", icon: Plus },
       { label: "Draft Bills", href: "/admin/billing/drafts", icon: FileText },
       { label: "Bill History", href: "/admin/billing/history", icon: History },
     ],
@@ -245,6 +245,11 @@ export function Navigation() {
           value={active ? item.href : ""}
           onValueChange={(value) => {
             // Handle navigation
+            try {
+              if (value.startsWith("/admin/billing/create")) {
+                localStorage.setItem("bill_create_skip_restore", "1");
+              }
+            } catch {}
             window.location.href = value;
           }}
           placeholder={item.label}

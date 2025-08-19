@@ -206,7 +206,7 @@ export default function BillingPage() {
           </p>
         </div>
         <Button
-          onClick={() => router.push("/admin/billing/create")}
+          onClick={() => { try { localStorage.setItem("bill_create_skip_restore", "1"); } catch {} ; router.push("/admin/billing/create?fresh=1"); }}
           className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Create Bill

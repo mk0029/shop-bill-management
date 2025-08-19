@@ -56,7 +56,7 @@ export const ItemSelectionSection = ({
         </div>
 
         {/* Category Buttons */}
-    <div className="max-h-[200px] overflow-auto">    <div className=" flex flex-wrap gap-3 mb-6">
+    <div className="max-h-[200px] overflow-auto">    <div className=" flex flex-wrap gap-2 mb-3">
           {filteredCategories.map((category) => {
             return (
               <motion.div
@@ -75,25 +75,25 @@ export const ItemSelectionSection = ({
                   onClick={() => onOpenItemModal(category.name.toLowerCase())}
                   className={`w-full h-auto px-3 py-2 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md cursor-pointer`}
                   aria-disabled>
-                    <p className="font-medium text-white text-base">{category.name}</p>
+                    <p className="font-medium text-white text-xs">{category.name}</p>
                 </div>
               </motion.div>
             );
           })}
             {categoryFilter==='all'? '':  <motion.div 
-              initial={{ scale: 0.6 }} // starting state
-              whileInView={{ scale: 1 }} // when it enters viewport
-              transition={{ duration: 0.4, ease: "easeInOut" }} 
-              viewport={{ once: false, amount: 0.5 }}  // 👈 viewport settings
-
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}>
+             whileHover={{ scale: 1.02 }}
+             whileTap={{ scale: 0.98 }}
+             initial={{ opacity:0.1,filter: 'blur(1px)' }} // starting state
+             whileInView={{opacity:1,filter: 'blur(0px)' }} // when it enters viewport
+             transition={{ duration: 0.3, ease: "linear" }} 
+             viewport={{ once: false, amount: 0.5 }}  // 👈 viewport settings
+>
                 <div
                   // variant="outline"
                   onClick={() => setCategoryFilter('all')}
                   className={`w-full h-auto cursor-pointer pt-2`}
                   aria-disabled>
-                    <p className="font-noraml text-white text-base">Reset Items</p>
+                    <p className="font-noraml text-white text-sm">Reset Items</p>
                 </div>
               </motion.div>}
 
