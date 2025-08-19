@@ -24,7 +24,6 @@ import {
   Building2,
   Bell,
   Package,
-  Clock,
   Shield,
   UserCog,
 } from "lucide-react";
@@ -60,10 +59,8 @@ const adminNavigation: NavigationItem[] = [
     icon: FileText,
     children: [
       { label: "All Bills", href: "/admin/billing", icon: FileText },
-      { label: "Pending Bills", href: "/admin/billing/pending", icon: Clock },
       { label: "Create Bill", href: "/admin/billing/create?fresh=1", icon: Plus },
       { label: "Draft Bills", href: "/admin/billing/drafts", icon: FileText },
-      { label: "Bill History", href: "/admin/billing/history", icon: History },
     ],
   },
   {
