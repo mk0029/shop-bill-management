@@ -1,0 +1,283 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { ArrowLeft, XIcon } from "lucide-react";
+import {
+  useCustomers,
+  useProducts,
+  useBrands,
+  useCategories,
+} from "@/hooks/use-sanity-data";
+import { useBillForm, BillFormData } from "@/hooks/use-bill-form";
+import { useItemSelection } from "@/hooks/use-item-selection";
+import { CustomerInfoSection } from "@/components/billing/customer-info-section";
+import { ItemSelectionSection } from "@/components/billing/item-selection-section";
+import { SelectedItemsList } from "@/components/billing/selected-items-list";
+import { BillSummarySidebar } from "@/components/billing/bill-summary-sidebar";
+import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
+import { RewindingKitForm } from "@/components/billing/RewindingKitForm";
+
+export default function CreateBillPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const preSelectedCustomerId = searchParams.get("customerId");
+
+  // Exit confirmation state and handlers
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  const confirmSaveDraftAndExit = async () => {
+    await saveDraft();
+    clearLocalDraft();
+    setShowExitConfirm(false);
+    router.back();
+  };
+
+  const discardAndExit = async () => {
+    clearLocalDraft();
+    setShowExitConfirm(false);
+    router.back();
+  };
+
+  const { customers, isLoading: customersLoading } = useCustomers();
+  const { activeProducts, isLoading: productsLoading } = useProducts();
+  const { brands } = useBrands();
+  const { categories } = useCategories();
+
+  const {
+    formData,
+    selectedItems,
+    isLoading,
+    savingDraft,
+    isDirty,
+    showSuccessModal,
+    showAlertModal,
+    alertMessage,
+    handleInputChange,
+    addItemToBill,
+    addCustomItemToBill,
+    updateItemQuantity,
+    removeItem,
+    calculateTotal,
+    calculateGrandTotal,
+    getPaymentDetails,
+    handleSubmit,
+    saveDraft,
+    handleSuccessClose,
+    setShowAlertModal,
+    setSelectedItems,
+    clearLocalDraft,
+  } = useBillForm();
+
+  const handleBack = () => {
+    if (isDirty) {
+      setShowExitConfirm(true);
+    } else {
+      router.back();
+    }
+  };
+
+  const {
+    itemSelectionModal,
+    openItemSelectionModal,
+    closeItemSelectionModal,
+    setSelectedCategory,
+    updateSpecificationFilter,
+    filterItemsBySpecifications,
+  } = useItemSelection();
+
+  const selectedCustomer = customers.find((c) => c._id === formData.customerId);
+  const filteredItems = filterItemsBySpecifications(activeProducts);
+  const [showRewindingForm, setShowRewindingForm] = useState(false);
+
+  const handleOpenCategory = (categoryName: string) => {
+    const lower = categoryName.toLowerCase();
+    // Always open the item selection modal. Subcategory selection will be handled inside the modal via dropdown.
+    openItemSelectionModal(lower);
+  };
+
+  // Intercept browser back navigation to show confirm modal if dirty
+  useEffect(() => {
+    const onPopState = (e: PopStateEvent) => {
+      if (isDirty) {
+        e.preventDefault?.();
+        setShowExitConfirm(true);
+        // Push state back to prevent leaving until user chooses
+        window.history.pushState(null, "", window.location.href);
+      }
+    };
+    // Push a new state so that back button triggers popstate here
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isDirty]);
+
+  // Pre-select customer if customerId is provided in URL
+  useEffect(() => {
+    if (preSelectedCustomerId && customers.length > 0 && !formData.customerId) {
+      const customer = customers.find((c) => c._id === preSelectedCustomerId);
+      if (customer) {
+        handleInputChange("customerId", preSelectedCustomerId);
+      }
+    }
+  }, [
+    preSelectedCustomerId,
+    customers,
+    formData.customerId,
+    handleInputChange,
+  ]);
+
+  return (
+    <div className="space-y-6 max-md:pb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={handleBack} className="p-2">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+              Create New Bill
+            </h1>
+            <p className="text-gray-400 mt-1 text-sm sm:text-base max-sm:max-w-[80%]">
+              Generate a new invoice for your customer
+            </p>
+          </div>
+
+      {/* Exit confirmation */}
+      <ConfirmationModal
+        isOpen={showExitConfirm}
+        onClose={discardAndExit}
+        onConfirm={confirmSaveDraftAndExit}
+        title="Unsaved bill data"
+        message="You have unsaved changes. Save as draft or discard?"
+        type="confirm"
+        confirmText="Save as Draft"
+        cancelText="Discard"
+      />
+        </div>
+        <div className="shrink-0">
+          <Button variant="outline" onClick={saveDraft} disabled={savingDraft}>
+            {savingDraft ? "Saving..." : "Save as Draft"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bill Form */}
+        <div className="lg:col-span-2 space-y-6">
+          <CustomerInfoSection
+            formData={formData}
+            customers={customers}
+            customersLoading={customersLoading}
+            onInputChange={(field, value) =>
+              handleInputChange(field as keyof BillFormData, value)
+            }
+          />
+          {!showRewindingForm && (
+            <Button
+              variant="outline"
+              onClick={() => setShowRewindingForm(true)}
+              className="w-full">
+              Add Rewinding Service/Item
+            </Button>
+          )}
+
+          {showRewindingForm && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">
+                  Rewinding Services & Items
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRewindingForm(false)}
+                  className="text-gray-400 hover:text-white">
+                  <XIcon />
+                </Button>
+              </div>
+              <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                <p className="text-sm text-gray-300 mb-4">
+                  Fill out multiple custom services or items below. All entries
+                  will be added to your bill when you click &quot;Submit All
+                  Services&quot;.
+                </p>
+                <RewindingKitForm
+                  onAddItem={addCustomItemToBill}
+                  onSubmitted={() => setShowRewindingForm(false)}
+                />
+              </div>
+            </div>
+          )}
+
+          <ItemSelectionSection
+            categories={categories}
+            activeProducts={activeProducts}
+            productsLoading={productsLoading}
+            onOpenItemModal={handleOpenCategory}
+          />
+
+          <SelectedItemsList
+            selectedItems={selectedItems}
+            onUpdateQuantity={(itemId, quantity) => {
+              const product = activeProducts.find((p) => p._id === itemId);
+              const maxStock = product
+                ? product.inventory.currentStock
+                : Infinity;
+              updateItemQuantity(itemId, quantity, maxStock);
+            }}
+            onRemoveItem={removeItem}
+            onClearAll={() => setSelectedItems([])}
+          />
+        </div>
+
+        {/* Sidebar */}
+        <BillSummarySidebar
+          selectedCustomer={selectedCustomer}
+          selectedItems={selectedItems}
+          formData={formData}
+          calculateTotal={calculateTotal}
+          calculateGrandTotal={calculateGrandTotal}
+          getPaymentDetails={getPaymentDetails}
+          onInputChange={handleInputChange}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* Modals */}
+      <ItemSelectionModal
+        isOpen={itemSelectionModal.isOpen}
+        onClose={closeItemSelectionModal}
+        selectedCategory={itemSelectionModal.selectedCategory}
+        selectedSpecifications={itemSelectionModal.selectedSpecifications}
+        onUpdateSpecification={updateSpecificationFilter}
+        filteredItems={filteredItems}
+        brands={brands}
+        onAddItem={addItemToBill}
+        activeProducts={activeProducts}
+      />
+
+      <ConfirmationModal
+        isOpen={showSuccessModal}
+        onClose={handleSuccessClose}
+        title="Bill Created Successfully!"
+        message="The bill has been created and is ready for your customer."
+        confirmText="View All Bills"
+        onConfirm={handleSuccessClose}
+      />
+
+      <ConfirmationModal
+        isOpen={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        title="Alert"
+        message={alertMessage}
+        confirmText="OK"
+        onConfirm={() => setShowAlertModal(false)}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,855 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { create } from "zustand";
+import { inventoryApi, stockApi } from "@/lib/inventory-api";
+import { useAuthStore } from "@/store/auth-store";
+import { useSanityRealtimeStore } from "./sanity-realtime-store";
+import { apiDebouncer } from "@/lib/api-debounce";
+
+export type StockTransactionCreationPayload = {
+  productId: string;
+  type: "purchase" | "sale" | "adjustment" | "return" | "damage";
+  quantity: number;
+  unitPrice: number;
+  supplierId?: string;
+  billId?: string;
+  notes?: string;
+  updateInventory?: boolean;
+  createdBy?: { id?: string; name?: string };
+};
+
+export interface Specification {
+  [key: string]: string | number | boolean | string[] | undefined;
+}
+
+export interface Product {
+  _id: string;
+  productId: string;
+  name: string;
+  slug: { current: string };
+  description?: string;
+  brand: {
+    _id: string;
+    name: string;
+    slug: { current: string };
+    logo?: any;
+  };
+  category: {
+    _id: string;
+    name: string;
+    slug: { current: string };
+    icon?: string;
+  };
+  specifications: Specification;
+  pricing: {
+    purchasePrice: number;
+    sellingPrice: number;
+    standardPrice?: number;
+    modularPrice?: number;
+    unit: string;
+  };
+  inventory: {
+    currentStock: number;
+    minimumStock: number;
+    maximumStock?: number;
+    reorderLevel: number;
+    location?: string;
+    lastStockUpdate?: string;
+  };
+  images: any[];
+  isActive: boolean;
+  isFeatured: boolean;
+  tags: string[];
+  seoTitle?: string;
+  seoDescription?: string;
+  createdAt: string;
+  updatedAt: string;
+  deleted?: boolean;
+  deletedAt?: string;
+  _consolidated?: {
+    totalEntries: number;
+    originalIds: string[];
+    latestPriceUpdate: string;
+  };
+}
+
+export interface StockTransaction {
+  _id: string;
+  transactionId: string;
+  type: "purchase" | "sale" | "adjustment" | "return" | "damage";
+  product: {
+    _id: string;
+    name: string;
+    productId: string;
+  };
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  supplier?: { name: string };
+  bill?: { billNumber: string };
+  notes?: string;
+  status: string;
+  transactionDate: string;
+  createdAt: string;
+}
+
+export interface InventorySummary {
+  totalProducts: number;
+  activeProducts: number;
+  lowStockProducts: number;
+  outOfStockProducts: number;
+  totalValue: number;
+  categories: number;
+  brands: number;
+}
+
+interface InventoryStore {
+  products: Product[];
+  stockTransactions: StockTransaction[];
+  inventorySummary: InventorySummary | null;
+  isLoading: boolean;
+  error: string | null;
+  lastFetched: Date | null;
+  fetchProducts: (filters?: any) => Promise<void>;
+  fetchProductById: (productId: string) => Promise<Product | null>;
+  fetchLowStockProducts: () => Promise<void>;
+  fetchFeaturedProducts: () => Promise<void>;
+  fetchInventorySummary: () => Promise<void>;
+  fetchStockTransactions: (filters?: any) => Promise<void>;
+  searchProducts: (searchTerm: string, limit?: number) => Promise<Product[]>;
+  updateProductInventory: (
+    productId: string,
+    inventoryUpdate: Partial<Product["inventory"] & Product["pricing"]>
+  ) => Promise<boolean>;
+  createStockTransaction: (
+    transactionData: Partial<StockTransaction>
+  ) => Promise<boolean>;
+  findExistingProduct: (productData: {
+    brandId: string;
+    categoryId: string;
+    specifications: Specification;
+  }) => Product | undefined;
+  addOrUpdateProduct: (productData: {
+    _id?: string;
+    name: string;
+    description?: string;
+    brandId: string;
+    brandName: string;
+    categoryId: string;
+    specifications: Specification;
+    pricing: { purchasePrice: number; sellingPrice: number; unit: string };
+    inventory: {
+      currentStock: number;
+      minimumStock: number;
+      reorderLevel: number;
+    };
+    tags: string[];
+  }) => Promise<{
+    success: boolean;
+    data?: Product;
+    error?: string;
+    isUpdate?: boolean;
+  }>;
+  handleRealtimeProductUpdate: (product: Product) => void;
+  handleRealtimeProductCreated: (product: Product) => void;
+  handleRealtimeStockTransaction: (transaction: StockTransaction) => void;
+  getProductsByCategory: (categoryName: string) => Product[];
+  getProductsByBrand: (brandName: string) => Product[];
+  getLowStockProducts: () => Product[];
+  getOutOfStockProducts: () => Product[];
+  getFeaturedProducts: () => Product[];
+  getProductById: (productId: string) => Product | undefined;
+  getConsolidatedProducts: () => Product[];
+  softDeleteProduct: (productId: string) => Promise<boolean>;
+  restoreProduct: (productId: string) => Promise<boolean>;
+  deleteProduct: (productId: string) => Promise<boolean>;
+  updateProduct: (product: Product) => Promise<boolean>;
+  updateProductDetails: (
+    productId: string,
+    details: {
+      name: string;
+      pricing: { purchasePrice?: number; sellingPrice?: number };
+      stockToAdd: number;
+    }
+  ) => Promise<boolean>;
+  clearError: () => void;
+  refreshData: () => Promise<void>;
+  initializeRealtime: () => void;
+  cleanupRealtime: () => void;
+  handleBillCreated: (bill: any) => void;
+}
+
+export const useInventoryStore = create<InventoryStore>((set, get) => ({
+  products: [],
+  stockTransactions: [],
+  inventorySummary: null,
+  isLoading: false,
+  error: null,
+  lastFetched: null,
+
+  fetchProducts: async (filters) => {
+    const { isLoading } = get();
+
+    if (isLoading || apiDebouncer.wasCalledRecently("fetch-products", 2000)) {
+      console.log(
+        "⏳ Skipping fetchProducts - recent fetch or already loading"
+      );
+      return;
+    }
+
+    set({ isLoading: true, error: null });
+    try {
+      const response = await inventoryApi.getProducts(filters);
+      if (response.success) {
+        // Ensure newest products appear first
+        const products = ((response.data as Product[]) || []).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        set({ products, isLoading: false, lastFetched: new Date() });
+      } else {
+        set({
+          isLoading: false,
+          error: response.error || "Failed to fetch products",
+        });
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  },
+
+  fetchProductById: async (productId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await inventoryApi.getProductById(productId);
+      if (response.success) {
+        set({ isLoading: false });
+        return response.data as Product;
+      } else {
+        set({ isLoading: false, error: response.error || "Product not found" });
+        return null;
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return null;
+    }
+  },
+
+  fetchLowStockProducts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await inventoryApi.getLowStockProducts();
+      if (response.success) {
+        set({ products: (response.data as Product[]) || [], isLoading: false });
+      } else {
+        set({
+          isLoading: false,
+          error: response.error || "Failed to fetch low stock products",
+        });
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  },
+
+  fetchFeaturedProducts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await inventoryApi.getFeaturedProducts();
+      if (response.success) {
+        const featuredProducts = (response.data as Product[]) || [];
+        set((state) => ({
+          products: state.products.map(
+            (p) => featuredProducts.find((fp) => fp._id === p._id) || p
+          ),
+          isLoading: false,
+        }));
+      } else {
+        set({
+          isLoading: false,
+          error: response.error || "Failed to fetch featured products",
+        });
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  },
+
+  fetchInventorySummary: async () => {
+    const { isLoading } = get();
+
+    if (isLoading) {
+      console.log("⏳ Skipping fetchInventorySummary - already loading");
+      return;
+    }
+
+    set({ isLoading: true, error: null });
+    try {
+      const response = await inventoryApi.getInventorySummary();
+      if (response.success) {
+        set({
+          inventorySummary: response.data as InventorySummary,
+          isLoading: false,
+        });
+      } else {
+        set({
+          isLoading: false,
+          error: response.error || "Failed to fetch inventory summary",
+        });
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  },
+
+  fetchStockTransactions: async (filters) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await stockApi.getStockTransactions(filters);
+      if (response.success) {
+        set({
+          stockTransactions: (response.data as StockTransaction[]) || [],
+          isLoading: false,
+        });
+      } else {
+        set({
+          isLoading: false,
+          error: response.error || "Failed to fetch stock transactions",
+        });
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    }
+  },
+
+  searchProducts: async (searchTerm, limit = 10) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await inventoryApi.searchProducts(searchTerm, limit);
+      set({ isLoading: false });
+      if (response.success) {
+        return (response.data as Product[]) || [];
+      } else {
+        set({ error: response.error || "Failed to search products" });
+        return [];
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return [];
+    }
+  },
+
+  updateProductInventory: async (productId, inventoryUpdate) => {
+    try {
+      const response = await inventoryApi.updateProductInventory(
+        productId,
+        inventoryUpdate
+      );
+      if (response.success) {
+        set((state) => ({
+          products: state.products.map((p) =>
+            p._id === productId
+              ? { ...p, inventory: { ...p.inventory, ...inventoryUpdate } }
+              : p
+          ),
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to update inventory" });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  createStockTransaction: async (transactionData: StockTransactionCreationPayload) => {
+    try {
+      // Attach creator if not provided
+      const { user } = useAuthStore.getState();
+      const payload: StockTransactionCreationPayload = {
+        ...transactionData,
+        createdBy:
+          transactionData.createdBy ||
+          (user
+            ? { id: (user as any).id || (user as any)._id, name: user.name }
+            : undefined),
+      };
+      const response = await stockApi.createStockTransaction(payload);
+      if (response.success) {
+        get().fetchStockTransactions();
+        get().fetchInventorySummary();
+        return true;
+      } else {
+        set({ error: response.error || "Failed to create transaction" });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  findExistingProduct: (productData) => {
+    const { products } = get();
+    return products.find((p) => {
+      const isSameBrand = p?.brand?._id === productData.brandId;
+      const isSameCategory = p?.category?._id === productData.categoryId;
+
+      // If brand or category don't match, it's not the product we're looking for.
+      if (!isSameBrand || !isSameCategory) {
+        return false;
+      }
+
+      // If we've reached here, brand and category match. Now, compare specifications.
+      const existingSpecs = p.specifications || {};
+      const newSpecs = productData.specifications || {};
+      const allKeys = Array.from(new Set([...Object.keys(existingSpecs), ...Object.keys(newSpecs)]));
+
+      // If there are no specifications on either, they are considered a match.
+      if (allKeys.length === 0) {
+        return true;
+      }
+
+      // Check if all specification values are identical.
+      return allKeys.every((key) => existingSpecs[key] === newSpecs[key]);
+    });
+  },
+
+  addOrUpdateProduct: async (productData) => {
+    const { products, findExistingProduct, updateProductInventory } = get();
+    let existingProduct: Product | undefined;
+
+    if (productData._id) {
+      existingProduct = products.find((p) => p._id === productData._id);
+    } else {
+      existingProduct = findExistingProduct(productData);
+    }
+
+    if (existingProduct) {
+      const newStock =
+        existingProduct.inventory.currentStock +
+        productData.inventory.currentStock;
+      await updateProductInventory(existingProduct._id, {
+        currentStock: newStock,
+        purchasePrice: productData.pricing.purchasePrice,
+        sellingPrice: productData.pricing.sellingPrice,
+      });
+      return {
+        success: true,
+        data: {
+          ...existingProduct,
+          inventory: { ...existingProduct.inventory, currentStock: newStock },
+        },
+        isUpdate: true,
+      };
+    }
+
+    try {
+      const { user } = useAuthStore.getState();
+      const response = await inventoryApi.createProduct({
+        ...productData,
+        initialStockTransaction: {
+          type: "purchase",
+          quantity: productData.inventory.currentStock,
+          unitPrice: productData.pricing.purchasePrice,
+          notes: `New item: ${productData.name} (initial stock)`,
+        },
+        createdBy: user ? { id: (user as any).id || (user as any)._id, name: user.name } : undefined,
+      });
+
+      if (response.success) {
+        const newProduct = response.data as Product;
+        console.log(
+          "✅ Product created in Sanity with initial stock, waiting for realtime sync..."
+        );
+        setTimeout(() => get().fetchInventorySummary(), 1000);
+        return { success: true, data: newProduct, isUpdate: false };
+      } else {
+        set({ error: response.error || "Failed to create product" });
+        return { success: false, error: response.error };
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred";
+      set({ error: errorMessage });
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  handleRealtimeProductUpdate: (product: Product) => {
+    set((state) => ({
+      products: state.products.map((p) =>
+        p._id === product._id ? { ...p, ...product } : p
+      ),
+    }));
+    get().fetchInventorySummary();
+  },
+
+  handleRealtimeProductCreated: (product: Product) => {
+    const { products } = get();
+    const existingProduct = products.find((p) => p._id === product._id);
+
+    if (!existingProduct) {
+      // Prepend so the last added item shows at the top of the table
+      set((state) => ({ products: [product, ...state.products] }));
+      console.log(`✅ Product created via realtime: ${product.name}`);
+      setTimeout(() => get().fetchInventorySummary(), 500);
+    } else {
+      console.log(
+        `🔄 Product already exists, skipping duplicate: ${product.name}`
+      );
+    }
+  },
+
+  handleRealtimeStockTransaction: (transaction: StockTransaction) => {
+    set((state) => ({
+      stockTransactions: [transaction, ...state.stockTransactions],
+    }));
+    const { products } = get();
+    const productIndex = products.findIndex(
+      (p) => p._id === transaction.product._id
+    );
+    if (productIndex > -1) {
+      const updatedProducts = [...products];
+      const productToUpdate = updatedProducts[productIndex];
+      let newStock = productToUpdate.inventory.currentStock;
+      if (["sale", "damage"].includes(transaction.type)) {
+        newStock -= transaction.quantity;
+      } else if (["purchase", "return"].includes(transaction.type)) {
+        newStock += transaction.quantity;
+      }
+      updatedProducts[productIndex] = {
+        ...productToUpdate,
+        inventory: { ...productToUpdate.inventory, currentStock: newStock },
+      };
+      set({ products: updatedProducts });
+    }
+  },
+
+  getProductsByCategory: (categoryName: string) =>
+    get().products.filter(
+      (p) => p.category.name.toLowerCase() === categoryName.toLowerCase()
+    ),
+
+  getProductsByBrand: (brandName: string) =>
+    get().products.filter(
+      (p) => p.brand.name.toLowerCase() === brandName.toLowerCase()
+    ),
+
+  getLowStockProducts: () =>
+    get().products.filter(
+      (p) =>
+        p.isActive &&
+        !p.deleted &&
+        p.inventory.currentStock <= p.inventory.minimumStock
+    ),
+
+  getOutOfStockProducts: () =>
+    get().products.filter(
+      (p) => p.isActive && !p.deleted && p.inventory.currentStock <= 0
+    ),
+
+  getFeaturedProducts: () =>
+    get().products.filter((p) => p.isActive && !p.deleted && p.isFeatured),
+
+  getProductById: (productId: string) =>
+    get().products.find((p) => p._id === productId),
+
+  getConsolidatedProducts: () => {
+    const { products } = get();
+    const activeProducts = products.filter((p) => !p.deleted);
+    const groupedProducts = new Map<string, Product[]>();
+
+    activeProducts.forEach((product) => {
+      const key = `${product.name.toLowerCase()}-${product.brand.name.toLowerCase()}-${JSON.stringify(
+        product.specifications
+      )}`;
+      if (!groupedProducts.has(key)) {
+        groupedProducts.set(key, []);
+      }
+      groupedProducts.get(key)!.push(product);
+    });
+
+    const consolidatedProducts: Product[] = [];
+    groupedProducts.forEach((group) => {
+      if (group.length === 1) {
+        consolidatedProducts.push(group[0]);
+      } else {
+        const latest = group.sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )[0];
+        const totalStock = group.reduce(
+          (sum, p) => sum + p.inventory.currentStock,
+          0
+        );
+        const consolidated: Product = {
+          ...latest,
+          inventory: { ...latest.inventory, currentStock: totalStock },
+          _consolidated: {
+            totalEntries: group.length,
+            originalIds: group.map((p) => p._id),
+            latestPriceUpdate: latest.updatedAt,
+          },
+        };
+        consolidatedProducts.push(consolidated);
+      }
+    });
+    return consolidatedProducts;
+  },
+
+  softDeleteProduct: async (productId: string) => {
+    try {
+      const response = await inventoryApi.updateProduct(productId, {
+        deleted: true,
+      });
+      if (response.success) {
+        set((state) => ({
+          products: state.products.map((p) =>
+            p._id === productId
+              ? { ...p, deleted: true, deletedAt: new Date().toISOString() }
+              : p
+          ),
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to soft delete product" });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  restoreProduct: async (productId: string) => {
+    try {
+      const response = await inventoryApi.updateProduct(productId, {
+        deleted: false,
+      });
+      if (response.success) {
+        set((state) => ({
+          products: state.products.map((p) =>
+            p._id === productId
+              ? { ...p, deleted: false, deletedAt: undefined }
+              : p
+          ),
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to restore product" });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  updateProduct: async (product: Product) => {
+    try {
+      const response = await inventoryApi.updateProduct(product._id, product);
+      if (response.success) {
+        set((state) => ({
+          products: state.products.map((p) =>
+            p._id === product._id &&
+            response.data &&
+            typeof response.data === "object"
+              ? { ...p, ...response.data }
+              : p
+          ),
+        }));
+        return true;
+      } else {
+        set({ error: response.error || "Failed to update product" });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  updateProductDetails: async (productId, details) => {
+    try {
+      const response = await inventoryApi.updateProductDetails(productId, details);
+      if (response.success) {
+        // Fetch a fully populated product (with dereferenced brand/category)
+        const fullProductRes = await inventoryApi.getProductById(productId);
+        if (fullProductRes.success && fullProductRes.data) {
+          const hydrated = fullProductRes.data as Product;
+          set((state) => ({
+            products: state.products.map((p) => (p._id === productId ? { ...p, ...hydrated } : p)),
+          }));
+        } else {
+          // Fallback: apply only the fields we know we updated without touching brand/category
+          const { name, pricing, stockToAdd } = details;
+          set((state) => ({
+            products: state.products.map((p) => {
+              if (p._id !== productId) return p;
+              return {
+                ...p,
+                name: name ?? p.name,
+                pricing: {
+                  ...p.pricing,
+                  purchasePrice:
+                    typeof pricing.purchasePrice === "number"
+                      ? pricing.purchasePrice
+                      : p.pricing.purchasePrice,
+                  sellingPrice:
+                    typeof pricing.sellingPrice === "number"
+                      ? pricing.sellingPrice
+                      : p.pricing.sellingPrice,
+                },
+                inventory: {
+                  ...p.inventory,
+                  currentStock:
+                    (p.inventory?.currentStock || 0) + (stockToAdd > 0 ? stockToAdd : 0),
+                },
+              } as Product;
+            }),
+          }));
+        }
+        get().fetchInventorySummary();
+        get().fetchStockTransactions({ productId });
+        return true;
+      } else {
+        set({ error: response.error || "Failed to update product details" });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  deleteProduct: async (productId: string) => {
+    try {
+      const response = await inventoryApi.updateProduct(productId, {
+        deleted: true,
+        deletedAt: new Date().toISOString(),
+      });
+      if (response.success) {
+        set((state) => ({
+          products: state.products.filter((p) => p._id !== productId),
+        }));
+        return true;
+      } else {
+        set({
+          error: response.error || "Failed to permanently delete product",
+        });
+        return false;
+      }
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      });
+      return false;
+    }
+  },
+
+  clearError: () => set({ error: null }),
+
+  initializeRealtime: () => {
+    const { on } = useSanityRealtimeStore.getState();
+    on("bill:created", (bill) => get().handleBillCreated(bill));
+    on("inventory:created", (product) =>
+      get().handleRealtimeProductCreated(product)
+    );
+    on("inventory:updated", ({ productId, updates }) =>
+      get().handleRealtimeProductUpdate({
+        _id: productId,
+        ...updates,
+      } as Product)
+    );
+    on("inventory:low_stock", (data) =>
+      console.log(`Low stock alert: ${data.productName}`)
+    );
+  },
+
+  cleanupRealtime: () => {
+    const { off } = useSanityRealtimeStore.getState();
+    off("bill:created");
+    off("inventory:created");
+    off("inventory:updated");
+    off("inventory:low_stock");
+  },
+
+  handleBillCreated: (bill: { _id: string; billNumber: string; items?: { product: string; quantity: number; unitPrice: number }[] }) => {
+    bill.items?.forEach(async (item) => {
+      const { products, createStockTransaction } = get();
+      const product = products.find((p) => p._id === item.product);
+      if (product) {
+        const newStock = product.inventory.currentStock - item.quantity;
+        set((state) => ({
+          products: state.products.map((p) =>
+            p._id === item.product
+              ? { ...p, inventory: { ...p.inventory, currentStock: newStock } }
+              : p
+          ),
+        }));
+        await get().createStockTransaction({
+          product: { _id: product._id, name: product.name, productId: product.productId },
+          type: "sale",
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          bill: { _id: bill._id, billNumber: bill.billNumber },
+          notes: `Sold via bill ${bill.billNumber}`,
+        } as Partial<StockTransaction>);
+      }
+    });
+    get().fetchInventorySummary();
+  },
+
+  refreshData: async () => {
+    const { fetchProducts, fetchInventorySummary } = get();
+    await Promise.all([fetchProducts(), fetchInventorySummary()]);
+  },
+}));

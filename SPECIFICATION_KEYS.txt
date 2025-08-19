@@ -1,0 +1,189 @@
+INVENTORY SYSTEM - AVAILABLE SPECIFICATION KEYS
+==============================================
+
+This document lists all available specification keys that can be used when adding items to the inventory system.
+
+DYNAMIC SPECIFICATION KEYS (Category-Based)
+==========================================
+
+These keys are dynamically loaded based on the selected category and are configured in the Sanity CMS:
+
+ELECTRICAL SPECIFICATIONS:
+- voltage        : Voltage rating (e.g., "220V", "110V", "12V")
+- amperage       : Current rating in amperes (e.g., "16A", "32A", "6A")
+- watts          : Power consumption in watts (e.g., 9, 100, 500, 1000)
+- frequency      : Frequency rating (e.g., "50Hz", "60Hz")
+
+PHYSICAL SPECIFICATIONS:
+- color          : Color of the item (e.g., "white", "black", "red", "blue")
+- size           : Size specification (e.g., "small", "medium", "large", "2x4")
+- material       : Material type (e.g., "plastic", "metal", "ceramic", "glass")
+- weight         : Weight specification (e.g., "1kg", "500g")
+- dimensions     : Physical dimensions (e.g., "10x5x3cm")
+
+WIRE SPECIFICATIONS:
+- wireGauge      : Wire gauge/thickness (e.g., "1.5", "2.5", "4.0", "6.0")
+- core           : Core type (e.g., "single", "multi", "stranded")
+- insulation     : Insulation type (e.g., "PVC", "XLPE", "rubber")
+
+LIGHTING SPECIFICATIONS:
+- lightType      : Type of light (e.g., "led", "cfl", "incandescent", "halogen")
+- lumens         : Light output in lumens (e.g., 800, 1200, 1600)
+- colorTemp      : Color temperature (e.g., "warm-white", "cool-white", "daylight")
+- beamAngle      : Beam angle for directional lights (e.g., "30°", "60°", "120°")
+
+SWITCH & SOCKET SPECIFICATIONS:
+- switchType     : Type of switch (e.g., "toggle", "rocker", "push-button")
+- poles          : Number of poles (e.g., "1-pole", "2-pole", "3-pole")
+- mounting       : Mounting type (e.g., "surface", "flush", "panel")
+
+MOTOR SPECIFICATIONS:
+- horsepower     : Motor power in HP (e.g., "0.5HP", "1HP", "2HP")
+- rpm            : Revolutions per minute (e.g., "1440", "2880")
+- phase          : Electrical phase (e.g., "single", "three")
+
+CATEGORY TYPES AND THEIR COMMON KEYS:
+====================================
+
+AMPERE CATEGORY (Switches, MCBs, Contactors):
+- amperage (required)
+- voltage
+- poles
+- switchType
+- mounting
+
+VOLT-WATT CATEGORY (Motors, Pumps, Lights):
+- voltage (required)
+- watts (required)
+- frequency
+- phase
+- horsepower (for motors)
+
+WIRE CATEGORY (Cables, Wires):
+- wireGauge (required)
+- core (required)
+- insulation
+- voltage
+- material
+
+LIGHT CATEGORY (LED, CFL, Bulbs):
+- watts (required)
+- lightType (required)
+- lumens
+- colorTemp
+- voltage
+- color
+
+GENERAL CATEGORY (Miscellaneous items):
+- color
+- size
+- material
+- weight
+- dimensions
+
+STATIC FORM FIELDS:
+==================
+
+These are always available regardless of category:
+
+BASIC INFORMATION:
+- category       : Product category (dropdown selection)
+- brand          : Product brand (dropdown selection)
+- unit           : Unit of measurement (piece, meter, kg, liter, box, roll)
+- description    : Product description (text area)
+
+INVENTORY:
+- currentStock   : Current stock quantity (number)
+
+PRICING:
+- purchasePrice  : Purchase price per unit (number)
+- sellingPrice   : Selling price per unit (number)
+
+VALIDATION RULES:
+================
+
+WATTS FIELD:
+- Type: Number
+- Range: 0.1W to 2000W
+- Step: 0.1
+- Required for: lights, motors, pumps
+
+AMPERAGE FIELD:
+- Type: Number or String
+- Common values: 6A, 10A, 16A, 20A, 25A, 32A, 40A, 63A
+- Required for: switches, MCBs, contactors
+
+VOLTAGE FIELD:
+- Type: String
+- Common values: 12V, 24V, 110V, 220V, 240V, 415V
+- Required for: electrical items
+
+WIRE GAUGE FIELD:
+- Type: Number
+- Common values: 0.5, 0.75, 1.0, 1.5, 2.5, 4.0, 6.0, 10.0, 16.0
+- Unit: sq mm
+- Required for: wires and cables
+
+USAGE EXAMPLES:
+==============
+
+LED BULB:
+- category: "LED Lights"
+- brand: "Philips"
+- watts: 9
+- voltage: "220V"
+- lightType: "led"
+- color: "warm-white"
+- lumens: 900
+
+ELECTRICAL WIRE:
+- category: "Wire"
+- brand: "Havells"
+- wireGauge: 2.5
+- core: "single"
+- insulation: "PVC"
+- voltage: "220V"
+- color: "red"
+
+MCB (Circuit Breaker):
+- category: "MCB"
+- brand: "Schneider"
+- amperage: "16A"
+- voltage: "240V"
+- poles: "single"
+- mounting: "din-rail"
+
+MOTOR:
+- category: "Motor"
+- brand: "Crompton"
+- watts: 750
+- voltage: "220V"
+- horsepower: "1HP"
+- rpm: "1440"
+- phase: "single"
+
+NOTES:
+======
+
+1. Dynamic keys are loaded from Sanity CMS based on category selection
+2. Required fields are marked with * in the UI
+3. All specification values are stored as strings or numbers
+4. Validation is applied based on field type and category
+5. Some fields have conditional logic (appear only for specific categories)
+6. The system supports both predefined options and free-text input
+7. All keys are case-sensitive
+8. Use "watts" (not "wattage") for power specifications
+
+ADDING NEW SPECIFICATION KEYS:
+=============================
+
+To add new specification keys:
+1. Add the key to Sanity CMS specification options
+2. Configure category field mappings
+3. Add validation rules if needed
+4. Update this documentation
+
+For technical support, refer to the dynamic specification system in:
+- src/store/specifications-store.ts
+- src/lib/dynamic-validation.ts
+- src/components/forms/dynamic-specification-fields.tsx

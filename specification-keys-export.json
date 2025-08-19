@@ -1,0 +1,282 @@
+{
+ "specificationKeys": {
+  "electrical": [{
+    "key": "voltage",
+    "label": "Voltage",
+    "type": "select",
+    "required": true,
+    "examples": ["12V", "24V", "110V", "220V", "240V", "415V"],
+    "description": "Voltage rating of the electrical component"
+   },
+   {
+    "key": "amperage",
+    "label": "Amperage",
+    "type": "select",
+    "required": true,
+    "examples": ["6A", "10A", "16A", "20A", "25A", "32A", "40A", "63A"],
+    "description": "Current rating in amperes"
+   },
+   {
+    "key": "watts",
+    "label": "Watts",
+    "type": "number",
+    "required": true,
+    "validation": {
+     "min": 0.1,
+     "max": 2000
+    },
+    "examples": ["9", "100", "500", "1000"],
+    "description": "Power consumption in watts"
+   },
+   {
+    "key": "frequency",
+    "label": "Frequency",
+    "type": "select",
+    "examples": ["50Hz", "60Hz"],
+    "description": "Frequency rating"
+   }
+  ],
+  "physical": [{
+    "key": "color",
+    "label": "Color",
+    "type": "select",
+    "examples": ["white", "black", "red", "blue", "green", "yellow"],
+    "description": "Color of the item"
+   },
+   {
+    "key": "size",
+    "label": "Size",
+    "type": "select",
+    "examples": ["small", "medium", "large", "2x4", "4x4"],
+    "description": "Size specification"
+   },
+   {
+    "key": "material",
+    "label": "Material",
+    "type": "select",
+    "examples": ["plastic", "metal", "ceramic", "glass", "rubber"],
+    "description": "Material type"
+   },
+   {
+    "key": "weight",
+    "label": "Weight",
+    "type": "text",
+    "examples": ["1kg", "500g", "2.5kg"],
+    "description": "Weight specification"
+   },
+   {
+    "key": "dimensions",
+    "label": "Dimensions",
+    "type": "text",
+    "examples": ["10x5x3cm", "15x10x5mm"],
+    "description": "Physical dimensions"
+   }
+  ],
+  "wire": [{
+    "key": "wireGauge",
+    "label": "Wire Gauge",
+    "type": "select",
+    "required": true,
+    "examples": ["0.5", "0.75", "1.0", "1.5", "2.5", "4.0", "6.0", "10.0", "16.0"],
+    "description": "Wire gauge/thickness in sq mm"
+   },
+   {
+    "key": "core",
+    "label": "Core Type",
+    "type": "select",
+    "required": true,
+    "examples": ["single", "multi", "stranded"],
+    "description": "Core type of the wire"
+   },
+   {
+    "key": "insulation",
+    "label": "Insulation",
+    "type": "select",
+    "examples": ["PVC", "XLPE", "rubber"],
+    "description": "Insulation type"
+   }
+  ],
+  "lighting": [{
+    "key": "lightType",
+    "label": "Light Type",
+    "type": "select",
+    "required": true,
+    "examples": ["led", "cfl", "incandescent", "halogen", "fluorescent"],
+    "description": "Type of light technology"
+   },
+   {
+    "key": "lumens",
+    "label": "Lumens",
+    "type": "number",
+    "validation": {
+     "min": 1,
+     "max": 50000
+    },
+    "examples": ["800", "1200", "1600", "2400"],
+    "description": "Light output in lumens"
+   },
+   {
+    "key": "colorTemp",
+    "label": "Color Temperature",
+    "type": "select",
+    "examples": ["warm-white", "cool-white", "daylight", "2700K", "4000K", "6500K"],
+    "description": "Color temperature of the light"
+   },
+   {
+    "key": "beamAngle",
+    "label": "Beam Angle",
+    "type": "select",
+    "examples": ["30°", "60°", "90°", "120°"],
+    "description": "Beam angle for directional lights"
+   }
+  ],
+  "switches": [{
+    "key": "switchType",
+    "label": "Switch Type",
+    "type": "select",
+    "examples": ["toggle", "rocker", "push-button", "rotary"],
+    "description": "Type of switch mechanism"
+   },
+   {
+    "key": "poles",
+    "label": "Poles",
+    "type": "select",
+    "examples": ["1-pole", "2-pole", "3-pole", "4-pole"],
+    "description": "Number of poles"
+   },
+   {
+    "key": "mounting",
+    "label": "Mounting Type",
+    "type": "select",
+    "examples": ["surface", "flush", "panel", "din-rail"],
+    "description": "Mounting type"
+   }
+  ],
+  "motors": [{
+    "key": "horsepower",
+    "label": "Horsepower",
+    "type": "select",
+    "examples": ["0.25HP", "0.5HP", "1HP", "2HP", "3HP", "5HP"],
+    "description": "Motor power in HP"
+   },
+   {
+    "key": "rpm",
+    "label": "RPM",
+    "type": "select",
+    "examples": ["720", "1440", "2880", "3600"],
+    "description": "Revolutions per minute"
+   },
+   {
+    "key": "phase",
+    "label": "Phase",
+    "type": "select",
+    "examples": ["single", "three"],
+    "description": "Electrical phase"
+   }
+  ]
+ },
+ "categoryTypes": {
+  "ampere": {
+   "description": "Categories that require amperage rating",
+   "examples": ["switches", "MCBs", "contactors"],
+   "requiredKeys": ["amperage", "voltage"],
+   "commonKeys": ["poles", "switchType", "mounting"]
+  },
+  "volt-watt": {
+   "description": "Categories that require voltage and wattage",
+   "examples": ["motors", "pumps", "lights"],
+   "requiredKeys": ["voltage", "watts"],
+   "commonKeys": ["frequency", "phase", "horsepower"]
+  },
+  "wire": {
+   "description": "Wire and cable categories",
+   "examples": ["cables", "wires"],
+   "requiredKeys": ["wireGauge", "core"],
+   "commonKeys": ["insulation", "voltage", "material"]
+  },
+  "light": {
+   "description": "Lighting categories",
+   "examples": ["LED", "CFL", "bulbs"],
+   "requiredKeys": ["watts", "lightType"],
+   "commonKeys": ["lumens", "colorTemp", "voltage", "color"]
+  },
+  "general": {
+   "description": "General categories",
+   "examples": ["miscellaneous items"],
+   "requiredKeys": [],
+   "commonKeys": ["color", "size", "material", "weight", "dimensions"]
+  }
+ },
+ "staticFields": {
+  "basic": [{
+    "key": "category",
+    "label": "Category",
+    "type": "select",
+    "required": true,
+    "description": "Product category"
+   },
+   {
+    "key": "brand",
+    "label": "Brand",
+    "type": "select",
+    "required": true,
+    "description": "Product brand"
+   },
+   {
+    "key": "unit",
+    "label": "Unit",
+    "type": "select",
+    "required": true,
+    "examples": ["piece", "meter", "kg", "liter", "box", "roll"],
+    "description": "Unit of measurement"
+   },
+   {
+    "key": "description",
+    "label": "Description",
+    "type": "textarea",
+    "description": "Product description"
+   }
+  ],
+  "inventory": [{
+   "key": "currentStock",
+   "label": "Current Stock",
+   "type": "number",
+   "required": true,
+   "validation": {
+    "min": 0
+   },
+   "description": "Current stock quantity"
+  }],
+  "pricing": [{
+    "key": "purchasePrice",
+    "label": "Purchase Price",
+    "type": "number",
+    "required": true,
+    "validation": {
+     "min": 0
+    },
+    "description": "Purchase price per unit"
+   },
+   {
+    "key": "sellingPrice",
+    "label": "Selling Price",
+    "type": "number",
+    "required": true,
+    "validation": {
+     "min": 0
+    },
+    "description": "Selling price per unit"
+   }
+  ]
+ },
+ "notes": [
+  "Dynamic keys are loaded from Sanity CMS based on category selection",
+  "Required fields are marked with * in the UI",
+  "All specification values are stored as strings or numbers",
+  "Validation is applied based on field type and category",
+  "Some fields have conditional logic (appear only for specific categories)",
+  "The system supports both predefined options and free-text input",
+  "All keys are case-sensitive",
+  "Use 'watts' (not 'wattage') for power specifications"
+ ]
+}
