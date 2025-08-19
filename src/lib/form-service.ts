@@ -53,6 +53,22 @@ export async function checkExistingUserByPhone(
 }
 
 /**
+ * Delete a bill (used for removing drafts after completion)
+ */
+export async function deleteBillById(billId: string): Promise<FormSubmissionResult> {
+  try {
+    await sanityClient.delete(billId);
+    return { success: true, message: "Bill deleted successfully" };
+  } catch (error) {
+    console.error("❌ Failed to delete bill:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete bill",
+    };
+  }
+}
+
+/**
  * Save a bill as DRAFT in Sanity (no stock validation or updates)
  */
 export async function saveDraftBill(billData: {
@@ -94,9 +110,15 @@ export async function saveDraftBill(billData: {
       unitPrice: Number(item.unitPrice || 0),
       totalPrice: Number(item.quantity || 0) * Number(item.unitPrice || 0),
       unit: item.unit || "pcs",
-      ...(item.productId
-        ? { product: { _type: "reference", _ref: item.productId } }
-        : {}),
+      // Explicitly set product reference or null
+      product:
+        item.productId &&
+        !item.isCustom &&
+        !item.isRewinding &&
+        !/^custom-/i.test(item.productId) &&
+        !/^rewind/i.test(item.productId)
+          ? { _type: "reference", _ref: item.productId }
+          : null,
     }));
 
     const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
@@ -189,9 +211,14 @@ export async function updateDraftBill(
       unitPrice: Number(item.unitPrice || 0),
       totalPrice: Number(item.quantity || 0) * Number(item.unitPrice || 0),
       unit: item.unit || "pcs",
-      ...(item.productId
-        ? { product: { _type: "reference", _ref: item.productId } }
-        : {}),
+      product:
+        item.productId &&
+        !item.isCustom &&
+        !item.isRewinding &&
+        !/^custom-/i.test(item.productId) &&
+        !/^rewind/i.test(item.productId)
+          ? { _type: "reference", _ref: item.productId }
+          : null,
     }));
 
     const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
@@ -603,10 +630,15 @@ export async function createBill(billData: {
       };
     }
 
-    // Step 3: Filter for standard items to perform inventory checks (exclude custom items)
+    // Step 3: Filter for standard items to perform inventory checks
+    // Exclude custom/rewinding items by flags OR by synthetic productId prefixes (e.g., "custom-", "rewind-")
     const standardItems = deduplicatedItems.filter(
       (item): item is typeof item & { productId: string } =>
-        !!item.productId && !item.isCustom && !item.isRewinding
+        !!item.productId &&
+        !item.isCustom &&
+        !item.isRewinding &&
+        !/^custom-/i.test(item.productId) &&
+        !/^rewind/i.test(item.productId)
     );
 
     // Step 4: Batch validate stock and fetch prices in parallel (optimize API calls)
@@ -664,9 +696,15 @@ export async function createBill(billData: {
         unit: item.unit || priceInfo?.unit || "pcs",
       };
 
-      if (item.productId) {
-        sanityItem.product = { _type: "reference", _ref: item.productId };
-      }
+      // Attach a product reference only for real inventory items; else set null
+      sanityItem.product =
+        item.productId &&
+        !item.isCustom &&
+        !item.isRewinding &&
+        !/^custom-/i.test(item.productId) &&
+        !/^rewind/i.test(item.productId)
+          ? { _type: "reference", _ref: item.productId }
+          : null;
 
       return sanityItem;
     });

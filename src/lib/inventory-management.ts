@@ -41,6 +41,9 @@ export interface BillItem {
   productId?: string;
   quantity: number;
   unitPrice?: number; // Will be fetched if not provided
+  // Flags used by billing to indicate non-inventory items
+  isCustom?: boolean;
+  isRewinding?: boolean;
 }
 
 /**
@@ -52,7 +55,26 @@ export async function validateStockAvailability(items: BillItem[]): Promise<{
   errors: string[];
 }> {
   try {
-    const productIds = items.map((item) => item.productId);
+    // Only validate stock for standard inventory-backed items
+    const standardItems = items.filter(
+      (item) =>
+        item.productId &&
+        !item.isCustom &&
+        !item.isRewinding &&
+        !/^custom-/i.test(item.productId) &&
+        !/^rewind/i.test(item.productId)
+    );
+
+    // If there are no standard items to validate, return success
+    if (standardItems.length === 0) {
+      return {
+        isValid: true,
+        validationResults: [],
+        errors: [],
+      };
+    }
+
+    const productIds = standardItems.map((item) => item.productId);
 
     // Fetch current stock for all products in one query
     const query = `*[_type == "product" && _id in $productIds] {
@@ -74,7 +96,7 @@ export async function validateStockAvailability(items: BillItem[]): Promise<{
     const errors: string[] = [];
     let isValid = true;
 
-    for (const item of items) {
+    for (const item of standardItems) {
       const product = products.find((p: any) => p._id === item.productId);
 
       if (!product) {
@@ -179,9 +201,24 @@ export async function updateStockForBill(
   errors: string[];
 }> {
   try {
+    // Work only with standard inventory-backed items
+    const processItems = items.filter(
+      (item) =>
+        item.productId &&
+        !item.isCustom &&
+        !item.isRewinding &&
+        !/^custom-/i.test(item.productId) &&
+        !/^rewind/i.test(item.productId)
+    );
+
+    // If nothing to process, it's a success (custom/rewinding items only)
+    if (processItems.length === 0) {
+      return { success: true, results: [], errors: [] };
+    }
+
     // First validate stock availability (only for reduce operation)
     if (operation === "reduce") {
-      const validation = await validateStockAvailability(items);
+      const validation = await validateStockAvailability(processItems);
       if (!validation.isValid) {
         return {
           success: false,
@@ -196,14 +233,7 @@ export async function updateStockForBill(
     const transactions = [];
 
     // Process each item
-    for (const item of items) {
-      if (!item.productId) {
-        const errorMsg = "Skipping stock update for item without a productId.";
-        console.warn(errorMsg);
-        errors.push(errorMsg);
-        results.push({ success: false, newStock: 0, error: errorMsg });
-        continue;
-      }
+    for (const item of processItems) {
 
       try {
         const multiplier = operation === "reduce" ? -1 : 1;

@@ -22,10 +22,8 @@ export const ItemSelectionSection = ({
   onOpenItemModal,
 }: ItemSelectionSectionProps) => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  // Only show parent categories to reduce visual clutter
-  const parentCategories = categories.filter((c) => !c.parentCategory);
-
-  const filteredCategories = parentCategories.filter((category) => {
+  // Show ALL categories (parents + subcategories)
+  const filteredCategories = categories.filter((category) => {
     if (categoryFilter === "all") return true;
     return category.name.toLowerCase() === categoryFilter;
   });
@@ -45,7 +43,7 @@ export const ItemSelectionSection = ({
           <Dropdown
             options={[
               { value: "all", label: "All Categories" },
-              ...parentCategories.map((cat) => ({
+              ...categories.map((cat) => ({
                 value: cat.name.toLowerCase(),
                 label: cat.name,
               })),
@@ -58,27 +56,46 @@ export const ItemSelectionSection = ({
         </div>
 
         {/* Category Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+    <div className="max-h-[200px] overflow-auto">    <div className=" flex flex-wrap gap-3 mb-6">
           {filteredCategories.map((category) => {
             return (
               <motion.div
                 key={category._id}
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}>
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity:0.1,filter: 'blur(1px)' }} // starting state
+                whileInView={{opacity:1,filter: 'blur(0px)' }} // when it enters viewport
+                transition={{ duration: 0.3, ease: "linear" }} 
+                viewport={{ once: false, amount: 0.5 }}  // 👈 viewport settings
+              
+  
+                >
                 <div
                   // variant="outline"
                   onClick={() => onOpenItemModal(category.name.toLowerCase())}
-                  className={`w-full h-auto p-3 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md cursor-pointer`}
+                  className={`w-full h-auto px-3 py-2 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md cursor-pointer`}
                   aria-disabled>
-                  {" "}
-                  <div className="text-left">
-                    <p className="font-medium text-white">{category.name}</p>
-                    <p className="text-sm text-gray-400">Tap to view subcategories</p>
-                  </div>
+                    <p className="font-medium text-white text-base">{category.name}</p>
                 </div>
               </motion.div>
             );
           })}
+            {categoryFilter==='all'? '':  <motion.div 
+              initial={{ scale: 0.6 }} // starting state
+              whileInView={{ scale: 1 }} // when it enters viewport
+              transition={{ duration: 0.4, ease: "easeInOut" }} 
+              viewport={{ once: false, amount: 0.5 }}  // 👈 viewport settings
+
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}>
+                <div
+                  // variant="outline"
+                  onClick={() => setCategoryFilter('all')}
+                  className={`w-full h-auto cursor-pointer pt-2`}
+                  aria-disabled>
+                    <p className="font-noraml text-white text-base">Reset Items</p>
+                </div>
+              </motion.div>}
 
           {/* Loading state */}
           {productsLoading && (
@@ -87,7 +104,7 @@ export const ItemSelectionSection = ({
               <p className="text-gray-400">Loading categories...</p>
             </div>
           )}
-        </div>
+        </div></div>
       </CardContent>
     </Card>
   );

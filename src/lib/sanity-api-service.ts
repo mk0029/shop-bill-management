@@ -996,6 +996,22 @@ export const billApiService = {
    */
   async deleteBill(billId: string): Promise<ApiResponse<void>> {
     try {
+      // Client: call secure API route so server token is used
+      if (typeof window !== "undefined") {
+        const res = await fetch(`/api/bills/${encodeURIComponent(billId)}`, {
+          method: "DELETE",
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || (json && json.success === false)) {
+          return {
+            success: false,
+            error: (json && json.error) || `Failed to delete bill (${res.status})`,
+          };
+        }
+        return { success: true, message: 'Bill deleted successfully' };
+      }
+
+      // Server: delete directly
       await sanityClient.delete(billId);
       return { success: true, message: 'Bill deleted successfully' };
     } catch (error) {

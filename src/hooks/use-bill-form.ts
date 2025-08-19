@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBill, saveDraftBill, updateDraftBill } from "@/lib/form-service";
+import { createBill } from "@/lib/form-service";
+import { localDraftService } from "@/lib/local-draft-service";
 
 interface Product {
   _id: string;
@@ -66,6 +67,8 @@ export const useBillForm = () => {
 
   const LOCAL_KEY = "bill_create_autosave";
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const AUTOSAVE_INACTIVITY_MS = 30_000; // 30 seconds
 
   const [formData, setFormData] = useState<BillFormData>({
     customerId: "",
@@ -317,6 +320,18 @@ export const useBillForm = () => {
 
       const result = await createBill(billData);
       if (result.success) {
+        // If this bill was started from a local draft, remove it now
+        if (draftId) {
+          try {
+            localDraftService.remove(draftId);
+          } catch (e) {
+            console.warn("Error removing local draft after bill creation", e);
+          }
+        }
+        // Clear local autosave cache
+        try {
+          localStorage.removeItem(LOCAL_KEY);
+        } catch {}
         setShowSuccessModal(true);
       } else {
         setAlertMessage(result.error || "Failed to create bill");
@@ -331,60 +346,27 @@ export const useBillForm = () => {
     }
   };
 
-  // Save or update draft without stock operations
+  // Save or update draft locally
   const saveDraft = async () => {
     try {
       setSavingDraft(true);
-      const paymentDetails = getPaymentDetails();
-
-      const draftPayload = {
-        customerId: formData.customerId || undefined,
-        items: selectedItems.map((item) => ({
-          productId: item.itemType === "standard" ? item.id : undefined,
-          productName: item.name,
-          category: item.category,
-          brand: item.brand,
-          specifications: item.specifications,
-          quantity: Number(item.quantity),
-          unitPrice: Number(item.price),
-          unit: item.unit,
-          isRewinding: item.itemType === "rewinding",
-          isCustom: item.itemType === "custom",
-        })),
-        serviceType: (formData.serviceType as any) || "sale",
-        locationType: (formData.location as any) || "shop",
-        homeVisitFee: Number(formData.homeVisitFee || 0),
-        repairCharges: Number(formData.repairFee || 0),
-        laborCharges: Number(formData.laborCharges || 0),
-        notes: formData.notes,
-        paymentStatus: paymentDetails.paymentStatus,
-        paidAmount: paymentDetails.paidAmount,
-        balanceAmount: paymentDetails.balanceAmount,
-      };
-
-      let result;
-      if (draftId) {
-        result = await updateDraftBill(draftId, draftPayload as any);
-      } else {
-        result = await saveDraftBill(draftPayload as any);
-        if (result.success && result.data?._id) setDraftId(result.data._id);
-      }
-
-      if (result.success) {
-        setAlertMessage("Draft saved successfully.");
-        setShowAlertModal(true);
-        // Clear local autosave after successful draft save
-        try {
-          localStorage.removeItem(LOCAL_KEY);
-        } catch {}
-        setIsDirty(false);
-      } else {
-        setAlertMessage(result.error || "Failed to save draft");
-        setShowAlertModal(true);
-      }
+      const titleBase = formData.customerId ? `Draft for ${formData.customerId}` : "Untitled Draft";
+      const title = `${titleBase} • ${new Date().toLocaleString()}`;
+      const saved = localDraftService.save({
+        id: draftId || undefined,
+        title,
+        formData,
+        selectedItems,
+        meta: { source: "bill-form" },
+      });
+      if (!draftId) setDraftId(saved.id);
+      setAlertMessage("Draft saved locally.");
+      setShowAlertModal(true);
+      setIsDirty(false);
+      try { localStorage.removeItem(LOCAL_KEY); } catch {}
     } catch (err) {
-      console.error("Error saving draft:", err);
-      setAlertMessage("Error saving draft");
+      console.error("Error saving local draft:", err);
+      setAlertMessage("Error saving draft locally");
       setShowAlertModal(true);
     } finally {
       setSavingDraft(false);
@@ -394,15 +376,32 @@ export const useBillForm = () => {
   // Restore from local autosave on first mount
   useEffect(() => {
     try {
-      const raw = typeof window !== "undefined" ? localStorage.getItem(LOCAL_KEY) : null;
+      if (typeof window === "undefined") return;
+      const skip = localStorage.getItem("bill_create_skip_restore");
+      const raw = localStorage.getItem(LOCAL_KEY);
+
+      // If user explicitly chose to create a fresh bill, don't restore or prompt
+      if (skip === "1") {
+        try { localStorage.removeItem("bill_create_skip_restore"); } catch {}
+        // Do not restore previous autosave; ensure it's cleared to avoid future prompts
+        try { localStorage.removeItem(LOCAL_KEY); } catch {}
+        return;
+      }
+
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.formData) setFormData((prev) => ({ ...prev, ...parsed.formData }));
         if (Array.isArray(parsed?.selectedItems)) setSelectedItems(parsed.selectedItems);
         if (parsed?.draftId) setDraftId(parsed.draftId);
-        setAlertMessage("Restored unsaved bill from your last session.");
-        setShowAlertModal(true);
-        setIsDirty(true);
+
+        // If coming from Drafts page, restore silently (no popup)
+        if (parsed?.fromDraft) {
+          setIsDirty(true);
+        } else {
+          setAlertMessage("Restored unsaved bill from your last session.");
+          setShowAlertModal(true);
+          setIsDirty(true);
+        }
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -427,6 +426,38 @@ export const useBillForm = () => {
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [formData, selectedItems, draftId]);
+
+  // 30s inactivity autosave to local drafts (only if there is content)
+  useEffect(() => {
+    const resetInactivityTimer = () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = setTimeout(() => {
+        // Only auto-save if there is something meaningful to save
+        const hasContent = hasDraftContent(formData, selectedItems);
+        if (hasContent) {
+          try {
+            const titleBase = formData.customerId ? `Draft for ${formData.customerId}` : "Untitled Draft";
+            const saved = localDraftService.save({
+              id: draftId || undefined,
+              title: titleBase,
+              formData,
+              selectedItems,
+              meta: { source: "bill-form", reason: "inactivity-autosave" },
+            });
+            if (!draftId) setDraftId(saved.id);
+            setIsDirty(false);
+          } catch (e) {
+            console.warn("Inactivity autosave failed", e);
+          }
+        }
+      }, AUTOSAVE_INACTIVITY_MS);
+    };
+
+    resetInactivityTimer();
+    return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
   }, [formData, selectedItems, draftId]);
 
@@ -481,6 +512,24 @@ export const useBillForm = () => {
 };
 
 // Helper functions
+const hasDraftContent = (formData: BillFormData, selectedItems: BillItem[]) => {
+  if (selectedItems && selectedItems.length > 0) return true;
+  const meaningfulFields: (keyof BillFormData)[] = [
+    "customerId",
+    "serviceType",
+    "location",
+    "notes",
+  ];
+  if (meaningfulFields.some((k) => !!(formData as any)[k])) return true;
+  if (
+    Number(formData.repairFee || 0) > 0 ||
+    Number(formData.homeVisitFee || 0) > 0 ||
+    Number(formData.laborCharges || 0) > 0 ||
+    Number(formData.partialPaymentAmount || 0) > 0
+  )
+    return true;
+  return false;
+};
 const getItemDisplayName = (product: Product) => {
   const specs = [];
   if (product.specifications) {
