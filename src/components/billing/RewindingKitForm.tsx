@@ -102,7 +102,7 @@ function SingleRewindingForm({
   };
 
   return (
-    <Card className="relative">
+    <Card className="relative bg-gray-800 border border-gray-700">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-lg">Custom Service/Item</CardTitle>
         {canRemove && (
@@ -110,7 +110,7 @@ function SingleRewindingForm({
             variant="ghost"
             size="sm"
             onClick={() => onRemove(formData.id)}
-            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50">
+            className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20">
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -125,6 +125,7 @@ function SingleRewindingForm({
               value={formData.kitName}
               onChange={handleInputChange}
               disabled={!!formData.selectedStarterId}
+              className="bg-gray-800 border-gray-700 text-white"
             />
           </div>
           <div>
@@ -133,6 +134,7 @@ function SingleRewindingForm({
               options={starters.map((s) => ({ value: s._id, label: s.name }))}
               value={formData.selectedStarterId}
               onValueChange={(value) => handleSelectChange("selectedStarterId", value)}
+
             />
           </div>
         </div>
@@ -146,6 +148,7 @@ function SingleRewindingForm({
               onValueChange={(value) =>
                 handleSelectChange("oldWindingMaterial", value)
               }
+
             />
           </div>
           <div>
@@ -156,6 +159,7 @@ function SingleRewindingForm({
               onValueChange={(value) =>
                 handleSelectChange("newWindingMaterial", value)
               }
+
             />
           </div>
           {formData.oldWindingMaterial !== formData.newWindingMaterial && (
@@ -169,6 +173,7 @@ function SingleRewindingForm({
                 type="number"
                 value={formData.priceDifference}
                 onChange={handleInputChange}
+                className="bg-gray-800 border-gray-700 text-white"
               />
             </div>
           )}
@@ -180,6 +185,7 @@ function SingleRewindingForm({
               type="number"
               value={formData.windingRate}
               onChange={handleInputChange}
+              className="bg-gray-800 border-gray-700 text-white"
             />
           </div>
           <div>
@@ -190,6 +196,7 @@ function SingleRewindingForm({
               type="number"
               value={formData.quantity}
               onChange={handleInputChange}
+              className="bg-gray-800 border-gray-700 text-white"
             />
           </div>
         </div>
@@ -302,14 +309,14 @@ export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormPro
         <Button
           variant="outline"
           onClick={addNewForm}
-          className="flex-1 flex items-center gap-2">
+          className="flex-1 flex items-center gap-2 bg-gray-800 border border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600">
           <Plus className="h-4 w-4" />
           Add More Service/Item
         </Button>
 
         <Button
           onClick={handleSubmitAllRewindingServices}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 hover:border-blue-600">
           Submit All Services
         </Button>
       </div>
