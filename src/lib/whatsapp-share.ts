@@ -183,16 +183,15 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
     message += `*Additional Information:*\n${bill.internalNotes}\n\n`;
   }
 
-  // Business/site link (from env)
+  // Business/site link (from env) with fallback to provided website URL
   const siteUrl =
     (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_WEBSITE_URL) ||
     (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_SITE_URL) ||
     "";
+  const loginUrl = siteUrl || "https://jambh-ell.vercel.app/";
 
   message += `Thank you for choosing our services!\n`;
-  if (siteUrl) {
-    message += `Visit: ${siteUrl}\n`;
-  }
+  message += `Login: ${loginUrl}\n`;
   if (bill.billId) {
     message += `Bill ID: ${bill.billId}\n`;
   }
@@ -202,6 +201,7 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
   if (passKey) {
     message += `\n*Authentication:*\n`;
     message += `Secret Key: ${passKey}\n`;
+    message += `Use this Secret Key and your mobile number to log in at ${loginUrl}\n`;
   }
 
   return message;
