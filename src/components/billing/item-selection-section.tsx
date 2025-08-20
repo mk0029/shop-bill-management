@@ -49,7 +49,13 @@ export const ItemSelectionSection = ({
               })),
             ]}
             value={categoryFilter}
-            onValueChange={setCategoryFilter}
+            onValueChange={(v) => {
+              setCategoryFilter(v);
+              // If a specific category is selected from the dropdown, open its popup directly
+              if (v && v !== "all") {
+                onOpenItemModal(v);
+              }
+            }}
             placeholder="Select category to filter"
             className="bg-gray-800 border-gray-700"
           />

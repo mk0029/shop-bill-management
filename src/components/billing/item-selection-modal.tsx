@@ -36,13 +36,7 @@ export const ItemSelectionModal = ({
   const { currency } = useLocaleStore();
   const [search, setSearch] = useState("");
 
-  const allAvailableItems = useMemo(
-    () =>
-      activeProducts.filter(
-        (p) => p.isActive && p.inventory?.currentStock > 0
-      ),
-    [activeProducts]
-  );
+  // Note: we rely on filteredItems + searchResults, so no separate allAvailableItems needed here
 
   // Build subcategory list when a parent category is selected
   const subcategoryOptions = useMemo(() => {
@@ -59,10 +53,11 @@ export const ItemSelectionModal = ({
     return Array.from(names).map((n) => ({ value: n, label: n }));
   }, [activeProducts, selectedCategory]);
 
+  // IMPORTANT: search only within the currently selected category (and applied filters)
   const searchResults = useMemo(() => {
     if (!search.trim()) return [] as any[];
     const q = search.toLowerCase();
-    return allAvailableItems.filter((p) => {
+    return filteredItems.filter((p) => {
       const specText = Object.values(p.specifications || {})
         .join(" ")
         .toLowerCase();
@@ -70,12 +65,11 @@ export const ItemSelectionModal = ({
         p.name?.toLowerCase().includes(q) ||
         p.description?.toLowerCase().includes(q) ||
         p.brand?.name?.toLowerCase().includes(q) ||
-        p.category?.name?.toLowerCase().includes(q) ||
         specText.includes(q) ||
         (p.tags || []).some((t: string) => t.toLowerCase().includes(q))
       );
     });
-  }, [search, allAvailableItems]);
+  }, [search, filteredItems]);
 
   // Get unique values for filters
   const getUniqueValues = (key: string) => {
@@ -110,71 +104,6 @@ export const ItemSelectionModal = ({
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
         </div>
         
-        {/* If searching, show results regardless of category */}
-        {search.trim() && (
-          <div className="max-h-96 overflow-y-auto space-y-2">
-            <h4 className="font-medium text-white mb-3">
-              Search Results ({searchResults.length})
-            </h4>
-            {searchResults.length === 0 ? (
-              <div className="text-center py-8">
-                <Package className="w-12 h-12 text-gray-500 mx-auto mb-2" />
-                <p className="text-gray-400">No items found</p>
-              </div>
-            ) : (
-              searchResults.map((product) => (
-                <motion.div
-                  key={product._id}
-                  className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-white text-sm">
-                          {product.category?.name} - {product.brand?.name}
-                        </p>
-                        <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded">
-                          {product.inventory.currentStock} in stock
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-200 capitalize">
-                        {Object.entries(product.specifications || {})
-                          .filter(([, value]) => value !== undefined && value !== null && value !== "")
-                          .map(([key, value]) => {
-                            let formattedKey = key.replace(/([a-z])([A-Z])/g, "$1 $2");
-                            formattedKey = formattedKey
-                              .split(" ")
-                              .filter((word) => word.toLowerCase() !== "is")
-                              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                              .join(" ");
-                            if (String(value).toLowerCase() === "true") value = "Yes";
-                            else if (String(value).toLowerCase() === "false") value = "No";
-                            return `${formattedKey}: ${value}`;
-                          })
-                          .join(", ")}
-                      </p>
-                    </div>
-                    <div className="text-right ml-4">
-                      <p className="text-sm text-blue-400 font-medium">
-                        {currency}
-                        {product.pricing.sellingPrice}
-                      </p>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          onAddItem(product);
-                          onClose();
-                        }}
-                        className="mt-1 bg-blue-600 hover:bg-blue-700 text-white text-xs !py-1">
-                        Add
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        )}
-
         {/* Specification Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {subcategoryOptions.length > 0 && (
@@ -258,88 +187,93 @@ export const ItemSelectionModal = ({
           )}
         </div>
 
-        {/* Available Items */}
+        {/* Available Items (includes search filtering) */}
         <div className="max-h-96 overflow-y-auto space-y-2">
-          <h4 className="font-medium text-white mb-3">
-            Available Items ({filteredItems.length})
-          </h4>
-
-          {filteredItems.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="w-12 h-12 text-gray-500 mx-auto mb-2" />
-              <p className="text-gray-400">No items match your filters</p>
-            </div>
-          ) : (
-            filteredItems.map((product) => 
-            { return (
-              <motion.div
-                key={product._id}
-                className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium text-white text-sm">
-                        {`${product.name}`}
-                      </p>
-                      <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded">
-                        {product.inventory.currentStock} in stock
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-200 capitalize">
-                      {Object.entries(product.specifications || {})
-                        .filter(
-                          ([_, value]) =>
-                            value !== undefined &&
-                            value !== null &&
-                            value !== ""
-                        )
-                        .map(([key, value]) => {
-                          // 1️⃣ Format camelCase / PascalCase into spaced words
-                          let formattedKey = key.replace(
-                            /([a-z])([A-Z])/g,
-                            "$1 $2"
-                          );
-
-                          // 2️⃣ Split into words, remove "is", capitalize each
-                          formattedKey = formattedKey
-                            .split(" ")
-                            .filter((word) => word.toLowerCase() !== "is")
-                            .map(
-                              (word) =>
-                                word.charAt(0).toUpperCase() + word.slice(1)
-                            )
-                            .join(" ");
-
-                          // 3️⃣ Convert boolean strings to Yes/No
-                          if (String(value).toLowerCase() === "true")
-                            value = "Yes";
-                          else if (String(value).toLowerCase() === "false")
-                            value = "No";
-
-                          return `${formattedKey}: ${value}`;
-                        })
-                        .join(", ")}
-                    </p>
+          {(() => {
+            const displayedItems = search.trim() ? searchResults : filteredItems;
+            return (
+              <>
+                <h4 className="font-medium text-white mb-3">
+                  Available Items ({displayedItems.length})
+                </h4>
+                {displayedItems.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="w-12 h-12 text-gray-500 mx-auto mb-2" />
+                    <p className="text-gray-400">No items match your filters</p>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="text-sm text-blue-400 font-medium">
-                      {currency}
-                      {product.pricing.sellingPrice}
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        onAddItem(product);
-                        onClose();
-                      }}
-                      className="mt-1 bg-blue-600 hover:bg-blue-700 text-white text-xs !py-1">
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            )})
-          )}
+                ) : (
+                  displayedItems.map((product) => (
+                    <motion.div
+                      key={product._id}
+                      className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-white text-sm">
+                              {`${product.name}`}
+                            </p>
+                            <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded">
+                              {product.inventory.currentStock} in stock
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-200 capitalize">
+                            {Object.entries(product.specifications || {})
+                              .filter(
+                                ([_, value]) =>
+                                  value !== undefined &&
+                                  value !== null &&
+                                  value !== ""
+                              )
+                              .map(([key, value]) => {
+                                // 1️⃣ Format camelCase / PascalCase into spaced words
+                                let formattedKey = key.replace(
+                                  /([a-z])([A-Z])/g,
+                                  "$1 $2"
+                                );
+
+                                // 2️⃣ Split into words, remove "is", capitalize each
+                                formattedKey = formattedKey
+                                  .split(" ")
+                                  .filter((word) => word.toLowerCase() !== "is")
+                                  .map(
+                                    (word) =>
+                                      word.charAt(0).toUpperCase() + word.slice(1)
+                                  )
+                                  .join(" ");
+
+                                // 3️⃣ Convert boolean strings to Yes/No
+                                if (String(value).toLowerCase() === "true")
+                                  value = "Yes";
+                                else if (String(value).toLowerCase() === "false")
+                                  value = "No";
+
+                                return `${formattedKey}: ${value}`;
+                              })
+                              .join(", ")}
+                          </p>
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-sm text-blue-400 font-medium">
+                            {currency}
+                            {product.pricing.sellingPrice}
+                          </p>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              onAddItem(product);
+                              onClose();
+                            }}
+                            className="mt-1 bg-blue-600 hover:bg-blue-700 text-white text-xs !py-1">
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
     </Modal>
