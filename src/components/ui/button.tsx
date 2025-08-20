@@ -60,6 +60,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        // Default to type="button" to avoid accidental form submissions
+        type={(props as any)?.type || ("button" as any)}
         disabled={disabled || loading}
         {...props}>
         {loading && (

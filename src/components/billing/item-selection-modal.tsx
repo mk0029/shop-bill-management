@@ -45,16 +45,7 @@ export const ItemSelectionModal = ({
     }
   }, [isOpen, selectedCategory]);
 
-  // If modal opens and selected category has zero items, attempt a background sync
-  useEffect(() => {
-    if (!isOpen) return;
-    // Only care about the currently selected category result set
-    const noneInCategory = (filteredItems?.length || 0) === 0 && (selectedCategory?.trim()?.length || 0) > 0;
-    if (noneInCategory) {
-      // Fire and forget; prevents hard-empty UI due to realtime lag
-      syncWithSanity()?.catch(() => {});
-    }
-  }, [isOpen, filteredItems?.length, selectedCategory]);
+  // Note: Autorefresh on open is disabled to avoid perceived page refreshes.
 
   // Note: we rely on filteredItems + searchResults, so no separate allAvailableItems needed here
 

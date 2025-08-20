@@ -27,6 +27,7 @@ export default function CreateBillPage() {
 
   // Exit confirmation state and handlers
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [activeSection, setActiveSection] = useState<"customer" | "rewinding" | "items">("customer");
 
   const confirmSaveDraftAndExit = async () => {
     await saveDraft();
@@ -91,7 +92,7 @@ export default function CreateBillPage() {
 
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
   const filteredItems = filterItemsBySpecifications(activeProducts);
-  const [showRewindingForm, setShowRewindingForm] = useState(false);
+  // Replaced by accordion section state
 
   const handleOpenCategory = (categoryName: string) => {
     const lower = categoryName.toLowerCase();
@@ -169,57 +170,73 @@ export default function CreateBillPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bill Form */}
         <div className="lg:col-span-2 space-y-6">
-          <CustomerInfoSection
-            formData={formData}
-            customers={customers}
-            customersLoading={customersLoading}
-            onInputChange={(field, value) =>
-              handleInputChange(field as keyof BillFormData, value)
-            }
-          />
-          {!showRewindingForm && (
-            <Button
-              variant="outline"
-              onClick={() => setShowRewindingForm(true)}
-              className="w-full">
-              Add Rewinding Service/Item
-            </Button>
-          )}
-
-          {showRewindingForm && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">
-                  Rewinding Services & Items
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowRewindingForm(false)}
-                  className="text-gray-400 hover:text-white">
-                  <XIcon />
-                </Button>
-              </div>
-              <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
-                <p className="text-sm text-gray-300 mb-4">
-                  Fill out multiple custom services or items below. All entries
-                  will be added to your bill when you click &quot;Submit All
-                  Services&quot;.
-                </p>
-                <RewindingKitForm
-                  onAddItem={addCustomItemToBill}
-                  onSubmitted={() => setShowRewindingForm(false)}
+          {/* Accordion Section: Customer Information */}
+          <div className="rounded-lg border border-gray-800 bg-gray-900">
+            <button
+              type="button"
+              onClick={() => setActiveSection("customer")}
+              className="w-full text-left px-4 py-3 sm:px-6 sm:py-4">
+              <h2 className="text-white font-semibold">Customer Information</h2>
+              <p className="text-gray-400 text-sm">Select customer and billing meta</p>
+            </button>
+            {activeSection === "customer" && (
+              <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <CustomerInfoSection
+                  formData={formData}
+                  customers={customers}
+                  customersLoading={customersLoading}
+                  onInputChange={(field, value) =>
+                    handleInputChange(field as keyof BillFormData, value)
+                  }
                 />
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          <ItemSelectionSection
-            categories={categories}
-            activeProducts={activeProducts}
-            productsLoading={productsLoading}
-            onOpenItemModal={handleOpenCategory}
-          />
+          {/* Accordion Section: Rewinding */}
+          <div className="rounded-lg border border-gray-800 bg-gray-900">
+            <button
+              type="button"
+              onClick={() => setActiveSection("rewinding")}
+              className="w-full text-left px-4 py-3 sm:px-6 sm:py-4">
+              <h2 className="text-white font-semibold">Rewinding Services & Items</h2>
+              <p className="text-gray-400 text-sm">Add custom services/items</p>
+            </button>
+            {activeSection === "rewinding" && (
+              <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                  <p className="text-sm text-gray-300 mb-4">
+                    Fill out multiple custom services or items below. All entries will be added when you submit.
+                  </p>
+                  <RewindingKitForm
+                    onAddItem={addCustomItemToBill}
+                    onSubmitted={() => setActiveSection("items")}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Accordion Section: Bill Items */}
+          <div className="rounded-lg border border-gray-800 bg-gray-900">
+            <button
+              type="button"
+              onClick={() => setActiveSection("items")}
+              className="w-full text-left px-4 py-3 sm:px-6 sm:py-4">
+              <h2 className="text-white font-semibold">Bill Items</h2>
+              <p className="text-gray-400 text-sm">Browse inventory and add items</p>
+            </button>
+            {activeSection === "items" && (
+              <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <ItemSelectionSection
+                  categories={categories}
+                  activeProducts={activeProducts}
+                  productsLoading={productsLoading}
+                  onOpenItemModal={handleOpenCategory}
+                />
+              </div>
+            )}
+          </div>
 
           <SelectedItemsList
             selectedItems={selectedItems}
