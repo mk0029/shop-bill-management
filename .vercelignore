@@ -1,0 +1,49 @@
+# Exclude local build outputs and caches
+.next
+.next-build
+out
+build
+coverage
+
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+.yarn/
+.pnpm-store
+
+# Vercel local project files
+.vercel
+
+# Git metadata
+.git
+.gitignore
+.gitattributes
+
+# Logs and debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Env and secrets
+.env*
+*.pem
+
+# OS/Editor junk
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+next-env.d.ts
+
+# Archives and large binaries
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.iso

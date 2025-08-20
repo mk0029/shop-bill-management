@@ -7,8 +7,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Use a custom dist directory to avoid Windows file lock issues on .next
-  distDir: ".next-build",
+  // Use a custom dist directory locally to avoid Windows file lock issues on .next
+  // but keep the default on Vercel so it generates /.next/routes-manifest.json
+  distDir: process.env.VERCEL ? ".next" : ".next-build",
   images: {
     remotePatterns: [
       {
