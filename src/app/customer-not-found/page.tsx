@@ -344,7 +344,7 @@ export default function CustomerNotFoundPage() {
                   Phone Number *
                 </label>
                 <Input
-                  type="tel"
+                  type="number"
                   value={formData.phone}
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })

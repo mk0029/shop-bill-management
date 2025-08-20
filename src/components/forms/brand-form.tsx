@@ -221,7 +221,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
             </Label>
             <Input
               id="phone"
-              type="tel"
+              type="number"
               value={formData.phone}
               onChange={(e) => handleInputChange("phone", e.target.value)}
               className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"

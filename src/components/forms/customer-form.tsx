@@ -157,7 +157,7 @@ export function CustomerForm({
           <Label htmlFor="phone">Phone Number</Label>
           <Input
             id="phone"
-            type="tel"
+            type="number"
             placeholder="Enter phone number"
             value={formData.phone}
             onChange={(e) => handleInputChange("phone", e.target.value)}

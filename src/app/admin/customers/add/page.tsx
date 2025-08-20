@@ -185,7 +185,7 @@ export default function AddCustomerPage() {
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     id="phone"
-                    type="tel"
+                    type="number"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"

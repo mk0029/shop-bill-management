@@ -8,7 +8,7 @@ import { AlertCircle } from "lucide-react";
 import { FormFieldProps } from "@/types";
 
 interface EnhancedFormFieldProps extends FormFieldProps {
-  type?: "text" | "email" | "tel" | "number" | "password" | "textarea";
+  type?: "text" | "email" | "number" | "number" | "password" | "textarea";
   rows?: number;
   className?: string;
   helpText?: string;

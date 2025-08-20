@@ -157,7 +157,7 @@ export function ProductsOverview() {
           <Link href="/admin/inventory/add">
             <Button size="sm" className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/50 ring-offset-gray-900">
               <Plus className="h-4 w-4" />
-              Add Product
+           <span className="max-sm:hidden">   Add Product</span>
             </Button>
           </Link>
         </CardHeader>
@@ -166,7 +166,7 @@ export function ProductsOverview() {
             {products.slice(0, 5).map((product) => (
               <div
                 key={product._id}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg">
+                className="flex flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg">
                 <div className="flex-1 w-full">
                   <div className="flex items-center gap-3">
                     <div>
@@ -178,7 +178,7 @@ export function ProductsOverview() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                <div className="flex items-center gap-3 sm:gap-4 w-auto sm:justify-end">
                   <div className="text-right">
                     <p className="font-medium text-white">
                       ₹{product.pricing.sellingPrice.toLocaleString()}
@@ -187,7 +187,7 @@ export function ProductsOverview() {
                       Stock: {product.inventory.currentStock}
                     </p>
                   </div>
-                  <Badge variant={product.isActive ? "default" : "secondary"}>
+                  <Badge className="max-sm:hidden" variant={product.isActive ? "default" : "secondary"}>
                     {product.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </div>

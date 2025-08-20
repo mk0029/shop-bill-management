@@ -229,7 +229,7 @@ export interface FormFieldProps {
   error?: string;
   required?: boolean;
   placeholder?: string;
-  type?: "text" | "email" | "password" | "number" | "tel" | "textarea";
+  type?: "text" | "email" | "password" | "number" | "number" | "textarea";
   disabled?: boolean;
 }
 
