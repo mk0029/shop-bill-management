@@ -267,7 +267,7 @@ console.log(bills);
                   locationType: bill.locationType || "shop",
                   homeVisitFee: bill.homeVisitFee || 0,
                   transportationFee: bill.transportationFee || 0,
-                  repairCharges: bill.repairFee || 0,
+                  repairCharges: (bill as any).repairCharges ?? (bill as any).repairFee ?? 0,
                   laborCharges: bill.laborCharges || 0,
                   subtotal: bill.subtotal || 0,
                   total: bill.totalAmount || 0,
@@ -281,6 +281,12 @@ console.log(bills);
                     phone: bill.customer?.phone || "",
                     email: bill.customer?.email || "",
                     location: bill.customer?.location || "",
+                    customerId: bill.customer?.customerId || bill.customerId || "",
+                    secretKey:
+                      customers.find(
+                        (c: any) =>
+                          c._id === (bill.customer?._id || bill.customer?._ref)
+                      )?.secretKey || bill.customer?.secretKey || "",
                   },
                 })
               }

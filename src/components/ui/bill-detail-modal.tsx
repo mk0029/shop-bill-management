@@ -589,8 +589,11 @@ console.log("grandTotal", grandTotal,'fulll bill',bill);
                   // Transform the bill object to match the BillDetails interface
                   const billDetails: BillDetails = {
                     ...bill,
-                    repairFee: bill.repairCharges || 0,
+                    repairFee: (bill as any).repairFee ?? (bill as any).repairCharges ?? 0,
                     grandTotal: grandTotal,
+                    customerAuth: {
+                      secretKey: bill.customer?.secretKey || undefined,
+                    },
                   };
                   shareBillOnWhatsApp(billDetails);
                 }}

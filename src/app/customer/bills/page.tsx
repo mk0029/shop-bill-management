@@ -573,7 +573,9 @@ export default function CustomerBillsPage() {
                   <p className="text-gray-400">Repair Charges</p>
                   <p className="text-white">
                     {currency}
-                    {selectedBill.repairCharges?.toLocaleString() || "-"}
+                    {(selectedBill as any).repairFee?.toLocaleString?.() ||
+                      (selectedBill as any).repairCharges?.toLocaleString?.() ||
+                      "-"}
                   </p>
                 </div>
                 <div>

@@ -185,7 +185,7 @@ export const BillsList = ({
 
               {/* Additional charges */}
               {(bill.homeVisitFee > 0 ||
-                bill.repairCharges > 0 ||
+                ((bill as any).repairFee ?? bill.repairCharges) > 0 ||
                 bill.laborCharges > 0) && (
                 <div className="border-t border-gray-800 pt-3">
                   <p className="text-sm text-gray-400 mb-2">
@@ -198,10 +198,10 @@ export const BillsList = ({
                         {bill.homeVisitFee}
                       </span>
                     )}
-                    {bill.repairCharges > 0 && (
+                    {(((bill as any).repairFee ?? bill.repairCharges) > 0) && (
                       <span className="text-gray-300">
                         Repair: {currency}
-                        {bill.repairCharges}
+                        {(bill as any).repairFee ?? bill.repairCharges}
                       </span>
                     )}
                     {bill.laborCharges > 0 && (

@@ -144,7 +144,8 @@ export async function saveDraftBill(billData: {
       items,
       serviceDate: new Date().toISOString(),
       homeVisitFee,
-      repairCharges,
+      // Persist only repairFee in DB
+      repairFee: repairCharges,
       laborCharges,
       subtotal,
       totalAmount,
@@ -244,7 +245,8 @@ export async function updateDraftBill(
       ...(updates.serviceType ? { serviceType: updates.serviceType } : {}),
       ...(updates.locationType ? { locationType: updates.locationType } : {}),
       homeVisitFee,
-      repairCharges,
+      // Keep repairFee updated (single source of truth)
+      repairFee: repairCharges,
       laborCharges,
       subtotal,
       totalAmount,
@@ -607,22 +609,25 @@ export async function createBill(billData: {
   try {
     console.log("🧾 Creating bill in Sanity:", billData);
 
-    // Step 1: Map and deduplicate bill items
-    const mappedItems = billData.items.map((item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      category: item.category || "",
-      brand: item.brand || "",
-      specifications: item.specifications || "",
-      quantity: item.quantity,
-      unitPrice: item.unitPrice || 0,
-      totalPrice: item.quantity * (item.unitPrice || 0),
-      unit: item.unit || "pcs",
-      isCustom: item.isCustom || false,
-      isRewinding: item.isRewinding || false,
-    }));
+    // Step 1: Map and deduplicate bill items (if any). Support service-only bills with zero items.
+    const hasItems = Array.isArray(billData.items) && billData.items.length > 0;
+    const mappedItems = hasItems
+      ? billData.items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          category: item.category || "",
+          brand: item.brand || "",
+          specifications: item.specifications || "",
+          quantity: item.quantity,
+          unitPrice: item.unitPrice || 0,
+          totalPrice: item.quantity * (item.unitPrice || 0),
+          unit: item.unit || "pcs",
+          isCustom: item.isCustom || false,
+          isRewinding: item.isRewinding || false,
+        }) )
+      : [];
 
-    const deduplicatedItems = deduplicateBillItems(mappedItems);
+    const deduplicatedItems = hasItems ? deduplicateBillItems(mappedItems) : [];
 
     console.log(
       "🔄 Deduplicated items:",
@@ -631,14 +636,16 @@ export async function createBill(billData: {
       billData.items.length
     );
 
-    // Step 2: Validate all items for basic integrity
-    const itemValidation = validateBillItems(deduplicatedItems);
-    if (!itemValidation.isValid) {
-      console.error("❌ Item validation failed:", itemValidation.errors);
-      return {
-        success: false,
-        error: `Item validation failed: ${itemValidation.errors.join(", ")}`,
-      };
+    // Step 2: Validate all items for basic integrity (only when items exist)
+    if (hasItems) {
+      const itemValidation = validateBillItems(deduplicatedItems);
+      if (!itemValidation.isValid) {
+        console.error("❌ Item validation failed:", itemValidation.errors);
+        return {
+          success: false,
+          error: `Item validation failed: ${itemValidation.errors.join(", ")}`,
+        };
+      }
     }
 
     // Step 3: Filter for standard items to perform inventory checks
@@ -656,7 +663,7 @@ export async function createBill(billData: {
     let stockValidation = { isValid: true, errors: [], validationResults: [] };
     let latestPrices = new Map();
 
-    if (standardItems.length > 0) {
+    if (hasItems && standardItems.length > 0) {
       console.log("📊 Batch validating stock and fetching prices...");
 
       // Run validation and price fetching in parallel to reduce API calls
@@ -722,14 +729,10 @@ export async function createBill(billData: {
 
     // Calculate totals from the final prepared items
     const subtotal = finalItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    const homeVisitFee = Number(
-      billData.locationType !== "shop" ? billData.homeVisitFee || 0 : 0
-    );
-    const repairChargesInput =
-      billData.repairCharges ?? (billData as any).repairFee ?? 0;
-    const repairCharges = Number(
-      billData.serviceType === "repair" ? repairChargesInput : 0
-    );
+    // Always include the provided additional charges, regardless of service/location
+    const homeVisitFee = Number(billData.homeVisitFee || 0);
+    const repairChargesInput = billData.repairCharges ?? (billData as any).repairFee ?? 0;
+    const repairCharges = Number(repairChargesInput);
     const laborCharges = Number(billData.laborCharges || 0);
     const totalAmount =
       Number(subtotal) + homeVisitFee + repairCharges + laborCharges;
@@ -744,7 +747,8 @@ export async function createBill(billData: {
       items: finalItems,
       serviceDate: new Date().toISOString(),
       homeVisitFee,
-      repairCharges,
+      // Persist only repairFee in DB
+      repairFee: repairCharges,
       laborCharges,
       subtotal,
       totalAmount,

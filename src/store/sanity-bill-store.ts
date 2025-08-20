@@ -27,7 +27,10 @@ export interface Bill {
   completionDate?: string;
   technician?: string;
   homeVisitFee: number;
-  repairCharges: number;
+  // Primary field in DB
+  repairFee: number;
+  // Optional legacy alias for older documents
+  repairCharges?: number;
   transportationFee: number;
   laborCharges: number;
   subtotal: number;

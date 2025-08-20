@@ -298,10 +298,19 @@ export const useBillForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Allow service-only bills: if there are no items, require at least one service charge
     if (selectedItems.length === 0) {
-      setAlertMessage("Please add at least one item to the bill");
-      setShowAlertModal(true);
-      return;
+      const anyServiceCharge =
+        Number(formData.repairFee || 0) > 0 ||
+        Number(formData.homeVisitFee || 0) > 0 ||
+        Number(formData.laborCharges || 0) > 0;
+      if (!anyServiceCharge) {
+        setAlertMessage(
+          "Please add at least one item or enter service charges (labour/home visit/repair)"
+        );
+        setShowAlertModal(true);
+        return;
+      }
     }
 
     setIsLoading(true);

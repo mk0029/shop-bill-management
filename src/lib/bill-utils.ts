@@ -89,6 +89,8 @@ export function calculateBillTotals(
   items: BillItem[],
   additionalCharges: {
     homeVisitFee?: number;
+    // Prefer repairFee; keep repairCharges for backward compatibility
+    repairFee?: number;
     repairCharges?: number;
     laborCharges?: number;
     transportationFee?: number;
@@ -99,7 +101,8 @@ export function calculateBillTotals(
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
 
   const homeVisitFee = additionalCharges.homeVisitFee || 0;
-  const repairCharges = additionalCharges.repairCharges || 0;
+  const repairCharges =
+    (additionalCharges.repairFee ?? additionalCharges.repairCharges) || 0;
   const laborCharges = additionalCharges.laborCharges || 0;
   const transportationFee = additionalCharges.transportationFee || 0;
 

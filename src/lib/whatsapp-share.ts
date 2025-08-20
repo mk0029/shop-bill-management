@@ -9,6 +9,11 @@ export interface BillDetails {
     phone?: string;
     location?: string;
   };
+  // Optional authentication details to help customer check the bill
+  customerAuth?: {
+    customerId?: string;
+    secretKey?: string;
+  };
   serviceType?: string;
   serviceDate?: string;
   createdAt?: string;
@@ -61,22 +66,49 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
       ?.map((item: any) => {
         let itemText = `â€¢ ${item.productName || item.name}: ${item.quantity} ${item.unit || "pcs"} x ${currency}${(item.unitPrice || item.price).toFixed(2)} = ${currency}${(item.totalPrice || item.total).toFixed(2)}`;
 
-        const allSpecifications = {
-          ...(item.specifications || {}),
-          ...(item.product?.specifications || {}),
+        // Merge possible specification sources
+        const rawA = item.specifications;
+        const rawB = item.product?.specifications;
+
+        // Normalize specifications into a readable string
+        const normalizeSpecs = (spec: any): string => {
+          if (!spec) return "";
+          // If already a string, return trimmed
+          if (typeof spec === "string") return spec.trim();
+          // If array, join non-empty values
+          if (Array.isArray(spec)) return spec.filter(Boolean).join(", ");
+          // If object, format key: value pairs nicely
+          if (typeof spec === "object") {
+            const entries = Object.entries(spec)
+              .filter(([, v]) => v !== undefined && v !== null && String(v) !== "");
+            if (entries.length === 0) return "";
+            return entries
+              .map(([key, value]) => {
+                // Format camelCase/PascalCase into spaced words
+                let readableKey = key
+                  .replace(/([a-z])([A-Z])/g, "$1 $2")
+                  .replace(/^./, (s) => s.toUpperCase());
+                // Convert boolean-like strings to Yes/No
+                const valStr = String(value).toLowerCase();
+                if (valStr === "true") value = "Yes";
+                else if (valStr === "false") value = "No";
+                return `${readableKey}: ${value}`;
+              })
+              .join(", ");
+          }
+          // Fallback to string coercion
+          return String(spec);
         };
 
-        if (Object.keys(allSpecifications).length > 0) {
-          const specs = Object.entries(allSpecifications)
-            .map(([key, value]) => {
-              const readableKey = key
-                .replace(/([A-Z])/g, " $1")
-                .replace(/^./, (str) => str.toUpperCase())
-                .replace(/([a-z])([A-Z])/g, "$1 $2");
-              return `${readableKey}: ${value}`;
-            })
-            .join(", ");
-          itemText += `\n  Specifications: ${specs}`;
+        const specTextParts: string[] = [];
+        const a = normalizeSpecs(rawA);
+        const b = normalizeSpecs(rawB);
+        if (a) specTextParts.push(a);
+        if (b && b !== a) specTextParts.push(b);
+
+        const specText = specTextParts.join(", ");
+        if (specText) {
+          itemText += `\n  Specifications: ${specText}`;
         }
 
         return itemText;
@@ -151,9 +183,25 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
     message += `*Additional Information:*\n${bill.internalNotes}\n\n`;
   }
 
+  // Business/site link (from env)
+  const siteUrl =
+    (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_WEBSITE_URL) ||
+    (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_SITE_URL) ||
+    "";
+
   message += `Thank you for choosing our services!\n`;
+  if (siteUrl) {
+    message += `Visit: ${siteUrl}\n`;
+  }
   if (bill.billId) {
-    message += `Bill ID: ${bill.billId}`;
+    message += `Bill ID: ${bill.billId}\n`;
+  }
+
+  // Optional authentication details for customers to check bill
+  const passKey = bill.customerAuth?.secretKey || (bill as any)?.customer?.secretKey;
+  if (passKey) {
+    message += `\n*Authentication:*\n`;
+    message += `Secret Key: ${passKey}\n`;
   }
 
   return message;
