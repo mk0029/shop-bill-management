@@ -5,11 +5,17 @@ export const dynamic = 'force-dynamic';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Shield, Bell, ArrowRight } from "lucide-react";
+import { User, Shield, Bell, ArrowRight, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { refreshData } = useRealtimeSync({
+    enableNotifications: false,
+    enableAutoRefresh: true,
+    documentTypes: ["bill", "product", "stockTransaction"],
+  });
 
   const settingsOptions = [
     {
@@ -38,13 +44,18 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-          Settings
-        </h1>
-        <p className="text-gray-400 mt-1">
-          Configure your application preferences and business settings
-        </p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+            Settings
+          </h1>
+          <p className="text-gray-400 mt-1">
+            Configure your application preferences and business settings
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => refreshData()}>
+          <RefreshCw className="w-4 h-4 mr-2" /> Refresh Data
+        </Button>
       </div>
 
       {/* Settings Grid */}

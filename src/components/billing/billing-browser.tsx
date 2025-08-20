@@ -38,7 +38,7 @@ export function BillingBrowser({
   const { bills } = useBills();
   const { customers } = useCustomers();
   const { products } = useProducts();
-
+console.log(bills);
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<any | null>(null);
@@ -81,6 +81,7 @@ export function BillingBrowser({
   };
 
   const handleViewBill = (bill: any) => {
+    console.log("Viewing bill:", bill);
     setSelectedBill(bill);
   };
 

@@ -72,15 +72,6 @@ export default function AdminDashboard() {
     initializeDashboard();
   }, [fetchProducts, fetchInventorySummary, fetchBills]);
 
-  // Refresh data periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshData();
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [refreshData]);
-
   return (
     <RealtimeProvider enableNotifications={false}>
       <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
