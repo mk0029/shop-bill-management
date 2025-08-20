@@ -623,12 +623,9 @@ const getItemDisplayName = (product: Product) => {
     if (spec.wireGauge) specs.push(`${spec.wireGauge}mm`);
     if (spec.amperage) specs.push(`${spec.amperage}A`);
   }
-
-  const categoryName = product.category?.name || "Product";
-  const brandName = product.brand?.name || "Unknown Brand";
+  const categoryName = product?.name || "Product";
   const specString = specs.length > 0 ? ` (${specs.join(", ")})` : "";
-
-  return `${categoryName} - ${brandName}${specString}`;
+  return `${categoryName} ${specString}`;
 };
 
 const getItemSpecifications = (product: Product) => {

@@ -253,6 +253,7 @@ export default function CreateBillPage() {
         </div>
 
         {/* Sidebar */}
+        <div>
         <BillSummarySidebar
           selectedCustomer={selectedCustomer}
           selectedItems={selectedItems}
@@ -263,7 +264,7 @@ export default function CreateBillPage() {
           onInputChange={handleInputChange}
           onSubmit={handleSubmit}
           isLoading={isLoading}
-        />
+        /></div>
       </div>
 
       {/* Modals */}

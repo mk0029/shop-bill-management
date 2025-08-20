@@ -67,11 +67,11 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
     const { transition, documentId, result } = update;
     const documentType = result?._type || documentId.split(".")[0];
 
-    console.log("🔄 Real-time update:", {
-      transition,
-      documentType,
-      documentId,
-    });
+    // console.log("🔄 Real-time update:", {
+    //   transition,
+    //   documentType,
+    //   documentId,
+    // });
 
     switch (documentType) {
       case "bill":
@@ -274,11 +274,11 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   // Connect to real-time updates
   const connect = useCallback(() => {
     if (subscriptionRef.current || isConnectedRef.current) {
-      console.log("Already connected to real-time updates");
+      // console.log("Already connected to real-time updates");
       return;
     }
 
-    console.log("🔌 Connecting to Sanity real-time updates...");
+    // console.log("🔌 Connecting to Sanity real-time updates...");
 
     // Enhanced query to include referenced data for products
     const query = `*[_type in [${documentTypes
@@ -330,20 +330,20 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
             // Silently attempt to reconnect after 3 seconds
             setTimeout(() => {
               if (!isConnectedRef.current) {
-                console.log("🔄 Attempting to reconnect...");
+                // console.log("🔄 Attempting to reconnect...");
                 connect();
               }
             }, 3000);
           }
         },
         complete: () => {
-          console.log("Real-time connection completed");
+          // console.log("Real-time connection completed");
           isConnectedRef.current = false;
         },
       });
 
     isConnectedRef.current = true;
-    console.log("✅ Connected to Sanity real-time updates");
+    // console.log("✅ Connected to Sanity real-time updates");
   }, [documentTypes, handleRealtimeUpdate]);
 
   // Disconnect from real-time updates
@@ -352,7 +352,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
       isConnectedRef.current = false;
-      console.log("❌ Disconnected from real-time updates");
+      // console.log("❌ Disconnected from real-time updates");
     }
   }, []);
 
@@ -367,13 +367,13 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   // Refresh data manually (silent background refresh)
   const refreshData = useCallback(async () => {
     if (enableAutoRefresh) {
-      console.log("🔄 Silently refreshing data from Sanity...");
+      // console.log("🔄 Silently refreshing data from Sanity...");
       await Promise.all([
         dataStore.syncWithSanity(),
         billStore.fetchBills(),
         inventoryStore.fetchProducts(),
       ]);
-      console.log("✅ Data refresh completed");
+      // console.log("✅ Data refresh completed");
     }
   }, [dataStore, billStore, inventoryStore, enableAutoRefresh]);
 
