@@ -270,14 +270,31 @@ export default function CreateBillPage() {
         onConfirm={handleSuccessClose}
       />
 
-      <ConfirmationModal
-        isOpen={showAlertModal}
-        onClose={() => setShowAlertModal(false)}
-        title="Alert"
-        message={alertMessage}
-        confirmText="OK"
-        onConfirm={() => setShowAlertModal(false)}
-      />
+      {(() => {
+        const isRestoreAlert = alertMessage?.startsWith(
+          "Restored unsaved bill"
+        );
+        return (
+          <ConfirmationModal
+            isOpen={showAlertModal}
+            onClose={() => {
+              if (isRestoreAlert) {
+                // Navigate to a fresh bill page; the hook will skip restore when fresh=1
+                setShowAlertModal(false);
+                router.replace("/admin/billing/create?fresh=1");
+              } else {
+                setShowAlertModal(false);
+              }
+            }}
+            title="Alert"
+            message={alertMessage}
+            // Show Cancel only for restore alert; otherwise render as an alert (OK only)
+            type={isRestoreAlert ? "confirm" : "alert"}
+            confirmText="OK"
+            onConfirm={() => setShowAlertModal(false)}
+          />
+        );
+      })()}
     </div>
   );
 }

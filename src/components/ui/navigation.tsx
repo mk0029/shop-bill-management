@@ -28,6 +28,7 @@ import {
   UserCog,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
+import { SidebarNetworkStatus } from "./sidebar-network-status";
 import { canManageAdmins } from "@/lib/admin-utils";
 import { useUser } from "@clerk/nextjs";
 
@@ -149,7 +150,9 @@ export function Navigation() {
   };
 
   const isActive = (href: string) => {
-    return pathname === href || pathname.startsWith(href + "/");
+    // Normalize by stripping query params from href to compare pathnames only
+    const hrefPath = href.split("?")[0];
+    return pathname === hrefPath || pathname.startsWith(hrefPath + "/");
   };
 
   const handleLogout = () => {
@@ -231,6 +234,8 @@ export function Navigation() {
 
     // Desktop rendering
     if (hasChildren) {
+      // Determine active child so only the selected item is highlighted
+      const activeChild = item.children!.find((child) => isActive(child.href));
       return (
         <Dropdown
           searchable={false}
@@ -239,7 +244,7 @@ export function Navigation() {
             value: child.href,
             label: child.label,
           }))}
-          value={active ? item.href : ""}
+          value={activeChild ? activeChild.href : active ? item.href : ""}
           onValueChange={(value) => {
             // Handle navigation
             try {
@@ -309,6 +314,7 @@ export function Navigation() {
 
               {/* Navigation Items */}
               <div className="sm:p-4 p-3 space-y-2">
+                <SidebarNetworkStatus />
                 {navigation.map((item) => renderNavigationItem(item, true))}
               </div>
 
@@ -360,6 +366,7 @@ export function Navigation() {
 
         {/* Navigation Items */}
         <div className="sm:p-4 p-3 space-y-2">
+          <SidebarNetworkStatus />
           {navigation.map((item) => renderNavigationItem(item))}
         </div>
 

@@ -2,9 +2,10 @@
 
 import { Navigation } from "@/components/ui/navigation";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { useNetworkMonitor } from "@/hooks/use-network-monitor";
 import { useAuthStore } from "@/store/auth-store";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function AdminLayout({
   children,
@@ -17,6 +18,8 @@ export default function AdminLayout({
   const { isAuthenticated, role, isLoading } = useAuthStore();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
+  const { online } = useNetworkMonitor({ intervalMs: 5000, failThreshold: 2, successThreshold: 3 });
+  const lastRedirectAtRef = useRef<number>(0);
 
   useEffect(() => {
     setIsClient(true);
@@ -31,6 +34,19 @@ export default function AdminLayout({
       }
     }
   }, [isAuthenticated, role, router, isClient, isLoading]);
+
+  // Offline redirection
+  useEffect(() => {
+    if (!isClient) return;
+    const isOnOffline = window.location.pathname === "/offline";
+    if (!online && !isOnOffline) {
+      const now = Date.now();
+      if (now - lastRedirectAtRef.current < 5000) return; // debounce redirects
+      lastRedirectAtRef.current = now;
+      const from = encodeURIComponent(window.location.pathname + window.location.search);
+      router.replace(`/offline?from=${from}`);
+    }
+  }, [online, router, isClient]);
 
   // Show loading while checking authentication
   if (!isClient || isLoading) {

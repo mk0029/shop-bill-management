@@ -374,7 +374,7 @@ export default function StockHistoryPage() {
                   return (
                     <motion.div
                       key={transaction.id}
-                      initial={{ opacity: 0.1,   y: scrollDir !== "down" ? 50 : -50,filter: 'blur(1px)' }}
+                      initial={{ opacity: 0.1,   y: scrollDir !== "down" ? 20 : -20,filter: 'blur(1px)' }}
                       whileInView={{opacity:1,filter: 'blur(0px)',y: 0 }}
                       transition={{ duration: 0.3, ease: "linear" }} 
                       viewport={{ once: false, amount: 0.5 }}
@@ -412,7 +412,7 @@ export default function StockHistoryPage() {
                             {(transaction.unitPrice ?? 0)} each
                           </p>
                           <span
-                            className={`text-xs px-2 py-1 rounded-full ${getTransactionTypeColor(
+                            className={`text-xs px-2 py-1 rounded-full capitalize ${getTransactionTypeColor(
                               transaction.type
                             )}`}>
                             {transaction.type}

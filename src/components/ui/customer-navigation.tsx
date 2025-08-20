@@ -17,6 +17,7 @@ import {
   Building2,
 } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
+import { SidebarNetworkStatus } from "./sidebar-network-status";
 import Link from "next/link";
 import { SanityImage } from "./sanity-image";
 import { useAuthStore } from "@/store/auth-store";
@@ -159,6 +160,7 @@ export function CustomerNavigation() {
 
               {/* Navigation Items */}
               <div className="sm:p-4 p-3 space-y-2">
+                <SidebarNetworkStatus />
                 {customerNavigation.map((item) =>
                   renderNavigationItem(item, true)
                 )}
@@ -215,6 +217,7 @@ export function CustomerNavigation() {
 
         {/* Navigation Items */}
         <div className="sm:p-4 p-3 space-y-2">
+          <SidebarNetworkStatus />
           {customerNavigation.map((item) => renderNavigationItem(item))}
         </div>
 

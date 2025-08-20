@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
+import { useNetworkMonitor } from "@/hooks/use-network-monitor";
 import { CustomerNavigation } from "@/components/ui/customer-navigation";
 import { useCustomerBillSync } from "@/hooks/use-realtime-sync";
 
@@ -14,6 +15,8 @@ export default function CustomerLayout({
 }) {
   const router = useRouter();
   const { user, role, isAuthenticated, isLoading } = useAuthStore();
+  const { online } = useNetworkMonitor({ intervalMs: 5000, failThreshold: 2, successThreshold: 3 });
+  const lastRedirectAtRef = useRef<number>(0);
 
   // Enable real-time bill sync for this customer
   useCustomerBillSync(user?.id);
@@ -32,6 +35,19 @@ export default function CustomerLayout({
       }
     }
   }, [isAuthenticated, role, router, isClient, isLoading]);
+
+  // Offline redirection
+  useEffect(() => {
+    if (!isClient) return;
+    const isOnOffline = window.location.pathname === "/offline";
+    if (!online && !isOnOffline) {
+      const now = Date.now();
+      if (now - lastRedirectAtRef.current < 5000) return; // debounce redirects
+      lastRedirectAtRef.current = now;
+      const from = encodeURIComponent(window.location.pathname + window.location.search);
+      router.replace(`/offline?from=${from}`);
+    }
+  }, [online, router, isClient]);
 
   // Show loading while checking authentication
   if (!isClient || isLoading) {
