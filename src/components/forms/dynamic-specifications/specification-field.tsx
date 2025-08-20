@@ -73,7 +73,7 @@ export function SpecificationField({
         );
       case "radio":
         return (
-          <div className="flex items-center space-x-4 pt-2">
+          <div className="flex flex-col space-y-2 pt-2">
             {options?.map((opt: any) => (
               <div key={opt.value} className="flex items-center space-x-2">
                 <input

@@ -52,6 +52,7 @@ export interface BillItem {
   specifications: string;
   unit: string;
   itemType: "standard" | "rewinding" | "custom";
+  maxStock?: number; // available stock for dynamic clamping (standard items)
 }
 
 export const useBillForm = () => {
@@ -154,6 +155,7 @@ export const useBillForm = () => {
           specifications,
           unit: product.pricing.unit,
           itemType: "standard",
+          maxStock,
         },
       ]);
       setIsDirty(true);
@@ -205,25 +207,39 @@ export const useBillForm = () => {
     quantity: number,
     maxStock?: number
   ) => {
-    const clampedQuantity = maxStock
-      ? Math.max(1, Math.min(quantity, maxStock))
-      : Math.max(1, quantity);
-    if (clampedQuantity <= 0) {
-      setSelectedItems((prev) => prev.filter((i) => i.id !== itemId));
-    } else {
-      setSelectedItems((prev) =>
-        prev.map((i) =>
-          i.id === itemId
-            ? {
-                ...i,
-                quantity: clampedQuantity,
-                total: Number(clampedQuantity) * Number(i.price),
-              }
-            : i
-        )
-      );
-      setIsDirty(true);
-    }
+    setSelectedItems((prev) => {
+      return prev.map((i) => {
+        if (i.id !== itemId) return i;
+
+        const isDecimalCategory = /wire|pipe/i.test(i.category || "");
+        const min = isDecimalCategory ? 0.25 : 1;
+        const step = isDecimalCategory ? 0.25 : 1;
+
+        // Normalize quantity
+        let q = Number(quantity);
+        if (isNaN(q)) q = min;
+        if (isDecimalCategory) {
+          // Round to 2 decimals to avoid floating precision
+          q = Math.round(q / step) * step;
+          q = Math.round(q * 100) / 100;
+        } else {
+          q = Math.round(q);
+        }
+
+        // Clamp by min and available stock (dynamic). If no stock known, do not cap.
+        const available = (typeof maxStock === "number" && isFinite(maxStock))
+          ? maxStock
+          : (typeof i.maxStock === "number" && isFinite(i.maxStock!) ? i.maxStock! : Infinity);
+        q = Math.max(min, Math.min(q, available));
+
+        return {
+          ...i,
+          quantity: q,
+          total: Number(q) * Number(i.price),
+        };
+      });
+    });
+    setIsDirty(true);
   };
 
   const removeItem = (itemId: string) => {

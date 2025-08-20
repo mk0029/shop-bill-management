@@ -36,8 +36,8 @@ export function SidebarNetworkStatus() {
           </span>
         ) : (
           <div className="text-gray-500 flex items-center gap-1">
-            <Timer className="w-3 h-3" />
-            <span>Last known: {lastText}{updatedText ? ` • ${updatedText}` : ""}</span>
+            {/* <Timer className="w-3 h-3" /> */}
+            <span>Offline {lastText}</span>
           </div>
         )}
         <span className={`inline-block w-2 h-2 rounded-full ${online ? (color === "green" ? "bg-green-400" : color === "yellow" ? "bg-yellow-400" : "bg-red-400") : "bg-red-500"}`}></span>
