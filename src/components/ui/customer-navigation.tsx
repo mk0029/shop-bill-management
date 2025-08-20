@@ -135,7 +135,7 @@ export function CustomerNavigation() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              className="fixed inset-0 bg-black/50 z-40 xl:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
 
@@ -145,7 +145,7 @@ export function CustomerNavigation() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 lg:hidden">
+              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 xl:hidden">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
                 <h2 className="text-xl font-bold text-white">Customer Menu</h2>
@@ -201,7 +201,7 @@ export function CustomerNavigation() {
       {/* Mobile Menu Button */}
 
       {/* Desktop Navigation */}
-      <nav className="hidden lg:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
+      <nav className="hidden xl:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
         {/* Header */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -249,9 +249,9 @@ export function CustomerNavigation() {
       </nav>
 
       {/* Main Content Wrapper */}
-      <div className="lg:ml-64 min-h-fit bg-gray-950">
+      <div className="xl:ml-64 min-h-fit bg-gray-950">
         {/* Top Bar */}
-        <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 lg:px-6 lg:py-6">
+        <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 xl:px-6 xl:py-6">
           <div className="flex items-center justify-between">
             <div className="max-md:hidden">
               <h1 className="text-xl font-bold !leading-[120%] text-white">
@@ -272,7 +272,7 @@ export function CustomerNavigation() {
               variant="ghost"
               size="sm"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden ">
+              className="xl:hidden ">
               <Menu className="w-5 h-5" />
             </Button>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -29,11 +29,33 @@ export default function CreateBillPage() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState<"customer" | "rewinding" | "items">("customer");
 
+  // Refs for accordion sections to enable scroll-to-header on open
+  const customerRef = useRef<HTMLDivElement>(null);
+  const rewindingRef = useRef<HTMLDivElement>(null);
+  const itemsRef = useRef<HTMLDivElement>(null);
+
   const confirmSaveDraftAndExit = async () => {
     await saveDraft();
     clearLocalDraft();
     setShowExitConfirm(false);
     router.back();
+  };
+
+  // Helper to open a section and immediately scroll its header into view
+  const handleOpenSection = (section: "customer" | "rewinding" | "items") => {
+    setActiveSection(section);
+    const sectionEl =
+      section === "customer"
+        ? customerRef.current
+        : section === "rewinding"
+        ? rewindingRef.current
+        : itemsRef.current;
+    if (!sectionEl) return;
+    // Scroll after layout paints to ensure correct position
+    requestAnimationFrame(() => {
+      const top = sectionEl.getBoundingClientRect().top + window.scrollY - 8;
+      window.scrollTo({ top, behavior: "smooth" });
+    });
   };
 
   const discardAndExit = async () => {
@@ -131,6 +153,23 @@ export default function CreateBillPage() {
     handleInputChange,
   ]);
 
+  // When opening a section, scroll its header to top with a small offset
+  useEffect(() => {
+    const sectionEl =
+      activeSection === "customer"
+        ? customerRef.current
+        : activeSection === "rewinding"
+        ? rewindingRef.current
+        : activeSection === "items"
+        ? itemsRef.current
+        : null;
+
+    if (!sectionEl) return;
+    // Use bounding rect + page scroll to compute absolute Y, minus a small padding
+    const top = sectionEl.getBoundingClientRect().top + window.scrollY - 8;
+    window.scrollTo({ top, behavior: "smooth" });
+  }, [activeSection]);
+
   return (
     <div className="space-y-6 max-md:pb-4">
       {/* Header */}
@@ -160,21 +199,17 @@ export default function CreateBillPage() {
         cancelText="Discard"
       />
         </div>
-        <div className="shrink-0">
-          <Button variant="outline" onClick={saveDraft} disabled={savingDraft}>
-            {savingDraft ? "Saving..." : "Save as Draft"}
-          </Button>
-        </div>
+        {/* Save as Draft moved to sidebar next to Create Bill */}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bill Form */}
         <div className="lg:col-span-2 space-y-6">
           {/* Accordion Section: Customer Information */}
-          <div className="rounded-lg border border-gray-800 bg-gray-900">
+          <div ref={customerRef} className="rounded-lg border border-gray-800 bg-gray-900">
             <button
               type="button"
-              onClick={() => setActiveSection("customer")}
+              onClick={() => handleOpenSection("customer")}
               className="w-full text-left px-4 py-3 sm:px-6 sm:py-4">
               <h2 className="text-white font-semibold">Customer Information</h2>
               <p className="text-gray-400 text-sm">Select customer and billing meta</p>
@@ -194,34 +229,31 @@ export default function CreateBillPage() {
           </div>
 
           {/* Accordion Section: Rewinding */}
-          <div className="rounded-lg border border-gray-800 bg-gray-900">
+          <div ref={rewindingRef} className="rounded-lg border border-gray-800 bg-gray-900">
             <button
               type="button"
-              onClick={() => setActiveSection("rewinding")}
+              onClick={() => handleOpenSection("rewinding")}
               className="w-full text-left px-4 py-3 sm:px-6 sm:py-4">
               <h2 className="text-white font-semibold">Rewinding Services & Items</h2>
               <p className="text-gray-400 text-sm">Add custom services/items</p>
             </button>
             {activeSection === "rewinding" && (
               <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-                <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
-                  <p className="text-sm text-gray-300 mb-4">
-                    Fill out multiple custom services or items below. All entries will be added when you submit.
-                  </p>
+              
                   <RewindingKitForm
                     onAddItem={addCustomItemToBill}
                     onSubmitted={() => setActiveSection("items")}
                   />
-                </div>
+              
               </div>
             )}
           </div>
 
           {/* Accordion Section: Bill Items */}
-          <div className="rounded-lg border border-gray-800 bg-gray-900">
+          <div ref={itemsRef} className="rounded-lg border border-gray-800 bg-gray-900">
             <button
               type="button"
-              onClick={() => setActiveSection("items")}
+              onClick={() => handleOpenSection("items")}
               className="w-full text-left px-4 py-3 sm:px-6 sm:py-4">
               <h2 className="text-white font-semibold">Bill Items</h2>
               <p className="text-gray-400 text-sm">Browse inventory and add items</p>
@@ -264,6 +296,8 @@ export default function CreateBillPage() {
           onInputChange={handleInputChange}
           onSubmit={handleSubmit}
           isLoading={isLoading}
+          onSaveDraft={saveDraft}
+          savingDraft={savingDraft}
         /></div>
       </div>
 

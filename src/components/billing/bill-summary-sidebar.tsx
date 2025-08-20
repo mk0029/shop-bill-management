@@ -22,6 +22,8 @@ interface BillSummarySidebarProps {
   onInputChange: (field: string, value: unknown) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
+  onSaveDraft: () => void;
+  savingDraft: boolean;
 }
 
 export const BillSummarySidebar = ({
@@ -34,6 +36,8 @@ export const BillSummarySidebar = ({
   onInputChange,
   onSubmit,
   isLoading,
+  onSaveDraft,
+  savingDraft,
 }: BillSummarySidebarProps) => {
   const { currency } = useLocaleStore();
 
@@ -226,24 +230,46 @@ export const BillSummarySidebar = ({
           )}
         </div>
 
+        <div className="flex gap-2">
         <Button
-          onClick={onSubmit}
-          disabled={
-            isLoading || selectedItems.length === 0 || !formData.customerId
-          }
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-          {isLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Creating Bill...
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
-              Create Bill
-            </div>
-          )}
-        </Button>
+            variant="outline"
+            onClick={onSaveDraft}
+            disabled={
+             savingDraft|| isLoading || !formData.customerId
+            }
+            className="w-full sm:flex-1 border-gray-700 text-white hover:bg-gray-800">
+            {savingDraft ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving Draft...
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Save className="w-4 h-4" />
+                Save as Draft
+              </div>
+            )}
+          </Button> <Button
+            onClick={onSubmit}
+
+            disabled={
+              isLoading || !formData.customerId
+            }
+            className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Creating Bill...
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Save className="w-4 h-4" />
+                Create Bill
+              </div>
+            )}
+          </Button>
+        
+        </div>
 
         {selectedItems.length === 0 && (
           <p className="text-xs text-gray-400 text-center">

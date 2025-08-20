@@ -102,7 +102,7 @@ function SingleRewindingForm({
   };
 
   return (
-    <Card className="relative bg-gray-800 border border-gray-700">
+    <Card className="relative bg-gray-800">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-lg">Custom Service/Item</CardTitle>
         {canRemove && (
@@ -305,18 +305,18 @@ export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormPro
         />
       ))}
 
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <Button
           variant="outline"
           onClick={addNewForm}
-          className="flex-1 flex items-center gap-2 bg-gray-800 border border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600">
+          className="w-full sm:flex-1 flex items-center justify-center gap-2 bg-gray-800 border border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600">
           <Plus className="h-4 w-4" />
           Add More Service/Item
         </Button>
 
         <Button
           onClick={handleSubmitAllRewindingServices}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 hover:border-blue-600">
+          className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 hover:border-blue-600">
           Submit All Services
         </Button>
       </div>

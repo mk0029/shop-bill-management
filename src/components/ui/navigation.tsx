@@ -287,7 +287,7 @@ export function Navigation() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              className="fixed inset-0 bg-black/50 z-40 xl:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
             />
 
@@ -297,7 +297,7 @@ export function Navigation() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 lg:hidden"
+              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 xl:hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
@@ -348,7 +348,7 @@ export function Navigation() {
       </AnimatePresence>
 
       {/* Desktop Navigation */}
-      <nav className="hidden lg:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
+      <nav className="hidden xl:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
         {/* Header */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -393,9 +393,9 @@ export function Navigation() {
       </nav>
 
       {/* Main Content Wrapper */}
-      <div className="lg:ml-64 min-h-fit bg-gray-950">
+      <div className="xl:ml-64 min-h-fit bg-gray-950">
         {/* Top Bar */}
-        <div className="bg-gray-900 border-b border-gray-800 p-4 lg:p-6">
+        <div className="bg-gray-900 border-b border-gray-800 p-4 xl:p-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
@@ -418,7 +418,7 @@ export function Navigation() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden bg-gray-900 border border-gray-700"
+                className="xl:hidden bg-gray-900 border border-gray-700"
               >
                 <Menu className="w-5 h-5" />
               </Button>
