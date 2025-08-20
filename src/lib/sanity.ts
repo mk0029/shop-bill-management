@@ -1,17 +1,22 @@
 import { createClient } from "@sanity/client";
 import imageUrlBuilder from "@sanity/image-url";
 
+// Decide perspective dynamically: include drafts when a token is available
+const hasToken =
+  !!(process.env.SANITY_API_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN);
+const effectivePerspective = hasToken ? "previewDrafts" : "published";
+
 // Sanity client configuration
 export const sanityClient = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "idji8ni7",
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "live-shop",
   useCdn: false, // Real-time updates require CDN to be false
   apiVersion: "2024-01-01",
   // Prefer secure server-side token; fallback to NEXT_PUBLIC for legacy setups
   token:
     process.env.SANITY_API_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN,
   ignoreBrowserTokenWarning: true,
-  perspective: "published",
+  perspective: effectivePerspective,
 });
 
 // Debug token availability
@@ -19,7 +24,15 @@ if (typeof window === "undefined") {
   // Server-side
   console.log(
     "Server-side Sanity token available:",
-    !!(process.env.SANITY_API_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN)
+    hasToken
+  );
+  console.log(
+    "Sanity config:",
+    {
+      projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "idji8ni7",
+      dataset: "live-shop",
+      perspective: effectivePerspective,
+    }
   );
 } else {
   // Client-side - should not have access to server token

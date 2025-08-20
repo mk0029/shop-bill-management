@@ -103,60 +103,42 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
     }
   },
 
-  // Fetch bills for a specific customer
+  // Fetch bills for a specific customer (via server API to include drafts)
   fetchBillsByCustomer: async (customerId: string) => {
     set({ loading: true, error: null });
 
     try {
-      const query = queries.customerBills(customerId);
-      console.log("🔍 Executing query:", query);
-      console.log("🔍 Customer ID:", customerId);
+      let bills: Bill[] = [];
 
-      let bills = await sanityClient.fetch(query);
-      console.log(
-        `✅ Fetched ${bills?.length || 0} bills for customer ${customerId}`
-      );
+      // Try by _id first, then by customerId
+      const attempts: Array<{ by: "_id" | "customerId"; id: string }> = [
+        { by: "_id", id: customerId },
+        { by: "customerId", id: customerId },
+      ];
 
-      // If no bills found with customer-specific query, try fetching all bills and filter
-      if (!bills || bills.length === 0) {
-        console.log(
-          "🔄 No bills found with customer query, trying to fetch all bills..."
-        );
-        const allBills = await sanityClient.fetch(queries.bills);
-        console.log("📋 All bills fetched:", allBills?.length || 0);
-
-        // Filter bills for this customer
-        bills =
-          allBills?.filter((bill: any) => {
-            if (!bill.customer) return false;
-
-            console.log(
-              "🔍 Checking bill customer:",
-              bill.customer,
-              "against customerId:",
-              customerId
-            );
-
-            // Handle different customer reference formats
-            if (typeof bill.customer === "string") {
-              return bill.customer === customerId;
-            } else if (bill.customer._ref) {
-              return bill.customer._ref === customerId;
-            } else if (bill.customer._id) {
-              return bill.customer._id === customerId;
-            } else if (bill.customer.customerId) {
-              return bill.customer.customerId === customerId;
-            }
-            return false;
-          }) || [];
-
-        console.log(
-          `🎯 Filtered ${bills.length} bills for customer ${customerId}`
-        );
+      for (const attempt of attempts) {
+        const res = await fetch(`/api/bills/by-customer/${encodeURIComponent(attempt.id)}?by=${attempt.by}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data?.bills) && data.bills.length > 0) {
+            bills = data.bills as Bill[];
+            break;
+          }
+        }
       }
-      
+
+      // Final fallback: client-side query + filter (published only)
+      if (bills.length === 0) {
+        try {
+          const query = queries.customerBills(customerId);
+          const published = await sanityClient.fetch(query);
+          if (Array.isArray(published)) bills = published;
+        } catch {
+          // ignore
+        }
+      }
+
       set({ bills: bills || [], loading: false });
-      console.log("📋 Final bills data:", bills);
       return bills || [];
     } catch (error) {
       console.error("❌ Error fetching customer bills:", error);

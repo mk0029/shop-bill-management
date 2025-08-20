@@ -30,7 +30,7 @@ export default function AdminLayout({
       if (!isAuthenticated) {
         router.push("/login");
       } else if (role !== "admin") {
-        router.push("/customer/home");
+        router.push("/customer/bills");
       }
     }
   }, [isAuthenticated, role, router, isClient, isLoading]);

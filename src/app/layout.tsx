@@ -34,7 +34,10 @@ export default function RootLayout({
       <html lang="en" className="dark">
         <body
           className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}>
-          <DataProvider>{children}</DataProvider>
+          <DataProvider>
+            {children}
+          </DataProvider>
+
           <Toaster
             theme="dark"
             position="bottom-right"

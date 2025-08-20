@@ -138,7 +138,11 @@ interface DataStore {
   productsByBrand: Map<string, string[]>;
 
   // Actions
-  loadInitialData: () => Promise<void>;
+  loadInitialData: (opts?: {
+    role?: "admin" | "customer";
+    userId?: string;
+    customerId?: string;
+  }) => Promise<void>;
   syncWithSanity: () => Promise<void>;
   // Lighter refreshes to avoid full-page like resets
   refreshActiveProducts: () => Promise<void>;
@@ -196,21 +200,42 @@ export const useDataStore = create<DataStore>((set, get) => ({
   productsByBrand: new Map(),
 
   // Load initial data from Sanity
-  loadInitialData: async () => {
+  loadInitialData: async (opts) => {
     set({ isLoading: true, loadingProgress: 0, error: null });
 
     try {
-      // Load data in sequence for better UX
-      const loadingSteps = [
-        { name: "brands", query: queries.brands, progress: 20 },
-        { name: "categories", query: queries.categories, progress: 40 },
-        { name: "products", query: queries.activeProducts, progress: 60 },
-        { name: "users", query: queries.customers, progress: 80 },
-        { name: "bills", query: queries.bills, progress: 100 },
-      ];
+      // Determine scope based on role
+      const role = opts?.role;
+      const isCustomer = role === "customer";
+
+      // Build loading steps conditionally
+      const loadingSteps: Array<{ name: string; query: string; progress: number; params?: Record<string, any> }> = [];
+
+      // Common lightweight data
+      loadingSteps.push({ name: "brands", query: queries.brands, progress: 20 });
+      loadingSteps.push({ name: "categories", query: queries.categories, progress: 40 });
+      loadingSteps.push({ name: "products", query: queries.activeProducts, progress: 60 });
+
+      if (isCustomer) {
+        // Fetch only the logged-in user's doc
+        const singleUserQuery = `*[_type == "user" && (_id == $userId || customerId == $customerId)][0]`;
+        const userParams = {
+          userId: opts?.userId || "",
+          customerId: opts?.customerId || "",
+        };
+        loadingSteps.push({ name: "users", query: singleUserQuery, progress: 80, params: userParams });
+
+        // Fetch only this customer's bills; requires a customerId
+        const cid = opts?.customerId || opts?.userId || "";
+        loadingSteps.push({ name: "bills", query: queries.customerBills(String(cid)), progress: 100 });
+      } else {
+        // Admin or unspecified role: full datasets
+        loadingSteps.push({ name: "users", query: queries.users, progress: 80 });
+        loadingSteps.push({ name: "bills", query: queries.bills, progress: 100 });
+      }
 
       for (const step of loadingSteps) {
-        const data = await sanityClient.fetch(step.query);
+        const data = await sanityClient.fetch(step.query, step.params ?? {});
 
         // Update the appropriate map
         const currentState = get();
@@ -218,9 +243,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
           currentState[step.name as keyof DataStore] as Map<string, any>
         );
 
-        // Filter out null/undefined items and items without _id
+        // Normalize data to array; filter out invalid items
         let validData = Array.isArray(data)
           ? data.filter((item) => item && item._id)
+          : data
+          ? [(data as any)].filter((item) => item && item._id)
           : [];
 
         // Additional filtering for products to ensure they have valid references

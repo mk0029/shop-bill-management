@@ -7,18 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 
 import { useCustomerData } from "@/hooks/use-customer-data";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { useCustomerBillsStore, type CustomerBill as StoreBill } from "@/store/customer-bills-store";
 import {
   CheckCircle,
   Clock,
   Download,
-  Filter,
   Receipt,
   Search,
   AlertCircle,
 } from "lucide-react";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import type { Bill as SanityBill } from "@/store/sanity-bill-store";
+import { useAuthStore } from "@/store/auth-store";
+import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
+type SanityBill = StoreBill;
 
 // Customer-specific bill stats component that uses filtered data
 function CustomerBillStats({ bills = [] }: { bills: any[] }) {
@@ -252,19 +253,27 @@ export default function CustomerBillsPage() {
     bills: allBills = [],
     loading: billsLoading,
     fetchBillsByCustomer,
-  } = useSanityBillStore();
+  } = useCustomerBillsStore();
   const {
     customer,
     loading: customerLoading,
     error,
     refresh,
   } = useCustomerData();
+  const { user } = useAuthStore();
+
+  // Realtime: subscribe to this customer's bills (supports _id and customerId)
+  useCustomerBillRealtime({
+    _id: (customer as any)?._id as string | undefined,
+    customerId: ((customer as any)?.customerId || (user as any)?.customerId) as string | undefined,
+  });
 
   // State for search and filter
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // Admin-like multi-status filter chips
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [showBillModal, setShowBillModal] = useState(false);
-  const [selectedBill, setSelectedBill] = useState<SanityBill | null>(null);
+  const [selectedBill, setSelectedBill] = useState<StoreBill | null>(null);
 
   // Add currency constant
   const currency = "₹";
@@ -275,77 +284,74 @@ export default function CustomerBillsPage() {
   // Reset bills fetched flag when customer changes
   useEffect(() => {
     billsFetchedRef.current = false;
-  }, [customer?._id]);
+  }, [customer?._id, (customer as any)?.customerId, (customer as any)?.secretKey]);
 
-  // Fetch customer bills when customer is loaded
+  // Fetch customer bills when identifiers are available from either customer API or auth user
   useEffect(() => {
-    if (!billsFetchedRef.current && !billsLoading) {
-      if (customer) {
-        console.log("Fetching bills for customer:", customer);
-        console.log("Customer _id:", customer?._id);
-        console.log("Customer customerId:", customer?.customerId);
+    if (billsFetchedRef.current || billsLoading) return;
 
-        billsFetchedRef.current = true;
+    const fetchForCustomer = async () => {
+      const identifiers = {
+        _id: (customer as any)?._id || (user as any)?.id,
+        customerId: (customer as any)?.customerId || (user as any)?.customerId,
+        secretKey: (customer as any)?.secretKey || (user as any)?.secretKey,
+      } as { _id?: string; customerId?: string; secretKey?: string };
 
-        // Try with _id first, then customerId if available
-        const customerIdToUse = customer?._id || customer?.customerId;
-        if (customerIdToUse) {
-          fetchBillsByCustomer(customerIdToUse);
-        }
-      } else {
-        // SMART FALLBACK: If customer is null, use the known customer ID from bills
-        // This is a temporary fix until we resolve the customer loading issue
-        console.log(
-          "🔧 SMART FALLBACK: Customer is null, using known customer ID"
-        );
-        billsFetchedRef.current = true;
-        const knownCustomerId = "ecSttagJdpcXow3QAyCSNG"; // From the bill data we saw
-        fetchBillsByCustomer(knownCustomerId);
-      }
-    }
-  }, [customer?._id, billsLoading, customer, fetchBillsByCustomer]); // Keep billsLoading to prevent fetching while already loading
+      // If we still have no identifiers, wait
+      if (!identifiers._id && !identifiers.customerId && !identifiers.secretKey) return;
+
+      billsFetchedRef.current = true;
+      await fetchBillsByCustomer(identifiers);
+    };
+
+    fetchForCustomer();
+  }, [
+    customer?._id,
+    (customer as any)?.customerId,
+    (customer as any)?.secretKey,
+    (user as any)?.id,
+    (user as any)?.customerId,
+    (user as any)?.secretKey,
+    billsLoading,
+    customer,
+    user,
+    fetchBillsByCustomer,
+  ]);
 
   // Since fetchBillsByCustomer already filters bills by customer,
   // we can use the bills directly from the store
   const customerBills = useMemo(() => {
-    console.log("Bills from store (already filtered by customer):", allBills);
-    console.log("Bills count:", allBills?.length || 0);
-    console.log("Current customer:", customer);
-
-    // TEMPORARY FIX: Show all bills if customer is null but bills exist
-    // This helps us see the bills while we debug the customer loading issue
-    if (!customer && allBills && allBills.length > 0) {
-      console.log(
-        "🔧 TEMP FIX: Customer is null but bills exist, showing all bills"
-      );
-      return allBills;
-    }
-
-    // The bills in the store are already filtered for this customer
-    // by the fetchBillsByCustomer function
+    // Show whatever the customer bills store currently holds.
+    // We already fetch using customer/user identifiers, so this list is scoped.
     return allBills || [];
-  }, [allBills, customer]);
+  }, [allBills]);
 
   const filteredBills = useMemo(() => {
     if (!customerBills.length) return [];
 
     return customerBills.filter((bill) => {
-      // Filter by search term
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        bill.billNumber?.toLowerCase().includes(searchLower) ||
-        bill.items?.some((item) =>
-          item.productName?.toLowerCase().includes(searchLower)
-        );
+      // Filter by search term (safe ops)
+      const searchLower = (searchTerm || "").toLowerCase();
+      const numberMatch = ((bill.billNumber as string) || "").toLowerCase().includes(searchLower);
+      const itemsMatch = Array.isArray(bill.items)
+        ? bill.items.some((item: any) => ((item?.productName as string) || "").toLowerCase().includes(searchLower))
+        : false;
+      const matchesSearch = numberMatch || itemsMatch;
 
-      // Filter by status
+      // Multi-status chips (pending/partial/overdue/paid/draft). Empty => all
+      const statusValue = (((bill.paymentStatus as string) || (bill.status as string) || "").toLowerCase());
       const matchesStatus =
-        statusFilter === "all" ||
-        bill.paymentStatus?.toLowerCase() === statusFilter.toLowerCase();
+        selectedStatuses.length === 0 || selectedStatuses.includes(statusValue);
 
       return matchesSearch && matchesStatus;
     });
-  }, [customerBills, searchTerm, statusFilter]);
+  }, [customerBills, searchTerm, selectedStatuses]);
+
+  // Debug: log counts to verify rendering data path
+  useEffect(() => {
+    console.log("[CustomerBillsPage] bills in store:", allBills.length);
+    console.log("[CustomerBillsPage] filtered bills:", filteredBills.length);
+  }, [allBills.length, filteredBills.length]);
 
   // View bill details
   const viewBillDetails = useCallback((bill: any) => {
@@ -400,7 +406,7 @@ export default function CustomerBillsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-white">
-            {customer?.name ? `${customer.name}'s Bills` : "Akash's Bills"}
+            {customer?.name ? `${customer.name}'s Bills` : "Your Bills"}
           </h2>
           <p className="text-gray-400">View and manage your billing history</p>
         </div>
@@ -409,36 +415,57 @@ export default function CustomerBillsPage() {
       {/* Bill Stats */}
       <CustomerBillStats bills={customerBills} />
 
-      {/* Filters */}
+      {/* Filters (admin-like) */}
       <Card className="bg-gray-900 border-gray-800">
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
+          <div className="flex flex-col gap-4">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search by bill number, service type, or location..."
+                placeholder="Search by bill number or item name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
               />
             </div>
-            <div className="flex gap-3">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter bills by status"
-                className="w-[180px] bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <Button variant="outline">
-                <Filter className="w-4 h-4 mr-2" />
-                More Filters
-              </Button>
+            <div className="flex flex-wrap gap-2">
+              {(["pending", "partial", "overdue", "paid"] as const).map((status) => {
+                const active = selectedStatuses.includes(status);
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatuses((prev) => {
+                        const set = new Set(prev);
+                        if (set.has(status)) set.delete(status);
+                        else set.add(status);
+                        return Array.from(set);
+                      });
+                    }}
+                    className={`px-3 py-1 text-xs rounded-full border ${
+                      active
+                        ? "bg-blue-600 text-white border-blue-500"
+                        : "bg-gray-800 text-gray-300 border-gray-700"
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setSelectedStatuses([])}
+                className={`px-3 py-1 text-xs rounded-full border ${
+                  selectedStatuses.length === 0
+                    ? "bg-blue-600 text-white border-blue-500"
+                    : "bg-gray-800 text-gray-300 border-gray-700"
+                }`}
+              >
+                All
+              </button>
+              {/* More Filters button removed per request */}
             </div>
           </div>
         </CardContent>
@@ -453,13 +480,13 @@ export default function CustomerBillsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {billsLoading || customerLoading ? (
+          {billsLoading ? (
             <div className="p-8 text-center text-gray-400">
               Loading bills...
             </div>
           ) : filteredBills.length === 0 ? (
             <div className="p-8 text-center text-gray-400">
-              {searchTerm || statusFilter !== "all"
+              {searchTerm || selectedStatuses.length > 0
                 ? "No bills match your filters"
                 : "No bills found"}
             </div>

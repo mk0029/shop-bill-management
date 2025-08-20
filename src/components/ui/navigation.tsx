@@ -103,7 +103,7 @@ const adminNavigation: NavigationItem[] = [
 const customerNavigation: NavigationItem[] = [
   {
     label: "Home",
-    href: "/customer/home",
+    href: "/customer/bills",
     icon: Home,
   },
   {

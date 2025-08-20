@@ -64,13 +64,25 @@ export function useCategories() {
 
 // Hook for users/customers
 export function useCustomers() {
-  const { users, getUserById, createUser, updateUser, isLoading } =
+  const { users, billsByCustomer, getUserById, createUser, updateUser, isLoading } =
     useDataStore();
 
-  const customerList = useMemo(
-    () => Array.from(users.values()).filter((user) => user.role === "customer"),
-    [users]
-  );
+  const customerList = useMemo(() => {
+    const roleIsCustomer = (role?: string) =>
+      typeof role === "string" && role.toLowerCase() === "customer";
+    const roleIsAdmin = (role?: string) =>
+      typeof role === "string" && role.toLowerCase() === "admin";
+
+    return Array.from(users.values()).filter((user) => {
+      // Never include admins in customer lists
+      if (roleIsAdmin(user.role)) return false;
+      if (roleIsCustomer(user.role)) return true;
+      if (user.customerId) return true;
+      // If we have bills indexed for this user, they are effectively a customer
+      if (billsByCustomer?.has(user._id)) return true;
+      return false;
+    });
+  }, [users, billsByCustomer]);
 
   return {
     customers: customerList,

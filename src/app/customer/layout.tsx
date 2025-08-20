@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
 import { useNetworkMonitor } from "@/hooks/use-network-monitor";
 import { CustomerNavigation } from "@/components/ui/customer-navigation";
-import { useCustomerBillSync } from "@/hooks/use-realtime-sync";
 
 export default function CustomerLayout({
   children,
@@ -18,8 +17,9 @@ export default function CustomerLayout({
   const { online } = useNetworkMonitor({ intervalMs: 5000, failThreshold: 2, successThreshold: 3 });
   const lastRedirectAtRef = useRef<number>(0);
 
-  // Enable real-time bill sync for this customer
-  useCustomerBillSync(user?.id);
+  // Note: We intentionally avoid real-time listeners on customer pages
+  // to prevent subscribing to global bill streams. Bills are fetched via
+  // a server API filtered by the authenticated customer.
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {

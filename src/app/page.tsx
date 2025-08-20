@@ -90,7 +90,7 @@ export default function Home() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/customer/home">
+              <Link href="/customer/bills">
                 <Button size="lg" variant="outline">
                   Customer Portal
                   <ArrowRight className="ml-2 h-4 w-4" />

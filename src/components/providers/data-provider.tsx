@@ -10,12 +10,16 @@ interface DataProviderProps {
 
 export function DataProvider({ children }: DataProviderProps) {
   const { loadInitialData, isLoading, error } = useDataStore();
-  const { user } = useAuthStore();
+  const { user, role } = useAuthStore();
 
   useEffect(() => {
-    // Load data when component mounts
-    loadInitialData();
-  }, [loadInitialData]);
+    // Load data when component mounts or auth context changes
+    loadInitialData({
+      role: role || undefined,
+      userId: user?.id,
+      customerId: (user as any)?.customerId,
+    });
+  }, [loadInitialData, role, user?.id, (user as any)?.customerId]);
 
   // Show loading state
   if (isLoading) {

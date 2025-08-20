@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/store/auth-store';
-import { useSanityBillStore } from '@/store/sanity-bill-store';
+import { useCustomerBillsStore } from '@/store/customer-bills-store';
 
 interface UseCustomerDataReturn {
   customer: any | null;
@@ -14,10 +14,8 @@ interface UseCustomerDataReturn {
 export const useCustomerData = (): UseCustomerDataReturn => {
   const { user } = useAuthStore();
   const {
-    fetchBillsByCustomer,
     bills,
-    loading: billsLoading,
-  } = useSanityBillStore();
+  } = useCustomerBillsStore();
   const [customer, setCustomer] = useState<unknown | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -55,7 +53,7 @@ export const useCustomerData = (): UseCustomerDataReturn => {
     } finally {
       setLoading(false);
     }
-  }, [user?.secretKey]); // Remove fetchBillsByCustomer from dependencies
+  }, [user?.secretKey]);
 
   // Initial data fetch
   useEffect(() => {
@@ -93,7 +91,7 @@ export const useCustomerData = (): UseCustomerDataReturn => {
     customer,
     bills,
     activity,
-    loading: loading, // Remove billsLoading dependency to prevent infinite loops
+    loading: loading,
     error,
     refresh,
   };

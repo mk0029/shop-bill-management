@@ -43,7 +43,7 @@ export default function LoginPage() {
       if (role === "admin") {
         router.push("/admin/dashboard");
       } else {
-        router.push("/customer/home");
+        router.push("/customer/bills");
       }
     } catch (err) {
       const errorMessage =
