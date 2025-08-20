@@ -42,9 +42,9 @@ export function CustomersOverview() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
         <Card>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
@@ -60,7 +60,7 @@ export function CustomersOverview() {
         </Card>
 
         <Card>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
@@ -76,7 +76,7 @@ export function CustomersOverview() {
         </Card>
 
         <Card>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
@@ -99,9 +99,9 @@ export function CustomersOverview() {
             <Users className="h-5 w-5" />
             Recent Customers
           </CardTitle>
-          <Button size="sm" className="flex items-center gap-1 sm:gap-2">
+          <Button size="sm" className="flex items-center gap-1 sm:gap-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/50 ring-offset-gray-900">
             <Plus className="h-4 w-4" />
-            Add Customer
+         <span className="max-sm:hidden">   Add Customer</span>
           </Button>
         </CardHeader>
         <CardContent>
@@ -120,10 +120,10 @@ export function CustomersOverview() {
               return (
                 <div
                   key={customer._id}
-                  className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-                  <div className="flex-1">
+                  className="flex flex-row items-start justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg min-h-12">
+                  <div className="flex-1 w-full">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full hidden sm:flex items-center justify-center flex-shrink-0">
                         <span className="text-white font-medium">
                           {customer.name.charAt(0).toUpperCase()}
                         </span>
@@ -132,7 +132,7 @@ export function CustomersOverview() {
                         <h3 className="font-medium text-white">
                           {customer.name}
                         </h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex  items-center gap-3 sm:gap-4 text-sm text-gray-400">
                           <span className="flex items-center gap-1">
                             <Phone className="h-3 w-3" />
                             {customer.phone}
@@ -145,7 +145,7 @@ export function CustomersOverview() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 md:gap-4">
+                  <div className="flex-1  gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-end">
                     <div className="text-right">
                       <p className="font-medium text-white">
                         ₹{totalSpent.toLocaleString()}

@@ -122,7 +122,7 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                 {quickActions.map((action, index) => {
                   const Icon = action.icon;
                   return (
@@ -136,8 +136,9 @@ export default function AdminDashboard() {
                           }
                         } catch {}
                       }}
-                      className={`p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block ${action.bg} ${action.hover}`}>
-                      <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2" />
+                      aria-label={action.title}
+                      className={`w-full min-h-12 p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/50 ring-offset-gray-900 ${action.bg} ${action.hover}`}>
+                      <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2 flex-shrink-0" />
                       <div>
                         <h3 className="font-medium text-white">
                           {action.title}

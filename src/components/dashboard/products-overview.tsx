@@ -44,9 +44,9 @@ export function ProductsOverview() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
@@ -62,7 +62,7 @@ export function ProductsOverview() {
         </Card>
 
         <Card>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">
@@ -78,7 +78,7 @@ export function ProductsOverview() {
         </Card>
 
         <Card>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">Brands</p>
@@ -92,7 +92,7 @@ export function ProductsOverview() {
         </Card>
 
         <Card>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-400">Categories</p>
@@ -120,7 +120,7 @@ export function ProductsOverview() {
               {lowStockProducts.slice(0, 5).map((product) => (
                 <div
                   key={product._id}
-                  className="flex items-center justify-between p-2 bg-gray-800 rounded">
+                  className="flex items-center justify-between gap-3 sm:gap-4 p-3 bg-gray-800 rounded min-h-12">
                   <div>
                     <p className="font-medium text-white">{product.name}</p>
                     <p className="text-sm text-gray-400">
@@ -155,7 +155,7 @@ export function ProductsOverview() {
             Recent Products
           </CardTitle>
           <Link href="/admin/inventory/add">
-            <Button size="sm" className="flex items-center gap-2">
+            <Button size="sm" className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/50 ring-offset-gray-900">
               <Plus className="h-4 w-4" />
               Add Product
             </Button>
@@ -166,8 +166,8 @@ export function ProductsOverview() {
             {products.slice(0, 5).map((product) => (
               <div
                 key={product._id}
-                className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-                <div className="flex-1">
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg">
+                <div className="flex-1 w-full">
                   <div className="flex items-center gap-3">
                     <div>
                       <h3 className="font-medium text-white">{product.name}</h3>
@@ -178,7 +178,7 @@ export function ProductsOverview() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
                   <div className="text-right">
                     <p className="font-medium text-white">
                       ₹{product.pricing.sellingPrice.toLocaleString()}
