@@ -161,6 +161,10 @@ export const queries = {
       slug,
       description,
       icon,
+      parentCategory->{
+        _id,
+        name
+      },
       "isActive": select(
         defined(isActive) => isActive,
         true

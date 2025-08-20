@@ -7,7 +7,8 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { motion } from "framer-motion";
 import { Package, Search } from "lucide-react";
 import { useLocaleStore } from "@/store/locale-store";
-import { useMemo, useState } from "react";
+import { useDataStore } from "@/store/data-store";
+import { useEffect, useMemo, useState } from "react";
 
 interface ItemSelectionModalProps {
   isOpen: boolean;
@@ -34,7 +35,26 @@ export const ItemSelectionModal = ({
   activeProducts,
 }: ItemSelectionModalProps) => {
   const { currency } = useLocaleStore();
+  const { syncWithSanity, isLoading } = useDataStore();
   const [search, setSearch] = useState("");
+
+  // Clear search when modal opens or category changes to prevent stale filters
+  useEffect(() => {
+    if (isOpen) {
+      setSearch("");
+    }
+  }, [isOpen, selectedCategory]);
+
+  // If modal opens and selected category has zero items, attempt a background sync
+  useEffect(() => {
+    if (!isOpen) return;
+    // Only care about the currently selected category result set
+    const noneInCategory = (filteredItems?.length || 0) === 0 && (selectedCategory?.trim()?.length || 0) > 0;
+    if (noneInCategory) {
+      // Fire and forget; prevents hard-empty UI due to realtime lag
+      syncWithSanity()?.catch(() => {});
+    }
+  }, [isOpen, filteredItems?.length, selectedCategory]);
 
   // Note: we rely on filteredItems + searchResults, so no separate allAvailableItems needed here
 
@@ -70,6 +90,29 @@ export const ItemSelectionModal = ({
       );
     });
   }, [search, filteredItems]);
+
+  // Fallback: when category yields no items, try relaxed matches from all active products
+  const fallbackMatches = useMemo(() => {
+    const selected = (selectedCategory || "").trim().toLowerCase();
+    if (!selected || (filteredItems?.length || 0) > 0) return [] as any[];
+
+    return activeProducts.filter((p) => {
+      const catName = p.category?.name?.trim().toLowerCase();
+      const catSlug = p.category?.slug?.current?.trim().toLowerCase();
+      const parentName = p.category?.parentCategory?.name?.trim().toLowerCase();
+      const tags: string[] = Array.isArray(p.tags) ? p.tags : [];
+      const specsText = Object.values(p.specifications || {})
+        .map((v) => String(v).toLowerCase())
+        .join(" ");
+      return (
+        (catName && catName.includes(selected)) ||
+        (catSlug && catSlug.includes(selected)) ||
+        (parentName && parentName.includes(selected)) ||
+        tags.some((t) => String(t).toLowerCase().includes(selected)) ||
+        specsText.includes(selected)
+      );
+    });
+  }, [selectedCategory, filteredItems?.length, activeProducts]);
 
   // Get unique values for filters
   const getUniqueValues = (key: string) => {
@@ -190,16 +233,38 @@ export const ItemSelectionModal = ({
         {/* Available Items (includes search filtering) */}
         <div className="max-h-96 overflow-y-auto space-y-2">
           {(() => {
-            const displayedItems = search.trim() ? searchResults : filteredItems;
+            // If no filtered items, fall back to relaxed matches to avoid empty UI
+            const baseItems = (filteredItems.length === 0 && fallbackMatches.length > 0)
+              ? fallbackMatches
+              : filteredItems;
+            const displayedItems = search.trim() ? searchResults : baseItems;
             return (
               <>
-                <h4 className="font-medium text-white mb-3">
+                <h4 className="font-medium text-white mb-1">
                   Available Items ({displayedItems.length})
                 </h4>
+                <p className="text-xs text-gray-500 mb-2">
+                  Category: {selectedCategory || "(none)"} • Filtered: {filteredItems.length} • Active: {activeProducts.length}
+                </p>
+                {filteredItems.length === 0 && fallbackMatches.length > 0 && (
+                  <p className="text-xs text-amber-400 mb-2">
+                    Showing best matches for "{selectedCategory}" (no exact category matches found)
+                  </p>
+                )}
                 {displayedItems.length === 0 ? (
                   <div className="text-center py-8">
                     <Package className="w-12 h-12 text-gray-500 mx-auto mb-2" />
                     <p className="text-gray-400">No items match your filters</p>
+                    <div className="mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isLoading}
+                        onClick={() => syncWithSanity()}
+                        className="text-xs">
+                        {isLoading ? "Refreshing..." : "Refresh inventory"}
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   displayedItems.map((product) => (
@@ -212,9 +277,15 @@ export const ItemSelectionModal = ({
                             <p className="font-medium text-white text-sm">
                               {`${product.name}`}
                             </p>
-                            <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded">
-                              {product.inventory.currentStock} in stock
-                            </span>
+                            {product.inventory.currentStock > 0 ? (
+                              <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded">
+                                {product.inventory.currentStock} in stock
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-red-600/20 text-red-400 text-xs rounded">
+                                Out of stock
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-200 capitalize">
                             {Object.entries(product.specifications || {})
@@ -259,6 +330,7 @@ export const ItemSelectionModal = ({
                           </p>
                           <Button
                             size="sm"
+                            disabled={product.inventory.currentStock <= 0}
                             onClick={() => {
                               onAddItem(product);
                               onClose();

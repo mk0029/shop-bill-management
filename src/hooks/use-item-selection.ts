@@ -57,32 +57,59 @@ export const useItemSelection = () => {
   };
 
   const filterItemsBySpecifications = (activeProducts: any[]) => {
-    const selected = itemSelectionModal.selectedCategory.trim().toLowerCase();
+    const normalize = (s?: string) => {
+      const t = (s || "").trim().toLowerCase();
+      // basic plural trim: remove trailing 's' if present
+      return t.endsWith("s") ? t.slice(0, -1) : t;
+    };
+    const selectedRaw = itemSelectionModal.selectedCategory;
+    const selected = normalize(selectedRaw);
 
     // Helper: does product belong to selected category or any of its parent levels?
     const matchesCategoryOrParent = (product: any) => {
-      const catName = product.category?.name?.trim().toLowerCase();
+      const catName = normalize(product.category?.name);
+      const catSlug = normalize(product.category?.slug?.current);
       const parentNameFromRel = product.category?.parentCategory?.name
-        ?.trim()
-        .toLowerCase();
+        ? normalize(product.category?.parentCategory?.name)
+        : undefined;
       const parentFromSpecsRaw =
         product.specifications?.["Parent Category"] ??
         product.specifications?.parentCategory;
       const parentNameFromSpecs = parentFromSpecsRaw
-        ? String(parentFromSpecsRaw).trim().toLowerCase()
+        ? normalize(String(parentFromSpecsRaw))
         : undefined;
-      return (
+
+      // Primary exact matches
+      if (
         catName === selected ||
         parentNameFromRel === selected ||
-        parentNameFromSpecs === selected
+        parentNameFromSpecs === selected ||
+        catSlug === selected
+      )
+        return true;
+
+      // Relaxed fallback: substring match and tags/specs include
+      const selectedTerm = selected.trim();
+      if (!selectedTerm) return false;
+
+      const tags: string[] = Array.isArray(product.tags) ? product.tags : [];
+      const specsText = Object.values(product.specifications || {})
+        .map((v) => String(v).toLowerCase())
+        .join(" ");
+
+      return (
+        (catName && catName.includes(selectedTerm)) ||
+        (catSlug && catSlug.includes(selectedTerm)) ||
+        tags.some((t) => String(t).toLowerCase().includes(selectedTerm)) ||
+        specsText.includes(selectedTerm)
       );
     };
 
+    // Do NOT filter by stock here. We want to show items even if stock is 0,
+    // and handle the Add button disabling in the UI. This prevents the list
+    // from appearing empty due to async inventory updates.
     let filteredItems = activeProducts.filter(
-      (product) =>
-        matchesCategoryOrParent(product) &&
-        product.inventory.currentStock > 0 &&
-        product.isActive
+      (product) => matchesCategoryOrParent(product) && product.isActive
     );
 
     const { selectedSpecifications } = itemSelectionModal;

@@ -66,6 +66,7 @@ export default function CreateBillPage() {
     handleSubmit,
     saveDraft,
     handleSuccessClose,
+    handleCreateAnotherBill,
     setShowAlertModal,
     setSelectedItems,
     clearLocalDraft,
@@ -263,10 +264,12 @@ export default function CreateBillPage() {
 
       <ConfirmationModal
         isOpen={showSuccessModal}
-        onClose={handleSuccessClose}
+        // onClose should reset to a fresh bill and keep user on page
+        onClose={handleCreateAnotherBill}
         title="Bill Created Successfully!"
         message="The bill has been created and is ready for your customer."
         confirmText="View All Bills"
+        cancelText="Create Bill"
         onConfirm={handleSuccessClose}
       />
 

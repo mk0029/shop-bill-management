@@ -140,6 +140,12 @@ interface DataStore {
   // Actions
   loadInitialData: () => Promise<void>;
   syncWithSanity: () => Promise<void>;
+  // Lighter refreshes to avoid full-page like resets
+  refreshActiveProducts: () => Promise<void>;
+  refreshProductsByIds: (ids: string[]) => Promise<void>;
+  applyInventoryDelta: (
+    deltas: Array<{ productId: string; quantity: number; action: "reduce" | "increase" }>
+  ) => void;
   setupRealtimeListeners: () => void;
   cleanupRealtimeListeners: () => void;
   handleRealtimeUpdate: (update: any) => void;
@@ -391,6 +397,122 @@ export const useDataStore = create<DataStore>((set, get) => ({
     await get().loadInitialData();
   },
 
+  // Refresh only active products list (keeps other maps intact)
+  refreshActiveProducts: async () => {
+    try {
+      const data = await sanityClient.fetch(queries.activeProducts);
+      const products = new Map(get().products);
+      const productsByCategory = new Map<string, string[]>();
+      const productsByBrand = new Map<string, string[]>();
+
+      (Array.isArray(data) ? data : []).forEach((p: any) => {
+        if (!p?._id) return;
+        products.set(p._id, p);
+        if (p.category?._id) {
+          const arr = productsByCategory.get(p.category._id) || [];
+          arr.push(p._id);
+          productsByCategory.set(p.category._id, arr);
+        }
+        if (p.brand?._id) {
+          const arr = productsByBrand.get(p.brand._id) || [];
+          arr.push(p._id);
+          productsByBrand.set(p.brand._id, arr);
+        }
+      });
+
+      set({ products, productsByCategory, productsByBrand, lastSyncTime: new Date() });
+    } catch (e) {
+      console.warn("refreshActiveProducts failed", e);
+    }
+  },
+
+  // Targeted: fetch and update only specific products
+  refreshProductsByIds: async (ids: string[]) => {
+    try {
+      const uniq = Array.from(new Set(ids.filter(Boolean)));
+      if (uniq.length === 0) return;
+
+      const query = `*[_type == "product" && _id in $ids] {
+        ...,
+        brand->{
+          _id,
+          _type,
+          "name": select(
+            defined(name) => name,
+            defined(title) => title,
+            "Unnamed Brand"
+          ),
+          slug,
+          logo,
+          description,
+          "isActive": select(
+            defined(isActive) => isActive,
+            true
+          )
+        },
+        category->{
+          _id,
+          _type,
+          name,
+          slug,
+          description,
+          icon,
+          parentCategory->{ _id, name },
+          "isActive": select(
+            defined(isActive) => isActive,
+            true
+          )
+        }
+      }`;
+
+      const updated = await (sanityClient as unknown as SanityClient).fetch(query, { ids: uniq });
+
+      const products = new Map(get().products);
+      const productsByCategory = new Map(get().productsByCategory);
+      const productsByBrand = new Map(get().productsByBrand);
+
+      (Array.isArray(updated) ? updated : []).forEach((p: any) => {
+        if (!p?._id) return;
+        products.set(p._id, p);
+        if (p.category?._id) {
+          const arr = productsByCategory.get(p.category._id) || [];
+          if (!arr.includes(p._id)) arr.push(p._id);
+          productsByCategory.set(p.category._id, arr);
+        }
+        if (p.brand?._id) {
+          const arr = productsByBrand.get(p.brand._id) || [];
+          if (!arr.includes(p._id)) arr.push(p._id);
+          productsByBrand.set(p.brand._id, arr);
+        }
+      });
+
+      set({ products, productsByCategory, productsByBrand });
+    } catch (e) {
+      console.warn("refreshProductsByIds failed", e);
+    }
+  },
+
+  // Optimistically apply inventory change locally
+  applyInventoryDelta: (deltas) => {
+    const products = new Map(get().products);
+    let changed = false;
+    for (const d of deltas) {
+      const p = products.get(d.productId);
+      if (!p || !p.inventory) continue;
+      const curr = Number(p.inventory.currentStock || 0);
+      const diff = d.action === "reduce" ? -Math.abs(d.quantity) : Math.abs(d.quantity);
+      const next = Math.max(0, curr + diff);
+      if (next !== curr) {
+        products.set(d.productId, {
+          ...p,
+          inventory: { ...p.inventory, currentStock: next },
+        } as any);
+        changed = true;
+      }
+    }
+    if (changed) set({ products });
+  },
+
   // Setup Sanity real-time listeners
   setupRealtimeListeners: () => {
     const { realtimeSubscription } = get();
@@ -591,12 +713,16 @@ export const useDataStore = create<DataStore>((set, get) => ({
         break;
 
       case "stockTransaction":
-        // Handle stock transactions for inventory updates
+        // When a stock transaction appears, ensure the related product is refreshed ASAP
         if (document && update.transition === "appear") {
           console.log(
             `📊 Stock transaction created: ${document.type} - ${document.quantity} units`
           );
-          // You could trigger inventory recalculation here if needed
+          const prodRef = document.product?._ref || document.product || document.productId;
+          if (prodRef) {
+            // Fire-and-forget targeted refresh
+            get().refreshProductsByIds([String(prodRef)]).catch(() => {});
+          }
         }
         break;
     }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBill } from "@/lib/form-service";
 import { localDraftService } from "@/lib/local-draft-service";
+import { useDataStore } from "@/store/data-store";
 
 interface Product {
   _id: string;
@@ -57,6 +58,11 @@ export interface BillItem {
 
 export const useBillForm = () => {
   const router = useRouter();
+  // Data store helpers for targeted updates (avoid full page refresh)
+  const {
+    applyInventoryDelta,
+    refreshProductsByIds,
+  } = useDataStore();
   const [isLoading, setIsLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -336,6 +342,20 @@ export const useBillForm = () => {
 
       const result = await createBill(billData);
       if (result.success) {
+        // Optimistically reduce inventory for standard items to keep UI in sync
+        try {
+          const standard = selectedItems.filter((i) => i.itemType === "standard");
+          const productIds = standard.map((i) => i.id).filter(Boolean);
+          if (standard.length > 0) {
+            applyInventoryDelta(
+              standard.map((i) => ({ productId: i.id, quantity: Number(i.quantity || 0), action: "reduce" as const }))
+            );
+            // Fire-and-forget targeted refresh to reconcile with server
+            refreshProductsByIds(productIds).catch(() => {});
+          }
+        } catch (e) {
+          console.warn("post-bill optimistic inventory update failed", e);
+        }
         // If this bill was started from a local draft, remove it now
         if (draftId) {
           try {
@@ -522,6 +542,30 @@ export const useBillForm = () => {
     setShowSuccessModal(false);
     router.push("/admin/billing");
   };
+
+  // Reset the form to initial state and keep user on the same page to create another bill
+  const handleCreateAnotherBill = () => {
+    // Clear autosave cache to prevent restore of the just-submitted bill
+    try { localStorage.removeItem(LOCAL_KEY); } catch {}
+    setFormData({
+      customerId: "",
+      serviceType: "",
+      location: "",
+      billDate: new Date().toISOString().split("T")[0],
+      dueDate: "",
+      notes: "",
+      repairFee: 0,
+      homeVisitFee: 0,
+      laborCharges: 0,
+      isMarkAsPaid: false,
+      enablePartialPayment: false,
+      partialPaymentAmount: 0,
+    });
+    setSelectedItems([]);
+    setDraftId(null);
+    setIsDirty(false);
+    setShowSuccessModal(false);
+  };
   return {
     formData,
     selectedItems,
@@ -541,6 +585,7 @@ export const useBillForm = () => {
     handleSubmit,
     saveDraft,
     handleSuccessClose,
+    handleCreateAnotherBill,
     setShowAlertModal,
     setSelectedItems,
     addCustomItemToBill,
