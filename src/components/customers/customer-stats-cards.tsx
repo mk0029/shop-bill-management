@@ -33,12 +33,7 @@ export default function CustomerStatsCards({
       icon: Users,
       color: "yellow",
     },
-    {
-      title: "Total Revenue",
-      value: `${currency}${stats.totalRevenue.toLocaleString()}`,
-      icon: Users,
-      color: "purple",
-    },
+   
   ];
 
   const getColorClasses = (color: string) => {
@@ -52,7 +47,7 @@ export default function CustomerStatsCards({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 md:gap-6 sm:gap-4 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 md:gap-6 sm:gap-4 gap-3">
       {statsConfig.map((stat, index) => (
         <Card key={index} className="sm:p-4 p-3 bg-gray-900 border-gray-800">
           <div className="flex items-center gap-3">
