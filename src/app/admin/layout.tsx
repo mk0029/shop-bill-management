@@ -1,8 +1,6 @@
 "use client";
 
 import { Navigation } from "@/components/ui/navigation";
-import { useRealtimeSync } from "@/hooks/use-realtime-sync";
-import { useNetworkMonitor } from "@/hooks/use-network-monitor";
 import { useAuthStore } from "@/store/auth-store";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -12,43 +10,29 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Enable global real-time sanity sync for all admin pages
-  useRealtimeSync();
+  // Realtime is provided per-page via RealtimeProvider to avoid duplicate listeners
 
-  const { isAuthenticated, role, isLoading } = useAuthStore();
+  const { isAuthenticated, role, isLoading, hydrated } = useAuthStore();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
-  const { online } = useNetworkMonitor({ intervalMs: 5000, failThreshold: 2, successThreshold: 3 });
-  const lastRedirectAtRef = useRef<number>(0);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   useEffect(() => {
-    if (isClient && !isLoading) {
+    if (isClient && !isLoading && hydrated) {
       if (!isAuthenticated) {
         router.push("/login");
       } else if (role !== "admin") {
         router.push("/customer/bills");
       }
     }
-  }, [isAuthenticated, role, router, isClient, isLoading]);
+  }, [isAuthenticated, role, router, isClient, isLoading, hydrated]);
 
-  // Offline redirection
-  useEffect(() => {
-    if (!isClient) return;
-    const isOnOffline = window.location.pathname === "/offline";
-    if (!online && !isOnOffline) {
-      const now = Date.now();
-      if (now - lastRedirectAtRef.current < 5000) return; // debounce redirects
-      lastRedirectAtRef.current = now;
-      const from = encodeURIComponent(window.location.pathname + window.location.search);
-      router.replace(`/offline?from=${from}`);
-    }
-  }, [online, router, isClient]);
+  // Note: We no longer redirect to '/offline'. Offline mode is handled inline by components.
 
-  // Show loading while checking authentication
+  // Show loading only until we are on client and not actively loading
   if (!isClient || isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">

@@ -10,7 +10,6 @@ import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
-import { useSeamlessRealtime } from "@/hooks/use-seamless-realtime";
 import { BillFormData, Customer, Item } from "@/types";
 import { RealtimeBillList, RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { FileText, Plus, Search, Calculator } from "lucide-react";
@@ -38,7 +37,6 @@ export function BillingBrowser({
   const { bills } = useBills();
   const { customers } = useCustomers();
   const { products } = useProducts();
-console.log(bills);
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<any | null>(null);
@@ -57,8 +55,7 @@ console.log(bills);
     fetchBills();
   }, [fetchBills]);
 
-  // Enable seamless real-time updates in the background
-  useSeamlessRealtime();
+  // Real-time updates are managed centrally via RealtimeProvider/useRealtimeSync
 
   // Transform customers data (users with customer role)
   const transformedCustomers: Customer[] = customers.map((customer) => ({

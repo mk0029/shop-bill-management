@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 import { Globe, Info, Zap } from "lucide-react";
 import { ClientOnly } from "@/components/client-only";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const languageOptions = [
   { value: "en", label: "English" },
@@ -19,7 +19,7 @@ const languageOptions = [
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, isAuthenticated, role, hydrated } = useAuthStore();
   const { language, setLanguage, t } = useLocaleStore();
   const [error, setError] = useState<string | null>(null);
   const [setCopiedCredential] = useState<string | null>(null);
@@ -61,6 +61,15 @@ export default function LoginPage() {
       setError(errorMessage);
     }
   };
+
+  // If already authenticated (persisted), redirect user away from login
+  useEffect(() => {
+    if (!hydrated) return;
+    if (isAuthenticated) {
+      if (role === "admin") router.replace("/admin/dashboard");
+      else router.replace("/customer/bills");
+    }
+  }, [hydrated, isAuthenticated, role, router]);
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang as "en" | "hi" | "ur");

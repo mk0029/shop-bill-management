@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
-import { useNetworkMonitor } from "@/hooks/use-network-monitor";
 import { CustomerNavigation } from "@/components/ui/customer-navigation";
 
 export default function CustomerLayout({
@@ -13,9 +12,7 @@ export default function CustomerLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, role, isAuthenticated, isLoading } = useAuthStore();
-  const { online } = useNetworkMonitor({ intervalMs: 5000, failThreshold: 2, successThreshold: 3 });
-  const lastRedirectAtRef = useRef<number>(0);
+  const { user, role, isAuthenticated, isLoading, hydrated } = useAuthStore();
 
   // Note: We intentionally avoid real-time listeners on customer pages
   // to prevent subscribing to global bill streams. Bills are fetched via
@@ -27,29 +24,18 @@ export default function CustomerLayout({
   }, []);
 
   useEffect(() => {
-    if (isClient && !isLoading) {
+    if (isClient && !isLoading && hydrated) {
       if (!isAuthenticated) {
         router.push("/login");
       } else if (role !== "customer") {
         router.push("/admin/dashboard");
       }
     }
-  }, [isAuthenticated, role, router, isClient, isLoading]);
+  }, [isAuthenticated, role, router, isClient, isLoading, hydrated]);
 
-  // Offline redirection
-  useEffect(() => {
-    if (!isClient) return;
-    const isOnOffline = window.location.pathname === "/offline";
-    if (!online && !isOnOffline) {
-      const now = Date.now();
-      if (now - lastRedirectAtRef.current < 5000) return; // debounce redirects
-      lastRedirectAtRef.current = now;
-      const from = encodeURIComponent(window.location.pathname + window.location.search);
-      router.replace(`/offline?from=${from}`);
-    }
-  }, [online, router, isClient]);
+  // Note: We no longer redirect to '/offline'. Offline mode is handled inline by components.
 
-  // Show loading while checking authentication
+  // Show loading only until we are on client and not actively loading
   if (!isClient || isLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -58,8 +44,8 @@ export default function CustomerLayout({
     );
   }
 
-  // Don't render anything if not authenticated or wrong role
-  if (!isAuthenticated || role !== "customer") {
+  // After hydration, if not authenticated or wrong role, block and let effect redirect
+  if (hydrated && (!isAuthenticated || role !== "customer")) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-white">Redirecting...</div>

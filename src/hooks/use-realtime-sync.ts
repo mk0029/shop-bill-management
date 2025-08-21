@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useRef, useState, useMemo } from "react";
 import { sanityClient } from "@/lib/sanity";
 import { useDataStore } from "@/store/data-store";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
@@ -42,18 +42,21 @@ interface UseRealtimeSyncOptions {
   documentTypes?: string[];
 }
 
+// Use a module-level constant to avoid recreating arrays each render
+const DEFAULT_DOCUMENT_TYPES: ReadonlyArray<string> = [
+  "bill",
+  "product",
+  "user",
+  "stockTransaction",
+  "brand",
+  "category",
+] as const;
+
 export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   const {
     enableNotifications = true,
     enableAutoRefresh = true,
-    documentTypes = [
-      "bill",
-      "product",
-      "user",
-      "stockTransaction",
-      "brand",
-      "category",
-    ],
+    documentTypes,
   } = options;
 
   const dataStore = useDataStore();
@@ -61,6 +64,17 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   const inventoryStore = useInventoryStore();
   const subscriptionRef = useRef<Subscription | null>(null);
   const isConnectedRef = useRef(false);
+
+  // Memoize effective document types so the reference is stable across renders
+  const effectiveDocumentTypes = useMemo<ReadonlyArray<string>>(() => {
+    if (Array.isArray(documentTypes) && documentTypes.length > 0) {
+      return documentTypes;
+    }
+    return DEFAULT_DOCUMENT_TYPES;
+  }, [
+    // Depend on a stable signature of the provided array (if any)
+    Array.isArray(documentTypes) ? documentTypes.join("|") : "__default__",
+  ]);
 
   // Handle real-time updates
   const handleRealtimeUpdate = useCallback((update: RealtimeUpdate) => {
@@ -281,7 +295,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
     // console.log("🔌 Connecting to Sanity real-time updates...");
 
     // Enhanced query to include referenced data for products
-    const query = `*[_type in [${documentTypes
+    const query = `*[_type in [${effectiveDocumentTypes
       .map((type) => `"${type}"`)
       .join(", ")}]] {
       ...,
@@ -344,7 +358,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
     isConnectedRef.current = true;
     // console.log("✅ Connected to Sanity real-time updates");
-  }, [documentTypes, handleRealtimeUpdate]);
+  }, [effectiveDocumentTypes, handleRealtimeUpdate]);
 
   // Disconnect from real-time updates
   const disconnect = useCallback(() => {

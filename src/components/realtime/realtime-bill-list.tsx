@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useDocumentListener } from "@/hooks/use-realtime-sync";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,82 +85,49 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
     }
   }, [initialBills, isInitialized]);
 
-  // Listen to bill changes
-  useDocumentListener("bill", undefined, {
-    onUpdate: (update: any) => {
-      const { transition, result } = update;
+  // Sync bills from props; RealtimeProvider updates upstream stores/props
+  useEffect(() => {
+    const filterByCustomer = (list: any[]) => {
+      if (!customerId) return list;
+      return list.filter((result: any) => {
+        const cust: any = result.customer;
+        return (
+          cust === customerId || cust?._ref === customerId || cust?._id === customerId
+        );
+      });
+    };
 
-      // Filter by customer if specified
-      if (
-        customerId &&
-        result?.customer?._ref !== customerId &&
-        (result?.customer as any)?._id !== customerId
-      ) {
-        return; // Bill not for this customer
-      }
+    const incoming = filterByCustomer(initialBills);
+    setBills((prev) => {
+      const prevIds = new Set(prev.map((b) => b._id));
 
-      switch (transition) {
-        case "appear":
-          setBills((prev) => {
-            const exists = prev.find((b) => b._id === result._id);
-            if (!exists) {
-              console.log(
-                "✅ Adding new bill to customer view:",
-                result.billNumber,
-                "Customer:",
-                result.customer?.name || "Unknown"
-              );
-              if (showNewBillAnimation) {
-                setNewBillIds((prev) => new Set(prev).add(result._id));
-                // Remove the highlight after 3 seconds
-                setTimeout(() => {
-                  setNewBillIds((prev) => {
-                    const newSet = new Set(prev);
-                    newSet.delete(result._id);
-                    return newSet;
-                  });
-                }, 3000);
-              }
-              // Add new bill at the beginning and sort by date
-              const newBills = [result, ...prev];
-              return newBills.sort((a, b) => {
-                const dateA = new Date(a.createdAt || a.serviceDate || 0);
-                const dateB = new Date(b.createdAt || b.serviceDate || 0);
-                return dateB.getTime() - dateA.getTime();
-              });
-            }
-            return prev;
+      // Detect new bills for animation
+      const newOnes = incoming.filter((b: any) => !prevIds.has(b._id));
+      if (showNewBillAnimation && newOnes.length > 0) {
+        setNewBillIds((s) => {
+          const next = new Set(s);
+          newOnes.forEach((b: any) => next.add(b._id));
+          return next;
+        });
+        // Clear highlights
+        setTimeout(() => {
+          setNewBillIds((s) => {
+            const next = new Set(s);
+            newOnes.forEach((b: any) => next.delete(b._id));
+            return next;
           });
-          break;
-
-        case "update":
-          setBills((prev) =>
-            prev.map((bill) => {
-              if (bill._id === result._id) {
-                console.log(
-                  "🔄 Updating bill in real-time:",
-                  result.billNumber || result._id,
-                  {
-                    paymentStatus: result.paymentStatus,
-                    paidAmount: result.paidAmount,
-                    balanceAmount: result.balanceAmount,
-                    customer: result.customer?.name || "Unknown",
-                    serviceType: result.serviceType || "Unknown Service",
-                  }
-                );
-                return { ...bill, ...result };
-              }
-              return bill;
-            })
-          );
-          break;
-
-        case "disappear":
-          setBills((prev) => prev.filter((bill) => bill._id !== result._id));
-          break;
+        }, 3000);
       }
-    },
-  });
+
+      // Sort by date
+      const sorted = [...incoming].sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.serviceDate || 0);
+        const dateB = new Date(b.createdAt || b.serviceDate || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      return sorted as any;
+    });
+  }, [initialBills, customerId, showNewBillAnimation]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

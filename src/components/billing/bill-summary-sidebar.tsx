@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, Save, CreditCard, Wallet } from "lucide-react";
+import { DollarSign, Save, CreditCard, Wallet, WifiOff } from "lucide-react";
 import { useLocaleStore } from "@/store/locale-store";
+import { useOnline } from "@/hooks/use-online";
+import { isStandalone } from "@/lib/pwa";
 
 interface BillSummarySidebarProps {
   selectedCustomer: any;
@@ -40,6 +42,8 @@ export const BillSummarySidebar = ({
   savingDraft,
 }: BillSummarySidebarProps) => {
   const { currency } = useLocaleStore();
+  const online = useOnline();
+  const installed = typeof window !== "undefined" ? isStandalone() : false;
 
   const itemsTotal = calculateTotal();
   const additionalCharges =
@@ -67,6 +71,29 @@ export const BillSummarySidebar = ({
               <p className="text-sm text-gray-400">{selectedCustomer.email}</p>
             )}
             <p className="text-sm text-gray-400">{selectedCustomer.location}</p>
+          </div>
+        )}
+
+        {/* Offline behavior (only when installed) */}
+        {installed && !online && (
+          <div className="space-y-3 p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <h4 className="font-medium text-white flex items-center gap-2">
+              <WifiOff className="w-4 h-4 text-orange-400" />
+              Offline Mode
+            </h4>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="offline-auto-upload" className="text-sm text-gray-300">
+                Auto-upload when online
+              </Label>
+              <Switch
+                id="offline-auto-upload"
+                checked={!!formData.offlineAutoUpload}
+                onCheckedChange={(checked) => onInputChange("offlineAutoUpload", checked)}
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              You're offline. Bills created now will {formData.offlineAutoUpload ? "be queued and uploaded automatically when you're back online." : "be saved as drafts locally."}
+            </p>
           </div>
         )}
 
@@ -264,7 +291,7 @@ export const BillSummarySidebar = ({
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="w-4 h-4" />
-                Create Bill
+                {(!online && installed && formData.offlineAutoUpload) ? "Queue Bill" : "Create Bill"}
               </div>
             )}
           </Button>

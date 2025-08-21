@@ -3,6 +3,7 @@
 import { useEffect, ReactNode } from "react";
 import { useDataStore } from "@/store/data-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useOnline } from "@/hooks/use-online";
 
 interface DataProviderProps {
   children: ReactNode;
@@ -11,6 +12,7 @@ interface DataProviderProps {
 export function DataProvider({ children }: DataProviderProps) {
   const { loadAdminData, loadCustomerData, isLoading, error } = useDataStore();
   const { user, role } = useAuthStore();
+  const online = useOnline();
 
   useEffect(() => {
     // Avoid triggering loads until role is determined
@@ -30,62 +32,45 @@ export function DataProvider({ children }: DataProviderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, user?.id, (user as any)?.customerId]);
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading data...</p>
-          <p className="text-gray-400 text-sm">Syncing with Sanity backend</p>
-        </div>
-      </div>
-    );
-  }
+  // Offline-friendly handling: render page and show compact banners
+  const retry = () => {
+    if (!role) return;
+    if (role === "customer") {
+      loadCustomerData({ userId: user?.id, customerId: (user as any)?.customerId });
+    } else if (role === "admin") {
+      loadAdminData({ userId: user?.id, customerId: (user as any)?.customerId });
+    }
+  };
 
-  // Show error state
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center max-w-md">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-white text-xl mb-2">Failed to Load Data</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                if (!role) return;
-                if (role === "customer") {
-                  loadCustomerData({ userId: user?.id, customerId: (user as any)?.customerId });
-                } else if (role === "admin") {
-                  loadAdminData({ userId: user?.id, customerId: (user as any)?.customerId });
-                }
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors mr-2"
-            >
-              Retry
-            </button>
-            <a
-              href="/debug"
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors inline-block"
-            >
-              Debug Connection
-            </a>
-          </div>
-          <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded text-left">
-            <p className="text-yellow-200 text-xs sm:text-sm font-medium mb-1">
-              Quick Fix:
-            </p>
-            <p className="text-yellow-300 text-xs">
-              Make sure your SANITY_API_TOKEN is set in .env.local
-            </p>
-          </div>
+  return (
+    <>
+      {/* Inline banners for loading/error states */}
+      {!online && (
+        <div className="fixed z-50 bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-md bg-yellow-900/60 backdrop-blur border border-yellow-600/40 text-yellow-100 text-sm shadow-lg">
+          You are offline. Showing cached data where available.
+          <button
+            onClick={retry}
+            className="ml-3 px-2 py-0.5 rounded bg-yellow-700/60 hover:bg-yellow-700 text-yellow-50 text-xs">
+            Retry
+          </button>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return <>{children}</>;
+      {online && isLoading && (
+        <div className="fixed z-50 top-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-gray-200 text-sm shadow">
+          Syncing latest data…
+        </div>
+      )}
+
+      {online && error && (
+        <div className="fixed z-50 bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-md bg-red-900/70 backdrop-blur border border-red-700/60 text-red-100 text-sm shadow-lg">
+          Failed to load data. <button onClick={retry} className="underline ml-1">Retry</button>
+        </div>
+      )}
+
+      {children}
+    </>
+  );
 }
 
 // Loading component for individual sections

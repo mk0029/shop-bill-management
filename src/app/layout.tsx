@@ -4,6 +4,10 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { DataProvider } from "@/components/providers/data-provider";
 import { Toaster } from "sonner";
 import Script from "next/script";
+import PWAInstaller from "@/components/pwa/pwa-installer";
+import OfflineSync from "@/components/pwa/offline-sync";
+import OfflineWarning from "@/components/pwa/offline-warning";
+import AuthPrehydrate from "@/components/providers/auth-prehydrate";
 import "./globals.css";
 
 // Force dynamic rendering for all pages
@@ -22,6 +26,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Electrician Shop Management",
   description: "Professional electrician shop management system",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#0ea5e9",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Electrician Shop Management",
+  },
 };
 
 export default function RootLayout({
@@ -34,8 +45,13 @@ export default function RootLayout({
       <html lang="en" className="dark">
         <body
           className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}>
+          {/* Synchronous auth prehydration to speed up startup */}
+          <AuthPrehydrate />
           <DataProvider>
             {children}
+            <PWAInstaller />
+            <OfflineSync />
+            <OfflineWarning />
           </DataProvider>
 
           <Toaster
@@ -49,6 +65,31 @@ export default function RootLayout({
               },
             }}
           />
+
+          {/* Register Service Worker for PWA */}
+          <Script id="register-sw" strategy="afterInteractive">
+            {`
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  const swUrl = '/sw.js';
+                  navigator.serviceWorker.register(swUrl).then((reg) => {
+                    // Listen for updates
+                    reg.addEventListener('updatefound', () => {
+                      const newWorker = reg.installing;
+                      if (!newWorker) return;
+                      newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                          // new content available; could notify user
+                        }
+                      });
+                    });
+                  }).catch(() => {
+                    // registration failed; ignore
+                  });
+                });
+              }
+            `}
+          </Script>
 
           <Script id="disable-number-input-scroll" strategy="afterInteractive">
             {`

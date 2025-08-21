@@ -9,6 +9,7 @@ interface AuthState {
   role: "admin" | "customer" | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hydrated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   updateProfile: (data: ProfileData) => Promise<void>;
@@ -23,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
       role: null,
       isAuthenticated: false,
       isLoading: false,
+      hydrated: false,
 
       login: async (credentials: LoginCredentials) => {
         set({ isLoading: true });
@@ -174,11 +176,49 @@ export const useAuthStore = create<AuthState>()(
         role: state.role,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (state?.user) {
-          // Optional validation or logging
-        }
+      onRehydrateStorage: () => (state, error) => {
+        // mark store as hydrated whether successful or not
+        useAuthStore.setState({ hydrated: true });
       },
     }
   )
 );
+
+// Synchronous pre-hydration to speed up startup
+// This reads the persisted Zustand payload and applies it immediately
+export function prehydrateAuth() {
+  if (typeof window === "undefined") return;
+  try {
+    const key = "auth-storage";
+    // prefer localStorage if remember was set, otherwise try both
+    const remember = window.localStorage.getItem("auth-remember") === "true";
+    const raw = remember
+      ? window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key)
+      : window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key);
+    if (!raw) {
+      useAuthStore.setState({ hydrated: true });
+      return;
+    }
+    // Zustand persist format: { state: { user, role, isAuthenticated }, version: n }
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = null;
+    }
+    const st = parsed?.state;
+    if (st && (st.user || st.isAuthenticated !== undefined)) {
+      useAuthStore.setState({
+        user: st.user ?? null,
+        role: st.role ?? null,
+        isAuthenticated: !!st.isAuthenticated,
+        hydrated: true,
+      });
+    } else {
+      useAuthStore.setState({ hydrated: true });
+    }
+  } catch {
+    // best-effort
+    useAuthStore.setState({ hydrated: true });
+  }
+}

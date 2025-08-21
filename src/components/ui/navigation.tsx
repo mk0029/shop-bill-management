@@ -31,6 +31,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { SidebarNetworkStatus } from "./sidebar-network-status";
 import { canManageAdmins } from "@/lib/admin-utils";
 import { useUser } from "@clerk/nextjs";
+import InstallButton from "@/components/pwa/install-button";
 
 interface NavigationItem {
   label: string;
@@ -316,6 +317,10 @@ export function Navigation() {
               <div className="sm:p-4 p-3 space-y-2">
                 <SidebarNetworkStatus />
                 {navigation.map((item) => renderNavigationItem(item, true))}
+                {/* Mobile Install App Button */}
+                <div className="pt-2">
+                  <InstallButton className="w-full" />
+                </div>
               </div>
 
               {/* User Section */}
@@ -368,6 +373,10 @@ export function Navigation() {
         <div className="sm:p-4 p-3 space-y-2">
           <SidebarNetworkStatus />
           {navigation.map((item) => renderNavigationItem(item))}
+          {/* Desktop Install App Button */}
+          <div className="pt-2">
+            <InstallButton className="w-full" />
+          </div>
         </div>
 
         {/* User Section */}

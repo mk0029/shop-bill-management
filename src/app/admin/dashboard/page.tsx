@@ -10,19 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, FileText, Package, Users } from "lucide-react";
 import { useInventoryStore } from "@/store/inventory-store";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
-import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import Link from "next/link";
 
 export default function AdminDashboard() {
   const { fetchProducts, fetchInventorySummary } = useInventoryStore();
   const { fetchBills } = useSanityBillStore();
 
-  // Initialize realtime sync for the dashboard
-  const { refreshData } = useRealtimeSync({
-    enableNotifications: false, // Disable notifications on dashboard
-    enableAutoRefresh: true,
-    documentTypes: ["bill", "product", "stockTransaction"],
-  });
+  // Realtime is provided by RealtimeProvider below. Avoid duplicate listeners here.
   const quickActions = [
     {
       icon: FileText,

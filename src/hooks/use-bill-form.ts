@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import { createBill } from "@/lib/form-service";
 import { localDraftService } from "@/lib/local-draft-service";
 import { useDataStore } from "@/store/data-store";
+import { useOnline } from "@/hooks/use-online";
+import { queueBill } from "@/lib/offline-queue";
 
 interface Product {
   _id: string;
@@ -40,6 +42,8 @@ export interface BillFormData {
   isMarkAsPaid: boolean;
   enablePartialPayment: boolean;
   partialPaymentAmount: number;
+  // Offline behavior
+  offlineAutoUpload?: boolean;
 }
 
 export interface BillItem {
@@ -71,6 +75,7 @@ export const useBillForm = () => {
   const [selectedItems, setSelectedItems] = useState<BillItem[]>([]);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const online = useOnline();
 
   const LOCAL_KEY = "bill_create_autosave";
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +95,7 @@ export const useBillForm = () => {
     isMarkAsPaid: false,
     enablePartialPayment: false,
     partialPaymentAmount: 0,
+    offlineAutoUpload: true,
   });
 
   const handleInputChange = (field: keyof BillFormData, value: any) => {
@@ -348,6 +354,44 @@ export const useBillForm = () => {
         paidAmount: paymentDetails.paidAmount,
         balanceAmount: paymentDetails.balanceAmount,
       };
+
+      // If offline and user opted for auto-upload, queue and show info
+      if (!online && formData.offlineAutoUpload) {
+        await queueBill(billData);
+        setAlertMessage(
+          "You're offline. Bill saved locally and will auto-upload when you're back online."
+        );
+        setShowAlertModal(true);
+        // Reset form similar to success to avoid duplicate drafts
+        try { localStorage.removeItem(LOCAL_KEY); } catch {}
+        setFormData({
+          customerId: "",
+          serviceType: "",
+          location: "",
+          billDate: new Date().toISOString().split("T")[0],
+          dueDate: "",
+          notes: "",
+          repairFee: 0,
+          homeVisitFee: 0,
+          laborCharges: 0,
+          isMarkAsPaid: false,
+          enablePartialPayment: false,
+          partialPaymentAmount: 0,
+          offlineAutoUpload: formData.offlineAutoUpload,
+        });
+        setSelectedItems([]);
+        setDraftId(null);
+        setIsDirty(false);
+        return;
+      }
+
+      // If offline and auto-upload disabled, instruct to save as draft
+      if (!online && !formData.offlineAutoUpload) {
+        setAlertMessage("You're offline. Enable 'Auto-upload when online' or use 'Save as Draft'.");
+        setShowAlertModal(true);
+        setIsLoading(false);
+        return;
+      }
 
       const result = await createBill(billData);
       if (result.success) {
