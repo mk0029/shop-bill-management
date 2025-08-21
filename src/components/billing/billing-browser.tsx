@@ -115,12 +115,11 @@ export function BillingBrowser({
     }
   ) => {
     try {
-      // Persist to Sanity via store
+      // Persist to Sanity via store (only payment fields)
       const ok = await useSanityBillStore.getState().updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
-        status: paymentData.paymentStatus === "paid" ? "paid" : "pending",
       });
 
       if (!ok) {
@@ -128,13 +127,12 @@ export function BillingBrowser({
       }
 
       // Optimistically update currently open modal bill
-      if (selectedBill && (selectedBill.id === billId || selectedBill._id === billId)) {
+      if (selectedBill && (selectedBill.id === billId || (selectedBill as any)._id === billId)) {
         setSelectedBill({
           ...selectedBill,
           paymentStatus: paymentData.paymentStatus,
           paidAmount: paymentData.paidAmount,
           balanceAmount: paymentData.balanceAmount,
-          status: paymentData.paymentStatus === "paid" ? "paid" : "pending",
         });
       }
 

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,6 +122,7 @@ export const BillDetailModal = ({
 console.log("grandTotal", grandTotal,'fulll bill',bill);
   // Payment calculation logic
   const calculatePaymentDetails = () => {
+    const alreadyPaid = toNum(bill.paidAmount || 0);
     if (paymentMode === "paid") {
       return {
         paymentStatus: "paid" as const,
@@ -129,11 +131,12 @@ console.log("grandTotal", grandTotal,'fulll bill',bill);
       };
     }
     if (paymentMode === "partial" && partialAmount) {
-      const paidAmount = Math.min(Math.max(Number(partialAmount), 0), grandTotal);
-      const balanceAmount = Math.max(0, grandTotal - paidAmount);
+      const add = Math.max(Number(partialAmount), 0);
+      const newPaid = Math.min(alreadyPaid + add, grandTotal);
+      const balanceAmount = Math.max(0, grandTotal - newPaid);
       return {
         paymentStatus: balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
-        paidAmount,
+        paidAmount: newPaid,
         balanceAmount,
       };
     }
@@ -143,35 +146,30 @@ console.log("grandTotal", grandTotal,'fulll bill',bill);
   // Handle payment update
   const handlePaymentUpdate = async () => {
     if (!onUpdatePayment) return;
-
     const paymentDetails = calculatePaymentDetails();
     if (!paymentDetails) return;
-
     setIsUpdatingPayment(true);
     try {
       await onUpdatePayment(bill._id || bill.id, paymentDetails);
-
-      // Update the local bill object immediately for real-time UI updates
+      // Ensure global lists refresh in case realtime misses an event
+      try {
+        await useSanityBillStore.getState().fetchBills();
+      } catch { }
       if (bill) {
         bill.paymentStatus = paymentDetails.paymentStatus;
         bill.paidAmount = paymentDetails.paidAmount;
         bill.balanceAmount = paymentDetails.balanceAmount;
       }
-
       setIsEditingPayment(false);
       setPaymentMode("partial");
       setPartialAmount("");
-
-      // Show success notification
-      if (paymentDetails.paymentStatus === "paid") {
-        toast.success("✅ Bill marked as fully paid!");
-      } else {
-        toast.success(
-          `✅ Payment of ₹${paymentDetails.paidAmount.toFixed(2)} recorded successfully!`
-        );
-      }
-
-      // Force component re-render to show updated values
+      const isFull = paymentDetails.paymentStatus === "paid";
+      const added = Math.max(Number(partialAmount || 0), 0);
+      toast.success(
+        isFull
+          ? "✅ Bill marked as fully paid!"
+          : `✅ Payment of ₹${added.toFixed(2)} recorded successfully!`
+      );
       onClose();
     } catch (error) {
       console.error("Failed to update payment:", error);
@@ -516,18 +514,16 @@ console.log("grandTotal", grandTotal,'fulll bill',bill);
                         {Number(partialAmount) >= 0 && partialAmount !== "" && (
                           <div className="text-xs space-y-1">
                             <div className="flex justify-between text-gray-400">
-                              <span>Will be paid:</span>
-                              <span className="text-green-400">
-                                {currency}
-                                {Math.min(Number(partialAmount), grandTotal).toFixed(2)}
-                              </span>
+                              <span>Already paid:</span>
+                              <span className="text-green-400">{currency}{toNum(bill.paidAmount || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-400">
+                              <span>New total paid:</span>
+                              <span className="text-green-400">{currency}{Math.min(toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0), grandTotal).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-gray-400">
                               <span>Will remain pending:</span>
-                              <span className="text-orange-400">
-                                {currency}
-                                {Math.max(0, grandTotal - Number(partialAmount)).toFixed(2)}
-                              </span>
+                              <span className="text-orange-400">{currency}{Math.max(0, grandTotal - Math.min(toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0), grandTotal)).toFixed(2)}</span>
                             </div>
                           </div>
                         )}

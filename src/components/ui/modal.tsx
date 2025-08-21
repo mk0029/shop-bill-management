@@ -33,13 +33,13 @@ export function Modal({
   showCloseButton = true,
   className,
 }: ModalProps) {
-  React.useEffect(() => {
-    if (isOpen) {
-      document.documentElement.classList.add("overflow-hidden");
-    } else {
-      document.documentElement.classList.remove("overflow-hidden");
-    }
-  }, [isOpen]);
+  // React.useEffect(() => {
+  //   if (isOpen) {
+  //     document.documentElement.classList.add("overflow-hidden");
+  //   } else {
+  //     document.documentElement.classList.remove("overflow-hidden");
+  //   }
+  // }, [isOpen]);
 
   if (!isOpen) return null;
 
