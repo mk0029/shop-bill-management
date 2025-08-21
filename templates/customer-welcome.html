@@ -1,0 +1,45 @@
+<!-- Customer: Welcome Email
+Placeholders:
+  {{appName}}, {{customerName}}, {{instructions}}, {{secretKey}}, {{loginUrl}}, {{supportEmail}}
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to {{appName}}</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f9fc;font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f9fc;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+          <tr>
+            <td style="background:#111827;color:#ffffff;padding:20px 24px;font-size:18px;font-weight:600;">
+              Welcome to {{appName}}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <h1 style="margin:0 0 12px 0;font-size:20px;color:#111827;">Hi {{customerName}},</h1>
+              <p style="margin:0 0 12px 0;line-height:1.6;">We're excited to have you onboard. Please keep your secret key safe.</p>
+              <div style="background:#f3f4f6;border:1px dashed #d1d5db;border-radius:8px;padding:12px;margin:12px 0;">
+                <div style="color:#6b7280;font-size:12px;margin-bottom:4px;">Your Secret Key</div>
+                <div style="font-weight:700;letter-spacing:0.5px;color:#111827;">{{secretKey}}</div>
+              </div>
+              <p style="margin:0 0 12px 0;line-height:1.6;">{{instructions}}</p>
+              <a href="{{loginUrl}}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">Go to Portal</a>
+              <p style="margin:16px 0 0 0;color:#6b7280;font-size:12px;">Need help? Contact us at <a href="mailto:{{supportEmail}}" style="color:#2563eb;text-decoration:none;">{{supportEmail}}</a></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">
+              Store this email for your records.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

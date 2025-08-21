@@ -1,0 +1,52 @@
+<!-- Admin: Stocks Low
+Placeholders:
+  {{appName}}, {{adminName}}, {{threshold}}, {{itemsTable}}, {{manageInventoryUrl}}
+  For simple use without a loop, provide HTML rows for {{itemsTable}}
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stocks Low - {{appName}}</title>
+</head>
+<body style="margin:0;padding:0;background:#fff7ed;font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #fed7aa;">
+          <tr>
+            <td style="background:#9a3412;color:#ffffff;padding:20px 24px;font-size:18px;font-weight:600;">
+              {{appName}} • Low Stock Alert
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <h1 style="margin:0 0 12px 0;font-size:20px;color:#111827;">Hello {{adminName}},</h1>
+              <p style="margin:0 0 12px 0;line-height:1.6;">Some items are at or below the threshold of <strong>{{threshold}}</strong>.</p>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:8px 0;">
+                <thead>
+                  <tr>
+                    <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:600;">Item</th>
+                    <th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:600;">SKU</th>
+                    <th align="right" style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-weight:600;">Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{itemsTable}}
+                </tbody>
+              </table>
+              <a href="{{manageInventoryUrl}}" style="display:inline-block;background:#9a3412;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">Review Inventory</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px;border-top:1px solid #fed7aa;color:#9a3412;font-size:12px;">
+              Automated alert from {{appName}}.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
