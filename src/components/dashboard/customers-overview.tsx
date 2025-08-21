@@ -6,16 +6,32 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Plus, Phone, MapPin } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
+import { useEffect } from "react";
+import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
+import { useCustomerBillsStore } from "@/store/customer-bills-store";
 
 export function CustomersOverview() {
   const { customers, isLoading } = useCustomers();
   const { bills } = useBills();
   const { user, role } = useAuthStore();
+  const { bills: customerBills, fetchBillsByCustomer } = useCustomerBillsStore();
 
   // When viewing as a customer, scope data to only their records (no extra API calls)
   const isCustomer = role?.toLowerCase?.() === "customer";
   const currentUserId = user?.id as string | undefined;
   const currentCustomerId = (user as any)?.customerId as string | undefined;
+
+  // Start realtime subscription strictly scoped to this customer
+  useCustomerBillRealtime({ _id: currentUserId, customerId: currentCustomerId });
+
+  // Fetch initial bills into the customer store (id-based targeting per recent fixes)
+  useEffect(() => {
+    if (!isCustomer) return;
+    if (!currentUserId && !currentCustomerId) return;
+    fetchBillsByCustomer({ _id: currentUserId, customerId: currentCustomerId }).catch(() => {
+      /* silent */
+    });
+  }, [isCustomer, currentUserId, currentCustomerId, fetchBillsByCustomer]);
 
   const visibleCustomers = isCustomer
     ? customers.filter(
@@ -23,12 +39,9 @@ export function CustomersOverview() {
       )
     : customers;
 
+  // Bills source: for customers, use their dedicated realtime store; for others, use global bills
   const visibleBills = isCustomer
-    ? bills.filter(
-        (b: any) =>
-          b?.customer?._id === currentUserId ||
-          b?.customer?.customerId === currentCustomerId
-      )
+    ? customerBills
     : bills;
 
   if (isLoading) {
@@ -55,8 +68,9 @@ export function CustomersOverview() {
   const activeCustomers = visibleCustomers.filter((customer) => customer.isActive);
   const customersWithPendingBills = visibleCustomers.filter((customer) =>
     visibleBills.some(
-      (bill) =>
-        bill.customer._id === customer._id && bill.paymentStatus === "pending"
+      (bill: any) =>
+        (bill.customer?._id === customer._id || bill.customer?._ref === customer._id) &&
+        bill.paymentStatus === "pending"
     )
   );
 
@@ -122,26 +136,27 @@ export function CustomersOverview() {
           </CardTitle>
           <Button size="sm" className="flex items-center gap-1 sm:gap-2 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/50 ring-offset-gray-900">
             <Plus className="h-4 w-4" />
-         <span className="max-sm:hidden">   Add Customer</span>
+            <span className="max-sm:hidden"> Add Customer</span>
           </Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {visibleCustomers.slice(0, 5).map((customer) => {
               const customerBills = visibleBills.filter(
-                (bill) => bill.customer._id === customer._id
+                (bill: any) => bill.customer?._id === customer._id || bill.customer?._ref === customer._id
               );
               const pendingBills = customerBills.filter(
-                (bill) => bill.paymentStatus === "pending"
+                (bill: any) => bill.paymentStatus === "pending"
               );
               const totalSpent = customerBills
-                .filter((bill) => bill.paymentStatus === "pending")
-                .reduce((sum, bill) => sum + bill.totalAmount, 0);
+                .filter((bill: any) => bill.paymentStatus === "pending")
+                .reduce((sum: number, bill: any) => sum + (bill.totalAmount || 0), 0);
 
               return (
                 <div
                   key={customer._id}
-                  className="flex flex-row items-start justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg min-h-12">
+                  className="flex flex-row items-start justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg min-h-12"
+                >
                   <div className="flex-1 w-full">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-600 rounded-full hidden sm:flex items-center justify-center flex-shrink-0">
@@ -177,7 +192,8 @@ export function CustomersOverview() {
                     </div>
                     <div className=" hidden md:flex flex-col gap-1">
                       <Badge
-                        variant={customer.isActive ? "default" : "secondary"}>
+                        variant={customer.isActive ? "default" : "secondary"}
+                      >
                         {customer.isActive ? "Active" : "Inactive"}
                       </Badge>
                       {pendingBills.length > 0 && (

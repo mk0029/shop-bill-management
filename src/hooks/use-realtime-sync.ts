@@ -4,6 +4,8 @@ import { useEffect, useCallback, useRef, useState, useMemo } from "react";
 import { sanityClient } from "@/lib/sanity";
 import { useDataStore } from "@/store/data-store";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { useAuthStore } from "@/store/auth-store";
+import { useCustomerBillsStore } from "@/store/customer-bills-store";
 import { useInventoryStore } from "@/store/inventory-store";
 import { toast } from "sonner";
 import type { SanityDocument } from "@sanity/client";
@@ -119,16 +121,69 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
           // Silently add the new bill to both stores
           billStore.addBill(result as any);
           console.log(`✅ New bill added: #${result.billNumber || result._id}`);
+          try {
+            const { user, role } = useAuthStore.getState();
+            const currentSanityId = (user as any)?.id;
+            const currentBizId = (user as any)?.customerId;
+            const belongs = Boolean(
+              (result as any)?.customer?._ref === currentSanityId ||
+              (result as any)?.customer?._id === currentSanityId ||
+              (result as any)?.customerId === currentBizId
+            );
+            if (role?.toLowerCase?.() === "customer" && belongs) {
+              useCustomerBillsStore.getState().addOrUpdateBill(result as any);
+              console.log("[Global->CustomerStore] appear matched -> upsert", {
+                id: (result as any)?._id,
+                bn: (result as any)?.billNumber,
+              });
+            }
+          } catch {}
           break;
         case "update":
           // Silently update the bill in both stores
           billStore.updateBill(result._id, result as any);
           console.log(`🔄 Bill updated: #${result.billNumber || result._id}`);
+          try {
+            const { user, role } = useAuthStore.getState();
+            const currentSanityId = (user as any)?.id;
+            const currentBizId = (user as any)?.customerId;
+            const belongs = Boolean(
+              (result as any)?.customer?._ref === currentSanityId ||
+              (result as any)?.customer?._id === currentSanityId ||
+              (result as any)?.customerId === currentBizId
+            );
+            if (role?.toLowerCase?.() === "customer" && belongs) {
+              useCustomerBillsStore.getState().addOrUpdateBill(result as any);
+              console.log("[Global->CustomerStore] update matched -> upsert", {
+                id: (result as any)?._id,
+                bn: (result as any)?.billNumber,
+              });
+            }
+          } catch {}
           break;
         case "disappear":
           // Silently remove the bill from both stores
           billStore.deleteBill(result._id);
           console.log(`🗑️ Bill removed: #${result.billNumber || result._id}`);
+          try {
+            const { user, role } = useAuthStore.getState();
+            const currentSanityId = (user as any)?.id;
+            const currentBizId = (user as any)?.customerId;
+            const belongs = Boolean(
+              (result as any)?._id && (
+                (result as any)?.customer?._ref === currentSanityId ||
+                (result as any)?.customer?._id === currentSanityId ||
+                (result as any)?.customerId === currentBizId
+              )
+            );
+            if (role?.toLowerCase?.() === "customer" && belongs) {
+              useCustomerBillsStore.getState().removeBill((result as any)?._id);
+              console.log("[Global->CustomerStore] disappear matched -> remove", {
+                id: (result as any)?._id,
+                bn: (result as any)?.billNumber,
+              });
+            }
+          } catch {}
           break;
       }
     },
@@ -444,6 +499,7 @@ export const useDocumentListener = <T extends SanityDocument>(
               name,
               phone,
               email,
+              customerId,
               location,
               role
             }
@@ -455,6 +511,7 @@ export const useDocumentListener = <T extends SanityDocument>(
               name,
               phone,
               email,
+              customerId,
               location,
               role
             }

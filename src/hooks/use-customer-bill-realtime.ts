@@ -39,7 +39,9 @@ export function useCustomerBillRealtime(ids?: CustomerIdentifiers) {
       );
     }
     if (ids?.customerId) {
-      conditions.push(`defined(customer) && customer->customerId == $customerBizId`);
+      conditions.push(
+        `((defined(customer) && customer->customerId == $customerBizId) || customerId == $customerBizId)`
+      );
     }
     const where = conditions.length > 0 ? conditions.join(" || ") : "false";
 
@@ -59,12 +61,31 @@ export function useCustomerBillRealtime(ids?: CustomerIdentifiers) {
     if (ids?._id) params.sanityId = ids._id;
     if (ids?.customerId) params.customerBizId = ids.customerId;
 
+    try {
+      console.log(
+        "[useCustomerBillRealtime] Subscribing",
+        { ids, where, params }
+      );
+    } catch {}
+
     subscriptionRef.current = sanityClient
       .listen(query, params, { includeResult: true, includePreviousRevision: true })
       .subscribe({
         next: (update) => {
           const { transition, result, documentId } = update as unknown as RealtimeUpdate<SanityDocument & CustomerBill>;
           if (!result && transition !== "disappear") return;
+
+          try {
+            console.log(
+              "[useCustomerBillRealtime] Event",
+              {
+                transition,
+                documentId,
+                billNumber: (result as any)?.billNumber,
+                paymentStatus: (result as any)?.paymentStatus,
+              }
+            );
+          } catch {}
 
           switch (transition) {
             case "appear":
@@ -87,6 +108,9 @@ export function useCustomerBillRealtime(ids?: CustomerIdentifiers) {
       });
 
     return () => {
+      try {
+        console.log("[useCustomerBillRealtime] Unsubscribing", { ids });
+      } catch {}
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;

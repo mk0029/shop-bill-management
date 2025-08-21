@@ -19,6 +19,8 @@ import {
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
+import { useDocumentListener } from "@/hooks/use-realtime-sync";
+import { sanityClient } from "@/lib/sanity";
 type SanityBill = StoreBill;
 
 // Customer-specific bill stats component that uses filtered data
@@ -249,11 +251,9 @@ const BillItem = ({ bill, onClick }: BillItemProps) => {
 
 export default function CustomerBillsPage() {
   // Hooks must be called unconditionally at the top level
-  const {
-    bills: allBills = [],
-    loading: billsLoading,
-    fetchBillsByCustomer,
-  } = useCustomerBillsStore();
+  const allBills = useCustomerBillsStore((s) => s.bills) || [];
+  const billsLoading = useCustomerBillsStore((s) => s.loading);
+  const fetchBillsByCustomer = useCustomerBillsStore((s) => s.fetchBillsByCustomer);
   const {
     customer,
     loading: customerLoading,
@@ -262,11 +262,178 @@ export default function CustomerBillsPage() {
   } = useCustomerData();
   const { user } = useAuthStore();
 
+  // Utility: compare business IDs with optional Base64 normalization
+  const eqBiz = useCallback((a?: string, b?: string) => {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    try {
+      // a could be base64 of b
+      if (typeof atob === "function") {
+        if (atob(a) === b) return true;
+        if (atob(b) === a) return true;
+      }
+    } catch {}
+    return false;
+  }, []);
+
+  // Fallback: resolve Sanity customer _id from business customerId if not loaded yet
+  const resolvedSanityIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const currentSanityId = (customer as any)?._id as string | undefined;
+    const currentBizId = ((customer as any)?.customerId || (user as any)?.customerId) as string | undefined;
+    if (currentSanityId) {
+      resolvedSanityIdRef.current = currentSanityId;
+      return;
+    }
+    if (!currentBizId) return;
+    let cancelled = false;
+    ;(async () => {
+      try {
+        const q = `*[customerId == $cid][0]{ _id }`;
+        const res = await sanityClient.fetch<{ _id?: string }>(q, { cid: currentBizId });
+        if (!cancelled && res?._id) {
+          resolvedSanityIdRef.current = res._id;
+          console.log("[CustomerBillsPage] Resolved Sanity _id from customerId", { cid: currentBizId, _id: res._id });
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ (customer as any)?._id, (customer as any)?.customerId, (user as any)?.customerId ]);
+
   // Realtime: subscribe to this customer's bills (supports _id and customerId)
   useCustomerBillRealtime({
     _id: (customer as any)?._id as string | undefined,
     customerId: ((customer as any)?.customerId || (user as any)?.customerId) as string | undefined,
   });
+
+  // Also listen to GLOBAL bill updates and filter for current customer only
+  useDocumentListener<any>("bill", undefined, {
+    onAppear: (doc) => {
+      const currentSanityId = (customer as any)?._id || resolvedSanityIdRef.current; // Sanity _id (fallback resolved)
+      const currentBizId = (customer as any)?.customerId || (user as any)?.customerId;
+      const belongs = Boolean(
+        (doc?.customer?._ref && doc.customer._ref === currentSanityId) ||
+          (doc?.customer?._id && doc.customer._id === currentSanityId) ||
+          (doc?.customerId && eqBiz(doc.customerId, currentBizId)) ||
+          (doc?.customer?.customerId && eqBiz(doc.customer.customerId, currentBizId)) ||
+          (doc?.billId && eqBiz(doc.billId, currentBizId))
+      );
+      try {
+        console.log("[CustomerBillsPage][GlobalListen] appear", {
+          belongs,
+          currentSanityId,
+          currentBizId,
+          ref: doc?.customer?._ref,
+          _id: doc?.customer?._id,
+          custBizIdFromRef: doc?.customer?.customerId,
+          billId: doc?._id,
+          bn: doc?.billNumber,
+        });
+      } catch {}
+      if (belongs) {
+        useCustomerBillsStore.getState().addOrUpdateBill(doc as any);
+        return;
+      }
+      // Fallback: if we couldn't match but we have a ref and a bizId, resolve the ref's customerId
+      if (!belongs && doc?.customer?._ref && currentBizId) {
+        const refId = doc.customer._ref as string;
+        sanityClient
+          .fetch<{ customerId?: string; bizId?: string; businessId?: string; id?: string }>(
+            `*[_id == $id][0]{ customerId, bizId, businessId, id }`,
+            { id: refId }
+          )
+          .then((r) => {
+            const candidate = r?.customerId || r?.bizId || r?.businessId || r?.id;
+            const match = eqBiz(candidate, currentBizId);
+            try {
+              console.log("[CustomerBillsPage][GlobalListen] appear fallback-resolve", {
+                refId,
+                resolvedBizId: candidate,
+                currentBizId,
+                match,
+              });
+            } catch {}
+            if (match) {
+              useCustomerBillsStore.getState().addOrUpdateBill(doc as any);
+            }
+          })
+          .catch(() => {});
+      }
+    },
+    onUpdate: (u) => {
+      const result = (u as any)?.result as any;
+      const currentSanityId = (customer as any)?._id || resolvedSanityIdRef.current; // Sanity _id (fallback resolved)
+      const currentBizId = (customer as any)?.customerId || (user as any)?.customerId;
+      const belongs = Boolean(
+        (result?.customer?._ref && result.customer._ref === currentSanityId) ||
+          (result?.customer?._id && result.customer._id === currentSanityId) ||
+          (result?.customerId && eqBiz(result.customerId, currentBizId)) ||
+          (result?.customer?.customerId && eqBiz(result.customer.customerId, currentBizId)) ||
+          (result?.billId && eqBiz(result.billId, currentBizId))
+      );
+      try {
+        console.log("[CustomerBillsPage][GlobalListen] update", {
+          belongs,
+          currentSanityId,
+          currentBizId,
+          ref: result?.customer?._ref,
+          _id: result?.customer?._id,
+          custBizIdFromRef: result?.customer?.customerId,
+          billId: result?._id,
+          bn: result?.billNumber,
+        });
+      } catch {}
+      if (belongs) {
+        useCustomerBillsStore.getState().addOrUpdateBill(result as any);
+        return;
+      }
+      // Fallback: resolve customerId by ref for updates as well
+      if (!belongs && result?.customer?._ref && currentBizId) {
+        const refId = result.customer._ref as string;
+        sanityClient
+          .fetch<{ customerId?: string; bizId?: string; businessId?: string; id?: string }>(
+            `*[_id == $id][0]{ customerId, bizId, businessId, id }`,
+            { id: refId }
+          )
+          .then((r) => {
+            const candidate = r?.customerId || r?.bizId || r?.businessId || r?.id;
+            const match = eqBiz(candidate, currentBizId);
+            try {
+              console.log("[CustomerBillsPage][GlobalListen] update fallback-resolve", {
+                refId,
+                resolvedBizId: candidate,
+                currentBizId,
+                match,
+              });
+            } catch {}
+            if (match) {
+              useCustomerBillsStore.getState().addOrUpdateBill(result as any);
+            }
+          })
+          .catch(() => {});
+      }
+    },
+    onDisappear: (id) => {
+      // Optimistic remove; if this wasn't our bill the check above would have blocked anyway
+      try { console.log("[CustomerBillsPage][GlobalListen] disappear", { id }); } catch {}
+      useCustomerBillsStore.getState().removeBill(id);
+    },
+  });
+
+  // Expose identifiers for quick debugging
+  useEffect(() => {
+    const ids = {
+      _id: (customer as any)?._id,
+      customerId: (customer as any)?.customerId || (user as any)?.customerId,
+      secretKey: (customer as any)?.secretKey || (user as any)?.secretKey,
+    } as { _id?: string; customerId?: string; secretKey?: string };
+    try {
+      ;(window as any).__customerIds = ids;
+      console.log("[CustomerBillsPage] Identifiers", ids);
+    } catch {}
+  }, [customer?._id, (customer as any)?.customerId, (customer as any)?.secretKey, (user as any)?.id, (user as any)?.customerId, (user as any)?.secretKey]);
 
   // State for search and filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -280,6 +447,21 @@ export default function CustomerBillsPage() {
 
   // Track if bills have been fetched to prevent duplicate requests
   const billsFetchedRef = useRef(false);
+
+  // Debug: subscribe to store changes to confirm updates trigger
+  useEffect(() => {
+    const unsub = useCustomerBillsStore.subscribe((state) => {
+      try {
+        console.log("[CustomerBillsStore] change -> bills:", state.bills.length);
+      } catch {}
+    });
+    try {
+      ;(window as any).__getCustomerBills = () => useCustomerBillsStore.getState().bills;
+    } catch {}
+    return () => {
+      try { unsub(); } catch {}
+    };
+  }, []);
 
   // Reset bills fetched flag when customer changes
   useEffect(() => {
@@ -301,6 +483,9 @@ export default function CustomerBillsPage() {
       if (!identifiers._id && !identifiers.customerId && !identifiers.secretKey) return;
 
       billsFetchedRef.current = true;
+      try {
+        console.log("[CustomerBillsPage] fetchBillsByCustomer() with", identifiers);
+      } catch {}
       await fetchBillsByCustomer(identifiers);
     };
 
