@@ -115,20 +115,33 @@ export function BillingBrowser({
     }
   ) => {
     try {
-      // TODO: Implement payment update API call with actual bill store
-      console.log("Updating payment for bill:", billId, paymentData);
+      // Persist to Sanity via store
+      const ok = await useSanityBillStore.getState().updateBill(billId, {
+        paymentStatus: paymentData.paymentStatus,
+        paidAmount: paymentData.paidAmount,
+        balanceAmount: paymentData.balanceAmount,
+        status: paymentData.paymentStatus === "paid" ? "paid" : "pending",
+      });
 
-      if (
-        selectedBill &&
-        (selectedBill.id === billId || selectedBill._id === billId)
-      ) {
+      if (!ok) {
+        throw new Error("Failed to update bill in store");
+      }
+
+      // Optimistically update currently open modal bill
+      if (selectedBill && (selectedBill.id === billId || selectedBill._id === billId)) {
         setSelectedBill({
           ...selectedBill,
           paymentStatus: paymentData.paymentStatus,
           paidAmount: paymentData.paidAmount,
           balanceAmount: paymentData.balanceAmount,
+          status: paymentData.paymentStatus === "paid" ? "paid" : "pending",
         });
       }
+
+      // Ensure list reflects latest data even if realtime misses an event
+      try {
+        await fetchBills();
+      } catch {}
     } catch (error) {
       console.error("Error updating payment:", error);
       throw error;
