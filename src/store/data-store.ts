@@ -143,6 +143,9 @@ interface DataStore {
     userId?: string;
     customerId?: string;
   }) => Promise<void>;
+  // Convenience wrappers
+  loadAdminData: (opts?: { userId?: string; customerId?: string }) => Promise<void>;
+  loadCustomerData: (opts: { userId?: string; customerId?: string }) => Promise<void>;
   syncWithSanity: () => Promise<void>;
   // Lighter refreshes to avoid full-page like resets
   refreshActiveProducts: () => Promise<void>;
@@ -211,12 +214,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
       // Build loading steps conditionally
       const loadingSteps: Array<{ name: string; query: string; progress: number; params?: Record<string, any> }> = [];
 
-      // Common lightweight data
-      loadingSteps.push({ name: "brands", query: queries.brands, progress: 20 });
-      loadingSteps.push({ name: "categories", query: queries.categories, progress: 40 });
-      loadingSteps.push({ name: "products", query: queries.activeProducts, progress: 60 });
-
       if (isCustomer) {
+        // For customers, do NOT fetch brands/categories/products to minimize payload
         // Fetch only the logged-in user's doc
         const singleUserQuery = `*[_type == "user" && (_id == $userId || customerId == $customerId)][0]`;
         const userParams = {
@@ -230,6 +229,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
         loadingSteps.push({ name: "bills", query: queries.customerBills(String(cid)), progress: 100 });
       } else {
         // Admin or unspecified role: full datasets
+        loadingSteps.push({ name: "brands", query: queries.brands, progress: 20 });
+        loadingSteps.push({ name: "categories", query: queries.categories, progress: 40 });
+        loadingSteps.push({ name: "products", query: queries.activeProducts, progress: 60 });
         loadingSteps.push({ name: "users", query: queries.users, progress: 80 });
         loadingSteps.push({ name: "bills", query: queries.bills, progress: 100 });
       }
@@ -417,6 +419,16 @@ export const useDataStore = create<DataStore>((set, get) => ({
         });
       }
     }
+  },
+
+  // Convenience: explicit admin bootstrap
+  loadAdminData: async (opts) => {
+    await get().loadInitialData({ role: "admin", userId: opts?.userId, customerId: opts?.customerId });
+  },
+
+  // Convenience: explicit customer bootstrap
+  loadCustomerData: async (opts) => {
+    await get().loadInitialData({ role: "customer", userId: opts.userId, customerId: opts.customerId });
   },
 
   // Sync with Sanity (refresh data)

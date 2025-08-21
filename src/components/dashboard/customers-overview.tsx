@@ -5,10 +5,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Plus, Phone, MapPin } from "lucide-react";
+import { useAuthStore } from "@/store/auth-store";
 
 export function CustomersOverview() {
   const { customers, isLoading } = useCustomers();
   const { bills } = useBills();
+  const { user, role } = useAuthStore();
+
+  // When viewing as a customer, scope data to only their records (no extra API calls)
+  const isCustomer = role?.toLowerCase?.() === "customer";
+  const currentUserId = user?.id as string | undefined;
+  const currentCustomerId = (user as any)?.customerId as string | undefined;
+
+  const visibleCustomers = isCustomer
+    ? customers.filter(
+        (c: any) => c?._id === currentUserId || c?.customerId === currentCustomerId
+      )
+    : customers;
+
+  const visibleBills = isCustomer
+    ? bills.filter(
+        (b: any) =>
+          b?.customer?._id === currentUserId ||
+          b?.customer?.customerId === currentCustomerId
+      )
+    : bills;
 
   if (isLoading) {
     return (
@@ -31,9 +52,9 @@ export function CustomersOverview() {
   }
 
   // Calculate customer stats
-  const activeCustomers = customers.filter((customer) => customer.isActive);
-  const customersWithPendingBills = customers.filter((customer) =>
-    bills.some(
+  const activeCustomers = visibleCustomers.filter((customer) => customer.isActive);
+  const customersWithPendingBills = visibleCustomers.filter((customer) =>
+    visibleBills.some(
       (bill) =>
         bill.customer._id === customer._id && bill.paymentStatus === "pending"
     )
@@ -51,7 +72,7 @@ export function CustomersOverview() {
                   Total Customers
                 </p>
                 <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {customers.length}
+                  {visibleCustomers.length}
                 </p>
               </div>
               <Users className="h-8 w-8 text-blue-500" />
@@ -106,8 +127,8 @@ export function CustomersOverview() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {customers.slice(0, 5).map((customer) => {
-              const customerBills = bills.filter(
+            {visibleCustomers.slice(0, 5).map((customer) => {
+              const customerBills = visibleBills.filter(
                 (bill) => bill.customer._id === customer._id
               );
               const pendingBills = customerBills.filter(
@@ -145,7 +166,7 @@ export function CustomersOverview() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex-1  gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="flex w-fit gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-end">
                     <div className="text-right">
                       <p className="font-medium text-white">
                         ₹{totalSpent.toLocaleString()}

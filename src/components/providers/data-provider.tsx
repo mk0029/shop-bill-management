@@ -9,17 +9,26 @@ interface DataProviderProps {
 }
 
 export function DataProvider({ children }: DataProviderProps) {
-  const { loadInitialData, isLoading, error } = useDataStore();
+  const { loadAdminData, loadCustomerData, isLoading, error } = useDataStore();
   const { user, role } = useAuthStore();
 
   useEffect(() => {
-    // Load data when component mounts or auth context changes
-    loadInitialData({
-      role: role || undefined,
-      userId: user?.id,
-      customerId: (user as any)?.customerId,
-    });
-  }, [loadInitialData, role, user?.id, (user as any)?.customerId]);
+    // Avoid triggering loads until role is determined
+    if (!role) return;
+
+    if (role === "customer") {
+      loadCustomerData({
+        userId: user?.id,
+        customerId: (user as any)?.customerId,
+      });
+    } else if (role === "admin") {
+      loadAdminData({
+        userId: user?.id,
+        customerId: (user as any)?.customerId,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, user?.id, (user as any)?.customerId]);
 
   // Show loading state
   if (isLoading) {
@@ -44,7 +53,14 @@ export function DataProvider({ children }: DataProviderProps) {
           <p className="text-gray-400 mb-4">{error}</p>
           <div className="space-y-2">
             <button
-              onClick={() => loadInitialData()}
+              onClick={() => {
+                if (!role) return;
+                if (role === "customer") {
+                  loadCustomerData({ userId: user?.id, customerId: (user as any)?.customerId });
+                } else if (role === "admin") {
+                  loadAdminData({ userId: user?.id, customerId: (user as any)?.customerId });
+                }
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors mr-2"
             >
               Retry

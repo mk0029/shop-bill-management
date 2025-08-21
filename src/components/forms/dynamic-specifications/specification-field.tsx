@@ -165,7 +165,7 @@ export function SpecificationField({
       </Label>
       {renderField()}
       {hasError && errorMessage && (
-        <p className="text-red-400 text-sm">{errorMessage}</p>
+        <p  suppressHydrationWarning className="text-red-400 text-sm">{errorMessage}</p>
       )}
     </div>
   );

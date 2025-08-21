@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useDataStore } from "@/store/data-store";
+import { useAuthStore } from "@/store/auth-store";
 import { useBrandStore } from "@/store/brand-store";
 import { useCategoryStore } from "@/store/category-store";
 import { useInventoryStore } from "@/store/inventory-store";
@@ -15,11 +16,14 @@ export function SanityRealtimeProvider({
   children,
 }: SanityRealtimeProviderProps) {
   const {
-    loadInitialData,
+    loadAdminData,
+    loadCustomerData,
     setupRealtimeListeners: setupDataRealtime,
     cleanupRealtimeListeners: cleanupDataRealtime,
     isRealtimeConnected: isDataConnected,
   } = useDataStore();
+
+  const { role, user } = useAuthStore();
 
   const {
     fetchBrands,
@@ -47,21 +51,34 @@ export function SanityRealtimeProvider({
       console.log("🚀 Initializing all stores with Sanity real-time...");
 
       try {
-        // Load initial data for all stores
-        await Promise.all([
-          loadInitialData(),
-          fetchBrands(),
-          fetchCategories(),
-        ]);
+        if (!role) return; // wait until role known
 
-        // Initialize inventory real-time (uses the sanity realtime store)
-        initInventoryRealtime();
+        if (role === "admin") {
+          // Admin: full datasets + realtime for brands/categories
+          await Promise.all([
+            loadAdminData({ userId: user?.id, customerId: (user as any)?.customerId }),
+            fetchBrands(),
+            fetchCategories(),
+          ]);
+        } else if (role === "customer") {
+          // Customer: only own user + bills
+          await loadCustomerData({ userId: user?.id, customerId: (user as any)?.customerId });
+        }
+
+        // Initialize inventory realtime only for admin flows
+        if (role === "admin") {
+          initInventoryRealtime();
+        }
 
         console.log("✅ All stores initialized with real-time capabilities");
 
         // Show success toast when all connections are established
         const checkConnections = () => {
-          if (isDataConnected && isBrandConnected && isCategoryConnected) {
+          const expectBrandsCats = role === "admin";
+          const allReady = expectBrandsCats
+            ? (isDataConnected && isBrandConnected && isCategoryConnected)
+            : isDataConnected;
+          if (allReady) {
             toast({
               title: "🟢 Sanity Real-time Connected",
               description: "All data will sync automatically across devices",
@@ -93,7 +110,7 @@ export function SanityRealtimeProvider({
       cleanupCategoryRealtime();
       cleanupInventoryRealtime();
     };
-  }, []);
+  }, [role, user?.id, (user as any)?.customerId]);
 
   return <>{children}</>;
 }
