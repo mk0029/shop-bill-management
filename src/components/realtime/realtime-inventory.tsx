@@ -9,10 +9,14 @@ import { motion } from "framer-motion";
 
 // Helper: Currency formatter
 const formatCurrency = (amount: number) => {
-  if (amount < 1000) return `₹${amount}`;
+  // Guard against NaN/Infinity and negatives
+  if (!Number.isFinite(amount) || isNaN(amount)) return "₹0";
+  if (amount < 0) amount = 0;
+  if (amount < 1000) return `₹${Math.round(amount).toLocaleString()}`;
   const k = amount / 1000;
   const decimals = k < 10 ? 2 : k < 100 ? 1 : 0;
-  return `₹${k.toFixed(decimals)}K`;
+  const safeK = Number.isFinite(k) ? k : 0;
+  return `₹${safeK.toFixed(decimals)}K`;
 };
 
 export const RealtimeInventoryStats = () => {
@@ -41,14 +45,18 @@ export const RealtimeInventoryStats = () => {
       const newStats = products.reduce(
         (acc, product) => {
           acc.total++;
-          if (product.isActive) acc.active++;
-          if (product.inventory.currentStock <= 0) acc.outOfStock++;
-          else if (
-            product.inventory.currentStock <= product.inventory.minimumStock
-          )
-            acc.lowStock++;
-          acc.totalValue +=
-            product.inventory.currentStock * product.pricing.purchasePrice;
+          if (product?.isActive) acc.active++;
+
+          const currentStock = Number(product?.inventory?.currentStock) || 0;
+          const minimumStock = Number(product?.inventory?.minimumStock) || 0;
+          const purchasePrice = Number(product?.pricing?.purchasePrice) || 0;
+
+          if (currentStock <= 0) acc.outOfStock++;
+          else if (currentStock <= minimumStock) acc.lowStock++;
+
+          // Add guarded numeric aggregation
+          const lineValue = currentStock * purchasePrice;
+          acc.totalValue += Number.isFinite(lineValue) ? lineValue : 0;
           return acc;
         },
         {
@@ -121,11 +129,11 @@ export const RealtimeInventoryStats = () => {
             <CardContent>
               <div className="flex items-center justify-between relative">
                 <div>
-                  <p
+                  <div
                     suppressHydrationWarning
                     className="text-gray-400 text-xs sm:text-sm font-medium">
                     {stat.title}
-                  </p>
+                  </div>
                   <p
                     className={`text-xl md:text-2xl font-bold !leading-[125%] mt-1 ${stat.valueClass}`}>
                     {stat.value}
