@@ -84,7 +84,7 @@ export const useCustomerBillsStore = create<CustomerBillsState>((set) => ({
       if (!res.ok) throw new Error("Failed to fetch bills");
       const data = await res.json();
       const bills = Array.isArray(data?.bills) ? (data.bills as CustomerBill[]) : [];
-      console.log(`[CustomerBillsStore] fetchByIdentifier by=${by} id=${identifier} -> ${bills.length} bills`);
+      // debug log removed for production
       set({ bills, loading: false });
       return bills;
     } catch (e) {
@@ -107,14 +107,14 @@ export const useCustomerBillsStore = create<CustomerBillsState>((set) => ({
           const data = await res.json();
           if (Array.isArray(data?.bills) && data.bills.length > 0) {
             const bills = data.bills as CustomerBill[];
-            console.log(`[CustomerBillsStore] fetchBillsByCustomer hit by=${c.by} id=${c.id} -> ${bills.length} bills`);
+            // debug log removed for production
             set({ bills, loading: false });
             return bills;
           }
         }
       }
 
-      console.log(`[CustomerBillsStore] fetchBillsByCustomer no bills found for provided identifiers`);
+      // debug log removed for production
       set({ bills: [], loading: false });
       return [];
     } catch (e) {

@@ -10,6 +10,7 @@ import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { useSanityRealtimeStore } from "@/store/sanity-realtime-store";
 import { BillFormData, Customer, Item } from "@/types";
 import { RealtimeBillList, RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { FileText, Plus, Search, Calculator } from "lucide-react";
@@ -56,6 +57,24 @@ export function BillingBrowser({
   }, [fetchBills]);
 
   // Real-time updates are managed centrally via RealtimeProvider/useRealtimeSync
+  // Ensure the Sanity realtime bus is connected and bill store listeners are registered
+  useEffect(() => {
+    // Connect global realtime and init bill listeners
+    try {
+      useSanityRealtimeStore.getState().connect();
+    } catch {}
+    try {
+      useSanityBillStore.getState().initializeRealtime();
+    } catch {}
+
+    return () => {
+      // Cleanup listeners; keep global connection if other pages rely on it
+      try {
+        useSanityBillStore.getState().cleanupRealtime();
+      } catch {}
+      // Do not force global disconnect here to avoid tearing down for other consumers
+    };
+  }, []);
 
   // Transform customers data (users with customer role)
   const transformedCustomers: Customer[] = customers.map((customer) => ({

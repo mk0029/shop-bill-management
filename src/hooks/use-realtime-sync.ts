@@ -120,7 +120,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
         case "appear":
           // Silently add the new bill to both stores
           billStore.addBill(result as any);
-          console.log(`✅ New bill added: #${result.billNumber || result._id}`);
+          // info log removed for production
           try {
             const { user, role } = useAuthStore.getState();
             const currentSanityId = (user as any)?.id;
@@ -132,17 +132,14 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
             );
             if (role?.toLowerCase?.() === "customer" && belongs) {
               useCustomerBillsStore.getState().addOrUpdateBill(result as any);
-              console.log("[Global->CustomerStore] appear matched -> upsert", {
-                id: (result as any)?._id,
-                bn: (result as any)?.billNumber,
-              });
+              // info log removed for production
             }
           } catch {}
           break;
         case "update":
           // Silently update the bill in both stores
           billStore.updateBill(result._id, result as any);
-          console.log(`🔄 Bill updated: #${result.billNumber || result._id}`);
+          // info log removed for production
           try {
             const { user, role } = useAuthStore.getState();
             const currentSanityId = (user as any)?.id;
@@ -154,17 +151,14 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
             );
             if (role?.toLowerCase?.() === "customer" && belongs) {
               useCustomerBillsStore.getState().addOrUpdateBill(result as any);
-              console.log("[Global->CustomerStore] update matched -> upsert", {
-                id: (result as any)?._id,
-                bn: (result as any)?.billNumber,
-              });
+              // info log removed for production
             }
           } catch {}
           break;
         case "disappear":
           // Silently remove the bill from both stores
           billStore.deleteBill(result._id);
-          console.log(`🗑️ Bill removed: #${result.billNumber || result._id}`);
+          // info log removed for production
           try {
             const { user, role } = useAuthStore.getState();
             const currentSanityId = (user as any)?.id;
@@ -178,10 +172,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
             );
             if (role?.toLowerCase?.() === "customer" && belongs) {
               useCustomerBillsStore.getState().removeBill((result as any)?._id);
-              console.log("[Global->CustomerStore] disappear matched -> remove", {
-                id: (result as any)?._id,
-                bn: (result as any)?.billNumber,
-              });
+              // info log removed for production
             }
           } catch {}
           break;
@@ -195,7 +186,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
     (transition: string, result: SanityDocument | null) => {
       // Validate that we have the required data for product operations
       if (!result) {
-        console.warn("⚠️ Product update received with no result data");
+        // warn removed for production
         return;
       }
 
@@ -207,8 +198,8 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
           // Check if this is a complete product with all required fields
           if (result.brand?._id && result.category?._id && result.name) {
             // Use the realtime-specific update method instead
-            inventoryStore.handleRealtimeProductUpdate(result);
-            console.log(`✅ Product ${transition}: ${result.name}`);
+            inventoryStore.handleRealtimeProductUpdate(result as any);
+            // info log removed for production
 
             // Only show critical alerts (low stock) if notifications are enabled
             if (
@@ -221,14 +212,12 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
             }
           } else {
             // If we don't have complete data, just refresh the inventory
-            console.warn(
-              "⚠️ Incomplete product data received, refreshing inventory..."
-            );
+            // warn removed for production
             inventoryStore.fetchProducts();
           }
           break;
         case "disappear":
-          console.log(`🗑️ Product removed: ${result?.name || "Unknown"}`);
+          // info log removed for production
           // Refresh inventory to remove the deleted product
           inventoryStore.fetchProducts();
           break;
@@ -244,13 +233,13 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
       switch (transition) {
         case "appear":
-          console.log(`✅ New user added: ${result.name || result._id}`);
+          // info log removed for production
           break;
         case "update":
-          console.log(`🔄 User updated: ${result.name || result._id}`);
+          // info log removed for production
           break;
         case "disappear":
-          console.log(`🗑️ User removed: ${result.name || result._id}`);
+          // info log removed for production
           break;
       }
     },
@@ -262,9 +251,7 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
     (transition: string, result: SanityDocument | null) => {
       // Validate that we have the required data for stock transaction operations
       if (!result) {
-        console.warn(
-          "⚠️ Stock transaction update received with no result data"
-        );
+        // warn removed for production
         return;
       }
 
@@ -273,16 +260,10 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
           // Validate required fields for stock transaction
           if (result.product?._ref && result.type && result.quantity) {
             // Use the realtime-specific update method
-            inventoryStore.handleRealtimeStockTransaction(result);
-            console.log(
-              `📊 Stock transaction: ${result.type} - ${result.quantity} units`
-            );
+            inventoryStore.handleRealtimeStockTransaction(result as any);
+            // info log removed for production
           } else {
-            console.warn("⚠️ Incomplete stock transaction data:", {
-              productId: result.product?._ref,
-              type: result.type,
-              quantity: result.quantity,
-            });
+            // warn removed for production
             // Refresh stock transactions to get the latest data
             inventoryStore.fetchStockTransactions();
           }
@@ -307,13 +288,13 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
       switch (transition) {
         case "appear":
-          console.log(`✅ New brand added: ${result.name || result._id}`);
+          // info log removed for production
           break;
         case "update":
-          console.log(`🔄 Brand updated: ${result.name || result._id}`);
+          // info log removed for production
           break;
         case "disappear":
-          console.log(`🗑️ Brand removed: ${result.name || result._id}`);
+          // info log removed for production
           break;
       }
     },
@@ -327,13 +308,13 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
       switch (transition) {
         case "appear":
-          console.log(`✅ New category added: ${result.name || result._id}`);
+          // info log removed for production
           break;
         case "update":
-          console.log(`🔄 Category updated: ${result.name || result._id}`);
+          // info log removed for production
           break;
         case "disappear":
-          console.log(`🗑️ Category removed: ${result.name || result._id}`);
+          // info log removed for production
           break;
       }
     },
@@ -385,17 +366,10 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
           isConnectedRef.current = false;
           // Check if it's a timeout error
           if (error.message?.includes("No activity within 45000 milliseconds")) {
-            toast({
-              title: "Connection Timeout",
-              description: "Please refresh the page to restore real-time updates",
-              action: {
-                label: "Refresh Now",
-                onClick: () => window.location.reload()
-              },
-              duration: 0 // Keep visible until user acts
-            });
+            // Simplified toast for production-safe typing
+            toast.error("Connection timeout. Please refresh the page to restore real-time updates.");
           } else {
-            console.error("❌ Real-time connection error:", error);
+            // error log removed for production
             // Silently attempt to reconnect after 3 seconds
             setTimeout(() => {
               if (!isConnectedRef.current) {
@@ -406,13 +380,12 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
           }
         },
         complete: () => {
-          // console.log("Real-time connection completed");
           isConnectedRef.current = false;
         },
       });
 
     isConnectedRef.current = true;
-    // console.log("✅ Connected to Sanity real-time updates");
+    // connection log removed for production
   }, [effectiveDocumentTypes, handleRealtimeUpdate]);
 
   // Disconnect from real-time updates
@@ -575,16 +548,13 @@ export const useDocumentListener = <T extends SanityDocument>(
           }, 5000);
         },
         complete: () => {
-          console.log(`Listener for ${documentType} completed`);
+          // listener completion log removed for production
           setIsConnected(false);
         },
       });
 
     setIsConnected(true);
-    console.log(
-      `Listening to ${documentType} changes`,
-      documentId ? `(ID: ${documentId})` : ""
-    );
+    // listener start log removed for production
 
     // Cleanup on unmount
     return () => {
@@ -684,15 +654,15 @@ export const useCustomerBillSync = (customerId?: string) => {
         switch (transition) {
           case "appear":
             billStore.addBill(result as any);
-            console.log(`✅ New bill for customer: #${result.billNumber}`);
+            // info log removed for production
             break;
           case "update":
             billStore.updateBill(result._id, result as any);
-            console.log(`🔄 Bill updated for customer: #${result.billNumber}`);
+            // info log removed for production
             break;
           case "disappear":
             billStore.deleteBill(result._id);
-            console.log(`🗑️ Bill removed for customer: #${result.billNumber}`);
+            // info log removed for production
             break;
         }
       }
@@ -707,8 +677,8 @@ export const useCustomerBillSync = (customerId?: string) => {
   return {
     bills: billStore.bills.filter(
       (bill) =>
-        (bill.customer as unknown)?._ref === customerId ||
-        (bill.customer as unknown)?._id === customerId
+        (bill.customer as any)?._ref === customerId ||
+        (bill.customer as any)?._id === customerId
     ),
   };
 };

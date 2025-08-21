@@ -293,7 +293,7 @@ export default function CustomerBillsPage() {
         const res = await sanityClient.fetch<{ _id?: string }>(q, { cid: currentBizId });
         if (!cancelled && res?._id) {
           resolvedSanityIdRef.current = res._id;
-          console.log("[CustomerBillsPage] Resolved Sanity _id from customerId", { cid: currentBizId, _id: res._id });
+          // debug log removed for production
         }
       } catch {}
     })();
@@ -320,18 +320,7 @@ export default function CustomerBillsPage() {
           (doc?.customer?.customerId && eqBiz(doc.customer.customerId, currentBizId)) ||
           (doc?.billId && eqBiz(doc.billId, currentBizId))
       );
-      try {
-        console.log("[CustomerBillsPage][GlobalListen] appear", {
-          belongs,
-          currentSanityId,
-          currentBizId,
-          ref: doc?.customer?._ref,
-          _id: doc?.customer?._id,
-          custBizIdFromRef: doc?.customer?.customerId,
-          billId: doc?._id,
-          bn: doc?.billNumber,
-        });
-      } catch {}
+      // debug log removed for production
       if (belongs) {
         useCustomerBillsStore.getState().addOrUpdateBill(doc as any);
         return;
@@ -347,14 +336,7 @@ export default function CustomerBillsPage() {
           .then((r) => {
             const candidate = r?.customerId || r?.bizId || r?.businessId || r?.id;
             const match = eqBiz(candidate, currentBizId);
-            try {
-              console.log("[CustomerBillsPage][GlobalListen] appear fallback-resolve", {
-                refId,
-                resolvedBizId: candidate,
-                currentBizId,
-                match,
-              });
-            } catch {}
+            // debug log removed for production
             if (match) {
               useCustomerBillsStore.getState().addOrUpdateBill(doc as any);
             }
@@ -373,18 +355,7 @@ export default function CustomerBillsPage() {
           (result?.customer?.customerId && eqBiz(result.customer.customerId, currentBizId)) ||
           (result?.billId && eqBiz(result.billId, currentBizId))
       );
-      try {
-        console.log("[CustomerBillsPage][GlobalListen] update", {
-          belongs,
-          currentSanityId,
-          currentBizId,
-          ref: result?.customer?._ref,
-          _id: result?.customer?._id,
-          custBizIdFromRef: result?.customer?.customerId,
-          billId: result?._id,
-          bn: result?.billNumber,
-        });
-      } catch {}
+      // debug log removed for production
       if (belongs) {
         useCustomerBillsStore.getState().addOrUpdateBill(result as any);
         return;
@@ -400,14 +371,7 @@ export default function CustomerBillsPage() {
           .then((r) => {
             const candidate = r?.customerId || r?.bizId || r?.businessId || r?.id;
             const match = eqBiz(candidate, currentBizId);
-            try {
-              console.log("[CustomerBillsPage][GlobalListen] update fallback-resolve", {
-                refId,
-                resolvedBizId: candidate,
-                currentBizId,
-                match,
-              });
-            } catch {}
+            // debug log removed for production
             if (match) {
               useCustomerBillsStore.getState().addOrUpdateBill(result as any);
             }
@@ -417,7 +381,7 @@ export default function CustomerBillsPage() {
     },
     onDisappear: (id) => {
       // Optimistic remove; if this wasn't our bill the check above would have blocked anyway
-      try { console.log("[CustomerBillsPage][GlobalListen] disappear", { id }); } catch {}
+      // debug log removed for production
       useCustomerBillsStore.getState().removeBill(id);
     },
   });
@@ -429,10 +393,7 @@ export default function CustomerBillsPage() {
       customerId: (customer as any)?.customerId || (user as any)?.customerId,
       secretKey: (customer as any)?.secretKey || (user as any)?.secretKey,
     } as { _id?: string; customerId?: string; secretKey?: string };
-    try {
-      ;(window as any).__customerIds = ids;
-      console.log("[CustomerBillsPage] Identifiers", ids);
-    } catch {}
+    // debug exposure removed for production
   }, [customer?._id, (customer as any)?.customerId, (customer as any)?.secretKey, (user as any)?.id, (user as any)?.customerId, (user as any)?.secretKey]);
 
   // State for search and filter
@@ -451,13 +412,9 @@ export default function CustomerBillsPage() {
   // Debug: subscribe to store changes to confirm updates trigger
   useEffect(() => {
     const unsub = useCustomerBillsStore.subscribe((state) => {
-      try {
-        console.log("[CustomerBillsStore] change -> bills:", state.bills.length);
-      } catch {}
+      // debug log removed for production
     });
-    try {
-      ;(window as any).__getCustomerBills = () => useCustomerBillsStore.getState().bills;
-    } catch {}
+    // debug helper removed for production
     return () => {
       try { unsub(); } catch {}
     };
@@ -483,9 +440,7 @@ export default function CustomerBillsPage() {
       if (!identifiers._id && !identifiers.customerId && !identifiers.secretKey) return;
 
       billsFetchedRef.current = true;
-      try {
-        console.log("[CustomerBillsPage] fetchBillsByCustomer() with", identifiers);
-      } catch {}
+      // debug log removed for production
       await fetchBillsByCustomer(identifiers);
     };
 
@@ -534,8 +489,7 @@ export default function CustomerBillsPage() {
 
   // Debug: log counts to verify rendering data path
   useEffect(() => {
-    console.log("[CustomerBillsPage] bills in store:", allBills.length);
-    console.log("[CustomerBillsPage] filtered bills:", filteredBills.length);
+    // debug counts removed for production
   }, [allBills.length, filteredBills.length]);
 
   // View bill details
