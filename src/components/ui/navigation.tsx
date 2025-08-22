@@ -22,7 +22,6 @@ import {
   History,
   Receipt,
   Building2,
-  Bell,
   Package,
   Shield,
   UserCog,
@@ -31,6 +30,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { canManageAdmins } from "@/lib/admin-utils";
 import { useUser } from "@clerk/nextjs";
 import InstallButton from "@/components/pwa/install-button";
+import NotificationsPopover from "@/components/ui/notifications-popover";
 
 interface NavigationItem {
   label: string;
@@ -415,10 +415,7 @@ export function Navigation() {
             <div className="flex items-center gap-x-3">
               {" "}
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" className="relative">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-0.5 sm:-top-1 right-0.5 sm:-right-1 h-2 w-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></span>
-                </Button>
+                <NotificationsPopover />
               </div>
               <Button
                 variant="ghost"

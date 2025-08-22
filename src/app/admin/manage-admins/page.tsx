@@ -40,7 +40,7 @@ export default function ManageAdminsPage() {
   const activeAdmins = admins.filter((admin: any) => admin.isActive).length;
 
   return (
-    <div className="space-y-6 max-md:pb-4">
+    <div className="space-y-6 max-md:space-y-4 max-md:pb-4">
       <AdminManagementHeader
         totalAdmins={totalAdmins}
         activeAdmins={activeAdmins}

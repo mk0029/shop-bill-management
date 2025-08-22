@@ -6,10 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useBills } from "@/hooks/use-sanity-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Eye,
-  Download,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -225,17 +222,17 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                 role="button"
                 aria-label={`View details for bill ${bill.billNumber}`}
               >
-                <CardContent className="p-4">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <CardContent className="p-2 sm:p-4">
+                  <div className="flex flex-row lg:items-center lg:justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="max-md:hidden w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
                         <StatusIcon className="w-6 h-6 text-blue-400" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-medium text-white truncate">
                           Bill #{bill.billNumber}
                         </h3>
-                        <p className="text-sm text-gray-400 truncate">
+                        <p className="text-sm text-gray-400 truncate capitalize">
                           {bill.customer?.name || "Unknown Customer"} •{" "}
                           {bill.serviceType || "Service"}
                         </p>
@@ -272,85 +269,6 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                             {bill.paymentStatus || bill.status}
                           </Badge>
                         </div>
-                      </div>
-
-                      <div className="flex gap-2 flex-shrink-0">
-                        {bill.status !== "draft" ? (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onBillClick?.(bill);
-                              }}
-                              className="flex-1 sm:flex-none">
-                              <Eye className="w-4 h-4 mr-2" />
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex-1 sm:flex-none">
-                              <Download className="w-4 h-4 mr-2" />
-                              PDF
-                            </Button>
-                          </>
-                        ) : (
-                          (onDeleteBill || onCompleteDraft) && (
-                            <>
-                              {onCompleteDraft && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={async () => {
-                                    setRowLoading((s) => ({
-                                      ...s,
-                                      [bill._id]: { ...(s[bill._id] || {}), completing: true },
-                                    }));
-                                    try {
-                                      await onCompleteDraft(bill);
-                                    } finally {
-                                      setRowLoading((s) => ({
-                                        ...s,
-                                        [bill._id]: { ...(s[bill._id] || {}), completing: false },
-                                      }));
-                                    }
-                                  }}
-                                  disabled={rowLoading[bill._id]?.completing}
-                                  className="flex-1 sm:flex-none">
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  {rowLoading[bill._id]?.completing ? "Opening..." : "Make Complete"}
-                                </Button>
-                              )}
-                              {onDeleteBill && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={async () => {
-                                    setRowLoading((s) => ({
-                                      ...s,
-                                      [bill._id]: { ...(s[bill._id] || {}), deleting: true },
-                                    }));
-                                    try {
-                                      await onDeleteBill(bill);
-                                    } finally {
-                                      setRowLoading((s) => ({
-                                        ...s,
-                                        [bill._id]: { ...(s[bill._id] || {}), deleting: false },
-                                      }));
-                                    }
-                                  }}
-                                  disabled={rowLoading[bill._id]?.deleting}
-                                  className="flex-1 sm:flex-none">
-                                  <AlertCircle className="w-4 h-4 mr-2" />
-                                  {rowLoading[bill._id]?.deleting ? "Deleting..." : "Delete"}
-                                </Button>
-                              )}
-                            </>
-                          )
-                        )}
                       </div>
                     </div>
                   </div>
@@ -465,17 +383,17 @@ export const RealtimeBillStats: React.FC<{
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-4">
+          <CardContent className="max-sm:p-2">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-gray-400 text-sm font-medium">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
                   Total Amount
                 </p>
-                <p className="text-xl lg:text-2xl font-bold text-white mt-1 truncate">
+                <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white sm:mt-1 truncate">
                   ₹{stats.totalAmount.toLocaleString()}
                 </p>
               </div>
-              <Receipt className="w-8 h-8 text-blue-400 flex-shrink-0 ml-2" />
+              <Receipt className="hidden md:inline-block w-8 h-8 text-blue-400 flex-shrink-0 ml-2" />
             </div>
           </CardContent>
         </Card>
@@ -487,15 +405,15 @@ export const RealtimeBillStats: React.FC<{
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-4">
+          <CardContent className="max-sm:p-2">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-gray-400 text-sm font-medium">Paid Amount</p>
-                <p className="text-xl lg:text-2xl font-bold text-green-400 mt-1 truncate">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">Paid Amount</p>
+                <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-green-400 sm:mt-1 truncate">
                   ₹{stats.paidAmount.toLocaleString()}
                 </p>
               </div>
-              <CheckCircle className="w-8 h-8 text-green-400 flex-shrink-0 ml-2" />
+              <CheckCircle className="hidden md:inline-block w-8 h-8 text-green-400 flex-shrink-0 ml-2" />
             </div>
           </CardContent>
         </Card>
@@ -507,32 +425,32 @@ export const RealtimeBillStats: React.FC<{
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 0.3 }}>
         <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-4">
+          <CardContent className="max-sm:p-2">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-gray-400 text-sm font-medium">
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
                   Pending Amount
                 </p>
-                <p className="text-xl lg:text-2xl font-bold text-orange-400 mt-1 truncate">
+                <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-orange-400 sm:mt-1 truncate">
                   ₹{stats.pendingAmount.toLocaleString()}
                 </p>
               </div>
-              <Clock className="w-8 h-8 text-orange-400 flex-shrink-0 ml-2" />
+              <Clock className="hidden md:inline-block w-8 h-8 text-orange-400 flex-shrink-0 ml-2" />
             </div>
           </CardContent>
         </Card>
       </motion.div>
 
       <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="p-4">
+        <CardContent className="max-sm:p-2">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-gray-400 text-sm font-medium">Overdue</p>
-              <p className="text-xl lg:text-2xl font-bold text-red-400 mt-1">
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">Overdue</p>
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-red-400 sm:mt-1">
                 {stats.overdue}
               </p>
             </div>
-            <AlertCircle className="w-8 h-8 text-red-400 flex-shrink-0 ml-2" />
+            <AlertCircle className="hidden md:inline-block w-8 h-8 text-red-400 flex-shrink-0 ml-2" />
           </div>
         </CardContent>
       </Card>

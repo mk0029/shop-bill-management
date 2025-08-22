@@ -23,7 +23,7 @@ export default function CustomerTable({
   if (isLoading) {
     return (
       <Card className="bg-gray-900 border-gray-800">
-        <div className="p-4 md:p-6">
+        <div className="p-3 md:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">Customers</h2>
             <div className="flex items-center gap-2 text-gray-400">
@@ -45,7 +45,7 @@ export default function CustomerTable({
   if (customers.length === 0) {
     return (
       <Card className="bg-gray-900 border-gray-800">
-        <div className="p-4 md:p-6">
+        <div className="p-3 md:p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Customers</h2>
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
@@ -63,7 +63,7 @@ export default function CustomerTable({
 
   return (
     <Card className="bg-gray-900 border-gray-800">
-      <div className="p-4 md:p-6">
+      <div className="p-3 md:p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Customers</h2>
         <div className="overflow-x-auto">
           <table className="w-full">

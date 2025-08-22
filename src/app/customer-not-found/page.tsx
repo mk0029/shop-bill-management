@@ -129,7 +129,7 @@ export default function CustomerNotFoundPage() {
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 max-md:space-y-4">
             {/* Information Message */}
             <div className="sm:p-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
               <div className="flex items-start gap-3">

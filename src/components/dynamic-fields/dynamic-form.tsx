@@ -408,7 +408,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   const formProps = renderAsForm ? { onSubmit: handleSubmit } : {};
 
   return (
-    <FormWrapper {...formProps} className={cn("space-y-6", className)}>
+    <FormWrapper {...formProps} className={cn("space-y-6 max-md:space-y-4", className)}>
       {/* Grouped Fields */}
       {groupFields &&
         showGroupHeaders &&

@@ -77,7 +77,7 @@ export function DeleteConfirmation({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md" title="">
-      <div className="space-y-6">
+      <div className="space-y-6 max-md:space-y-4">
         {/* Header */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-red-600/20 rounded-lg flex items-center justify-center">

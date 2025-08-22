@@ -48,7 +48,7 @@ export function BillForm({
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Bill" size="xl">
       <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Left Column - Bill Details */}
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 max-md:space-y-4">
           <CustomerSelection
             customers={customers}
             selectedCustomerId={formData.customerId || ""}
@@ -73,7 +73,7 @@ export function BillForm({
         </div>
 
         {/* Right Column - Selected Items & Total */}
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 max-md:space-y-4">
           {/* Selected Items */}
           <div>
             <h3 className="text-base sm:text-lg font-semibold text-white mb-3 flex items-center gap-2">

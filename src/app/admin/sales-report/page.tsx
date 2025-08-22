@@ -94,7 +94,7 @@ export default function SalesReportPage() {
   // Show message if no data is available
   if (analytics.totalBills === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-md:space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
@@ -125,7 +125,7 @@ export default function SalesReportPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -168,6 +168,7 @@ export default function SalesReportPage() {
               onClick={() => setDateRange("month")}>
               This Month
             </Button>
+
             <Button
               variant={dateRange === "quarter" ? "default" : "outline"}
               size="sm"

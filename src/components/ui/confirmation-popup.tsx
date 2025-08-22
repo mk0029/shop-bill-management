@@ -141,7 +141,7 @@ export function ConfirmationPopup({
               className="w-full max-w-md">
               <Card
                 className={`${colorClasses.bg} ${colorClasses.border} border shadow-2xl`}>
-                <div className="p-4 md:p-6">
+                <div className="p-3 md:p-6">
                   {/* Close Button */}
                   <div className="flex justify-end mb-4">
                     <Button

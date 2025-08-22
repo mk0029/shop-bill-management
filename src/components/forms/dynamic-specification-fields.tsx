@@ -43,7 +43,7 @@ export function DynamicSpecificationFields({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       {/* Required Fields */}
       <RequiredFieldsSection
         requiredFields={fieldMapping.requiredFields}

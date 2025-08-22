@@ -31,7 +31,7 @@ export default function TestStoresPage() {
   const wireGauges = getOptionsByCategory("wire", "wireGauge");
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-md:space-y-4">
       <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
         Store Testing Page
       </h1>

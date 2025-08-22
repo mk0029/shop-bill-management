@@ -44,7 +44,7 @@ export default function InventoryPage() {
   } = useInventoryManagement();
 
   return (
-    <div className="space-y-6 max-md:pb-4">
+    <div className="space-y-6 max-md:space-y-4 max-md:pb-4">
       <RealtimeInventoryHeader
         onAddProduct={() => router.push("/admin/inventory/add")}
         totalProducts={products.length}

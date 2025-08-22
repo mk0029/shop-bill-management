@@ -36,7 +36,7 @@ export class StockHistoryErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-md:space-y-4">
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
               Stock History

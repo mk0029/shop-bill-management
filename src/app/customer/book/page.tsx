@@ -37,7 +37,7 @@ export default function CustomerBillingBook() {
   );
 
   return (
-    <div className="space-y-6 max-md:pb-4">
+    <div className="space-y-6 max-md:space-y-4 max-md:pb-4">
       <BillsHeader
         totalBills={totalBills}
         paidBills={paidBills}

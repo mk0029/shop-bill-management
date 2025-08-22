@@ -293,7 +293,7 @@ export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormPro
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       {rewindingForms.map((form) => (
         <SingleRewindingForm
           key={form.id}

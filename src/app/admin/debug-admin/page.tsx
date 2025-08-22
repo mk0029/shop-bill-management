@@ -22,7 +22,7 @@ export default function DebugAdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6 max-md:space-y-4">
         <div className="flex items-center gap-3">
           <Settings className="h-8 w-8 text-blue-500" />
           <div>

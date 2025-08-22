@@ -156,7 +156,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4">
       {/* Basic Information */}
       <div className="space-y-4">
         <div className="space-y-2">

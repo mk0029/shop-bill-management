@@ -69,7 +69,7 @@ export function LoginForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4" noValidate>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-gray-300 font-medium">

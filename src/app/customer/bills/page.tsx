@@ -540,7 +540,7 @@ export default function CustomerBillsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -650,7 +650,7 @@ export default function CustomerBillsPage() {
         size="lg"
         title={`Bill #${selectedBill?.billNumber}`}>
         {selectedBill && (
-          <div className="space-y-6">
+          <div className="space-y-6 max-md:space-y-4">
             {/* Bill Info */}
             <div className="bg-gray-800 rounded-lg p-4">
               <h4 className="font-medium text-white mb-3">Bill Information</h4>

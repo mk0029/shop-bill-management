@@ -19,7 +19,7 @@ export const ProfileHeader = ({
 }: ProfileHeaderProps) => {
   // Using SanityImage component for consistent image handling
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

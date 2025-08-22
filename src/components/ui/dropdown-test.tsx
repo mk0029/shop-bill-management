@@ -20,7 +20,7 @@ export function DropdownTest() {
 
   return (
     <div className="p-6 bg-gray-900 min-h-screen">
-      <div className="max-w-md mx-auto space-y-6">
+      <div className="max-w-md mx-auto space-y-6 max-md:space-y-4">
         <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
           Dropdown Test
         </h1>

@@ -124,7 +124,7 @@ export default function DraftBillsPage() {
   }, [router, startTransition]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       <div className="flex items-center justify-between">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
@@ -153,7 +153,7 @@ export default function DraftBillsPage() {
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
-        <div className="p-4 md:p-6">
+        <div className="p-3 md:p-6">
           <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5" />
             Local Drafts

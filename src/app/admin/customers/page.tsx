@@ -38,7 +38,7 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="space-y-6 max-md:pb-3">
+    <div className="space-y-6 max-md:space-y-4 max-md:pb-3">
       <CustomersPageHeader onAddCustomer={navigateToAddCustomer} />
 
       <CustomerStatsCards stats={stats} isLoading={isLoadingStats} />

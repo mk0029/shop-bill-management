@@ -36,7 +36,7 @@ export default function CustomerDetailModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Customer Details" size="lg">
-      <div className="space-y-6">
+      <div className="space-y-6 max-md:space-y-4">
         {/* Customer Header */}
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">

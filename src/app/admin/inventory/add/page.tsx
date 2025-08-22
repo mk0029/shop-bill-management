@@ -43,7 +43,7 @@ export default function AddInventoryItemPage() {
   } = useMultipleInventoryForm();
 
   return (
-    <div className="space-y-6 max-md:pb-4">
+    <div className="space-y-6 max-md:space-y-4 max-md:pb-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" onClick={() => router.back()} className="p-2">
@@ -59,7 +59,7 @@ export default function AddInventoryItemPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4">
         {formDataList.map((formData, index) => (
           <Card key={formData.id} className="p-6 relative">
             {/* Form number indicator */}
@@ -81,7 +81,7 @@ export default function AddInventoryItemPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               {/* Left Column: Basic Information and Specifications */}
-              <div className="space-y-6">
+              <div className="space-y-6 max-md:space-y-4">
                 <BasicInfoSection
                   formData={formData}
                   categories={categories}
@@ -116,7 +116,7 @@ export default function AddInventoryItemPage() {
               </div>
 
               {/* Right Column: Pricing and Static Information */}
-              <div className="space-y-6">
+              <div className="space-y-6 max-md:space-y-4">
                 <PricingSection
                   formData={formData}
                   errors={errors[formData.id] || {}}

@@ -170,7 +170,7 @@ export default function EnhancedWhatsAppSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button
@@ -195,7 +195,7 @@ export default function EnhancedWhatsAppSettingsPage() {
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className="space-y-6">
+          className="space-y-6 max-md:space-y-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="business" className="flex items-center gap-2">
               <Building2 className="w-4 h-4" />
@@ -224,7 +224,7 @@ export default function EnhancedWhatsAppSettingsPage() {
                   Business Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 max-md:space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="businessName" className="text-gray-300">
@@ -512,7 +512,7 @@ export default function EnhancedWhatsAppSettingsPage() {
 
           {/* Settings Tab */}
           <TabsContent value="settings">
-            <div className="space-y-6">
+            <div className="space-y-6 max-md:space-y-4">
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
@@ -603,7 +603,7 @@ export default function EnhancedWhatsAppSettingsPage() {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics">
-            <div className="space-y-6">
+            <div className="space-y-6 max-md:space-y-4">
               {/* Sanity Connection Test */}
               <SanityWhatsAppTest />
 

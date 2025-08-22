@@ -98,7 +98,7 @@ export default function SecuritySettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       <div className="flex items-center gap-4">
         <Button variant="outline" onClick={() => router.back()} className="flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" /> Back
@@ -110,7 +110,7 @@ export default function SecuritySettingsPage() {
       </div>
 
       {/* Change Password */}
-      <form onSubmit={onChangePassword} className="space-y-6">
+      <form onSubmit={onChangePassword} className="space-y-6 max-md:space-y-4">
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">

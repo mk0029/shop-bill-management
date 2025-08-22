@@ -206,11 +206,11 @@ export const BillDetailModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <div className="relative">
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 max-md:space-y-4 md:p-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex-1">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+              <h2 className="text-lg sm:text-2xl sm:text-3xl font-bold text-white mb-3">
                 Bill #{bill.billNumber || bill._id}
               </h2>
 
@@ -283,16 +283,16 @@ export const BillDetailModal = ({
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                     <div className="flex-1">
                       <p className="font-medium text-white mb-1">
-                        {item?.product?.name || "Unknown Item"}
+                        {item?.product?.name||item.name || "Unknown Item"}
                       </p>
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {item.brand && (
+                        {/* {item.brand && (
                           <Badge
                             variant="outline"
                             className="text-blue-400 border-blue-600">
                             {item.brand}
                           </Badge>
-                        )}
+                        )} */}
                         {item.category && (
                           <Badge
                             variant="outline"
@@ -446,8 +446,8 @@ export const BillDetailModal = ({
 
           {/* Payment Controls */}
           {showPaymentControls && onUpdatePayment && bill.paymentStatus !== "paid" && (
-              <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-4 border border-gray-700">
+                <div className="flex items-center justify-between">
                   <h3 className="font-medium text-white flex items-center gap-2">
                     <CreditCard className="w-4 h-4" />
                     Update Payment

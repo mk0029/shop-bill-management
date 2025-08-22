@@ -171,7 +171,7 @@ export default function EditInventoryItemPage() {
 
   if (itemNotFound) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-md:space-y-4">
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
@@ -203,7 +203,7 @@ export default function EditInventoryItemPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button
@@ -233,7 +233,7 @@ export default function EditInventoryItemPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4">
             {/* Basic Information */}
             <div className="space-y-2">
               <Label htmlFor="category" className="text-gray-300">
@@ -542,7 +542,7 @@ export default function EditInventoryItemPage() {
         size="md"
         title="Item Updated Successfully!"
       >
-        <div className="space-y-6">
+        <div className="space-y-6 max-md:space-y-4">
           <div className="text-center">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Package className=" h-6 w-6 sm:w-8 sm:h-8  text-white" />

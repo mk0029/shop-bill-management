@@ -32,7 +32,7 @@ export default function CustomerProfile() {
   } = useCustomerProfile();
 
   return (
-    <div className="space-y-6 max-md:pb-4">
+    <div className="space-y-6 max-md:space-y-4 max-md:pb-4">
       <ProfileHeader
         user={user}
         isEditing={isEditing}

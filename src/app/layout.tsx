@@ -8,6 +8,7 @@ import PWAInstaller from "@/components/pwa/pwa-installer";
 import OfflineSync from "@/components/pwa/offline-sync";
 import OfflineWarning from "@/components/pwa/offline-warning";
 import AuthPrehydrate from "@/components/providers/auth-prehydrate";
+import NotificationsBridge from "@/components/realtime/notifications-bridge";
 import "./globals.css";
 
 // Force dynamic rendering for all pages
@@ -49,7 +50,9 @@ export default function RootLayout({
           <AuthPrehydrate />
           <DataProvider>
             {children}
-            <PWAInstaller />
+            {/* Global realtime notifications bridge */}
+            <NotificationsBridge />
+            {/* <PWAInstaller /> */}
             <OfflineSync />
             <OfflineWarning />
           </DataProvider>

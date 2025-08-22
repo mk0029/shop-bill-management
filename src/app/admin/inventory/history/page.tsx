@@ -175,7 +175,7 @@ export default function StockHistoryPage() {
   }, []);
   return (
     <RealtimeProvider enableNotifications={false}>
-      <div className="space-y-6">
+      <div className="space-y-6 max-md:space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -417,7 +417,7 @@ export default function StockHistoryPage() {
           size="md"
           title={`Transaction #${selectedTransaction?.id || "Unknown"}`}>
           {selectedTransaction && (
-            <div className="space-y-6 ">
+            <div className="space-y-6 max-md:space-y-4 ">
               {/* Transaction Info */}
               <div className="bg-gray-800 rounded-lg p-4">
                 <h4 className="font-medium text-white mb-3">
