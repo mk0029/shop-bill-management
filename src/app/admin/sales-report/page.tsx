@@ -154,7 +154,7 @@ export default function SalesReportPage() {
 
       {/* Date Range Selector */}
       <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
-        <div className="flex items-center gap-4">
+        <div className="flex overflow-x-auto items-center gap-4">
           <div className="flex gap-2">
             <Button
               variant={dateRange === "week" ? "default" : "outline"}
