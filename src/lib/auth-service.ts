@@ -40,10 +40,6 @@ export async function authenticateUser(
   credentials: LoginCredentials
 ): Promise<AuthResult> {
   try {
-    console.log("🔐 Authenticating user:", {
-      customerId: credentials.customerId,
-    });
-
     // Query Sanity for user with matching customerId and secretKey
     const query = `*[_type == "user" && customerId == $customerId && secretKey == $secretKey][0] {
       _id,
@@ -66,7 +62,6 @@ export async function authenticateUser(
     });
 
     if (!user) {
-      console.log("❌ User not found or invalid credentials");
 
       // Check if user exists with just customerId (wrong secret key)
       const userExistsQuery = `*[_type == "user" && customerId == $customerId][0] {
@@ -97,7 +92,6 @@ export async function authenticateUser(
 
     // Check if account is active
     if (!user.isActive) {
-      console.log("❌ Account is disabled");
       return {
         success: false,
         error: "Your account has been disabled. Please contact support.",
@@ -105,11 +99,6 @@ export async function authenticateUser(
       };
     }
 
-    console.log("✅ Authentication successful:", {
-      userId: user._id,
-      role: user.role,
-      name: user.name,
-    });
 
     // Update last login time
     try {
@@ -212,7 +201,6 @@ export async function createCustomerAccount(data: {
     // Sync user to Strapi
     try {
       await strapiService.sync.syncUserToStrapi(createdUser);
-      console.log('✅ User synced to Strapi successfully');
     } catch (strapiError) {
       console.warn('⚠️ Failed to sync user to Strapi:', strapiError);
       // Don't fail the operation if Strapi sync fails

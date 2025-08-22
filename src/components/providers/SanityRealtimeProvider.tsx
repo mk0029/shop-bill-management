@@ -48,7 +48,6 @@ export function SanityRealtimeProvider({
 
   useEffect(() => {
     const initializeAllStores = async () => {
-      console.log("🚀 Initializing all stores with Sanity real-time...");
 
       try {
         if (!role) return; // wait until role known
@@ -69,8 +68,6 @@ export function SanityRealtimeProvider({
         if (role === "admin") {
           initInventoryRealtime();
         }
-
-        console.log("✅ All stores initialized with real-time capabilities");
 
         // Show success toast when all connections are established
         const checkConnections = () => {
@@ -104,7 +101,6 @@ export function SanityRealtimeProvider({
 
     // Cleanup on unmount
     return () => {
-      console.log("🧹 Cleaning up all real-time connections...");
       cleanupDataRealtime();
       cleanupBrandRealtime();
       cleanupCategoryRealtime();

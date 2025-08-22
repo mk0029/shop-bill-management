@@ -70,13 +70,11 @@ export function BillingBrowser({
   };
 
   const handleViewBill = (bill: any) => {
-    console.log("Viewing bill:", bill);
     setSelectedBill(bill);
   };
 
   const handleDownloadPDF = (bill: any) => {
     // TODO: Implement PDF download
-    console.log("Download PDF for bill:", bill.id || bill._id);
   };
 
   const handleUpdatePayment = async (

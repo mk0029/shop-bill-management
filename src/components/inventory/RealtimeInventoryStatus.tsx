@@ -21,7 +21,6 @@ export function RealtimeInventoryStatus() {
   // The store already handles real-time updates via SanityRealtimeProvider
 
   useRealtimeEvent("inventory:low_stock", (data) => {
-    console.log("🔔 Low stock alert:", data.productName);
     // You could show a toast notification here
   });
 

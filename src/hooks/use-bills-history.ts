@@ -102,7 +102,6 @@ export const useBillsHistory = () => {
 
   const handleDownloadBill = async (bill: any) => {
     try {
-      console.log("Downloading bill:", bill.billId);
       // PDF generation implementation
     } catch (error) {
       console.error("Error downloading bill:", error);

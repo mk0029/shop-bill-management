@@ -34,7 +34,6 @@ export function useCustomerActions() {
   const deleteCustomer = useCallback(async (customerId: string) => {
     // TODO: Implement actual delete functionality
     try {
-      console.log("Deleting customer:", customerId);
       // await deleteCustomerAPI(customerId);
       // Show success message
       // Refresh customer list
@@ -48,7 +47,6 @@ export function useCustomerActions() {
     async (customerId: string, isActive: boolean) => {
       // TODO: Implement status toggle functionality
       try {
-        console.log("Toggling customer status:", customerId, isActive);
         // await updateCustomerStatus(customerId, !isActive);
         // Show success message
         // Refresh customer list
@@ -62,7 +60,6 @@ export function useCustomerActions() {
 
   const exportCustomerData = useCallback((customers: CustomerWithStats[]) => {
     // TODO: Implement export functionality
-    console.log("Exporting customer data:", customers.length, "customers");
     // Generate CSV/Excel file
     // Trigger download
   }, []);

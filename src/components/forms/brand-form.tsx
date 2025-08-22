@@ -90,7 +90,6 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
 
     // Prevent double submission
     if (isSubmitting || isLoading) {
-      console.log("🚫 Preventing duplicate submission");
       return;
     }
 
@@ -122,7 +121,6 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
         success = await updateBrand(brand._id, brandData);
       } else {
         // Create new brand
-        console.log("🏷️ Creating brand:", brandData.name);
         success = await addBrand(brandData);
       }
 

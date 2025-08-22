@@ -589,11 +589,8 @@ const initialCategoryMappings = [
 ];
 
 async function migrateSpecifications() {
-  console.log("🚀 Starting specification migration to Sanity...");
-
   try {
     // Create specification options
-    console.log("📝 Creating specification options...");
     const specificationDocs = initialSpecifications.map((spec) => ({
       _type: "specificationOption",
       ...spec,
@@ -601,24 +598,13 @@ async function migrateSpecifications() {
     }));
 
     const createdSpecs = await client.createOrReplace(specificationDocs);
-    console.log(`✅ Created ${createdSpecs.length} specification options`);
 
     // Create category field mappings
-    console.log("📝 Creating category field mappings...");
     const mappingDocs = initialCategoryMappings.map((mapping) => ({
       _type: "categoryFieldMapping",
       ...mapping,
     }));
 
-    const createdMappings = await client.createOrReplace(mappingDocs);
-    console.log(`✅ Created ${createdMappings.length} category field mappings`);
-
-    console.log("🎉 Migration completed successfully!");
-    console.log("");
-    console.log("Next steps:");
-    console.log("1. Go to your Sanity Studio to verify the data");
-    console.log("2. Visit /admin/specifications in your app to manage options");
-    console.log("3. Test the dynamic fields in /admin/inventory/add");
   } catch (error) {
     console.error("❌ Migration failed:", error);
     process.exit(1);

@@ -58,13 +58,11 @@ export const useSanityDocumentListener = (
   useEffect(() => {
     // This is a simplified approach - in a real implementation,
     // you might want to create a more sophisticated event system
-    console.log(`Setting up listener for ${documentType} changes`);
 
     // For now, we rely on the stores' built-in real-time updates
     // The callback would be triggered through the store's real-time handlers
 
     return () => {
-      console.log(`Cleaning up listener for ${documentType} changes`);
     };
   }, [documentType, callback]);
 };
@@ -132,21 +130,7 @@ export const useSanityAlerts = () => {
     )
     .map((product) => {
       // Debug logging to see what we're getting
-      console.log("🔍 Low stock product data:", {
-        _id: product._id,
-        name: product.name,
-        productId: product.productId,
-        brand: product.brand,
-        category: product.category,
-        specifications: product.specifications,
-        nameType: typeof product.name,
-        isUUID:
-          product.name &&
-          typeof product.name === "string" &&
-          product.name.includes("-"),
-      });
-
-      return {
+     return {
         ...product,
         // Use intelligent product naming
         name: generateEnhancedProductName(product),
@@ -167,19 +151,7 @@ export const useSanityAlerts = () => {
     )
     .map((product) => {
       // Debug logging to see what we're getting
-      console.log("🔍 Out of stock product data:", {
-        _id: product._id,
-        name: product.name,
-        productId: product.productId,
-        brand: product.brand,
-        category: product.category,
-        specifications: product.specifications,
-        nameType: typeof product.name,
-        isUUID:
-          product.name &&
-          typeof product.name === "string" &&
-          product.name.includes("-"),
-      });
+   
 
       return {
         ...product,

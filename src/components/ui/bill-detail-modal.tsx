@@ -119,7 +119,6 @@ export const BillDetailModal = ({
   // Prefer explicit totals from bill to match list cards
   const explicitTotal = toNum((bill as any).totalAmount ?? (bill as any).total);
   const grandTotal = explicitTotal > 0 ? explicitTotal : itemsTotal + additionalCharges;
-console.log("grandTotal", grandTotal,'fulll bill',bill);
   // Payment calculation logic
   const calculatePaymentDetails = () => {
     const alreadyPaid = toNum(bill.paidAmount || 0);
@@ -185,7 +184,6 @@ console.log("grandTotal", grandTotal,'fulll bill',bill);
     setPartialAmount("");
     onClose();
   };
-  console.log("bill dffjvn r fer ev fe vf ", bill);
   const additionalChargesF = [
     {
       label: "Transportation Fee",

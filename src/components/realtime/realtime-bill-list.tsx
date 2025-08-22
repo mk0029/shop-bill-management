@@ -454,7 +454,6 @@ export const RealtimeBillStats: React.FC<{
       }
     );
 
-    console.log("📊 Stats updated in real-time:", newStats);
     setStats(newStats);
   }, [bills]);
 

@@ -21,11 +21,8 @@ export const useCustomerData = (): UseCustomerDataReturn => {
   const [error, setError] = useState<Error | null>(null);
 
   const fetchCustomerData = useCallback(async () => {
-    console.log("🔍 fetchCustomerData called with user:", user);
-    console.log("🔍 User secretKey:", user?.secretKey);
 
     if (!user?.secretKey) {
-      console.log("❌ No user or secretKey found, not fetching customer data");
       setLoading(false);
       return;
     }
@@ -40,7 +37,6 @@ export const useCustomerData = (): UseCustomerDataReturn => {
         throw new Error("Failed to fetch customer data");
       }
       const customerData = await response.json();
-      console.log("✅ Customer data fetched:", customerData);
       setCustomer(customerData);
 
       // Don't fetch bills here - let the individual pages handle that

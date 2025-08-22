@@ -136,7 +136,6 @@ export default function BillHistoryPage() {
 
   const handleDownloadPDF = (bill: Bill) => {
     // TODO: Implement PDF download
-    console.log("Download PDF for bill:", bill.id);
   };
 
   const handleUpdatePayment = async (
@@ -153,7 +152,6 @@ export default function BillHistoryPage() {
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
       });
-      console.log("✅ Payment updated successfully");
     } catch (error) {
       console.error("❌ Error updating payment:", error);
       throw error;

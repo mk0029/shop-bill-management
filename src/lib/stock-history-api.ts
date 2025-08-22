@@ -122,8 +122,6 @@ export const stockHistoryApi = {
         "createdBy": coalesce(createdByName, createdBy, "admin")
       } | order(transactionDate desc)`;
 
-      console.log("🔍 Stock transactions query:", query);
-      console.log("🔍 Query params:", params);
 
       const transactions = await sanityClient.fetch(query, params);
 
@@ -131,42 +129,28 @@ export const stockHistoryApi = {
       const filteredTransactions = transactions.filter((t: any) => {
         // Filter out soft delete transactions
         if (t.notes && t.notes.includes("SOFT DELETE")) {
-          console.log("🔍 Filtering out soft delete transaction:", t._id);
           return false;
         }
 
         // Filter out transactions with deleted products
         if (t.product && t.product.deleted === true) {
-          console.log(
-            "🔍 Filtering out transaction with deleted product:",
-            t._id,
-            t.product.name
-          );
+
           return false;
         }
 
         // Filter out transactions with inactive products
         if (t.product && t.product.isActive !== true) {
-          console.log(
-            "🔍 Filtering out transaction with inactive product:",
-            t._id,
-            t.product.name,
-            "isActive:",
-            t.product.isActive
-          );
+         
           return false;
         }
 
         // Filter out transactions without valid product references
         if (!t.product || !t.product._id) {
-          console.log("🔍 Filtering out transaction with no product:", t._id);
           return false;
         }
 
         return true;
       });
-
-      console.log("🔍 Filtered transactions:", filteredTransactions.length);
 
       // Transform to match HistoryTransaction interface
       const transformedTransactions: HistoryTransaction[] =
@@ -194,10 +178,7 @@ export const stockHistoryApi = {
           product: { name: t.product?.name },
         }));
 
-      console.log(
-        "🔍 Transformed transactions:",
-        transformedTransactions.length
-      );
+     
       return { success: true, data: transformedTransactions };
     } catch (error) {
       console.error("Error fetching stock transactions:", error);
@@ -261,8 +242,7 @@ export const stockHistoryApi = {
         }
       }`;
 
-      console.log("🔍 Summary query:", query);
-      console.log("🔍 Summary params:", params);
+    
 
       const result = await sanityClient.fetch(query, params);
       const transactions = result.allTransactions || [];
@@ -287,10 +267,7 @@ export const stockHistoryApi = {
         return true;
       });
 
-      console.log(
-        "🔍 Summary filtered transactions:",
-        filteredTransactions.length
-      );
+     
 
       // Calculate summary statistics
       let totalTransactions = 0;
@@ -300,36 +277,21 @@ export const stockHistoryApi = {
       let totalSalesAmount = 0;
 
       filteredTransactions.forEach((t: any) => {
-        console.log("🔍 Processing transaction:", {
-          type: t.type,
-          totalAmount: t.totalAmount,
-        });
+      
         totalTransactions++;
 
         if (t.type === "purchase") {
           totalPurchases++;
           totalPurchaseAmount += t.totalAmount || 0;
-          console.log("🔍 Purchase found:", {
-            totalAmount: t.totalAmount,
-            runningTotal: totalPurchaseAmount,
-          });
+       
         } else if (t.type === "sale") {
           totalSales++;
           totalSalesAmount += t.totalAmount || 0;
-          console.log("🔍 Sale found:", {
-            totalAmount: t.totalAmount,
-            runningTotal: totalSalesAmount,
-          });
+        
         }
       });
 
-      console.log("🔍 Final summary calculations:", {
-        totalTransactions,
-        totalPurchases,
-        totalSales,
-        totalPurchaseAmount,
-        totalSalesAmount,
-      });
+     
 
       const netProfit = totalSalesAmount - totalPurchaseAmount;
 

@@ -138,8 +138,6 @@ const categoryMappings = [
 ];
 
 async function createCategoryFieldMappings() {
-  console.log("🚀 Starting category field mapping creation...");
-
   try {
     // First, fetch all categories to create a mapping from slug to ID
     const categories = await client.fetch(`
@@ -149,17 +147,12 @@ async function createCategoryFieldMappings() {
         slug
       }
     `);
-
-    console.log("📋 Found categories:", categories);
-
     const categoryMap = {};
     categories.forEach((cat) => {
       if (cat.slug?.current) {
         categoryMap[cat.slug.current] = cat._id;
       }
     });
-
-    console.log("🗺️ Category map:", categoryMap);
 
     // Fetch all field definitions to create a mapping from fieldKey to ID
     const fieldDefinitions = await client.fetch(`
@@ -168,22 +161,15 @@ async function createCategoryFieldMappings() {
         fieldKey
       }
     `);
-
-    console.log("📋 Found field definitions:", fieldDefinitions);
-
     const fieldMap = {};
     fieldDefinitions.forEach((field) => {
       fieldMap[field.fieldKey] = field._id;
     });
-
-    console.log("🗺️ Field map:", fieldMap);
-
     // Create category field mappings
     for (const mapping of categoryMappings) {
       const categoryId = categoryMap[mapping.categorySlug];
 
       if (!categoryId) {
-        console.log(`❌ No category found for ${mapping.categorySlug}`);
         continue;
       }
 
@@ -217,18 +203,9 @@ async function createCategoryFieldMappings() {
         description: mapping.description,
       };
 
-      console.log(
-        `🔄 Creating mapping for ${mapping.categorySlug}:`,
-        mappingDoc
-      );
 
-      const result = await client.create(mappingDoc);
-      console.log(
-        `✅ Created mapping ${result._id} for ${mapping.categorySlug}`
-      );
+
     }
-
-    console.log("🎉 Migration completed successfully!");
   } catch (error) {
     console.error("❌ Migration failed:", error);
     process.exit(1);

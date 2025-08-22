@@ -190,9 +190,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     const { isLoading } = get();
 
     if (isLoading || apiDebouncer.wasCalledRecently("fetch-products", 2000)) {
-      console.log(
-        "⏳ Skipping fetchProducts - recent fetch or already loading"
-      );
+     
       return;
     }
 
@@ -293,7 +291,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     const { isLoading } = get();
 
     if (isLoading) {
-      console.log("⏳ Skipping fetchInventorySummary - already loading");
       return;
     }
 
@@ -493,9 +490,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
 
       if (response.success) {
         const newProduct = response.data as Product;
-        console.log(
-          "✅ Product created in Sanity with initial stock, waiting for realtime sync..."
-        );
+    
         setTimeout(() => get().fetchInventorySummary(), 1000);
         return { success: true, data: newProduct, isUpdate: false };
       } else {
@@ -526,12 +521,9 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     if (!existingProduct) {
       // Prepend so the last added item shows at the top of the table
       set((state) => ({ products: [product, ...state.products] }));
-      console.log(`✅ Product created via realtime: ${product.name}`);
       setTimeout(() => get().fetchInventorySummary(), 500);
     } else {
-      console.log(
-        `🔄 Product already exists, skipping duplicate: ${product.name}`
-      );
+      
     }
   },
 
@@ -808,9 +800,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
         _id: productId,
         ...updates,
       } as Product)
-    );
-    on("inventory:low_stock", (data) =>
-      console.log(`Low stock alert: ${data.productName}`)
     );
   },
 

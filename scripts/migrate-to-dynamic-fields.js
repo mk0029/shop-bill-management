@@ -277,8 +277,6 @@ const FIELD_GROUPS = [
  * Create field groups
  */
 async function createFieldGroups() {
-  console.log("🏗️ Creating field groups...");
-
   const createdGroups = {};
 
   for (const group of FIELD_GROUPS) {
@@ -289,9 +287,7 @@ async function createFieldGroups() {
       });
 
       createdGroups[group.name] = created._id;
-      console.log(`✅ Created field group: ${group.label}`);
     } catch (error) {
-      console.error(`❌ Failed to create field group ${group.name}:`, error);
     }
   }
 
@@ -302,7 +298,6 @@ async function createFieldGroups() {
  * Create dynamic specification fields
  */
 async function createDynamicFields(fieldGroups) {
-  console.log("🔧 Creating dynamic specification fields...");
 
   const createdFields = {};
 
@@ -332,9 +327,7 @@ async function createDynamicFields(fieldGroups) {
       });
 
       createdFields[field.key] = created._id;
-      console.log(`✅ Created dynamic field: ${field.label} (${field.key})`);
     } catch (error) {
-      console.error(`❌ Failed to create dynamic field ${field.key}:`, error);
     }
   }
 
@@ -345,8 +338,6 @@ async function createDynamicFields(fieldGroups) {
  * Fetch existing categories
  */
 async function fetchCategories() {
-  console.log("📋 Fetching existing categories...");
-
   const query = `*[_type == "category" && isActive == true] {
     _id,
     name,
@@ -354,7 +345,6 @@ async function fetchCategories() {
   }`;
 
   const categories = await sanityClient.fetch(query);
-  console.log(`📊 Found ${categories.length} categories`);
 
   return categories;
 }
@@ -367,7 +357,6 @@ async function createEnhancedCategoryMappings(
   dynamicFields,
   fieldGroups
 ) {
-  console.log("🗺️ Creating enhanced category field mappings...");
 
   // Category type mappings based on category names
   const categoryTypeMappings = {
@@ -462,14 +451,10 @@ async function createEnhancedCategoryMappings(
         migrationStatus: "completed",
       });
 
-      console.log(
-        `✅ Created enhanced mapping for category: ${category.name} (${categoryType})`
-      );
+
     } catch (error) {
-      console.error(
-        `❌ Failed to create mapping for category ${category.name}:`,
-        error
-      );
+     
+      
     }
   }
 }
@@ -478,7 +463,6 @@ async function createEnhancedCategoryMappings(
  * Main migration function
  */
 async function runMigration() {
-  console.log("🚀 Starting migration to dynamic fields system...");
 
   try {
     // Step 1: Create field groups
@@ -497,15 +481,8 @@ async function runMigration() {
       fieldGroups
     );
 
-    console.log("✅ Migration completed successfully!");
-    console.log(`📊 Summary:`);
-    console.log(`   - Created ${Object.keys(fieldGroups).length} field groups`);
-    console.log(
-      `   - Created ${Object.keys(dynamicFields).length} dynamic fields`
-    );
-    console.log(`   - Created ${categories.length} enhanced category mappings`);
+   
   } catch (error) {
-    console.error("❌ Migration failed:", error);
     process.exit(1);
   }
 }
@@ -514,7 +491,6 @@ async function runMigration() {
  * Rollback migration (for testing)
  */
 async function rollbackMigration() {
-  console.log("🔄 Rolling back migration...");
 
   try {
     // Delete enhanced category mappings
@@ -532,7 +508,6 @@ async function rollbackMigration() {
       query: '*[_type == "fieldGroup"]',
     });
 
-    console.log("✅ Rollback completed successfully!");
   } catch (error) {
     console.error("❌ Rollback failed:", error);
     process.exit(1);
@@ -547,13 +522,7 @@ if (command === "migrate") {
 } else if (command === "rollback") {
   rollbackMigration();
 } else {
-  console.log("Usage:");
-  console.log(
-    "  node scripts/migrate-to-dynamic-fields.js migrate   - Run migration"
-  );
-  console.log(
-    "  node scripts/migrate-to-dynamic-fields.js rollback  - Rollback migration"
-  );
+
 }
 
 module.exports = {

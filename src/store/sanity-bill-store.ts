@@ -93,7 +93,6 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
         bills = await sanityClient.fetch(queries.bills);
       }
       set({ bills: bills || [], loading: false });
-      console.log("✅ Fetched bills:", bills?.length || 0);
     } catch (error) {
       console.error("❌ Error fetching bills:", error);
       set({
@@ -163,8 +162,6 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
       };
 
       const result = await sanityClient.create(newBill);
-      console.log("✅ Bill created in Sanity:", result.billNumber);
-
       // The real-time listener will automatically update the local state
       set({ loading: false });
       return result as Bill;
@@ -188,8 +185,6 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
           updatedAt: new Date().toISOString(),
         })
         .commit();
-
-      console.log("✅ Bill updated in Sanity:", result.billNumber);
       // The real-time listener will automatically update the local state
       return true;
     } catch (error) {
@@ -205,7 +200,6 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
   deleteBill: async (billId) => {
     try {
       await sanityClient.delete(billId);
-      console.log("✅ Bill deleted from Sanity:", billId);
       // The real-time listener will automatically update the local state
       return true;
     } catch (error) {
@@ -235,7 +229,6 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
 
     // Listen for real-time bill events from Sanity
     on("bill:created", (bill: Bill) => {
-      console.log("🔔 Real-time: Bill created", bill.billNumber);
       set((state) => ({
         bills: [bill, ...state.bills.filter((b) => b._id !== bill._id)],
       }));
@@ -244,7 +237,6 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
     on(
       "bill:updated",
       ({ billId, updates }: { billId: string; updates: Partial<Bill> }) => {
-        console.log("🔔 Real-time: Bill updated", billId);
         set((state) => ({
           bills: state.bills.map((bill) =>
             bill._id === billId ? { ...bill, ...updates } : bill
@@ -254,7 +246,6 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
     );
 
     on("bill:deleted", ({ billId }: { billId: string }) => {
-      console.log("🔔 Real-time: Bill deleted", billId);
       set((state) => ({
         bills: state.bills.filter((bill) => bill._id !== billId),
       }));

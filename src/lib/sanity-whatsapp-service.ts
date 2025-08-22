@@ -230,12 +230,7 @@ export class SanityWhatsAppService {
       //   .commit();
 
       // Mock implementation
-      console.log(
-        "Updating device usage:",
-        configId,
-        deviceName,
-        incrementCount
-      );
+   
     } catch (error) {
       console.error("Error updating device usage:", error);
       throw new Error("Failed to update device usage");
@@ -306,13 +301,7 @@ export class SanityWhatsAppService {
       // });
 
       // Mock implementation
-      console.log("Logging message delivery:", {
-        configId,
-        messageId,
-        deviceName,
-        status,
-        error,
-      });
+   
     } catch (error) {
       console.error("Error logging message delivery:", error);
     }

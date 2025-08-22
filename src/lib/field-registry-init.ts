@@ -12,18 +12,10 @@ import { DEFAULT_REGISTRY_CONFIG } from "@/constants/specification-constants";
  */
 export const initFieldRegistry = async (): Promise<void> => {
   try {
-    console.log("🚀 Initializing Dynamic Field Registry...");
 
     const startTime = performance.now();
     const registry = await initializeFieldRegistry(DEFAULT_REGISTRY_CONFIG);
     const endTime = performance.now();
-
-    console.log(
-      `✅ Field Registry initialized in ${(endTime - startTime).toFixed(2)}ms`
-    );
-    console.log(
-      `📊 Loaded ${registry.getAllFields().length} field configurations`
-    );
 
     // Log field summary
     const fieldsByType = registry.getAllFields().reduce(
@@ -34,7 +26,6 @@ export const initFieldRegistry = async (): Promise<void> => {
       {} as Record<string, number>
     );
 
-    console.log("📋 Field types loaded:", fieldsByType);
   } catch (error) {
     console.error("❌ Failed to initialize Field Registry:", error);
     throw error;
@@ -48,17 +39,6 @@ export const initFieldRegistryWithConfig = async (
   config: Partial<FieldRegistryConfig>
 ): Promise<void> => {
   try {
-    console.log("🚀 Initializing Dynamic Field Registry with custom config...");
-
-    const mergedConfig = { ...DEFAULT_REGISTRY_CONFIG, ...config };
-    const startTime = performance.now();
-    const registry = await initializeFieldRegistry(mergedConfig);
-    const endTime = performance.now();
-
-    console.log(
-      `✅ Field Registry initialized in ${(endTime - startTime).toFixed(2)}ms`
-    );
-    console.log("⚙️ Configuration:", mergedConfig);
   } catch (error) {
     console.error("❌ Failed to initialize Field Registry with config:", error);
     throw error;
@@ -115,7 +95,6 @@ export const autoInitFieldRegistry = async (): Promise<void> => {
 
   // Check if already initialized
   if (isFieldRegistryReady()) {
-    console.log("✅ Field Registry already initialized");
     return;
   }
 

@@ -116,7 +116,6 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
           isLoading: false,
           error: null,
         });
-        console.log("✅ Brand created in Sanity, waiting for realtime sync...");
         return true;
       }
       return false;
@@ -163,7 +162,6 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
           isLoading: false,
           error: null,
         });
-        console.log("✅ Brand updated in Sanity, waiting for realtime sync...");
         return true;
       }
       return false;
@@ -190,7 +188,6 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
         isLoading: false,
         error: null,
       });
-      console.log("✅ Brand deleted from Sanity, waiting for realtime sync...");
       return true;
     } catch (error) {
       console.error("Error deleting brand:", error);
@@ -224,8 +221,6 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
 
   // Force sync brands from Sanity (useful for resolving inconsistencies)
   forceSyncBrands: async () => {
-    console.log("🔄 Force syncing brands from Sanity...");
-
     try {
       const query = `*[_type == "brand"] | order(name asc) {
         _id,
@@ -247,8 +242,6 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
         lastFetched: new Date(),
         error: null,
       });
-
-      console.log(`✅ Force sync completed: ${brands.length} brands loaded`);
     } catch (error) {
       console.error("❌ Force sync failed:", error);
       set({
@@ -261,18 +254,11 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
   setupRealtimeListeners: () => {
     const { realtimeSubscription } = get();
     if (realtimeSubscription) return; // Already connected
-
-    console.log("🔌 Setting up brand real-time listeners...");
-
     const subscription = sanityClient.listen('*[_type == "brand"]').subscribe({
       next: (update) => {
-        console.log("📡 Brand real-time update:", update);
         set({ isRealtimeConnected: true });
-
-        const { brands } = get();
         const documentId = update.documentId;
         const document = update.result;
-
         switch (update.transition) {
           case "appear":
             if (document && document._type === "brand") {
@@ -283,9 +269,7 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
               if (!existingBrand) {
                 // Add new brand
                 set({ brands: [...brands, brandDocument] });
-                console.log(
-                  `✅ Brand created via realtime: ${brandDocument.name}`
-                );
+            
               } else {
                 // Update existing brand (in case of data changes)
                 const updatedBrands = brands.map((brand) =>
@@ -294,9 +278,7 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
                     : brand
                 );
                 set({ brands: updatedBrands });
-                console.log(
-                  `🔄 Brand updated via realtime appear: ${brandDocument.name}`
-                );
+               
               }
             }
             break;
@@ -311,9 +293,7 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
                   : brand
               );
               set({ brands: updatedBrands });
-              console.log(
-                `🔄 Brand updated via realtime: ${brandDocument.name}`
-              );
+             
             }
             break;
 
@@ -323,7 +303,6 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
               (brand) => brand._id !== documentId
             );
             set({ brands: filteredBrands });
-            console.log(`🗑️ Brand deleted via realtime: ${documentId}`);
             break;
         }
       },
@@ -348,7 +327,6 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
         realtimeSubscription: null,
         isRealtimeConnected: false,
       });
-      console.log("❌ Brand real-time listeners disconnected");
     }
   },
 }));

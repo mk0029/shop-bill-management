@@ -14,15 +14,12 @@ export function SanityRealtimeBillList() {
 
   // Listen for real-time bill updates
   useSanityRealtimeEvent("bill:created", (newBill: any) => {
-    console.log("🔔 New bill received via Sanity:", newBill.billNumber);
   });
 
   useSanityRealtimeEvent("bill:updated", (data: any) => {
-    console.log("🔔 Bill updated via Sanity:", data.billId);
   });
 
   useSanityRealtimeEvent("bill:deleted", (data: any) => {
-    console.log("🔔 Bill deleted via Sanity:", data.billId);
   });
 
   // Removed initial fetch: bills are loaded once globally and kept in sync via realtime

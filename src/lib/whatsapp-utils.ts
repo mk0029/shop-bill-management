@@ -376,11 +376,9 @@ export async function getWhatsAppConfig(): Promise<WhatsAppConfig> {
     );
     const config = await getWhatsAppConfigFromSanity();
     if (!config) {
-      console.log("No WhatsApp configuration found, using direct web.whatsapp.com sharing");
     }
     return config || defaultWhatsAppConfig;
   } catch (error) {
-    console.log("Using direct web.whatsapp.com sharing");
     return { ...defaultWhatsAppConfig };
   }
 }

@@ -24,8 +24,6 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
     const { subscription } = get();
     if (subscription) return;
 
-    console.log("🔌 Connecting to Sanity real-time...");
-
     // Listen to all document types we care about
     const newSubscription = sanityClient
       .listen(
@@ -33,8 +31,6 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
       )
       .subscribe({
         next: (update) => {
-          console.log("📡 Sanity real-time update:", update);
-
           const { listeners } = get();
           const documentType =
             update.result?._type || update.documentId?.split(".")[0];
@@ -218,8 +214,6 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
       subscription: newSubscription,
       isConnected: true,
     });
-
-    console.log("✅ Connected to Sanity real-time");
   },
 
   disconnect: () => {
@@ -227,18 +221,13 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
     if (subscription) {
       subscription.unsubscribe();
       set({ subscription: null, isConnected: false });
-      console.log("❌ Disconnected from Sanity real-time");
     }
   },
 
   emit: (event: string, data: any) => {
     // For Sanity, we don't emit events - we create/update documents
     // This is kept for compatibility with existing code
-    console.log(
-      "📤 Emit event (Sanity handles this automatically):",
-      event,
-      data
-    );
+    // no-op
   },
 
   on: (event: string, callback: (data: any) => void) => {

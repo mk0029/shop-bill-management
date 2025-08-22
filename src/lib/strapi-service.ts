@@ -531,8 +531,6 @@ export const strapiSyncService = {
       for (const user of sanityUsers) {
         await this.syncUserToStrapi(user);
       }
-
-      console.log(`Synced ${sanityUsers.length} users to Strapi`);
     } catch (error) {
       console.error('Error syncing all users to Strapi:', error);
     }

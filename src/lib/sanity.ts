@@ -22,21 +22,10 @@ export const sanityClient = createClient({
 // Debug token availability
 if (typeof window === "undefined") {
   // Server-side
-  console.log(
-    "Server-side Sanity token available:",
-    hasToken
-  );
-  console.log(
-    "Sanity config:",
-    {
-      projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "idji8ni7",
-      dataset: "live-shop",
-      perspective: effectivePerspective,
-    }
-  );
+ 
+  
 } else {
   // Client-side - should not have access to server token
-  console.log("Client-side Sanity setup - using read-only access");
 }
 // Image URL builder
 const builder = imageUrlBuilder(sanityClient);

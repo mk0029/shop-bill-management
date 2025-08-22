@@ -29,8 +29,6 @@ export async function checkExistingUserByPhone(
   phone: string
 ): Promise<boolean> {
   try {
-    console.log("🔍 Checking for existing user with phone:", phone);
-
     const query = `*[_type == "user" && phone == $phone][0] {
       _id,
       name,
@@ -41,11 +39,9 @@ export async function checkExistingUserByPhone(
     const existingUser = await sanityClient.fetch(query, { phone });
 
     if (existingUser) {
-      console.log("❌ User already exists with phone:", phone);
       return true;
     }
 
-    console.log("✅ No existing user found with phone:", phone);
     return false;
   } catch (error) {
     console.error("Error checking existing user:", error);
@@ -284,8 +280,6 @@ export async function createCustomer(customerData: {
   email?: string;
 }): Promise<FormSubmissionResult> {
   try {
-    console.log("📝 Creating customer in Sanity:", customerData);
-
     // Check for existing user with same phone number
     const userExists = await checkExistingUserByPhone(customerData.phone);
     if (userExists) {
@@ -323,9 +317,6 @@ export async function createCustomer(customerData: {
     };
 
     const result = await sanityClient.create(newCustomer);
-
-    console.log("✅ Customer created successfully:", result._id);
-
     return {
       success: true,
       data: {
@@ -367,10 +358,7 @@ export async function createProduct(productData: {
   };
   tags?: string[];
 }): Promise<FormSubmissionResult> {
-  try {
-    console.log("📦 Creating product in Sanity:", productData);
-
-    const productId = Buffer.from(
+  try {    const productId = Buffer.from(
       Date.now().toString() + Math.random().toString()
     )
       .toString("base64")
@@ -439,9 +427,7 @@ export async function createProduct(productData: {
           updatedAt: new Date().toISOString(),
         });
         categoryId = newCategory._id;
-        console.log(
-          `✅ Created new category: ${cleanCategoryName} with ID: ${categoryId}`
-        );
+
       }
 
       categoryReference = { _type: "reference", _ref: categoryId };
@@ -475,9 +461,6 @@ export async function createProduct(productData: {
     };
 
     const result = await sanityClient.create(newProduct);
-
-    console.log("✅ Product created successfully:", result._id);
-
     return {
       success: true,
       data: result,
@@ -501,8 +484,6 @@ export async function createBrand(brandData: {
   description?: string;
 }): Promise<FormSubmissionResult> {
   try {
-    console.log("🏷️ Creating brand in Sanity:", brandData);
-
     const newBrand = {
       _type: "brand",
       name: brandData.name,
@@ -514,9 +495,6 @@ export async function createBrand(brandData: {
     };
 
     const result = await sanityClient.create(newBrand);
-
-    console.log("✅ Brand created successfully:", result._id);
-
     return {
       success: true,
       data: result,
@@ -541,8 +519,6 @@ export async function createCategory(categoryData: {
   parentCategory?: string;
 }): Promise<FormSubmissionResult> {
   try {
-    console.log("📂 Creating category in Sanity:", categoryData);
-
     const newCategory = {
       _type: "category",
       name: categoryData.name,
@@ -557,11 +533,7 @@ export async function createCategory(categoryData: {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-
     const result = await sanityClient.create(newCategory);
-
-    console.log("✅ Category created successfully:", result._id);
-
     return {
       success: true,
       data: result,
@@ -607,8 +579,6 @@ export async function createBill(billData: {
   balanceAmount?: number;
 }): Promise<FormSubmissionResult> {
   try {
-    console.log("🧾 Creating bill in Sanity:", billData);
-
     // Step 1: Map and deduplicate bill items (if any). Support service-only bills with zero items.
     const hasItems = Array.isArray(billData.items) && billData.items.length > 0;
     const mappedItems = hasItems
@@ -628,13 +598,6 @@ export async function createBill(billData: {
       : [];
 
     const deduplicatedItems = hasItems ? deduplicateBillItems(mappedItems) : [];
-
-    console.log(
-      "🔄 Deduplicated items:",
-      deduplicatedItems.length,
-      "from",
-      billData.items.length
-    );
 
     // Step 2: Validate all items for basic integrity (only when items exist)
     if (hasItems) {
@@ -664,8 +627,6 @@ export async function createBill(billData: {
     let latestPrices = new Map();
 
     if (hasItems && standardItems.length > 0) {
-      console.log("📊 Batch validating stock and fetching prices...");
-
       // Run validation and price fetching in parallel to reduce API calls
       const [stockResult, pricesResult] = await Promise.all([
         validateStockAvailability(standardItems),
@@ -685,8 +646,6 @@ export async function createBill(billData: {
           data: { validationResults: stockValidation.validationResults },
         };
       }
-
-      console.log("✅ Stock validated and prices fetched successfully");
     }
 
     const billId = Buffer.from(Date.now().toString() + Math.random().toString())
@@ -763,7 +722,6 @@ export async function createBill(billData: {
     };
 
     // Step 7: Create bill with atomic stock updates (single transaction)
-    console.log("🚀 Creating bill with atomic stock updates...");
 
     try {
       // Use Sanity transaction for atomic operations
@@ -772,15 +730,12 @@ export async function createBill(billData: {
       // Create the bill
       const result = await transaction.create(newBill).commit();
       const createdId = (result as any)?.results?.[0]?.id || (result as any)?._id;
-      console.log("✅ Bill created successfully:", createdId);
-
       // Step 8: Update stock levels in background (non-blocking)
       if (standardItems.length > 0) {
         // Run stock updates asynchronously to not block the response
         updateStockForBill(standardItems, createdId, "reduce")
           .then((stockUpdateResult) => {
             if (stockUpdateResult.success) {
-              console.log("✅ Stock updated successfully in background");
             } else {
               console.warn(
                 "⚠️ Background stock update failed:",
@@ -833,7 +788,6 @@ export async function createStockTransaction(transactionData: {
   billId?: string;
 }): Promise<FormSubmissionResult> {
   try {
-    console.log("📊 Creating stock transaction in Sanity:", transactionData);
 
     const transactionId = Buffer.from(
       Date.now().toString() + Math.random().toString()
@@ -879,9 +833,6 @@ export async function createStockTransaction(transactionData: {
         .set({ updatedAt: new Date().toISOString() })
         .commit();
     }
-
-    console.log("✅ Stock transaction created successfully:", result._id);
-
     return {
       success: true,
       data: result,

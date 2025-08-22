@@ -183,13 +183,11 @@ export const userApiService = {
       const createdUser = await sanityClient.create(newUser);
 
       // Send secret key via WhatsApp (placeholder)
-      console.log(`Sending secret key ${secretKey} to ${formattedPhone} via WhatsApp.`);
 
       // Sync to Strapi in background (non-blocking)
       strapiService.sync
         .syncUserToStrapi(createdUser)
         .then(() => {
-          console.log("✅ User synced to Strapi successfully");
         })
         .catch((strapiError) => {
           console.warn("⚠️ Failed to sync user to Strapi:", strapiError);
@@ -488,7 +486,6 @@ export const productApiService = {
         } else {
           // If it doesn't exist in Strapi, maybe we should create it?
           await strapiService.products.createProduct(updatedProduct);
-          console.log('Product not found in Strapi, creating a new one.');
         }
       } catch (strapiError) {
         console.warn('Failed to sync product to Strapi:', strapiError);

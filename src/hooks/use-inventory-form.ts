@@ -190,9 +190,7 @@ export const useInventoryForm = () => {
   const confirmSubmit = async () => {
     // Prevent multiple submissions
     if (isLoading) {
-      console.log(
-        "⚠️ Submission already in progress, ignoring duplicate request"
-      );
+    
       return;
     }
 
@@ -220,12 +218,10 @@ export const useInventoryForm = () => {
         tags: [], // Default value
       };
 
-      console.log("🚀 Submitting product with single API call...");
       const result = await addProduct(newProduct);
 
       if (result.success) {
         setShowSuccessPopup(true);
-        console.log("✅ Product created successfully");
       } else {
         console.error("❌ Failed to create product:", result.error);
       }

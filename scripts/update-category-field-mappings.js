@@ -13,7 +13,6 @@ const client = createClient({
 });
 
 async function updateCategoryFieldMappings() {
-  console.log("🚀 Starting category field mapping update...");
 
   try {
     // First, fetch all categories to create a mapping from slug to ID
@@ -25,7 +24,6 @@ async function updateCategoryFieldMappings() {
       }
     `);
 
-    console.log("📋 Found categories:", categories);
 
     const categoryMap = {};
     categories.forEach((cat) => {
@@ -33,9 +31,6 @@ async function updateCategoryFieldMappings() {
         categoryMap[cat.slug.current] = cat._id;
       }
     });
-
-    console.log("🗺️ Category map:", categoryMap);
-
     // Fetch existing category field mappings
     const existingMappings = await client.fetch(`
       *[_type == "categoryFieldMapping"] {
@@ -49,16 +44,12 @@ async function updateCategoryFieldMappings() {
       }
     `);
 
-    console.log("📋 Found existing mappings:", existingMappings);
-
     // Update each mapping to use category reference instead of categoryName
     for (const mapping of existingMappings) {
       const categoryId = categoryMap[mapping.categoryName];
 
       if (categoryId) {
-        console.log(
-          `🔄 Updating mapping for ${mapping.categoryName} -> ${categoryId}`
-        );
+     
 
         await client
           .patch(mapping._id)
@@ -71,13 +62,10 @@ async function updateCategoryFieldMappings() {
           .unset(["categoryName"]) // Remove the old categoryName field
           .commit();
 
-        console.log(`✅ Updated mapping ${mapping._id}`);
       } else {
-        console.log(`❌ No category found for ${mapping.categoryName}`);
       }
     }
 
-    console.log("🎉 Migration completed successfully!");
   } catch (error) {
     console.error("❌ Migration failed:", error);
     process.exit(1);

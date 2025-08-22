@@ -31,6 +31,10 @@ const nextConfig: NextConfig = {
   generateBuildId: async () => {
     return "build-" + Date.now();
   },
+  // Strip all console.* calls in production builds to keep output clean
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
 };
 
 export default nextConfig;

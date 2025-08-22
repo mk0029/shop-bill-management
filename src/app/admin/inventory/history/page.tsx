@@ -145,12 +145,7 @@ export default function StockHistoryPage() {
     }).length;
   })();
 
-  console.log("🔍 Summary data in component:", {
-    summary,
-    totalPurchaseAmount,
-    totalSalesAmount,
-    profit,
-  });
+
 
   const viewTransactionDetails = (transaction: HistoryTransaction) => {
     setSelectedTransaction(transaction);
@@ -333,7 +328,6 @@ export default function StockHistoryPage() {
                 {filteredTransactions.map((transaction) => {
                  
                     const TypeIcon = getTransactionTypeIcon(transaction.type);
-                    console.log('sfdefefefekmm ce fe fe v  ve fer',transaction,'sfdefefefekmm ce fe fe v  ve fer')
                   return (
                     <motion.div
                       key={transaction.id}

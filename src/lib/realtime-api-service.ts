@@ -296,7 +296,6 @@ export class RealtimeApiService {
       });
 
     this.subscriptions.set(subscriptionKey, subscription);
-    console.log(`🔊 Started listening to ${documentType} changes`);
   }
 
   // Stop listening to document changes
@@ -307,7 +306,6 @@ export class RealtimeApiService {
     if (subscription) {
       subscription.unsubscribe();
       this.subscriptions.delete(subscriptionKey);
-      console.log(`🔇 Stopped listening to ${documentType} changes`);
     }
   }
 
@@ -315,7 +313,6 @@ export class RealtimeApiService {
   stopAllListening() {
     this.subscriptions.forEach((subscription, key) => {
       subscription.unsubscribe();
-      console.log(`🔇 Stopped listening to ${key}`);
     });
     this.subscriptions.clear();
   }

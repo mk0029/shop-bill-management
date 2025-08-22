@@ -138,7 +138,6 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
   },
 
   forceSyncCategories: async () => {
-    console.log("🔄 Force syncing categories from Sanity...");
     set({ isLoading: true, error: null });
 
     try {
@@ -168,7 +167,6 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
         error: null,
       });
 
-      console.log(`✅ Force sync completed: ${categories.length} categories loaded`);
     } catch (error) {
       console.error("❌ Force sync failed:", error);
       set({
@@ -184,13 +182,10 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
     const { realtimeSubscription } = get();
     if (realtimeSubscription) return; // Already connected
 
-    console.log("🔌 Setting up category real-time listeners...");
-
     const subscription = sanityClient
       .listen('*[_type == "category"]')
       .subscribe({
         next: (update) => {
-          console.log("📡 Category real-time update:", update);
           set({ isRealtimeConnected: true });
 
           const { categories } = get();
@@ -203,7 +198,6 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
                 set({
                   categories: [...categories, document as unknown as Category],
                 });
-                console.log(`✅ Category created: ${document.name}`);
               }
               break;
 
@@ -215,7 +209,6 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
                     : category
                 );
                 set({ categories: updatedCategories });
-                console.log(`🔄 Category updated: ${document.name}`);
               }
               break;
 
@@ -223,9 +216,7 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
               const filteredCategories = categories.filter(
                 (category) => category._id !== documentId
               );
-              set({ categories: filteredCategories });
-              console.log(`🗑️ Category deleted: ${documentId}`);
-              break;
+              set({ categories: filteredCategories });              break;
           }
         },
         error: (error) => {
@@ -249,7 +240,6 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
         realtimeSubscription: null,
         isRealtimeConnected: false,
       });
-      console.log("❌ Category real-time listeners disconnected");
     }
   },
 }));

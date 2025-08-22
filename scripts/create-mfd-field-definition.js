@@ -13,7 +13,6 @@ const client = createClient({
 });
 
 async function createMfdFieldDefinition() {
-  console.log("🚀 Creating MFD field definition...");
 
   try {
     // Create the MFD field definition
@@ -36,17 +35,9 @@ async function createMfdFieldDefinition() {
       applicableCategories: ["capacitor", "motor", "pump", "fan"],
     };
 
-    console.log("📝 Creating MFD field definition:", mfdFieldDefinition);
 
     const result = await client.create(mfdFieldDefinition);
-    console.log("✅ Created MFD field definition:", result._id);
-
-    console.log("🎉 MFD field definition created successfully!");
-    console.log("");
-    console.log("Next steps:");
-    console.log("1. Add MFD field to relevant category field mappings");
-    console.log("2. Create MFD specification options if needed");
-    console.log("3. Test the field in /admin/inventory/add");
+   
   } catch (error) {
     console.error("❌ Failed to create MFD field definition:", error);
     process.exit(1);

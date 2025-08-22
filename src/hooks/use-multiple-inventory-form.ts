@@ -195,7 +195,6 @@ export const useMultipleInventoryForm = () => {
 
   const confirmSubmit = async () => {
     if (isLoading) {
-      console.log("⚠️ Submission already in progress, ignoring duplicate request");
       return;
     }
 

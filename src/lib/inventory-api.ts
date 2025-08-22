@@ -415,9 +415,6 @@ export const inventoryApi = {
         // Create stock transaction in a separate call (since we need the product ID)
         await sanityClient.create(stockTransaction);
 
-        console.log(
-          "✅ Product and initial stock transaction created successfully"
-        );
         return { success: true, data: productResult };
       } else {
         // Just create the product without stock transaction

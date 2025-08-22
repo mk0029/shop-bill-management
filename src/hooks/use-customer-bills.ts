@@ -61,7 +61,6 @@ export const useCustomerBills = () => {
   const handleDownloadBill = async (bill: any) => {
     try {
       // Implementation for downloading bill PDF
-      console.log("Downloading bill:", bill.billId);
       // You can implement PDF generation here
     } catch (error) {
       console.error("Error downloading bill:", error);

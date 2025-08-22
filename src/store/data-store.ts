@@ -345,7 +345,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
       get().setupRealtimeListeners();
     } catch (error) {
       console.error("Failed to load initial data:", error);
-      console.log("Loading fallback data...");
 
       // Load fallback data instead of failing completely
       try {
@@ -415,7 +414,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
           }`,
         });
 
-        console.log("✅ Fallback data loaded successfully");
       } catch (fallbackError) {
         console.error("Failed to load fallback data:", fallbackError);
         set({
@@ -625,16 +623,12 @@ export const useDataStore = create<DataStore>((set, get) => ({
   setupRealtimeListeners: () => {
     const { realtimeSubscription } = get();
     if (realtimeSubscription) return; // Already connected
-
-    console.log("🔌 Setting up Sanity real-time listeners...");
-
     const subscription = sanityClient
       .listen(
         '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction"]]'
       )
       .subscribe({
         next: (update) => {
-          console.log("📡 Sanity real-time update:", update);
           set({ isRealtimeConnected: true });
           get().handleRealtimeUpdate(update);
         },
@@ -648,8 +642,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
       realtimeSubscription: subscription,
       isRealtimeConnected: true,
     });
-
-    console.log("✅ Sanity real-time listeners connected");
   },
 
   // Cleanup real-time listeners
@@ -661,7 +653,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
         realtimeSubscription: null,
         isRealtimeConnected: false,
       });
-      console.log("❌ Sanity real-time listeners disconnected");
     }
   },
 
@@ -674,21 +665,14 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
     if (!documentType) return;
 
-    const currentState = get();
-    console.log(
-      `🔔 Real-time ${update.transition}: ${documentType} - ${documentId}`
-    );
-
+    const currentState = get()
     switch (documentType) {
       case "product":
         const products = new Map(currentState.products);
         if (update.transition === "disappear") {
           products.delete(documentId);
-          console.log(`🗑️ Product deleted: ${documentId}`);
         } else if (document) {
           products.set(documentId, document);
-          console.log(`📦 Product ${update.transition}: ${document.name}`);
-
           // Update lookup maps for products
           if (update.transition === "appear") {
             const { productsByCategory, productsByBrand } = currentState;
@@ -730,7 +714,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
             }
           }
           set({ usersByClerkId });
-          console.log(`🗑️ User deleted: ${documentId}`);
         } else if (document) {
           users.set(documentId, document);
           // Update clerkId lookup
@@ -739,7 +722,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
             usersByClerkId.set(document.clerkId, documentId);
             set({ usersByClerkId });
           }
-          console.log(`👤 User ${update.transition}: ${document.name}`);
         }
         set({ users });
         break;
@@ -748,7 +730,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
         const bills = new Map(currentState.bills);
         if (update.transition === "disappear") {
           bills.delete(documentId);
-          console.log(`🗑️ Bill deleted: ${documentId}`);
         } else if (document) {
           // 1) Create a normalized copy so UI gets customer fields immediately
           const normalizedBill: any = { ...document };
@@ -790,8 +771,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
               set({ billsByCustomer });
             }
           }
-
-          console.log(`📄 Bill ${update.transition}: ${document.billNumber}`);
         }
         set({ bills });
         break;
@@ -800,10 +779,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
         const brands = new Map(currentState.brands);
         if (update.transition === "disappear") {
           brands.delete(documentId);
-          console.log(`🗑️ Brand deleted: ${documentId}`);
         } else if (document) {
           brands.set(documentId, document);
-          console.log(`🏷️ Brand ${update.transition}: ${document.name}`);
         }
         set({ brands });
         break;
@@ -812,10 +789,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
         const categories = new Map(currentState.categories);
         if (update.transition === "disappear") {
           categories.delete(documentId);
-          console.log(`🗑️ Category deleted: ${documentId}`);
         } else if (document) {
           categories.set(documentId, document);
-          console.log(`📂 Category ${update.transition}: ${document.name}`);
         }
         set({ categories });
         break;
@@ -823,9 +798,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
       case "stockTransaction":
         // When a stock transaction appears, ensure the related product is refreshed ASAP
         if (document && update.transition === "appear") {
-          console.log(
-            `📊 Stock transaction created: ${document.type} - ${document.quantity} units`
-          );
           const prodRef = document.product?._ref || document.product || document.productId;
           if (prodRef) {
             // Fire-and-forget targeted refresh
@@ -956,7 +928,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       // Don't add to local state here - let the realtime listener handle it
       // This prevents duplicates when the realtime "appear" event fires
-      console.log("✅ Bill created in Sanity, waiting for realtime sync...");
 
       return bill as unknown as Bill;
     } catch (error) {
@@ -995,7 +966,6 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
       // Don't add to local state here - let the realtime listener handle it
       // This prevents duplicates when the realtime "appear" event fires
-      console.log("✅ User created in Sanity, waiting for realtime sync...");
 
       return user as unknown as User;
     } catch (error) {

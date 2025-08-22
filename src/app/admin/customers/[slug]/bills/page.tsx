@@ -86,7 +86,6 @@ export default function CustomerBillsPage() {
 
   const handleDownloadPDF = (bill: any) => {
     // TODO: Implement PDF download
-    console.log("Download PDF for bill:", bill._id);
   };
 
 
@@ -106,7 +105,6 @@ export default function CustomerBillsPage() {
         balanceAmount: paymentData.balanceAmount,
         updatedAt: new Date().toISOString(),
       });
-      console.log("✅ Payment updated successfully");
 
       // Show success notification
       if (paymentData.paymentStatus === "paid") {

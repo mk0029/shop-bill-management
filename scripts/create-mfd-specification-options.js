@@ -40,7 +40,6 @@ const mfdOptions = [
 ];
 
 async function createMfdSpecificationOptions() {
-  console.log("🚀 Creating MFD specification options...");
 
   try {
     // Create MFD specification options
@@ -55,21 +54,7 @@ async function createMfdSpecificationOptions() {
         isActive: true,
         description: `${option.label} capacitor rating`,
       };
-
-      console.log(`📝 Creating MFD option: ${option.label}`);
-
-      const result = await client.create(specOption);
-      console.log(`✅ Created MFD option: ${result._id}`);
     }
-
-    console.log("🎉 MFD specification options created successfully!");
-    console.log("");
-    console.log("Next steps:");
-    console.log("1. Verify the options in Sanity Studio");
-    console.log("2. Test MFD field in /admin/inventory/add");
-    console.log(
-      "3. Check that items with different MFD values are treated as separate items"
-    );
   } catch (error) {
     console.error("❌ Failed to create MFD specification options:", error);
     process.exit(1);
