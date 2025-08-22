@@ -163,7 +163,7 @@ export default function AddCustomerPage() {
                   Full Name *
                 </Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                   <Input
                     id="name"
                     type="text"
@@ -182,7 +182,7 @@ export default function AddCustomerPage() {
                   Phone Number *
                 </Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                   <Input
                     id="phone"
                     type="number"
@@ -251,7 +251,7 @@ export default function AddCustomerPage() {
                   Address
                 </Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                   <Input
                     id="address"
                     type="text"
@@ -274,7 +274,7 @@ export default function AddCustomerPage() {
                   Customer ID
                 </Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                   <Input
                     id="customerId"
                     type="text"
@@ -297,7 +297,7 @@ export default function AddCustomerPage() {
                   Secret Key
                 </Label>
                 <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                   <Input
                     id="secretKey"
                     type="text"

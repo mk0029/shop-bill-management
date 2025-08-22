@@ -380,7 +380,7 @@ export default function EnhancedWhatsAppSettingsPage() {
                       <div className="space-y-2">
                         <Label className="text-gray-300">Phone Number</Label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                           <Input
                             value={device.phoneNumber}
                             onChange={(e) =>
@@ -399,7 +399,7 @@ export default function EnhancedWhatsAppSettingsPage() {
                       <div className="space-y-2">
                         <Label className="text-gray-300">User ID</Label>
                         <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                           <Input
                             value={device.userId}
                             onChange={(e) =>
@@ -418,7 +418,7 @@ export default function EnhancedWhatsAppSettingsPage() {
                       <div className="space-y-2">
                         <Label className="text-gray-300">Pass Key</Label>
                         <div className="relative">
-                          <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                           <Input
                             type="password"
                             value={device.passKey}

@@ -376,7 +376,7 @@ export default function EditInventoryItemPage() {
                   Purchase Price *
                 </Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                   <Input
                     id="purchasePrice"
                     type="number"
@@ -398,7 +398,7 @@ export default function EditInventoryItemPage() {
                   Selling Price *
                 </Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-50" />
                   <Input
                     id="sellingPrice"
                     type="number"
