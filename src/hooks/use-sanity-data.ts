@@ -21,6 +21,9 @@ export function useProducts() {
     [products]
   );
 
+  // Consider loading only if we truly have no products yet
+  const isProductsLoading = isLoading && productList.length === 0;
+
   return {
     products: productList,
     activeProducts,
@@ -29,7 +32,7 @@ export function useProducts() {
     createProduct,
     updateProduct,
     deleteProduct,
-    isLoading,
+    isLoading: isProductsLoading,
   };
 }
 
@@ -38,11 +41,12 @@ export function useBrands() {
   const { brands, getBrandById, isLoading } = useDataStore();
 
   const brandList = useMemo(() => Array.from(brands.values()), [brands]);
+  const isBrandsLoading = isLoading && brandList.length === 0;
 
   return {
     brands: brandList,
     getBrandById,
-    isLoading,
+    isLoading: isBrandsLoading,
   };
 }
 
@@ -54,11 +58,12 @@ export function useCategories() {
     () => Array.from(categories.values()),
     [categories]
   );
+  const isCategoriesLoading = isLoading && categoryList.length === 0;
 
   return {
     categories: categoryList,
     getCategoryById,
-    isLoading,
+    isLoading: isCategoriesLoading,
   };
 }
 
@@ -84,12 +89,14 @@ export function useCustomers() {
     });
   }, [users, billsByCustomer]);
 
+  const isCustomersLoading = isLoading && customerList.length === 0;
+
   return {
     customers: customerList,
     getUserById,
     createUser,
     updateUser,
-    isLoading,
+    isLoading: isCustomersLoading,
   };
 }
 
@@ -105,6 +112,7 @@ export function useBills() {
   } = useDataStore();
 
   const billList = useMemo(() => Array.from(bills.values()), [bills]);
+  const isBillsLoading = isLoading && billList.length === 0;
 
   return {
     bills: billList,
@@ -112,7 +120,7 @@ export function useBills() {
     getBillById,
     createBill,
     updateBill,
-    isLoading,
+    isLoading: isBillsLoading,
   };
 }
 

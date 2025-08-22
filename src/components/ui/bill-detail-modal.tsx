@@ -151,10 +151,7 @@ console.log("grandTotal", grandTotal,'fulll bill',bill);
     setIsUpdatingPayment(true);
     try {
       await onUpdatePayment(bill._id || bill.id, paymentDetails);
-      // Ensure global lists refresh in case realtime misses an event
-      try {
-        await useSanityBillStore.getState().fetchBills();
-      } catch { }
+      // Removed forced global refetch; rely on optimistic update + realtime
       if (bill) {
         bill.paymentStatus = paymentDetails.paymentStatus;
         bill.paidAmount = paymentDetails.paidAmount;

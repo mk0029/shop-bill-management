@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
+import { useAuthStore } from "@/store/auth-store";
 import { fallbackData } from "./fallback-data";
 import { type SanityClient } from "@sanity/client";
 import type { Subscription } from "rxjs";
@@ -119,6 +120,8 @@ interface DataStore {
   loadingProgress: number;
   lastSyncTime: Date | null;
   error: string | null;
+  // Non-blocking refresh state (used for lightweight refreshes)
+  isRefreshing: boolean;
 
   // Real-time connection
   realtimeSubscription: Subscription | null;
@@ -147,6 +150,8 @@ interface DataStore {
   loadAdminData: (opts?: { userId?: string; customerId?: string }) => Promise<void>;
   loadCustomerData: (opts: { userId?: string; customerId?: string }) => Promise<void>;
   syncWithSanity: () => Promise<void>;
+  // Lightweight, role-aware refresh that only updates bills (and indexes)
+  refreshBillsOnly: (opts?: { role?: "admin" | "customer"; customerId?: string }) => Promise<void>;
   // Lighter refreshes to avoid full-page like resets
   refreshActiveProducts: () => Promise<void>;
   refreshProductsByIds: (ids: string[]) => Promise<void>;
@@ -174,6 +179,7 @@ interface DataStore {
     updates: Partial<Product>
   ) => Promise<Product>;
   deleteProduct: (productId: string) => Promise<void>;
+  deleteBrand: (brandId: string) => Promise<void>;
   createBill: (bill: Partial<Bill>) => Promise<Bill>;
   updateBill: (billId: string, updates: Partial<Bill>) => Promise<Bill>;
   createUser: (user: Partial<User>) => Promise<User>;
@@ -186,6 +192,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
   loadingProgress: 0,
   lastSyncTime: null,
   error: null,
+  isRefreshing: false,
 
   // Real-time state
   realtimeSubscription: null,
@@ -433,7 +440,69 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   // Sync with Sanity (refresh data)
   syncWithSanity: async () => {
-    await get().loadInitialData();
+    // Lightweight, non-blocking refresh. Avoid full reload and listener reset.
+    try {
+      const { user, role } = useAuthStore.getState();
+      const customerId = (user as any)?.customerId as string | undefined;
+
+      // Refresh bills in a role-aware way; avoid toggling isLoading
+      await get().refreshBillsOnly({
+        role: (role as any) || undefined,
+        customerId,
+      });
+
+      // Optionally keep products fresh for admin without heavy reload
+      if (!role || role === "admin") {
+        // Fire-and-forget; don't block the bills path
+        get().refreshActiveProducts().catch(() => {});
+      }
+    } catch (e) {
+      // Silent: this is a background refresh path
+      console.warn("syncWithSanity (light) failed", e);
+    }
+  },
+
+  // Lightweight refresh: only bills, non-blocking
+  refreshBillsOnly: async (opts) => {
+    try {
+      set({ isRefreshing: true });
+      const role = opts?.role;
+      const customerId = opts?.customerId;
+
+      let query: string;
+      let params: Record<string, any> | undefined = undefined;
+
+      if (role === "customer") {
+        const cid = String(customerId || "");
+        query = queries.customerBills(cid);
+      } else {
+        // Default/admin path
+        query = queries.bills;
+      }
+
+      const data = await sanityClient.fetch(query, params ?? {});
+
+      const bills = new Map(get().bills);
+      const billsByCustomer = new Map<string, string[]>();
+      const list = Array.isArray(data) ? data : [];
+
+      for (const bill of list) {
+        if (!bill?._id) continue;
+        bills.set(bill._id, bill);
+        const custId = bill?.customer?._id || bill?.customer?._ref;
+        if (custId) {
+          const arr = billsByCustomer.get(custId) || [];
+          if (!arr.includes(bill._id)) arr.push(bill._id);
+          billsByCustomer.set(custId, arr);
+        }
+      }
+
+      set({ bills, billsByCustomer, lastSyncTime: new Date() });
+    } catch (e) {
+      console.warn("refreshBillsOnly failed", e);
+    } finally {
+      set({ isRefreshing: false });
+    }
   },
 
   // Refresh only active products list (keeps other maps intact)
@@ -858,6 +927,20 @@ export const useDataStore = create<DataStore>((set, get) => ({
       set({ products });
     } catch (error) {
       console.error("Failed to delete product:", error);
+      throw error;
+    }
+  },
+
+  deleteBrand: async (brandId) => {
+    try {
+      await sanityClient.delete(brandId);
+
+      // Update local store
+      const brands = new Map(get().brands);
+      brands.delete(brandId);
+      set({ brands });
+    } catch (error) {
+      console.error("Failed to delete brand:", error);
       throw error;
     }
   },

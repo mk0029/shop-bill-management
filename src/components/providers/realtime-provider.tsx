@@ -20,7 +20,7 @@ interface RealtimeProviderProps {
 export const RealtimeProvider: React.FC<RealtimeProviderProps> = ({
   children,
   enableNotifications = false, // Disable notifications by default for cleaner UX
-  enableAutoRefresh = true,
+  enableAutoRefresh = false,
 }) => {
   const { isConnected } = useRealtimeSync({
     enableNotifications,

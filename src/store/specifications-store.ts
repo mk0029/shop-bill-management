@@ -191,6 +191,17 @@ export const useSpecificationsStore = create<SpecificationsStore>(
 
     // Fetch category field mappings from Sanity
     fetchCategoryFieldMappings: async () => {
+      const { lastFetched } = get();
+      const now = new Date();
+
+      // Cache for 5 minutes
+      if (
+        lastFetched &&
+        now.getTime() - lastFetched.getTime() < 5 * 60 * 1000
+      ) {
+        return;
+      }
+
       set({ isLoading: true });
       try {
         const query = `*[_type == "categoryFieldMapping" && isActive == true]{..., category->{_id, name, slug}, requiredFields[]->, optionalFields[]->}`;
@@ -198,7 +209,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
         set({
           categoryFieldMappings: mappings,
           isLoading: false,
-          lastFetched: new Date(),
+          lastFetched: now,
         });
       } catch (error) {
         console.error("Error fetching category field mappings:", error);

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 
 export function SanityRealtimeBillList() {
-  const { bills, loading, fetchBills, createBill } = useSanityBillStore();
+  const { bills, loading, /* fetchBills */ createBill } = useSanityBillStore();
 
   // Listen for real-time bill updates
   useSanityRealtimeEvent("bill:created", (newBill: any) => {
@@ -25,10 +25,7 @@ export function SanityRealtimeBillList() {
     console.log("🔔 Bill deleted via Sanity:", data.billId);
   });
 
-  useEffect(() => {
-    // Initial fetch of bills from Sanity
-    fetchBills();
-  }, [fetchBills]);
+  // Removed initial fetch: bills are loaded once globally and kept in sync via realtime
 
   const getStatusColor = (status: string) => {
     switch (status) {

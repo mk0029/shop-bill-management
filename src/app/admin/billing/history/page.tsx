@@ -10,7 +10,6 @@ import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { useBills } from "@/hooks/use-sanity-data";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
 import {
   ArrowLeft,
   Search,
@@ -45,8 +44,7 @@ const getStatusColor = (status: string) => {
 export default function BillHistoryPage() {
   const router = useRouter();
   const { currency } = useLocaleStore();
-  const { bills } = useBills();
-  const { updateBill } = useSanityBillStore();
+  const { bills, updateBill } = useBills();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -150,17 +148,12 @@ export default function BillHistoryPage() {
     }
   ) => {
     try {
-      const success = await updateBill(billId, {
+      await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
       });
-
-      if (success) {
-        console.log("✅ Payment updated successfully");
-      } else {
-        throw new Error("Failed to update payment");
-      }
+      console.log("✅ Payment updated successfully");
     } catch (error) {
       console.error("❌ Error updating payment:", error);
       throw error;

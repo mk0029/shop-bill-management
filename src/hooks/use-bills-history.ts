@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useBills } from "@/hooks/use-sanity-data";
 import { useSanityBillStore } from "@/store/sanity-bill-store";
@@ -16,60 +16,31 @@ export const useBillsHistory = () => {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
   
-  // Get real-time updates from the bill store
-  const { bills: allBills, initializeRealtime, cleanupRealtime } = useSanityBillStore(
-    useShallow((state) => ({
-      bills: state.bills,
-      initializeRealtime: state.initializeRealtime,
-      cleanupRealtime: state.cleanupRealtime,
-    }))
+  // Subscribe to real-time bill updates from the store
+  const { bills: allBills } = useSanityBillStore(
+    useShallow((state) => ({ bills: state.bills }))
   );
 
-  // Effect to load initial bills and handle real-time updates
+  // Derive bills when store/user changes (no polling)
   useEffect(() => {
     if (!user?.id) return;
 
-    let isMounted = true;
-    let checkInterval: NodeJS.Timeout;
-
-    const updateBillsFromStore = () => {
-      if (!isMounted) return;
-      
-      try {
-        const customerBills = getBillsByCustomer(user.id);
-        
-        // Only update state if bills have actually changed
-        setBills(prevBills => {
-          if (JSON.stringify(prevBills) !== JSON.stringify(customerBills)) {
-            return customerBills;
-          }
-          return prevBills;
-        });
-        
-        setError(null);
-      } catch (err) {
-        console.error('Error updating bills from store:', err);
-        setError(err);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+    try {
+      const customerBills = getBillsByCustomer(user.id);
+      setBills(prevBills => {
+        if (JSON.stringify(prevBills) !== JSON.stringify(customerBills)) {
+          return customerBills;
         }
-      }
-    };
-
-    // Initial load
-    setIsLoading(true);
-    updateBillsFromStore();
-    
-    // Set up interval for updates
-    checkInterval = setInterval(updateBillsFromStore, 5000); // 5 second interval
-
-    // Cleanup
-    return () => {
-      isMounted = false;
-      clearInterval(checkInterval);
-    };
-  }, [user?.id, getBillsByCustomer]);
+        return prevBills;
+      });
+      setError(null);
+    } catch (err) {
+      console.error('Error updating bills from store:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id, getBillsByCustomer, allBills]);
 
   // Calculate total amount for all bills
   const totalAmount = bills.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);

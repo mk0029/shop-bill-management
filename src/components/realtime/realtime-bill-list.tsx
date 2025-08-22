@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
+import { useBills } from "@/hooks/use-sanity-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -391,8 +391,8 @@ export const RealtimeBillStats: React.FC<{
     pendingAmount: 0,
   });
 
-  // Use bills from the store, fallback to initialBills if store is empty
-  const { bills: storeBills } = useSanityBillStore();
+  // Use bills from the centralized data store, fallback to initialBills if store is empty
+  const { bills: storeBills } = useBills();
 
   // Use store bills if available, otherwise use initialBills
   const allBills = storeBills.length > 0 ? storeBills : initialBills;

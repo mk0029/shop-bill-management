@@ -12,7 +12,7 @@ import CustomerDetailModal from "@/components/customers/customer-detail-modal";
 import type { CustomerWithStats } from "@/types/customer";
 
 export default function CustomersPage() {
-  const { customersWithStats, stats, isLoading } = useCustomerStats();
+  const { customersWithStats, stats, isLoadingCustomers, isLoadingStats } = useCustomerStats();
   const { filters, filteredCustomers, updateSearchTerm, updateFilterActive } =
     useCustomerFilters(customersWithStats);
   const {
@@ -41,7 +41,7 @@ export default function CustomersPage() {
     <div className="space-y-6 max-md:pb-3">
       <CustomersPageHeader onAddCustomer={navigateToAddCustomer} />
 
-      <CustomerStatsCards stats={stats} isLoading={isLoading} />
+      <CustomerStatsCards stats={stats} isLoading={isLoadingStats} />
 
       <CustomerSearchFilters
         filters={filters}
@@ -51,7 +51,7 @@ export default function CustomersPage() {
 
       <CustomerTable
         customers={filteredCustomers}
-        isLoading={isLoading}
+        isLoading={isLoadingCustomers}
         searchTerm={filters.searchTerm}
         onViewCustomer={handleViewCustomer}
         onEditCustomer={handleEditCustomer}

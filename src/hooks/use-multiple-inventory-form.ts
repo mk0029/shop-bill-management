@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useBrandStore } from "@/store/brand-store";
-import { useCategoryStore } from "@/store/category-store";
 import { useSpecificationsStore } from "@/store/specifications-store";
-import { useInventoryStore } from "@/store/inventory-store";
+import { useProducts, useBrands, useCategories } from "@/hooks/use-sanity-data";
 import { validateProduct } from "@/lib/dynamic-validation";
 import { useDynamicFieldRegistry } from "@/hooks/use-dynamic-field-registry";
 import { initFieldRegistry } from "@/lib/field-registry-init";
@@ -25,28 +23,20 @@ interface InventoryFormData {
 
 export const useMultipleInventoryForm = () => {
   const router = useRouter();
-  const brands = useBrandStore((state) => state.brands);
-  const forceSyncBrands = useBrandStore((state) => state.forceSyncBrands);
-  const allCategories = useCategoryStore((state) => state.categories);
-  const forceSyncCategories = useCategoryStore((state) => state.forceSyncCategories);
-  const categories = useMemo(() => allCategories.filter((c) => c.isActive), [allCategories]);
+  const { brands } = useBrands();
+  const { categories } = useCategories();
   const specifications = useSpecificationsStore((state) => state.specificationOptions);
-  const forceSyncSpecifications = useSpecificationsStore((state) => state.forceSyncSpecifications);
-  const { addOrUpdateProduct: addProduct, products, fetchProducts } = useInventoryStore();
+  const { createProduct, products } = useProducts();
 
   // Initialize dynamic field registry
   const { isReady: isDynamicFieldsReady } = useDynamicFieldRegistry();
 
   useEffect(() => {
-    forceSyncBrands();
-    forceSyncCategories();
-    forceSyncSpecifications();
-    fetchProducts();
-
+    // Only ensure dynamic field registry is initialized; data comes from centralized store
     if (!isDynamicFieldsReady) {
       initFieldRegistry().catch(console.error);
     }
-  }, [forceSyncBrands, forceSyncCategories, forceSyncSpecifications, fetchProducts, isDynamicFieldsReady]);
+  }, [isDynamicFieldsReady]);
 
   const createEmptyForm = (): InventoryFormData => ({
     id: Math.random().toString(36).slice(2),
@@ -243,10 +233,8 @@ export const useMultipleInventoryForm = () => {
           productPayload._id = formData.selectedExistingProduct;
         }
 
-        const result = await addProduct(productPayload);
-        if (result.success) {
-          successful.push(productPayload.name);
-        }
+        await createProduct(productPayload);
+        successful.push(productPayload.name);
         // update progress after each attempt
         setProgress((prev) => ({ current: Math.min(prev.current + 1, prev.total), total: prev.total, lastName: productPayload.name }));
       }

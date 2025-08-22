@@ -36,8 +36,12 @@ export default function SpecificationsManagementPage() {
 
   // Initialize data on component mount
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    // Only refresh if both are empty (no cached data)
+    if ((specificationOptions?.length ?? 0) === 0 && (categoryFieldMappings?.length ?? 0) === 0) {
+      refreshData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [selectedType, setSelectedType] = useState("amperage");
   const [newOption, setNewOption] = useState({
@@ -198,7 +202,7 @@ export default function SpecificationsManagementPage() {
       )}
 
       {/* Loading State */}
-      {isLoading && (
+      {isLoading && specificationOptions.length === 0 && categoryFieldMappings.length === 0 && (
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="sm:p-4 p-3 text-center">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />

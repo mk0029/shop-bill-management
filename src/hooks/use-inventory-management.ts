@@ -1,16 +1,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useInventoryStore, type Product } from "@/store/inventory-store";
-import { useBrandStore } from "@/store/brand-store";
-import { useCategoryStore } from "@/store/category-store";
+import { useProducts, useBrands, useCategories } from "@/hooks/use-sanity-data";
 
 export const useInventoryManagement = () => {
   const router = useRouter();
-  const { products, fetchProducts, deleteProduct, updateProduct } =
-    useInventoryStore();
-  const { brands, fetchBrands } = useBrandStore();
-  const { categories, fetchCategories } = useCategoryStore();
+  const { products, deleteProduct, updateProduct, isLoading: productsLoading } = useProducts();
+  const { brands, isLoading: brandsLoading } = useBrands();
+  const { categories, isLoading: categoriesLoading } = useCategories();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -19,7 +16,7 @@ export const useInventoryManagement = () => {
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   // Time filtering (aligned with history page): all, 7, 30, 90, 365, custom
@@ -27,21 +24,11 @@ export const useInventoryManagement = () => {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
+  // Loading state follows centralized hooks
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        await Promise.all([fetchProducts(), fetchBrands(), fetchCategories()]);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        toast.error("Failed to load inventory data");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, [fetchProducts, fetchBrands, fetchCategories]);
+    const l = productsLoading || brandsLoading || categoriesLoading;
+    setIsLoading(l);
+  }, [productsLoading, brandsLoading, categoriesLoading]);
 
   // Debounce search input to keep UI responsive and avoid excessive filtering
   useEffect(() => {
@@ -97,7 +84,7 @@ export const useInventoryManagement = () => {
       selectedBrand === "all" || product.brand?.name === selectedBrand;
 
     // Apply time filter against updatedAt primarily, fallback to createdAt
-    const dateRef = product.updatedAt || product.createdAt;
+    const dateRef = (product as any).updatedAt || (product as any).createdAt;
     const matchesTime = withinTimeRange(dateRef);
 
     return matchesSearch && matchesCategory && matchesBrand && matchesTime;
@@ -132,7 +119,7 @@ export const useInventoryManagement = () => {
     }
   });
 
-  const handleDeleteProduct = async (product: Product) => {
+  const handleDeleteProduct = async (product: any) => {
     setSelectedProduct(product);
     setShowDeleteDialog(true);
   };
@@ -151,7 +138,7 @@ export const useInventoryManagement = () => {
     }
   };
 
-  const handleEditProduct = (product: Product) => {
+  const handleEditProduct = (product: any) => {
     setSelectedProduct(product);
     setShowEditDialog(true);
   };

@@ -27,12 +27,8 @@ import {
   Wifi,
   Zap,
 } from "lucide-react";
-import {
-  stockHistoryApi,
-  StockHistoryFilters,
-  StockHistorySummary,
-  HistoryTransaction,
-} from "@/lib/stock-history-api";
+import { StockHistoryFilters } from "@/lib/stock-history-api";
+import { useStockHistory } from "@/hooks/use-stock-history";
 
 const transactionTypeOptions = [
   { value: "all", label: "All Transactions" },
@@ -84,58 +80,25 @@ export default function StockHistoryPage() {
   const [sortBy, setSortBy] = useState<"date" | "amount" | "quantity">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedTransaction, setSelectedTransaction] =
-    useState<HistoryTransaction | null>(null);
+    useState<any | null>(null);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
 
-  // Real data state
-  const [transactions, setTransactions] = useState<HistoryTransaction[]>([]);
-  const [summary, setSummary] = useState<StockHistorySummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Data via centralized hook (currently backed by API)
+  const { transactions, summary, loading, error, refetch, fetchWithFilters } =
+    useStockHistory();
 
   const fetchStockData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Build filters
-      const filters: StockHistoryFilters = {};
-
-      if (typeFilter !== "all") {
-        filters.type = typeFilter as any;
-      }
-
-      if (timeRange !== "all") {
-        const daysAgo = parseInt(timeRange);
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
-        filters.dateFrom = cutoffDate.toISOString();
-      }
-
-      if (debouncedSearchTerm.trim()) {
-        filters.search = debouncedSearchTerm.trim();
-      }
-
-      // Fetch transactions and summary
-      const [transactionsResult, summaryResult] = await Promise.all([
-        stockHistoryApi.getStockTransactions(filters),
-        stockHistoryApi.getStockHistorySummary(filters),
-      ]);
-      if (transactionsResult.success) {
-        setTransactions(transactionsResult.data || []);
-      } else {
-        setError(transactionsResult.error || "Failed to fetch transactions");
-      }
-
-      if (summaryResult.success) {
-        setSummary(summaryResult.data || null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
+    const filters: StockHistoryFilters = {};
+    if (typeFilter !== "all") filters.type = typeFilter as any;
+    if (timeRange !== "all") {
+      const daysAgo = parseInt(timeRange);
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
+      filters.dateFrom = cutoffDate.toISOString();
     }
-  }, [typeFilter, timeRange, debouncedSearchTerm]);
+    if (debouncedSearchTerm.trim()) filters.search = debouncedSearchTerm.trim();
+    await fetchWithFilters(filters);
+  }, [typeFilter, timeRange, debouncedSearchTerm, fetchWithFilters]);
 
   // Debounce searchTerm -> debouncedSearchTerm
   useEffect(() => {
@@ -236,7 +199,7 @@ export default function StockHistoryPage() {
             </div>
             <Button
               variant="outline"
-              onClick={fetchStockData}
+              onClick={refetch}
               disabled={loading}
               className="flex items-center gap-2">
               {loading ? (

@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useEffect, ReactNode } from "react";
+import { useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dropdown } from "@/components/ui/dropdown";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
-import { useSanityRealtimeStore } from "@/store/sanity-realtime-store";
 import { BillFormData, Customer, Item } from "@/types";
 import { RealtimeBillList, RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { FileText, Plus, Search, Calculator } from "lucide-react";
@@ -35,7 +32,7 @@ export function BillingBrowser({
   defaultFilterStatuses,
 }: BillingBrowserProps) {
   const router = useRouter();
-  const { bills } = useBills();
+  const { bills, updateBill } = useBills();
   const { customers } = useCustomers();
   const { products } = useProducts();
   const [showCreateBill, setShowCreateBill] = useState(false);
@@ -50,31 +47,7 @@ export function BillingBrowser({
         : []
   );
 
-  // Ensure the real-time bill store has initial data so stats render immediately
-  const { fetchBills } = useSanityBillStore();
-  useEffect(() => {
-    fetchBills();
-  }, [fetchBills]);
-
-  // Real-time updates are managed centrally via RealtimeProvider/useRealtimeSync
-  // Ensure the Sanity realtime bus is connected and bill store listeners are registered
-  useEffect(() => {
-    // Connect global realtime and init bill listeners
-    try {
-      useSanityRealtimeStore.getState().connect();
-    } catch {}
-    try {
-      useSanityBillStore.getState().initializeRealtime();
-    } catch {}
-
-    return () => {
-      // Cleanup listeners; keep global connection if other pages rely on it
-      try {
-        useSanityBillStore.getState().cleanupRealtime();
-      } catch {}
-      // Do not force global disconnect here to avoid tearing down for other consumers
-    };
-  }, []);
+  // All initial data load and realtime setup is handled globally in `DataProvider`
 
   // Transform customers data (users with customer role)
   const transformedCustomers: Customer[] = customers.map((customer) => ({
@@ -115,15 +88,18 @@ export function BillingBrowser({
     }
   ) => {
     try {
-      // Persist to Sanity via store (only payment fields)
-      const ok = await useSanityBillStore.getState().updateBill(billId, {
+      if (process.env.NODE_ENV === "development") {
+        console.time("updateBill->commit");
+      }
+      // Persist to Sanity via centralized data layer (only payment fields)
+      await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
-      });
-
-      if (!ok) {
-        throw new Error("Failed to update bill in store");
+      } as any);
+      if (process.env.NODE_ENV === "development") {
+        console.timeEnd("updateBill->commit");
+        console.time("optimistic-selectedBill-set");
       }
 
       // Optimistically update currently open modal bill
@@ -134,12 +110,10 @@ export function BillingBrowser({
           paidAmount: paymentData.paidAmount,
           balanceAmount: paymentData.balanceAmount,
         });
+        if (process.env.NODE_ENV === "development") {
+          console.timeEnd("optimistic-selectedBill-set");
+        }
       }
-
-      // Ensure list reflects latest data even if realtime misses an event
-      try {
-        await fetchBills();
-      } catch {}
     } catch (error) {
       console.error("Error updating payment:", error);
       throw error;

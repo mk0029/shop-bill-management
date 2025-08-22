@@ -323,69 +323,73 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
 
   // Connect to real-time updates
   const connect = useCallback(() => {
-    if (subscriptionRef.current || isConnectedRef.current) {
-      // console.log("Already connected to real-time updates");
+    // If global store-level realtime is already connected, don't add another listener
+    if (useDataStore.getState().isRealtimeConnected) {
+      isConnectedRef.current = true;
       return;
     }
 
-    // console.log("🔌 Connecting to Sanity real-time updates...");
+    if (subscriptionRef.current || isConnectedRef.current) {
+      return;
+    }
 
-    // Enhanced query to include referenced data for products
-    const query = `*[_type in [${effectiveDocumentTypes
-      .map((type) => `"${type}"`)
-      .join(", ")}]] {
-      ...,
-      _type == "product" => {
+    // Prefer a single global listener managed by the data store
+    try {
+      useDataStore.getState().setupRealtimeListeners();
+      isConnectedRef.current = true;
+      return;
+    } catch {
+      // Fallback: create a local listener (should be rare). This keeps previous behavior.
+      const query = `*[_type in [${effectiveDocumentTypes
+        .map((type) => `"${type}"`)
+        .join(", ")}]] {
         ...,
-        brand->{
-          _id,
-          name,
-          slug,
-          logo,
-          description,
-          isActive
-        },
-        category->{
-          _id,
-          name,
-          slug,
-          description,
-          icon,
-          isActive
-        }
-      }
-    }`;
-
-    subscriptionRef.current = sanityClient
-      .listen(query, {}, { includeResult: true })
-      .subscribe({
-        next: (update) => {
-          handleRealtimeUpdate(update as unknown as RealtimeUpdate);
-        },
-        error: (error) => {
-          isConnectedRef.current = false;
-          // Check if it's a timeout error
-          if (error.message?.includes("No activity within 45000 milliseconds")) {
-            // Simplified toast for production-safe typing
-            toast.error("Connection timeout. Please refresh the page to restore real-time updates.");
-          } else {
-            // error log removed for production
-            // Silently attempt to reconnect after 3 seconds
-            setTimeout(() => {
-              if (!isConnectedRef.current) {
-                // console.log("🔄 Attempting to reconnect...");
-                connect();
-              }
-            }, 3000);
+        _type == "product" => {
+          ...,
+          brand->{
+            _id,
+            name,
+            slug,
+            logo,
+            description,
+            isActive
+          },
+          category->{
+            _id,
+            name,
+            slug,
+            description,
+            icon,
+            isActive
           }
-        },
-        complete: () => {
-          isConnectedRef.current = false;
-        },
-      });
+        }
+      }`;
 
-    isConnectedRef.current = true;
-    // connection log removed for production
+      subscriptionRef.current = sanityClient
+        .listen(query, {}, { includeResult: true })
+        .subscribe({
+          next: (update) => {
+            handleRealtimeUpdate(update as unknown as RealtimeUpdate);
+          },
+          error: (error) => {
+            isConnectedRef.current = false;
+            if (error.message?.includes("No activity within 45000 milliseconds")) {
+              toast.error("Connection timeout. Please refresh the page to restore real-time updates.");
+            } else {
+              setTimeout(() => {
+                if (!isConnectedRef.current) {
+                  connect();
+                }
+              }, 3000);
+            }
+          },
+          complete: () => {
+            isConnectedRef.current = false;
+          },
+        });
+
+      isConnectedRef.current = true;
+    }
   }, [effectiveDocumentTypes, handleRealtimeUpdate]);
 
   // Disconnect from real-time updates
@@ -409,15 +413,21 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   // Refresh data manually (silent background refresh)
   const refreshData = useCallback(async () => {
     if (enableAutoRefresh) {
-      // console.log("🔄 Silently refreshing data from Sanity...");
-      await Promise.all([
-        dataStore.syncWithSanity(),
-        billStore.fetchBills(),
-        inventoryStore.fetchProducts(),
-      ]);
-      // console.log("✅ Data refresh completed");
+      // Lightweight, role-aware refresh. Avoid full reloads.
+      const { user, role } = useAuthStore.getState();
+      const customerId = (user as any)?.customerId as string | undefined;
+
+      await dataStore.refreshBillsOnly({
+        role: (role as any) || undefined,
+        customerId,
+      });
+
+      // Admins also refresh active products silently
+      if (!role || role === "admin") {
+        dataStore.refreshActiveProducts().catch(() => {});
+      }
     }
-  }, [dataStore, billStore, inventoryStore, enableAutoRefresh]);
+  }, [dataStore, enableAutoRefresh]);
 
   return {
     isConnected: isConnectedRef.current,

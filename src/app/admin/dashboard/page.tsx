@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { CustomersOverview } from "@/components/dashboard/customers-overview";
 import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
@@ -8,13 +7,9 @@ import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { RealtimeInventoryStats } from "@/components/realtime/realtime-inventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, FileText, Package, Users } from "lucide-react";
-import { useInventoryStore } from "@/store/inventory-store";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
 import Link from "next/link";
 
 export default function AdminDashboard() {
-  const { fetchProducts, fetchInventorySummary } = useInventoryStore();
-  const { fetchBills } = useSanityBillStore();
 
   // Realtime is provided by RealtimeProvider below. Avoid duplicate listeners here.
   const quickActions = [
@@ -47,24 +42,8 @@ export default function AdminDashboard() {
     },
   ];
 
-  // Initialize data when dashboard loads
-  useEffect(() => {
-    const initializeDashboard = async () => {
-      try {
-        console.log("🚀 Initializing dashboard data...");
-        await Promise.all([
-          fetchProducts(),
-          fetchInventorySummary(),
-          fetchBills(),
-        ]);
-        console.log("✅ Dashboard data initialized");
-      } catch (error) {
-        console.error("❌ Error initializing dashboard:", error);
-      }
-    };
-
-    initializeDashboard();
-  }, [fetchProducts, fetchInventorySummary, fetchBills]);
+  // Note: All base data (products, customers, bills) are loaded by DataProvider once
+  // and kept fresh via global realtime listeners. Avoid redundant fetches here.
 
   return (
     <RealtimeProvider enableNotifications={false}>

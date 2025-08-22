@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
 import { Modal } from "@/components/ui/modal";
 import { BrandForm } from "@/components/forms/brand-form";
-import { useBrandStore } from "@/store/brand-store";
-import { Brand } from "@/types";
+import { useDataStore } from "@/store/data-store";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -26,37 +24,33 @@ import {
 
 export default function BrandsPage() {
   const router = useRouter();
-  const { brands, isLoading, error, fetchBrands, deleteBrand, clearError } =
-    useBrandStore();
+  const { brands: brandMap, deleteBrand, error } = useDataStore();
+
+  // Centralized data: convert map -> array once per change
+  const brands = useMemo<any[]>(() => Array.from(brandMap.values()), [brandMap]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [deletingBrand, setDeletingBrand] = useState<Brand | null>(null);
-
-  useEffect(() => {
-    fetchBrands();
-  }, [fetchBrands]);
+  const [editingBrand, setEditingBrand] = useState<any | null>(null);
+  const [deletingBrand, setDeletingBrand] = useState<any | null>(null);
 
   const handleCreateSuccess = () => {
     setShowCreateModal(false);
-    fetchBrands(); // Refresh the list
+    // No manual refresh; realtime will update the list via centralized store
   };
 
   const handleEditSuccess = () => {
     setEditingBrand(null);
-    fetchBrands(); // Refresh the list
+    // No manual refresh; realtime will update the list via centralized store
   };
 
-  const handleDelete = async (brand: Brand) => {
+  const handleDelete = async (brand: any) => {
     setDeletingBrand(brand);
   };
 
   const confirmDelete = async () => {
     if (deletingBrand) {
-      const success = await deleteBrand(deletingBrand._id);
-      if (success) {
-        setDeletingBrand(null);
-      }
+      await deleteBrand(deletingBrand._id);
+      setDeletingBrand(null);
     }
   };
 
@@ -117,13 +111,7 @@ export default function BrandsPage() {
           <CardContent className="sm:p-4 p-3">
             <div className="flex items-center justify-between">
               <p className="text-red-400">{error}</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearError}
-                className="text-red-400 hover:text-red-300">
-                ×
-              </Button>
+              {/* Centralized store doesn't expose clearError; keep read-only message */}
             </div>
           </CardContent>
         </Card>
@@ -138,12 +126,7 @@ export default function BrandsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full sm:h-8 sm:w-8 h-6 w-6  border-b-2 border-blue-500"></div>
-              <span className="ml-2 text-gray-400">Loading brands...</span>
-            </div>
-          ) : brands.length === 0 ? (
+          {brands.length === 0 ? (
             <div className="text-center py-8">
               <Building2 className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-300 mb-2">
@@ -200,38 +183,38 @@ export default function BrandsPage() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="space-y-1">
-                          {brand.contactInfo?.email && (
+                          {(brand as any).contactInfo?.email && (
                             <div className="flex items-center text-sm text-gray-400">
                               <Mail className="w-3 h-3 mr-2" />
-                              {brand.contactInfo.email}
+                              {(brand as any).contactInfo.email}
                             </div>
                           )}
-                          {brand.contactInfo?.phone && (
+                          {(brand as any).contactInfo?.phone && (
                             <div className="flex items-center text-sm text-gray-400">
                               <Phone className="w-3 h-3 mr-2" />
-                              {brand.contactInfo.phone}
+                              {(brand as any).contactInfo.phone}
                             </div>
                           )}
-                          {brand.contactInfo?.website && (
+                          {(brand as any).contactInfo?.website && (
                             <div className="flex items-center text-sm text-gray-400">
                               <Globe className="w-3 h-3 mr-2" />
                               <a
-                                href={brand.contactInfo.website}
+                                href={(brand as any).contactInfo.website}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="hover:text-blue-400">
-                                {brand.contactInfo.website.replace(
+                                {(brand as any).contactInfo.website.replace(
                                   /^https?:\/\//,
                                   ""
                                 )}
                               </a>
                             </div>
                           )}
-                          {brand.contactInfo?.address && (
+                          {(brand as any).contactInfo?.address && (
                             <div className="flex items-center text-sm text-gray-400">
                               <MapPin className="w-3 h-3 mr-2" />
                               <span className="line-clamp-1">
-                                {brand.contactInfo.address}
+                                {(brand as any).contactInfo.address}
                               </span>
                             </div>
                           )}

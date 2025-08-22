@@ -35,7 +35,7 @@ export const ItemSelectionModal = ({
   activeProducts,
 }: ItemSelectionModalProps) => {
   const { currency } = useLocaleStore();
-  const { syncWithSanity, isLoading } = useDataStore();
+  const { refreshActiveProducts, isLoading } = useDataStore();
   const [search, setSearch] = useState("");
 
   // Clear search when modal opens or category changes to prevent stale filters
@@ -251,7 +251,7 @@ export const ItemSelectionModal = ({
                         variant="outline"
                         size="sm"
                         disabled={isLoading}
-                        onClick={() => syncWithSanity()}
+                        onClick={() => refreshActiveProducts()}
                         className="text-xs">
                         {isLoading ? "Refreshing..." : "Refresh inventory"}
                       </Button>

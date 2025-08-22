@@ -10,13 +10,15 @@ interface DataProviderProps {
 }
 
 export function DataProvider({ children }: DataProviderProps) {
-  const { loadAdminData, loadCustomerData, isLoading, error } = useDataStore();
+  const { loadAdminData, loadCustomerData, isLoading, error, lastSyncTime } = useDataStore();
   const { user, role } = useAuthStore();
   const online = useOnline();
 
   useEffect(() => {
     // Avoid triggering loads until role is determined
     if (!role) return;
+    // Bootstrap only once per app session
+    if (lastSyncTime) return;
 
     if (role === "customer") {
       loadCustomerData({
@@ -30,7 +32,7 @@ export function DataProvider({ children }: DataProviderProps) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, user?.id, (user as any)?.customerId]);
+  }, [role, lastSyncTime]);
 
   // Offline-friendly handling: render page and show compact banners
   const retry = () => {
@@ -41,6 +43,8 @@ export function DataProvider({ children }: DataProviderProps) {
       loadAdminData({ userId: user?.id, customerId: (user as any)?.customerId });
     }
   };
+
+  const showSyncBanner = online && isLoading && !lastSyncTime;
 
   return (
     <>
@@ -56,7 +60,7 @@ export function DataProvider({ children }: DataProviderProps) {
         </div>
       )}
 
-      {online && isLoading && (
+      {showSyncBanner && (
         <div className="fixed z-50 top-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-gray-200 text-sm shadow">
           Syncing latest data…
         </div>

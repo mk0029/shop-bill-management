@@ -46,11 +46,17 @@ export function useCustomerStats() {
     };
   }, [customersWithStats]);
 
-  const isLoading = customersLoading || billsLoading;
+  // Split loading: list can show once customers are ready, stats may wait for bills
+  const isLoadingCustomers = customersLoading;
+  const isLoadingStats = customersLoading || billsLoading;
 
   return {
     customersWithStats,
     stats,
-    isLoading,
+    // Backward compat
+    isLoading: isLoadingStats,
+    // New granular flags
+    isLoadingCustomers,
+    isLoadingStats,
   };
 }

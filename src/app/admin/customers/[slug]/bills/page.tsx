@@ -17,7 +17,6 @@ import {
   Download,
 } from "lucide-react";
 import { useCustomers, useBills } from "@/hooks/use-sanity-data";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { useLocaleStore } from "@/store/locale-store";
 import { RealtimeBillList } from "@/components/realtime/realtime-bill-list";
 import { toast } from "sonner";
@@ -29,8 +28,7 @@ export default function CustomerBillsPage() {
   const { currency } = useLocaleStore();
 
   const { customers, isLoading: customersLoading } = useCustomers();
-  const { bills, isLoading: billsLoading } = useBills();
-  const { updateBill } = useSanityBillStore();
+  const { bills, isLoading: billsLoading, updateBill } = useBills();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<any>(null);
@@ -40,12 +38,14 @@ export default function CustomerBillsPage() {
   const customer = customers.find((c) => c._id === customerId);
 
   // Filter bills for this customer
-  const customerBills = bills.filter(
-    (bill) =>
-      bill.customer?._id === customerId ||
-      bill.customer?._ref === customerId ||
-      bill.customer === customerId
-  );
+  const getCustomerId = (c: unknown): string | undefined => {
+    const anyC: any = c as any;
+    if (!anyC) return undefined;
+    if (typeof anyC === "string") return anyC;
+    return anyC._id || anyC._ref || undefined;
+  };
+
+  const customerBills = bills.filter((bill: any) => getCustomerId(bill.customer) === customerId);
 
   // Calculate customer stats
   const stats = {
@@ -84,7 +84,7 @@ export default function CustomerBillsPage() {
     router.push(`/admin/billing/create?customerId=${customerId}&fresh=1`);
   };
 
-  const handleDownloadPDF = (bill: unknown) => {
+  const handleDownloadPDF = (bill: any) => {
     // TODO: Implement PDF download
     console.log("Download PDF for bill:", bill._id);
   };
@@ -100,41 +100,35 @@ export default function CustomerBillsPage() {
     }
   ) => {
     try {
-      const success = await updateBill(billId, {
+      await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
         updatedAt: new Date().toISOString(),
       });
+      console.log("✅ Payment updated successfully");
 
-      if (success) {
-        console.log("✅ Payment updated successfully");
-
-        // Show success notification
-        if (paymentData.paymentStatus === "paid") {
-          toast.success("✅ Bill marked as fully paid!");
-        } else {
-          toast.success(
-            `✅ Payment of ₹${paymentData.paidAmount.toFixed(2)} recorded successfully!`
-          );
-        }
-
-        // Force immediate UI update by updating the selected bill
-        if (selectedBill && selectedBill._id === billId) {
-          setSelectedBill({
-            ...selectedBill,
-            paymentStatus: paymentData.paymentStatus,
-            paidAmount: paymentData.paidAmount,
-            balanceAmount: paymentData.balanceAmount,
-          });
-        }
-
-        // The real-time listener will automatically update the bills list and stats
+      // Show success notification
+      if (paymentData.paymentStatus === "paid") {
+        toast.success("✅ Bill marked as fully paid!");
       } else {
-        throw new Error("Failed to update payment");
+        toast.success(
+          `✅ Payment of ₹${paymentData.paidAmount.toFixed(2)} recorded successfully!`
+        );
       }
+
+      // Force immediate UI update by updating the selected bill
+      if (selectedBill && selectedBill._id === billId) {
+        setSelectedBill({
+          ...selectedBill,
+          paymentStatus: paymentData.paymentStatus,
+          paidAmount: paymentData.paidAmount,
+          balanceAmount: paymentData.balanceAmount,
+        });
+      }
+
+      // The real-time listener will automatically update the bills list and stats
     } catch (error) {
-      console.error("❌ Error updating payment:", error);
       toast.error("❌ Failed to update payment. Please try again.");
       throw error;
     }

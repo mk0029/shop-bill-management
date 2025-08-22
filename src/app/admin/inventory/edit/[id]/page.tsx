@@ -31,6 +31,7 @@ import {
   getUnitLabel,
   getItemSpecifications,
 } from "@/lib/inventory-data";
+import { useProducts } from "@/hooks/use-sanity-data";
 
 export default function EditInventoryItemPage() {
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function EditInventoryItemPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [itemNotFound, setItemNotFound] = useState(false);
+  const { getProductById, updateProduct, isLoading: productsLoading } = useProducts();
 
   const [formData, setFormData] = useState({
     category: "",
@@ -57,38 +59,38 @@ export default function EditInventoryItemPage() {
     description: "",
   });
 
-  // Load item data from API on component mount
+  // Load item data from centralized store on mount
   useEffect(() => {
-    async function fetchItem() {
-      setIsLoading(true);
-      try {
-        // Replace with your actual API endpoint
-        const res = await fetch(`/api/inventory/${itemId}`);
-        if (!res.ok) throw new Error("Not found");
-        const item = await res.json();
-        setFormData({
-          category: item.category || "",
-          lightType: item.lightType || "",
-          color: item.color || "",
-          size: item.size || "",
-          watts: item.watts || "",
-          wireGauge: item.wireGauge || "",
-          ampere: item.ampere || "",
-          brand: item.brand || "",
-          purchasePrice: item.purchasePrice?.toString() || "",
-          sellingPrice: item.sellingPrice?.toString() || "",
-          currentStock: item.currentStock?.toString() || "",
-          unit: item.unit || "",
-          description: item.description || "",
-        });
-      } catch (err) {
+    if (!itemId) return;
+    setIsLoading(true);
+    try {
+      const item: any = getProductById(String(itemId));
+      if (!item) {
+        // If products are still loading, wait for next render
+        if (productsLoading) return;
         setItemNotFound(true);
-      } finally {
-        setIsLoading(false);
+        return;
       }
+      setFormData({
+        category: item.category?._id || "",
+        lightType: item.specifications?.lightType || "",
+        color: item.specifications?.color || "",
+        size: item.specifications?.size || "",
+        watts: item.specifications?.watts?.toString() || "",
+        wireGauge: item.specifications?.wireGauge || "",
+        ampere: item.specifications?.ampere || "",
+        brand: item.brand?._id || "",
+        purchasePrice: item.pricing?.purchasePrice?.toString() || "",
+        sellingPrice: item.pricing?.sellingPrice?.toString() || "",
+        currentStock: item.inventory?.currentStock?.toString() || "",
+        unit: item.pricing?.unit || "",
+        description: item.description || "",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    if (itemId) fetchItem();
-  }, [itemId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId, productsLoading]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -99,10 +101,36 @@ export default function EditInventoryItemPage() {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Build partial updates for known fields
+      const updates: any = {
+        pricing: {
+          purchasePrice: parseFloat(formData.purchasePrice) || 0,
+          sellingPrice: parseFloat(formData.sellingPrice) || 0,
+          unit: formData.unit || "piece",
+        },
+        inventory: {
+          currentStock: parseInt(formData.currentStock || "0", 10) || 0,
+        },
+        description: formData.description,
+        specifications: {
+          ...(formData.lightType && { lightType: formData.lightType }),
+          ...(formData.color && { color: formData.color }),
+          ...(formData.size && { size: formData.size }),
+          ...(formData.watts && { watts: Number(formData.watts) }),
+          ...(formData.wireGauge && { wireGauge: formData.wireGauge }),
+          ...(formData.ampere && { ampere: formData.ampere }),
+        },
+      };
 
-      console.log("Updated item data:", formData);
+      // Optionally update brand/category when selected
+      if (formData.brand) {
+        updates.brand = { _type: "reference", _ref: formData.brand };
+      }
+      if (formData.category) {
+        updates.category = { _type: "reference", _ref: formData.category };
+      }
+
+      await updateProduct(String(itemId), updates);
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Error updating item:", error);
@@ -139,9 +167,7 @@ export default function EditInventoryItemPage() {
   const needsAmpere = ["switch", "socket", "mcb"].includes(formData.category);
 
   // Filter brands based on selected category
-  const availableBrands = formData.category
-    ? [] // TODO: Replace with real brands data from API
-    : [];
+  const availableBrands = formData.category ? [] : [];
 
   if (itemNotFound) {
     return (
