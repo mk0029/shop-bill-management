@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBills } from "@/hooks/use-sanity-data";
 import { Card, CardContent } from "@/components/ui/card";
@@ -316,18 +316,19 @@ export const RealtimeBillStats: React.FC<{
   const allBills = storeBills.length > 0 ? storeBills : initialBills;
 
   // Filter bills by customer if specified
-  const bills = customerId
-    ? allBills.filter(
-        (bill) =>
-          bill.customer === customerId ||
-          (bill.customer as any)?._ref === customerId ||
-          (bill.customer as any)?._id === customerId
-      )
-    : allBills;
+  const filteredBills = useMemo(() => {
+    if (!customerId) return allBills;
+    return allBills.filter(
+      (bill) =>
+        bill.customer === customerId ||
+        (bill.customer as any)?._ref === customerId ||
+        (bill.customer as any)?._id === customerId
+    );
+  }, [allBills, customerId]);
 
   // Recalculate stats when bills change
   useEffect(() => {
-    const newStats = bills.reduce(
+    const newStats = filteredBills.reduce(
       (acc: any, bill: any) => {
         acc.total += 1;
         acc.totalAmount += bill.totalAmount || 0;
@@ -372,8 +373,19 @@ export const RealtimeBillStats: React.FC<{
       }
     );
 
-    setStats(newStats);
-  }, [bills]);
+    // Avoid unnecessary state updates to prevent extra renders
+    setStats((prev) => {
+      const equal =
+        prev.total === newStats.total &&
+        prev.paid === newStats.paid &&
+        prev.pending === newStats.pending &&
+        prev.overdue === newStats.overdue &&
+        prev.totalAmount === newStats.totalAmount &&
+        prev.paidAmount === newStats.paidAmount &&
+        prev.pendingAmount === newStats.pendingAmount;
+      return equal ? prev : newStats;
+    });
+  }, [filteredBills]);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

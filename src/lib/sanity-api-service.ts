@@ -1,5 +1,6 @@
 import { sanityClient } from "./sanity";
 import { strapiService } from "./strapi-service";
+// Note: Do NOT statically import server-only modules here, this file is used by client code too.
 
 // Types for API responses
 export interface ApiResponse<T = any> {
@@ -7,14 +8,6 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
 }
 
 // User API Service
@@ -192,6 +185,8 @@ export const userApiService = {
         .catch((strapiError) => {
           console.warn("⚠️ Failed to sync user to Strapi:", strapiError);
         });
+
+      // Note: admin notifications moved to dedicated server handlers (API/cron)
 
       return { success: true, data: createdUser };
     } catch (error) {
@@ -514,36 +509,9 @@ export const productApiService = {
 
 // Brand API Service
 export const brandApiService = {
-  /**
-   * Get all brands
-   */
   async getAllBrands(): Promise<ApiResponse<any[]>> {
     try {
-      const query = `*[_type == "brand" || _type == "brands"] {
-        _id,
-        _type,
-        "name": select(
-          defined(name) => name,
-          defined(title) => title,
-          "Unnamed Brand"
-        ),
-        slug,
-        logo,
-        description,
-        "isActive": select(
-          defined(isActive) => isActive,
-          true
-        ),
-        "createdAt": select(
-          defined(createdAt) => createdAt,
-          _createdAt
-        ),
-        "updatedAt": select(
-          defined(updatedAt) => updatedAt,
-          _updatedAt
-        )
-      } | order(name asc)`;
-
+      const query = `*[_type == "brand"]{ _id, _type, "name": select(defined(name)=>name, defined(title)=>title, "Unnamed Brand"), slug, logo, description, "isActive": select(defined(isActive)=>isActive, true) } | order(name asc)`;
       const brands = await sanityClient.fetch(query);
       return { success: true, data: brands };
     } catch (error) {
@@ -551,43 +519,17 @@ export const brandApiService = {
       return { success: false, error: 'Failed to fetch brands' };
     }
   },
-
-  /**
-   * Get brand by ID
-   */
   async getBrandById(brandId: string): Promise<ApiResponse<any>> {
     try {
-      const query = `*[_type in ["brand", "brands"] && _id == $brandId][0] {
-        _id,
-        _type,
-        "name": select(
-          defined(name) => name,
-          defined(title) => title,
-          "Unnamed Brand"
-        ),
-        slug,
-        logo,
-        description,
-        "isActive": select(
-          defined(isActive) => isActive,
-          true
-        )
-      }`;
-
+      const query = `*[_type == "brand" && _id == $brandId][0]{ _id, _type, "name": select(defined(name)=>name, defined(title)=>title, "Unnamed Brand"), slug, logo, description, "isActive": select(defined(isActive)=>isActive, true) }`;
       const brand = await sanityClient.fetch(query, { brandId });
-      if (!brand) {
-        return { success: false, error: 'Brand not found' };
-      }
+      if (!brand) return { success: false, error: 'Brand not found' };
       return { success: true, data: brand };
     } catch (error) {
       console.error('Error fetching brand:', error);
       return { success: false, error: 'Failed to fetch brand' };
     }
   },
-
-  /**
-   * Create new brand
-   */
   async createBrand(brandData: any): Promise<ApiResponse<any>> {
     try {
       const newBrand = {
@@ -597,56 +539,25 @@ export const brandApiService = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-
-      const createdBrand = await sanityClient.create(newBrand);
-
-      // Sync to Strapi
-      try {
-        await strapiService.brands.createBrand(createdBrand);
-      } catch (strapiError) {
-        console.warn('Failed to sync brand to Strapi:', strapiError);
-      }
-
-      return { success: true, data: createdBrand };
+      const created = await sanityClient.create(newBrand);
+      return { success: true, data: created };
     } catch (error) {
       console.error('Error creating brand:', error);
       return { success: false, error: 'Failed to create brand' };
     }
   },
-
-  /**
-   * Update brand
-   */
-  async updateBrand(
-    brandId: string,
-    brandData: any
-  ): Promise<ApiResponse<any>> {
+  async updateBrand(brandId: string, brandData: any): Promise<ApiResponse<any>> {
     try {
-      const updatedBrand = await sanityClient
+      const updated = await sanityClient
         .patch(brandId)
-        .set({
-          ...brandData,
-          updatedAt: new Date().toISOString(),
-        })
+        .set({ ...brandData, updatedAt: new Date().toISOString() })
         .commit();
-
-      // Sync to Strapi
-      try {
-        await strapiService.brands.createBrand(updatedBrand);
-      } catch (strapiError) {
-        console.warn('Failed to sync brand to Strapi:', strapiError);
-      }
-
-      return { success: true, data: updatedBrand };
+      return { success: true, data: updated };
     } catch (error) {
       console.error('Error updating brand:', error);
       return { success: false, error: 'Failed to update brand' };
     }
   },
-
-  /**
-   * Delete brand
-   */
   async deleteBrand(brandId: string): Promise<ApiResponse<void>> {
     try {
       await sanityClient.delete(brandId);
@@ -660,37 +571,9 @@ export const brandApiService = {
 
 // Category API Service
 export const categoryApiService = {
-  /**
-   * Get all categories
-   */
   async getAllCategories(): Promise<ApiResponse<any[]>> {
     try {
-      const query = `*[_type == "category"] {
-        _id,
-        _type,
-        name,
-        slug,
-        description,
-        icon,
-        parentCategory,
-        "isActive": select(
-          defined(isActive) => isActive,
-          true
-        ),
-        "sortOrder": select(
-          defined(sortOrder) => sortOrder,
-          0
-        ),
-        "createdAt": select(
-          defined(createdAt) => createdAt,
-          _createdAt
-        ),
-        "updatedAt": select(
-          defined(updatedAt) => updatedAt,
-          _updatedAt
-        )
-      } | order(name asc)`;
-
+      const query = `*[_type == "category"]{ _id, _type, name, slug, description, icon, "isActive": select(defined(isActive)=>isActive, true) } | order(name asc)`;
       const categories = await sanityClient.fetch(query);
       return { success: true, data: categories };
     } catch (error) {
@@ -698,40 +581,17 @@ export const categoryApiService = {
       return { success: false, error: 'Failed to fetch categories' };
     }
   },
-
-  /**
-   * Get category by ID
-   */
   async getCategoryById(categoryId: string): Promise<ApiResponse<any>> {
     try {
-      const query = `*[_type == "category" && _id == $categoryId][0] {
-        _id,
-        _type,
-        name,
-        slug,
-        description,
-        icon,
-        parentCategory,
-        "isActive": select(
-          defined(isActive) => isActive,
-          true
-        )
-      }`;
-
+      const query = `*[_type == "category" && _id == $categoryId][0]{ _id, _type, name, slug, description, icon, "isActive": select(defined(isActive)=>isActive, true) }`;
       const category = await sanityClient.fetch(query, { categoryId });
-      if (!category) {
-        return { success: false, error: 'Category not found' };
-      }
+      if (!category) return { success: false, error: 'Category not found' };
       return { success: true, data: category };
     } catch (error) {
       console.error('Error fetching category:', error);
       return { success: false, error: 'Failed to fetch category' };
     }
   },
-
-  /**
-   * Create new category
-   */
   async createCategory(categoryData: any): Promise<ApiResponse<any>> {
     try {
       const newCategory = {
@@ -741,56 +601,25 @@ export const categoryApiService = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-
-      const createdCategory = await sanityClient.create(newCategory);
-
-      // Sync to Strapi
-      try {
-        await strapiService.categories.createCategory(createdCategory);
-      } catch (strapiError) {
-        console.warn('Failed to sync category to Strapi:', strapiError);
-      }
-
-      return { success: true, data: createdCategory };
+      const created = await sanityClient.create(newCategory);
+      return { success: true, data: created };
     } catch (error) {
       console.error('Error creating category:', error);
       return { success: false, error: 'Failed to create category' };
     }
   },
-
-  /**
-   * Update category
-   */
-  async updateCategory(
-    categoryId: string,
-    categoryData: any
-  ): Promise<ApiResponse<any>> {
+  async updateCategory(categoryId: string, categoryData: any): Promise<ApiResponse<any>> {
     try {
-      const updatedCategory = await sanityClient
+      const updated = await sanityClient
         .patch(categoryId)
-        .set({
-          ...categoryData,
-          updatedAt: new Date().toISOString(),
-        })
+        .set({ ...categoryData, updatedAt: new Date().toISOString() })
         .commit();
-
-      // Sync to Strapi
-      try {
-        await strapiService.categories.createCategory(updatedCategory);
-      } catch (strapiError) {
-        console.warn('Failed to sync category to Strapi:', strapiError);
-      }
-
-      return { success: true, data: updatedCategory };
+      return { success: true, data: updated };
     } catch (error) {
       console.error('Error updating category:', error);
       return { success: false, error: 'Failed to update category' };
     }
   },
-
-  /**
-   * Delete category
-   */
   async deleteCategory(categoryId: string): Promise<ApiResponse<void>> {
     try {
       await sanityClient.delete(categoryId);
@@ -966,6 +795,18 @@ export const billApiService = {
     billData: any
   ): Promise<ApiResponse<any>> {
     try {
+      // Fetch previous bill state for change detection
+      const prev = await sanityClient.fetch(
+        `*[_type=="bill" && _id==$id][0]{
+          _id,
+          billNumber,
+          status,
+          paymentStatus,
+          customer->{ _id, name }
+        }`,
+        { id: billId }
+      )
+
       const updatedBill = await sanityClient
         .patch(billId)
         .set({
@@ -980,6 +821,8 @@ export const billApiService = {
       } catch (strapiError) {
         console.warn('Failed to sync bill to Strapi:', strapiError);
       }
+
+      // Note: bill change notifications moved to dedicated server handlers (API/queues)
 
       return { success: true, data: updatedBill };
     } catch (error) {
