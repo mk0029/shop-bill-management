@@ -29,6 +29,17 @@ export default function AutoNotifications() {
       if ('serviceWorker' in navigator) {
         try {
           await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          // Clean up legacy/duplicate workers that can cause double notifications
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations()
+            for (const reg of regs) {
+              const scope = reg.scope || ''
+              // Remove the legacy default FCM scope created by older SDKs
+              if (scope.includes('/firebase-cloud-messaging-push-scope')) {
+                await reg.unregister().catch(() => {})
+              }
+            }
+          } catch {}
         } catch (err) {
           console.warn('[FCM] SW registration failed (continuing without background notifications)', err)
         }

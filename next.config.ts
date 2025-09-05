@@ -8,9 +8,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Use a custom dist directory locally to avoid Windows file lock issues on .next
-  // but keep the default on Vercel so it generates /.next/routes-manifest.json
-  distDir: process.env.VERCEL ? ".next" : ".next-build",
+  // Use the default dist directory. Turbopack expects '.next' and may fail to
+  // resolve certain internal modules (e.g. next/font loaders) when this is customized.
+  distDir: ".next",
   images: {
     remotePatterns: [
       {

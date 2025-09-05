@@ -262,6 +262,13 @@ try {
         link: sanitizeRelativeUrl(((payload && payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || data.click_action || (data.billId ? `/bills/${data.billId}` : '/'))),
       },
     };
+    // Dedupe: if a notification with the same tag is already shown, skip
+    try {
+      const existing = await self.registration.getNotifications({ tag: options.tag });
+      if (existing && existing.length > 0) {
+        return;
+      }
+    } catch {}
     await self.registration.showNotification(title, options);
   }
 
@@ -341,7 +348,7 @@ try {
     // If a notification block is already present, prefer onBackgroundMessage path in compat
     const hasNotification = !!(payload.notification || (payload.webpush && payload.webpush.notification));
     if (hasNotification) {
-      // Still route through our unified display to ensure preferences and enhancements
+      // Route through unified display (with preferences + dedupe)
       event.waitUntil((async () => {
         const queued = await queueNotification(payload);
         if (!queued) await showNotificationWithRetry(payload, 3);

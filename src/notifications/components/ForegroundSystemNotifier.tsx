@@ -7,7 +7,9 @@ import type { MessagePayload } from 'firebase/messaging'
 /**
  * ForegroundSystemNotifier
  * - Listens for FCM messages while the page is active
- * - Displays a system-level notification using the Notifications API
+ * - Displays a system-level notification using the Notifications API ONLY when
+ *   the tab is not visible (minimized or in the background). When visible, the
+ *   app's in-app UI (toasts, sidebars) should handle the message.
  */
 export default function ForegroundSystemNotifier() {
   useEffect(() => {
@@ -15,6 +17,11 @@ export default function ForegroundSystemNotifier() {
     const unsubscribe = onForegroundMessage(async (payload: MessagePayload) => {
       try {
         if (typeof window === 'undefined' || !('Notification' in window)) return
+
+        // Only show OS notification when the page is NOT visible
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          return
+        }
 
         // Ensure permission (AutoNotifications should have requested already)
         if (Notification.permission === 'default') {

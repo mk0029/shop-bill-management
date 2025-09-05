@@ -32,14 +32,18 @@ function getServiceAccount() {
   if (projectId && clientEmail && privateKey) {
     return { project_id: projectId, client_email: clientEmail, private_key: privateKey }
   }
-  // Local fallback: read from secrates.json at project root if present
+  // Local fallback: read from secrets file at project root if present
+  // Support both 'secrates.json' (legacy misspelling) and 'secrets.json'
   try {
-    const p = path.join(process.cwd(), 'secrates.json')
-    if (fs.existsSync(p)) {
-      const raw = fs.readFileSync(p, 'utf8')
-      const parsed = JSON.parse(raw)
-      if (parsed?.project_id && parsed?.client_email && parsed?.private_key) {
-        return parsed
+    const candidates = ['secrates.json', 'secrets.json']
+    for (const fname of candidates) {
+      const p = path.join(process.cwd(), fname)
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf8')
+        const parsed = JSON.parse(raw)
+        if (parsed?.project_id && parsed?.client_email && parsed?.private_key) {
+          return parsed
+        }
       }
     }
   } catch {

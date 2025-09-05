@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendNotification, sendToAdmins } from '@/lib/notification-service'
+import { sendNotification, sendToAdmins, sendToAll } from '@/lib/notification-service'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,9 +8,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing title/body' }, { status: 400 })
     }
 
-    let result: any
+    type ApiSendResult = { sent?: number; failed?: number }
+    let result: ApiSendResult
     if (body.audience === 'admins') {
       result = await sendToAdmins(body.title, body.body, body.data)
+    } else if (body.audience === 'all') {
+      result = await sendToAll(body.title, body.body, body.data)
     } else {
       if (!body.tokens && !body.userIds) {
         return NextResponse.json({ success: false, error: 'Provide tokens or userIds' }, { status: 400 })
@@ -33,7 +36,8 @@ export async function POST(req: NextRequest) {
     }
     // Nothing delivered; keep 400 to indicate an actionable error
     return NextResponse.json(result, { status: 400 })
-  } catch (e: any) {
-    return NextResponse.json({ success: false, error: e?.message || 'Server error' }, { status: 500 })
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Server error'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

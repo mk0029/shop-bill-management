@@ -18,7 +18,7 @@ type AdminUserLike = {
 export default function AdminTestPushPanel() {
   const { user } = useUser();
   const { user: adminUser } = useAuthStore();
-  const [loading, setLoading] = useState<"me" | "uid" | "admins" | null>(null);
+  const [loading, setLoading] = useState<"me" | "uid" | "admins" | "all" | null>(null);
   const [targetUserId, setTargetUserId] = useState("");
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -37,7 +37,7 @@ export default function AdminTestPushPanel() {
       title: string;
       body: string;
       userIds?: string[];
-      audience?: "admins";
+      audience?: "admins" | "all";
     }) => {
       try {
         setLastError(null);
@@ -111,6 +111,16 @@ export default function AdminTestPushPanel() {
     setLoading(null);
   }, [sendRich]);
 
+  const sendToAll = useCallback(async () => {
+    setLoading("all");
+    await sendRich({
+      title: "Global broadcast",
+      body: "This is a rich test to all users.",
+      audience: "all",
+    });
+    setLoading(null);
+  }, [sendRich]);
+
   return (
     <div className="mb-6 p-4 border border-gray-800 rounded-lg bg-gray-900">
       <div className="flex items-center justify-between mb-2">
@@ -145,6 +155,9 @@ export default function AdminTestPushPanel() {
         </div>
         <Button onClick={sendToAdmins} disabled={loading !== null} variant="outline">
           {loading === "admins" ? "Sending..." : "Send to admins"}
+        </Button>
+        <Button onClick={sendToAll} disabled={loading !== null} variant="destructive">
+          {loading === "all" ? "Sending..." : "Send to all users"}
         </Button>
       </div>
     </div>
