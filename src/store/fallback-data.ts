@@ -1,4 +1,4 @@
-import { TAX_RATE } from "@/constants/defaults";
+import { TAX_RATE } from "../constants/defaults";
 
 // Fallback data for when Sanity is not available
 export const fallbackData = {

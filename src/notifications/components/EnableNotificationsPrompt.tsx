@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { isMessagingAvailable } from '@/notifications/lib/firebase'
-import { registerFcmToken } from '@/lib/fcm'
-import { useAuthStore } from '@/store/auth-store'
+import { useAuthStore } from '../../store/auth-store'
+import { isMessagingAvailable } from '../lib/firebase'
+import { registerFcmToken } from '../../lib/fcm'
+
 
 function getPermission(): NotificationPermission | 'unsupported' {
   if (typeof window === 'undefined') return 'unsupported'

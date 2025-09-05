@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -34,6 +35,15 @@ const nextConfig: NextConfig = {
   // Strip all console.* calls in production builds to keep output clean
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
+  },
+  webpack: (config) => {
+    // Enable '@' alias to map to the src directory
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      ['@']: path.resolve(__dirname, 'src'),
+    };
+    return config;
   },
 };
 

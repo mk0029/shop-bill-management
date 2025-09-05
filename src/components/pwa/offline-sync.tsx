@@ -1,9 +1,10 @@
 "use client";
 import { useEffect } from "react";
-import { flushQueue } from "@/lib/offline-queue";
-import { useOnline } from "@/hooks/use-online";
-import { useAuthStore } from "@/store/auth-store";
+
 import { usePathname } from "next/navigation";
+import { useOnline } from "../../hooks/use-online";
+import { useAuthStore } from "../../store/auth-store";
+import { flushQueue } from "../../lib/offline-queue";
 
 export default function OfflineSync() {
   const online = useOnline();

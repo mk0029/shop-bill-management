@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
-import { DataProvider } from "@/components/providers/data-provider";
+import { DataProvider } from "../components/providers/data-provider";
+
 import { Toaster } from "sonner";
 import Script from "next/script";
-import OfflineSync from "@/components/pwa/offline-sync";
-import OfflineWarning from "@/components/pwa/offline-warning";
-import AuthPrehydrate from "@/components/providers/auth-prehydrate";
-import NotificationsBridge from "@/components/realtime/notifications-bridge";
-import AutoNotifications from "@/notifications/components/AutoNotifications";
-import EnableNotificationsPrompt from "@/notifications/components/EnableNotificationsPrompt";
+import OfflineSync from "../components/pwa/offline-sync";
+import OfflineWarning from "../components/pwa/offline-warning";
+import AuthPrehydrate from "../components/providers/auth-prehydrate";
+import NotificationsBridge from "../components/realtime/notifications-bridge";
+import AutoNotifications from "../notifications/components/AutoNotifications";
+import EnableNotificationsPrompt from "../notifications/components/EnableNotificationsPrompt";
+
 import "./globals.css";
-import RouteProgress from "@/components/ui/route-progress";
-import NotificationToaster from "@/components/notifications/NotificationToaster";
-import ForegroundSystemNotifier from "@/notifications/components/ForegroundSystemNotifier";
+import RouteProgress from "../components/ui/route-progress";
+import NotificationToaster from "../components/notifications/NotificationToaster";
+import ForegroundSystemNotifier from "../notifications/components/ForegroundSystemNotifier";
 
 // Force dynamic rendering for all pages
 export const dynamic = 'force-dynamic';

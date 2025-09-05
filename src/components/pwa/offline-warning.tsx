@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Modal } from "@/components/ui/modal";
-import { isStandalone } from "@/lib/pwa";
-import { useOnline } from "@/hooks/use-online";
+import { Modal } from "../ui/modal";
+import { isStandalone } from "../../lib/pwa";
+import { useOnline } from "../../hooks/use-online";
 
 const KEY = "pwa_offline_warning_shown";
 

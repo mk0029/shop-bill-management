@@ -1,15 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { DollarSign, Save, CreditCard, Wallet, WifiOff } from "lucide-react";
-import { useLocaleStore } from "@/store/locale-store";
-import { useOnline } from "@/hooks/use-online";
-import { isStandalone } from "@/lib/pwa";
+
+import { useOnline } from "../../hooks/use-online";
+import { useLocaleStore } from "../../store/locale-store";
+import { isStandalone } from "../../lib/pwa";
+import { CreditCard, DollarSign, Save, Wallet, WifiOff } from "lucide-react";
+import { Label } from "@radix-ui/react-label";
+import { Switch } from "@radix-ui/react-switch";
+import { Input } from "postcss";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 
 interface BillSummarySidebarProps {
   selectedCustomer: any;
@@ -207,7 +208,7 @@ export const BillSummarySidebar = ({
                     max={grandTotal}
                     step="0.01"
                     value={formData.partialPaymentAmount || ""}
-                    onChange={(e) =>
+                    onChange={(e: { target: { value: unknown; }; }) =>
                       onInputChange("partialPaymentAmount", e.target.value)
                     }
                     placeholder="0.00"

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -18,6 +19,8 @@ import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
 
 const locationOptions = [
   { value: "lilas", label: "Lilas" },
+  { value: "sainiwas", label: "Sainiwas" },
+  { value: "dhani-sila-wali", label: "Dhani Sila Wali" },
   { value: "siwani", label: "Siwani" },
   { value: "sainiwas", label: "Sainiwas" },
 ];

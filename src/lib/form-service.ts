@@ -6,7 +6,7 @@ import {
   BillItem,
 } from "./inventory-management";
 import { deduplicateBillItems, validateBillItems } from "./bill-utils";
-import { TAX_RATE } from "@/constants/defaults";
+import { TAX_RATE } from "../constants/defaults";
 
 export interface FormSubmissionResult {
   success: boolean;

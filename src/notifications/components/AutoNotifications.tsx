@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect } from 'react'
-import { getClientApp, getFcmToken, isMessagingAvailable } from '@/notifications/lib/firebase'
-import { useAuthStore } from '@/store/auth-store'
-import { registerFcmToken } from '@/lib/fcm'
-import { useNotificationStore } from '@/store/notification-store'
+import { useAuthStore } from '../../store/auth-store'
+import { useNotificationStore } from '../../store/notification-store'
+import { getClientApp, getFcmToken, isMessagingAvailable } from '../lib/firebase'
+import { registerFcmToken } from '../../lib/fcm'
+
 
 /**
  * AutoNotifications
@@ -104,12 +105,9 @@ export default function AutoNotifications() {
   useEffect(() => {
     try {
       const n = Number(unread) || 0
-      // @ts-expect-error - experimental API
       if (n > 0 && navigator.setAppBadge) {
-        // @ts-expect-error - experimental API
         navigator.setAppBadge(n).catch(() => {})
       } else if (n === 0) {
-        // @ts-expect-error - experimental API
         navigator.clearAppBadge?.()
       }
     } catch {}

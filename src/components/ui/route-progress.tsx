@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import NProgress from "nprogress";
-import LoadingSpinner from "@/components/ui/loading-spinner";
+import LoadingSpinner from "./loading-spinner";
 
 // NProgress + full-screen overlay synced with App Router route changes
 export default function RouteProgress() {

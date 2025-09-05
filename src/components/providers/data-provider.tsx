@@ -2,9 +2,9 @@
 "use client";
 
 import { useEffect, ReactNode } from "react";
-import { useDataStore } from "@/store/data-store";
-import { useAuthStore } from "@/store/auth-store";
-import { useOnline } from "@/hooks/use-online";
+import { useDataStore } from "../../store/data-store";
+import { useAuthStore } from "../../store/auth-store";
+import { useOnline } from "../../hooks/use-online";
 
 interface DataProviderProps {
   children: ReactNode;

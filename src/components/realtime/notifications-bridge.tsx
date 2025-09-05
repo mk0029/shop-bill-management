@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSanityRealtimeStore } from "@/store/sanity-realtime-store";
-import { useNotificationStore } from "@/store/notification-store";
+import { useSanityRealtimeStore } from "../../store/sanity-realtime-store";
+import { useNotificationStore } from "../../store/notification-store";
 
 export default function NotificationsBridge() {
   const { on, connect } = useSanityRealtimeStore();

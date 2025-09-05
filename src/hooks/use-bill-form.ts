@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBill } from "@/lib/form-service";
-import { localDraftService } from "@/lib/local-draft-service";
-import { useDataStore } from "@/store/data-store";
-import { useOnline } from "@/hooks/use-online";
-import { queueBill } from "@/lib/offline-queue";
+import { useDataStore } from "../store/data-store";
+import { useOnline } from "./use-online";
+import { queueBill } from "../lib/offline-queue";
+import { createBill } from "../lib/form-service";
+import { localDraftService } from "../lib/local-draft-service";
+
 
 interface Product {
   _id: string;

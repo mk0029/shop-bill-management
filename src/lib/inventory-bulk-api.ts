@@ -1,4 +1,4 @@
-import { TAX_RATE } from "@/constants/defaults";
+import { TAX_RATE } from "../constants/defaults";
 import { sanityClient } from "./sanity";
 
 export interface BulkInventoryApiResponse<T = unknown> {
