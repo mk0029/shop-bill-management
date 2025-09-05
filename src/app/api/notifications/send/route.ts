@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { sendNotification, sendToAdmins } from '@/lib/notification-service'
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => null)
+    if (!body?.title || !body?.body) {
+      return NextResponse.json({ success: false, error: 'Missing title/body' }, { status: 400 })
+    }
+
+    let result: any
+    if (body.audience === 'admins') {
+      result = await sendToAdmins(body.title, body.body, body.data)
+    } else {
+      if (!body.tokens && !body.userIds) {
+        return NextResponse.json({ success: false, error: 'Provide tokens or userIds' }, { status: 400 })
+      }
+      result = await sendNotification({
+        title: body.title,
+        body: body.body,
+        data: body.data,
+        tokens: body.tokens,
+        userIds: body.userIds,
+        sound: body.sound || undefined,
+      })
+    }
+    const sent = Number(result?.sent || 0)
+    const failed = Number(result?.failed || 0)
+    // If at least one message was delivered, treat as success (partial if some failed)
+    if (sent > 0) {
+      const partial = failed > 0
+      return NextResponse.json({ ...result, partial }, { status: 200 })
+    }
+    // Nothing delivered; keep 400 to indicate an actionable error
+    return NextResponse.json(result, { status: 400 })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e?.message || 'Server error' }, { status: 500 })
+  }
+}

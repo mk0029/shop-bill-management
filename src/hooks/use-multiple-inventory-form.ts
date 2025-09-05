@@ -1,0 +1,312 @@
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSpecificationsStore } from "@/store/specifications-store";
+import { useProducts, useBrands, useCategories } from "@/hooks/use-sanity-data";
+import { validateProduct } from "@/lib/dynamic-validation";
+import { useDynamicFieldRegistry } from "@/hooks/use-dynamic-field-registry";
+import { initFieldRegistry } from "@/lib/field-registry-init";
+import type { Specification } from "@/store/inventory-store";
+
+export interface InventoryFormData {
+  id: string;
+  category: string;
+  brand: string;
+  productName: string;
+  purchasePrice: string;
+  sellingPrice: string;
+  currentStock: string;
+  unit: string;
+  description: string;
+  specifications: Specification;
+  selectedExistingProduct: string;
+}
+
+export const useMultipleInventoryForm = () => {
+  const router = useRouter();
+  const { brands } = useBrands();
+  const { categories } = useCategories();
+  const specifications = useSpecificationsStore((state) => state.specificationOptions);
+  const { products } = useProducts();
+
+  // Initialize dynamic field registry
+  const { isReady: isDynamicFieldsReady } = useDynamicFieldRegistry();
+
+  useEffect(() => {
+    // Only ensure dynamic field registry is initialized; data comes from centralized store
+    if (!isDynamicFieldsReady) {
+      initFieldRegistry().catch(console.error);
+    }
+  }, [isDynamicFieldsReady]);
+
+  const createEmptyForm = (): InventoryFormData => ({
+    id: Math.random().toString(36).slice(2),
+    category: "",
+    brand: "",
+    productName: "",
+    purchasePrice: "",
+    sellingPrice: "",
+    currentStock: "",
+    unit: "piece",
+    description: "",
+    specifications: {} as Specification,
+    selectedExistingProduct: "",
+  });
+
+  const [formDataList, setFormDataList] = useState<InventoryFormData[]>([createEmptyForm()]);
+  const [errors, setErrors] = useState<Record<string, Record<string, string>>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
+  const [successfulProducts, setSuccessfulProducts] = useState<string[]>([]);
+  const [progress, setProgress] = useState<{ current: number; total: number; lastName?: string }>({
+    current: 0,
+    total: 0,
+  });
+
+  const addNewForm = (): string => {
+    const newForm = createEmptyForm();
+    setFormDataList((prev) => [...prev, newForm]);
+    return newForm.id;
+  };
+
+  const removeForm = (formId: string) => {
+    if (formDataList.length > 1) {
+      setFormDataList((prev) => prev.filter((form) => form.id !== formId));
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[formId];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleInputChange = (formId: string, field: string, value: string) => {
+    setFormDataList((prev) =>
+      prev.map((form) => (form.id === formId ? { ...form, [field]: value } : form))
+    );
+    // Clear error when user starts typing
+    if (errors[formId]?.[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [formId]: { ...prev[formId], [field]: "" },
+      }));
+    }
+  };
+
+  const handleExistingProductSelect = (formId: string, productId: string) => {
+    if (!productId) {
+      setFormDataList((prev) =>
+        prev.map((form) =>
+          form.id === formId
+            ? {
+                ...createEmptyForm(),
+                id: form.id,
+              }
+            : form
+        )
+      );
+      return;
+    }
+
+    const selectedProduct = products.find((p) => p._id === productId);
+    if (selectedProduct) {
+      setFormDataList((prev) =>
+        prev.map((form) =>
+          form.id === formId
+            ? {
+                ...form,
+                category: selectedProduct.category._id,
+                brand: selectedProduct.brand._id,
+                productName: selectedProduct.name || "",
+                purchasePrice: selectedProduct.pricing.purchasePrice.toString(),
+                sellingPrice: selectedProduct.pricing.sellingPrice.toString(),
+                currentStock: "",
+                unit: selectedProduct.pricing.unit || "piece",
+                description: selectedProduct.description || "",
+                specifications: selectedProduct.specifications || {},
+                selectedExistingProduct: productId,
+              }
+            : form
+        )
+      );
+    }
+  };
+
+  const handleSpecificationChange = (formId: string, field: string, value: string | number | boolean | string[]) => {
+    setFormDataList((prev) =>
+      prev.map((form) =>
+        form.id === formId
+          ? {
+              ...form,
+              specifications: { ...form.specifications, [field]: value } as Specification,
+            }
+          : form
+      )
+    );
+  };
+
+  const validateForms = async () => {
+    const validationErrors: Record<string, Record<string, string>> = {};
+    let isValid = true;
+
+    for (const form of formDataList) {
+      const formErrors = await validateProduct(form);
+      if (Object.keys(formErrors).length > 0) {
+        validationErrors[form.id] = formErrors;
+        isValid = false;
+      }
+    }
+
+    setErrors(validationErrors);
+    return isValid;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // show loader while validating potentially many forms
+    setIsLoading(true);
+    const valid = await validateForms();
+    setIsLoading(false);
+    if (valid) {
+      // preset progress total for the confirmation popup
+      setProgress({ current: 0, total: formDataList.length });
+      setShowConfirmationPopup(true);
+    }
+  };
+
+  const generateProductName = (formData: InventoryFormData) => {
+    const category = categories.find((cat) => cat._id === formData.category);
+    const brand = brands.find((br) => br._id === formData.brand);
+
+    const categoryTitle = category?.name || "Unknown Category";
+    const brandTitle = brand?.name || "Unknown Brand";
+
+    const forKey = Object.keys(formData.specifications).find(
+      (key) =>
+        key.endsWith("For") &&
+        formData.specifications[key] &&
+        formData.specifications[key].toString().trim() !== ""
+    );
+
+    if (forKey && formData.specifications[forKey]) {
+      return `${categoryTitle} - ${formData.specifications[forKey]}`;
+    }
+
+    return `${categoryTitle} - ${brandTitle}`;
+  };
+
+  const confirmSubmit = async () => {
+    if (isLoading) {
+      return;
+    }
+
+    setIsLoading(true);
+    // keep the confirmation popup open to show progress
+    setShowConfirmationPopup(true);
+    // track successful names via API response below
+
+    try {
+      setProgress({ current: 0, total: formDataList.length });
+      
+      // Prepare bulk products data
+      const bulkProductsData = formDataList.map((formData) => {
+        const brand = brands.find((b) => b._id === formData.brand);
+
+        const productPayload = {
+          name: formData.productName || generateProductName(formData),
+          brandId: formData.brand,
+          brandName: brand?.name || "",
+          categoryId: formData.category,
+          specifications: formData.specifications,
+          pricing: {
+            purchasePrice: parseFloat(formData.purchasePrice) || 0,
+            sellingPrice: parseFloat(formData.sellingPrice) || 0,
+            unit: formData.unit,
+          },
+          inventory: {
+            currentStock: parseInt(formData.currentStock, 10) || 0,
+            minimumStock: 10,
+            reorderLevel: 5,
+          },
+          description: formData.description,
+          tags: [],
+          initialStockTransaction: {
+            type: "purchase" as const,
+            quantity: parseInt(formData.currentStock, 10) || 0,
+            unitPrice: parseFloat(formData.purchasePrice) || 0,
+            notes: `Bulk creation: ${formData.productName || generateProductName(formData)} - initial stock`,
+          },
+        };
+
+        return productPayload;
+      });
+
+      // Use bulk API instead of individual calls
+      const { bulkInventoryApi } = await import("@/lib/inventory-bulk-api");
+      const bulkResult = await bulkInventoryApi.createBulkProducts(bulkProductsData);
+
+      if (bulkResult.success && bulkResult.data) {
+        const { successful: successfulProducts, failed, summary } = bulkResult.data;
+        
+        // Update progress to show completion
+        setProgress({ current: summary.successful, total: summary.total });
+        
+        // Collect successful product names
+        const successfulNames = successfulProducts.map((p: { name: string }) => p.name);
+        setSuccessfulProducts(successfulNames);
+        
+        if (successfulNames.length > 0) {
+          setShowSuccessPopup(true);
+        }
+        
+        // Log any failures
+        if (failed.length > 0) {
+          console.warn("Some products failed to create:", failed);
+        }
+      } else {
+        console.error("❌ Bulk product creation failed:", bulkResult.error);
+      }
+    } catch (error) {
+      console.error("Error in bulk product creation:", error);
+    } finally {
+      setIsLoading(false);
+      // close confirmation popup after processing completes
+      setShowConfirmationPopup(false);
+    }
+  };
+
+  const resetForms = () => {
+    setFormDataList([createEmptyForm()]);
+    setErrors({});
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccessPopup(false);
+    router.push("/admin/inventory");
+  };
+
+  return {
+    formDataList,
+    errors,
+    isLoading,
+    progress,
+    showSuccessPopup,
+    showConfirmationPopup,
+    brands,
+    categories,
+    specifications,
+    products,
+    successfulProducts,
+    handleInputChange,
+    handleSpecificationChange,
+    handleExistingProductSelect,
+    handleSubmit,
+    confirmSubmit,
+    resetForms,
+    handleSuccessClose,
+    setShowConfirmationPopup,
+    generateProductName,
+    addNewForm,
+    removeForm,
+  };
+};

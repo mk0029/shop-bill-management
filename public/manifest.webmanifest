@@ -1,0 +1,31 @@
+{
+  "name": "Jambh Electrics",
+  "short_name": "Jambh",
+  "description": "Professional Jambh Electrics system",
+  "start_url": "/?utm_source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B0F18",
+  "theme_color": "#0ea5e9",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/je-p-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/je-p-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/je-48.ico",
+      "sizes": "48x48 64x64 96x96 128x128 256x256",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
+}

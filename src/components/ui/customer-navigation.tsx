@@ -1,0 +1,295 @@
+"use client";
+import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth-store";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Building2,
+  FileText,
+  LogOut,
+  Menu,
+  MessageSquare,
+  User,
+  Wrench,
+  X,
+} from "lucide-react";
+import { Bell } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { SanityImage } from "./sanity-image";
+import Image from "next/image";
+import NotificationsPopover from "@/components/ui/notifications-popover";
+
+interface NavigationItem {
+  label: string;
+  href?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isDisabled?: boolean;
+}
+
+const customerNavigation: NavigationItem[] = [
+  {
+    label: "Bills",
+    href: "/customer/bills",
+    icon: FileText,
+  },
+  {
+    label: "Notifications",
+    href: "/customer/notifications",
+    icon: Bell,
+  },
+  {
+    label: "Profile",
+    href: "/customer/profile",
+    icon: User,
+  },
+  {
+    label: "Chat",
+    icon: MessageSquare,
+    isDisabled: true,
+  },
+  {
+    label: "Request Repair",
+    icon: Wrench,
+    isDisabled: true,
+  },
+];
+
+export function CustomerNavigation() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const { logout, user } = useAuthStore();
+
+  // Sanitize displayed text by removing content enclosed in (), {}, [], quotes, and markdown * or **
+  const sanitizeUserText = (text: string): string => {
+    try {
+      let s = text ?? "";
+      s = s.replace(/\(.*?\)/g, "");
+      s = s.replace(/\{.*?\}/g, "");
+      s = s.replace(/\[.*?\]/g, "");
+      s = s.replace(/"[^"]*"/g, "");
+      s = s.replace(/'[^']*'/g, "");
+      s = s.replace(/\*\*.*?\*\*/g, "");
+      s = s.replace(/\*.*?\*/g, "");
+      s = s.replace(/\s{2,}/g, " ").trim();
+      return s;
+    } catch {
+      return "";
+    }
+  };
+
+  const rawDisplayName = user?.name || "Customer";
+  const displayName = sanitizeUserText(rawDisplayName) || "Customer";
+
+  const isActive = (href?: string) => {
+    if (!href) return false;
+    return pathname === href || pathname.startsWith(href + "/");
+  };
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
+    const Icon = item.icon;
+    const active = isActive(item.href);
+    const isDisabled = item.isDisabled;
+
+    if (isMobile) {
+      if (isDisabled) {
+        return (
+          <div
+            key={item.label}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default">
+            <Icon className="w-5 h-5" />
+            <span className="font-medium">{item.label}</span>
+          </div>
+        );
+      }
+
+      return (
+        <Link
+          key={item.label}
+          href={item.href!}
+          onClick={() => setIsMobileMenuOpen(false)}
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            active
+              ? "bg-blue-600 text-white"
+              : "text-gray-300 hover:bg-gray-800 hover:text-white"
+          }`}>
+          <Icon className="w-5 h-5" />
+          <span className="font-medium">{item.label}</span>
+        </Link>
+      );
+    }
+
+    // Desktop rendering
+    if (isDisabled) {
+      return (
+        <div
+          key={item.label}
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default">
+          <Icon className="w-5 h-5" />
+          <span className="font-medium">{item.label}</span>
+        </div>
+      );
+    }
+
+    return (
+      <Link
+        key={item.label}
+        href={item.href!}
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+          active ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-800"
+        }`}>
+        <Icon className="w-5 h-5" />
+        <span className="font-medium">{item.label}</span>
+      </Link>
+    );
+  };
+
+  return (
+    <>
+      {/* Mobile Navigation Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40 xl:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+
+            {/* Mobile Menu */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 xl:hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-800">
+                <h2 className="text-xl font-bold text-white">Customer Menu</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="hover:bg-gray-800">
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Navigation Items */}
+              <div className="sm:p-4 p-3 space-y-2">
+                {customerNavigation.map((item) =>
+                  renderNavigationItem(item, true)
+                )}
+              </div>
+
+              {/* User Section */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                    <SanityImage
+                      src={user?.profileImage}
+                      alt={displayName || "Profile"}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      fallback={<User className="w-5 h-5 text-white" />}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{displayName}</p>
+                    <p className="text-gray-400 text-sm">Customer</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleLogout}
+                  className="w-full">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+      {/* Mobile Menu Button */}
+
+      {/* Desktop Navigation */}
+      <nav className="hidden xl:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-800">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-6 h-6 hidden text-white" />
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Image src="/je-p-48.png" alt="Logo" width={40} height={40} sizes="100vw" quality={100}/>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white">Jambh Electrics</h1>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Items */}
+        <div className="sm:p-4 p-3 space-y-2">
+          {customerNavigation.map((item) => renderNavigationItem(item))}
+        </div>
+
+        {/* User Section */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <SanityImage
+                src={user?.profileImage}
+                alt={displayName || "Profile"}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                fallback={<User className="w-5 h-5 text-white" />}
+              />
+            </div>
+            <div>
+              <p className="text-white font-medium">{displayName}</p>
+              <p className="text-gray-400 text-sm">Customer</p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={handleLogout} className="w-full">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </nav>
+
+      {/* Main Content Wrapper */}
+      <div className="xl:ml-64 min-h-fit bg-gray-950">
+        {/* Top Bar */}
+        <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 xl:px-6 xl:py-6">
+          <div className="flex items-center justify-between">
+            <div className="max-md:hidden">
+              <h1 className="text-xl font-bold !leading-[120%] text-white">
+                {customerNavigation.find((item) => isActive(item.href))
+                  ?.label || "Home"}
+              </h1>
+            </div>
+            <div className="flex items-center gap-4 justify-end w-full">
+              <NotificationsPopover />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="xl:hidden ">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { sanityClient } from '@/lib/sanity'
+
+export async function POST(req: NextRequest) {
+  try {
+    const { token, userId } = await req.json().catch(() => ({ token: null, userId: null }))
+    try { console.log('[API] register-token request', { userId, hasToken: typeof token === 'string' && token.length > 10 }) } catch {}
+    if (!token || typeof token !== 'string') {
+      return NextResponse.json({ success: false, error: 'Missing token' }, { status: 400 })
+    }
+    if (!userId || typeof userId !== 'string') {
+      return NextResponse.json({ success: false, error: 'Missing userId' }, { status: 400 })
+    }
+
+    // Fetch current tokens with revision for optimistic concurrency
+    const doc = await sanityClient.fetch(
+      `*[_type=="user" && (_id==$id || clerkId==$id)][0]{ _id, _rev, fcmTokens }`,
+      { id: userId }
+    )
+    if (!doc?._id) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
+    }
+
+    const tokens: string[] = Array.isArray(doc.fcmTokens) ? doc.fcmTokens.filter(Boolean) : []
+    if (tokens.includes(token)) {
+      return NextResponse.json({ success: true, data: { _id: doc._id, alreadyRegistered: true } })
+    }
+
+    // Compute unique array and commit with optimistic concurrency control
+    const makeUnique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)))
+    let attempt = 0
+    while (attempt < 2) {
+      attempt++
+      const current = attempt === 1 ? tokens : (await sanityClient.fetch(
+        `*[_type=="user" && _id==$id][0]{ _rev, fcmTokens }`,
+        { id: doc._id }
+      ))?.fcmTokens ?? []
+
+      const nextTokens = makeUnique([...(Array.isArray(current) ? current : []), token])
+
+      try {
+        const updated = await sanityClient
+          .patch(doc._id)
+          .ifRevisionId(attempt === 1 ? doc._rev : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0]._rev`, { id: doc._id })) as string)
+          .setIfMissing({ fcmTokens: [] })
+          .set({ fcmTokens: nextTokens, updatedAt: new Date().toISOString() })
+          .commit({ autoGenerateArrayKeys: true })
+        try { console.log('[API] register-token success', { _id: (updated as any)._id, tokensCount: Array.isArray((updated as any).fcmTokens) ? (updated as any).fcmTokens.length : 0 }) } catch {}
+        return NextResponse.json({ success: true, data: { _id: (updated as any)._id, tokens: (updated as any).fcmTokens || [] } })
+      } catch (err: any) {
+        const code = err?.statusCode || err?.status
+        const isConflict = code === 409
+        if (!isConflict) {
+          throw err
+        }
+        // Retry once on revision conflict
+      }
+    }
+    // If still failing, fall back to success since another request most likely registered it
+    return NextResponse.json({ success: true, data: { _id: doc._id, alreadyRegistered: true } })
+  } catch (e: any) {
+    try { console.error('[API] register-token error', e?.message || e) } catch {}
+    return NextResponse.json({ success: false, error: e?.message || 'Server error' }, { status: 500 })
+  }
+}
