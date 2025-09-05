@@ -253,13 +253,28 @@ try {
       tag: wp.tag || data.tag || 'app-notification',
       renotify: (wp.renotify ?? true),
       requireInteraction: (wp.requireInteraction ?? true),
-      actions: (wp.actions && Array.isArray(wp.actions) ? wp.actions : [
+      // Force a single primary action to maximize OS banner rendering support (Windows toast)
+      actions: [
         { action: 'view-bill', title: 'View Bill' },
-        { action: 'dismiss', title: 'Dismiss' },
-      ]),
+      ],
+      silent: false,
       data: {
         ...data,
-        link: sanitizeRelativeUrl(((payload && payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || data.click_action || (data.billId ? `/bills/${data.billId}` : '/'))),
+        // Compute a sensible default link using role + customerId + billId
+        link: (() => {
+          const explicit = (payload && payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || data.click_action;
+          if (explicit) return sanitizeRelativeUrl(explicit);
+          const billId = data.billId;
+          const role = (data.role || '').toString();
+          const customerId = data.customerId;
+          if (billId) {
+            if (role === 'admin' && customerId) {
+              return sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${billId}`);
+            }
+            return sanitizeRelativeUrl(`/customers/bills/?open=${billId}`);
+          }
+          return '/';
+        })(),
       },
     };
     // Dedupe: if a notification with the same tag is already shown, skip
@@ -373,7 +388,13 @@ try {
     }
     let url = '/';
     if (action === 'view-bill' && notifData.billId) {
-      url = sanitizeRelativeUrl(`/bills/${notifData.billId}`);
+      const role = (notifData.role || '').toString();
+      const customerId = notifData.customerId;
+      if (role === 'admin' && customerId) {
+        url = sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${notifData.billId}`);
+      } else {
+        url = sanitizeRelativeUrl(`/customers/bills/?open=${notifData.billId}`);
+      }
     } else if (notifData.link) {
       url = sanitizeRelativeUrl(notifData.link);
     }

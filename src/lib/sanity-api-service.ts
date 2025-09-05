@@ -10,6 +10,23 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+// Helper: get current actor userId from persisted auth store (client-only)
+function getActorUserIdFromPersistedAuth(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const remember = window.localStorage.getItem("auth-remember") === "true";
+    const raw = remember
+      ? window.localStorage.getItem("auth-storage") ?? window.sessionStorage.getItem("auth-storage")
+      : window.sessionStorage.getItem("auth-storage") ?? window.localStorage.getItem("auth-storage");
+    if (!raw) return null;
+    const parsed: any = JSON.parse(raw);
+    const user = parsed?.state?.user;
+    return (user?.id as string) || (user?._id as string) || null;
+  } catch {
+    return null;
+  }
+}
+
 // User API Service
 export const userApiService = {
   /**
@@ -866,19 +883,67 @@ export const billApiService = {
         const nextStatus = (updatedBill as any)?.paymentStatus ?? billData?.paymentStatus;
         if (prevStatus !== nextStatus) {
           const customerId = (updatedBill as any)?.customer?._ref || prev?.customer?._id || null;
-          if (customerId && typeof window !== "undefined") {
+          if (customerId) {
+            if (typeof window !== "undefined") {
+              fetch('/api/notifications/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  title: 'Bill updated',
+                  body: `Status: ${String(nextStatus ?? 'updated')}`,
+                  userIds: [customerId],
+                  data: { billId: String((updatedBill as any)?._id ?? billId) },
+                  sound: 'default',
+                }),
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+
+      // Always notify the bill's customer on any update (generic fallback)
+      try {
+        const customerId = (updatedBill as any)?.customer?._ref || prev?.customer?._id || null;
+        if (customerId) {
+          const title = 'Bill updated';
+          const body = (updatedBill as any)?.billNumber ? `Bill ${(updatedBill as any).billNumber} was updated` : 'Your bill was updated';
+          const data = { billId: String((updatedBill as any)?._id ?? billId), event: 'bill-updated' } as Record<string, string>;
+          if (typeof window !== 'undefined') {
             fetch('/api/notifications/send', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: 'Bill updated',
-                body: `Status: ${String(nextStatus ?? 'updated')}`,
-                userIds: [customerId],
-                data: { billId: String((updatedBill as any)?._id ?? billId) },
-                sound: 'default',
-              }),
+              body: JSON.stringify({ title, body, userIds: [customerId], data, sound: 'default' }),
             }).catch(() => {});
           }
+        }
+      } catch {}
+
+      // Fire-and-forget: notify all admins (excluding the actor) about bill update
+      try {
+        if (typeof window !== 'undefined') {
+          const actorId = getActorUserIdFromPersistedAuth();
+          const billNo: string = (updatedBill as any)?.billNumber ?? prev?.billNumber ?? '';
+          const changeSummary = (() => {
+            const parts: string[] = [];
+            const keysToCheck = ['status', 'paymentStatus'];
+            for (const k of keysToCheck) {
+              const before = (prev as any)?.[k];
+              const after = (updatedBill as any)?.[k] ?? (billData as any)?.[k];
+              if (after != null && before !== after) parts.push(`${k}: ${before ?? 'n/a'} → ${after}`);
+            }
+            return parts.length ? parts.join(', ') : 'Details updated';
+          })();
+          void fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audience: 'admins',
+              title: 'Bill updated',
+              body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
+              data: { billId: String((updatedBill as any)?._id ?? billId), event: 'bill-updated', role: 'admin', customerId: String(prev?.customer?._id || '') },
+              excludeUserIds: actorId ? [actorId] : undefined,
+            }),
+          }).catch(() => {});
         }
       } catch {}
 

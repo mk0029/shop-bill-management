@@ -178,6 +178,21 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
   // Update a bill in Sanity
   updateBill: async (billId, updates) => {
     try {
+      // Fetch previous bill snapshot for change detection and targeting
+      let prev: Partial<Bill> & { _id?: string; billNumber?: string; customer?: any } | null = null;
+      try {
+        prev = await sanityClient.fetch(
+          `*[_type == "bill" && _id == $id][0]{
+            _id,
+            billNumber,
+            paymentStatus,
+            status,
+            customer->{ _id }
+          }`,
+          { id: billId }
+        );
+      } catch {}
+
       const result = await sanityClient
         .patch(billId)
         .set({
@@ -186,6 +201,94 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
         })
         .commit();
       // The real-time listener will automatically update the local state
+      try {
+        if (typeof window !== 'undefined') {
+          // Mark recent update to suppress self-toasts if needed
+          try {
+            const key = 'recentUpdatedBillIds';
+            const arr = JSON.parse(window.sessionStorage.getItem(key) || '[]');
+            const next = [{ id: String((result as any)?._id ?? billId), t: Date.now() }, ...arr].slice(0, 20);
+            window.sessionStorage.setItem(key, JSON.stringify(next));
+          } catch {}
+
+          // Determine customer id
+          const customerId: string | null = (result as any)?.customer?._ref || prev?.customer?._id || null;
+
+          // Notify customer: paymentStatus change
+          const prevStatus = (prev as any)?.paymentStatus;
+          const nextStatus = (result as any)?.paymentStatus ?? (updates as any)?.paymentStatus;
+          if (customerId && prevStatus !== nextStatus) {
+            fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: 'Bill updated',
+                body: `Status: ${String(nextStatus ?? 'updated')}`,
+                userIds: [customerId],
+                data: { billId: String((result as any)?._id ?? billId) },
+                sound: 'default',
+              }),
+            }).catch(() => {});
+          }
+
+          // Always notify customer generically
+          if (customerId) {
+            const billNo: string = (result as any)?.billNumber ?? prev?.billNumber ?? '';
+            fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: 'Bill updated',
+                body: billNo ? `Bill ${billNo} was updated` : 'Your bill was updated',
+                userIds: [customerId],
+                data: { billId: String((result as any)?._id ?? billId), event: 'bill-updated' },
+                sound: 'default',
+              }),
+            }).catch(() => {});
+          }
+
+          // Admin-wide notification excluding actor
+          try {
+            const actorId = (function getActorId(){
+              try {
+                const remember = window.localStorage.getItem('auth-remember') === 'true';
+                const raw = remember
+                  ? window.localStorage.getItem('auth-storage') ?? window.sessionStorage.getItem('auth-storage')
+                  : window.sessionStorage.getItem('auth-storage') ?? window.localStorage.getItem('auth-storage');
+                if (!raw) return null as string | null;
+                const parsed: any = JSON.parse(raw);
+                const user = parsed?.state?.user;
+                return (user?.id as string) || (user?._id as string) || null;
+              } catch { return null as string | null; }
+            })();
+
+            const billNo: string = (result as any)?.billNumber ?? prev?.billNumber ?? '';
+            const changeSummary = (() => {
+              const parts: string[] = [];
+              const keysToCheck = ['status', 'paymentStatus'];
+              for (const k of keysToCheck) {
+                const before = (prev as any)?.[k];
+                const after = (result as any)?.[k] ?? (updates as any)?.[k];
+                if (after != null && before !== after) parts.push(`${k}: ${before ?? 'n/a'} → ${after}`);
+              }
+              return parts.length ? parts.join(', ') : 'Details updated';
+            })();
+
+            fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                audience: 'admins',
+                title: 'Bill updated',
+                body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
+                data: { billId: String((result as any)?._id ?? billId), event: 'bill-updated' },
+                excludeUserIds: actorId ? [actorId] : undefined,
+              }),
+            }).catch(() => {});
+          } catch {}
+        }
+      } catch {}
+
       return true;
     } catch (error) {
       console.error("❌ Error updating bill:", error);

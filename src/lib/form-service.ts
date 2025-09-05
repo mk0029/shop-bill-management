@@ -22,6 +22,23 @@ export interface ConfirmationData {
   type: "success" | "error" | "warning";
 }
 
+// Helper: read current actor userId from persisted auth store (client-only)
+function getActorUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const remember = window.localStorage.getItem("auth-remember") === "true";
+    const raw = remember
+      ? window.localStorage.getItem("auth-storage") ?? window.sessionStorage.getItem("auth-storage")
+      : window.sessionStorage.getItem("auth-storage") ?? window.localStorage.getItem("auth-storage");
+    if (!raw) return null;
+    const parsed: any = JSON.parse(raw);
+    const user = parsed?.state?.user;
+    return (user?.id as string) || (user?._id as string) || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Check if a user already exists with the given phone number
  */
@@ -333,6 +350,24 @@ export async function createCustomer(customerData: {
       error:
         error instanceof Error ? error.message : "Failed to create customer",
     };
+  } finally {
+    // Fire-and-forget: notify all admins (excluding the actor) about new user creation
+    try {
+      if (typeof window !== 'undefined') {
+        const actorId = getActorUserId();
+        void fetch('/api/notifications/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audience: 'admins',
+            title: 'New customer added',
+            body: `${customerData.name} (${customerData.phone})`,
+            data: { event: 'user-created' },
+            excludeUserIds: actorId ? [actorId] : undefined,
+          }),
+        }).catch(() => {})
+      }
+    } catch {}
   }
 }
 
@@ -358,7 +393,8 @@ export async function createProduct(productData: {
   };
   tags?: string[];
 }): Promise<FormSubmissionResult> {
-  try {    const productId = Buffer.from(
+  try {
+    const productId = Buffer.from(
       Date.now().toString() + Math.random().toString()
     )
       .toString("base64")
@@ -461,6 +497,7 @@ export async function createProduct(productData: {
     };
 
     const result = await sanityClient.create(newProduct);
+
     return {
       success: true,
       data: result,
@@ -473,6 +510,24 @@ export async function createProduct(productData: {
       error:
         error instanceof Error ? error.message : "Failed to create product",
     };
+  } finally {
+    // Fire-and-forget: notify all admins (excluding the actor) about inventory add
+    try {
+      if (typeof window !== 'undefined') {
+        const actorId = getActorUserId();
+        void fetch('/api/notifications/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audience: 'admins',
+            title: 'Inventory added',
+            body: `${productData.name} • +${productData.inventory.currentStock} ${productData.pricing.unit}`,
+            data: { event: 'inventory-added' },
+            excludeUserIds: actorId ? [actorId] : undefined,
+          }),
+        }).catch(() => {})
+      }
+    } catch {}
   }
 }
 
@@ -623,7 +678,7 @@ export async function createBill(billData: {
     );
 
     // Step 4: Batch validate stock and fetch prices in parallel (optimize API calls)
-    let stockValidation = { isValid: true, errors: [], validationResults: [] };
+    let stockValidation: { isValid: boolean; errors: string[]; validationResults: any[] } = { isValid: true, errors: [], validationResults: [] };
     let latestPrices = new Map();
 
     if (hasItems && standardItems.length > 0) {
@@ -763,12 +818,32 @@ export async function createBill(billData: {
               billNumber: String(billNumber),
               totalAmount: String(totalAmount),
               event: 'bill-created',
+              role: 'customer',
+              customerId: String(customerUserId),
             },
           }),
         }).catch(() => {})
       } catch (notifyErr) {
         console.warn('⚠️ Failed to send bill notification', notifyErr)
       }
+
+      // Fire-and-forget: notify all admins (excluding the actor) about bill creation
+      try {
+        const actorId = getActorUserId();
+        if (typeof window !== 'undefined') {
+          void fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audience: 'admins',
+              title: 'Bill created',
+              body: `Bill ${billNumber} created • Total ₹${totalAmount}`,
+              data: { billId: String(createdId), billNumber: String(billNumber), event: 'bill-created', role: 'admin', customerId: String(billData.customerId) },
+              excludeUserIds: actorId ? [actorId] : undefined,
+            }),
+          }).catch(() => {})
+        }
+      } catch {}
 
       return {
         success: true,
@@ -869,5 +944,24 @@ export async function createStockTransaction(transactionData: {
           ? error.message
           : "Failed to create stock transaction",
     };
+  } finally {
+    // Fire-and-forget: notify all admins (excluding the actor) about inventory update
+    try {
+      if (typeof window !== 'undefined') {
+        const actorId = getActorUserId();
+        const t = transactionData;
+        void fetch('/api/notifications/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audience: 'admins',
+            title: 'Inventory updated',
+            body: `${t.type} • Qty ${t.quantity} @ ₹${t.unitPrice}`,
+            data: { event: 'inventory-updated', productId: String(t.productId || '') },
+            excludeUserIds: actorId ? [actorId] : undefined,
+          }),
+        }).catch(() => {})
+      }
+    } catch {}
   }
 }

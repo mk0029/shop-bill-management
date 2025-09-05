@@ -41,6 +41,15 @@ async function getAdminTokens(): Promise<string[]> {
   return Array.from(new Set(tokens))
 }
 
+async function getAdminTokensExcept(excludeUserIds?: string[]): Promise<string[]> {
+  const all = await getAdminTokens()
+  if (!excludeUserIds || excludeUserIds.length === 0) return all
+  const excludeTokens = await getTokensForUserIds(excludeUserIds)
+  if (!excludeTokens.length) return all
+  const excludeSet = new Set(excludeTokens)
+  return all.filter(t => !excludeSet.has(t))
+}
+
 // Get FCM tokens for all active users
 async function getAllTokens(): Promise<string[]> {
   const query = `*[_type=="user" && isActive != false]{ fcmTokens }`
@@ -82,8 +91,10 @@ export async function sendNotification(payload: SendPayload): Promise<SendResult
   }
 }
 
-export async function sendToAdmins(title: string, body: string, data?: Record<string, string>): Promise<SendResult> {
-  const tokens = await getAdminTokens()
+export async function sendToAdmins(title: string, body: string, data?: Record<string, string>, excludeUserIds?: string[]): Promise<SendResult> {
+  const tokens = await (excludeUserIds && excludeUserIds.length
+    ? getAdminTokensExcept(excludeUserIds)
+    : getAdminTokens())
   if (!tokens.length) return { success: false, errors: ['No admin tokens'] }
   return sendFcmV1ToTokens({ tokens, title, body, data })
 }

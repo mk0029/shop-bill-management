@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     type ApiSendResult = { sent?: number; failed?: number }
     let result: ApiSendResult
     if (body.audience === 'admins') {
-      result = await sendToAdmins(body.title, body.body, body.data)
+      result = await sendToAdmins(body.title, body.body, body.data, Array.isArray(body.excludeUserIds) ? body.excludeUserIds : undefined)
     } else if (body.audience === 'all') {
       result = await sendToAll(body.title, body.body, body.data)
     } else {
