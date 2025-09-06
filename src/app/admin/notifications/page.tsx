@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 import AdminFCMInitializer from "@/components/notifications/AdminFCMInitializer"
+import NotificationSoundToggle from "@/components/notifications/notification-sound-toggle"
 
 export default function AdminNotificationsPage() {
   const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore()
@@ -18,7 +19,8 @@ export default function AdminNotificationsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-white">Notifications</h1>
           <p className="text-gray-400 text-sm">All notifications are stored locally until you clear them.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <NotificationSoundToggle />
           {unread > 0 && (
             <Button size="sm" variant="secondary" onClick={markAllRead}>Mark all read</Button>
           )}

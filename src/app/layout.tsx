@@ -10,7 +10,6 @@ import OfflineWarning from "../components/pwa/offline-warning";
 import AuthPrehydrate from "../components/providers/auth-prehydrate";
 import NotificationsBridge from "../components/realtime/notifications-bridge";
 import AutoNotifications from "../notifications/components/AutoNotifications";
-import EnableNotificationsPrompt from "../notifications/components/EnableNotificationsPrompt";
 
 import "./globals.css";
 import RouteProgress from "../components/ui/route-progress";
@@ -94,8 +93,6 @@ export default function RootLayout({
             <AutoNotifications />
             {/* Foreground FCM -> system notifications */}
             <ForegroundSystemNotifier />
-            {/* Prompt to enable notifications until granted */}
-            <EnableNotificationsPrompt />
             {/* In-app toast + sound on new notifications */}
             <NotificationToaster />
             {/* <PWAInstaller /> */}

@@ -8,6 +8,7 @@
 
 import firebase from 'firebase/compat/app'
 import 'firebase/compat/messaging'
+import { playNotificationSound } from '@/lib/notification-sound'
 
 // Keep this in sync with public/sw.js config
 const firebaseConfig = {
@@ -73,6 +74,20 @@ async function getAndRegisterToken(userId: string): Promise<string | null> {
   }
 }
 
+export async function getTokenWithoutRegister(): Promise<string | null> {
+  ensureFirebase()
+  if (!messaging) return null
+  try {
+    const vapidKey = await getVapidKey()
+    const swReg = await getSWRegistration()
+    const token = await messaging.getToken({ vapidKey, serviceWorkerRegistration: swReg || undefined })
+    return token || null
+  } catch (error) {
+    console.error('[FCM] getTokenWithoutRegister error', error)
+    return null
+  }
+}
+
 async function registerToken(token: string, userId: string): Promise<void> {
   try {
     await fetch('/api/notifications/register-token', {
@@ -90,10 +105,8 @@ export async function requestNotificationPermissionAndGetToken(userId: string): 
   try {
     // Request permission if not already granted
     if (typeof Notification === 'undefined') return null
-    let permission = Notification.permission
-    if (permission === 'default') {
-      permission = await Notification.requestPermission()
-    }
+    const permission = Notification.permission
+    // Do NOT prompt here. Respect user's choice; only act if already granted.
     if (permission !== 'granted') return null
 
     // Now attempt to get the token and register
@@ -109,9 +122,38 @@ export function listenForegroundMessages(): void {
   if (!messaging) return
   try {
     messaging.onMessage((payload: firebase.messaging.MessagePayload) => {
-      // If page is not visible (minimized or tab not active), ask SW to show a system notification
-      const notVisible = typeof document !== 'undefined' && document.visibilityState !== 'visible'
-      if (notVisible) {
+      // Decide when to surface OS-level notifications for foreground messages.
+      // We want proper system notifications in these cases:
+      // 1) Page is not visible; 2) App is installed as a PWA (standalone display-mode);
+      // 3) iOS PWA via navigator.standalone
+      const isDocDefined = typeof document !== 'undefined'
+      const notVisible = isDocDefined && document.visibilityState !== 'visible'
+      const isStandalone = (() => {
+        try {
+          // Chrome/Edge PWA
+          if (typeof window !== 'undefined' && 'matchMedia' in window) {
+            if (window.matchMedia('(display-mode: standalone)').matches) return true
+          }
+          // iOS Safari PWA
+          if (typeof navigator !== 'undefined') {
+            const navIOS = navigator as Navigator & { standalone?: boolean }
+            if (navIOS.standalone === true) return true
+          }
+        } catch {}
+        return false
+      })()
+
+      const isMobile = (() => {
+        try {
+          const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+          return /Android|iPhone|iPad|iPod/i.test(ua)
+        } catch {
+          return false
+        }
+      })()
+
+      // Mobile: prefer OS popups always, even when visible, to mimic native app behavior
+      if (isMobile || notVisible || isStandalone) {
         getSWRegistration()
           .then((reg) => {
             try {
@@ -124,8 +166,9 @@ export function listenForegroundMessages(): void {
           .catch(() => showPageNotification(payload))
         return
       }
-      // Page visible: do not spawn OS notification from here.
-      // Let the app's in-app notification center/toasts handle foreground messages.
+      // When visible in a normal browser tab, play a short sound (if enabled)
+      // and continue to rely on in-app toasts/notification center for UI.
+      try { void playNotificationSound() } catch {}
     })
   } catch (e) {
     console.error('[FCM] onMessage setup error', e)

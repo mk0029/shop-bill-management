@@ -132,7 +132,17 @@ function buildFcmV1Message({ token, title, body, data }: FcmV1SinglePayload) {
       token,
       notification: { title, body },
       data: sanitized,
-      webpush: { headers: { TTL: '604800' } },
+      // Ensure high priority delivery across platforms
+      webpush: {
+        headers: {
+          TTL: '604800',
+          // Web Push delivery urgency hint: very-low | low | normal | high
+          Urgency: 'high',
+        },
+      },
+      android: {
+        priority: 'HIGH',
+      },
     },
   }
 }
@@ -169,7 +179,25 @@ async function sendFcmV1(token: string, title: string, body: string, data?: Reco
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!resp.ok) return false
+  if (!resp.ok) {
+    // Try to extract helpful error info from FCM
+    let details = ''
+    try {
+      const text = await resp.text()
+      try {
+        const json = JSON.parse(text)
+        const status = json?.error?.status
+        const message = json?.error?.message
+        const code = Array.isArray(json?.error?.details) && json.error.details[0]?.errorCode
+        details = `status=${resp.status} ${status || ''} code=${code || ''} message=${message || text}`.trim()
+      } catch {
+        details = `status=${resp.status} message=${text}`
+      }
+    } catch {
+      details = `status=${resp.status}`
+    }
+    throw new Error(`FCM send failed: ${details}`)
+  }
   return true
 }
 

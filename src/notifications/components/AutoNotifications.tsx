@@ -56,18 +56,15 @@ export default function AutoNotifications() {
       getClientApp()
 
       // 4) Request notification permission if needed
-      if ('Notification' in window) {
-        try {
-          if (Notification.permission === 'default') {
-            await Notification.requestPermission()
-          }
-        } catch {}
-      }
+      // DO NOT request permission automatically. Respect user's choice and only act if already granted.
+      // Native OS/browser prompt will appear when user explicitly interacts with a feature that needs it.
 
       if (cancelled) return
 
-      // 5) Get FCM token and register to backend for this user
-      const token = await getFcmToken()
+      // 5) Get FCM token and register to backend for this user (only if permission already granted)
+      const token = (typeof Notification !== 'undefined' && Notification.permission === 'granted')
+        ? await getFcmToken()
+        : null
       if (token) {
         console.log('[FCM] Device token:', token)
         // Attempt to register if we have a logged-in user

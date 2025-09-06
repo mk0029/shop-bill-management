@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useAuthStore } from "../../store/auth-store";
-import { initFCM, requestNotificationPermissionAndGetToken } from "../../lib/fcm-client";
+import { initFCM } from "../../lib/fcm-client";
 
 // Initializes FCM in the admin portal and registers token for the current user
 export default function AdminFCMInitializer() {
@@ -21,12 +21,6 @@ export default function AdminFCMInitializer() {
   useEffect(() => {
     // Always init listeners; userId provider can return null safely
     initFCM(() => uid || null);
-  }, [uid]);
-
-  useEffect(() => {
-    if (!uid) return;
-    // Request permission and register token for this user
-    requestNotificationPermissionAndGetToken(uid);
   }, [uid]);
 
   return null;

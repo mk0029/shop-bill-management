@@ -7,14 +7,8 @@ export function initForegroundNotifications() {
 
   const ensurePermission = async () => {
     if (!("Notification" in window)) return false;
-    if (Notification.permission === "granted") return true;
-    if (Notification.permission === "denied") return false;
-    try {
-      const res = await Notification.requestPermission();
-      return res === "granted";
-    } catch {
-      return false;
-    }
+    // Do not request permission automatically; only proceed if already granted
+    return Notification.permission === "granted";
   };
 
   // Start listener

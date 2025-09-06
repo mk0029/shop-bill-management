@@ -23,10 +23,7 @@ export default function ForegroundSystemNotifier() {
           return
         }
 
-        // Ensure permission (AutoNotifications should have requested already)
-        if (Notification.permission === 'default') {
-          try { await Notification.requestPermission() } catch {}
-        }
+        // Do not trigger permission prompts here; only proceed if already granted
         if (Notification.permission !== 'granted') return
 
         const n = payload.notification || {}

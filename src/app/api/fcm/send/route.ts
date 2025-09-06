@@ -41,6 +41,15 @@ function buildFcmV1Message({ token, title, body, data }: { token: string; title:
       token,
       notification: { title, body },
       data: sanitizedData,
+      webpush: {
+        headers: {
+          TTL: '604800',
+          Urgency: 'high',
+        },
+      },
+      android: {
+        priority: 'HIGH',
+      },
     },
   }
 }

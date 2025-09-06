@@ -4,14 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
-import { ArrowLeft, Save, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Save, User, Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+// (hooks consolidated above)
+import { registerFcmToken } from "@/lib/fcm";
 
 export default function AdminProfileSettingsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const [perm, setPerm] = useState<NotificationPermission | "unsupported">(
+    typeof window === "undefined" ? "unsupported" : ("Notification" in window ? Notification.permission : "unsupported")
+  );
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -31,6 +36,32 @@ export default function AdminProfileSettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  useEffect(() => {
+    const sync = () => setPerm(typeof window === "undefined" ? "unsupported" : ("Notification" in window ? Notification.permission : "unsupported"));
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", sync);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", sync);
+      }
+    };
+  }, []);
+
+  const onEnableNotifications = async () => {
+    try {
+      if (typeof window === "undefined" || !("Notification" in window)) return;
+      if (Notification.permission === "default") {
+        try { await Notification.requestPermission(); } catch {}
+      }
+      setPerm(Notification.permission);
+      if (Notification.permission === "granted") {
+        const userId = user?.id ?? null;
+        if (userId) await registerFcmToken({ userId });
+      }
+    } catch {}
   };
 
   return (
@@ -87,6 +118,35 @@ export default function AdminProfileSettingsPage() {
                 className="bg-gray-800 border-gray-700 text-white"
                 placeholder="+91-XXXXXXXXXX"
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Bell className="w-5 h-5" /> Notifications
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm text-gray-300">
+                <div className="font-medium">Push notifications</div>
+                <div className="text-gray-400/90">
+                  Current status: <span className="font-mono">{perm}</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={onEnableNotifications}
+                  disabled={perm === "granted" || perm === "unsupported"}
+                  className="flex items-center gap-2"
+                >
+                  <Bell className="w-4 h-4" />
+                  {perm === "granted" ? "Enabled" : "Enable Notifications"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
