@@ -54,6 +54,10 @@ export default function AdminTestPushPanel() {
               badge: "/je-192.ico",
               image: "/globe.png",
               billId: "BILL-TEST-123",
+              // For deep-link testing in service worker
+              role: payload.audience ? (payload.audience === 'admins' ? 'admin' : 'customer') : (payload.userIds && payload.userIds.length ? 'customer' : 'admin'),
+              // Replace with a real customer slug/id when testing admin flows
+              customerId: "demo-customer",
             },
           }),
         });

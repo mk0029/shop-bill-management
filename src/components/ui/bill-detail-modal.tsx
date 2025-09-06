@@ -23,6 +23,7 @@ import {
 import { useLocaleStore } from "@/store/locale-store";
 import { toast } from "sonner";
 import { shareBillOnWhatsApp, BillDetails } from "@/lib/whatsapp-share";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -412,28 +413,33 @@ export const BillDetailModal = ({
                 </span>
               </div>
 
-              {bill.paymentStatus === "partial" && (
-                <div className="space-y-2 pt-2 border-t border-gray-800">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-green-400">Paid Amount</span>
-                    <span className="text-green-400 font-medium">
-                      {currency}
-                      {(bill.paidAmount || 0).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-orange-400">Pending Amount</span>
-
-                    <span className="text-orange-400 font-medium">
-                      {currency}
-                      {(
-                        bill.balanceAmount ||
-                        grandTotal - (bill.paidAmount || 0)
-                      ).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {bill.paymentStatus === "partial" && (
+                  <motion.div
+                    key="partial-status-breakdown"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="space-y-2 pt-2 border-t border-gray-800"
+                  >
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-green-400">Paid Amount</span>
+                      <span className="text-green-400 font-medium">
+                        {currency}
+                        {(toNum(bill.paidAmount || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-orange-400">Pending Amount</span>
+                      <span className="text-orange-400 font-medium">
+                        {currency}
+                        {(bill.balanceAmount || (grandTotal - (bill.paidAmount || 0))).toFixed(2)}
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -451,111 +457,111 @@ export const BillDetailModal = ({
           {showPaymentControls &&
             onUpdatePayment &&
             bill.paymentStatus !== "paid" && (
-              <div className="bg-gray-800/50 rounded-lg p-2 sm:p-4 border border-gray-700">
+              <div className="bg-gray-800/50 rounded-lg p-2 sm:py-2 sm:px-3 border border-gray-700">
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-white flex items-center gap-2">
                     <CreditCard className="w-4 h-4" />
                     Update Payment
                   </h3>
                   {!isEditingPayment && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingPayment(true)}
-                      className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white">
-                      Edit Payment
-                    </Button>
+                 <button onClick={() => setIsEditingPayment(true)} className="text-sm font-normal leading-none px-4 py-3 rounded-md border border-solid border-slate-300">Edit Payment</button>
                   )}
                 </div>
 
                 {isEditingPayment && (
                   <div className="space-y-4">
-                    {/* Mode selector */}
-                    <div className="flex gap-2">
-                      <Button
-                        variant={paymentMode === "paid" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setPaymentMode("paid")}
-                        className={
-                          paymentMode === "paid"
-                            ? "bg-green-600 hover:bg-green-700"
-                            : ""
-                        }>
-                        Mark Full Paid
-                      </Button>
-                      <Button
-                        variant={
-                          paymentMode === "partial" ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => setPaymentMode("partial")}>
-                        Record Partial Payment
-                      </Button>
+               
+                    <div className="flex gap-2 items-center mt-2">
+                     <p className="text-base font-normal leading-none">Payment Mode</p>
+                      <div   onClick={() => setPaymentMode(paymentMode === "paid" ? "partial" : "paid")} className={`w-14 h-6 rounded-full border border-solid  relative ${paymentMode === "paid" ? "border-green-300" : "border-slate-300"}`}>
+                        <div className={`w-4 h-4 transition-all ease-linear duration-100 rounded-full  absolute top-1/2  -translate-x-0 -translate-y-1/2
+                          ${paymentMode === "paid" ? "left-1 bg-green-300 " : "left-[33px] bg-slate-300"}`}></div>
+                      </div>
+                      <p className="text-sm font-normal leading-none">{paymentMode === "paid" ? "Paid" : "Partial"}</p>
                     </div>
 
                     {/* Partial amount controls */}
-                    {paymentMode === "partial" && (
-                      <div className="space-y-3">
-                        <div>
-                          <Label
-                            htmlFor="partial-amount"
-                            className="text-xs text-gray-400">
-                            Amount Received
-                          </Label>
-                          <Input
-                            id="partial-amount"
-                            type="number"
-                            min="0"
-                            max={grandTotal}
-                            step="0.01"
-                            value={partialAmount}
-                            onChange={(e) => setPartialAmount(e.target.value)}
-                            placeholder="0.00"
-                            className="bg-gray-900 border-gray-600 text-white"
-                          />
-                        </div>
-                        {/* Quick chips removed */}
+                    <AnimatePresence initial={false}>
+                      {paymentMode === "partial" && (
+                        <motion.div
+                          key="partial-controls"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="space-y-3 overflow-hidden"
+                        >
+                          <div>
+                            <Label
+                              htmlFor="partial-amount"
+                              className="text-xs text-gray-400"
+                            >
+                              Amount Received
+                            </Label>
+                            <Input
+                              id="partial-amount"
+                              type="number"
+                              min="0"
+                              max={grandTotal}
+                              step="1"
+                              value={partialAmount}
+                              onChange={(e) => setPartialAmount(e.target.value)}
+                              placeholder="0"
+                              className="bg-gray-900 border-gray-600 text-white"
+                            />
+                          </div>
+                          {/* Quick chips removed */}
 
-                        {/* Live summary */}
-                        {Number(partialAmount) >= 0 && partialAmount !== "" && (
-                          <div className="text-xs space-y-1">
-                            <div className="flex justify-between text-gray-400">
-                              <span>Already paid:</span>
-                              <span className="text-green-400">
-                                {currency}
-                                {toNum(bill.paidAmount || 0).toFixed(2)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-gray-400">
-                              <span>New total paid:</span>
-                              <span className="text-green-400">
-                                {currency}
-                                {Math.min(
-                                  toNum(bill.paidAmount || 0) +
-                                    Math.max(Number(partialAmount), 0),
-                                  grandTotal
-                                ).toFixed(2)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-gray-400">
-                              <span>Will remain pending:</span>
-                              <span className="text-orange-400">
-                                {currency}
-                                {Math.max(
-                                  0,
-                                  grandTotal -
-                                    Math.min(
+                          {/* Live summary */}
+                          <AnimatePresence>
+                            {Number(partialAmount) >= 0 && partialAmount !== "" && (
+                              <motion.div
+                                key="live-summary"
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 6 }}
+                                transition={{ duration: 0.15, ease: "easeOut" }}
+                                className="text-xs space-y-1"
+                              >
+                                <div className="flex justify-between text-gray-400">
+                                  <span>Already paid:</span>
+                                  <span className="text-green-400">
+                                    {currency}
+                                    {toNum(bill.paidAmount || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-gray-400">
+                                  <span>New total paid:</span>
+                                  <span className="text-green-400">
+                                    {currency}
+                                    {Math.min(
                                       toNum(bill.paidAmount || 0) +
                                         Math.max(Number(partialAmount), 0),
                                       grandTotal
-                                    )
-                                ).toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                    ).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-gray-400">
+                                  <span>Will remain pending:</span>
+                                  <span className="text-orange-400">
+                                    {currency}
+                                    {Math.max(
+                                      0,
+                                      grandTotal -
+                                        Math.min(
+                                          toNum(bill.paidAmount || 0) +
+                                            Math.max(Number(partialAmount), 0),
+                                          grandTotal
+                                        )
+                                    ).toFixed(2)}
+                                  </span>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
                     {/* Payment Action Buttons */}
                     <div className="flex gap-3 pt-2">

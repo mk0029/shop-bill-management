@@ -253,10 +253,14 @@ try {
       tag: wp.tag || data.tag || 'app-notification',
       renotify: (wp.renotify ?? true),
       requireInteraction: (wp.requireInteraction ?? true),
-      // Force a single primary action to maximize OS banner rendering support (Windows toast)
-      actions: [
-        { action: 'view-bill', title: 'View Bill' },
-      ],
+      // Show the primary action only for bill-related notifications
+      actions: (() => {
+        const billId = data.billId;
+        if (billId) {
+          return [{ action: 'view-bill', title: 'View Bill' }];
+        }
+        return [];
+      })(),
       silent: false,
       data: {
         ...data,
