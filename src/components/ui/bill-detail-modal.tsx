@@ -1,29 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
-import { Modal } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
-import { useSanityBillStore } from "@/store/sanity-bill-store";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
+import { useState } from "react";
 // Switch not needed after redesign of payment UI
-import {
-  Download,
-  Share2,
-  Calendar,
-  MapPin,
-  FileText,
-  X,
-  CreditCard,
-  Save,
-  Wallet,
-} from "lucide-react";
+import { BillDetails, shareBillOnWhatsApp } from "@/lib/whatsapp-share";
 import { useLocaleStore } from "@/store/locale-store";
-import { toast } from "sonner";
-import { shareBillOnWhatsApp, BillDetails } from "@/lib/whatsapp-share";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  Calendar,
+  CreditCard,
+  Edit3,
+  FileText,
+  MapPin,
+  Save,
+  Share2
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -207,19 +204,20 @@ export const BillDetailModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <div className="relative">
-        <div className="space-y-6 max-md:space-y-4 md:p-6">
+        <div className="space-y-6 max-md:space-y-3 md:p-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex-1">
-              <h2 className="text-base sm:text-base sm:text-lg md:text-2xl sm:text-3xl font-bold text-white mb-3">
+              <h2 className="text-base sm:text-base md:text-lg lg:text-2xl xl:text-3xl font-bold text-white mb-3 text-ellipsis max-sm:max-w-[78%] max-w-full whitespace-nowrap overflow-hidden">
                 Bill #{bill.billNumber || bill._id}
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-400">
+              <div className="flex flex-wrap gap-3 text-sm text-gray-400">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
                   <span>
                     Date: {formatDate(bill.serviceDate || bill.createdAt)}
+                  
                   </span>
                 </div>
 
@@ -240,22 +238,20 @@ export const BillDetailModal = ({
             </div>
 
             <Badge
-              className={`${getStatusColor(bill.paymentStatus || bill.status)} px-4 py-2 text-sm font-medium`}>
+              className={`${getStatusColor(bill.paymentStatus || bill.status)} px-2 py-0.5 text-xs font-medium max-sm:absolute max-sm:-right-1 max-sm:top-0 z-10`}>
               {(bill.paymentStatus || bill.status || "pending").toUpperCase()}
             </Badge>
           </div>
 
           {/* Customer Info */}
           {bill.customer && (
-            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-              <h3 className="font-medium text-white mb-2">
-                Customer Information
-              </h3>
+            <div className="bg-gray-800/50 rounded-lg p-2 sm:p-4 border border-gray-700">
+             
               <div className="text-sm text-gray-300 space-y-1">
-                <p className="font-medium">{bill.customer.name}</p>
+              <div className="flex items-center gap-2 flex-wrap">  <p className="font-medium">{bill.customer.name}</p>
                 {bill.customer.phone && (
                   <p className="text-gray-400">{bill.customer.phone}</p>
-                )}
+                )}</div>
                 {bill.customer.email && (
                   <p className="text-gray-400">{bill.customer.email}</p>
                 )}
@@ -274,15 +270,15 @@ export const BillDetailModal = ({
           {/* Items */}
           {bill.items && bill.items.length > 0 && (
             <div>
-              <h3 className="font-medium text-white mb-4">Items</h3>
+              <h3 className="font-medium text-white mb-2 sm:mb-3 md:mb-4">Items</h3>
               <div className="space-y-3">
                 {bill.items.map((item: any, index: number) => {
                   return (
                     <div
                       key={index}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                       <div className="flex-1">
-                        <p className="font-medium text-white mb-1">
+                       <div className="flex items-center gap-2 justify-between flex-wrap"> <p className="font-medium text-white mb-1">
                           {item?.product?.name || item.name || "Unknown Item"}
                         </p>
                         <div className="flex flex-wrap gap-2 mb-2">
@@ -296,17 +292,17 @@ export const BillDetailModal = ({
                           {item.category && (
                             <Badge
                               variant="outline"
-                              className="text-purple-400 border-purple-600">
+                              className="text-purple-400 border-purple-600 max-sm:!py-0.5 max-sm:px-2 max-sm:text-xs">
                               {item.category}
                             </Badge>
                           )}
-                        </div>
+                        </div></div>
                         {item.specifications && (
                           <p className="text-sm text-gray-400 mb-2">
                             {item.specifications}
                           </p>
                         )}
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
+                        <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-gray-400">
                           <span>
                             Qty: {item.quantity} {item.unit || "piece"}
                           </span>
@@ -323,7 +319,7 @@ export const BillDetailModal = ({
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-white text-lg">
+                        <p className="font-semibold text-white text-base md:text-lg">
                           {currency}
                           {(item.totalPrice || item.total || 0).toFixed(2)}
                         </p>
@@ -377,7 +373,7 @@ export const BillDetailModal = ({
           {/* Additional Charges */}
           {hasAnyCharge && (
             <div>
-              <h3 className="font-medium text-white mb-4">
+              <h3 className="font-medium text-white mb-2 sm:mb-3 md:mb-4">
                 Additional Charges
               </h3>
               <div className="space-y-3">
@@ -386,7 +382,7 @@ export const BillDetailModal = ({
                     charge.value > 0 && (
                       <div
                         key={index}
-                        className="flex justify-between items-center p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                        className="flex justify-between items-center py-1.5 px-2 sm:p-3 bg-gray-800/50 rounded-lg border border-gray-700 sm:text-base text-sm">
                         <span className="text-gray-300">{charge.label}</span>
                         <span className="font-medium text-white">
                           {currency}
@@ -400,9 +396,9 @@ export const BillDetailModal = ({
           )}
 
           {/* Total Section */}
-          <div className="border-t border-gray-700 pt-3 ms:pt-4 md:pt-6">
+          <div className="border-t border-gray-700 pt-3 sm:pt-4 md:pt-6">
             <div className="space-y-3">
-              <div className="flex justify-between items-center text-xl font-bold">
+              <div className="flex justify-between items-center text-base sm:text-lg md:text-xl font-bold">
                 <span className="text-white">Total Amount</span>
                 <span className="text-white">
                   {currency}
@@ -421,16 +417,16 @@ export const BillDetailModal = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="space-y-2 pt-2 border-t border-gray-800"
+                    className="space-y-1 sm:space-y-2 pt-2 border-t border-gray-800"
                   >
-                    <div className="flex justify-between items-center text-sm">
+                    <div className="flex justify-between items-center text-xs sm:text-sm">
                       <span className="text-green-400">Paid Amount</span>
                       <span className="text-green-400 font-medium">
                         {currency}
                         {(toNum(bill.paidAmount || 0)).toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
+                    <div className="flex justify-between items-center text-xs sm:text-sm">
                       <span className="text-orange-400">Pending Amount</span>
                       <span className="text-orange-400 font-medium">
                         {currency}
@@ -464,7 +460,7 @@ export const BillDetailModal = ({
                     Update Payment
                   </h3>
                   {!isEditingPayment && (
-                 <button onClick={() => setIsEditingPayment(true)} className="text-sm font-normal leading-none px-4 py-3 rounded-md border border-solid border-slate-300">Edit Payment</button>
+                 <button onClick={() => setIsEditingPayment(true)} className="text-sm font-normal leading-none p-2 rounded-md border border-solid border-slate-300"><Edit3 className="size-3 md:size-4" /></button>
                   )}
                 </div>
 
@@ -472,11 +468,12 @@ export const BillDetailModal = ({
                   <div className="space-y-4">
                
                     <div className="flex gap-2 items-center mt-2">
-                     <p className="text-base font-normal leading-none">Payment Mode</p>
-                      <div   onClick={() => setPaymentMode(paymentMode === "paid" ? "partial" : "paid")} className={`w-14 h-6 rounded-full border border-solid  relative ${paymentMode === "paid" ? "border-green-300" : "border-slate-300"}`}>
+                     <p className="text-base font-normal leading-none">Mark Full Paid</p>
+                      <div   onClick={() => setPaymentMode(paymentMode === "paid" ? "partial" : "paid")} className={`w-10 h-6 cursor-pointer rounded-full border border-solid  relative ${paymentMode === "paid" ? "border-green-300" : "border-slate-300"}`}>
                         <div className={`w-4 h-4 transition-all ease-linear duration-100 rounded-full  absolute top-1/2  -translate-x-0 -translate-y-1/2
-                          ${paymentMode === "paid" ? "left-1 bg-green-300 " : "left-[33px] bg-slate-300"}`}></div>
+                          ${paymentMode === "partial" ? "left-0.5 bg-slate-300" : "left-5 bg-green-300 "}`}></div>
                       </div>
+                      
                       <p className="text-sm font-normal leading-none">{paymentMode === "paid" ? "Paid" : "Partial"}</p>
                     </div>
 
@@ -515,22 +512,22 @@ export const BillDetailModal = ({
                           {/* Live summary */}
                           <AnimatePresence>
                             {Number(partialAmount) >= 0 && partialAmount !== "" && (
-                              <motion.div
-                                key="live-summary"
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 6 }}
-                                transition={{ duration: 0.15, ease: "easeOut" }}
-                                className="text-xs space-y-1"
-                              >
-                                <div className="flex justify-between text-gray-400">
+                             <motion.div
+                             key="partial-controls"
+                             initial={{ height: 0, opacity: 0 }}
+                             animate={{ height: "auto", opacity: 1 }}
+                             exit={{ height: 0, opacity: 0 }}
+                             transition={{ duration: 0.2, ease: "easeOut" }}
+                             className="space-y-1 overflow-hidden"
+                           >
+                                <div className="flex justify-between text-gray-400 text-sm">
                                   <span>Already paid:</span>
                                   <span className="text-green-400">
                                     {currency}
                                     {toNum(bill.paidAmount || 0).toFixed(2)}
                                   </span>
                                 </div>
-                                <div className="flex justify-between text-gray-400">
+                                <div className="flex justify-between text-gray-400 text-sm">
                                   <span>New total paid:</span>
                                   <span className="text-green-400">
                                     {currency}
@@ -541,7 +538,7 @@ export const BillDetailModal = ({
                                     ).toFixed(2)}
                                   </span>
                                 </div>
-                                <div className="flex justify-between text-gray-400">
+                                <div className="flex justify-between text-gray-400 text-sm">
                                   <span>Will remain pending:</span>
                                   <span className="text-orange-400">
                                     {currency}
@@ -602,12 +599,12 @@ export const BillDetailModal = ({
             )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <div className="flex flex-row gap-3  md:pt-4">
             <Button
               variant="outline"
               onClick={handleClose}
               className="flex-1 sm:flex-none border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white">
-              Close
+            Close
             </Button>
 
             {showShareButton && (
@@ -628,20 +625,20 @@ export const BillDetailModal = ({
                   };
                   shareBillOnWhatsApp(billDetails);
                 }}
-                className="flex-1 sm:flex-none border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white">
+                className="flex-1 w-full sm:flex-none border-green-300 text-green-500 hover:bg-green-800 hover:text-white">
                 <Share2 className="w-4 h-4 mr-2" />
-                <span className="sm:inline">Share on WhatsApp</span>
+                <span className="sm:inline">Share On WhatsApp</span>
               </Button>
             )}
 
-            {onDownloadPDF && (
+            {/* {onDownloadPDF && (
               <Button
                 onClick={() => onDownloadPDF(bill)}
                 className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white">
                 <Download className="w-4 h-4 mr-2" />
                 <span className="sm:inline">Download PDF</span>
               </Button>
-            )}
+            )} */}
           </div>
         </div>
       </div>

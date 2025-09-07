@@ -3,6 +3,21 @@ import { persist, createJSONStorage } from "zustand/middleware";
 
 export type AppNotificationType = "billing" | "inventory" | "system" | "payment";
 
+// Optional structured metadata we can attach to a notification
+export type AppNotificationRoute = {
+  pathname: string;
+  // Will be converted to string query params; null/undefined values are omitted
+  query?: Record<string, string | number | boolean | null | undefined>;
+};
+
+export interface AppNotificationMeta extends Record<string, unknown> {
+  // If the notification is about a specific user, we can store their id and basic details
+  userId?: string;
+  user?: { id?: string; name?: string; email?: string; phone?: string };
+  // Optional route we can navigate to from the notification
+  route?: AppNotificationRoute;
+}
+
 export interface AppNotification {
   id: string;
   type: AppNotificationType;
@@ -10,7 +25,7 @@ export interface AppNotification {
   body: string;
   createdAt: string; // ISO string
   read?: boolean;
-  meta?: Record<string, unknown>;
+  meta?: AppNotificationMeta;
 }
 
 interface NotificationState {
@@ -110,3 +125,31 @@ export const useNotificationStore = create<NotificationState>()(
     }
   )
 );
+
+// Helpers to derive a route/href from a notification, ensuring userId is forwarded when present
+const toStringQuery = (q: Record<string, string | number | boolean | null | undefined> | undefined) => {
+  const out: Record<string, string> = {};
+  if (!q) return out;
+  for (const [k, v] of Object.entries(q)) {
+    if (v === null || typeof v === "undefined") continue;
+    out[k] = String(v);
+  }
+  return out;
+};
+
+export function getNotificationRoute(n: AppNotification): AppNotificationRoute | null {
+  const meta = n.meta as AppNotificationMeta | undefined;
+  const route = meta?.route;
+  if (!route || !route.pathname) return null;
+  const userId = meta.userId || meta.user?.id;
+  const baseQuery = toStringQuery(route.query);
+  const query = userId ? { ...baseQuery, userId } : baseQuery;
+  return { pathname: route.pathname, query };
+}
+
+export function buildNotificationHref(n: AppNotification): string | null {
+  const r = getNotificationRoute(n);
+  if (!r) return null;
+  const qs = new URLSearchParams(toStringQuery(r.query)).toString();
+  return qs ? `${r.pathname}?${qs}` : r.pathname;
+}

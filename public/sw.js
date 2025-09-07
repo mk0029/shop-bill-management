@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-comp
 const SW_VERSION = 'v1-' + (self && Date.now());
 const STATIC_CACHE = `static-${SW_VERSION}`;
 const RUNTIME_CACHE = `runtime-${SW_VERSION}`;
-const OFFLINE_URL = '/offline'; // kept for future use, not used for navigations now
+// const OFFLINE_URL = '/offline'; // reserved for future use
 
 // Core assets to pre-cache
 const PRECACHE_URLS = [
@@ -29,6 +29,12 @@ self.addEventListener('activate', (event) => {
     )).then(() => self.clients.claim())
   );
 });
+
+// Broadcast channel to inform clients about notifications received/shown
+let bc = null;
+try {
+  bc = new BroadcastChannel('app-notifications');
+} catch {}
 
 // Helper: is a navigation request
 function isNavigationRequest(request) {
@@ -60,7 +66,7 @@ self.addEventListener('fetch', (event) => {
           const copy = response.clone();
           caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
           return response;
-        } catch (err) {
+        } catch {
           const cached = await caches.match(request);
           if (cached) return cached;
           const root = await caches.match('/');
@@ -223,6 +229,51 @@ try {
     }
   }
 
+  // --- Helpers to structure meta and route from payload.data ---
+  function toStringQuery(obj) {
+    const out = {};
+    if (!obj || typeof obj !== 'object') return out;
+    for (const k of Object.keys(obj)) {
+      const v = obj[k];
+      if (v === null || typeof v === 'undefined') continue;
+      out[k] = String(v);
+    }
+    return out;
+  }
+
+  function buildRouteFromPayload(data) {
+    try {
+      const pathname = data.route_path || data.pathname || null;
+      let query = {};
+      if (data.route_query) {
+        try { query = JSON.parse(data.route_query); } catch {}
+      }
+      // If a link is provided, extract path and query as fallback
+      if (!pathname && data.link) {
+        try {
+          const u = new URL(data.link, self.location.origin);
+          const q = {};
+          for (const [k, v] of u.searchParams.entries()) q[k] = v;
+          return { pathname: u.pathname, query: q };
+        } catch {}
+      }
+      if (!pathname) return null;
+      const q2 = toStringQuery(query);
+      // Append userId to query if present
+      if (data.userId && !q2.userId) q2.userId = String(data.userId);
+      return { pathname, query: q2 };
+    } catch {
+      return null;
+    }
+  }
+
+  function buildLinkFromRoute(route) {
+    if (!route || !route.pathname) return '/';
+    const usp = new URLSearchParams(toStringQuery(route.query));
+    const qs = usp.toString();
+    return qs ? `${route.pathname}?${qs}` : route.pathname;
+  }
+
   async function showNotificationWithRetry(payload, maxRetries = 3) {
     let attempt = 0;
     while (attempt < maxRetries) {
@@ -314,7 +365,7 @@ try {
     const first = { count: 1, lastPayload: payload, timer: null };
     first.timer = setTimeout(async () => {
       pendingAgg.delete(key);
-      const d1 = (first.lastPayload && first.lastPayload.data) || {};
+      // const d1 = (first.lastPayload && first.lastPayload.data) || {};
       // Single event in window: just show with stable tag and replacement semantics
       const single = {
         ...first.lastPayload,
@@ -335,6 +386,7 @@ try {
     const wp = (payload && payload.webpush && payload.webpush.notification) || {};
     const data = (payload && payload.data) || {};
     const title = n.title || data.title || 'Notification';
+    const route = buildRouteFromPayload(data);
     const options = {
       body: n.body || data.body || '',
       icon: data.icon || wp.icon || '/je-192.ico',
@@ -355,8 +407,20 @@ try {
       silent: false,
       data: {
         ...data,
-        // Compute a sensible default link using role + customerId + billId
+        // Structured meta for app usage
+        meta: {
+          userId: data.userId || undefined,
+          user: (data.user_name || data.user_email || data.user_phone || data.user_id) ? {
+            id: data.user_id || data.userId || undefined,
+            name: data.user_name || undefined,
+            email: data.user_email || undefined,
+            phone: data.user_phone || undefined,
+          } : undefined,
+          route: route || undefined,
+        },
+        // Compute link preference: use route if present, else explicit link, else sensible default
         link: (() => {
+          if (route) return sanitizeRelativeUrl(buildLinkFromRoute(route));
           const explicit = (payload && payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || data.click_action;
           if (explicit) return sanitizeRelativeUrl(explicit);
           const billId = data.billId;
@@ -378,6 +442,22 @@ try {
       if (existing && existing.length) existing.forEach((n) => n.close());
     } catch {}
     await self.registration.showNotification(title, options);
+
+    // Broadcast to any open clients so they can add to their in-app store
+    try {
+      if (bc) {
+        const appNotification = {
+          id: data.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: (data.type || 'system'),
+          title,
+          body: options.body || '',
+          createdAt: new Date().toISOString(),
+          read: false,
+          meta: options.data && options.data.meta ? options.data.meta : undefined,
+        };
+        bc.postMessage({ type: 'notification:received', payload: appNotification });
+      }
+    } catch {}
   }
 
   async function processQueuedNotifications() {
@@ -485,6 +565,12 @@ try {
         url = sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${notifData.billId}`);
       } else {
         url = sanitizeRelativeUrl(`/customers/bills?open=${notifData.billId}`);
+      }
+    } else if (notifData.meta && notifData.meta.route) {
+      try {
+        url = sanitizeRelativeUrl(buildLinkFromRoute(notifData.meta.route));
+      } catch {
+        url = sanitizeRelativeUrl(notifData.link || '/');
       }
     } else if (notifData.link) {
       url = sanitizeRelativeUrl(notifData.link);

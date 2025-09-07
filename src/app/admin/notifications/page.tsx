@@ -6,12 +6,16 @@ import { Badge } from "@/components/ui/badge"
 import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 import AdminFCMInitializer from "@/components/notifications/AdminFCMInitializer"
 import NotificationSoundToggle from "@/components/notifications/notification-sound-toggle"
+import Link from "next/link"
+import { buildNotificationHref } from "@/store/notification-store"
+import SWNotificationBridge from "@/components/notifications/sw-bridge"
 
 export default function AdminNotificationsPage() {
   const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore()
 
   return (
     <div className="p-4 sm:p-6">
+      <SWNotificationBridge />
       <AdminFCMInitializer />
       <AdminTestPushPanel />
       <div className="flex items-center justify-between mb-4">
@@ -34,21 +38,38 @@ export default function AdminNotificationsPage() {
         {items.length === 0 ? (
           <div className="p-6 text-gray-400">No notifications yet.</div>
         ) : (
-          items.map(n => (
-            <div key={n.id} className="p-4 flex items-start gap-3">
-              <div className="mt-0.5">
-                <Badge variant="secondary" className="capitalize">{n.type}</Badge>
+          items.map(n => {
+            const href = buildNotificationHref(n)
+            return (
+              <div key={n.id} className="p-4 flex items-start gap-3">
+                <div className="mt-0.5">
+                  <Badge variant="secondary" className="capitalize">{n.type}</Badge>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium">{n.title}</p>
+                  <p className="text-gray-400 text-sm whitespace-pre-line">{n.body}</p>
+                  {(n.meta?.user || n.meta?.userId) && (
+                    <p className="text-gray-400 text-xs mt-1">
+                      {n.meta?.user?.name && <span className="mr-2">{n.meta.user.name}</span>}
+                      {n.meta?.user?.email && <span className="mr-2">({n.meta.user.email})</span>}
+                      <span className="text-gray-500">ID: {n.meta?.user?.id || n.meta?.userId}</span>
+                    </p>
+                  )}
+                  <p className="text-gray-500 text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  {href && (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={href}>Open</Link>
+                    </Button>
+                  )}
+                  {!n.read && (
+                    <Button size="sm" variant="ghost" onClick={() => markAsRead(n.id)}>Mark read</Button>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-medium">{n.title}</p>
-                <p className="text-gray-400 text-sm whitespace-pre-line">{n.body}</p>
-                <p className="text-gray-500 text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
-              </div>
-              {!n.read && (
-                <Button size="sm" variant="ghost" onClick={() => markAsRead(n.id)}>Mark read</Button>
-              )}
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>
