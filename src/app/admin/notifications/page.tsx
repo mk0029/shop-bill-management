@@ -3,12 +3,13 @@
 import { useNotificationStore } from "@/store/notification-store"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
+// import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 import AdminFCMInitializer from "@/components/notifications/AdminFCMInitializer"
-import NotificationSoundToggle from "@/components/notifications/notification-sound-toggle"
+// Removed sound toggle per request
 import Link from "next/link"
 import { buildNotificationHref } from "@/store/notification-store"
 import SWNotificationBridge from "@/components/notifications/sw-bridge"
+import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 
 export default function AdminNotificationsPage() {
   const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore()
@@ -24,7 +25,6 @@ export default function AdminNotificationsPage() {
           <p className="text-gray-400 text-sm">All notifications are stored locally until you clear them.</p>
         </div>
         <div className="flex items-center gap-2">
-          <NotificationSoundToggle />
           {unread > 0 && (
             <Button size="sm" variant="secondary" onClick={markAllRead}>Mark all read</Button>
           )}
