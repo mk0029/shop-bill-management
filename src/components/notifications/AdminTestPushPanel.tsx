@@ -129,34 +129,16 @@ export default function AdminTestPushPanel() {
     <div className="mb-6 p-4 border border-gray-800 rounded-lg bg-gray-900">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-white font-semibold">Test Push Notifications</h2>
-        <span className="text-xs px-2 py-1 rounded bg-gray-800 text-gray-300 border border-gray-700">
-          {resolvedUid ? `Testing as: ${resolvedUid}` : "Not signed in"}
-        </span>
+      
       </div>
-      <p className="text-gray-400 text-sm mb-4">
-        Use these buttons to send end-to-end rich notifications (icon, badge, image, actions).
-        Ensure the service worker is active and notification permission is granted.
-      </p>
+     
       {lastError && (
         <div className="mb-3 text-xs text-red-300 bg-red-900/30 border border-red-800 rounded px-3 py-2">
           API error: {lastError}
         </div>
       )}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-        <Button onClick={sendToMe} disabled={loading !== null} variant="default">
-          {loading === "me" ? "Sending..." : "Send to me"}
-        </Button>
-        <div className="flex gap-2 items-end w-full sm:w-auto">
-          <Input
-            value={targetUserId}
-            onChange={(e) => setTargetUserId(e.target.value)}
-            placeholder="Target userId"
-            className="w-64"
-          />
-          <Button onClick={sendToUid} disabled={loading !== null} variant="secondary">
-            {loading === "uid" ? "Sending..." : "Send to userId"}
-          </Button>
-        </div>
+    
         <Button onClick={sendToAdmins} disabled={loading !== null} variant="outline">
           {loading === "admins" ? "Sending..." : "Send to admins"}
         </Button>

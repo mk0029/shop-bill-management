@@ -46,6 +46,23 @@ export interface BillItem {
   isRewinding?: boolean;
 }
 
+// Helper: read current actor userId from persisted auth store (client-only)
+function getActorUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const remember = window.localStorage.getItem("auth-remember") === "true";
+    const raw = remember
+      ? window.localStorage.getItem("auth-storage") ?? window.sessionStorage.getItem("auth-storage")
+      : window.sessionStorage.getItem("auth-storage") ?? window.localStorage.getItem("auth-storage");
+    if (!raw) return null;
+    const parsed: any = JSON.parse(raw);
+    const user = parsed?.state?.user;
+    return (user?.id as string) || (user?._id as string) || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Validate stock availability for multiple items
  */
@@ -290,6 +307,19 @@ export async function updateStockForBill(
 
         // Admin alerts for low/out-of-stock (via API to avoid server-only imports)
         try {
+          const actorId = getActorUserId();
+          // Get current device token (client only) without re-registering
+          const currentToken: string | null = typeof window !== 'undefined'
+            ? await (async () => {
+                try {
+                  const mod = await import('@/lib/fcm-client')
+                  if (typeof mod.getTokenWithoutRegister === 'function') {
+                    return await mod.getTokenWithoutRegister()
+                  }
+                } catch {}
+                return null
+              })()
+            : null
           const cs = Number(updatedProduct?.inventory?.currentStock ?? 0)
           const min = Number(updatedProduct?.inventory?.minimumStock ?? 0)
           if (cs <= 0) {
@@ -306,6 +336,8 @@ export async function updateStockForBill(
                   threshold: String(min),
                   alert: 'out-of-stock',
                 },
+                excludeUserIds: actorId ? [actorId] : undefined,
+                excludeTokens: currentToken ? [currentToken] : undefined,
               }),
             }).catch(() => {})
           } else if (cs <= min) {
@@ -322,6 +354,8 @@ export async function updateStockForBill(
                   threshold: String(min),
                   alert: 'low-stock',
                 },
+                excludeUserIds: actorId ? [actorId] : undefined,
+                excludeTokens: currentToken ? [currentToken] : undefined,
               }),
             }).catch(() => {})
           }

@@ -942,6 +942,18 @@ export const billApiService = {
               body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
               data: { billId: String((updatedBill as any)?._id ?? billId), event: 'bill-updated', role: 'admin', customerId: String(prev?.customer?._id || '') },
               excludeUserIds: actorId ? [actorId] : undefined,
+              // Exclude current device token too
+              excludeTokens: await (async () => {
+                try {
+                  if (typeof window === 'undefined') return undefined
+                  const mod = await import('@/lib/fcm-client')
+                  if (typeof mod.getTokenWithoutRegister === 'function') {
+                    const t = await mod.getTokenWithoutRegister()
+                    return t ? [t] : undefined
+                  }
+                } catch {}
+                return undefined
+              })(),
             }),
           }).catch(() => {});
         }

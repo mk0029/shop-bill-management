@@ -238,6 +238,97 @@ try {
     return false;
   }
 
+  // ----- Deduping & Aggregation helpers -----
+  const AGG_WINDOW_MS = 800; // merge multiple related notifications in this window
+  const pendingAgg = new Map(); // key -> { count, timer, lastPayload }
+
+  function computeTag(payload) {
+    try {
+      const d = (payload && payload.data) || {};
+      const n = (payload && payload.notification) || {};
+      const wp = (payload && payload.webpush && payload.webpush.notification) || {};
+      // Explicit incoming tag wins
+      const explicit = wp.tag || d.tag || undefined;
+      if (explicit) return explicit;
+      // Bill-specific
+      if (d.billId) return `bill-${d.billId}`;
+      // Inventory grouping by category/product if available
+      if (d.event === 'inventory-updated') {
+        if (d.categoryId) return `inv-cat-${d.categoryId}`;
+        if (d.productId) return `inv-prod-${d.productId}`;
+        return 'inv-bulk';
+      }
+      // Admin broadcast fallbacks by event
+      if (d.event) return `evt-${d.event}`;
+      // Fallback to title-based tag to prevent duplicates
+      return `title-${(n.title || d.title || 'app').slice(0, 32)}`;
+    } catch {
+      return 'app-notification';
+    }
+  }
+
+  function maybeAggregateAndShow(payload) {
+    const d = (payload && payload.data) || {};
+    const key = computeTag(payload);
+    // Only aggregate bursts for inventory updates; others replace immediately
+    const shouldAggregate = d && d.event === 'inventory-updated';
+    if (!shouldAggregate) {
+      // Replace existing with same tag (avoid duplicates) and show latest
+      return (async () => {
+        try {
+          const existing = await self.registration.getNotifications({ tag: key });
+          if (existing && existing.length) existing.forEach((n) => n.close());
+        } catch {}
+        // Ensure tag is set for replacement behavior
+        payload.webpush = payload.webpush || {};
+        payload.webpush.notification = payload.webpush.notification || {};
+        payload.webpush.notification.tag = key;
+        await showNotificationWithRetry(payload, 3);
+      })();
+    }
+
+    // Aggregate inventory updates within window
+    const prev = pendingAgg.get(key);
+    if (prev) {
+      clearTimeout(prev.timer);
+      const next = { count: prev.count + 1, lastPayload: payload, timer: null };
+      next.timer = setTimeout(async () => {
+        pendingAgg.delete(key);
+        const last = next.lastPayload;
+        const d2 = (last && last.data) || {};
+        const consolidated = {
+          notification: { title: 'Inventory updated', body: `${next.count} change${next.count > 1 ? 's' : ''} just now` },
+          data: { ...d2, event: 'inventory-updated', count: String(next.count) },
+          webpush: { notification: { tag: key, renotify: true, requireInteraction: true } },
+        };
+        // Close any existing with same tag, then show consolidated
+        try {
+          const existing = await self.registration.getNotifications({ tag: key });
+          if (existing && existing.length) existing.forEach((n) => n.close());
+        } catch {}
+        await showNotificationWithRetry(consolidated, 3);
+      }, AGG_WINDOW_MS);
+      pendingAgg.set(key, next);
+      return;
+    }
+    const first = { count: 1, lastPayload: payload, timer: null };
+    first.timer = setTimeout(async () => {
+      pendingAgg.delete(key);
+      const d1 = (first.lastPayload && first.lastPayload.data) || {};
+      // Single event in window: just show with stable tag and replacement semantics
+      const single = {
+        ...first.lastPayload,
+        webpush: { notification: { ...(first.lastPayload.webpush && first.lastPayload.webpush.notification), tag: key } },
+      };
+      try {
+        const existing = await self.registration.getNotifications({ tag: key });
+        if (existing && existing.length) existing.forEach((n) => n.close());
+      } catch {}
+      await showNotificationWithRetry(single, 3);
+    }, AGG_WINDOW_MS);
+    pendingAgg.set(key, first);
+  }
+
   async function showNotification(payload) {
     if (!(await shouldShowNotification(payload))) return;
     const n = (payload && payload.notification) || {};
@@ -250,7 +341,7 @@ try {
       badge: data.badge || wp.badge || '/je-192.ico',
       image: data.image || wp.image,
       vibrate: wp.vibrate || [100, 50, 100],
-      tag: wp.tag || data.tag || 'app-notification',
+      tag: wp.tag || data.tag || computeTag(payload),
       renotify: (wp.renotify ?? true),
       requireInteraction: (wp.requireInteraction ?? true),
       // Show the primary action only for bill-related notifications
@@ -281,12 +372,10 @@ try {
         })(),
       },
     };
-    // Dedupe: if a notification with the same tag is already shown, skip
+    // Dedupe: close existing with same tag and replace with latest
     try {
       const existing = await self.registration.getNotifications({ tag: options.tag });
-      if (existing && existing.length > 0) {
-        return;
-      }
+      if (existing && existing.length) existing.forEach((n) => n.close());
     } catch {}
     await self.registration.showNotification(title, options);
   }
@@ -337,7 +426,7 @@ try {
       const payload = event.data.payload;
       event.waitUntil((async () => {
         const queued = await queueNotification(payload);
-        if (!queued) await showNotificationWithRetry(payload, 3);
+        if (!queued) await maybeAggregateAndShow(payload);
       })());
     }
   });
@@ -346,9 +435,7 @@ try {
   messaging.onBackgroundMessage((payload) => {
     const maybeQueue = async () => {
       const queued = await queueNotification(payload);
-      if (!queued) {
-        await showNotificationWithRetry(payload, 3);
-      }
+      if (!queued) await maybeAggregateAndShow(payload);
     };
     // Fire-and-forget; onBackgroundMessage has no event to waitUntil
     maybeQueue();
@@ -370,7 +457,7 @@ try {
       // Route through unified display (with preferences + dedupe)
       event.waitUntil((async () => {
         const queued = await queueNotification(payload);
-        if (!queued) await showNotificationWithRetry(payload, 3);
+        if (!queued) await maybeAggregateAndShow(payload);
       })());
       return;
     }
@@ -378,7 +465,7 @@ try {
     // Data-only: render via enhanced path with preferences and queue support
     event.waitUntil((async () => {
       const queued = await queueNotification(payload);
-      if (!queued) await showNotificationWithRetry(payload, 3);
+      if (!queued) await maybeAggregateAndShow(payload);
     })());
   });
 

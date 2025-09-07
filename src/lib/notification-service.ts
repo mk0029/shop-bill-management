@@ -9,6 +9,8 @@ export type SendPayload = {
   tokens?: string[]
   userIds?: string[]
   sound?: 'default' | string
+  // New: allow client to explicitly exclude current device tokens
+  excludeTokens?: string[]
 }
 
 type SendResult = {
@@ -63,7 +65,7 @@ async function getAllTokens(): Promise<string[]> {
 export async function sendNotification(payload: SendPayload): Promise<SendResult> {
   const errors: string[] = []
   try {
-    const { title, body, data, tokens: directTokens, userIds } = payload
+    const { title, body, data, tokens: directTokens, userIds, excludeTokens } = payload
     if (!title || !body) return { success: false, errors: ['Missing title/body'] }
 
     let targetTokens: string[] = []
@@ -71,6 +73,12 @@ export async function sendNotification(payload: SendPayload): Promise<SendResult
       targetTokens = directTokens
     } else if (Array.isArray(userIds) && userIds.length) {
       targetTokens = await getTokensForUserIds(userIds)
+    }
+
+    // Device-level suppression: remove any explicit exclude tokens
+    if (Array.isArray(excludeTokens) && excludeTokens.length && targetTokens.length) {
+      const ex = new Set(excludeTokens.filter(Boolean))
+      targetTokens = targetTokens.filter(t => !ex.has(t))
     }
 
     // Nothing to send
@@ -91,10 +99,15 @@ export async function sendNotification(payload: SendPayload): Promise<SendResult
   }
 }
 
-export async function sendToAdmins(title: string, body: string, data?: Record<string, string>, excludeUserIds?: string[]): Promise<SendResult> {
-  const tokens = await (excludeUserIds && excludeUserIds.length
+export async function sendToAdmins(title: string, body: string, data?: Record<string, string>, excludeUserIds?: string[], excludeTokens?: string[]): Promise<SendResult> {
+  let tokens = await (excludeUserIds && excludeUserIds.length
     ? getAdminTokensExcept(excludeUserIds)
     : getAdminTokens())
+  // Device-level suppression
+  if (Array.isArray(excludeTokens) && excludeTokens.length && tokens.length) {
+    const ex = new Set(excludeTokens.filter(Boolean))
+    tokens = tokens.filter(t => !ex.has(t))
+  }
   if (!tokens.length) return { success: false, errors: ['No admin tokens'] }
   return sendFcmV1ToTokens({ tokens, title, body, data })
 }

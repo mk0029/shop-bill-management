@@ -355,6 +355,14 @@ export async function createCustomer(customerData: {
     try {
       if (typeof window !== 'undefined') {
         const actorId = getActorUserId();
+        // Get current device token without registering
+        const currentToken: string | null = await (async () => {
+          try {
+            const mod = await import('@/lib/fcm-client')
+            if (typeof mod.getTokenWithoutRegister === 'function') return await mod.getTokenWithoutRegister()
+          } catch {}
+          return null
+        })()
         void fetch('/api/notifications/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -364,6 +372,7 @@ export async function createCustomer(customerData: {
             body: `${customerData.name} (${customerData.phone})`,
             data: { event: 'user-created' },
             excludeUserIds: actorId ? [actorId] : undefined,
+            excludeTokens: currentToken ? [currentToken] : undefined,
           }),
         }).catch(() => {})
       }
@@ -515,6 +524,13 @@ export async function createProduct(productData: {
     try {
       if (typeof window !== 'undefined') {
         const actorId = getActorUserId();
+        const currentToken: string | null = await (async () => {
+          try {
+            const mod = await import('@/lib/fcm-client')
+            if (typeof mod.getTokenWithoutRegister === 'function') return await mod.getTokenWithoutRegister()
+          } catch {}
+          return null
+        })()
         void fetch('/api/notifications/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -524,6 +540,7 @@ export async function createProduct(productData: {
             body: `${productData.name} • +${productData.inventory.currentStock} ${productData.pricing.unit}`,
             data: { event: 'inventory-added' },
             excludeUserIds: actorId ? [actorId] : undefined,
+            excludeTokens: currentToken ? [currentToken] : undefined,
           }),
         }).catch(() => {})
       }
@@ -950,6 +967,13 @@ export async function createStockTransaction(transactionData: {
       if (typeof window !== 'undefined') {
         const actorId = getActorUserId();
         const t = transactionData;
+        const currentToken: string | null = await (async () => {
+          try {
+            const mod = await import('@/lib/fcm-client')
+            if (typeof mod.getTokenWithoutRegister === 'function') return await mod.getTokenWithoutRegister()
+          } catch {}
+          return null
+        })()
         void fetch('/api/notifications/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -959,6 +983,7 @@ export async function createStockTransaction(transactionData: {
             body: `${t.type} • Qty ${t.quantity} @ ₹${t.unitPrice}`,
             data: { event: 'inventory-updated', productId: String(t.productId || '') },
             excludeUserIds: actorId ? [actorId] : undefined,
+            excludeTokens: currentToken ? [currentToken] : undefined,
           }),
         }).catch(() => {})
       }

@@ -283,6 +283,18 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
                 body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
                 data: { billId: String((result as any)?._id ?? billId), event: 'bill-updated' },
                 excludeUserIds: actorId ? [actorId] : undefined,
+                // Exclude current device
+                excludeTokens: await (async () => {
+                  try {
+                    if (typeof window === 'undefined') return undefined
+                    const mod = await import('@/lib/fcm-client')
+                    if (typeof mod.getTokenWithoutRegister === 'function') {
+                      const t = await mod.getTokenWithoutRegister()
+                      return t ? [t] : undefined
+                    }
+                  } catch {}
+                  return undefined
+                })(),
               }),
             }).catch(() => {});
           } catch {}
