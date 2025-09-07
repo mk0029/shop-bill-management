@@ -28,6 +28,8 @@ function playChime() {
 
 export default function NotificationToaster() {
   const items = useNotificationStore((s) => s.items);
+  const markToasted = useNotificationStore((s) => s.markToasted);
+  const isToasted = useNotificationStore((s) => s.isToasted);
   const lastIdRef = useRef<string | null>(null);
   const router = useRouter();
 
@@ -35,6 +37,11 @@ export default function NotificationToaster() {
     if (!items.length) return;
     const latest: AppNotification = items[0];
     if (latest?.id && lastIdRef.current !== latest.id) {
+      // Prevent repeated toasts across reloads: check persisted map
+      if (isToasted(latest.id)) {
+        lastIdRef.current = latest.id; // keep ref synced to avoid loops
+        return;
+      }
       lastIdRef.current = latest.id;
 
       const description = latest.body || "You have a new notification";
@@ -49,10 +56,13 @@ export default function NotificationToaster() {
         action: billId
           ? {
               label: "View bill",
-              onClick: () => router.push(`/bills/${billId}`),
+              onClick: () => router.push(`/admin/billing?open=${billId}`),
             }
           : undefined,
       });
+
+      // Mark as toasted so we don't show this again on next renders/reloads
+      if (latest.id) markToasted(latest.id);
 
       // subtle sound
       if (typeof window !== "undefined") playChime();

@@ -366,7 +366,7 @@ try {
             if (role === 'admin' && customerId) {
               return sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${billId}`);
             }
-            return sanitizeRelativeUrl(`/customers/bills/?open=${billId}`);
+            return sanitizeRelativeUrl(`/customers/bills?open=${billId}`);
           }
           return '/';
         })(),
@@ -484,7 +484,7 @@ try {
       if (role === 'admin' && customerId) {
         url = sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${notifData.billId}`);
       } else {
-        url = sanitizeRelativeUrl(`/customers/bills/?open=${notifData.billId}`);
+        url = sanitizeRelativeUrl(`/customers/bills?open=${notifData.billId}`);
       }
     } else if (notifData.link) {
       url = sanitizeRelativeUrl(notifData.link);

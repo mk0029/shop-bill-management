@@ -16,11 +16,17 @@ export interface AppNotification {
 interface NotificationState {
   items: AppNotification[];
   unread: number;
+  // Track which notification IDs have already been shown as a toast (persisted)
+  toasted: Record<string, true>;
   add: (n: Omit<AppNotification, "id" | "createdAt"> & { id?: string; createdAt?: string }) => void;
   addMany: (list: AppNotification[]) => void;
   markAsRead: (id: string) => void;
   markAllRead: () => void;
   clear: () => void;
+  // Mark a notification as having been shown as a toast
+  markToasted: (id: string) => void;
+  // Check if a notification has already been shown as a toast
+  isToasted: (id: string) => boolean;
 }
 
 export const useNotificationStore = create<NotificationState>()(
@@ -28,6 +34,7 @@ export const useNotificationStore = create<NotificationState>()(
     (set) => ({
       items: [],
       unread: 0,
+      toasted: {},
 
       add: (n) =>
         set((state) => {
@@ -62,22 +69,44 @@ export const useNotificationStore = create<NotificationState>()(
           return { items, unread: 0 };
         }),
 
-      clear: () => set({ items: [], unread: 0 }),
+      clear: () => set({ items: [], unread: 0, toasted: {} }),
+
+      markToasted: (id) =>
+        set((state) => {
+          // Keep map from growing without bound: trim if too large
+          const entries = Object.entries(state.toasted);
+          const next: Record<string, true> = { ...state.toasted, [id]: true };
+          if (entries.length > 300) {
+            // Rebuild keeping only the newest 200 ids that still exist in items
+            const existingIds = new Set(state.items.map((x) => x.id));
+            const filtered = entries
+              .filter(([k]) => existingIds.has(k))
+              .slice(0, 200);
+            const compact: Record<string, true> = {} as Record<string, true>;
+            for (const [k] of filtered) compact[k] = true as const;
+            compact[id] = true as const;
+            return { toasted: compact } as Partial<NotificationState>;
+          }
+          return { toasted: next } as Partial<NotificationState>;
+        }),
+
+      isToasted: (id) => !!(typeof id === "string" && (id in (useNotificationStore.getState().toasted || {}))),
     }),
     {
       name: "app_notifications",
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
       // small migrate to ensure unread recomputed
       migrate: (state: unknown) => {
-        const s = state as { items?: AppNotification[]; unread?: number } | undefined;
+        const s = state as { items?: AppNotification[]; unread?: number; toasted?: Record<string, true> } | undefined;
         if (s && Array.isArray(s.items)) {
           const unread = s.items.filter((x) => !x.read).length;
-          return { ...s, unread } as unknown;
+          const toasted = s.toasted && typeof s.toasted === "object" ? s.toasted : {};
+          return { ...s, unread, toasted } as unknown;
         }
         return state;
       },
-      partialize: (s) => ({ items: s.items, unread: s.unread }),
+      partialize: (s) => ({ items: s.items, unread: s.unread, toasted: s.toasted }),
     }
   )
 );

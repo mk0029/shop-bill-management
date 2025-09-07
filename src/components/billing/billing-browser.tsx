@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,8 @@ export function BillingBrowser({
   defaultFilterStatuses,
 }: BillingBrowserProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { bills, updateBill } = useBills();
   const { customers } = useCustomers();
   const { products } = useProducts();
@@ -64,10 +66,78 @@ export function BillingBrowser({
   // Transform products data - use type assertion to handle structure differences
   const transformedItems: Item[] = products as any;
 
+  // Helper to construct the selected bill payload for the modal from a raw bill
+  const buildSelectedBill = (bill: any) => {
+    if (!bill) return null;
+    return {
+      id: bill._id,
+      _id: bill._id,
+      customerName: bill.customer?.name || "Unknown Customer",
+      customerId: bill.customer?._id || bill.customer?._ref || "",
+      date: bill.serviceDate
+        ? new Date(bill.serviceDate).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+      items:
+        bill.items?.map((item: any) => ({
+          name: item.productName || "Unknown Item",
+          quantity: item.quantity || 0,
+          price: item.unitPrice || 0,
+          total: item.totalPrice || 0,
+          product: item.product || null,
+          brand: item.brand || "",
+          category: item.category || "",
+          specifications: item.specifications || "",
+          unit: item.unit || "piece",
+          productName:
+            item.product?.productName || item.productName || "Unknown Item",
+          productId: item.product?._id || item.product?._ref || "",
+          productDetails: item.product || null,
+        })) || [],
+      serviceType: bill.serviceType || "sale",
+      locationType: bill.locationType || "shop",
+      homeVisitFee: bill.homeVisitFee || 0,
+      transportationFee: bill.transportationFee || 0,
+      repairCharges: (bill as any).repairCharges ?? (bill as any).repairFee ?? 0,
+      laborCharges: bill.laborCharges || 0,
+      subtotal: bill.subtotal || 0,
+      total: bill.totalAmount || 0,
+      status: bill.paymentStatus === "paid" ? "paid" : "pending",
+      paymentStatus: bill.paymentStatus,
+      paidAmount: bill.paidAmount,
+      balanceAmount: bill.balanceAmount,
+      notes: bill.notes,
+      customer: {
+        name: bill.customer?.name || "Unknown Customer",
+        phone: bill.customer?.phone || "",
+        email: bill.customer?.email || "",
+        location: bill.customer?.location || "",
+        customerId: bill.customer?.customerId || bill.customerId || "",
+        secretKey:
+          customers.find(
+            (c: any) => c._id === (bill.customer?._id || bill.customer?._ref)
+          )?.secretKey || bill.customer?.secretKey || "",
+      },
+    };
+  };
+
   const handleCreateBill = async (billData: BillFormData) => {
     // Placeholder: existing create flow opens dedicated page; keep modal for parity
     setShowCreateBill(false);
   };
+
+  // Auto-open bill modal if URL contains ?open=<billId>
+  useEffect(() => {
+    const openId = searchParams?.get("open");
+    if (!openId) return;
+    // If a bill is already selected for the same id, skip
+    if (selectedBill && (selectedBill._id === openId || selectedBill.id === openId)) {
+      return;
+    }
+    const match = bills.find((b: any) => b._id === openId);
+    if (match) {
+      setSelectedBill(buildSelectedBill(match));
+    }
+  }, [searchParams, bills]);
 
   const handleViewBill = (bill: any) => {
     setSelectedBill(bill);
@@ -234,58 +304,7 @@ export function BillingBrowser({
               searchTerm={searchTerm}
               filterStatus={computedFilterStatus}
               onBillClick={(bill) =>
-                handleViewBill({
-                  id: bill._id,
-                  _id: bill._id,
-                  customerName: bill.customer?.name || "Unknown Customer",
-                  customerId: bill.customer?._id || bill.customer?._ref || "",
-                  date: bill.serviceDate
-                    ? new Date(bill.serviceDate).toISOString().split("T")[0]
-                    : new Date().toISOString().split("T")[0],
-                  items:
-                    bill.items?.map((item: any) => ({
-                      name: item.productName || "Unknown Item",
-                      quantity: item.quantity || 0,
-                      price: item.unitPrice || 0,
-                      total: item.totalPrice || 0,
-                      product: item.product || null,
-                      brand: item.brand || "",
-                      category: item.category || "",
-                      specifications: item.specifications || "",
-                      unit: item.unit || "piece",
-                      productName:
-                        item.product?.productName ||
-                        item.productName ||
-                        "Unknown Item",
-                      productId: item.product?._id || item.product?._ref || "",
-                      productDetails: item.product || null,
-                    })) || [],
-                  serviceType: bill.serviceType || "sale",
-                  locationType: bill.locationType || "shop",
-                  homeVisitFee: bill.homeVisitFee || 0,
-                  transportationFee: bill.transportationFee || 0,
-                  repairCharges: (bill as any).repairCharges ?? (bill as any).repairFee ?? 0,
-                  laborCharges: bill.laborCharges || 0,
-                  subtotal: bill.subtotal || 0,
-                  total: bill.totalAmount || 0,
-                  status: bill.paymentStatus === "paid" ? "paid" : "pending",
-                  paymentStatus: bill.paymentStatus,
-                  paidAmount: bill.paidAmount,
-                  balanceAmount: bill.balanceAmount,
-                  notes: bill.notes,
-                  customer: {
-                    name: bill.customer?.name || "Unknown Customer",
-                    phone: bill.customer?.phone || "",
-                    email: bill.customer?.email || "",
-                    location: bill.customer?.location || "",
-                    customerId: bill.customer?.customerId || bill.customerId || "",
-                    secretKey:
-                      customers.find(
-                        (c: any) =>
-                          c._id === (bill.customer?._id || bill.customer?._ref)
-                      )?.secretKey || bill.customer?.secretKey || "",
-                  },
-                })
+                handleViewBill(buildSelectedBill(bill))
               }
               showNewBillAnimation={true}
             />
@@ -305,7 +324,18 @@ export function BillingBrowser({
       {/* Bill Detail Modal */}
       <BillDetailModal
         isOpen={!!selectedBill}
-        onClose={() => setSelectedBill(null)}
+        onClose={() => {
+          setSelectedBill(null);
+          // Remove `open` query param from URL without full navigation
+          try {
+            const sp = new URLSearchParams(searchParams?.toString());
+            if (sp.has("open")) {
+              sp.delete("open");
+              const q = sp.toString();
+              router.replace(q ? `${pathname}?${q}` : `${pathname}`, { scroll: false });
+            }
+          } catch {}
+        }}
         bill={selectedBill}
         onDownloadPDF={handleDownloadPDF}
         onUpdatePayment={handleUpdatePayment}
