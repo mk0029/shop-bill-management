@@ -82,7 +82,18 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = '�
   const items =
     bill.items
       ?.map((item: any) => {
-        const itemText = `• ${item.productName || item.name}: ${item.quantity} ${item.unit || "pcs"} x ${currency}${(item.unitPrice || item.price).toFixed(2)} = ${currency}${(item.totalPrice || item.total).toFixed(2)}`;
+        // Prepare display name with category if available
+        const baseName = item.productName || item.name || "Item";
+        const category =
+          item.categoryName ||
+          item.category ||
+          item.catogary ||
+          item.product?.category?.name ||
+          item.product?.category ||
+          item.category?.name;
+        const nameWithCategory = category ? `${baseName} (${category})` : baseName;
+
+        const itemText = `• ${nameWithCategory}: ${item.quantity} ${item.unit || "pcs"} x ${currency}${(item.unitPrice || item.price).toFixed(2)} = ${currency}${(item.totalPrice || item.total).toFixed(2)}`;
 
         // Merge possible specification sources
         const rawA = item.specifications;
@@ -159,8 +170,9 @@ const loginUrl = siteUrl || "https://jambh-ell.vercel.app/";
   if (bill.serviceType) {
     message += `*Service Type:* ${bill.serviceType.charAt(0).toUpperCase() + bill.serviceType.slice(1)}\n`;
   }
-  if (bill.serviceDate || bill.createdAt) {
-    message += `*Service Date:* ${new Date(bill.serviceDate || bill.createdAt).toLocaleDateString("en-IN")}\n`;
+  const serviceDateValue = bill.serviceDate ?? bill.createdAt;
+  if (serviceDateValue) {
+    message += `*Service Date:* ${new Date(serviceDateValue).toLocaleDateString("en-IN")}\n`;
   }
   if (bill.priority) {
     message += `*Priority:* ${bill.priority.charAt(0).toUpperCase() + bill.priority.slice(1)}\n`;
@@ -249,4 +261,31 @@ if (phone.length > 10) {
   const message = generateWhatsAppMessage(bill);
   const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
   window.open(whatsappUrl, "_blank");
+}
+
+export async function shareBillViaSMS(
+  bill: BillDetails,
+  recipientPhone?: string
+): Promise<void> {
+  try {
+    // Prefer explicit recipientPhone, fallback to bill.customer.phone
+    let phone = (recipientPhone || bill.customer?.phone || "").replace(/\D/g, "");
+
+    // If number length > 10, trim to last 10 digits (common case with +91...)
+    if (phone.length > 10) {
+      phone = phone.slice(-10);
+    }
+
+    const message = generateWhatsAppMessage(bill);
+    const encoded = encodeURIComponent(message);
+
+    // Construct sms: URL. Use just the 10-digit local number per user's request (no 91 prefix)
+    const smsUrl = phone ? `sms:${phone}?body=${encoded}` : `sms:?body=${encoded}`;
+
+    // Use location change for better handling on mobile devices
+    window.location.href = smsUrl;
+  } catch (error) {
+    console.error("Failed to open SMS composer:", error);
+    toast.error("❌ Unable to open SMS composer on this device.");
+  }
 }

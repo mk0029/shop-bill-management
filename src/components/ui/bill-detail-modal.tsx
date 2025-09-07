@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { useState } from "react";
 // Switch not needed after redesign of payment UI
-import { BillDetails, shareBillOnWhatsApp } from "@/lib/whatsapp-share";
+import { BillDetails, shareBillOnWhatsApp, shareBillViaSMS } from "@/lib/whatsapp-share";
 import { useLocaleStore } from "@/store/locale-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -18,7 +18,8 @@ import {
   FileText,
   MapPin,
   Save,
-  Share2
+  Share2,
+  MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -599,36 +600,55 @@ export const BillDetailModal = ({
             )}
 
           {/* Action Buttons */}
-          <div className="flex flex-row gap-3  md:pt-4">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              className="flex-1 sm:flex-none border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white">
-            Close
-            </Button>
-
+         
+           
             {showShareButton && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  // Transform the bill object to match the BillDetails interface
-                  const billDetails: BillDetails = {
-                    ...bill,
-                    repairFee:
-                      (bill as any).repairFee ??
-                      (bill as any).repairCharges ??
-                      0,
-                    grandTotal: grandTotal,
-                    customerAuth: {
-                      secretKey: bill.customer?.secretKey || undefined,
-                    },
-                  };
-                  shareBillOnWhatsApp(billDetails);
-                }}
-                className="flex-1 w-full sm:flex-none border-green-300 text-green-500 hover:bg-green-800 hover:text-white">
-                <Share2 className="w-4 h-4 mr-2" />
-                <span className="sm:inline">Share On WhatsApp</span>
-              </Button>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Transform the bill object to match the BillDetails interface
+                    const billDetails: BillDetails = {
+                      ...bill,
+                      repairFee:
+                        (bill as any).repairFee ??
+                        (bill as any).repairCharges ??
+                        0,
+                      grandTotal: grandTotal,
+                      customerAuth: {
+                        secretKey: bill.customer?.secretKey || undefined,
+                      },
+                    };
+                    shareBillOnWhatsApp(billDetails);
+                  }}
+                  className=" w-full flex-1 border-green-300 text-green-500 hover:bg-green-800 hover:text-white">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  <span className="sm:inline">WhatsApp</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const billDetails: BillDetails = {
+                      ...bill,
+                      repairFee:
+                        (bill as any).repairFee ??
+                        (bill as any).repairCharges ??
+                        0,
+                      grandTotal: grandTotal,
+                      customerAuth: {
+                        secretKey: bill.customer?.secretKey || undefined,
+                      },
+                    };
+                    // Use customer's phone if available; otherwise open composer without recipient
+                    const recipient = bill.customer?.phone;
+                    shareBillViaSMS(billDetails, recipient);
+                  }}
+                  className="flex-1 w-full border-blue-300 text-blue-400 hover:bg-blue-800 hover:text-white">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  <span className="sm:inline">SMS</span>
+                </Button>
+              </div>
             )}
 
             {/* {onDownloadPDF && (
@@ -640,7 +660,7 @@ export const BillDetailModal = ({
               </Button>
             )} */}
           </div>
-        </div>
+       
       </div>
     </Modal>
   );

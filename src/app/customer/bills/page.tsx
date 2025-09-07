@@ -21,6 +21,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
 import { useDocumentListener } from "@/hooks/use-realtime-sync";
 import { sanityClient } from "@/lib/sanity";
+import { Badge } from "@/components/ui/badge";
 type SanityBill = StoreBill;
 
 // Customer-specific bill stats component that uses filtered data
@@ -531,15 +532,20 @@ export default function CustomerBillsPage() {
     }).format(value);
   };
 
-  const statusOptions = [
-    { value: "all", label: "All Status" },
-    { value: "paid", label: "Paid" },
-    { value: "pending", label: "Pending" },
-    { value: "overdue", label: "Overdue" },
-    { value: "partial", label: "Partially Paid" },
-  ];
-
-  return (
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "paid":
+        return "bg-green-900 text-green-300 border-green-700";
+      case "partial":
+        return "bg-orange-900 text-orange-300 border-orange-700";
+      case "pending":
+        return "bg-yellow-900 text-yellow-300 border-yellow-700";
+      case "overdue":
+        return "bg-red-900 text-red-300 border-red-700";
+      default:
+        return "bg-gray-900 text-gray-300 border-gray-700";
+    }
+  };  return (
     <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -653,39 +659,40 @@ export default function CustomerBillsPage() {
           <div className="space-y-6 max-md:space-y-4">
             {/* Bill Info */}
             <div className="bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3">Bill Information</h4>
+             <div className="flex justify-between gap-3 flex-wrap">   <h4 className="font-medium text-white">Bill Information</h4><Badge
+              className={`${getStatusColor(selectedBill.paymentStatus || selectedBill.status)} px-2 py-0.5 text-xs font-medium `}>
+              {(selectedBill.paymentStatus || selectedBill.status || "pending").toUpperCase()}
+            </Badge></div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-400">Service Type</p>
-                  <p className="text-white">{selectedBill.serviceType}</p>
+                  <p className="text-white capitalize">{selectedBill.serviceType}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Location</p>
-                  <p className="text-white">{selectedBill.locationType}</p>
+                  <p className="text-white capitalize">{selectedBill.locationType}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Bill Number</p>
-                  <p className="text-white">{selectedBill.billNumber}</p>
+                  <p className="text-white capitalize">{selectedBill.billNumber}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Bill Date</p>
-                  <p className="text-white">
+                  <p className="text-white capitalize">
                     {selectedBill.serviceDate
                       ? new Date(selectedBill.serviceDate).toLocaleDateString()
                       : "-"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Status</p>
-                  <p className="text-white">
-                    {selectedBill.paymentStatus || selectedBill.status}
-                  </p>
+
+                
                 </div>
               </div>
             </div>
 
             {/* Bill Items */}
-            <div className="bg-gray-800 rounded-lg p-4">
+            <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
               <h4 className="font-medium text-white mb-3">Bill Items</h4>
               <div className="space-y-3">
                 {selectedBill.items && selectedBill.items.length > 0 ? (
@@ -694,9 +701,14 @@ export default function CustomerBillsPage() {
                       key={index}
                       className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
                       <div>
-                        <p className="text-white">
+                      <div className="flex items-center gap-2 flex-wrap">  <p className="text-white">
                           {item.productName || "Product"}
                         </p>
+                        <Badge
+                              variant="outline"
+                              className="text-purple-400 border-purple-600 max-sm:!py-0.5 max-sm:px-2 max-sm:text-xs">
+                              {item.category}
+                            </Badge></div>
                         <p className="text-sm text-gray-400">
                           {item.quantity} × ₹{item.unitPrice?.toLocaleString()}
                         </p>
@@ -718,24 +730,24 @@ export default function CustomerBillsPage() {
             </div>
 
             {/* Charges & Totals */}
-            <div className="bg-gray-800 rounded-lg p-4">
+            <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
               <h4 className="font-medium text-white mb-3">Charges & Totals</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
+               {selectedBill.subtotal !== selectedBill.totalAmount && <div>
                   <p className="text-gray-400">Subtotal</p>
                   <p className="text-white">
                     {currency}
                     {selectedBill.subtotal?.toLocaleString() || "-"}
                   </p>
-                </div>
-                <div>
+                </div>}
+                {selectedBill.homeVisitFee !== null && selectedBill?.homeVisitFee>0 && <div>
                   <p className="text-gray-400">Home Visit Fee</p>
                   <p className="text-white">
                     {currency}
                     {selectedBill.homeVisitFee?.toLocaleString() || "-"}
                   </p>
-                </div>
-                <div>
+                </div>}
+                {selectedBill?.repairFee !== null && selectedBill?.repairFee>0 && <div>
                   <p className="text-gray-400">Repair Charges</p>
                   <p className="text-white">
                     {currency}
@@ -743,44 +755,44 @@ export default function CustomerBillsPage() {
                       (selectedBill as any).repairCharges?.toLocaleString?.() ||
                       "-"}
                   </p>
-                </div>
-                <div>
+                </div>}
+               { selectedBill?.laborCharges !== null && selectedBill?.laborCharges>0 && <div>
                   <p className="text-gray-400">Labor Charges</p>
                   <p className="text-white">
                     {currency}
                     {selectedBill.laborCharges?.toLocaleString() || "-"}
                   </p>
-                </div>
-                <div>
+                </div>}
+               {selectedBill?.taxAmount !== null && selectedBill?.taxAmount>0 && <div>
                   <p className="text-gray-400">Tax</p>
                   <p className="text-white">
                     {formatCurrency(selectedBill.taxAmount)}
                   </p>
-                </div>
-                <div>
+                </div>}
+               { selectedBill?.discountAmount !== null && selectedBill?.discountAmount>0 && <div>
                   <p className="text-gray-400">Discount</p>
                   <p className="text-white">
                     {formatCurrency(selectedBill.discountAmount)}
                   </p>
-                </div>
+                </div>}
                 <div>
                   <p className="text-gray-400">Total</p>
-                  <p className="text-white font-bold text-lg">
+                  <p className="text-white font-bold text-base md:text-lg">
                     {formatCurrency(selectedBill.totalAmount)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400">Paid</p>
-                  <p className="text-white">
+                  <p className="text-green-400">Paid</p>
+                  <p className="text-green-500">
                     {formatCurrency(selectedBill.paidAmount)}
                   </p>
                 </div>
-                <div>
+               {selectedBill.balanceAmount !==selectedBill.paidAmount && <div>
                   <p className="text-gray-400">Balance</p>
                   <p className="text-white">
                     {formatCurrency(selectedBill.balanceAmount)}
                   </p>
-                </div>
+                </div>}
               </div>
               {selectedBill.notes && (
                 <div className="mt-4">
@@ -790,7 +802,7 @@ export default function CustomerBillsPage() {
               )}
             </div>
 
-            <div className="flex gap-3">
+            {/* <div className="flex gap-3">
               <Button className="flex-1">
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF
@@ -798,7 +810,7 @@ export default function CustomerBillsPage() {
               <Button variant="outline" onClick={() => setShowBillModal(false)}>
                 Close
               </Button>
-            </div>
+            </div> */}
           </div>
         )}
       </Modal>
