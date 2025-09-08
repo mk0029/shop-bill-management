@@ -1,13 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocaleStore } from "@/store/locale-store";
 import { useSalesAnalytics } from "@/hooks/use-sales-analytics";
+import { useBills } from "@/hooks/use-sanity-data";
+import { Dropdown } from "@/components/ui/dropdown";
 import {
   formatCurrency,
   formatPercentage,
@@ -78,9 +80,29 @@ const StatCard = ({
 export default function SalesReportPage() {
   const { currency } = useLocaleStore();
   const [dateRange, setDateRange] = useState("month");
-  const [selectedPeriod, setSelectedPeriod] = useState("current");
+  const [from, setFrom] = useState<string | undefined>(undefined);
+  const [to, setTo] = useState<string | undefined>(undefined);
+  const [paymentStatuses, setPaymentStatuses] = useState<string[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  const [mode, setMode] = useState<"received" | "billed">("received");
+  const { bills } = useBills();
 
-  const { analytics, isLoading } = useSalesAnalytics(dateRange);
+  const availableServiceTypes = useMemo(() => {
+    const set = new Set<string>();
+    bills.forEach((b: any) => {
+      const s = (b.serviceType || b.locationType)?.toString()?.trim();
+      if (s) set.add(s);
+    });
+    return Array.from(set);
+  }, [bills]);
+
+  const { analytics, isLoading } = useSalesAnalytics(dateRange, {
+    from,
+    to,
+    paymentStatuses,
+    serviceTypes,
+    mode,
+  });
 
   if (isLoading) {
     return (
@@ -92,37 +114,7 @@ export default function SalesReportPage() {
       </div>
     );
   }
-
-  // Show message if no data is available
-  if (analytics.totalBills === 0) {
-    return (
-      <div className="space-y-6 max-md:space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-              Sales Reports
-            </h1>
-           
-          </div>
-        </div>
-
-        <Card className="p-12 bg-gray-900 border-gray-800 text-center">
-          <div className="md:w-16 md:h-16 sm:h-14 sm:w-14 h-12 w-12 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BarChart3 className=" h-6 w-6 sm:w-8 sm:h-8  text-gray-400" />
-          </div>
-          <h2 className="text-xl font-semibold text-white mb-1 md:mb-2">
-            No Sales Data Available
-          </h2>
-          <p className="text-gray-400 mb-4">
-            Start creating bills to see your sales analytics and reports here.
-          </p>
-          <Button onClick={() => (window.location.href = "/admin/billing")}>
-            Create First Bill
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  // We no longer early-return when there's no data. Filters remain visible; content below shows an empty state.
 
   return (
     <div className="space-y-2 md:space-y-6 px-1.5">
@@ -138,7 +130,19 @@ export default function SalesReportPage() {
          
           <Button
             onClick={() => {
-              const url = `/api/sales-report/export?dateRange=${dateRange}&format=csv`;
+              const params = new URLSearchParams();
+              params.set("dateRange", dateRange);
+              params.set("format", "csv");
+              if (dateRange === "custom") {
+                if (from) params.set("from", from);
+                if (to) params.set("to", to);
+              }
+              if (paymentStatuses.length > 0)
+                params.set("paymentStatuses", paymentStatuses.join(","));
+              if (serviceTypes.length > 0)
+                params.set("serviceTypes", serviceTypes.join(","));
+              params.set("mode", mode);
+              const url = `/api/sales-report/export?${params.toString()}`;
               window.open(url, "_blank");
             }}>
             <Download className="w-4 h-4 mr-2" />
@@ -147,44 +151,129 @@ export default function SalesReportPage() {
         </div>
       </div>
 
-      {/* Date Range Selector */}
-      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800 hidden">
-        <div className="flex overflow-x-auto items-center gap-4">
-          <div className="flex gap-2">
+      {/* Filters: Date Range + Payment Status + Service Types */}
+      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-gray-300" />
+            <h3 className="text-base md:text-lg font-semibold text-white">Filters & Search</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1 mr-2">
+              <span className="text-gray-400 text-sm mr-1">Mode</span>
+              <Button
+                size="sm"
+                variant={mode === "received" ? "default" : "outline"}
+                onClick={() => setMode("received")}
+              >
+                Received
+              </Button>
+              <Button
+                size="sm"
+                variant={mode === "billed" ? "default" : "outline"}
+                onClick={() => setMode("billed")}
+              >
+                Billed
+              </Button>
+            </div>
             <Button
-              variant={dateRange === "week" ? "default" : "outline"}
+              variant="ghost"
               size="sm"
-              onClick={() => setDateRange("week")}>
-              This Week
-            </Button>
-            <Button
-              variant={dateRange === "month" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDateRange("month")}>
-              This Month
-            </Button>
-
-            <Button
-              variant={dateRange === "quarter" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDateRange("quarter")}>
-              This Quarter
-            </Button>
-            <Button
-              variant={dateRange === "year" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDateRange("year")}>
-              This Year
+              onClick={() => {
+                setDateRange("month");
+                setFrom(undefined);
+                setTo(undefined);
+                setPaymentStatuses([]);
+                setServiceTypes([]);
+              }}
+            >
+              Reset All
             </Button>
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <Input type="date" className="w-auto" defaultValue="2025-01-01" />
-            <span className="text-gray-400">to</span>
-            <Input type="date" className="w-auto" defaultValue="2025-01-31" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-gray-400 text-sm">Date Range</label>
+            <Dropdown
+              options={[
+                { value: "week", label: "This Week" },
+                { value: "month", label: "This Month" },
+                { value: "quarter", label: "This Quarter" },
+                { value: "year", label: "This Year" },
+                { value: "custom", label: "Custom" },
+              ]}
+              value={dateRange}
+              onValueChange={(v) => setDateRange(v)}
+              placeholder="Select range"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-gray-400 text-sm">From</label>
+            <Input
+              type="date"
+              className="w-full"
+              value={from ?? ""}
+              onChange={(e) => setFrom(e.target.value || undefined)}
+              disabled={dateRange !== "custom"}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-gray-400 text-sm">To</label>
+            <Input
+              type="date"
+              className="w-full"
+              value={to ?? ""}
+              onChange={(e) => setTo(e.target.value || undefined)}
+              disabled={dateRange !== "custom"}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-gray-400 text-sm">Payment Status</label>
+            <Dropdown
+              options={[
+                { value: "", label: "All" },
+                { value: "paid", label: "Paid" },
+                { value: "partial", label: "Partial" },
+                { value: "pending", label: "Pending" },
+                { value: "overdue", label: "Overdue" },
+              ]}
+              value={paymentStatuses[0] ?? ""}
+              onValueChange={(v) => setPaymentStatuses(v ? [v] : [])}
+              placeholder="All"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-gray-400 text-sm">Service Types</label>
+            <Dropdown
+              options={[{ value: "", label: "All" }, ...availableServiceTypes.map((t) => ({ value: t, label: t }))]}
+              value={serviceTypes[0] ?? ""}
+              onValueChange={(v) => setServiceTypes(v ? [v] : [])}
+              placeholder="All"
+            />
           </div>
         </div>
       </Card>
 
+      {/* Content */}
+      {analytics.totalBills === 0 ? (
+        <Card className="p-12 bg-gray-900 border-gray-800 text-center mt-3">
+          <div className="md:w-16 md:h-16 sm:h-14 sm:w-14 h-12 w-12 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BarChart3 className=" h-6 w-6 sm:w-8 sm:h-8  text-gray-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-1 md:mb-2">
+            No Sales Data Available
+          </h2>
+          <p className="text-gray-400 mb-4">
+            Adjust filters or start creating bills to see analytics here.
+          </p>
+          <Button onClick={() => (window.location.href = "/admin/billing")}>Create Bill</Button>
+        </Card>
+      ) : (
+        <>
       {/* Key Metrics */}
       
    <ResponsiveAccordion title='Revanue Stats'>  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">   <StatCard
@@ -342,10 +431,15 @@ export default function SalesReportPage() {
                       </p>
                     </div>
                   </div>
-                  <p className="text-white font-bold">
-                    {currency}
-                    {customer.totalSpent.toLocaleString()}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-white font-bold">
+                      {currency}
+                      {customer.totalSpent.toLocaleString()}
+                    </p>
+                    {(customer as any).pending > 0 && (
+                      <p className="text-xs text-yellow-300">pending: {currency}{(customer as any).pending.toLocaleString()}</p>
+                    )}
+                  </div>
                 </motion.div>
               ))
             ) : (
@@ -399,7 +493,7 @@ export default function SalesReportPage() {
     
        
       </div>
-  
+
       {/* Detailed Analytics */}
       <Card className="p-3 sm:p-4 lg:p-6 bg-gray-900 border-gray-800">
         <h2 className="text-xl font-semibold text-white mb-4">
@@ -442,6 +536,8 @@ export default function SalesReportPage() {
           </div>
         </div>
       </Card>
+        </>
+      )}
     </div>
   );
 }
