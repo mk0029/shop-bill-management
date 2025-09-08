@@ -14,7 +14,19 @@ export interface SalesAnalytics {
     customerId: string;
     pending?: number;
   }>;
+  allCustomers?: Array<{
+    name: string;
+    totalSpent: number;
+    billCount: number;
+    customerId: string;
+    pending?: number;
+  }>;
   topItems: Array<{
+    name: string;
+    soldCount: number;
+    revenue: number;
+  }>;
+  allItems?: Array<{
     name: string;
     soldCount: number;
     revenue: number;
@@ -35,6 +47,7 @@ export interface SalesAnalytics {
     customerRetention: number;
     profitMargin: number;
   };
+  bills?: any[];
 }
 
 export function useSalesAnalytics(
@@ -294,7 +307,7 @@ export function useSalesAnalytics(
       }
     });
 
-    const topCustomers = Array.from(customerStats.entries())
+    const allCustomersList = Array.from(customerStats.entries())
       .map(([customerId, stats]) => ({
         customerId,
         name: stats.name,
@@ -302,8 +315,8 @@ export function useSalesAnalytics(
         billCount: stats.billCount,
         pending: stats.pending,
       }))
-      .sort((a, b) => b.totalSpent - a.totalSpent)
-      .slice(0, 5);
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+    const topCustomers = allCustomersList.slice(0, 5);
 
     // Calculate top items
     const itemStats = new Map<string, { soldCount: number; revenue: number }>();
@@ -331,14 +344,14 @@ export function useSalesAnalytics(
       }
     });
 
-    const topItems = Array.from(itemStats.entries())
+    const allItemsList = Array.from(itemStats.entries())
       .map(([name, stats]) => ({
         name,
         soldCount: stats.soldCount,
         revenue: stats.revenue,
       }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+      .sort((a, b) => b.revenue - a.revenue);
+    const topItems = allItemsList.slice(0, 5);
 
     // Calculate monthly data (last 6 months)
     const monthlyData: SalesAnalytics["monthlyData"] = [];
@@ -429,7 +442,9 @@ export function useSalesAnalytics(
       averageBillValue,
       monthlyGrowth,
       topCustomers,
+      allCustomers: allCustomersList,
       topItems,
+      allItems: allItemsList,
       monthlyData,
       serviceTypeBreakdown,
       performanceInsights: {
@@ -437,6 +452,7 @@ export function useSalesAnalytics(
         customerRetention,
         profitMargin,
       },
+      bills: filteredBills,
     };
   }, [bills, customers, dateRange, options?.from, options?.to, options?.paymentStatuses, options?.serviceTypes, options?.mode]);
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useLocaleStore } from "@/store/locale-store";
 import { useSalesAnalytics } from "@/hooks/use-sales-analytics";
 import { useBills } from "@/hooks/use-sanity-data";
 import { Dropdown } from "@/components/ui/dropdown";
+import { Modal } from "@/components/ui/modal";
 import {
   formatCurrency,
   formatPercentage,
@@ -84,7 +85,9 @@ export default function SalesReportPage() {
   const [to, setTo] = useState<string | undefined>(undefined);
   const [paymentStatuses, setPaymentStatuses] = useState<string[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
-  const [mode, setMode] = useState<"received" | "billed">("received");
+  const [mode, setMode] = useState<"received" | "billed">("billed");
+  const modeSliderRef = useRef<HTMLDivElement>(null);
+  const [viewAll, setViewAll] = useState<null | "customers" | "items" | "bills">(null);
   const { bills } = useBills();
 
   const availableServiceTypes = useMemo(() => {
@@ -127,7 +130,7 @@ export default function SalesReportPage() {
          
         </div>
         <div className="flex gap-3">
-         
+          <Button variant="outline" onClick={() => setViewAll("bills")}>View Bills</Button>
           <Button
             onClick={() => {
               const params = new URLSearchParams();
@@ -152,32 +155,93 @@ export default function SalesReportPage() {
       </div>
 
       {/* Filters: Date Range + Payment Status + Service Types */}
-      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+      <ResponsiveAccordion title={  <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-300" />
             <h3 className="text-base md:text-lg font-semibold text-white">Filters & Search</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1 mr-2">
-              <span className="text-gray-400 text-sm mr-1">Mode</span>
-              <Button
-                size="sm"
-                variant={mode === "received" ? "default" : "outline"}
-                onClick={() => setMode("received")}
-              >
-                Received
-              </Button>
-              <Button
-                size="sm"
-                variant={mode === "billed" ? "default" : "outline"}
-                onClick={() => setMode("billed")}
-              >
-                Billed
-              </Button>
+          </div>}>
+      <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
+        
+          <div className="flex items-center justify-between gap-2 w-full">
+            <div className="flex items-center gap-2 mr-2">
+             
+              {(() => {
+                const modeIndex = mode === "received" ? 0 : 1;
+                const setIndex = (idx: 0 | 1) => setMode(idx === 0 ? "received" : "billed");
+                const stepWidth = 64; // px per segment
+                const knobLeft = modeIndex * stepWidth + 2; // small padding
+
+                const handlePointerAt = (clientX: number) => {
+                  const el = modeSliderRef.current;
+                  if (!el) return;
+                  const rect = el.getBoundingClientRect();
+                  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+                  const idx = Math.round(ratio * 1) as 0 | 1;
+                  setIndex(idx);
+                };
+                const startMouseDrag = (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  handlePointerAt(e.clientX);
+                  const onMove = (ev: MouseEvent) => handlePointerAt(ev.clientX);
+                  const onUp = () => {
+                    window.removeEventListener("mousemove", onMove);
+                    window.removeEventListener("mouseup", onUp);
+                  };
+                  window.addEventListener("mousemove", onMove);
+                  window.addEventListener("mouseup", onUp);
+                };
+                const startTouchDrag = (e: React.TouchEvent) => {
+                  const t = e.touches[0];
+                  if (!t) return;
+                  handlePointerAt(t.clientX);
+                  const onMove = (ev: TouchEvent) => {
+                    const tt = ev.touches[0];
+                    if (tt) handlePointerAt(tt.clientX);
+                  };
+                  const onUp = () => {
+                    window.removeEventListener("touchmove", onMove);
+                    window.removeEventListener("touchend", onUp);
+                    window.removeEventListener("touchcancel", onUp);
+                  };
+                  window.addEventListener("touchmove", onMove);
+                  window.addEventListener("touchend", onUp);
+                  window.addEventListener("touchcancel", onUp);
+                };
+
+                return (
+                  <div className="flex items-center pb-1 relative">
+                    <div
+                      role="slider"
+                      aria-label="Report mode"
+                      aria-valuemin={0}
+                      aria-valuemax={1}
+                      aria-valuenow={modeIndex}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowRight") {
+                          e.preventDefault();
+                          setIndex(1);
+                        } else if (e.key === "ArrowLeft") {
+                          e.preventDefault();
+                          setIndex(0);
+                        }
+                      }}
+                      onMouseDown={startMouseDrag}
+                      onTouchStart={startTouchDrag}
+                      ref={modeSliderRef}
+                      className={`relative w-[130px] h-8 rounded-full border border-gray-600 bg-slate-700/40 backdrop-blur-sm transition-colors`}
+                    >
+                      <div className="absolute top-1/2 -translate-y-1/2 left-1 h-6 w-[60px] rounded-full bg-blue-600 shadow-sm transition-all" style={{ left: knobLeft }} />
+                      <div className="absolute inset-0 grid grid-cols-2 select-none">
+                        <button type="button" className={`text-xs font- ${modeIndex===0?"text-white":"text-gray-300"}`} onClick={() => setIndex(0)}>Received</button>
+                        <button type="button" className={`text-xs font-medium ${modeIndex===1?"text-white":"text-gray-300"}`} onClick={() => setIndex(1)}>Total</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => {
                 setDateRange("month");
@@ -186,11 +250,11 @@ export default function SalesReportPage() {
                 setPaymentStatuses([]);
                 setServiceTypes([]);
               }}
+              className="!border-slate-300 !text-slate-300 !bg-transparent !py-1 hover:!bg-slate-600"
             >
               Reset All
             </Button>
           </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="flex flex-col gap-1">
@@ -256,7 +320,88 @@ export default function SalesReportPage() {
             />
           </div>
         </div>
-      </Card>
+      </Card></ResponsiveAccordion>
+
+      {/* View All Modal */}
+      <Modal
+        isOpen={viewAll !== null}
+        onClose={() => setViewAll(null)}
+        title={viewAll === "customers" ? "All Customers" : viewAll === "items" ? "All Items" : viewAll === "bills" ? "All Bills" : ""}
+        size="xl"
+      >
+        {viewAll === "customers" && (
+          <div className="space-y-2">
+            {analytics.allCustomers && analytics.allCustomers.length > 0 ? (
+              analytics.allCustomers.map((c, idx) => (
+                <div key={c.customerId} className="flex items-center justify-between p-2 bg-gray-800 rounded">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm">{idx + 1}</div>
+                    <div>
+                      <p className="text-white font-medium">{c.name}</p>
+                      <p className="text-gray-400 text-xs">{c.billCount} bills</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white font-bold">{currency}{c.totalSpent.toLocaleString()}</p>
+                    {c.pending && c.pending > 0 && (
+                      <p className="text-xs text-yellow-300">pending: {currency}{c.pending.toLocaleString()}</p>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400">No customers found.</p>
+            )}
+          </div>
+        )}
+        {viewAll === "items" && (
+          <div className="space-y-2">
+            {analytics.allItems && analytics.allItems.length > 0 ? (
+              analytics.allItems.map((it, idx) => (
+                <div key={`${it.name}-${idx}`} className="flex items-center justify-between p-2 bg-gray-800 rounded">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center text-sm">{idx + 1}</div>
+                    <div>
+                      <p className="text-white font-medium">{it.name}</p>
+                      <p className="text-gray-400 text-xs">{it.soldCount} sold</p>
+                    </div>
+                  </div>
+                  <p className="text-white font-bold">{currency}{it.revenue.toLocaleString()}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400">No items found.</p>
+            )}
+          </div>
+        )}
+        {viewAll === "bills" && (
+          <div className="space-y-2">
+            {analytics.bills && analytics.bills.length > 0 ? (
+              analytics.bills.map((b: any) => {
+                const total = Number(b?.totalAmount || 0);
+                const paid = Number(b?.paidAmount || 0);
+                const pending = Math.max(total - paid, 0);
+                return (
+                  <div key={b._id} className="flex items-center justify-between p-2 bg-gray-800 rounded">
+                    <div>
+                      <p className="text-white font-medium">{b.customer?.name || "Unknown"}</p>
+                      <p className="text-gray-400 text-xs">{new Date(b.createdAt).toLocaleDateString()} • {String(b.paymentStatus || '').toLowerCase()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white font-bold">{currency}{total.toLocaleString()}</p>
+                      {(paid > 0 || pending > 0) && (
+                        <p className="text-xs text-gray-300">paid: {currency}{paid.toLocaleString()} {pending > 0 && <span className="text-yellow-300">• pending: {currency}{pending.toLocaleString()}</span>}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-gray-400">No bills found.</p>
+            )}
+          </div>
+        )}
+      </Modal>
 
       {/* Content */}
       {analytics.totalBills === 0 ? (
@@ -404,7 +549,7 @@ export default function SalesReportPage() {
           </div></ResponsiveAccordion>
           <ResponsiveAccordion title={   <div className="flex items-center justify-between">
             <h2 className="text-base md:text-xl text-white">Top Customers</h2>
-            <Button variant="ghost" size="sm" className="!py-1">
+            <Button variant="ghost" size="sm" className="!py-1" onClick={() => setViewAll("customers")}>
               <Eye className="w-4 h-4 mr-2" />
               View All
             </Button>
@@ -450,7 +595,7 @@ export default function SalesReportPage() {
           </div></ResponsiveAccordion>
           <ResponsiveAccordion title={   <div className="flex items-center justify-between">
             <h2 className="text-base md:text-xl text-white">   Top Selling Items</h2>
-            <Button variant="ghost" size="sm" className="!py-1">
+            <Button variant="ghost" size="sm" className="!py-1" onClick={() => setViewAll("items")}>
               <Eye className="w-4 h-4 mr-2" />
               View All
             </Button>
