@@ -10,6 +10,7 @@ import OfflineWarning from "../components/pwa/offline-warning";
 import AuthPrehydrate from "../components/providers/auth-prehydrate";
 import NotificationsBridge from "../components/realtime/notifications-bridge";
 import AutoNotifications from "../notifications/components/AutoNotifications";
+import OfflineStatusOverlay from "../components/online/offline-status-overlay";
 
 import "./globals.css";
 import RouteProgress from "../components/ui/route-progress";
@@ -87,6 +88,8 @@ export default function RootLayout({
           <RouteProgress />
           <DataProvider>
             {children}
+            {/* Global offline status overlay (shows when shop is offline) */}
+            <OfflineStatusOverlay />
             {/* Global realtime notifications bridge */}
             <NotificationsBridge />
             {/* Headless FCM auto-setup (no UI) */}

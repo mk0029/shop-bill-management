@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 export function OnlineStatusToggle() {
   const { status, setStatus, isLoading, error } = useShopStatus();
   const [isUpdating, setIsUpdating] = useState(false);
+  // Skip overlay until refresh
+  const [overlaySkipped, setOverlaySkipped] = useState(false);
 
   useEffect(() => {
     if (error) {
@@ -98,8 +100,8 @@ export function OnlineStatusToggle() {
         </div>
       )}
 
-      {/* Full-screen overlay when Offline */}
-      {!isLoading && !isUpdating && status === 'offline' && (
+      {/* Full-screen overlay when Offline (with Skip) */}
+      {!isLoading && !isUpdating && status === 'offline' && !overlaySkipped && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/70" />
@@ -128,6 +130,13 @@ export function OnlineStatusToggle() {
                 At Shop
               </Button>
             </div>
+            <Button
+              variant="ghost"
+              onClick={() => setOverlaySkipped(true)}
+              className="w-full mt-3 text-gray-300"
+            >
+              Skip for now
+            </Button>
           </div>
         </div>
       )}

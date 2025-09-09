@@ -394,13 +394,6 @@ export function CustomerNavigation() {
             </div>
           </div>
         </div>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleLogout} className="w-full">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
       </nav>
 
       {/* Main Content Wrapper */}
