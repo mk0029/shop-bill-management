@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export function useOnline() {
+export function useOnline(): { online: boolean; setOnline: (online: boolean) => void } {
   const [online, setOnline] = useState<boolean>(
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
@@ -89,5 +89,5 @@ export function useOnline() {
     };
   }, []);
 
-  return online;
+  return { online, setOnline };
 }

@@ -39,6 +39,13 @@ export default function SettingsPage() {
       href: "/admin/settings/notifications",
       color: "text-yellow-500",
     },
+    {
+      title: "Online Status",
+      description: "Set store online / at-shop status in realtime",
+      icon: Bell,
+      href: "/admin/settings/online",
+      color: "text-green-500",
+    },
   ];
 
   return (

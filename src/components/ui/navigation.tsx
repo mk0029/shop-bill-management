@@ -27,13 +27,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./button";
 import { Dropdown } from "./dropdown";
 
-import InstallButton from "@/components/pwa/install-button";
 import NotificationsPopover from "@/components/ui/notifications-popover";
 import { canManageAdmins } from "@/lib/admin-utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
-import TestNotificationSidebarButton from "@/components/notifications/TestNotificationSidebarButton";
+import { OnlineStatusToggle } from "@/components/online-status-toggle";
 
 interface NavigationItem {
   label: string;
@@ -186,6 +185,7 @@ export function Navigation() {
   };
 
   const isActive = (href: string) => {
+    if (!pathname) return false;
     // Normalize by stripping query params from href to compare pathnames only
     const hrefPath = href.split("?")[0];
     return pathname === hrefPath || pathname.startsWith(hrefPath + "/");
@@ -370,10 +370,9 @@ export function Navigation() {
               {/* Navigation Items */}
               <div className="sm:p-4 p-3 space-y-2 flex-1 overflow-auto flex flex-col grow">
                 {navigation.map((item) => renderNavigationItem(item, true))}
-                {/* Mobile Install App Button */}
-                <div className="pt-2">
-                  <InstallButton className="w-full" />
-                  <TestNotificationSidebarButton className="w-full mt-2" />
+                {/* Online Status Toggle for Mobile */}
+                <div className="pt-2 px-4">
+                  <OnlineStatusToggle />
                 </div>
               </div>
 
@@ -423,10 +422,9 @@ export function Navigation() {
         {/* Navigation Items */}
         <div className="sm:p-4 p-3 space-y-2 pb-28">
           {navigation.map((item) => renderNavigationItem(item))}
-          {/* Desktop Install App Button */}
+          {/* Online Status Toggle for Desktop */}
           <div className="pt-2">
-            <InstallButton className="w-full" />
-            <TestNotificationSidebarButton className="w-full mt-2" />
+            <OnlineStatusToggle />
           </div>
         </div>
 

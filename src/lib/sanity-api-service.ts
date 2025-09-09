@@ -994,6 +994,41 @@ export const billApiService = {
       return { success: false, error: 'Failed to delete bill' };
     }
   },
+
+  /**
+   * Create the singleton online status document if it doesn't exist
+   */
+  async createOrInitOnlineStatus(initial: Partial<{ isOnline: boolean; atShop: boolean; note: string }> = {}): Promise<ApiResponse<any>> {
+    try {
+      // If in browser, hit server API (which will ensure the doc exists)
+      if (typeof window !== 'undefined') {
+        const url = '/api/online';
+        const res = await fetch(url, { method: 'GET' });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.success === false) {
+          return { success: false, error: json?.error || `Failed to init online status (${res.status})` };
+        }
+        return { success: true, data: json.data };
+      }
+
+      const existing = await sanityClient.fetch(`*[_type == "online" && _id == "onlineStatus"][0]`);
+      if (existing) {
+        return { success: true, data: existing };
+      }
+      const doc = await sanityClient.create({
+        _id: "onlineStatus",
+        _type: "online",
+        isOnline: initial.isOnline ?? false,
+        atShop: initial.atShop ?? false,
+        note: initial.note ?? "",
+        updatedAt: new Date().toISOString(),
+      });
+      return { success: true, data: doc };
+    } catch (error) {
+      console.error('Error creating online status:', error);
+      return { success: false, error: 'Failed to create online status' };
+    }
+  },
 };
 
 // Stock Transaction API Service
@@ -1633,6 +1668,62 @@ export const supplierApiService = {
   },
 };
 
+// Online API Service
+export const onlineApiService = {
+  /**
+   * Get online status
+   */
+  async getOnlineStatus(): Promise<ApiResponse<any>> {
+    try {
+      const query = `*[_type == "online" && _id == "onlineStatus"][0]`;
+
+      const onlineStatus = await sanityClient.fetch(query);
+      if (!onlineStatus) {
+        return { success: false, error: 'Online status not found' };
+      }
+      return { success: true, data: onlineStatus };
+    } catch (error) {
+      console.error('Error fetching online status:', error);
+      return { success: false, error: 'Failed to fetch online status' };
+    }
+  },
+
+  /**
+   * Update online status
+   */
+  async updateOnlineStatus(onlineData: any): Promise<ApiResponse<any>> {
+    try {
+      // If in browser, call our server API to avoid CORS/token exposure issues
+      if (typeof window !== 'undefined') {
+        const res = await fetch('/api/online', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(onlineData),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.success === false) {
+          return { success: false, error: json?.error || `Failed to update online status (${res.status})` };
+        }
+        return { success: true, data: json.data };
+      }
+
+      // Server-side direct mutation
+      const updatedOnlineStatus = await sanityClient
+        .patch("onlineStatus")
+        .set({
+          ...onlineData,
+          updatedAt: new Date().toISOString(),
+        })
+        .commit();
+
+      return { success: true, data: updatedOnlineStatus };
+    } catch (error) {
+      console.error('Error updating online status:', error);
+      return { success: false, error: 'Failed to update online status' };
+    }
+  },
+};
+
 // Export all API services
 export const sanityApiService = {
   users: userApiService,
@@ -1645,4 +1736,5 @@ export const sanityApiService = {
   addresses: addressApiService,
   followUps: followUpApiService,
   suppliers: supplierApiService,
-}; 
+  online: onlineApiService,
+};
