@@ -7,24 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Modal } from "@/components/ui/modal";
 import { useLocaleStore } from "@/store/locale-store";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { RealtimeStockSummary } from "@/components/realtime/realtime-stock-history";
 import {
   Search,
-  Filter,
-  Eye,
   TrendingUp,
   TrendingDown,
   Package,
-  DollarSign,
   BarChart3,
   Plus,
   Minus,
   AlertTriangle,
   Loader2,
-  Wifi,
   Zap,
 } from "lucide-react";
 import { StockHistoryFilters } from "@/lib/stock-history-api";
@@ -79,9 +74,7 @@ export default function StockHistoryPage() {
   const [timeRange, setTimeRange] = useState("all");
   const [sortBy, setSortBy] = useState<"date" | "amount" | "quantity">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<any | null>(null);
-  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  // Modal and selection state removed as part of modernized inline UI
 
   // Data via centralized hook (currently backed by API)
   const { transactions, summary, loading, error, refetch, fetchWithFilters } =
@@ -145,12 +138,7 @@ export default function StockHistoryPage() {
     }).length;
   })();
 
-
-
-  const viewTransactionDetails = (transaction: HistoryTransaction) => {
-    setSelectedTransaction(transaction);
-    setShowTransactionModal(true);
-  };
+  // Legacy viewTransactionDetails removed; details are presented inline
   const containerRef = useRef(null);
   const [scrollDir, setScrollDir] = useState("down");
 
@@ -314,9 +302,7 @@ export default function StockHistoryPage() {
         {/* Legacy Transaction List (fallback) */}
         <Card className="bg-gray-900 border-gray-800 h-[95dvh] flex flex-col overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-white">
-              Transaction History (Legacy)
-            </CardTitle>
+            <CardTitle className="text-white">Transaction History</CardTitle>
           </CardHeader>
           <CardContent
             ref={containerRef}
@@ -378,13 +364,7 @@ export default function StockHistoryPage() {
                             {transaction.type}
                           </span>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => viewTransactionDetails(transaction)}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </Button>
+                        {/* View button removed; details surfaced inline */}
                       </div>
                     </motion.div>
                   );
@@ -413,123 +393,7 @@ export default function StockHistoryPage() {
           </CardContent>
         </Card>
 
-        {/* Transaction Details Modal */}
-        <Modal
-          isOpen={showTransactionModal}
-          onClose={() => setShowTransactionModal(false)}
-          size="md"
-          title={`Transaction #${selectedTransaction?.id || "Unknown"}`}>
-          {selectedTransaction && (
-            <div className="space-y-6 max-md:space-y-4 ">
-              {/* Transaction Info */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h4 className="font-medium text-white mb-3">
-                  Transaction Information
-                </h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-400">Item</p>
-                    <p className="text-white">
-                      {selectedTransaction?.product?.name ??
-                        (selectedTransaction as any)?.productName ??
-                        "Unknown Item"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Type</p>
-                    <p className="text-white capitalize">
-                      {selectedTransaction.type}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">
-                      {selectedTransaction.type === "adjustment"
-                        ? "Updated by"
-                        : "Created by"}
-                    </p>
-                    <p className="text-white">
-                      {selectedTransaction.createdBy ?? "Unknown"}
-                    </p>
-                  </div>
-                  {selectedTransaction.billNumber && (
-                    <div>
-                      <p className="text-gray-400">Bill</p>
-                      <p className="text-white">
-                        #{selectedTransaction.billNumber}
-                      </p>
-                    </div>
-                  )}
-                  {selectedTransaction.customerName && (
-                    <div>
-                      <p className="text-gray-400">Customer</p>
-                      <p className="text-white">
-                        {selectedTransaction.customerName}
-                        {selectedTransaction.customerPhone
-                          ? ` • ${selectedTransaction.customerPhone}`
-                          : ""}
-                      </p>
-                    </div>
-                  )}
-                  {selectedTransaction.supplierName && (
-                    <div>
-                      <p className="text-gray-400">Supplier</p>
-                      <p className="text-white">
-                        {selectedTransaction.supplierName}
-                      </p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-gray-400">Quantity</p>
-                    <p className="text-white">
-                      {selectedTransaction.quantity} units
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Price per Unit</p>
-                    <p className="text-white">
-                      {currency}
-                      {selectedTransaction.unitPrice}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Total Amount</p>
-                    <p className="text-white font-semibold">
-                      {currency}
-                      {selectedTransaction.totalAmount.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Date</p>
-                    <p className="text-white">
-                      {new Date(
-                        selectedTransaction.transactionDate
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {selectedTransaction.notes && (
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h4 className="font-medium text-white mb-2">Notes</h4>
-                  <p className="text-gray-300">{selectedTransaction.notes}</p>
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <Button className="flex-1">
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  View Item Details
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowTransactionModal(false)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
-        </Modal>
+        {/* Transaction modal removed in modernized UI */}
       </div>
     </RealtimeProvider>
   );
