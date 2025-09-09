@@ -5,11 +5,14 @@ import { WifiOff } from "lucide-react";
 import { useShopStatus } from "@/hooks/use-shop-status";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/auth-store";
 
 export default function OfflineStatusOverlay() {
   const { status, setStatus, isLoading, error } = useShopStatus();
   const [isUpdating, setIsUpdating] = useState(false);
   const [skipped, setSkipped] = useState(false);
+  const { user } = useAuthStore();
+  const isAdmin = (user as any)?.role === "admin";
 
   useEffect(() => {
     if (error) toast.error(error);
@@ -19,14 +22,14 @@ export default function OfflineStatusOverlay() {
     try {
       setIsUpdating(true);
       await setStatus(value);
-    } catch (e) {
+    } catch {
       toast.error("Failed to update status");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const show = !isLoading && !isUpdating && status === "offline" && !skipped;
+  const show = isAdmin && !isLoading && !isUpdating && status === "offline" && !skipped;
 
   if (!show) return null;
 

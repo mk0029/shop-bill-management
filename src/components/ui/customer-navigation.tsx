@@ -381,7 +381,7 @@ export function CustomerNavigation() {
       {/* Mobile Menu Button */}
 
       {/* Desktop Navigation */}
-      <nav className="hidden xl:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
+      <nav className="hidden lg:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
         {/* Header */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -394,10 +394,66 @@ export function CustomerNavigation() {
             </div>
           </div>
         </div>
+
+        {/* Navigation Items */}
+        <div className="sm:p-4 p-3 space-y-2">
+          {isAdmin && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 mr-2">
+                  <Wifi className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-gray-300">Availability</span>
+                </div>
+                <div className="flex items-center pb-3 relative">
+                  <div
+                    role="slider"
+                    aria-label="Availability"
+                    aria-valuemin={0}
+                    aria-valuemax={2}
+                    aria-valuenow={onlineStep}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowRight") {
+                        e.preventDefault();
+                        const nextRight = Math.min(2, onlineStep + 1) as 0 | 1 | 2;
+                        setIndex(nextRight);
+                      } else if (e.key === "ArrowLeft") {
+                        e.preventDefault();
+                        const nextLeft = Math.max(0, onlineStep - 1) as 0 | 1 | 2;
+                        setIndex(nextLeft);
+                      }
+                    }}
+                    onMouseDown={startMouseDrag}
+                    onTouchStart={startTouchDrag}
+                    ref={sliderRef}
+                    className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
+                  >
+                    <div className="absolute inset-0 grid grid-cols-3">
+                      <button type="button" className="col-span-1" onClick={() => setIndex(0)} aria-label="Offline" />
+                      <button type="button" className="col-span-1" onClick={() => setIndex(1)} aria-label="Available" />
+                      <button type="button" className="col-span-1" onClick={() => setIndex(2)} aria-label="At shop" />
+                    </div>
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
+                      style={{ left: knobLeft }}
+                    />
+                    <div className="flex items-center justify-between text-[8px] text-gray-400 px-1 absolute -bottom-4 w-full">
+                      <span>Offline</span>
+                      <span>Available</span>
+                      <span>At shop</span>
+                    </div>
+                  </div>
+                  {updating && <span className="ml-2 text-[10px] text-gray-400">Updating...</span>}
+                </div>
+              </div>
+            </div>
+          )}
+          {customerNavigation.map((item) => renderNavigationItem(item))}
+        </div>
       </nav>
 
       {/* Main Content Wrapper */}
-      <div className="xl:ml-64 min-h-fit bg-gray-950">
+      <div className="lg:ml-64 min-h-fit bg-gray-950">
         {/* Top Bar */}
         <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 xl:px-6 xl:py-6">
           <div className="flex items-center justify-between">

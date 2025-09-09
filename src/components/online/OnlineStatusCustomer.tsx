@@ -42,6 +42,24 @@ export default function OnlineStatusCustomerButton() {
     };
   }, [open]);
 
+  // Also fetch and subscribe once on mount so the button reflects current status
+  useEffect(() => {
+    let unsub: { unsubscribe: () => void } | undefined;
+    (async () => {
+      const res = await sanityApiService.online.getOnlineStatus();
+      if (res.success) setStatus(res.data);
+      unsub = sanityClient
+        .listen('*[_type == "online" && _id == "onlineStatus"]', {}, { includeResult: true })
+        .subscribe((ev: any) => {
+          const doc = ev?.result as OnlineStatusDoc | undefined;
+          if (doc) setStatus(doc);
+        });
+    })();
+    return () => {
+      if (unsub && typeof unsub.unsubscribe === "function") unsub.unsubscribe();
+    };
+  }, []);
+
   const state = useMemo(() => {
     const isOnline = !!status?.isOnline;
     const atShop = !!status?.atShop;
@@ -50,10 +68,42 @@ export default function OnlineStatusCustomerButton() {
     return { isOnline, atShop, note, updatedAt };
   }, [status]);
 
+  const buttonConfig = useMemo(() => {
+    if (loading) {
+      return { label: "Checking...", className: "", icon: null as React.ReactNode };
+    }
+    if (state.isOnline) {
+      if (state.atShop) {
+        return {
+          label: "Available",
+          className: "bg-green-600 hover:bg-green-700 text-white",
+          icon: <CheckCircle2 className="w-4 h-4 mr-2" />,
+        };
+      }
+      return {
+        label: "Available (Not at shop)",
+        className: "bg-amber-500 hover:bg-amber-600 text-black",
+        icon: <DoorOpen className="w-4 h-4 mr-2" />,
+      };
+    }
+    return {
+      label: "Offline",
+      className: "bg-red-600 hover:bg-red-700 text-white",
+      icon: <Power className="w-4 h-4 mr-2" />,
+    };
+  }, [loading, state.isOnline, state.atShop]);
+
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        Check Status
+      <Button
+        size="sm"
+        onClick={() => setOpen(true)}
+        className={buttonConfig.className}
+        aria-label={`Current status: ${buttonConfig.label}. Click to check details`}
+        title={`Current status: ${buttonConfig.label}`}
+      >
+        {buttonConfig.icon}
+        {buttonConfig.label}
       </Button>
 
       {open && (
