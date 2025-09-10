@@ -56,7 +56,7 @@ export default function AdminDashboard() {
                 Admin Dashboard
               </h1>
               <p className="text-gray-400 mt-1">
-                Welcome back! Here's what's happening with your shop.
+                Welcome back! Here&apos;s what&apos;s happening with your shop.
               </p>
             </div>
           </div>
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
           {/* Quick Actions */}
           <Card>
            
-            <ResponsiveAccordion removePX title={ <CardHeader className="!p-0">
+            <ResponsiveAccordion defaultOpenMobile={true} removePX title={ <CardHeader className="!p-0">
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5" />
                 Quick Actions

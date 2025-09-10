@@ -65,7 +65,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={(props as any)?.type || ("button" as any)}
         disabled={disabled || loading}
         {...props}>
-        {loading && (
+        {/* When using Radix Slot via asChild, ensure only a single child is passed.
+            Rendering the spinner here would create multiple children and cause
+            React.Children.only to throw. So we only render the spinner when not using asChild. */}
+        {!asChild && loading && (
           <svg
             className="animate-spin -ml-1 mr-2 h-4 w-4"
             xmlns="http://www.w3.org/2000/svg"
