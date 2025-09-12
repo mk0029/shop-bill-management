@@ -11,6 +11,7 @@ import AuthPrehydrate from "../components/providers/auth-prehydrate";
 import NotificationsBridge from "../components/realtime/notifications-bridge";
 import AutoNotifications from "../notifications/components/AutoNotifications";
 import OfflineStatusOverlay from "../components/online/offline-status-overlay";
+import AskForNotifications from "../notifications/components/AskForNotifications";
 
 import "./globals.css";
 import RouteProgress from "../components/ui/route-progress";
@@ -92,6 +93,8 @@ export default function RootLayout({
             <OfflineStatusOverlay />
             {/* Global realtime notifications bridge */}
             <NotificationsBridge />
+            {/* Trigger native permission prompt (no UI) until granted */}
+            <AskForNotifications />
             {/* Headless FCM auto-setup (no UI) */}
             <AutoNotifications />
             {/* Foreground FCM -> system notifications */}

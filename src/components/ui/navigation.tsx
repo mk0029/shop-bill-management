@@ -20,7 +20,6 @@ import {
   Building2,
   Users,
   X,
-  Bell,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -46,11 +45,6 @@ const adminNavigation: NavigationItem[] = [
     label: "Dashboard",
     href: "/admin/dashboard",
     icon: Home,
-  },
-  {
-    label: "Notifications",
-    href: "/admin/notifications",
-    icon: Bell,
   },
   {
     label: "Customers",
@@ -119,14 +113,9 @@ const customerNavigation: NavigationItem[] = [
     icon: Receipt,
   },
   {
-    label: "Notifications",
-    href: "/customer/notifications",
-    icon: Bell,
-  },
-  {
-    label: "Profile",
-    href: "/customer/profile",
-    icon: User,
+    label: "Settings",
+    href: "/customer/settings",
+    icon: Settings,
   },
 ];
 export function Navigation() {

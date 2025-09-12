@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { CheckCircle, FileText, Package, Users } from "lucide-react";
 import Link from "next/link";
+import NotificationsPopover from "@/components/ui/notifications-popover";
 
 export default function AdminDashboard() {
 
@@ -58,6 +59,9 @@ export default function AdminDashboard() {
               <p className="text-gray-400 mt-1">
                 Welcome back! Here&apos;s what&apos;s happening with your shop.
               </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <NotificationsPopover />
             </div>
           </div>
 

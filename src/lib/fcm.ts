@@ -11,6 +11,10 @@ import type { MessagePayload } from "firebase/messaging"
 export async function registerFcmToken(opts: { userId?: string | null } = {}) {
   const { userId } = opts
   try {
+    // Do not attempt to retrieve/register token if notifications are not granted
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      return { success: false, skipped: true, reason: "not-granted" }
+    }
     const token = await getFcmToken()
     if (!token) {
       return { success: false, skipped: true, reason: "no-token" }

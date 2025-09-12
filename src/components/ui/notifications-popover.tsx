@@ -49,7 +49,7 @@ export default function NotificationsPopover() {
         variant="ghost"
         size="sm"
         onClick={() => setOpen((s) => !s)}
-        className="relative"
+        className="relative text-gray-300 hover:text-white hover:bg-gray-800/60 rounded-full px-2 py-2 border border-transparent hover:border-gray-700"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Notifications"

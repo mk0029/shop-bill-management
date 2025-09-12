@@ -78,7 +78,7 @@ export async function getFcmToken(): Promise<string | null> {
     })
     return token || null
   } catch (err) {
-    console.error('Failed to get FCM token', err)
+    console.warn('Failed to get FCM token', err)
     return null
   }
 }

@@ -89,13 +89,17 @@ export default function AutoNotifications() {
     // Re-register token when we come back online
     function handleOnline() {
       if (!user?.id) return
-      registerFcmToken({ userId: user.id }).catch(() => {})
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        registerFcmToken({ userId: user.id }).catch(() => {})
+      }
     }
 
     // Also attempt when tab becomes visible (user came back)
     function handleVisibility() {
       if (document.visibilityState === 'visible' && user?.id) {
-        registerFcmToken({ userId: user.id }).catch(() => {})
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          registerFcmToken({ userId: user.id }).catch(() => {})
+        }
       }
     }
 

@@ -8,11 +8,12 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  Settings as SettingsIcon,
   User,
   Wrench,
   X,
 } from "lucide-react";
-import { Bell } from "lucide-react";
+// removed Bell route link; notifications are accessed via header popover
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -38,14 +39,9 @@ const customerNavigation: NavigationItem[] = [
     icon: FileText,
   },
   {
-    label: "Notifications",
-    href: "/customer/notifications",
-    icon: Bell,
-  },
-  {
-    label: "Profile",
-    href: "/customer/profile",
-    icon: User,
+    label: "Settings",
+    href: "/customer/settings",
+    icon: SettingsIcon,
   },
   {
     label: "Chat",
@@ -63,7 +59,7 @@ export function CustomerNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname() || "";
   const { logout, user } = useAuthStore();
-  const isAdmin = (user as any)?.role === "admin";
+  const isAdmin = user?.role === "admin";
 
   // Admin-only: Online Status quick slider
   const [onlineStep, setOnlineStep] = useState(0); // 0 offline, 1 online(not at shop), 2 online(at shop)
@@ -87,15 +83,16 @@ export function CustomerNavigation() {
       // Try normal fetch first
       const init = await sanityApiService.online.getOnlineStatus();
       if (init?.success && init.data) {
-        const d = init.data as any;
+        const d = init.data as { isOnline?: boolean; atShop?: boolean };
         setOnlineStep(mapStateToStep(!!d.isOnline, !!d.atShop));
       } else {
         // Fallback: hit server to ensure creation
         try {
           const res = await fetch('/api/online', { method: 'GET' });
-          const json = await res.json();
-          if (json?.success && json?.data) {
-            const d = json.data as any;
+          const json: unknown = await res.json();
+          const parsed = json as { success?: boolean; data?: { isOnline?: boolean; atShop?: boolean } };
+          if (parsed?.success && parsed?.data) {
+            const d = parsed.data;
             setOnlineStep(mapStateToStep(!!d.isOnline, !!d.atShop));
           }
         } catch {}
@@ -103,8 +100,8 @@ export function CustomerNavigation() {
     })();
     const sub = sanityClient
       .listen('*[_type == "online" && _id == "onlineStatus"]', {}, { includeResult: true })
-      .subscribe((u: any) => {
-        const d = u?.result;
+      .subscribe((u) => {
+        const d = (u as { result?: { isOnline?: boolean; atShop?: boolean } })?.result;
         if (!d) return;
         setOnlineStep(mapStateToStep(!!d.isOnline, !!d.atShop));
       });
@@ -449,6 +446,30 @@ export function CustomerNavigation() {
             </div>
           )}
           {customerNavigation.map((item) => renderNavigationItem(item))}
+        </div>
+
+        {/* User Section - Desktop */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <SanityImage
+                src={user?.profileImage}
+                alt={displayName || "Profile"}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                fallback={<User className="w-5 h-5 text-white" />}
+              />
+            </div>
+            <div>
+              <p className="text-white font-medium">{displayName}</p>
+              <p className="text-gray-400 text-sm">Customer</p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={handleLogout} className="w-full">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
         </div>
       </nav>
 
