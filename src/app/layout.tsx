@@ -17,8 +17,8 @@ import RouteProgress from "../components/ui/route-progress";
 import NotificationToaster from "../components/notifications/NotificationToaster";
 import ForegroundSystemNotifier from "../notifications/components/ForegroundSystemNotifier";
 
-// Force dynamic rendering for all pages
-export const dynamic = 'force-dynamic';
+// Enable ISR by default for server components
+export const revalidate = 60; // Rebuild at most once per 60s; tune per route as needed
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
