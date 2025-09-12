@@ -1695,10 +1695,20 @@ export const onlineApiService = {
     try {
       // If in browser, call our server API to avoid CORS/token exposure issues
       if (typeof window !== 'undefined') {
+        // Try to get current device FCM token to exclude this device from broadcast
+        let excludeTokens: string[] | undefined = undefined;
+        try {
+          const mod: any = await import('@/lib/fcm-client');
+          if (typeof mod.getTokenWithoutRegister === 'function') {
+            const t = await mod.getTokenWithoutRegister();
+            if (t) excludeTokens = [t];
+          }
+        } catch {}
+
         const res = await fetch('/api/online', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(onlineData),
+          body: JSON.stringify({ ...onlineData, excludeTokens }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || json?.success === false) {
@@ -1707,9 +1717,9 @@ export const onlineApiService = {
         return { success: true, data: json.data };
       }
 
-      // Server-side direct mutation
+      // Server-side direct mutation (no notifications here; API route handles broadcast)
       const updatedOnlineStatus = await sanityClient
-        .patch("onlineStatus")
+        .patch('onlineStatus')
         .set({
           ...onlineData,
           updatedAt: new Date().toISOString(),

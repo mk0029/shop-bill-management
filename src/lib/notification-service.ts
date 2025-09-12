@@ -13,6 +13,22 @@ export type SendPayload = {
   excludeTokens?: string[]
 }
 
+export async function sendToAllEnv(title: string, body: string, data: Record<string, string> | undefined, env: 'prod' | 'dev', excludeTokens?: string[]): Promise<SendResult> {
+  let tokens = await getAllTokensByEnv(env)
+  if (Array.isArray(excludeTokens) && excludeTokens.length && tokens.length) {
+    const ex = new Set(excludeTokens.filter(Boolean))
+    tokens = tokens.filter(t => !ex.has(t))
+  }
+  if (!tokens.length) return { success: false, errors: ['No user tokens'] }
+  try {
+    const result = await sendFcmV1ToTokens({ tokens, title, body, data })
+    return result
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'FCM v1 broadcast error'
+    return { success: false, errors: [msg] }
+  }
+}
+
 type SendResult = {
   success: boolean
   sent?: number
@@ -21,6 +37,7 @@ type SendResult = {
 }
 
 type UserWithTokens = { fcmTokens?: string[] | null }
+type UserWithEnvTokens = { fcmTokens?: string[] | null; fcmTokensProd?: string[] | null; fcmTokensDev?: string[] | null }
 
 async function getTokensForUserIds(userIds: string[]): Promise<string[]> {
   if (!userIds?.length) return []
@@ -58,6 +75,20 @@ async function getAllTokens(): Promise<string[]> {
   const users = await sanityClient.fetch<UserWithTokens[]>(query)
   const tokens = (users || [])
     .flatMap(u => Array.isArray(u?.fcmTokens) ? u.fcmTokens : [])
+    .filter(Boolean)
+  return Array.from(new Set(tokens))
+}
+
+async function getAllTokensByEnv(env: 'prod' | 'dev'): Promise<string[]> {
+  const query = `*[_type=="user" && isActive != false]{ fcmTokens, fcmTokensProd, fcmTokensDev }`
+  const users = await sanityClient.fetch<UserWithEnvTokens[]>(query)
+  const tokens = (users || [])
+    .flatMap(u => {
+      const envTokens = env === 'prod' ? u?.fcmTokensProd : u?.fcmTokensDev
+      if (Array.isArray(envTokens) && envTokens.length) return envTokens
+      // Fallback to legacy field if env-specific arrays are empty
+      return Array.isArray(u?.fcmTokens) ? u!.fcmTokens! : []
+    })
     .filter(Boolean)
   return Array.from(new Set(tokens))
 }
@@ -112,8 +143,12 @@ export async function sendToAdmins(title: string, body: string, data?: Record<st
   return sendFcmV1ToTokens({ tokens, title, body, data })
 }
 
-export async function sendToAll(title: string, body: string, data?: Record<string, string>): Promise<SendResult> {
-  const tokens = await getAllTokens()
+export async function sendToAll(title: string, body: string, data?: Record<string, string>, excludeTokens?: string[]): Promise<SendResult> {
+  let tokens = await getAllTokens()
+  if (Array.isArray(excludeTokens) && excludeTokens.length && tokens.length) {
+    const ex = new Set(excludeTokens.filter(Boolean))
+    tokens = tokens.filter(t => !ex.has(t))
+  }
   if (!tokens.length) return { success: false, errors: ['No user tokens'] }
 
   // Use Google FCM HTTP v1 directly to avoid requiring Admin SDK configuration on serverless
@@ -140,10 +175,13 @@ function buildFcmV1Message({ token, title, body, data }: FcmV1SinglePayload) {
   if (data) {
     for (const [k, v] of Object.entries(data)) sanitized[k] = String(v)
   }
+  // Important: send data-only for Web to avoid Chrome auto-showing a duplicate notification.
+  // We include title/body in data; our Service Worker (sw.js) will render exactly one notification.
+  if (!sanitized.title) sanitized.title = String(title)
+  if (!sanitized.body) sanitized.body = String(body)
   return {
     message: {
       token,
-      notification: { title, body },
       data: sanitized,
       // Ensure high priority delivery across platforms
       webpush: {
@@ -155,6 +193,10 @@ function buildFcmV1Message({ token, title, body, data }: FcmV1SinglePayload) {
       },
       android: {
         priority: 'HIGH',
+        notification: {
+          title,
+          body,
+        },
       },
     },
   }

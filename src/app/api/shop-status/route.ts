@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@sanity/client';
 import { auth } from '@clerk/nextjs/server';
+import { sendToAll } from '@/lib/notification-service';
 
 type ShopStatus = 'offline' | 'online' | 'at_shop';
 
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     console.log('Received POST request to /api/shop-status');
     
     // Verify authentication
-    const { userId } = auth();
+    const { userId } = await auth();
     
     if (!userId) {
       console.error('No user ID found in session');
@@ -91,7 +92,11 @@ export async function POST(req: Request) {
     try {
       console.log('Checking for existing onlineStatus document');
       const existingDoc = await sanityClient.fetch('*[_id == "onlineStatus"][0]');
-      
+      // Compute previous status for notification decisioning
+      const prevStatus: ShopStatus | undefined = existingDoc
+        ? mapStateToStatus({ isOnline: existingDoc?.isOnline, atShop: existingDoc?.atShop })
+        : undefined;
+
       if (!existingDoc) {
         console.log('No existing onlineStatus document, creating new one');
         await sanityClient.create({
@@ -114,6 +119,29 @@ export async function POST(req: Request) {
             updatedAt: updatedAt || new Date().toISOString(),
           })
           .commit();
+      }
+
+      // Decide if we need to broadcast an FCM notification
+      const newStatus = mapStateToStatus({ isOnline, atShop });
+      const statusChanged = !prevStatus || prevStatus !== newStatus;
+      if (statusChanged) {
+        try {
+          if (newStatus === 'offline') {
+            await sendToAll('Shop is now Offline', 'We are temporarily unavailable. You can still browse and we\'ll notify you when we\'re back.', {
+              status: 'offline',
+              updatedAt: (updatedAt || new Date().toISOString()),
+              type: 'shop_status',
+            });
+          } else if (newStatus === 'online') {
+            await sendToAll('Shop is Available', 'We\'re back online and ready to serve you.', {
+              status: 'online',
+              updatedAt: (updatedAt || new Date().toISOString()),
+              type: 'shop_status',
+            });
+          }
+        } catch (notifyErr) {
+          console.error('FCM broadcast error (shop-status):', notifyErr);
+        }
       }
     } catch (error) {
       console.error('Error in document operation:', error);
@@ -170,7 +198,8 @@ export async function GET() {
     }
 
     // Fetch the current status from Sanity
-    const statusDoc = await sanityClient.getDocument<OnlineStatusDoc>('onlineStatus');
+    const client = getSanityClient();
+    const statusDoc = await client.getDocument<OnlineStatusDoc>('onlineStatus');
     
     // If no status document exists, create one
     if (!statusDoc) {
@@ -182,7 +211,7 @@ export async function GET() {
         updatedAt: new Date().toISOString()
       };
       
-      await sanityClient.create(newStatus);
+      await client.create(newStatus);
       return NextResponse.json({ status: 'offline' });
     }
     

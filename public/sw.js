@@ -36,6 +36,32 @@ try {
   bc = new BroadcastChannel('app-notifications');
 } catch {}
 
+// Global, short-lived dedupe memory to avoid double popups from overlapping handlers
+// Keyed by `${tag}|${title}|${body}` and expires after DEDUPE_WINDOW_MS
+const DEDUPE_WINDOW_MS = 4000;
+const recentlyShown = new Map(); // key -> timestamp
+
+function makeDedupeKey({ tag, title, body }) {
+  return `${tag || ''}|${title || ''}|${body || ''}`;
+}
+
+function markShown(key) {
+  const now = Date.now();
+  recentlyShown.set(key, now);
+  // prune occasionally
+  if (recentlyShown.size > 50) {
+    const cutoff = now - DEDUPE_WINDOW_MS;
+    for (const [k, t] of recentlyShown.entries()) {
+      if (t < cutoff) recentlyShown.delete(k);
+    }
+  }
+}
+
+function wasRecentlyShown(key) {
+  const t = recentlyShown.get(key);
+  return typeof t === 'number' && (Date.now() - t) < DEDUPE_WINDOW_MS;
+}
+
 // Helper: is a navigation request
 function isNavigationRequest(request) {
   return request.mode === 'navigate' || (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'));
@@ -334,6 +360,10 @@ try {
         payload.webpush = payload.webpush || {};
         payload.webpush.notification = payload.webpush.notification || {};
         payload.webpush.notification.tag = key;
+        // Extra guard: if an identical notification was just shown, skip
+        const n = (payload && payload.notification) || {};
+        const dedupeKey = makeDedupeKey({ tag: key, title: n.title || d.title || 'Notification', body: n.body || d.body || '' });
+        if (wasRecentlyShown(dedupeKey)) return;
         await showNotificationWithRetry(payload, 3);
       })();
     }
@@ -436,6 +466,12 @@ try {
         })(),
       },
     };
+    // Dedupe: if an identical notification was shown moments ago, skip
+    try {
+      const dedupeKey = makeDedupeKey({ tag: options.tag, title, body: options.body || '' });
+      if (wasRecentlyShown(dedupeKey)) return;
+      markShown(dedupeKey);
+    } catch {}
     // Dedupe: close existing with same tag and replace with latest
     try {
       const existing = await self.registration.getNotifications({ tag: options.tag });
@@ -521,7 +557,7 @@ try {
     maybeQueue();
   });
 
-  // Fallback for raw Web Push / data-only FCM messages
+  // Fallback for raw Web Push / non-FCM messages
   self.addEventListener('push', (event) => {
     if (!event.data) return;
     let payload;
@@ -530,19 +566,14 @@ try {
     } catch {
       return; // Not JSON
     }
-
-    // If a notification block is already present, prefer onBackgroundMessage path in compat
-    const hasNotification = !!(payload.notification || (payload.webpush && payload.webpush.notification));
-    if (hasNotification) {
-      // Route through unified display (with preferences + dedupe)
-      event.waitUntil((async () => {
-        const queued = await queueNotification(payload);
-        if (!queued) await maybeAggregateAndShow(payload);
-      })());
-      return;
+    // Detect FCM-generated push (firebase-messaging) and SKIP here because
+    // firebase.messaging().onBackgroundMessage already handles it. This avoids double-display.
+    const isFcmMsg = !!(payload && (payload['from'] || (payload.data && (payload.data['firebase-messaging-msg-id'] || payload.data['google.c.a.c_id']))));
+    if (isFcmMsg) {
+      return; // Let onBackgroundMessage path handle it
     }
 
-    // Data-only: render via enhanced path with preferences and queue support
+    // Non-FCM web push: render via SW
     event.waitUntil((async () => {
       const queued = await queueNotification(payload);
       if (!queued) await maybeAggregateAndShow(payload);
