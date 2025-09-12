@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { DataProvider } from "../components/providers/data-provider";
@@ -22,6 +23,10 @@ import ForegroundSystemNotifier from "../notifications/components/ForegroundSyst
 // Enable ISR by default for server components
 export const revalidate = 60; // Rebuild at most once per 60s; tune per route as needed
 
+export const viewport: Viewport = {
+  themeColor: "#0ea5e9",
+};
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -37,7 +42,6 @@ export const metadata: Metadata = {
   title: "Jambh Electrics",
   description: "Professional Jambh Electrics system",
   manifest: "/manifest.webmanifest",
-  themeColor: "#0ea5e9",
   icons: {
     icon: [
       { url: "/je-32.ico", sizes: "32x32", type: "image/x-icon" },
@@ -87,7 +91,9 @@ export default function RootLayout({
           {/* Synchronous auth prehydration to speed up startup */}
           <AuthPrehydrate />
           {/* Global route progress bar */}
-          <RouteProgress />
+          <Suspense fallback={null}>
+            <RouteProgress />
+          </Suspense>
           <DataProvider>
             {children}
             {/* Global offline status overlay (shows when shop is offline) */}
