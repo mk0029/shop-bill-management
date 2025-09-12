@@ -358,14 +358,14 @@ export const RealtimeStockSummary: React.FC<{ summary?: StockSummary; currency?:
     accent?: string; // tailwind color class for icon
   }> = ({ label, value, Icon, accent = "text-gray-300" }) => (
     <Card className="bg-gray-900/80 border-gray-800 hover:bg-gray-900 transition-colors">
-      <CardContent className="p-4">
+      <CardContent className="p-2.5 sm:p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400">{label}</p>
-            <p className="text-2xl font-semibold text-white mt-1">{value}</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-white mt-1">{value}</p>
           </div>
-          <div className={`shrink-0 rounded-md bg-gray-800 p-2 ${accent.replace("text-", "")}`}>
-            <Icon className={`w-5 h-5 ${accent}`} />
+          <div className={`shrink-0 rounded sm:rounded-md bg-gray-800 p-1 sm:p-2 ${accent.replace("text-", "")}`}>
+            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${accent}`} />
           </div>
         </div>
       </CardContent>
@@ -373,7 +373,7 @@ export const RealtimeStockSummary: React.FC<{ summary?: StockSummary; currency?:
   );
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4 mt-2">
       <StatCard label="Total Transactions" value={summary.totalTransactions} Icon={Package} accent="text-blue-400" />
       <StatCard label="Purchases" value={summary.totalPurchases} Icon={Plus} accent="text-green-400" />
       <StatCard label="Sales" value={summary.totalSales} Icon={Minus} accent="text-blue-400" />

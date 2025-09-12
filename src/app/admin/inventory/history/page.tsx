@@ -16,17 +16,15 @@ import {
   TrendingDown,
   Package,
   BarChart3,
-  Plus,
-  Minus,
   AlertTriangle,
   Loader2,
-  Zap,
 } from "lucide-react";
 import { StockHistoryFilters } from "@/lib/stock-history-api";
 import { useStockHistory } from "@/hooks/use-stock-history";
+import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 
 const transactionTypeOptions = [
-  { value: "all", label: "All Transactions" },
+  { value: "all", label: "Transaction" },
   { value: "purchase", label: "Purchases" },
   { value: "sale", label: "Sales" },
   { value: "adjustment", label: "Adjustments" },
@@ -53,18 +51,7 @@ const getTransactionTypeColor = (type: string) => {
   }
 };
 
-const getTransactionTypeIcon = (type: string) => {
-  switch (type) {
-    case "purchase":
-      return Plus;
-    case "sale":
-      return Minus;
-    case "adjustment":
-      return AlertTriangle;
-    default:
-      return Package;
-  }
-};
+// Removed icon mapping; we no longer render a leading +/- icon in the list
 
 export default function StockHistoryPage() {
   const { currency } = useLocaleStore();
@@ -77,7 +64,7 @@ export default function StockHistoryPage() {
   // Modal and selection state removed as part of modernized inline UI
 
   // Data via centralized hook (currently backed by API)
-  const { transactions, summary, loading, error, refetch, fetchWithFilters } =
+  const { transactions, summary, loading, error, fetchWithFilters } =
     useStockHistory();
 
   const fetchStockData = useCallback(async () => {
@@ -123,9 +110,7 @@ export default function StockHistoryPage() {
 
   // Get summary data from API or calculate from transactions
   const totalTransactions = summary?.totalTransactions || transactions.length;
-  const totalPurchaseAmount = summary?.totalPurchaseAmount || 0;
-  const totalSalesAmount = summary?.totalSalesAmount || 0;
-  const profit = summary?.netProfit || totalSalesAmount - totalPurchaseAmount;
+  // const profit = summary?.netProfit || totalSalesAmount - totalPurchaseAmount; // not used in this view
   // Derived local stats needed by RealtimeStockSummary
   const totalAdjustments = transactions.filter((t) => t.type === "adjustment").length;
   const totalValue = transactions.reduce((acc, t) => acc + (t.totalAmount ?? 0), 0);
@@ -165,37 +150,23 @@ export default function StockHistoryPage() {
     <RealtimeProvider enableNotifications={false}>
       <div className="space-y-6 max-md:space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
+       
+           
+         <ResponsiveAccordion title={ <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
               <BarChart3 className=" h-6 w-6 sm:w-8 sm:h-8  text-purple-400" />
               Stock History
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Track all inventory transactions with real-time updates
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-green-400">Live Updates</span>
-            </div>
-            <Button
-              variant="outline"
-              onClick={refetch}
-              disabled={loading}
-              className="flex items-center gap-2">
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <BarChart3 className="w-4 h-4" />
-              )}
-              Refresh
-            </Button>
-          </div>
-        </div>
+            </h1>}>    <RealtimeStockSummary
+            summary={{
+              totalTransactions,
+              totalPurchases: summary?.totalPurchases || 0,
+              totalSales: summary?.totalSales || 0,
+              totalAdjustments,
+              totalValue,
+              recentTransactions,
+            }}
+          /></ResponsiveAccordion>
 
-        {/* Error State */}
+    
         {error && (
           <Card className="bg-red-900/20 border-red-800">
             <CardContent className="sm:p-4 p-3">
@@ -214,24 +185,6 @@ export default function StockHistoryPage() {
           </Card>
         )}
 
-        {/* Real-time Stock Summary */}
-        <div>
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-yellow-400" />
-            Live Stock Transaction Statistics
-          </h2>
-          <RealtimeStockSummary
-            summary={{
-              totalTransactions,
-              totalPurchases: summary?.totalPurchases || 0,
-              totalSales: summary?.totalSales || 0,
-              totalAdjustments,
-              totalValue,
-              recentTransactions,
-            }}
-          />
-        </div>
-
         {/* Filters */}
         <Card className="bg-gray-900 border-gray-800">
           <CardContent>
@@ -247,7 +200,7 @@ export default function StockHistoryPage() {
                   disabled={false}
                 />
               </div>
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2 sm:gap-3 items-center">
                 <Dropdown
                   options={transactionTypeOptions}
                   value={typeFilter}
@@ -315,57 +268,73 @@ export default function StockHistoryPage() {
             ) : (
               <div className="space-y-4 ">
                 {filteredTransactions.map((transaction) => {
-                  const TypeIcon = getTransactionTypeIcon(transaction.type);
+                  // Derive display name without duplicated brand suffix, e.g., "Cooler - Ashoka" -> "Cooler"
+                  const displayName = (() => {
+                    if (transaction.brandName && typeof transaction.itemName === 'string') {
+                      const suffix = ` - ${transaction.brandName}`;
+                      if (transaction.itemName.endsWith(suffix)) {
+                        return transaction.itemName.slice(0, -suffix.length);
+                      }
+                    }
+                    return transaction.itemName;
+                  })();
                   return (
                     <motion.div
                       key={transaction.id}
                       initial={{
                         opacity: 0.1,
-                        y: scrollDir !== "down" ? 20 : -20,
+                        y: scrollDir !== "down" ? 10 : -10,
                         filter: "blur(1px)",
                       }}
                       whileInView={{ opacity: 1, filter: "blur(0px)", y: 0 }}
                       transition={{ duration: 0.3, ease: "linear" }}
-                      viewport={{ once: false, amount: 0.5 }}
-                      className="flex items-center justify-between p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center">
-                          <TypeIcon className="w-6 h-6 text-blue-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-white">
-                            {transaction.itemName}
+                      viewport={{ once: false, amount: 0.1 }}
+                      className="p-3 sm:p-4 bg-gray-800 rounded-lg hover:bg-gray-750 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        {/* Details (full width on mobile) */}
+                        <div className="flex-1">
+                          <h3 className="text-base sm:text-lg font-semibold text-white leading-snug">
+                            {displayName}
                           </h3>
-                          <p className="text-sm text-gray-400">
+                          {(transaction.brandName || transaction.categoryName) && (
+                            <p className="text-xs text-gray-400">
+                              {transaction.brandName && (
+                                <>Brand: {transaction.brandName}</>
+                              )}
+                              {transaction.brandName && transaction.categoryName && " • "}
+                              {transaction.categoryName && (
+                                <>Category: {transaction.categoryName}</>
+                              )}
+                            </p>
+                          )}
+                          <p className="text-xs sm:text-sm text-gray-400">
                             {transaction.type} • {transaction.quantity} units •{" "}
                             {new Date(transaction.date).toLocaleDateString()}
                           </p>
                           {transaction.notes && (
-                            <p className="text-sm text-gray-500">
+                            <p className="text-xs sm:text-sm text-gray-500">
                               {transaction.notes}
                             </p>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-sm text-gray-400">
-                            {currency}
-                            {(transaction.totalAmount ?? 0).toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-400">
-                            {currency}
-                            {transaction.unitPrice ?? 0} each
-                          </p>
+
+                        {/* Right: Price and Type badge (stack on mobile) */}
+                        <div className="flex items-center sm:items-end justify-between sm:justify-end md:flex-col gap-x-3 gap-y-1">
+                          <div className="text-right">
+                            <p className="text-sm text-gray-200 font-medium">
+                              {currency}{transaction.unitPrice ?? 0}
+                            </p>
+                            <p className="text-[11px] text-gray-400 leading-tight">each</p>
+                          </div>
                           <span
-                            className={`text-xs px-2 py-1 rounded-full capitalize ${getTransactionTypeColor(
+                            className={`text-[11px] sm:text-xs px-2 py-1 rounded-full capitalize ${getTransactionTypeColor(
                               transaction.type
                             )}`}>
                             {transaction.type}
                           </span>
                         </div>
-                        {/* View button removed; details surfaced inline */}
                       </div>
+                      {/* View button removed; details surfaced inline */}
                     </motion.div>
                   );
                 })}

@@ -98,13 +98,14 @@ export const InventoryFilters = ({
               value={selectedBrand}
               onValueChange={onBrandChange}
               placeholder="Select Brand"
+              
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm text-gray-300">Sort By</label>
             <div className="flex gap-2">
-              <Dropdown
+              <Dropdown dropTop
                 options={[
                   { value: "name", label: "Name" },
                   { value: "category", label: "Category" },
@@ -119,7 +120,7 @@ export const InventoryFilters = ({
                 placeholder="Sort By"
                 className="flex-1"
               />
-              <Button
+              <Button 
                 variant="outline"
                 size="sm"
                 onClick={onSortOrderToggle}
@@ -136,7 +137,7 @@ export const InventoryFilters = ({
 
           <div className="space-y-2">
             <label className="text-sm text-gray-300">Time</label>
-            <Dropdown
+            <Dropdown dropTop
               options={[
                 { value: "all", label: "All Time" },
                 { value: "7", label: "Last 7 Days" },

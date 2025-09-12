@@ -150,7 +150,7 @@ export default function BrandsPage() {
                       <div>
                         <h4 className="text-white font-semibold leading-tight">{brand.name}</h4>
                         {brand.description && (
-                          <p className="text-sm text-white mt-1 line-clamp-2">{brand.description}</p>
+                          <p className="text-xs sm:text-sm text-white mt-1 line-clamp-2">{brand.description}</p>
                         )}
                       </div>
                       {getStatusBadge(brand.isActive)}

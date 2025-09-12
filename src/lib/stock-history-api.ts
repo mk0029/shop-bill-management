@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Stock History API Service
  * Provides functions to fetch real stock transaction data from Sanity
@@ -24,6 +25,9 @@ export interface HistoryTransaction {
   customerPhone?: string;
   supplierName?: string;
   createdAt?: Date;
+  // Additional product metadata for clearer UI
+  brandName?: string;
+  categoryName?: string;
   // Backward-compat fields for existing UI
   unitPrice?: number;
   transactionDate?: string;
@@ -98,6 +102,8 @@ export const stockHistoryApi = {
           _id,
           name,
           productId,
+          brand->{name},
+          category->{name},
           isActive,
           deleted
         },
@@ -172,6 +178,8 @@ export const stockHistoryApi = {
           customerPhone: t.bill?.customer?.phone,
           supplierName: t.supplier?.name,
           createdAt: t.createdAt ? new Date(t.createdAt) : undefined,
+          brandName: t.product?.brand?.name,
+          categoryName: t.product?.category?.name,
           // legacy fields for UI compatibility
           unitPrice: t.unitPrice,
           transactionDate: t.transactionDate,
@@ -329,7 +337,9 @@ export const stockHistoryApi = {
         product->[!defined(deleted) && isActive == true]{
           _id,
           name,
-          productId
+          productId,
+          brand->{name},
+          category->{name}
         },
         quantity,
         unitPrice,
@@ -364,6 +374,8 @@ export const stockHistoryApi = {
         date: new Date(transaction.transactionDate),
         notes: transaction.notes,
         createdBy: transaction.createdBy || "admin",
+        brandName: transaction.product?.brand?.name,
+        categoryName: transaction.product?.category?.name,
         // legacy fields
         unitPrice: transaction.unitPrice,
         transactionDate: transaction.transactionDate,
@@ -397,7 +409,9 @@ export const stockHistoryApi = {
         product->[!defined(deleted) && isActive == true]{
           _id,
           name,
-          productId
+          productId,
+          brand->{name},
+          category->{name}
         },
         quantity,
         unitPrice,
@@ -426,6 +440,8 @@ export const stockHistoryApi = {
           date: new Date(t.transactionDate),
           notes: t.notes,
           createdBy: t.createdBy || "admin",
+          brandName: t.product?.brand?.name,
+          categoryName: t.product?.category?.name,
           // legacy fields
           unitPrice: t.unitPrice,
           transactionDate: t.transactionDate,
@@ -461,7 +477,9 @@ export const stockHistoryApi = {
         product->[!defined(deleted) && isActive == true]{
           _id,
           name,
-          productId
+          productId,
+          brand->{name},
+          category->{name}
         },
         quantity,
         unitPrice,
@@ -493,6 +511,8 @@ export const stockHistoryApi = {
           date: new Date(t.transactionDate),
           notes: t.notes,
           createdBy: t.createdBy || "admin",
+          brandName: t.product?.brand?.name,
+          categoryName: t.product?.category?.name,
           // legacy fields
           unitPrice: t.unitPrice,
           transactionDate: t.transactionDate,

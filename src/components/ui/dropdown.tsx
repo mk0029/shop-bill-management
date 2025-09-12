@@ -137,7 +137,7 @@ export function Dropdown({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          " !h-[38px] !min-h-[38px] w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation max-md:px-2 !py-1.5 sm:!py-2.5 px-2 sm:px-2.5",
+          "max-sm:text-sm !h-[38px] !min-h-[38px] w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation max-md:px-2 !py-1.5 sm:!py-2.5 px-2 sm:px-2.5",
           sizeClasses[size],
           classNameButton
         )}>

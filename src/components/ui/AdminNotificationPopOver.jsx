@@ -1,17 +1,17 @@
 "use client"
 
-import { useNotificationStore } from "@/store/notification-store"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { useNotificationStore } from "@/store/notification-store"
 // import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 import AdminFCMInitializer from "@/components/notifications/AdminFCMInitializer"
 // Removed sound toggle per request
-import Link from "next/link"
-import { buildNotificationHref } from "@/store/notification-store"
-import SWNotificationBridge from "@/components/notifications/sw-bridge"
 import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
+import SWNotificationBridge from "@/components/notifications/sw-bridge"
+import { buildNotificationHref } from "@/store/notification-store"
+import Link from "next/link"
 
-export default function AdminNotificationsPage({composerOpen, setComposerOpen}: {composerOpen: boolean, setComposerOpen: (open: boolean) => void}) {
+export default function AdminNotificationsPage({composerOpen, setComposerOpen}) {
   const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore()
 
   return (

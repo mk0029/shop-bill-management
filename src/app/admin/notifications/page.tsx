@@ -1,28 +1,27 @@
 "use client"
 
-import { useNotificationStore } from "@/store/notification-store"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { useNotificationStore } from "@/store/notification-store"
 // import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 import AdminFCMInitializer from "@/components/notifications/AdminFCMInitializer"
 // Removed sound toggle per request
-import Link from "next/link"
-import { buildNotificationHref } from "@/store/notification-store"
-import SWNotificationBridge from "@/components/notifications/sw-bridge"
 import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
+import SWNotificationBridge from "@/components/notifications/sw-bridge"
+import { buildNotificationHref } from "@/store/notification-store"
+import Link from "next/link"
 
-export default function AdminNotificationsPage() {
+export default function AdminNotificationsPage({composerOpen, setComposerOpen}: {composerOpen: boolean, setComposerOpen: (open: boolean) => void}) {
   const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore()
 
   return (
     <div className="p-4 sm:p-6">
       <SWNotificationBridge />
       <AdminFCMInitializer />
-      <AdminTestPushPanel />
+      <AdminTestPushPanel composerOpen={composerOpen} setComposerOpen={setComposerOpen} />
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white">Notifications</h1>
-          <p className="text-gray-400 text-sm">All notifications are stored locally until you clear them.</p>
         </div>
         <div className="flex items-center gap-2">
           {unread > 0 && (
@@ -36,7 +35,7 @@ export default function AdminNotificationsPage() {
 
       <div className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800">
         {items.length === 0 ? (
-          <div className="p-6 text-gray-400">No notifications yet.</div>
+          <div className="p-3 sm:p-4 md:p-6 text-gray-400">No notifications yet.</div>
         ) : (
           items.map(n => {
             const href = buildNotificationHref(n)

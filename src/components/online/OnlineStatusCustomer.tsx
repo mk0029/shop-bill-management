@@ -77,19 +77,19 @@ export default function OnlineStatusCustomerButton() {
         return {
           label: "Available",
           className: "bg-green-600 hover:bg-green-700 text-white",
-          icon: <CheckCircle2 className="w-4 h-4 mr-2" />,
+          icon: <CheckCircle2 className="w-4 max-sm:hidden h-4 mr-2" />,
         };
       }
       return {
         label: "Available (Not at shop)",
         className: "bg-amber-500 hover:bg-amber-600 text-black",
-        icon: <DoorOpen className="w-4 h-4 mr-2" />,
+        icon: <DoorOpen className="w-4 max-sm:hidden h-4 mr-2" />,
       };
     }
     return {
       label: "Offline",
       className: "bg-red-600 hover:bg-red-700 text-white",
-      icon: <Power className="w-4 h-4 mr-2" />,
+      icon: <Power className="w-4 max-sm:hidden h-4 mr-2" />,
     };
   }, [loading, state.isOnline, state.atShop]);
 
@@ -98,7 +98,7 @@ export default function OnlineStatusCustomerButton() {
       <Button
         size="sm"
         onClick={() => setOpen(true)}
-        className={buttonConfig.className}
+        className={buttonConfig.className+' '+'max-sm:text-xs'}
         aria-label={`Current status: ${buttonConfig.label}. Click to check details`}
         title={`Current status: ${buttonConfig.label}`}
       >
@@ -107,7 +107,7 @@ export default function OnlineStatusCustomerButton() {
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:px-4">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
           {/* Modal */}
@@ -159,11 +159,7 @@ export default function OnlineStatusCustomerButton() {
                 )}
               </div>
             )}
-            <div className="mt-4 flex justify-end">
-              <Button size="sm" onClick={() => setOpen(false)}>
-                Close
-              </Button>
-            </div>
+           
           </div>
         </div>
       )}

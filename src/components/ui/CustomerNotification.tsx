@@ -1,13 +1,13 @@
 "use client";
 
-import AdminNotificationsPage from "@/app/customer/notifications/page";
 import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import CustomerNotificationsPage from "./CustomerNotificationPage";
 
-export default function NotificationsPopover() {
+export default function CustomerNotifications() {
   const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
@@ -94,7 +94,7 @@ export default function NotificationsPopover() {
               Close
               </Button>
             </div>
-            <AdminNotificationsPage composerOpen={composerOpen} setComposerOpen={setComposerOpen}/>
+            <CustomerNotificationsPage />
             </motion.div>
           </>
         )}

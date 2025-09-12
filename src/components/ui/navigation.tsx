@@ -20,6 +20,7 @@ import {
   Building2,
   Users,
   X,
+  Bell,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -392,7 +393,7 @@ export function Navigation() {
       </AnimatePresence>
 
       {/* Desktop Navigation */}
-      <nav className="hidden xl:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0 overflow-y-auto">
+      <nav className="hidden xl:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed z-50 left-0 top-0 overflow-y-auto">
         {/* Header */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -439,27 +440,29 @@ export function Navigation() {
 
       {/* Main Content Wrapper */}
       <div className="h-[65px]"></div>
-      <div className="xl:ml-64 min-h-fit backdrop-blur-lg fixed z-50 top-0 w-full left-0">
+      <div className="xl:!pl-64 min-h-fit backdrop-blur-lg fixed z-40 top-0 w-full left-0">
         {/* Top Bar */}
         <div className="border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6">
           <div className="flex items-center justify-between">
-            <div>
+           
               <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
                 {navigation.find((item) => isActive(item.href))?.label ||
                   "Dashboard"}
               </h1>
            
-            </div>
+            
+           
+
+              
+            
+           
             <div className="flex items-center gap-x-3">
-              {" "}
-              <div className="flex items-center gap-4">
-                <NotificationsPopover />
-              </div>
+             <NotificationsPopover />
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2">
+                className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2">
                 <Menu className="w-5 h-5" />
               </Button>
             </div>

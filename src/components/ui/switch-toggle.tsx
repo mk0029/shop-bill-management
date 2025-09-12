@@ -1,5 +1,5 @@
-import * as React from "react"
 import { cn } from "@/lib/utils"
+import * as React from "react"
 
 type SwitchStep = {
   value: string
@@ -57,16 +57,14 @@ export function SwitchToggle({
       />
       <div className="relative z-10 flex w-full">
         {steps.map((step) => {
-          const isActive = value === step.value
-          const Icon = step.icon
-          
+          const isActive = value === step.value          
           return (
             <button
               key={step.value}
               type="button"
               disabled={disabled}
               className={cn(
-                "relative flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-md transition-colors duration-200",
+                "relative flex-1 flex flex-col items-center justify-center py-1 px-1.5 rounded-md transition-colors duration-200",
                 isActive ? 'text-foreground' : 'text-muted-foreground',
                 disabled ? 'cursor-not-allowed' : 'cursor-pointer',
                 labelClassName

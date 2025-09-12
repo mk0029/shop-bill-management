@@ -24,6 +24,7 @@ import OnlineStatusCustomerButton from "@/components/online/OnlineStatusCustomer
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { Wifi } from "lucide-react";
+import CustomerNotifications from "./CustomerNotification";
 
 interface NavigationItem {
   label: string;
@@ -536,7 +537,7 @@ export function CustomerNavigation() {
               ) : (
                 <OnlineStatusCustomerButton />
               )}
-              <NotificationsPopover />
+              <CustomerNotifications/>
             </div>
             <Button
               variant="ghost"
