@@ -160,11 +160,16 @@ try {
   function openDB() {
     return new Promise((resolve, reject) => {
       try {
-        const request = indexedDB.open('pwa-notifications', 1);
+        // v2 adds the 'recentNotifications' store used to replay notifications to the app
+        const request = indexedDB.open('pwa-notifications', 2);
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
           if (!db.objectStoreNames.contains('notifications')) {
             db.createObjectStore('notifications', { keyPath: 'id', autoIncrement: true });
+          }
+          // Store for recently shown notifications to replay to clients
+          if (!db.objectStoreNames.contains('recentNotifications')) {
+            db.createObjectStore('recentNotifications', { keyPath: 'id', autoIncrement: true });
           }
         };
         request.onsuccess = (event) => resolve(event.target.result);
@@ -213,6 +218,45 @@ try {
     const store = tx.objectStore('notifications');
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
+      req.onsuccess = () => resolve(true);
+      req.onerror = (e) => reject(e);
+    });
+  }
+
+  // --- Recent shown notifications (to ensure persistence when no client is listening) ---
+  async function saveRecentNotification(appNotification) {
+    try {
+      const db = await openDB();
+      const tx = db.transaction('recentNotifications', 'readwrite');
+      const store = tx.objectStore('recentNotifications');
+      await new Promise((resolve, reject) => {
+        const req = store.add({ payload: appNotification, timestamp: Date.now() });
+        req.onsuccess = () => resolve(true);
+        req.onerror = (e) => reject(e);
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function getAllRecentNotifications() {
+    const db = await openDB();
+    const tx = db.transaction('recentNotifications', 'readonly');
+    const store = tx.objectStore('recentNotifications');
+    return new Promise((resolve, reject) => {
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = (e) => reject(e);
+    });
+  }
+
+  async function clearAllRecentNotifications() {
+    const db = await openDB();
+    const tx = db.transaction('recentNotifications', 'readwrite');
+    const store = tx.objectStore('recentNotifications');
+    return new Promise((resolve, reject) => {
+      const req = store.clear();
       req.onsuccess = () => resolve(true);
       req.onerror = (e) => reject(e);
     });
@@ -447,6 +491,9 @@ try {
             phone: data.user_phone || undefined,
           } : undefined,
           route: route || undefined,
+          // Add priority and source so UI can decide persistence rules
+          priority: (data.priority === 'high' ? 'high' : 'normal'),
+          source: 'push',
         },
         // Compute link preference: use route if present, else explicit link, else sensible default
         link: (() => {
@@ -481,6 +528,14 @@ try {
 
     // Broadcast to any open clients so they can add to their in-app store
     try {
+      const sendToClients = async (payload) => {
+        try {
+          const clis = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+          for (const c of clis) {
+            try { c.postMessage(payload); } catch {}
+          }
+        } catch {}
+      };
       if (bc) {
         const appNotification = {
           id: data.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -492,6 +547,20 @@ try {
           meta: options.data && options.data.meta ? options.data.meta : undefined,
         };
         bc.postMessage({ type: 'notification:received', payload: appNotification });
+        // Persist so that if no client is listening, we can replay later
+        try { await saveRecentNotification(appNotification); } catch {}
+      } else {
+        const appNotification = {
+          id: data.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: (data.type || 'system'),
+          title,
+          body: options.body || '',
+          createdAt: new Date().toISOString(),
+          read: false,
+          meta: options.data && options.data.meta ? options.data.meta : undefined,
+        };
+        await sendToClients({ type: 'notification:received', payload: appNotification });
+        try { await saveRecentNotification(appNotification); } catch {}
       }
     } catch {}
   }
@@ -543,6 +612,39 @@ try {
       event.waitUntil((async () => {
         const queued = await queueNotification(payload);
         if (!queued) await maybeAggregateAndShow(payload);
+      })());
+      return;
+    }
+    // From page: ask SW to replay any recent shown notifications and then clear them
+    if (event && event.data && event.data === 'REQUEST_RECENT_NOTIFICATIONS') {
+      event.waitUntil((async () => {
+        try {
+          const items = await getAllRecentNotifications();
+          const sendToClients = async (payload) => {
+            try {
+              const clis = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+              for (const c of clis) {
+                try { c.postMessage(payload); } catch {}
+              }
+            } catch {}
+          };
+          if (items && items.length) {
+            if (bc) {
+              for (const item of items) {
+                if (item && item.payload) {
+                  try { bc.postMessage({ type: 'notification:received', payload: item.payload }); } catch {}
+                }
+              }
+            } else {
+              for (const item of items) {
+                if (item && item.payload) {
+                  await sendToClients({ type: 'notification:received', payload: item.payload });
+                }
+              }
+            }
+            await clearAllRecentNotifications();
+          }
+        } catch {}
       })());
     }
   });

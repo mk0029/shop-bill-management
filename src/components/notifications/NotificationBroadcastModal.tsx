@@ -128,6 +128,8 @@ export default function NotificationBroadcastModal({ open, onClose }: Props) {
           </div>
         )}
 
+        
+
         <div className="space-y-2">
           <label className="text-sm text-gray-300">Title</label>
           <Input ref={titleRef} placeholder="e.g. System update" value={title} onChange={e => setTitle(e.target.value)} onKeyDown={onKeyDown} />

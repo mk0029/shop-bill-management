@@ -9,6 +9,16 @@ export default function SWNotificationBridge() {
   const add = useNotificationStore((s) => s.add);
 
   useEffect(() => {
+    // Helper to ask the active SW to replay any recent notifications it stored
+    const requestRecent = async () => {
+      try {
+        if (typeof navigator === 'undefined' || !("serviceWorker" in navigator)) return;
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sw = reg?.active || navigator.serviceWorker.controller;
+        if (sw) sw.postMessage('REQUEST_RECENT_NOTIFICATIONS');
+      } catch {}
+    };
+
     let bc: BroadcastChannel | null = null;
     try {
       bc = new BroadcastChannel("app-notifications");
@@ -33,10 +43,21 @@ export default function SWNotificationBridge() {
     } catch {
       // BroadcastChannel not supported; nothing to do.
     }
+
+    // Request any notifications received while app was backgrounded
+    void requestRecent();
+
+    // Re-request when tab becomes visible (e.g., returning from background)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void requestRecent();
+    };
+    document.addEventListener('visibilitychange', onVis);
+
     return () => {
       try {
         if (bc) bc.close();
       } catch {}
+      document.removeEventListener('visibilitychange', onVis);
     };
   }, [add]);
 

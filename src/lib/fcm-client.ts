@@ -167,8 +167,40 @@ export function listenForegroundMessages(): void {
         return
       }
       // When visible in a normal browser tab, play a short sound (if enabled)
-      // and continue to rely on in-app toasts/notification center for UI.
+      // and also broadcast an in-app notification so the UI shows a toast and saves it.
       try { void playNotificationSound() } catch {}
+
+      try {
+        const n = payload?.notification
+        const data = (payload?.data as Record<string, string> | undefined) || {}
+        const title = n?.title || data.title || 'Notification'
+        const body = n?.body || data.body || ''
+        const appNotification = {
+          id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: (data.type || 'system') as 'billing' | 'inventory' | 'system' | 'payment',
+          title,
+          body,
+          createdAt: new Date().toISOString(),
+          read: false,
+          meta: {
+            // Pass through billId if present so UI can render action
+            billId: data.billId,
+            // Best-effort route support via link
+            route: data.link ? { pathname: data.link, query: {} } : undefined,
+            source: 'push',
+          } as unknown as Record<string, unknown>,
+        }
+        try {
+          const bc = new BroadcastChannel('app-notifications')
+          bc.postMessage({ type: 'notification:received', payload: appNotification })
+          // no need to keep it open
+          try { bc.close() } catch {}
+        } catch {
+          // BroadcastChannel not supported; skip (SW replay will cover background cases)
+        }
+      } catch (e) {
+        // ignore
+      }
     })
   } catch (e) {
     console.error('[FCM] onMessage setup error', e)

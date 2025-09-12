@@ -173,7 +173,7 @@ const getBillStatusColor = (status: string) => {
     case "overdue":
       return "bg-red-500/20 text-red-400";
     default:
-      return "bg-yellow-500/20 text-gray-400";
+      return "bg-yellow-500 text-yellow-900";
   }
 };
 
@@ -537,9 +537,9 @@ export default function CustomerBillsPage() {
       case "paid":
         return "bg-green-900 text-green-300 border-green-700";
       case "partial":
-        return "bg-orange-900 text-orange-300 border-orange-700";
+        return "bg-orange-400 text-orange-300 border-orange-700";
       case "pending":
-        return "bg-yellow-900 text-yellow-300 border-yellow-700";
+        return "bg-yellow-500 text-yellow-300 border-yellow-700";
       case "overdue":
         return "bg-red-900 text-red-300 border-red-700";
       default:

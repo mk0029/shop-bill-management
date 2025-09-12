@@ -16,6 +16,9 @@ export interface AppNotificationMeta extends Record<string, unknown> {
   user?: { id?: string; name?: string; email?: string; phone?: string };
   // Optional route we can navigate to from the notification
   route?: AppNotificationRoute;
+  // Optional priority and source for pushed notifications
+  priority?: "high" | "normal";
+  source?: "push" | "realtime" | string;
 }
 
 export interface AppNotification {
