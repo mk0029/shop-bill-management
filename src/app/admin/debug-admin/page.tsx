@@ -44,7 +44,7 @@ export default function DebugAdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                 <span className="text-gray-300">Admin Management Enabled</span>
                 <div className="flex items-center gap-2">
@@ -105,7 +105,7 @@ export default function DebugAdminPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
               <div className="space-y-2">
                 <p className="text-gray-400 text-sm">User Email</p>
                 <p className="text-white font-medium">

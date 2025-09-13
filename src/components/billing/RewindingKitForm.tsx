@@ -133,7 +133,7 @@ function SingleRewindingForm({
 
       <CardContent className="space-y-3 md:space-y-4">
         {/* Kit Name & Starter */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           {inputFields.slice(0, 1).map((f) => (
             <div key={f.id}>
               <Label htmlFor={f.id}>{f.label}</Label>

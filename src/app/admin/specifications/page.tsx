@@ -438,7 +438,7 @@ export default function SpecificationsManagementPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-gray-300 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div>
               <h4 className="font-medium text-white mb-2">
                 🎯 Multi-Device Sync

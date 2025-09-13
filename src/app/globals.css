@@ -59,6 +59,11 @@
     @apply bg-background text-foreground;
   }
 }
+#customer-section,
+#rewinding-section,
+#items-section {
+  scroll-margin-top: 10px; /* push it down */
+}
 
 /* For Chrome, Safari, Edge, Opera */
 input[type="number"]::-webkit-outer-spin-button,
@@ -85,6 +90,33 @@ input[type="number"] {
   video {
     border-radius: 0 !important;
   }
+}
+
+/* Date inputs - improve calendar icon visibility (dark + light) */
+input[type="date"] {
+  /* Help browsers choose proper native control colors on dark backgrounds */
+  color-scheme: dark light;
+  /* Leave room for the calendar button so text doesn't overlap it */
+  padding-right: 2.25rem;
+}
+
+/* Chromium-based browsers (Chrome/Edge/Opera/Safari) */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  opacity: 0.85;
+  cursor: pointer;
+  margin-right: 0.25rem;
+  border-radius: 0.375rem; /* match rounded-md */
+}
+
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.8);
+  opacity: 0.95;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  background-color: rgba(148, 163, 184, 0.15); /* slate-400/15 */
 }
 
 /* NProgress minimal styles */

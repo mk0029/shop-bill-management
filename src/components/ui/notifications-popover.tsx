@@ -6,6 +6,8 @@ import { useNotificationStore } from "@/store/notification-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSettingsStore } from "@/store/settings-store";
+import { initSoundOnUserGesture, playNotificationSound } from "@/lib/notification-sound";
 
 export default function NotificationsPopover() {
   const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore();
@@ -13,6 +15,12 @@ export default function NotificationsPopover() {
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const showInAppNotifications = useSettingsStore((s) => s.showInAppNotifications);
+  const showNotificationPopover = useSettingsStore((s) => s.showNotificationPopover);
+  const playSoundOnNotification = useSettingsStore((s) => s.playSoundOnNotification);
+
+  // Respect: Hide entirely if in-app notifications are disabled
+  if (!showInAppNotifications) return null;
 
   // Close on outside click
   useEffect(() => {
@@ -36,6 +44,24 @@ export default function NotificationsPopover() {
     }
   }, [open, unread, markAllRead]);
 
+  // Play a short sound when new notifications arrive (if enabled)
+  const prevCountRef = useRef<number>(items.length);
+  useEffect(() => {
+    if (!playSoundOnNotification) {
+      prevCountRef.current = items.length;
+      return;
+    }
+    const prev = prevCountRef.current;
+    const curr = items.length;
+    if (curr > prev) {
+      try {
+        initSoundOnUserGesture();
+        void playNotificationSound();
+      } catch {}
+    }
+    prevCountRef.current = curr;
+  }, [items.length, playSoundOnNotification]);
+
   // Note: Avoid locking body scroll to prevent interference when multiple bells exist
 
   const header = useMemo(() => {
@@ -49,7 +75,14 @@ export default function NotificationsPopover() {
         ref={anchorRef}
         variant="ghost"
         size="sm"
-        onClick={() => setOpen((s) => !s)}
+        onClick={() => {
+          // If popover disabled by settings, just mark all read on click
+          if (!showNotificationPopover) {
+            if (unread > 0) markAllRead();
+            return;
+          }
+          setOpen((s) => !s);
+        }}
         className="relative text-gray-300 hover:text-white hover:bg-gray-800/60 rounded-full"
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -63,6 +96,8 @@ export default function NotificationsPopover() {
         )}
       </Button>
 
+      {/* If popover is disabled, do not render it */}
+      {showNotificationPopover && (
       <AnimatePresence>
         {open && (
           <>
@@ -99,6 +134,7 @@ export default function NotificationsPopover() {
           </>
         )}
       </AnimatePresence>
+      )}
     </div>
   );
 }

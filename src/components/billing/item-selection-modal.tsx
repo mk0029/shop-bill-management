@@ -139,7 +139,7 @@ export const ItemSelectionModal = ({
         </div>
         
         {/* Specification Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           {subcategoryOptions.length > 0 && (
             <div className="space-y-2">
               <Label className="text-gray-300">Subcategory</Label>

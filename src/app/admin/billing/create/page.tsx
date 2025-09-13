@@ -44,12 +44,14 @@ export default function CreateBillPage() {
 
   // Helper to open a section and immediately scroll its header into view
   const handleOpenSection = (section: "customer" | "rewinding" | "items") => {
+  setTimeout(() => {
     setActiveSection(section);
     requestAnimationFrame(() => {
       document
         .getElementById(`${section}-section`)
         ?.scrollIntoView({ behavior: "smooth", block: "start", });
     });
+  }, 400);
   };
 
   const discardAndExit = async () => {

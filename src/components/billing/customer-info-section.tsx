@@ -41,7 +41,7 @@ export const CustomerInfoSection = ({
     <Card className="bg-gray-900 border-gray-800">
       
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <div className="space-y-2">
             <Label htmlFor="customerId" className="text-gray-300">
               Select Customer *

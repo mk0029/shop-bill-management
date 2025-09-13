@@ -6,6 +6,7 @@ import { useOnline } from "./use-online";
 import { queueBill } from "../lib/offline-queue";
 import { createBill } from "../lib/form-service";
 import { localDraftService } from "../lib/local-draft-service";
+import { useSettingsStore } from "@/store/settings-store";
 
 
 interface Product {
@@ -69,6 +70,13 @@ export const useBillForm = () => {
     applyInventoryDelta,
     refreshProductsByIds,
   } = useDataStore();
+  // Billing defaults (persisted)
+  const {
+    homeVisitFeeDefault,
+    laborChargesDefault,
+    repairFeeDefault,
+    offlineAutoUploadDefault,
+  } = useSettingsStore();
   const [isLoading, setIsLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -91,13 +99,13 @@ export const useBillForm = () => {
     billDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     notes: "",
-    repairFee: 0,
-    homeVisitFee: 0,
-    laborCharges: 0,
+    repairFee: Number(repairFeeDefault || 0),
+    homeVisitFee: Number(homeVisitFeeDefault || 0),
+    laborCharges: Number(laborChargesDefault || 0),
     isMarkAsPaid: false,
     enablePartialPayment: false,
     partialPaymentAmount: 0,
-    offlineAutoUpload: true,
+    offlineAutoUpload: !!offlineAutoUploadDefault,
   });
 
   const handleInputChange = (field: keyof BillFormData, value: any) => {
@@ -373,13 +381,13 @@ export const useBillForm = () => {
           billDate: new Date().toISOString().split("T")[0],
           dueDate: "",
           notes: "",
-          repairFee: 0,
-          homeVisitFee: 0,
-          laborCharges: 0,
+          repairFee: Number(repairFeeDefault || 0),
+          homeVisitFee: Number(homeVisitFeeDefault || 0),
+          laborCharges: Number(laborChargesDefault || 0),
           isMarkAsPaid: false,
           enablePartialPayment: false,
           partialPaymentAmount: 0,
-          offlineAutoUpload: formData.offlineAutoUpload,
+          offlineAutoUpload: !!offlineAutoUploadDefault,
         });
         setSelectedItems([]);
         setDraftId(null);
@@ -465,9 +473,9 @@ export const useBillForm = () => {
         billDate: new Date().toISOString().split("T")[0],
         dueDate: "",
         notes: "",
-        repairFee: 0,
-        homeVisitFee: 0,
-        laborCharges: 0,
+        repairFee: Number(repairFeeDefault || 0),
+        homeVisitFee: Number(homeVisitFeeDefault || 0),
+        laborCharges: Number(laborChargesDefault || 0),
         isMarkAsPaid: false,
         enablePartialPayment: false,
         partialPaymentAmount: 0,
@@ -609,9 +617,9 @@ export const useBillForm = () => {
       billDate: new Date().toISOString().split("T")[0],
       dueDate: "",
       notes: "",
-      repairFee: 0,
-      homeVisitFee: 0,
-      laborCharges: 0,
+      repairFee: Number(repairFeeDefault || 0),
+      homeVisitFee: Number(homeVisitFeeDefault || 0),
+      laborCharges: Number(laborChargesDefault || 0),
       isMarkAsPaid: false,
       enablePartialPayment: false,
       partialPaymentAmount: 0,
@@ -668,7 +676,7 @@ const hasDraftContent = (formData: BillFormData, selectedItems: BillItem[]) => {
   return false;
 };
 const getItemDisplayName = (product: Product) => {
-  const specs = [];
+  const specs: string[] = [];
   if (product.specifications) {
     const spec = product.specifications;
     if (spec.lightType) specs.push(spec.lightType);
@@ -684,7 +692,7 @@ const getItemDisplayName = (product: Product) => {
 };
 
 const getItemSpecifications = (product: Product) => {
-  const specs = [];
+  const specs: string[] = [];
   if (product.specifications) {
     const spec = product.specifications;
     if (spec.lightType) specs.push(`Type: ${spec.lightType}`);
