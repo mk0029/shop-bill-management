@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
     } else if (body.audience === 'all') {
       result = await sendToAll(body.title, body.body, body.data)
     } else {
-      if (!body.tokens && !body.userIds) {
-        return NextResponse.json({ success: false, error: 'Provide tokens or userIds' }, { status: 400 })
+      if (!body.tokens && !body.userIds && !body.phoneNumbers) {
+        return NextResponse.json({ success: false, error: 'Provide tokens, userIds or phoneNumbers' }, { status: 400 })
       }
       result = await sendNotification({
         title: body.title,
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         data: body.data,
         tokens: body.tokens,
         userIds: body.userIds,
+        phoneNumbers: body.phoneNumbers,
         sound: body.sound || undefined,
         excludeTokens: Array.isArray(body.excludeTokens) ? body.excludeTokens : undefined,
       })

@@ -8,6 +8,8 @@ export type SendPayload = {
   data?: Record<string, string>
   tokens?: string[]
   userIds?: string[]
+  // Allow targeting by phone numbers (normalized to digits only)
+  phoneNumbers?: string[]
   sound?: 'default' | string
   // New: allow client to explicitly exclude current device tokens
   excludeTokens?: string[]
@@ -48,6 +50,41 @@ async function getTokensForUserIds(userIds: string[]): Promise<string[]> {
     .flatMap(u => Array.isArray(u?.fcmTokens) ? u.fcmTokens : [])
     .filter(Boolean)
   // Deduplicate
+  return Array.from(new Set(tokens))
+}
+
+// Try to match multiple possible phone fields and normalize to digits only for comparison.
+async function getTokensForPhones(phones: string[]): Promise<string[]> {
+  if (!phones?.length) return []
+  // Normalize to digits only; also keep a Set for O(1) lookups
+  const norm = (s: string) => (s || '').replace(/\D+/g, '')
+  const inputSet = new Set(phones.map(p => norm(p)).filter(Boolean))
+  if (!inputSet.size) return []
+
+  // Fetch candidate users with any of the common phone fields.
+  // We pull minimal fields to filter on server side reliably.
+  const query = `*[_type=="user" && isActive != false]{
+    fcmTokens,
+    phone,
+    phoneNumber,
+    mobile,
+    contactNumber
+  }`
+  const users = await sanityClient.fetch<Array<UserWithTokens & {
+    phone?: string | null,
+    phoneNumber?: string | null,
+    mobile?: string | null,
+    contactNumber?: string | null,
+  }>>(query)
+
+  const tokens: string[] = []
+  for (const u of users || []) {
+    const candidates = [u.phone, u.phoneNumber, u.mobile, u.contactNumber]
+    const anyMatch = candidates.some(v => v && inputSet.has(norm(String(v))))
+    if (anyMatch) {
+      if (Array.isArray(u?.fcmTokens)) tokens.push(...u.fcmTokens.filter(Boolean) as string[])
+    }
+  }
   return Array.from(new Set(tokens))
 }
 
@@ -96,7 +133,7 @@ async function getAllTokensByEnv(env: 'prod' | 'dev'): Promise<string[]> {
 export async function sendNotification(payload: SendPayload): Promise<SendResult> {
   const errors: string[] = []
   try {
-    const { title, body, data, tokens: directTokens, userIds, excludeTokens } = payload
+    const { title, body, data, tokens: directTokens, userIds, phoneNumbers, excludeTokens } = payload
     if (!title || !body) return { success: false, errors: ['Missing title/body'] }
 
     let targetTokens: string[] = []
@@ -104,6 +141,8 @@ export async function sendNotification(payload: SendPayload): Promise<SendResult
       targetTokens = directTokens
     } else if (Array.isArray(userIds) && userIds.length) {
       targetTokens = await getTokensForUserIds(userIds)
+    } else if (Array.isArray(phoneNumbers) && phoneNumbers.length) {
+      targetTokens = await getTokensForPhones(phoneNumbers)
     }
 
     // Device-level suppression: remove any explicit exclude tokens

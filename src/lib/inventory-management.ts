@@ -290,7 +290,8 @@ export async function updateStockForBill(
           bill: { _type: "reference", _ref: billId },
           notes: `Stock ${
             operation === "reduce" ? "reduced" : "restored"
-          } for bill ${billId}`,
+          } for bill ${billId} — Open: /admin/billing?open=${encodeURIComponent(billId)}`,
+          redirectUrl: `/admin/billing?open=${encodeURIComponent(billId)}`,
           status: "completed",
           transactionDate: new Date().toISOString(),
           createdAt: new Date().toISOString(),

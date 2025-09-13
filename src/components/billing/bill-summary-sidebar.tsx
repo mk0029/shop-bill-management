@@ -161,7 +161,7 @@ export const BillSummarySidebar = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-gray-300">Payment Mode</span>
+                <span className="text-sm text-gray-300">Payment Mode <span className={formData.isMarkAsPaid ? "text-green-400" : formData.enablePartialPayment ? "text-yellow-600" : "text-yellow-400"}>{formData.isMarkAsPaid ? "Paid" : formData.enablePartialPayment ? "Partial" : "Pending"}</span></span>
               </div>
               {(() => {
                 const paymentIndex = formData.isMarkAsPaid ? 2 : (formData.enablePartialPayment ? 1 : 0);
@@ -250,11 +250,7 @@ export const BillSummarySidebar = ({
                         className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${paymentIndex === 2 ? "bg-green-300" : paymentIndex === 1 ? "bg-amber-300" : "bg-slate-300"}`}
                         style={{ left: knobLeft }}
                       />
-                       <div className="flex items-center justify-between text-[8px] text-gray-400 px-1 absolute -bottom-4 w-full">
-              <span>Pending</span>
-              <span>Partial</span>
-              <span>Paid</span>
-            </div>
+                       
                     </div>
                   </div>
                 );
