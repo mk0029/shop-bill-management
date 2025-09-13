@@ -59,12 +59,8 @@ export default function NotificationBroadcastModal({ open, onClose }: Props) {
       }
       const sent = typeof json?.sent === 'number' ? json.sent : undefined
       const failed = typeof json?.failed === 'number' ? json.failed : undefined
-      if (typeof sent === 'number') {
-        const partial = typeof failed === 'number' && failed > 0
-        toast.success(partial ? `Sent ${sent}, failed ${failed}` : `Sent ${sent} notifications`)
-      } else {
-        toast.success("Notification sent")
-      }
+      const partial = typeof failed === 'number' && failed > 0
+      toast.success(partial ? `Sent ${sent}, failed ${failed}` : `Sent ${sent} notifications`)
       onClose();
       // Reset
       setTitle("");
