@@ -56,9 +56,26 @@ export const useNotificationStore = create<NotificationState>()(
 
       add: (n) =>
         set((state) => {
+          // De-dup guard: skip if same type/title/body exists within last 5 seconds
+          const now = Date.now();
+          const exists = state.items.some((x) => {
+            try {
+              const t = new Date(x.createdAt).getTime();
+              return (
+                x.type === (n as any).type &&
+                x.title === (n as any).title &&
+                x.body === (n as any).body &&
+                Math.abs(now - t) < 5000
+              );
+            } catch {
+              return false;
+            }
+          });
+          if (exists) return state;
+
           const item: AppNotification = {
-            id: n.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            createdAt: n.createdAt || new Date().toISOString(),
+            id: n.id || `n-${now}-${Math.random().toString(36).slice(2, 7)}`,
+            createdAt: n.createdAt || new Date(now).toISOString(),
             read: false,
             ...n,
           };

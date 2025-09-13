@@ -28,6 +28,19 @@ export default function SWNotificationBridge() {
           if (!msg || typeof msg !== "object") return;
           if (msg.type === "notification:received" && msg.payload) {
             const p = msg.payload as AppNotification;
+            // Suppress if this device originated the same notification very recently
+            try {
+              const key = 'notif_suppress'
+              const raw = localStorage.getItem(key)
+              const list: Array<{ title: string; body: string; at: number }> = raw ? JSON.parse(raw) : []
+              const now = Date.now()
+              const keep = list.filter(x => now - x.at < 15000)
+              const echoed = keep.some(x => x.title === p.title && x.body === p.body)
+              // write back compacted list
+              localStorage.setItem(key, JSON.stringify(keep))
+              if (echoed) return
+            } catch {}
+
             // Forward to local store; id/createdAt will be kept or auto-filled
             add({
               type: p.type,

@@ -61,6 +61,16 @@ export default function NotificationBroadcastModal({ open, onClose }: Props) {
       const failed = typeof json?.failed === 'number' ? json.failed : undefined
       const partial = typeof failed === 'number' && failed > 0
       toast.success(partial ? `Sent ${sent}, failed ${failed}` : `Sent ${sent} notifications`)
+      // Suppress echo on the sender device: store a short-lived signature
+      try {
+        const key = 'notif_suppress'
+        const now = Date.now()
+        const raw = localStorage.getItem(key)
+        const arr: Array<{ title: string; body: string; at: number }> = raw ? JSON.parse(raw) : []
+        const next = arr.filter(x => now - x.at < 15000)
+        next.push({ title: title.trim(), body: body.trim(), at: now })
+        localStorage.setItem(key, JSON.stringify(next))
+      } catch {}
       onClose();
       // Reset
       setTitle("");
