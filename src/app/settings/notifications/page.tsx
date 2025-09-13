@@ -1,9 +1,8 @@
 "use client"
 
-import React from "react"
 import NotificationSoundToggle from "@/components/notifications/notification-sound-toggle"
-import { initSoundOnUserGesture, playNotificationSound } from "@/lib/notification-sound"
 import { getTokenWithoutRegister } from "@/lib/fcm-client"
+import React from "react"
 
 export default function NotificationsSetupPage() {
   const [token, setToken] = React.useState<string | null>(null)
@@ -94,12 +93,6 @@ export default function NotificationsSetupPage() {
       setBusy(false)
     }
   }
-
-  const onTestSound = () => {
-    initSoundOnUserGesture()
-    void playNotificationSound()
-  }
-
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
       <h1 className="text-xl font-semibold">Notifications Setup</h1>
@@ -128,14 +121,7 @@ export default function NotificationsSetupPage() {
         <p className="text-sm text-gray-600">Toggle sound for foreground messages and test a short chirp.</p>
         <div className="flex items-center gap-2">
           <NotificationSoundToggle />
-          <button
-            type="button"
-            onClick={onTestSound}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1"
-            title="Play test sound"
-          >
-            Play test sound
-          </button>
+        
         </div>
       </div>
 

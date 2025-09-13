@@ -11,11 +11,12 @@ interface SettingsState {
   showInAppNotifications: boolean;
   showNotificationPopover: boolean;
   playSoundOnNotification: boolean;
+  pauseIncomingNotifications: boolean;
 
   // Actions
   setDefaults: (partial: Partial<Pick<SettingsState,
     'homeVisitFeeDefault' | 'laborChargesDefault' | 'repairFeeDefault' | 'offlineAutoUploadDefault' |
-    'showInAppNotifications' | 'showNotificationPopover' | 'playSoundOnNotification'
+    'showInAppNotifications' | 'showNotificationPopover' | 'playSoundOnNotification' | 'pauseIncomingNotifications'
   >>) => void;
 }
 
@@ -29,6 +30,7 @@ export const useSettingsStore = create<SettingsState>()(
       showInAppNotifications: true,
       showNotificationPopover: true,
       playSoundOnNotification: false,
+      pauseIncomingNotifications: false,
       setDefaults: (partial) => set((s) => ({ ...s, ...partial })),
     }),
     {
@@ -42,6 +44,7 @@ export const useSettingsStore = create<SettingsState>()(
         showInAppNotifications: s.showInAppNotifications,
         showNotificationPopover: s.showNotificationPopover,
         playSoundOnNotification: s.playSoundOnNotification,
+        pauseIncomingNotifications: s.pauseIncomingNotifications,
       }),
     }
   )

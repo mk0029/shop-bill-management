@@ -8,6 +8,31 @@ import type { MessagePayload } from "firebase/messaging"
  * - Requests/reads the FCM token
  * - Calls POST /api/notifications/register-token { token, userId }
  */
+
+/** Device-local pause helpers (service worker + localStorage) */
+export function getDeviceNotificationsPaused(): boolean {
+  try {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('device-notifications-paused') === '1'
+  } catch {
+    return false
+  }
+}
+
+export async function setDeviceNotificationsPaused(paused: boolean): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+        || await navigator.serviceWorker.ready
+      try { reg?.active?.postMessage({ type: 'NOTIFICATIONS_SET_PAUSED', value: !!paused }) } catch {}
+    }
+  } catch {}
+  try {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('device-notifications-paused', paused ? '1' : '0')
+    }
+  } catch {}
+}
 export async function registerFcmToken(opts: { userId?: string | null } = {}) {
   const { userId } = opts
   try {
@@ -70,4 +95,67 @@ export async function registerFcmToken(opts: { userId?: string | null } = {}) {
  */
 export async function listenForegroundMessages(handler: (payload: MessagePayload) => void) {
   return onForegroundMessage(handler)
+}
+
+/**
+ * Returns the locally cached last registered token for a user (if any).
+ */
+export function getCachedRegisteredToken(userId: string | null | undefined): string | null {
+  if (!userId) return null
+  try {
+    const key = `fcm-registered:${userId}`
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { token?: string } | null
+    return (parsed && typeof parsed.token === 'string') ? parsed.token : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Unregister the current device's token for the given user in Sanity.
+ * - Uses cached token if available; otherwise attempts to fetch token from FCM.
+ * - Calls POST /api/notifications/unregister-token { token, userId }
+ * - Clears local cache on success.
+ */
+export async function unregisterFcmToken(opts: { userId?: string | null } = {}) {
+  const { userId } = opts
+  try {
+    const tokenFromCache = getCachedRegisteredToken(userId ?? null)
+    let token = tokenFromCache
+    if (!token) {
+      // Try to get current token if permission still granted
+      try {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          const mod = await import('@/notifications/lib/firebase')
+          token = await mod.getFcmToken()
+        }
+      } catch {}
+    }
+    if (!token || !userId) {
+      return { success: false, skipped: true as const, reason: 'no-token-or-user' as const }
+    }
+
+    const res = await fetch('/api/notifications/unregister-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, userId }),
+    })
+    const data: unknown = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const errMsg = (data as { error?: string } | null)?.error || 'request-failed'
+      return { success: false, error: errMsg }
+    }
+    try {
+      const key = `fcm-registered:${userId}`
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(key)
+      }
+    } catch {}
+    return { success: true, data }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { success: false, error: msg }
+  }
 }

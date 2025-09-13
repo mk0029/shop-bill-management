@@ -161,15 +161,19 @@ try {
     return new Promise((resolve, reject) => {
       try {
         // v2 adds the 'recentNotifications' store used to replay notifications to the app
-        const request = indexedDB.open('pwa-notifications', 2);
+        const request = indexedDB.open('pwa-notifications', 3);
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
           if (!db.objectStoreNames.contains('notifications')) {
             db.createObjectStore('notifications', { keyPath: 'id', autoIncrement: true });
           }
-          // Store for recently shown notifications to replay to clients
+          // Store for recently shown notifications to replay to the app
           if (!db.objectStoreNames.contains('recentNotifications')) {
             db.createObjectStore('recentNotifications', { keyPath: 'id', autoIncrement: true });
+          }
+          // Simple key-value store for preferences (e.g., paused flag)
+          if (!db.objectStoreNames.contains('prefs')) {
+            db.createObjectStore('prefs', { keyPath: 'key' });
           }
         };
         request.onsuccess = (event) => resolve(event.target.result);
@@ -262,6 +266,38 @@ try {
     });
   }
 
+  // ---- Preferences: device-local pause flag ----
+  async function getPaused() {
+    try {
+      const db = await openDB();
+      const tx = db.transaction('prefs', 'readonly');
+      const store = tx.objectStore('prefs');
+      return await new Promise((resolve) => {
+        const req = store.get('paused');
+        req.onsuccess = () => resolve(!!(req.result && req.result.value));
+        req.onerror = () => resolve(false);
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  async function setPaused(value) {
+    try {
+      const db = await openDB();
+      const tx = db.transaction('prefs', 'readwrite');
+      const store = tx.objectStore('prefs');
+      await new Promise((resolve, reject) => {
+        const req = store.put({ key: 'paused', value: !!value, ts: Date.now() });
+        req.onsuccess = () => resolve(true);
+        req.onerror = (e) => reject(e);
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function incrementRetry(id, current) {
     const db = await openDB();
     const tx = db.transaction('notifications', 'readwrite');
@@ -276,6 +312,8 @@ try {
   // Preference check — fall back to showing if endpoint fails
   async function shouldShowNotification(payload) {
     try {
+      // Device-local pause: block notifications if paused
+      if (await getPaused()) return false;
       const resp = await fetch('/api/notifications/preferences', { method: 'GET', credentials: 'include' });
       if (!resp.ok) return true;
       const json = await resp.json();
@@ -646,6 +684,11 @@ try {
           }
         } catch {}
       })());
+    }
+    // Update device-local paused state
+    if (event && event.data && event.data.type === 'NOTIFICATIONS_SET_PAUSED') {
+      const desired = !!event.data.value;
+      event.waitUntil(setPaused(desired));
     }
   });
 

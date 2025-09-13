@@ -10,6 +10,7 @@ export default function AdminNotificationsSection() {
   const showInAppNotifications = useSettingsStore((s) => s.showInAppNotifications);
   const showNotificationPopover = useSettingsStore((s) => s.showNotificationPopover);
   const playSoundOnNotification = useSettingsStore((s) => s.playSoundOnNotification);
+  const pauseIncomingNotifications = useSettingsStore((s) => s.pauseIncomingNotifications);
   const setDefaults = useSettingsStore((s) => s.setDefaults);
   return (
     <Card className="bg-gray-900 border-gray-800">
@@ -21,6 +22,17 @@ export default function AdminNotificationsSection() {
       <CardContent className="space-y-4 text-sm text-gray-300">
         <p>Control in-app notification behavior for admins. These preferences affect popovers and optional sound.</p>
         <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3 rounded-md bg-gray-800 p-3">
+            <div className="space-y-0.5">
+              <div className="text-gray-200 font-medium">Pause incoming notifications</div>
+              <div className="text-gray-400">Temporarily mute all new in-app notifications and popovers.</div>
+            </div>
+            <Switch
+              checked={!!pauseIncomingNotifications}
+              onCheckedChange={(v) => setDefaults({ pauseIncomingNotifications: !!v })}
+            />
+          </div>
+
           <div className="flex items-center justify-between gap-3 rounded-md bg-gray-800 p-3">
             <div className="space-y-0.5">
               <div className="text-gray-200 font-medium">Show in-app notifications</div>

@@ -23,6 +23,15 @@ const firebaseConfig = {
 
 let messaging: firebase.messaging.Messaging | null = null
 
+function isDevicePaused(): boolean {
+  try {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('device-notifications-paused') === '1'
+  } catch {
+    return false
+  }
+}
+
 function ensureFirebase(): firebase.app.App {
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig)
@@ -122,6 +131,8 @@ export function listenForegroundMessages(): void {
   if (!messaging) return
   try {
     messaging.onMessage((payload: firebase.messaging.MessagePayload) => {
+      // Device-local pause: suppress any foreground handling
+      if (isDevicePaused()) return
       // Decide when to surface OS-level notifications for foreground messages.
       // We want proper system notifications in these cases:
       // 1) Page is not visible; 2) App is installed as a PWA (standalone display-mode);
