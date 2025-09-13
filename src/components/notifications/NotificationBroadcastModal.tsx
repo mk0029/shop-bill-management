@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useNotificationStore } from "@/store/notification-store";
 
 export type Audience = "admins" | "all" | "users";
 
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export default function NotificationBroadcastModal({ open, onClose }: Props) {
+  const addLocal = useNotificationStore((s) => s.add)
   const [audience, setAudience] = useState<Audience>("admins");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -61,15 +63,29 @@ export default function NotificationBroadcastModal({ open, onClose }: Props) {
       const failed = typeof json?.failed === 'number' ? json.failed : undefined
       const partial = typeof failed === 'number' && failed > 0
       toast.success(partial ? `Sent ${sent}, failed ${failed}` : `Sent ${sent} notifications`)
-      // Suppress echo on the sender device: store a short-lived signature
+      // Save locally only if there is NO active Service Worker (to avoid duplicates).
       try {
-        const key = 'notif_suppress'
-        const now = Date.now()
-        const raw = localStorage.getItem(key)
-        const arr: Array<{ title: string; body: string; at: number }> = raw ? JSON.parse(raw) : []
-        const next = arr.filter(x => now - x.at < 15000)
-        next.push({ title: title.trim(), body: body.trim(), at: now })
-        localStorage.setItem(key, JSON.stringify(next))
+        const hasSW = typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+        let active = false
+        if (hasSW) {
+          try {
+            const reg = await navigator.serviceWorker.getRegistration()
+            active = !!(reg?.active || navigator.serviceWorker.controller)
+          } catch {
+            active = !!navigator.serviceWorker?.controller
+          }
+        }
+        if (!active) {
+          addLocal({
+            type: 'system',
+            title: title.trim(),
+            body: body.trim(),
+            meta: {
+              source: 'broadcast',
+              route: link.trim() ? { pathname: link.trim() } : undefined,
+            },
+          })
+        }
       } catch {}
       onClose();
       // Reset

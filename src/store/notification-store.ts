@@ -56,26 +56,29 @@ export const useNotificationStore = create<NotificationState>()(
 
       add: (n) =>
         set((state) => {
-          // De-dup guard: skip if same type/title/body exists within last 5 seconds
-          const now = Date.now();
-          const exists = state.items.some((x) => {
-            try {
-              const t = new Date(x.createdAt).getTime();
-              return (
-                x.type === (n as any).type &&
-                x.title === (n as any).title &&
-                x.body === (n as any).body &&
-                Math.abs(now - t) < 5000
-              );
-            } catch {
-              return false;
-            }
-          });
-          if (exists) return state;
+          // 1) De-dup by id if provided
+          if (n.id && state.items.some((x) => x.id === n.id)) {
+            return state;
+          }
+
+          const createdAt = n.createdAt || new Date().toISOString();
+          const nowTs = Date.now();
+          const incomingTs = Date.parse(createdAt) || nowTs;
+          const windowMs = 2 * 60 * 1000; // 2 minutes
+
+          // 2) De-dup by same title+body within short time window
+          const hasRecentSameContent = state.items.some((x) =>
+            x.title === n.title &&
+            x.body === n.body &&
+            Math.abs((Date.parse(x.createdAt) || nowTs) - incomingTs) < windowMs
+          );
+          if (hasRecentSameContent) {
+            return state;
+          }
 
           const item: AppNotification = {
-            id: n.id || `n-${now}-${Math.random().toString(36).slice(2, 7)}`,
-            createdAt: n.createdAt || new Date(now).toISOString(),
+            id: n.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            createdAt,
             read: false,
             ...n,
           };
@@ -86,7 +89,23 @@ export const useNotificationStore = create<NotificationState>()(
 
       addMany: (list) =>
         set((state) => {
-          const items = [...list, ...state.items].slice(0, 100);
+          const nowTs = Date.now();
+          const windowMs = 2 * 60 * 1000; // 2 minutes
+          const existing = state.items;
+
+          const filtered = list.filter((n) => {
+            // De-dup by id
+            if (n.id && existing.some((x) => x.id === n.id)) return false;
+            const createdAt = n.createdAt || new Date().toISOString();
+            const ts = Date.parse(createdAt) || nowTs;
+            // De-dup by same content within window
+            const dup = existing.some((x) =>
+              x.title === n.title && x.body === n.body && Math.abs((Date.parse(x.createdAt) || nowTs) - ts) < windowMs
+            );
+            return !dup;
+          });
+
+          const items = [...filtered, ...existing].slice(0, 100);
           const unread = items.filter((x) => !x.read).length;
           return { items, unread };
         }),
