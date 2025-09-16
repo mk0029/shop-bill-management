@@ -297,7 +297,7 @@ function MessageComposer({ billId, recipientId, parentId, onCancelReply, replyPr
   const [busy, setBusy] = useState(false);
   return (
     <form
-      className="mt-3 flex items-center gap-2 border rounded-md p-2 bg-white/60 dark:bg-zinc-900/60"
+      className="mt-3 flex flex-col items-center gap-2 border rounded-md p-2 bg-white/60 dark:bg-zinc-900/60"
       onSubmit={async (e) => {
         e.preventDefault();
         if (!text.trim()) return;
@@ -324,7 +324,7 @@ function MessageComposer({ billId, recipientId, parentId, onCancelReply, replyPr
           )}
         </div>
       )}
-      <input
+<div className="flex items-center gap-2 w-full">      <input
         className="flex-1 border rounded px-3 py-2 bg-transparent"
         placeholder="Write a message..."
         value={text}
@@ -335,7 +335,7 @@ function MessageComposer({ billId, recipientId, parentId, onCancelReply, replyPr
         className="px-3 py-2 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-50"
       >
         Send
-      </button>
+      </button></div>
     </form>
   );
 }

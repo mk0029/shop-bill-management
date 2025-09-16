@@ -626,7 +626,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
     if (realtimeSubscription) return; // Already connected
     const subscription = sanityClient
       .listen(
-        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage"]]'
+        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage", "chatRoom", "chatMessage"]]'
       )
       .subscribe({
         next: (update) => {

@@ -1,5 +1,6 @@
 import { createClient } from "@sanity/client";
 import imageUrlBuilder from "@sanity/image-url";
+import type { SanityImageSource } from "@sanity/image-url/lib/types/types";
 
 // Decide perspective dynamically: include drafts when a token is available
 const hasToken =
@@ -30,13 +31,13 @@ if (typeof window === "undefined") {
 // Image URL builder
 const builder = imageUrlBuilder(sanityClient);
 
-export const urlFor = (source: unknown) => builder.image(source);
+export const urlFor = (source: SanityImageSource) => builder.image(source);
 
 // Real-time listener setup
 export const setupRealtimeListeners = (callback: (update: unknown) => void) => {
   const subscription = sanityClient
     .listen(
-      '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category"]]'
+      '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category", "chatRoom", "chatMessage"]]'
     )
     .subscribe((update) => {
       callback(update);
