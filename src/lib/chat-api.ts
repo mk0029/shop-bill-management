@@ -61,12 +61,13 @@ export async function sendRoomMessage(params: {
   content: string;
   senderId: string;
   isCustomer?: boolean;
+  parentId?: string;
 }) {
-  const { roomId, content, senderId, isCustomer } = params;
+  const { roomId, content, senderId, isCustomer, parentId } = params;
   const res = await fetch(base(`/api/chat/room/${roomId}/messages`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content, senderId, isCustomer: Boolean(isCustomer) }),
+    body: JSON.stringify({ content, senderId, isCustomer: Boolean(isCustomer), parentId }),
   });
   const json = await res.json();
   if (!json?.success) throw new Error(json?.error || "Failed to send message");
@@ -92,5 +93,17 @@ export async function markMessageSeen(messageId: string) {
   });
   const json = await res.json();
   if (!json?.success) throw new Error(json?.error || "Failed to mark message as seen");
+  return json.data as ChatMessage;
+}
+
+export async function updateMessage(params: { messageId: string; content: string }) {
+  const { messageId, content } = params;
+  const res = await fetch(base(`/api/chat/message/${messageId}`), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  const json = await res.json();
+  if (!json?.success) throw new Error(json?.error || "Failed to update message");
   return json.data as ChatMessage;
 }

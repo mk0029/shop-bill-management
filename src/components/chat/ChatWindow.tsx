@@ -14,10 +14,13 @@ type Props = {
 };
 
 export default function ChatWindow({ roomId, senderId, actor }: Props) {
-  const { messagesByRoomId, fetchMessages, sendMessage, markRead, markMessageSeen, rooms } = useChatStore();
+  const { messagesByRoomId, fetchMessages, sendMessage, markRead, markMessageSeen, rooms, editMessage } = useChatStore();
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const seenOnceRef = useRef<Set<string>>(new Set());
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   type LiteBill = { _id: string; billNumber?: string; totalAmount?: number; createdAt: string };
   type BillUpdate = { result?: { _id?: string; billNumber?: string; totalAmount?: number; createdAt?: string } };
   const [bills, setBills] = useState<LiteBill[]>([]);
@@ -89,17 +92,27 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     return () => { try { sub.unsubscribe(); } catch {} };
   }, [customerId]);
 
+  // Auto scroll to bottom on messages change
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length]);
 
   const onSend = async () => {
     const content = text.trim();
     if (!content) return;
+    const currentEditing = editingId;
+    const currentReply = replyTo;
     setText("");
-    await sendMessage(roomId, content, senderId, actor === "customer");
+    setEditingId(null);
+    setReplyTo(null);
+    if (currentEditing) {
+      await editMessage(roomId, currentEditing, content);
+      return;
+    }
+    await sendMessage(roomId, content, senderId, actor === "customer", currentReply?._id);
   };
 
   const getMsgSenderId = (m: ChatMessage): string | undefined => {
@@ -143,12 +156,20 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
             };
             // Attach an id for potential viewport observers if needed
             const msgId = `chatmsg-${m._id}`;
+            const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
             return (
               <div id={msgId} key={m._id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`} onMouseEnter={onEnterView}>
-                <div className={`group max-w-[75%] text-sm px-3 py-2 border shadow-sm ${isSelf ? 'bg-emerald-600/90 text-white border-emerald-700 rounded-2xl rounded-br-sm' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'}`}>
+                <div className={`group relative max-w-[75%] text-sm px-3 py-2 border shadow-sm ${isSelf ? 'bg-emerald-600/90 text-white border-emerald-700 rounded-2xl rounded-br-sm' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'}`}>
+                  {parent && (
+                    <div className={`mb-1 border-l-2 pl-2 text-xs ${isSelf ? 'border-white/40 text-white/85' : 'border-zinc-400 text-zinc-200'}`}>
+                      <div className="opacity-80">Replying to</div>
+                      <div className="line-clamp-2 whitespace-pre-wrap opacity-90">{parent.content}</div>
+                    </div>
+                  )}
                   <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
                   <div className={`mt-1 flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
                     <span className={`text-[11px] ${isSelf ? 'text-white/80' : 'opacity-70'}`}>{new Date(m.createdAt).toLocaleString()}</span>
+                    {m.editedAt && <span className={`text-[10px] italic ${isSelf ? 'text-white/70' : 'opacity-60'}`}>(edited)</span>}
                     {isSelf && (
                       <span className="inline-flex items-center gap-1">
                         {m.status === 'seen' ? (
@@ -161,6 +182,19 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                       </span>
                     )}
                   </div>
+                  <div className={`absolute -top-2 ${isSelf ? '-left-1' : '-right-1'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                  <div className={`mt-1 hidden group-hover:flex gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                    <button
+                      className={`text-xs underline ${isSelf ? 'text-white/90' : 'text-zinc-300'}`}
+                      onClick={() => setReplyTo(m)}
+                    >Reply</button>
+                    {isSelf && (
+                      <button
+                        className={`text-xs underline ${isSelf ? 'text-white/90' : 'text-zinc-300'}`}
+                        onClick={() => { setEditingId(m._id); setText(m.content); setReplyTo(null); }}
+                      >Edit</button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -169,12 +203,30 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           {messages.length === 0 && (
             <div className="border rounded-md p-6 text-center opacity-70">No messages yet</div>
           )}
+          <div ref={bottomRef} />
         </div>
       </div>
+      {replyTo && (
+        <div className="mt-1 border rounded-md p-2 bg-amber-50 dark:bg-zinc-800/60 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-medium">Replying to message</div>
+            <button className="opacity-70 hover:opacity-100" onClick={() => setReplyTo(null)}>Clear</button>
+          </div>
+          <div className="mt-1 line-clamp-2 whitespace-pre-wrap opacity-80">{replyTo.content}</div>
+        </div>
+      )}
+      {editingId && (
+        <div className="mt-1 border rounded-md p-2 bg-blue-50 dark:bg-zinc-800/60 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-medium">Editing message</div>
+            <button className="opacity-70 hover:opacity-100" onClick={() => { setEditingId(null); setText(""); }}>Cancel</button>
+          </div>
+        </div>
+      )}
       <div className="mt-1 flex items-center gap-2 border rounded-md p-2 bg-white/60 dark:bg-zinc-900/60">
         <input
           className="flex-1 border rounded px-3 py-2 bg-transparent"
-          placeholder="Type a message..."
+          placeholder={editingId ? "Edit your message..." : "Type a message..."}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -184,9 +236,10 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
             }
           }}
         />
-        <button className="px-3 py-2 rounded bg-black text-white dark:bg-white dark:text-black" onClick={onSend}>Send</button>
+        <button className="px-3 py-2 rounded bg-black text-white dark:bg-white dark:text-black" onClick={onSend}>{editingId ? 'Update' : 'Send'}</button>
       </div>
     </div>
   );
 }
+
 

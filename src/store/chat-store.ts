@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { ChatRoom, ChatMessage } from "@/lib/chat-api";
-import { getOrCreateRoomByCustomer, listRooms, listRoomMessages, sendRoomMessage, markRoomRead, markMessageSeen } from "@/lib/chat-api";
+import { getOrCreateRoomByCustomer, listRooms, listRoomMessages, sendRoomMessage, markRoomRead, markMessageSeen, updateMessage } from "@/lib/chat-api";
 import { setupRealtimeListeners } from "@/lib/sanity";
 
 interface ChatState {
@@ -15,14 +15,15 @@ interface ChatState {
   openRoomByCustomer: (customerId: string) => Promise<string>; // returns roomId
   setActiveRoom: (roomId: string) => Promise<void>;
   fetchMessages: (roomId: string) => Promise<void>;
-  sendMessage: (roomId: string, content: string, senderId: string, isCustomer?: boolean) => Promise<void>;
+  sendMessage: (roomId: string, content: string, senderId: string, isCustomer?: boolean, parentId?: string) => Promise<void>;
   markRead: (roomId: string, actor: "admin" | "customer") => Promise<void>;
   markMessageSeen: (roomId: string, messageId: string) => Promise<void>;
+  editMessage: (roomId: string, messageId: string, content: string) => Promise<void>;
 
   // realtime sub
   subscribeRealtime: () => void;
   unsubscribeRealtime: () => void;
-  _subscription: any | null;
+  _subscription: { unsubscribe: () => void } | null;
 }
 
 export const useChatStore = create<ChatState>()(devtools((set, get) => ({
@@ -38,8 +39,9 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     try {
       const rooms = await listRooms({ customerId: opts?.customerId, adminId: opts?.adminId });
       set({ rooms, isLoading: false });
-    } catch (e: any) {
-      set({ error: e?.message || "Failed to load rooms", isLoading: false });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to load rooms";
+      set({ error: msg, isLoading: false });
     }
   },
 
@@ -84,12 +86,13 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     try {
       const msgs = await listRoomMessages(roomId, 100);
       set((s) => ({ messagesByRoomId: { ...s.messagesByRoomId, [roomId]: msgs } }));
-    } catch (e: any) {
-      set({ error: e?.message || "Failed to load messages" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to load messages";
+      set({ error: msg });
     }
   },
 
-  sendMessage: async (roomId, content, senderId, isCustomer) => {
+  sendMessage: async (roomId, content, senderId, isCustomer, parentId) => {
     // optimistic
     const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const optimistic: ChatMessage = {
@@ -99,16 +102,17 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       content,
       attachments: [],
       status: "sent",
+      parentId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    } as any;
+    };
     set((s) => {
       const list = s.messagesByRoomId[roomId] || [];
       return { messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, optimistic] } };
     });
 
     try {
-      const saved = await sendRoomMessage({ roomId, content, senderId, isCustomer });
+      const saved = await sendRoomMessage({ roomId, content, senderId, isCustomer, parentId });
       set((s) => {
         // Remove optimistic and also any existing item with same _id to prevent duplicates
         const list = (s.messagesByRoomId[roomId] || [])
@@ -116,8 +120,9 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
           .filter((m) => m._id !== saved._id);
         return { messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, saved] } };
       });
-    } catch (e: any) {
-      set({ error: e?.message || "Failed to send message" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to send message";
+      set({ error: msg });
     }
   },
 
@@ -135,17 +140,44 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     } catch {}
   },
 
+  editMessage: async (roomId, messageId, content) => {
+    const now = new Date().toISOString();
+    // optimistic update
+    set((s) => ({
+      messagesByRoomId: {
+        ...s.messagesByRoomId,
+        [roomId]: (s.messagesByRoomId[roomId] || []).map((m) => m._id === messageId ? { ...m, content, editedAt: now, updatedAt: now } : m),
+      },
+    }));
+    try {
+      const saved = await updateMessage({ messageId, content });
+      set((s) => ({
+        messagesByRoomId: {
+          ...s.messagesByRoomId,
+          [roomId]: (s.messagesByRoomId[roomId] || []).map((m) => m._id === messageId ? saved : m),
+        },
+      }));
+    } catch (e: unknown) {
+      // On failure, refetch to ensure consistency
+      try { await get().fetchMessages(roomId); } catch {}
+      const msg = e instanceof Error ? e.message : "Failed to update message";
+      set({ error: msg });
+    }
+  },
+
   subscribeRealtime: () => {
     if (get()._subscription) return;
-    const sub = setupRealtimeListeners((update: any) => {
-      const docType = update?.result?._type || update?.documentId?.split(".")[0];
+    const sub = setupRealtimeListeners((update: unknown) => {
+      // Narrow known shape from Sanity
+      const u = update as { result?: { _type?: string; _id?: string; room?: { _ref?: string } | string }; documentId?: string } | undefined;
+      const docType = u?.result?._type || u?.documentId?.split(".")[0];
       if (!docType) return;
       if (docType === 'chatRoom') {
         // refresh rooms list on changes
         get().loadRooms().catch(() => {});
       } else if (docType === 'chatMessage') {
-        const msg = update?.result;
-        const roomRef = msg?.room?._ref || msg?.room;
+        const msg = u?.result as ChatMessage | undefined;
+        const roomRef = (msg?.room as { _ref?: string } | string | undefined && (typeof msg?.room === 'string' ? msg?.room : (msg?.room as { _ref?: string })?._ref));
         if (msg && roomRef) {
           set((s) => {
             const list = s.messagesByRoomId[roomRef] || [];
@@ -172,3 +204,4 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     set({ _subscription: null });
   },
 })));
+

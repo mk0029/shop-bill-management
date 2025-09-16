@@ -34,7 +34,7 @@ export default function AdminChatsPage() {
   }
 
   return (
-    <div className="p-0 md:p-0 h-[100dvh]">
+    <div className="p-0 md:p-0 h-[calc(100vh-65px)]">
       <div className="p-4 md:p-6 space-y-4 h-full flex flex-col !pt-0">
           <RoomsTopBar
           activeRoomId={activeRoomId || undefined}

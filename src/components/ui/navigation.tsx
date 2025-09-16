@@ -85,7 +85,7 @@ const adminNavigation: NavigationItem[] = [
     ],
   },
   {
-    label: "Bill Book",
+    label: "Chats",
     href: "/admin/chats",
     icon: Receipt,
   },
@@ -118,8 +118,8 @@ const customerNavigation: NavigationItem[] = [
     icon: Receipt,
   },
   {
-    label: "Bill Book",
-    href: "/bill-book",
+    label: "Chats",
+    href: "/chats",
     icon: Receipt,
   },
   {
