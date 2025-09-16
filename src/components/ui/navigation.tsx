@@ -20,7 +20,6 @@ import {
   Building2,
   Users,
   X,
-  Bell,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -87,7 +86,7 @@ const adminNavigation: NavigationItem[] = [
   },
   {
     label: "Bill Book",
-    href: "/bill-book",
+    href: "/admin/chats",
     icon: Receipt,
   },
   {
