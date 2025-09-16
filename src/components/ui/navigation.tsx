@@ -86,6 +86,11 @@ const adminNavigation: NavigationItem[] = [
     ],
   },
   {
+    label: "Bill Book",
+    href: "/bill-book",
+    icon: Receipt,
+  },
+  {
     label: "Sales Report",
     href: "/admin/sales-report",
     icon: BarChart3,
@@ -111,6 +116,11 @@ const customerNavigation: NavigationItem[] = [
   {
     label: "My Bills",
     href: "/customer/bills",
+    icon: Receipt,
+  },
+  {
+    label: "Bill Book",
+    href: "/bill-book",
     icon: Receipt,
   },
   {

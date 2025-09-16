@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
 import { useAuthStore } from "@/store/auth-store";
+import { useBillBookStore } from "@/store/bill-book-store";
 import { fallbackData } from "./fallback-data";
 import { type SanityClient } from "@sanity/client";
 import type { Subscription } from "rxjs";
@@ -625,7 +626,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
     if (realtimeSubscription) return; // Already connected
     const subscription = sanityClient
       .listen(
-        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction"]]'
+        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage"]]'
       )
       .subscribe({
         next: (update) => {
@@ -814,6 +815,25 @@ export const useDataStore = create<DataStore>((set, get) => ({
           if (prodRef) {
             // Fire-and-forget targeted refresh
             get().refreshProductsByIds([String(prodRef)]).catch(() => {});
+          }
+        }
+        break;
+
+      case "billMessage":
+        {
+          // Forward message updates to Bill Book store for per-bill threads
+          try {
+            const msg = document;
+            if (msg) {
+              const billId = msg?.bill?._ref || msg?.bill || undefined;
+              if (billId) {
+                try {
+                  useBillBookStore.getState().addOrUpdateMessage(String(billId), msg as any);
+                } catch {}
+              }
+            }
+          } catch (e) {
+            console.warn("billMessage realtime handling failed", e);
           }
         }
         break;

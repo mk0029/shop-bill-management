@@ -1,18 +1,24 @@
 "use client";
 import { idbAdd, idbGetAll, idbDelete } from "@/lib/idb";
 import { createBill } from "@/lib/form-service";
+type CreateBillPayload = Parameters<typeof createBill>[0];
 
 const CFG = { dbName: "shop_queue_db", storeName: "queue" } as const;
 
 type QueueItem = {
   id?: number;
-  type: "bill" | "inventory" | "other";
-  payload: any;
+  type: "bill" | "billMessage" | "inventory" | "other";
+  payload: unknown;
   createdAt: number;
 };
 
-export async function queueBill(payload: any) {
+export async function queueBill(payload: CreateBillPayload) {
   const item: QueueItem = { type: "bill", payload, createdAt: Date.now() };
+  await idbAdd(CFG, item);
+}
+
+export async function queueBillMessage(payload: { billId: string; content: string; recipientId: string }) {
+  const item: QueueItem = { type: "billMessage", payload, createdAt: Date.now() };
   await idbAdd(CFG, item);
 }
 
@@ -21,8 +27,18 @@ export async function flushQueue() {
   for (const item of items) {
     try {
       if (item.type === "bill") {
-        const res = await createBill(item.payload);
+        const res = await createBill(item.payload as CreateBillPayload);
         if (res?.success) {
+          await idbDelete(CFG, item.id);
+        }
+      } else if (item.type === "billMessage") {
+        const { billId, content, recipientId } = item.payload as { billId: string; content: string; recipientId: string };
+        const res = await fetch(`/api/bill-book/bill/${encodeURIComponent(billId)}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, recipientId }),
+        });
+        if (res.ok) {
           await idbDelete(CFG, item.id);
         }
       }

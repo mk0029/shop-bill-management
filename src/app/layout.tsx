@@ -37,10 +37,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jambh-ell.vercel.app";
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const GOOGLE_SITE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://jambh-ell.vercel.app"),
-  title: "Jambh Electrics",
-  description: "Professional Jambh Electrics system",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Jambh Electrics",
+    template: "%s | Jambh Electrics",
+  },
+  description: "Jambh Electrics Billing System For All Customers.",
+  applicationName: "Jambh Electrics",
+  keywords: [
+    "Jambh Electrics",
+    "Electrician Shop",
+    "Billing",
+    "Invoices",
+    "Inventory",
+    "Customer Management",
+    "Sanity CMS",
+    "Next.js",
+    "Shop Management",
+  ],
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -56,7 +75,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Jambh Electrics",
-    description: "Professional Jambh Electrics system",
+    description: "Jambh Electrics Billing System For All Customers.",
     url: "https://jambh-ell.vercel.app/",
     siteName: "Jambh Electrics",
     images: [
@@ -68,13 +87,32 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Jambh Electrics",
-    description: "Professional Jambh Electrics system",
+    description: "Jambh Electrics Billing System For All Customers.",
     images: ["/je-p-512.png"],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Jambh Electrics",
+  },
+  verification: GOOGLE_SITE_VERIFICATION
+    ? { google: GOOGLE_SITE_VERIFICATION }
+    : undefined,
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  alternates: {
+    canonical: SITE_URL,
   },
 };
 
@@ -150,6 +188,49 @@ export default function RootLayout({
                 });
               }
             `}
+          </Script>
+
+          {/* Google Analytics 4 (optional via NEXT_PUBLIC_GA_ID) */}
+          {GA_ID ? (
+            <>
+              <Script
+                id="ga4-src"
+                src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+                strategy="afterInteractive"
+              />
+              <Script id="ga4-init" strategy="afterInteractive">
+                {`
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);} 
+                  gtag('js', new Date());
+                  gtag('config', '${GA_ID}', { anonymize_ip: true });
+                `}
+              </Script>
+            </>
+          ) : null}
+
+          {/* Structured Data: Organization and WebSite */}
+          <Script id="ld-json-org" type="application/ld+json" strategy="afterInteractive">
+            {JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'Jambh Electrics',
+              url: SITE_URL,
+              logo: `${SITE_URL}/je-p-512.png`,
+            })}
+          </Script>
+          <Script id="ld-json-website" type="application/ld+json" strategy="afterInteractive">
+            {JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'Jambh Electrics',
+              url: SITE_URL,
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: `${SITE_URL}/search?q={search_term_string}`,
+                'query-input': 'required name=search_term_string',
+              },
+            })}
           </Script>
 
           <Script id="disable-number-input-scroll" strategy="afterInteractive">

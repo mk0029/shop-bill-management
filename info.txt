@@ -1,0 +1,214 @@
+Jambh Electrics - Project Technical Overview (info.txt)
+Last updated: 2025-09-16 09:23:40 +05:30
+
+1) System Overview
+- Purpose: Electrician shop billing and inventory management with real-time updates, notifications, and PWA support.
+- Tech Stack: Next.js 15, React 19, TypeScript, Tailwind CSS, Zustand, Clerk Auth, Sanity CMS, Strapi (sync), Firebase Cloud Messaging (FCM).
+- Architecture:
+  - Dual portals (Admin + Customer) under src/app/.
+  - Client-side state via Zustand stores in src/store/.
+  - Headless CMS (Sanity) as primary data source with real-time listeners.
+  - Optional secondary sync to Strapi (see src/lib/strapi-service.ts).
+  - Notifications with FCM and service worker bridges.
+  - Offline/PWA experience with service workers and local drafts/queues.
+
+2) Key Directories
+- src/app/: Next.js App Router pages and API routes.
+  - src/app/api/: server routes for bills, shop-status, notifications, FCM, users, etc.
+  - src/app/layout.tsx: global providers, SW registration, SEO metadata.
+- src/store/: Zustand stores (data-store, inventory-store, settings-store, etc.).
+- src/lib/: core libraries (sanity client, queries, API services, validation, utilities, offline queue, etc.).
+- src/components/: UI components including billing, realtime, notifications, PWA overlays, etc.
+- src/notifications/: client FCM setup and components.
+
+3) Core Data Models (Sanity)
+Defined and referenced across files like src/store/data-store.ts and src/lib/queries in src/lib/sanity.ts
+- Brand
+  - Fields: _id, name, slug, logo, description, isActive, createdAt
+- Category
+  - Fields: _id, name, slug, description, icon, parentCategory, isActive, sortOrder
+- Product
+  - Fields: _id, productId, name, slug, description, brand (ref), category (ref), specifications (map),
+    pricing { purchasePrice, sellingPrice, mrp?/standardPrice?, unit, taxRate? },
+    inventory { currentStock, minimumStock, maximumStock?, reorderLevel, location? },
+    images[], isActive, isFeatured, tags[], createdAt, updatedAt, deleted?
+- User
+  - Fields: _id, clerkId, customerId, secretKey, name, email?, phone, location, role ('admin'|'customer'), isActive, createdAt
+- Bill
+  - Fields: _id, billId, billNumber, customer (ref), items[] { product (ref), productName, category, brand, specifications, quantity, unitPrice, totalPrice, unit },
+    serviceType, locationType, serviceDate, homeVisitFee, transportationFee?, repairFee?, laborCharges?,
+    subtotal, taxAmount, discountAmount?, totalAmount, paymentStatus, paymentMethod?, paidAmount, balanceAmount,
+    status, priority, notes?, internalNotes?, createdAt, updatedAt
+- StockTransaction
+  - Fields: _id, transactionId, type ('purchase'|'sale'|'adjustment'|'return'|'damage'), product (ref), quantity,
+    unitPrice, totalAmount, supplier?, bill?, notes?, status, transactionDate, createdAt
+
+4) State Management (Zustand)
+A) useDataStore (src/store/data-store.ts)
+- Purpose: Normalized, in-memory cache of Brands/Categories/Products/Users/Bills with fast lookup indices and realtime updates.
+- State:
+  - isLoading, loadingProgress, lastSyncTime, error
+  - isRefreshing (lightweight refresh state)
+  - realtimeSubscription, isRealtimeConnected
+  - Maps: brands, categories, products, users, bills
+  - Lookup indices: usersByClerkId, productsByCategory, productsByBrand, billsByCustomer
+- Actions (selected):
+  - loadInitialData(opts): role-aware bootstrap; customer loads only own user+bills; admin loads all datasets.
+  - refreshBillsOnly(opts): role-aware, non-blocking bills refresh without disturbing other maps.
+  - refreshActiveProducts(): refresh active products + rebuild indices.
+  - refreshProductsByIds(ids): targeted hydration of specific products and indices.
+  - applyInventoryDelta(deltas): optimistic local stock adjustments for immediate UI response.
+  - setupRealtimeListeners() / cleanupRealtimeListeners(): connect to Sanity live updates.
+  - handleRealtimeUpdate(update): type-based handlers for product/user/bill/brand/category/stockTransaction changes.
+- Getters: getProductsByCategory, getBillsByCustomer, getActiveProducts, getBrandById, getCategoryById, getProductById, getUserById, getBillById
+- CRUD: createProduct (normalizes brandId/categoryId to refs), updateProduct, deleteProduct, deleteBrand, createBill, updateBill, createUser, updateUser
+
+B) useInventoryStore (src/store/inventory-store.ts)
+- Purpose: Inventory-centric view for product lists and stock transactions (array-based for pages/filters), decoupled from normalized map store.
+- State: products[], stockTransactions[], inventorySummary, isLoading, error, lastFetched
+- Actions (selected):
+  - fetchProducts(filters?), fetchProductById, fetchLowStockProducts, fetchFeaturedProducts
+  - fetchInventorySummary
+  - fetchStockTransactions(filters?)
+  - searchProducts(term, limit?)
+  - updateProductInventory(productId, partial inventory/pricing): updates store and server via inventory API
+  - createStockTransaction(payload): creates stock transaction and refreshes related views
+  - addOrUpdateProduct(data): dedupe by brand/category/specs; update stock if exists or create new product (with initial stock transaction)
+  - Realtime handlers: handleRealtimeProductUpdate/Created/StockTransaction
+  - Analytics getters: getProductsByCategory/Brand/LowStock/OutOfStock/Featured, getConsolidatedProducts()
+  - Deletion flows: softDeleteProduct, restoreProduct, deleteProduct
+  - updateProduct, updateProductDetails (with hydration), refreshData
+
+C) useSettingsStore (src/store/settings-store.ts)
+- Persisted UI/business defaults and notification preferences (localStorage):
+  - homeVisitFeeDefault, laborChargesDefault, repairFeeDefault, offlineAutoUploadDefault
+  - showInAppNotifications, showNotificationPopover, playSoundOnNotification, pauseIncomingNotifications
+
+5) Real-time Data Flow
+- Sanity client at src/lib/sanity.ts uses perspective 'drafts' if token is present; useCdn=false for live updates.
+- Listeners:
+  - Global store: useDataStore.setupRealtimeListeners() subscribes to types [bill, product, user, brand, category, stockTransaction].
+  - Handler logic (useDataStore.handleRealtimeUpdate):
+    - product: upsert map; resolve brand/category from existing maps; maintain indices on appear.
+    - user: upsert map; maintain usersByClerkId; handle disappear.
+    - bill: normalize customer details if only ref; update bills map and billsByCustomer index.
+    - brand/category: upsert/remove maps accordingly.
+    - stockTransaction: triggers refreshProductsByIds for the related product on appear.
+- Realtime API Helper (src/lib/realtime-api-service.ts):
+  - CRUD helpers with toast feedback.
+  - createBillWithInventoryUpdate(): transactionally creates bill, decrements product stock, and creates stockTransaction docs.
+  - updateProductInventory(): patch product inventory and optionally create stockTransaction in a transaction.
+  - bulkUpdateInventory(): mass updates with stock adjustment transactions.
+
+6) Billing Workflow (use-bill-form)
+- Location: src/hooks/use-bill-form.ts
+- Responsibilities:
+  - Manage bill form state, autosave, offline behavior, and submission pipeline.
+  - Item management: addItemToBill(), addCustomItemToBill(), updateItemQuantity() with clamping rules.
+    - Decimal increments for categories like wire/pipe.
+    - Dynamic clamping by available stock where known.
+  - Totals with service charges: calculateTotal(), calculateGrandTotal().
+  - Payment computation: getPaymentDetails() returns paymentStatus, paidAmount, balanceAmount based on mark-as-paid or partial payment flags.
+  - Offline: when offline and auto-upload enabled, queues bill via src/lib/offline-queue.ts for later upload; otherwise prompts user.
+  - Submit: createBill() via src/lib/form-service.ts and then optimistically reduce inventory using useDataStore.applyInventoryDelta(); fire-and-forget refreshProductsByIds for reconciliation.
+  - Drafts & Autosave:
+    - Debounced autosave to localStorage (LOCAL_KEY = bill_create_autosave).
+    - 30s inactivity autosave to local drafts via localDraftService.
+    - Warn on unload if unsaved changes.
+
+7) Inventory Algorithms and Utilities
+- Consolidation (useInventoryStore.getConsolidatedProducts):
+  - Groups non-deleted products by (name, brand, specifications) to provide a consolidated view with total stock and latest update metadata.
+- Existing Product Detection (useInventoryStore.findExistingProduct):
+  - Matches by brandId + categoryId and deep equality of specification key-values.
+- Optimistic Inventory Updates (useDataStore.applyInventoryDelta):
+  - Applies deltas locally to avoid UI lag when bills are created or stock changes; later reconciled by targeted refresh.
+- Targeted Hydration (useDataStore.refreshProductsByIds):
+  - Fetches products by _id with expanded brand/category and updates indices, minimizing full reloads.
+
+8) Notifications Architecture
+- Firebase Messaging client: src/notifications/lib/firebase.ts
+  - getClientApp(), getMessagingIfSupported(), getFcmToken(), onForegroundMessage().
+  - Requires NEXT_PUBLIC_FIREBASE_VAPID_KEY.
+- Global bridges in root layout (src/app/layout.tsx):
+  - NotificationsBridge, SWNotificationBridge, AutoNotifications, ForegroundSystemNotifier, NotificationToaster.
+  - Service Worker registered for '/firebase-messaging-sw.js' and delegates to '/sw.js'.
+- API routes for notifications (src/app/api/notifications/*): register-token, unregister-token, send, list, persist, preferences.
+- Setting to pause incoming notifications: useSettingsStore.pauseIncomingNotifications.
+
+9) API Surfaces
+- Sanity API wrappers: src/lib/sanity-api-service.ts
+  - userApiService: getAllUsers/getCustomers/getUserById/getUserByCustomerId/createUser/updateUser/deleteUser/loginUser.
+  - productApiService: getAllProducts/getActiveProducts/getProductById/createProduct/updateProduct/deleteProduct.
+  - categoryApiService: getAllCategories/getCategoryById/createCategory/updateCategory/deleteCategory.
+  - billApiService: getAllBills/getBillById/getCustomerBills/createBill/updateBill/deleteBill.
+  - Online status helpers (createOrInitOnlineStatus etc.) continue further in file.
+- Inventory-specific APIs: src/lib/inventory-api*.ts, src/lib/stock-history-api.ts.
+- App Router API routes (subset):
+  - /api/bills/[id] (DELETE), /api/bills/by-customer/[identifier]
+  - /api/customer/[secretKey]
+  - /api/notifications/* (register-token, unregister-token, send, list, persist, preferences)
+  - /api/fcm/send
+  - /api/shop-status (with route.config.ts)
+  - /api/specifications
+  - /api/users/[userId]/regenerate-secret, /api/users/search
+  - /api/upload-image
+  - /api/ping
+
+10) Offline/PWA
+- Root layout registers service worker for Firebase messaging and structured data scripts.
+- Components: OfflineSync, OfflineWarning, OfflineStatusOverlay.
+- Bill creation offline behavior with local queue (queueBill) and drafts (localDraftService).
+
+11) SEO and Metadata
+- src/app/layout.tsx
+  - Exports revalidate=60, viewport, and comprehensive metadata: title/template, description, icons, manifest, openGraph, twitter, robots, alternates.
+  - Google Analytics (GA4) conditional on NEXT_PUBLIC_GA_ID.
+  - Structured data JSON-LD for Organization and WebSite.
+- src/app/sitemap.ts and src/app/robots.ts respect NEXT_PUBLIC_SITE_URL.
+
+12) Auth and Security
+- Global provider: ClerkProvider in RootLayout.
+- Users use secret keys instead of passwords. There is an API route to regenerate user secret keys:
+  - /api/users/[userId]/regenerate-secret
+- Client-side helpers sanitize phone numbers and format identifiers on create/login.
+
+13) Conventions and Patterns
+- Normalization: useDataStore keeps Maps and derived indices for fast lookups; UI consumes via getters.
+- Admin vs Customer role-aware data loading to reduce payload for customers.
+- References: product creation normalizes brandId/categoryId to Sanity reference objects.
+- Non-blocking refreshes: background refresh for products while prioritizing bills.
+- Toast notifications for user feedback in realtime API service and global Toaster (sonner) configured in layout.
+
+14) Environment Variables (selected)
+- NEXT_PUBLIC_SITE_URL: canonical site URL used across metadata and sitemap/robots.
+- NEXT_PUBLIC_SANITY_PROJECT_ID, NEXT_PUBLIC_SANITY_DATASET, NEXT_PUBLIC_SANITY_API_TOKEN: Sanity config.
+- NEXT_PUBLIC_GA_ID: Google Analytics 4.
+- NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: Search Console verification.
+- NEXT_PUBLIC_FIREBASE_VAPID_KEY: FCM web push key.
+
+15) How to Trace a Flow (Examples)
+- Creating a Bill (online):
+  1. UI uses use-bill-form.ts: handleSubmit() -> createBill() (src/lib/form-service.ts).
+  2. On success, useDataStore.applyInventoryDelta() reduces local stock; refreshProductsByIds() reconciles with server.
+  3. billApiService.createBill() (if used) may emit notifications to customer and admins.
+  4. Sanity real-time listener broadcasts 'bill' appear; useDataStore.handleRealtimeUpdate() normalizes and indexes.
+
+- Stock Change from Sale:
+  1. Bill items trigger optimistic inventory delta.
+  2. Server persists stockTransaction entries.
+  3. Sanity 'stockTransaction' appear event -> refreshProductsByIds(productId) to hydrate latest stock.
+
+16) Notable Algorithms and Rules
+- Decimal quantity handling for categories like wire/pipe with 0.25 step and clamping (use-bill-form.updateItemQuantity()).
+- Consolidation by semantic key (name+brand+specifications) to produce aggregated stock view (useInventoryStore.getConsolidatedProducts()).
+- Role-aware loading and narrow refresh windows to minimize payload for customers (useDataStore.loadInitialData, refreshBillsOnly).
+
+17) Where to Look Next
+- src/components/billing/: Billing UI (browser, sidebar, triggers, modals).
+- src/components/realtime/ and src/components/providers/: realtime bridges/providers.
+- src/lib/form-service.ts and src/lib/form-generation-engine.ts: form orchestration.
+- src/lib/validation-engine.ts and src/lib/dynamic-validation.ts: validations.
+- src/lib/whatsapp-*.ts: WhatsApp sharing/formatting functions.
+
+End of info.txt
