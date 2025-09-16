@@ -141,10 +141,7 @@ export default function CustomerChatPage() {
         <div className="p-6">You do not have access to this page.</div>
       ) : (
         <>
-          <div className="w-full bg-white/70 dark:bg-zinc-900/60 backdrop-blur border rounded-md p-4 mb-2">
-            <h1 className="text-xl font-semibold">Chat</h1>
-            <p className="text-sm opacity-70">You can message the shop admins here.</p>
-          </div>
+      
 
           <div ref={scrollRef} className="flex-1 overflow-auto pr-1">
             <div className="space-y-2">

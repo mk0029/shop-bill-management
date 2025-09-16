@@ -47,7 +47,7 @@ const customerNavigation: NavigationItem[] = [
   {
     label: "Chat",
     icon: MessageSquare,
-    isDisabled: true,
+    href: "/customer/chat",
   },
   {
     label: "Request Repair",

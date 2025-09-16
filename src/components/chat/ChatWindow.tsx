@@ -110,7 +110,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div ref={listRef} className="flex-1 overflow-y-auto pr-1">
+      <div ref={listRef} className="flex flex-col grow overflow-y-auto pr-1">
         <div className="space-y-2">
           {(() => {
             type Item = { kind: 'msg'; createdAt: string; m: ChatMessage } | { kind: 'bill'; createdAt: string; b: { _id: string; billNumber?: string; totalAmount?: number } };
