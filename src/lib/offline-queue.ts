@@ -17,7 +17,7 @@ export async function queueBill(payload: CreateBillPayload) {
   await idbAdd(CFG, item);
 }
 
-export async function queueBillMessage(payload: { billId: string; content: string; recipientId: string }) {
+export async function queueBillMessage(payload: { billId: string; content: string; recipientId: string; parentId?: string }) {
   const item: QueueItem = { type: "billMessage", payload, createdAt: Date.now() };
   await idbAdd(CFG, item);
 }
@@ -32,11 +32,11 @@ export async function flushQueue() {
           await idbDelete(CFG, item.id);
         }
       } else if (item.type === "billMessage") {
-        const { billId, content, recipientId } = item.payload as { billId: string; content: string; recipientId: string };
+        const { billId, content, recipientId, parentId } = item.payload as { billId: string; content: string; recipientId: string; parentId?: string };
         const res = await fetch(`/api/bill-book/bill/${encodeURIComponent(billId)}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, recipientId }),
+          body: JSON.stringify({ content, recipientId, parentId }),
         });
         if (res.ok) {
           await idbDelete(CFG, item.id);
@@ -49,3 +49,4 @@ export async function flushQueue() {
     }
   }
 }
+

@@ -13,6 +13,10 @@ export async function GET(_req: Request, { params }: { params: { billId: string 
       content,
       attachments,
       status,
+      deliveredAt,
+      seenAt,
+      editedAt,
+      parentId,
       createdAt,
       updatedAt,
       isEncrypted
@@ -30,7 +34,7 @@ export async function POST(req: Request, { params }: { params: { billId: string 
   const { billId } = params;
   try {
     const body = await req.json().catch(() => ({}));
-    const { content, recipientId, senderId, isEncrypted } = body || {};
+    const { content, recipientId, senderId, isEncrypted, parentId } = body || {};
     if (!content || !recipientId) {
       return NextResponse.json({ success: false, error: "Missing content or recipientId" }, { status: 400 });
     }
@@ -44,6 +48,7 @@ export async function POST(req: Request, { params }: { params: { billId: string 
       content,
       attachments: [],
       status: "sent",
+      parentId: parentId ? String(parentId) : undefined,
       createdAt: now,
       updatedAt: now,
       isEncrypted: Boolean(isEncrypted) || false,
@@ -60,7 +65,7 @@ export async function POST(req: Request, { params }: { params: { billId: string 
           title,
           body: bodyText,
           userIds: [String(recipientId)],
-          data: { event: 'bill-message', billId: String(billId), messageId: String((doc as any)?._id ?? '') },
+          data: { event: 'bill-message', billId: String(billId), messageId: String(((doc as { _id?: string })?._id) ?? '') },
           sound: 'default',
         }),
       }).catch(() => {});
@@ -74,3 +79,4 @@ export async function POST(req: Request, { params }: { params: { billId: string 
 }
 
 export const dynamic = "force-dynamic";
+

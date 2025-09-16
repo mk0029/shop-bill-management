@@ -46,12 +46,13 @@ type TimelineItem =
   | { type: "bill"; bill: BillMeta; createdAt: string }
   | { type: "message"; billId: string; data: BillMessage; createdAt: string };
 
-function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) {
-  const { messagesByBillId, fetchAllMessages, addOrUpdateMessage } = useBillBookStore();
+function ChatTimeline({ bills, userId, onReply }: { bills: BillMeta[]; userId: string; onReply: (billId: string, msg: BillMessage) => void }) {
+  const { messagesByBillId, fetchAllMessages, addOrUpdateMessage, markMessageSeen } = useBillBookStore();
   const { user } = useAuthStore();
   const fetchedRef = React.useRef<string | null>(null);
   const scrollRef = React.useRef<HTMLDivElement | null>(null);
   const [editing, setEditing] = React.useState<{ billId: string; id: string; text: string } | null>(null);
+  const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
   const didInitialScrollRef = React.useRef(false);
 
   // Single request to load all messages for the selected user (guard against StrictMode double effects)
@@ -124,6 +125,34 @@ function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) 
 
   const selfId: string | undefined = (user as any)?._id ?? (user as any)?.id;
 
+  // Mark as seen when a message becomes visible (50%+)
+  useEffect(() => {
+    if (!selfId) return;
+    const observers: IntersectionObserver[] = [];
+    for (const b of bills) {
+      const list = messagesByBillId[b._id] || [];
+      for (const m of list) {
+        const el = document.getElementById(`msg-${b._id}-${m._id}`);
+        if (!el) continue;
+        const alreadySeen = m.status === 'seen' || m.optimistic;
+        const recipientRef = typeof m.recipient === 'string' ? m.recipient : (m.recipient as any)?._ref;
+        const isForSelf = recipientRef && selfId && recipientRef === selfId;
+        if (alreadySeen || !isForSelf) continue;
+        const obs = new IntersectionObserver((entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+              void markMessageSeen(b._id, m._id);
+              try { obs.disconnect(); } catch {}
+            }
+          }
+        }, { threshold: [0.5] });
+        try { obs.observe(el); } catch {}
+        observers.push(obs);
+      }
+    }
+    return () => observers.forEach(o => { try { o.disconnect(); } catch {} });
+  }, [messagesByBillId, bills, selfId, markMessageSeen]);
+
   return (
     <div ref={scrollRef} className="flex-1 overflow-auto pr-1">
       {sections.map((sec) => (
@@ -155,8 +184,10 @@ function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) 
                 isSelf = s._ref === selfId;
               }
               const isEditing = editing && editing.id === m._id && editing.billId === it.billId;
+              // Lookup parent for reply preview
+              const parent = m.parentId ? (messagesByBillId[it.billId] || []).find((pm) => pm._id === m.parentId) : undefined;
               return (
-                <div key={`m-${m._id}-${idx}`} className={`flex ${isSelf ? "justify-end" : "justify-start"}`}>
+                <div id={`msg-${it.billId}-${m._id}`} key={`m-${m._id}-${idx}`} className={`flex ${isSelf ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`group max-w-[75%] text-sm px-3 py-2 border shadow-sm ${
                       isSelf
@@ -166,11 +197,17 @@ function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) 
                   >
                     {!isEditing ? (
                       <>
+                        {parent && (
+                          <div className={`mb-1 text-xs rounded-md p-2 border-l-2 ${isSelf ? 'border-white/60 bg-white/10' : 'border-zinc-400 bg-black/10'} truncate`}
+                               title={parent.content}>
+                            <span className={isSelf ? 'text-white/90' : 'text-zinc-200'}>{parent.content}</span>
+                          </div>
+                        )}
                         <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
                         <div className={`mt-1 flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
                           {isSelf && (
                             <span className="flex items-center gap-1 text-[11px] text-white/80">
-                              {m.optimistic ? (
+                              {m.optimistic || updatingIds.has(m._id) ? (
                                 <Clock className="w-3 h-3" />
                               ) : m.status === 'seen' ? (
                                 <CheckCheck className="w-3 h-3" />
@@ -180,6 +217,15 @@ function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) 
                             </span>
                           )}
                           <span className={`text-[11px] ${isSelf ? 'text-white/80' : 'opacity-70'}`}>{new Date(m.createdAt).toLocaleString()}</span>
+                          {/* Reply action for any message */}
+                          <button
+                            type="button"
+                            onClick={() => onReply(it.billId, m)}
+                            className={`opacity-0 group-hover:opacity-100 text-[11px] underline underline-offset-2 ${isSelf ? 'text-white' : ''}`}
+                            title="Reply"
+                          >
+                            Reply
+                          </button>
                           {isSelf && (
                             <button
                               type="button"
@@ -198,6 +244,9 @@ function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) 
                           e.preventDefault();
                           if (!editing) return;
                           const payload = { content: editing.text };
+                          // Close edit immediately and show updating clock optimistically
+                          setUpdatingIds((s) => new Set([...s, editing.id]));
+                          setEditing(null);
                           try {
                             const res = await fetch(`/api/bill-book/bill/${encodeURIComponent(editing.billId)}/messages/${encodeURIComponent(editing.id)}`, {
                               method: 'PATCH',
@@ -206,10 +255,11 @@ function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) 
                             }).then(r => r.json());
                             if (!res?.success) throw new Error(res?.error || 'Failed to update');
                             addOrUpdateMessage(editing.billId, res.data);
-                            setEditing(null);
                             try { window.dispatchEvent(new Event('billbook-scroll-bottom')); } catch {}
                           } catch (err) {
                             // no-op: you can add toast here
+                          } finally {
+                            setUpdatingIds((s) => { const n = new Set(s); n.delete((editing as any)?.id); return n; });
                           }
                         }}
                         className="space-y-2"
@@ -241,7 +291,7 @@ function ChatTimeline({ bills, userId }: { bills: BillMeta[]; userId: string }) 
   );
 }
 
-function MessageComposer({ billId, recipientId }: { billId: string; recipientId: string }) {
+function MessageComposer({ billId, recipientId, parentId, onCancelReply, replyPreview }: { billId: string; recipientId: string; parentId?: string | null; onCancelReply?: () => void; replyPreview?: string }) {
   const { sendMessage } = useBillBookStore();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -253,8 +303,9 @@ function MessageComposer({ billId, recipientId }: { billId: string; recipientId:
         if (!text.trim()) return;
         setBusy(true);
         try {
-          await sendMessage(billId, { content: text.trim(), recipientId });
+          await sendMessage(billId, { content: text.trim(), recipientId, parentId: parentId || undefined });
           setText("");
+          if (onCancelReply) onCancelReply();
           try {
             // Notify timeline to scroll to bottom smoothly
             const ev = new Event("billbook-scroll-bottom");
@@ -265,6 +316,14 @@ function MessageComposer({ billId, recipientId }: { billId: string; recipientId:
         }
       }}
     >
+      {parentId && (
+        <div className="w-full mb-2 px-2 py-1 text-xs rounded border bg-zinc-50 dark:bg-zinc-800 truncate">
+          Replying to: <span className="opacity-80">{replyPreview?.slice(0, 80) || 'message'}</span>
+          {onCancelReply && (
+            <button type="button" onClick={onCancelReply} className="ml-2 underline">Cancel</button>
+          )}
+        </div>
+      )}
       <input
         className="flex-1 border rounded px-3 py-2 bg-transparent"
         placeholder="Write a message..."
@@ -295,6 +354,7 @@ export default function BillBookPage() {
   const fetchBillBook = useBillBookStore((s) => s.fetchBillBook);
   const messagesByBillId = useBillBookStore((s) => s.messagesByBillId);
   const fetchAllMessages = useBillBookStore((s) => s.fetchAllMessages);
+  const [reply, setReply] = useState<{ billId: string; message: BillMessage } | null>(null);
 
   useEffect(() => {
     if (!hydrated || !role) return;
@@ -347,10 +407,16 @@ export default function BillBookPage() {
           <main className="col-span-12 md:col-span-8 lg:col-span-9 xl:col-span-9 h-full overflow-hidden">
             <div className="p-4 md:p-6 space-y-4 h-full flex flex-col">
               <BillBookHeader />
-              <ChatTimeline bills={bills} userId={selectedUserId as string} />
+              <ChatTimeline bills={bills} userId={selectedUserId as string} onReply={(billId, msg) => setReply({ billId, message: msg })} />
               <div className="pt-2">
                 {latestBill && recipientId ? (
-                  <MessageComposer billId={latestBill._id} recipientId={recipientId} />
+                  <MessageComposer
+                    billId={latestBill._id}
+                    recipientId={recipientId}
+                    parentId={reply?.billId === latestBill._id ? reply?.message?._id : undefined}
+                    replyPreview={reply?.billId === latestBill._id ? reply?.message?.content : undefined}
+                    onCancelReply={() => setReply(null)}
+                  />
                 ) : (
                   <div className="text-sm opacity-70 border rounded-md p-3">Create a bill to start messaging.</div>
                 )}
@@ -369,10 +435,16 @@ export default function BillBookPage() {
   return (
     <div className="p-4 md:p-6 space-y-4 h-[calc(100vh-65px)] flex flex-col">
       <BillBookHeader />
-      <ChatTimeline bills={bills} userId={selectedUserId as string} />
+      <ChatTimeline bills={bills} userId={selectedUserId as string} onReply={(billId, msg) => setReply({ billId, message: msg })} />
       <div className="pt-2">
         {latestBill && recipientId ? (
-          <MessageComposer billId={latestBill._id} recipientId={recipientId} />
+          <MessageComposer
+            billId={latestBill._id}
+            recipientId={recipientId}
+            parentId={reply?.billId === latestBill._id ? reply?.message?._id : undefined}
+            replyPreview={reply?.billId === latestBill._id ? reply?.message?.content : undefined}
+            onCancelReply={() => setReply(null)}
+          />
         ) : (
           <div className="text-sm opacity-70 border rounded-md p-3">Create a bill to start messaging.</div>
         )}

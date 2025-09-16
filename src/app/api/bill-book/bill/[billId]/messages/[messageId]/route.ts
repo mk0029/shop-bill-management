@@ -21,7 +21,10 @@ export async function PATCH(req: Request, { params }: { params: { billId: string
     }
 
     const now = new Date().toISOString();
-    const patched = await sanityClient.patch(messageId).set({ content, updatedAt: now }).commit();
+    const patched = await sanityClient
+      .patch(messageId)
+      .set({ content, updatedAt: now, editedAt: now })
+      .commit();
     return NextResponse.json({ success: true, data: patched });
   } catch (error) {
     console.error(`/api/bill-book/bill/${billId}/messages/${params.messageId} PATCH failed:`, error);
@@ -30,3 +33,4 @@ export async function PATCH(req: Request, { params }: { params: { billId: string
 }
 
 export const dynamic = "force-dynamic";
+

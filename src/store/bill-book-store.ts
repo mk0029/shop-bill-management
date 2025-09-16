@@ -33,6 +33,10 @@ export type BillMessage = {
   content: string;
   attachments?: unknown[];
   status: "sent" | "delivered" | "seen";
+  deliveredAt?: string | null;
+  seenAt?: string | null;
+  editedAt?: string | null;
+  parentId?: string | null;
   createdAt: string;
   updatedAt: string;
   isEncrypted: boolean;
@@ -52,10 +56,12 @@ interface BillBookState {
   fetchBillMessages: (billId: string) => Promise<void>;
   sendMessage: (
     billId: string,
-    payload: { content: string; attachments?: File[]; recipientId: string }
+    payload: { content: string; attachments?: File[]; recipientId: string; parentId?: string | null }
   ) => Promise<void>;
   subscribeRealtime: (userId: string) => void;
   addOrUpdateMessage: (billId: string, msg: BillMessage) => void;
+  markMessageReceived: (billId: string, messageId: string) => Promise<void>;
+  markMessageSeen: (billId: string, messageId: string) => Promise<void>;
 }
 
 export const useBillBookStore = create<BillBookState>()(
@@ -124,6 +130,10 @@ export const useBillBookStore = create<BillBookState>()(
           content: payload.content,
           attachments: [],
           status: "sent",
+          deliveredAt: null,
+          seenAt: null,
+          editedAt: null,
+          parentId: payload.parentId || null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           isEncrypted: false,
@@ -134,7 +144,7 @@ export const useBillBookStore = create<BillBookState>()(
 
         try {
           if (typeof navigator !== "undefined" && !navigator.onLine) {
-            await queueBillMessage({ billId, content: payload.content, recipientId: payload.recipientId });
+            await queueBillMessage({ billId, content: payload.content, recipientId: payload.recipientId, parentId: payload.parentId || undefined });
             return;
           }
           const senderId = (() => {
@@ -146,7 +156,7 @@ export const useBillBookStore = create<BillBookState>()(
           const res = await fetch(`/api/bill-book/bill/${encodeURIComponent(billId)}/messages`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: payload.content, recipientId: payload.recipientId, senderId }),
+            body: JSON.stringify({ content: payload.content, recipientId: payload.recipientId, senderId, parentId: payload.parentId || undefined }),
           }).then((r) => r.json());
           if (!res?.success) throw new Error(res?.error || "Failed to send message");
           const saved: BillMessage = res.data;
@@ -162,7 +172,7 @@ export const useBillBookStore = create<BillBookState>()(
           });
         } catch (e: any) {
           try {
-            await queueBillMessage({ billId, content: payload.content, recipientId: payload.recipientId });
+            await queueBillMessage({ billId, content: payload.content, recipientId: payload.recipientId, parentId: payload.parentId || undefined });
           } catch {}
           set({ error: e?.message || "Failed to send message" });
         }
@@ -178,6 +188,32 @@ export const useBillBookStore = create<BillBookState>()(
           next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           return { messagesByBillId: { ...s.messagesByBillId, [billId]: next } };
         });
+      },
+
+      markMessageReceived: async (billId: string, messageId: string) => {
+        try {
+          const res = await fetch(`/api/bill-book/bill/${encodeURIComponent(billId)}/messages/${encodeURIComponent(messageId)}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'delivered' }),
+          }).then(r => r.json());
+          if (!res?.success) return;
+          const updated: BillMessage = res.data;
+          get().addOrUpdateMessage(billId, updated);
+        } catch {}
+      },
+
+      markMessageSeen: async (billId: string, messageId: string) => {
+        try {
+          const res = await fetch(`/api/bill-book/bill/${encodeURIComponent(billId)}/messages/${encodeURIComponent(messageId)}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'seen' }),
+          }).then(r => r.json());
+          if (!res?.success) return;
+          const updated: BillMessage = res.data;
+          get().addOrUpdateMessage(billId, updated);
+        } catch {}
       },
 
       subscribeRealtime: (userId: string) => {
@@ -196,3 +232,4 @@ export const useBillBookStore = create<BillBookState>()(
     }
   )
 );
+

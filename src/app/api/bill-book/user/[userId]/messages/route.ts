@@ -22,6 +22,10 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
       content,
       attachments,
       status,
+      deliveredAt,
+      seenAt,
+      editedAt,
+      parentId,
       createdAt,
       updatedAt,
       isEncrypted
@@ -36,3 +40,4 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
 }
 
 export const dynamic = "force-dynamic";
+
