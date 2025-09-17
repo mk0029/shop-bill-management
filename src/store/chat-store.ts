@@ -12,7 +12,18 @@ interface ChatState {
   rooms: ChatRoom[];
   messagesByRoomId: Record<string, ChatMessage[]>;
   // Per-room simple FIFO queue for outgoing messages to preserve order and avoid duplicate optimistics
-  _sendQueueByRoomId: Record<string, Array<{ tempId: string; content: string; senderId: string; isCustomer?: boolean; parentId?: string }>>;
+  _sendQueueByRoomId: Record<string, Array<{ 
+    tempId: string; 
+    content: string; 
+    senderId: string; 
+    isCustomer?: boolean; 
+    parentId?: string;
+    parentMessage?: {
+      _id: string;
+      content: string;
+      sender?: { _id: string; name?: string } | { _ref: string };
+    };
+  }>>;
   _sendingBusyByRoomId: Record<string, boolean>;
   activeRoomId: string | null;
   isLoading: boolean;
@@ -22,7 +33,14 @@ interface ChatState {
   openRoomByCustomer: (customerId: string) => Promise<string>; // returns roomId
   setActiveRoom: (roomId: string) => Promise<void>;
   fetchMessages: (roomId: string) => Promise<void>;
-  sendMessage: (roomId: string, content: string, senderId: string, isCustomer?: boolean, parentId?: string) => Promise<void>;
+  sendMessage: (
+    roomId: string, 
+    content: string, 
+    senderId: string, 
+    isCustomer?: boolean, 
+    parentId?: string,
+    parentMessage?: { _id: string; content: string; sender?: { _id: string; name?: string } | { _ref: string } }
+  ) => Promise<void>;
   markRead: (roomId: string, actor: "admin" | "customer") => Promise<void>;
   markMessageSeen: (roomId: string, messageId: string) => Promise<void>;
   editMessage: (roomId: string, messageId: string, content: string) => Promise<void>;
@@ -82,7 +100,15 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
         let senderToken: string | null = null;
         try { senderToken = await getTokenWithoutRegister(); } catch {}
         try {
-          const saved = await sendRoomMessage({ roomId, content: item.content, senderId: item.senderId, isCustomer: item.isCustomer, parentId: item.parentId, senderToken });
+          const saved = await sendRoomMessage({ 
+            roomId, 
+            content: item.content, 
+            senderId: item.senderId, 
+            isCustomer: item.isCustomer, 
+            parentId: item.parentId,
+            parentMessage: item.parentMessage,
+            senderToken 
+          });
           // Replace the optimistic tempId with saved message
           set((s) => {
             const list = s.messagesByRoomId[roomId] || [];
@@ -181,7 +207,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     }
   },
 
-  sendMessage: async (roomId, content, senderId, isCustomer, parentId) => {
+  sendMessage: async (roomId, content, senderId, isCustomer, parentId, parentMessage) => {
     // Enqueue request to preserve order and avoid duplicates during realtime roundtrip
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const optimistic: ChatMessage = {
@@ -192,6 +218,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       attachments: [],
       status: "pending",
       parentId,
+      parentMessage,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -200,7 +227,17 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       const q = s._sendQueueByRoomId[roomId] || [];
       return {
         messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, optimistic] },
-        _sendQueueByRoomId: { ...s._sendQueueByRoomId, [roomId]: [...q, { tempId, content, senderId, isCustomer, parentId }] },
+        _sendQueueByRoomId: { 
+          ...s._sendQueueByRoomId, 
+          [roomId]: [...q, { 
+            tempId, 
+            content, 
+            senderId, 
+            isCustomer, 
+            parentId,
+            parentMessage // Include parentMessage in the queue
+          }] 
+        },
       };
     });
     try { await cacheMergeAndSetMessages(roomId, (prev) => [...prev.filter((m) => m._id !== tempId), optimistic]); } catch {}

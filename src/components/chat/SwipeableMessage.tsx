@@ -81,10 +81,12 @@ export function SwipeableMessage({
                 : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'
             }`}
           >
-            {parentMessage && (
+            {(message.parentMessage || parentMessage) && (
               <div className={`mb-1 border-l-2 pl-2 text-xs ${isSelf ? 'border-white/40 text-white/85' : 'border-zinc-400 text-zinc-200'}`}>
                 <div className="opacity-80">Replying to</div>
-                <div className="line-clamp-2 whitespace-pre-wrap opacity-90">{parentMessage.content}</div>
+                <div className="line-clamp-2 whitespace-pre-wrap opacity-90">
+                  {message.parentMessage?.content || parentMessage?.content}
+                </div>
               </div>
             )}
             <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>

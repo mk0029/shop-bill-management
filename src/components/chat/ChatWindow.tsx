@@ -137,7 +137,15 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
       await editMessage(roomId, currentEditing, content);
       return;
     }
-    await sendMessage(roomId, content, senderId, actor === "customer", currentReply?._id);
+    
+    // Include parent message details when replying
+    const parentMessage = currentReply ? {
+      _id: currentReply._id,
+      content: currentReply.content,
+      sender: currentReply.sender
+    } : undefined;
+    
+    await sendMessage(roomId, content, senderId, actor === "customer", currentReply?._id, parentMessage);
   };
 
   const getMsgSenderId = (m: ChatMessage): string | undefined => {

@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
   const { roomId } = params;
   try {
     const body = await req.json().catch(() => ({}));
-    const { content, senderId, isCustomer, parentId, senderToken } = body || {};
+    const { content, senderId, isCustomer, parentId, parentMessage, senderToken } = body || {};
     if (!content || !senderId) {
       return NextResponse.json({ success: false, error: "Missing content or senderId" }, { status: 400 });
     }
@@ -75,9 +75,31 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
       attachments: [],
       status: "sent",
       parentId: parentId ? String(parentId) : undefined,
+      parentMessage: parentMessage ? {
+        _id: parentMessage._id,
+        content: parentMessage.content,
+        sender: parentMessage.sender ? { _type: "reference", _ref: String(parentMessage.sender._id || parentMessage.sender._ref) } : undefined
+      } : undefined,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Also update the parent message to include the reply reference
+    if (parentId) {
+      try {
+        await sanityClient
+          .patch(parentId)
+          .setIfMissing({ replies: [] })
+          .append('replies', [{
+            _key: `reply-${Date.now()}`,
+            _type: 'reference',
+            _ref: doc._id
+          }])
+          .commit();
+      } catch (error) {
+        console.error('Failed to update parent message with reply reference:', error);
+      }
+    }
 
     // Update room metadata: lastMessage, lastMessageAt, unread counters
     try {

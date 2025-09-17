@@ -22,6 +22,11 @@ export type ChatMessage = {
   seenAt?: string;
   editedAt?: string;
   parentId?: string;
+  parentMessage?: {
+    _id: string;
+    content: string;
+    sender?: { _id: string; name?: string } | { _ref: string };
+  };
   createdAt: string;
   updatedAt: string;
 };
@@ -62,14 +67,26 @@ export async function sendRoomMessage(params: {
   senderId: string;
   isCustomer?: boolean;
   parentId?: string;
+  parentMessage?: {
+    _id: string;
+    content: string;
+    sender?: { _id: string; name?: string } | { _ref: string };
+  };
   // Optional: current device's FCM token to exclude from push targets
   senderToken?: string | null;
 }) {
-  const { roomId, content, senderId, isCustomer, parentId, senderToken } = params;
+  const { roomId, content, senderId, isCustomer, parentId, parentMessage, senderToken } = params;
   const res = await fetch(base(`/api/chat/room/${roomId}/messages`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content, senderId, isCustomer: Boolean(isCustomer), parentId, senderToken: senderToken || undefined }),
+    body: JSON.stringify({ 
+      content, 
+      senderId, 
+      isCustomer: Boolean(isCustomer), 
+      parentId, 
+      parentMessage,
+      senderToken: senderToken || undefined 
+    }),
   });
   const json = await res.json();
   if (!json?.success) throw new Error(json?.error || "Failed to send message");
