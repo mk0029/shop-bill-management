@@ -198,7 +198,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                   parentMessage={parent}
                   onView={onView}
                   onSwipeLeft={() => {
-                    // Swipe left to reply
+                    // Allow replying to any message, including your own
                     setReplyingTo(m);
                     setEditingId(null);
                     const input = document.getElementById('message-input');
@@ -222,13 +222,24 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           <div ref={bottomRef} />
         </div>
       </div>
-      {replyTo && (
-        <div className="mt-1 border rounded-md p-2 bg-amber-50 dark:bg-zinc-800/60 text-xs">
-          <div className="flex items-center justify-between gap-2">
-            <div className="font-medium">Replying to message</div>
-            <button className="opacity-70 hover:opacity-100" onClick={() => setReplyTo(null)}>Clear</button>
+      {replyingTo && (
+        <div className="px-4 pt-2 border-t dark:border-zinc-700">
+          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
+            <div className="truncate">
+              <span className="text-emerald-500">Replying to: </span>
+              <span className="text-zinc-400 truncate">
+                {typeof replyingTo.content === 'string' ? 
+                  replyingTo.content.slice(0, 50) + 
+                  (replyingTo.content.length > 50 ? '...' : '') : ''}
+              </span>
+            </div>
+            <button 
+              onClick={() => setReplyingTo(null)}
+              className="text-zinc-400 hover:text-white"
+            >
+              ✕
+            </button>
           </div>
-          <div className="mt-1 line-clamp-2 whitespace-pre-wrap opacity-80">{replyTo.content}</div>
         </div>
       )}
       {editingId && (

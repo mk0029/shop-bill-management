@@ -131,8 +131,12 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
         }
       })() || "Someone";
 
-      const title = `${senderName}:`;
-      const bodyText = content?.slice(0, 120) || "You have a new message";
+      // If this is a reply, modify the notification text
+      const isReply = !!parentId;
+      const title = isReply ? `${senderName} replied:` : `${senderName}:`;
+      const bodyText = isReply 
+        ? `Replied: ${content?.slice(0, 100) || "You have a new reply"}`
+        : content?.slice(0, 120) || "You have a new message";
       const route_path_for_admin = '/admin/chats';
       const route_path_for_customer = '/customer/chat';
       const route_query = JSON.stringify({ roomId: String(roomId) });

@@ -62,7 +62,7 @@ export function SwipeableMessage({
 
   return (
     <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-      <div className="relative w-full max-w-[75%]" ref={constraintsRef}>
+      <div className="relative max-w-[75%] w-fit" ref={constraintsRef}>
         <motion.div
           drag="x"
           dragConstraints={constraintsRef}
