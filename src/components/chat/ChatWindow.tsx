@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CheckCheck, Clock } from "lucide-react";
 import { useChatStore } from "@/store/chat-store";
 import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { sanityClient } from "@/lib/sanity";
 import type { ChatMessage } from "@/lib/chat-api";
+import { SwipeableMessage } from "./SwipeableMessage";
 
 type Props = {
   roomId: string;
@@ -21,6 +21,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   type LiteBill = { _id: string; billNumber?: string; totalAmount?: number; createdAt: string };
   type BillUpdate = { result?: { _id?: string; billNumber?: string; totalAmount?: number; createdAt?: string } };
   const [bills, setBills] = useState<LiteBill[]>([]);
@@ -128,10 +129,10 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     const content = text.trim();
     if (!content) return;
     const currentEditing = editingId;
-    const currentReply = replyTo;
+    const currentReply = replyingTo;
     setText("");
     setEditingId(null);
-    setReplyTo(null);
+    setReplyingTo(null);
     if (currentEditing) {
       await editMessage(roomId, currentEditing, content);
       return;
@@ -170,60 +171,41 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                 );
               }
               const m = it.m;
-            const isSelf = getMsgSenderId(m) === senderId;
-            const onEnterView = () => {
-              if (isSelf) return;
-              if (m.status === 'seen') return;
-              if (seenOnceRef.current.has(m._id)) return;
-              seenOnceRef.current.add(m._id);
-              markMessageSeen(roomId, m._id).catch(() => {});
-            };
-            // Attach an id for potential viewport observers if needed
-            const msgId = `chatmsg-${m._id}`;
-            const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
-            return (
-              <div id={msgId} key={`m-${m._id}-${idx}`} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`} onMouseEnter={onEnterView}>
-                <div className={`group relative max-w-[75%] text-sm px-3 py-2 border shadow-sm ${isSelf ? 'bg-emerald-600/90 text-white border-emerald-700 rounded-2xl rounded-br-sm' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'}`}>
-                  {parent && (
-                    <div className={`mb-1 border-l-2 pl-2 text-xs ${isSelf ? 'border-white/40 text-white/85' : 'border-zinc-400 text-zinc-200'}`}>
-                      <div className="opacity-80">Replying to</div>
-                      <div className="line-clamp-2 whitespace-pre-wrap opacity-90">{parent.content}</div>
-                    </div>
-                  )}
-                  <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
-                  <div className={`mt-1 flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                    <span className={`text-[11px] ${isSelf ? 'text-white/80' : 'opacity-70'}`}>{new Date(m.createdAt).toLocaleString()}</span>
-                    {m.editedAt && <span className={`text-[10px] italic ${isSelf ? 'text-white/70' : 'opacity-60'}`}>(edited)</span>}
-                    {isSelf && (
-                      <span className="inline-flex items-center gap-1">
-                        {m.status === 'seen' ? (
-                          <CheckCheck className="w-3 h-3 text-sky-300" />
-                        ) : m.status === 'delivered' ? (
-                          <CheckCheck className="w-3 h-3 text-white/80" />
-                        ) : m.status === 'pending' ? (
-                          <Clock className="w-3 h-3 text-white/80" />
-                        ) : (
-                          <Check className="w-3 h-3 text-white/80" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  <div className={`absolute -top-2 ${isSelf ? '-left-1' : '-right-1'} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-                  <div className={`mt-1 hidden group-hover:flex gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                    <button
-                      className={`text-xs underline ${isSelf ? 'text-white/90' : 'text-zinc-300'}`}
-                      onClick={() => setReplyTo(m)}
-                    >Reply</button>
-                    {isSelf && (
-                      <button
-                        className={`text-xs underline ${isSelf ? 'text-white/90' : 'text-zinc-300'}`}
-                        onClick={() => { setEditingId(m._id); setText(m.content); setReplyTo(null); }}
-                      >Edit</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
+              const isSelf = getMsgSenderId(m) === senderId;
+              const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
+
+              const onView = () => {
+                if (isSelf) return;
+                if (m.status === 'seen') return;
+                if (seenOnceRef.current.has(m._id)) return;
+                seenOnceRef.current.add(m._id);
+                markMessageSeen(roomId, m._id).catch(() => {});
+              };
+
+              return (
+                <SwipeableMessage
+                  key={`m-${m._id}-${idx}`}
+                  message={m}
+                  isSelf={isSelf}
+                  parentMessage={parent}
+                  onView={onView}
+                  onSwipeLeft={() => {
+                    // Swipe left to reply
+                    setReplyingTo(m);
+                    setEditingId(null);
+                    const input = document.getElementById('message-input');
+                    input?.focus();
+                  }}
+                  onSwipeRight={() => {
+                    // Swipe right to edit (only for own messages)
+                    if (isSelf) {
+                      setEditingId(m._id);
+                      setReplyingTo(null);
+                      setText(m.content as string);
+                    }
+                  }}
+                />
+              );
             });
           })()}
           {messages.length === 0 && (
@@ -249,12 +231,28 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           </div>
         </div>
       )}
-      <div className="mt-1 flex items-center gap-2 border rounded-md p-2 bg-white/60 dark:bg-zinc-900/60">
+      <div className="mt-1 flex items-center gap-2 border-t p-2 bg-white dark:bg-zinc-900">
+        {replyingTo && (
+          <div className="absolute bottom-full left-0 right-0 bg-zinc-100 dark:bg-zinc-800 p-2 text-sm border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
+            <div className="truncate max-w-[calc(100%-24px)]">
+              <span className="font-medium">Replying to:</span> {replyingTo.content}
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setReplyingTo(null)}
+              className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <input
-          className="flex-1 border rounded px-3 py-2 bg-transparent"
-          placeholder={editingId ? "Edit your message..." : "Type a message..."}
+          id="message-input"
+          type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
+          placeholder={replyingTo ? 'Type your reply...' : 'Type a message...'}
+          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -267,5 +265,4 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     </div>
   );
 }
-
 

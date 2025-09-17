@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, CheckCheck, Clock } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
 import type { ChatMessage } from "@/lib/chat-api";
 import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { sanityClient } from "@/lib/sanity";
+import { SwipeableMessage } from "@/components/chat/SwipeableMessage";
 
 export default function CustomerChatPage() {
   const { user, role, hydrated } = useAuthStore();
@@ -168,29 +168,20 @@ export default function CustomerChatPage() {
                   const m = it.m;
                   const sender = (m?.sender as { _id?: string; _ref?: string } | undefined);
                   const isSelf = !!senderId && (sender?._id === senderId || sender?._ref === senderId);
-                  const msgId = `chatmsg-${m._id}`;
                   return (
-                    <div id={msgId} key={`m-${m._id}-${idx}`} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`group max-w-[75%] text-sm px-3 py-2 border shadow-sm ${isSelf ? 'bg-emerald-600/90 text-white border-emerald-700 rounded-2xl rounded-br-sm' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'}`}>
-                        <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
-                        <div className={`mt-1 flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                          <span className={`text-[11px] ${isSelf ? 'text-white/80' : 'opacity-70'}`}>{new Date(m.createdAt as string).toLocaleString()}</span>
-                          {isSelf && (
-                            <span className="inline-flex items-center gap-1">
-                              {m.status === 'seen' ? (
-                                <CheckCheck className="w-3 h-3 text-sky-300" />
-                              ) : m.status === 'delivered' ? (
-                                <CheckCheck className="w-3 h-3 text-white/80" />
-                              ) : m.status === 'pending' ? (
-                                <Clock className="w-3 h-3 text-white/80" />
-                              ) : (
-                                <Check className="w-3 h-3 text-white/80" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <SwipeableMessage 
+                      key={`m-${m._id}-${idx}`}
+                      message={m}
+                      isSelf={isSelf}
+                      onSwipeLeft={() => {
+                        // Add your swipe left action here (e.g., reply, delete)
+                        console.log('Swiped left on message', m._id);
+                      }}
+                      onSwipeRight={() => {
+                        // Add your swipe right action here (e.g., forward, copy)
+                        console.log('Swiped right on message', m._id);
+                      }}
+                    />
                   );
                 });
               })()}
