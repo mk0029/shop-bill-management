@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Clock } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
 import type { ChatMessage } from "@/lib/chat-api";
@@ -181,6 +181,8 @@ export default function CustomerChatPage() {
                                 <CheckCheck className="w-3 h-3 text-sky-300" />
                               ) : m.status === 'delivered' ? (
                                 <CheckCheck className="w-3 h-3 text-white/80" />
+                              ) : m.status === 'pending' ? (
+                                <Clock className="w-3 h-3 text-white/80" />
                               ) : (
                                 <Check className="w-3 h-3 text-white/80" />
                               )}

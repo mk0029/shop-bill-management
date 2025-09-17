@@ -15,7 +15,8 @@ export default function AdminChatsPage() {
 
   const adminId = useMemo(() => {
     const u = (user ?? {}) as Partial<{ id: string; _id: string }>;
-    return u.id || u._id || undefined;
+    // Always prefer the Sanity user document _id for chat sender comparison
+    return u._id || u.id || undefined;
   }, [user]);
 
   useEffect(() => {

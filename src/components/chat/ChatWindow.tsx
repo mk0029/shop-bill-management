@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Clock } from "lucide-react";
 import { useChatStore } from "@/store/chat-store";
 import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { sanityClient } from "@/lib/sanity";
@@ -100,6 +100,30 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length]);
 
+  // Mark messages as seen when 50%+ visible (for messages not sent by self)
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    for (const m of messages) {
+      const isSelf = getMsgSenderId(m) === senderId;
+      if (isSelf) continue;
+      if (m.status === 'seen') continue;
+      const msgId = `chatmsg-${m._id}`;
+      const el = document.getElementById(msgId);
+      if (!el) continue;
+      const obs = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            void markMessageSeen(roomId, m._id);
+            try { obs.disconnect(); } catch {}
+          }
+        }
+      }, { threshold: [0.5] });
+      try { obs.observe(el); } catch {}
+      observers.push(obs);
+    }
+    return () => { observers.forEach(o => { try { o.disconnect(); } catch {} }); };
+  }, [messages, senderId, roomId, markMessageSeen]);
+
   const onSend = async () => {
     const content = text.trim();
     if (!content) return;
@@ -130,11 +154,11 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
             const msgItems: Item[] = messages.map((m) => ({ kind: 'msg', createdAt: m.createdAt as string, m }));
             const billItems: Item[] = bills.map((b) => ({ kind: 'bill', createdAt: b.createdAt, b }));
             const items = [...msgItems, ...billItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-            return items.map((it) => {
+            return items.map((it, idx) => {
               if (it.kind === 'bill') {
                 const b = it.b;
                 return (
-                  <div key={`bill-${b._id}`} className="flex justify-start">
+                  <div key={`bill-${b._id}-${idx}`} className="flex justify-start">
                     <div className="max-w-[80%] border rounded-md p-3 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
                       <div className="text-sm font-medium">Bill created of ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')} </div>
                       <div className="mt-1 flex items-center justify-between gap-3">
@@ -158,7 +182,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
             const msgId = `chatmsg-${m._id}`;
             const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
             return (
-              <div id={msgId} key={m._id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`} onMouseEnter={onEnterView}>
+              <div id={msgId} key={`m-${m._id}-${idx}`} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`} onMouseEnter={onEnterView}>
                 <div className={`group relative max-w-[75%] text-sm px-3 py-2 border shadow-sm ${isSelf ? 'bg-emerald-600/90 text-white border-emerald-700 rounded-2xl rounded-br-sm' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'}`}>
                   {parent && (
                     <div className={`mb-1 border-l-2 pl-2 text-xs ${isSelf ? 'border-white/40 text-white/85' : 'border-zinc-400 text-zinc-200'}`}>
@@ -176,6 +200,8 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                           <CheckCheck className="w-3 h-3 text-sky-300" />
                         ) : m.status === 'delivered' ? (
                           <CheckCheck className="w-3 h-3 text-white/80" />
+                        ) : m.status === 'pending' ? (
+                          <Clock className="w-3 h-3 text-white/80" />
                         ) : (
                           <Check className="w-3 h-3 text-white/80" />
                         )}

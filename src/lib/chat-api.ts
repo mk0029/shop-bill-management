@@ -17,7 +17,7 @@ export type ChatMessage = {
   sender?: { _id: string; name?: string } | { _ref: string };
   content: string;
   attachments?: Array<unknown>;
-  status?: "sent" | "delivered" | "seen";
+  status?: "pending" | "sent" | "delivered" | "seen";
   deliveredAt?: string;
   seenAt?: string;
   editedAt?: string;

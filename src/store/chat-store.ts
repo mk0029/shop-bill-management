@@ -11,6 +11,9 @@ import { useAuthStore } from "@/store/auth-store";
 interface ChatState {
   rooms: ChatRoom[];
   messagesByRoomId: Record<string, ChatMessage[]>;
+  // Per-room simple FIFO queue for outgoing messages to preserve order and avoid duplicate optimistics
+  _sendQueueByRoomId: Record<string, Array<{ tempId: string; content: string; senderId: string; isCustomer?: boolean; parentId?: string }>>;
+  _sendingBusyByRoomId: Record<string, boolean>;
   activeRoomId: string | null;
   isLoading: boolean;
   error: string | null;
@@ -28,11 +31,14 @@ interface ChatState {
   subscribeRealtime: () => void;
   unsubscribeRealtime: () => void;
   _subscription: { unsubscribe: () => void } | null;
+  _processQueue: (roomId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   rooms: [],
   messagesByRoomId: {},
+  _sendQueueByRoomId: {},
+  _sendingBusyByRoomId: {},
   activeRoomId: null,
   isLoading: false,
   error: null,
@@ -56,6 +62,62 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to load rooms";
       set({ error: msg, isLoading: false });
+    }
+  },
+
+  // Internal: processes the outgoing message queue per room
+  _processQueue: async (roomId: string) => {
+    const state = get();
+    if (state._sendingBusyByRoomId[roomId]) return;
+    const q = state._sendQueueByRoomId[roomId] || [];
+    if (q.length === 0) return;
+    set((s) => ({ _sendingBusyByRoomId: { ...s._sendingBusyByRoomId, [roomId]: true } }));
+    try {
+      while (true) {
+        const { _sendQueueByRoomId } = get();
+        const queue = _sendQueueByRoomId[roomId] || [];
+        if (queue.length === 0) break;
+        const item = queue[0];
+        // Try to fetch current device token to exclude from push targets
+        let senderToken: string | null = null;
+        try { senderToken = await getTokenWithoutRegister(); } catch {}
+        try {
+          const saved = await sendRoomMessage({ roomId, content: item.content, senderId: item.senderId, isCustomer: item.isCustomer, parentId: item.parentId, senderToken });
+          // Replace the optimistic tempId with saved message
+          set((s) => {
+            const list = s.messagesByRoomId[roomId] || [];
+            // Replace the temp message if present; otherwise, ensure the saved message exists once.
+            const mapped = list.map((m) => {
+              if (m._id === item.tempId) {
+                return saved;
+              }
+              return m;
+            });
+            const hasSaved = mapped.some((m) => m._id === saved._id);
+            const nextRaw = hasSaved ? mapped : [...mapped, saved];
+            // Dedupe by _id just in case concurrent realtime already merged
+            const seen: Record<string, ChatMessage> = {};
+            for (const m of nextRaw) { seen[m._id] = m; }
+            const next = Object.values(seen);
+            const restQueue = (s._sendQueueByRoomId[roomId] || []).slice(1);
+            return {
+              messagesByRoomId: { ...s.messagesByRoomId, [roomId]: next },
+              _sendQueueByRoomId: { ...s._sendQueueByRoomId, [roomId]: restQueue },
+            };
+          });
+          try {
+            const current = get().messagesByRoomId[roomId] || [];
+            await cacheSetMessages(roomId, current);
+          } catch {}
+        } catch (e: unknown) {
+          // On failure, drop from queue but keep optimistic as 'pending' (could add retry/backoff if needed)
+          set((s) => ({ _sendQueueByRoomId: { ...s._sendQueueByRoomId, [roomId]: (s._sendQueueByRoomId[roomId] || []).slice(1) } }));
+          const msg = e instanceof Error ? e.message : 'Failed to send message';
+          set({ error: msg });
+        }
+      }
+    } finally {
+      set((s) => ({ _sendingBusyByRoomId: { ...s._sendingBusyByRoomId, [roomId]: false } }));
     }
   },
 
@@ -120,47 +182,30 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   },
 
   sendMessage: async (roomId, content, senderId, isCustomer, parentId) => {
-    // optimistic
-    const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    // Enqueue request to preserve order and avoid duplicates during realtime roundtrip
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const optimistic: ChatMessage = {
-      _id: localId,
+      _id: tempId,
       room: { _ref: roomId },
       sender: { _ref: senderId },
       content,
       attachments: [],
-      status: "sent",
+      status: "pending",
       parentId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     set((s) => {
       const list = s.messagesByRoomId[roomId] || [];
-      return { messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, optimistic] } };
+      const q = s._sendQueueByRoomId[roomId] || [];
+      return {
+        messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, optimistic] },
+        _sendQueueByRoomId: { ...s._sendQueueByRoomId, [roomId]: [...q, { tempId, content, senderId, isCustomer, parentId }] },
+      };
     });
-    // persist optimistic to cache
-    try { await cacheMergeAndSetMessages(roomId, (prev) => [...prev.filter((m) => m._id !== localId), optimistic]); } catch {}
-
-    try {
-      // Try to fetch current device token to exclude from push targets
-      let senderToken: string | null = null;
-      try { senderToken = await getTokenWithoutRegister(); } catch {}
-      const saved = await sendRoomMessage({ roomId, content, senderId, isCustomer, parentId, senderToken });
-      set((s) => {
-        // Remove optimistic and also any existing item with same _id to prevent duplicates
-        const list = (s.messagesByRoomId[roomId] || [])
-          .filter((m) => m._id !== localId)
-          .filter((m) => m._id !== saved._id);
-        return { messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, saved] } };
-      });
-      try {
-        const current = get().messagesByRoomId[roomId] || [];
-        const list = current.filter((m) => m._id !== localId).filter((m) => m._id !== saved._id);
-        await cacheSetMessages(roomId, [...list, saved]);
-      } catch {}
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to send message";
-      set({ error: msg });
-    }
+    try { await cacheMergeAndSetMessages(roomId, (prev) => [...prev.filter((m) => m._id !== tempId), optimistic]); } catch {}
+    // Kick the processor
+    await get()._processQueue(roomId);
   },
 
   markRead: async (roomId, actor) => {
@@ -220,10 +265,30 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
         if (msg && roomRef) {
           set((s) => {
             const list = s.messagesByRoomId[roomRef] || [];
-            const idx = list.findIndex((m) => m._id === msg._id);
+            // Try to reconcile with any optimistic pending item to avoid duplicates
+            const sender = (msg?.sender as { _id?: string; _ref?: string } | undefined);
+            const senderId = sender?._id || sender?._ref;
+            const matchIdxByPending = list.findIndex((m) => {
+              if (!m || m._id.startsWith?.('temp_') === false) return false;
+              const ms = Math.abs(new Date(m.createdAt).getTime() - new Date(msg.createdAt).getTime());
+              const mSender = (m?.sender as { _id?: string; _ref?: string } | undefined);
+              const mSenderId = mSender?._id || mSender?._ref;
+              return m.status === 'pending' && m.content === msg.content && mSenderId === senderId && ms <= 10_000;
+            });
             const next = [...list];
-            if (idx >= 0) next[idx] = msg; else next.push(msg);
-            return { messagesByRoomId: { ...s.messagesByRoomId, [roomRef]: next } };
+            const existingIdx = next.findIndex((m) => m._id === msg._id);
+            if (existingIdx >= 0) {
+              next[existingIdx] = msg;
+            } else if (matchIdxByPending >= 0) {
+              next[matchIdxByPending] = msg; // replace the optimistic one
+            } else {
+              next.push(msg);
+            }
+            // Dedupe by _id to avoid accidental duplicates
+            const seen: Record<string, ChatMessage> = {};
+            for (const m of next) { seen[m._id] = m; }
+            const deduped = Object.values(seen);
+            return { messagesByRoomId: { ...s.messagesByRoomId, [roomRef]: deduped } };
           });
           // persist updated list to cache
           try {
@@ -245,7 +310,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             // Suppress if the message is from the current user (self)
             try {
               const auth = useAuthStore.getState();
-              const me = (auth?.user as any) || null;
+              const me = (auth?.user as { id?: string; _id?: string } | null) || null;
               const myId: string | undefined = me?._id || me?.id;
               const sender = (msg?.sender as { _id?: string; _ref?: string } | undefined);
               const senderId = sender?._id || sender?._ref;
@@ -291,11 +356,8 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             });
           } catch {}
         } else {
-          // If we didn't get the full doc (e.g., delete/mutation without result), ensure active room is refreshed
-          const active = get().activeRoomId;
-          if (active) {
-            get().fetchMessages(active).catch(() => {});
-          }
+          // Some updates (like read/delivery status) may not include result; avoid refetching to prevent flashes/removals
+          return;
         }
       }
     });
