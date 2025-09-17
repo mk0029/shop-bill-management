@@ -6,6 +6,26 @@ import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { sanityClient } from "@/lib/sanity";
 import type { ChatMessage } from "@/lib/chat-api";
 import { SwipeableMessage } from "./SwipeableMessage";
+import { SendHorizontalIcon } from "lucide-react";
+
+// Utility function to format date headers
+const getFormattedDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Check if the date is today
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today';
+  }
+  // Check if the date is yesterday
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  }
+  // For older dates, return in DD/MM/YYYY format
+  return date.toLocaleDateString('en-GB'); // This will format as DD/MM/YYYY
+};
 
 type Props = {
   roomId: string;
@@ -101,6 +121,60 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length]);
 
+  // Group messages by date
+  const groupedMessages = useMemo(() => {
+    type MessageItem = { 
+      kind: 'msg'; 
+      createdAt: string; 
+      m: ChatMessage;
+    };
+
+    type BillItem = { 
+      kind: 'bill'; 
+      createdAt: string; 
+      b: { _id: string; billNumber?: string; totalAmount?: number; createdAt: string };
+    };
+
+    type GroupedItem = MessageItem | BillItem;
+    
+    const groups: Record<string, GroupedItem[]> = {};
+    
+    // Combine and sort all items (messages and bills)
+    const msgItems: MessageItem[] = messages.map(m => ({
+      kind: 'msg' as const,
+      createdAt: m.createdAt as string,
+      m
+    }));
+    
+    const billItems: BillItem[] = bills.map(b => ({
+      kind: 'bill' as const,
+      createdAt: b.createdAt,
+      b
+    }));
+    
+    // Combine and sort all items by date
+    const allItems = [...msgItems, ...billItems].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    // Group by date
+    allItems.forEach(item => {
+      const dateKey = new Date(item.createdAt).toDateString();
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(item);
+    });
+
+    return Object.entries(groups).map(([date, items]) => ({
+      date,
+      formattedDate: getFormattedDate(date),
+      items: items.sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      )
+    }));
+  }, [messages, bills]);
+
   // Mark messages as seen when 50%+ visible (for messages not sent by self)
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
@@ -157,65 +231,78 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   return (
     <div className="flex flex-col h-full">
       <div ref={listRef} className="flex flex-col grow overflow-y-auto pr-1">
-        <div className="space-y-2">
-          {(() => {
-            type Item = { kind: 'msg'; createdAt: string; m: ChatMessage } | { kind: 'bill'; createdAt: string; b: { _id: string; billNumber?: string; totalAmount?: number } };
-            const msgItems: Item[] = messages.map((m) => ({ kind: 'msg', createdAt: m.createdAt as string, m }));
-            const billItems: Item[] = bills.map((b) => ({ kind: 'bill', createdAt: b.createdAt, b }));
-            const items = [...msgItems, ...billItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-            return items.map((it, idx) => {
-              if (it.kind === 'bill') {
-                const b = it.b;
-                return (
-                  <div key={`bill-${b._id}-${idx}`} className="flex justify-start">
-                    <div className="max-w-[80%] border rounded-md p-3 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
-                      <div className="text-sm font-medium">Bill created of ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')} </div>
-                      <div className="mt-1 flex items-center justify-between gap-3">
-                        <span className="text-xs opacity-70">{new Date(it.createdAt).toLocaleString()}</span>
-                        <BillDetailTrigger bill={{ _id: b._id, billNumber: b.billNumber }} buttonLabel="View" />
+        <div className="space-y-4">
+          {groupedMessages.map((group, groupIndex) => (
+            <div key={`group-${groupIndex}`} className="space-y-2">
+              <div className="sticky top-0 z-10 flex justify-center">
+                <div className="bg-white dark:bg-zinc-800 px-3 py-1 rounded-full text-xs font-medium text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                  {group.formattedDate}
+                </div>
+              </div>
+              {group.items.map((item, idx) => {
+                if (item.kind === 'bill') {
+                  const b = item.b;
+                  return (
+                    <div key={`bill-${b._id}-${idx}`} className="flex justify-start">
+                      <div className="max-w-[80%] border rounded-md p-3 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
+                        <div className="text-sm font-medium">Bill created of ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')} </div>
+                        <div className="mt-1 flex items-center justify-between gap-3">
+                          <span className="text-xs opacity-70">
+                            {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </span>
+                          <BillDetailTrigger bill={{ _id: b._id, billNumber: b.billNumber }} buttonLabel="View" />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  );
+                }
+                
+                const m = item.m;
+                if (!m) return null;
+                
+                const isSelf = getMsgSenderId(m) === senderId;
+                const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
+
+                const onView = () => {
+                  if (isSelf) return;
+                  if (m.status === 'seen') return;
+                  if (seenOnceRef.current.has(m._id)) return;
+                  seenOnceRef.current.add(m._id);
+                  markMessageSeen(roomId, m._id).catch(() => {});
+                };
+
+                return (
+                  <SwipeableMessage
+                    key={`m-${m._id}-${idx}`}
+                    message={m}
+                    isSelf={isSelf}
+                    parentMessage={parent}
+                    onView={onView}
+                    onSwipeLeft={() => {
+                      // Allow replying to any message, including your own
+                      setReplyingTo(m);
+                      setEditingId(null);
+                      const input = document.getElementById('message-input');
+                      input?.focus();
+                    }}
+                    onSwipeRight={() => {
+                      // Swipe right to edit (only for own messages)
+                      if (isSelf) {
+                        setEditingId(m._id);
+                        setReplyingTo(null);
+                        setText(m.content as string);
+                        // Focus the input after a short delay to ensure it's rendered
+                        setTimeout(() => {
+                          const input = document.getElementById('message-input');
+                          input?.focus();
+                        }, 100);
+                      }
+                    }}
+                  />
                 );
-              }
-              const m = it.m;
-              const isSelf = getMsgSenderId(m) === senderId;
-              const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
-
-              const onView = () => {
-                if (isSelf) return;
-                if (m.status === 'seen') return;
-                if (seenOnceRef.current.has(m._id)) return;
-                seenOnceRef.current.add(m._id);
-                markMessageSeen(roomId, m._id).catch(() => {});
-              };
-
-              return (
-                <SwipeableMessage
-                  key={`m-${m._id}-${idx}`}
-                  message={m}
-                  isSelf={isSelf}
-                  parentMessage={parent}
-                  onView={onView}
-                  onSwipeLeft={() => {
-                    // Allow replying to any message, including your own
-                    setReplyingTo(m);
-                    setEditingId(null);
-                    const input = document.getElementById('message-input');
-                    input?.focus();
-                  }}
-                  onSwipeRight={() => {
-                    // Swipe right to edit (only for own messages)
-                    if (isSelf) {
-                      setEditingId(m._id);
-                      setReplyingTo(null);
-                      setText(m.content as string);
-                    }
-                  }}
-                />
-              );
-            });
-          })()}
+              })}
+            </div>
+          ))}
           {messages.length === 0 && (
             <div className="border rounded-md p-6 text-center opacity-70">No messages yet</div>
           )}
@@ -246,11 +333,22 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         <div className="mt-1 border rounded-md p-2 bg-blue-50 dark:bg-zinc-800/60 text-xs">
           <div className="flex items-center justify-between gap-2">
             <div className="font-medium">Editing message</div>
-            <button className="opacity-70 hover:opacity-100" onClick={() => { setEditingId(null); setText(""); }}>Cancel</button>
+            <button 
+              className="opacity-70 hover:opacity-100" 
+              onClick={() => { 
+                setEditingId(null); 
+                setText("");
+                // Focus the input after clearing
+                const input = document.getElementById('message-input');
+                input?.focus();
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
-      <div className="mt-1 flex items-center gap-2 border-t p-2 bg-white dark:bg-zinc-900">
+      <div className="mt-1 flex items-center gap-2 border-t p-1">
         {replyingTo && (
           <div className="absolute bottom-full left-0 right-0 bg-zinc-100 dark:bg-zinc-800 p-2 text-sm border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
             <div className="truncate max-w-[calc(100%-24px)]">
@@ -271,7 +369,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={replyingTo ? 'Type your reply...' : 'Type a message...'}
-          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -279,7 +377,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
             }
           }}
         />
-        <button className="px-3 py-2 rounded bg-black text-white dark:bg-white dark:text-black" onClick={onSend}>{editingId ? 'Update' : 'Send'}</button>
+        <button disabled={text.trim() === ''} className="px-2 py-1 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-50" onClick={onSend}>{editingId ? 'Update' : <SendHorizontalIcon />}</button>
       </div>
     </div>
   );

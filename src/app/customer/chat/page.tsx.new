@@ -60,14 +60,14 @@ export default function CustomerChatPage() {
   return (
     <div className="h-[calc(100vh-85px)] md:h-[calc(100dvh-140px)]">
       <div className="space-y-4 h-full flex flex-col !pt-0">
-        <div className="flex items-center justify-between gap-4 p-4 border-b dark:border-zinc-700">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-lg font-semibold">Chat with Shop</div>
-            <div className="text-sm text-zinc-500">We&apos;re here to help with your orders and questions</div>
+            <div className="text-sm opacity-80">We're here to help with your orders and questions</div>
           </div>
         </div>
 
-        <div className="flex flex-col grow overflow-hidden">
+        <div className="flex flex-col grow overflow-auto min-h-0">
           <ChatWindow 
             roomId={activeRoomId} 
             senderId={String(customerId)} 

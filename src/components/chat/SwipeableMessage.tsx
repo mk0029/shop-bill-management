@@ -1,7 +1,7 @@
+import { ChatMessage } from "@/lib/chat-api";
 import { motion, PanInfo, useAnimation } from "framer-motion";
 import { Check, CheckCheck, Clock } from "lucide-react";
 import { useRef } from "react";
-import { ChatMessage } from "@/lib/chat-api";
 
 type SwipeableMessageProps = {
   message: ChatMessage;
@@ -19,8 +19,6 @@ export function SwipeableMessage({
   isSelf, 
   onSwipeLeft, 
   onSwipeRight,
-  onSwipeUp,
-  onSwipeDown,
   parentMessage,
   onView
 }: SwipeableMessageProps) {
@@ -62,7 +60,7 @@ export function SwipeableMessage({
 
   return (
     <div className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
-      <div className="relative max-w-[75%] w-fit" ref={constraintsRef}>
+      <div className="relative max-w-[75%] w-full overflow-hidden" ref={constraintsRef}>
         <motion.div
           drag="x"
           dragConstraints={constraintsRef}
@@ -70,31 +68,32 @@ export function SwipeableMessage({
           animate={controls}
           dragElastic={0.1}
           dragMomentum={false}
-          className={`relative z-10 ${isSelf ? 'ml-auto' : 'mr-auto'}`}
+          className={`relative z-10 w-fit ${isSelf ? 'ml-auto' : 'mr-auto'}`}
           style={{ x: dragX.current, touchAction: 'pan-y' }}
           onClick={onView}
         >
           <div 
-            className={`text-sm px-3 py-2 border shadow-sm ${
+            className={`text-sm px-2 py-1 border shadow-sm leading-[120%] ${
               isSelf 
                 ? 'bg-emerald-600/90 text-white border-emerald-700 rounded-2xl rounded-br-sm' 
                 : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'
             }`}
           >
             {(message.parentMessage || parentMessage) && (
-              <div className={`mb-1 border-l-2 pl-2 text-xs ${isSelf ? 'border-white/40 text-white/85' : 'border-zinc-400 text-zinc-200'}`}>
+              <div className={`mb-1 border-l-2 pl-2 mt-1 text-xs ${isSelf ? 'border-white/40 text-white/85' : 'border-zinc-400 text-zinc-200'}`}>
                 <div className="opacity-80">Replying to</div>
-                <div className="line-clamp-2 whitespace-pre-wrap opacity-90">
+                <div className="line-clamp-2 whitespace-pre-wrap ">
                   {message.parentMessage?.content || parentMessage?.content}
                 </div>
               </div>
             )}
             <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
-            <div className={`mt-1 flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
               <span className={`text-[11px] ${isSelf ? 'text-white/80' : 'opacity-70'}`}>
-                {new Date(message.createdAt as string).toLocaleString()}
+                {/* {new Date(message.createdAt as string).toLocaleString()} */}
+                {new Date(message.createdAt as string).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </span>
-              {message.editedAt && <span className={`text-[10px] italic ${isSelf ? 'text-white/70' : 'opacity-60'}`}>(edited)</span>}
+              {message.editedAt && <span className={`text-[10px] italic ml-auto ${isSelf ? 'text-white/70' : 'opacity-60'}`}>edited</span>}
               {isSelf && (
                 <span className="inline-flex items-center gap-1">
                   {message.status === 'seen' ? (
