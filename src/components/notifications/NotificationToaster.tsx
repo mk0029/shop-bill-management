@@ -3,7 +3,9 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useNotificationStore, AppNotification } from "@/store/notification-store";
+import { buildNotificationHref } from "@/store/notification-store";
 import { useRouter } from "next/navigation";
+import { useChatStore } from "@/store/chat-store";
 
 function playChime() {
   try {
@@ -44,7 +46,28 @@ export default function NotificationToaster() {
       }
       lastIdRef.current = latest.id;
 
+      // Suppress: if this notification targets the SAME open chat room, don't toast
+      try {
+        const hrefMaybe = buildNotificationHref(latest);
+        const loc = typeof window !== 'undefined' ? window.location : null;
+        const activeRoomId = (() => { try { return useChatStore.getState().activeRoomId; } catch { return null; } })();
+        if (hrefMaybe && loc) {
+          const t = new URL(hrefMaybe, loc.origin);
+          const here = new URL(loc.href);
+          const tRoom = t.searchParams.get('roomId');
+          const hereRoom = here.searchParams.get('roomId');
+          const isChatPath = t.pathname.startsWith('/admin/chats') || t.pathname.startsWith('/customer/chat');
+          const samePath = t.pathname === here.pathname;
+          if (isChatPath) {
+            if ((samePath && tRoom && hereRoom && tRoom === hereRoom) || (activeRoomId && tRoom && activeRoomId === tRoom && here.pathname.startsWith('/admin/chats'))) {
+              return; // suppress toast for same chat room
+            }
+          }
+        }
+      } catch {}
+
       const description = latest.body || "You have a new notification";
+      const href = buildNotificationHref(latest);
       const billId =
         latest.meta && typeof (latest.meta as Record<string, unknown>).billId === "string"
           ? ((latest.meta as Record<string, unknown>).billId as string)
@@ -53,11 +76,10 @@ export default function NotificationToaster() {
       toast(latest.title, {
         description,
         duration: 6000,
-        action: billId
-          ? {
-              label: "View bill",
-              onClick: () => router.push(`/admin/billing?open=${billId}`),
-            }
+        action: href
+          ? { label: "View", onClick: () => router.push(href) }
+          : billId
+          ? { label: "View bill", onClick: () => router.push(`/admin/billing?open=${billId}`) }
           : undefined,
       });
 
@@ -67,7 +89,7 @@ export default function NotificationToaster() {
       // subtle sound
       if (typeof window !== "undefined") playChime();
     }
-  }, [items, router]);
+  }, [items, router, isToasted, markToasted]);
 
   return null;
 }

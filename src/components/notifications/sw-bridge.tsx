@@ -28,7 +28,12 @@ export default function SWNotificationBridge() {
           if (!msg || typeof msg !== "object") return;
           if (msg.type === "notification:received" && msg.payload) {
             const p = msg.payload as AppNotification;
-            // Forward to local store; id/createdAt will be kept or auto-filled
+            // For in-app notifications, ignore chat from SW to avoid duplicates
+            // and rely on realtime chat listeners for context-aware suppression.
+            if ((p as AppNotification).type === 'chat') {
+              return;
+            }
+            // Forward others to local store; id/createdAt will be kept or auto-filled
             add({
               type: p.type,
               title: p.title,

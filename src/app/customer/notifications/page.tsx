@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { useNotificationStore } from "@/store/notification-store"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,8 +12,19 @@ import { buildNotificationHref } from "@/store/notification-store"
 import SWNotificationBridge from "@/components/notifications/sw-bridge"
 import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 
-export default function AdminNotificationsPage({composerOpen, setComposerOpen}: {composerOpen: boolean, setComposerOpen: (open: boolean) => void}) {
-  const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore()
+type Props = { composerOpen: boolean; setComposerOpen: (open: boolean) => void; onNavigate?: () => void };
+export default function AdminNotificationsPage({composerOpen, setComposerOpen, onNavigate}: Props) {
+  const { items, unread, markAllRead, clear, markAsRead, clearRead } = useNotificationStore()
+
+  // Auto-remove read notifications when this page is open
+  // Runs on mount and whenever items change
+  // Keeps only unread items in list automatically
+  React.useEffect(() => {
+    try {
+      const hasRead = (items || []).some((n) => !!n.read);
+      if (hasRead) clearRead();
+    } catch {}
+  }, [items, clearRead]);
 
   return (
     <div className="p-4 sm:p-6">
@@ -61,6 +73,7 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen}: 
                     <Link
                       href={href}
                       className={buttonVariants({ variant: "outline", size: "sm" })}
+                      onClick={() => { try { markAsRead(n.id); } catch {}; try { onNavigate?.(); } catch {} }}
                     >
                       Open
                     </Link>

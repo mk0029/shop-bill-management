@@ -129,7 +129,7 @@ export default function NotificationsPopover() {
               Close
               </Button>
             </div>
-            <AdminNotificationsPage composerOpen={composerOpen} setComposerOpen={setComposerOpen}/>
+            <AdminNotificationsPage composerOpen={composerOpen} setComposerOpen={setComposerOpen} onNavigate={() => setOpen(false)} />
             </motion.div>
           </>
         )}

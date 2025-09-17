@@ -5,6 +5,8 @@ import { getOrCreateRoomByCustomer, listRooms, listRoomMessages, sendRoomMessage
 import { getTokenWithoutRegister } from "@/lib/fcm-client";
 import { setupRealtimeListeners } from "@/lib/sanity";
 import { cacheGetRooms, cacheSetRooms, cacheGetMessages, cacheSetMessages, cacheMergeAndSetMessages } from "@/lib/chat-cache";
+import { useNotificationStore } from "@/store/notification-store";
+import { useAuthStore } from "@/store/auth-store";
 
 interface ChatState {
   rooms: ChatRoom[];
@@ -230,6 +232,63 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             const updated = [...current];
             if (idx >= 0) updated[idx] = msg; else updated.push(msg);
             void cacheSetMessages(roomRef, updated);
+          } catch {}
+
+          // In-app notification logic for chat messages
+          try {
+            const add = useNotificationStore.getState().add;
+            // Determine if we should suppress based on current route and active room
+            const active = get().activeRoomId;
+            const loc = typeof window !== 'undefined' ? window.location : null;
+            const pathname = loc ? loc.pathname : '';
+            const onChatRoute = pathname.startsWith('/admin/chats') || pathname.startsWith('/customer/chat');
+            // Suppress if the message is from the current user (self)
+            try {
+              const auth = useAuthStore.getState();
+              const me = (auth?.user as any) || null;
+              const myId: string | undefined = me?._id || me?.id;
+              const sender = (msg?.sender as { _id?: string; _ref?: string } | undefined);
+              const senderId = sender?._id || sender?._ref;
+              if (myId && senderId && myId === senderId) {
+                // own message; don't notify
+                return;
+              }
+            } catch {}
+            // Fallback to URL param if activeRoomId not yet set
+            let currentRoomId = active || null;
+            try {
+              if (!currentRoomId && loc) {
+                const here = new URL(loc.href);
+                const q = here.searchParams.get('roomId');
+                if (q) currentRoomId = q;
+              }
+            } catch {}
+            const isSameRoomOpen = !!currentRoomId && currentRoomId === roomRef && onChatRoute;
+            if (isSameRoomOpen) {
+              // Do not show in-app notification if user is already on this chat
+              return;
+            }
+
+            // Build human label from rooms
+            let label = 'Chat';
+            try {
+              const r = get().rooms.find((x) => x._id === roomRef);
+              label = (r?.customer?.name || r?.roomName || 'Chat') as string;
+            } catch {}
+            const preview = (msg.content || '').toString().slice(0, 120);
+
+            // Determine target route depending on portal
+            const isAdmin = pathname.startsWith('/admin');
+            const routePath = isAdmin ? '/admin/chats' : '/customer/chat';
+
+            add({
+              type: 'chat',
+              title: `${label}`,
+              body: preview || 'New message',
+              meta: {
+                route: { pathname: routePath, query: { roomId: roomRef } },
+              },
+            });
           } catch {}
         } else {
           // If we didn't get the full doc (e.g., delete/mutation without result), ensure active room is refreshed
