@@ -243,14 +243,37 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                 if (item.kind === 'bill') {
                   const b = item.b;
                   return (
-                    <div key={`bill-${b._id}-${idx}`} className="flex justify-start">
-                      <div className="max-w-[80%] border rounded-md p-3 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
-                        <div className="text-sm font-medium">Bill created of ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')} </div>
-                        <div className="mt-1 flex items-center justify-between gap-3">
-                          <span className="text-xs opacity-70">
-                            {new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                          </span>
-                          <BillDetailTrigger bill={{ _id: b._id, billNumber: b.billNumber }} buttonLabel="View" />
+                    <div key={`bill-${b._id}-${idx}`} className="flex justify-start w-full">
+                      <div className="max-w-[90%] md:max-w-[80%] border rounded-md p-3 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium">
+                              Bill {b.billNumber ? `#${b.billNumber}` : 'Draft'}
+                            </div>
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                              {new Date(item.createdAt).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <div className="font-semibold">
+                                ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                            <BillDetailTrigger 
+                              bill={b}
+                              buttonLabel="View"
+                              variant="outline"
+                              size="sm"
+                              className="h-8"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -1,24 +1,23 @@
 "use client";
 
-import { useState, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { BillDetailModal } from "@/components/ui/bill-detail-modal";
+import { useAuthStore } from "@/store/auth-store";
 import { Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+interface Bill {
+  _id: string;
+  billNumber?: string;
+  totalAmount?: number;
+  [key: string]: any; // Allow additional bill properties
+}
 
 interface BillDetailTriggerProps {
-  bill: any;
+  bill: Bill | null;
   buttonLabel?: string;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
-  children?: ReactNode; // Optional custom trigger element
-  showShareButton?: boolean;
-  showPaymentControls?: boolean;
-  onDownloadPDF?: (bill: any) => void;
-  onUpdatePayment?: (
-    billId: string,
-    data: { paymentStatus: "pending" | "partial" | "paid"; paidAmount: number; balanceAmount: number }
-  ) => Promise<void>;
 }
 
 export const BillDetailTrigger = ({
@@ -27,37 +26,26 @@ export const BillDetailTrigger = ({
   variant = "outline",
   size = "sm",
   className,
-  children,
-  showShareButton = true,
-  showPaymentControls = true,
-  onDownloadPDF,
-  onUpdatePayment,
 }: BillDetailTriggerProps) => {
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const { role } = useAuthStore();
 
   if (!bill) return null;
 
-  const trigger = children ? (
-    <div onClick={() => setOpen(true)}>{children}</div>
-  ) : (
-    <Button variant={variant} size={size} onClick={() => setOpen(true)} className={className}>
+  const handleClick = () => {
+    const basePath = role?.toLowerCase() === 'admin' ? '/admin/billing' : '/customer/bills';
+    router.push(`${basePath}?open=${bill._id}`);
+  };
+
+  return (
+    <Button 
+      variant={variant} 
+      size={size} 
+      onClick={handleClick} 
+      className={className}
+    >
       <Eye className="w-4 h-4 mr-2" />
       {buttonLabel}
     </Button>
-  );
-
-  return (
-    <>
-      {trigger}
-      <BillDetailModal
-        isOpen={open}
-        onClose={() => setOpen(false)}
-        bill={bill}
-        onDownloadPDF={onDownloadPDF}
-        onUpdatePayment={onUpdatePayment}
-        showShareButton={showShareButton}
-        showPaymentControls={showPaymentControls}
-      />
-    </>
   );
 };
