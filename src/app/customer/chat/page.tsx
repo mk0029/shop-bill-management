@@ -134,7 +134,7 @@ export default function CustomerChatPage() {
   }, [customerId]);
 
   return (
-    <div className="p-4 md:p-6 space-y-4 h-[calc(100vh-65px)] flex flex-col">
+    <div className=" -mt-3 xl:-mt-10 space-y-4 h-[calc(100vh-85px)]  md:h-[calc(100dvh-140px)] flex flex-col">
       {(!hydrated || initializing) ? (
         <div className="p-6">Loading chat…</div>
       ) : role !== 'customer' ? (

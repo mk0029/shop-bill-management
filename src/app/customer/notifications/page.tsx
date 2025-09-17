@@ -1,7 +1,7 @@
 "use client"
 
 import { useNotificationStore } from "@/store/notification-store"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 // import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
 import AdminFCMInitializer from "@/components/notifications/AdminFCMInitializer"
@@ -58,9 +58,12 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen}: 
                 </div>
                 <div className="flex items-center gap-1">
                   {href && (
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={href}>Open</Link>
-                    </Button>
+                    <Link
+                      href={href}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      Open
+                    </Link>
                   )}
                   {!n.read && (
                     <Button size="sm" variant="ghost" onClick={() => markAsRead(n.id)}>Mark read</Button>

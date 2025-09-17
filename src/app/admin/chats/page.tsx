@@ -78,8 +78,8 @@ export default function AdminChatsPage() {
   }
 
   return (
-    <div className="p-0 md:p-0 h-[calc(100vh-85px)] md:h-[calc(100vh-130px)]">
-      <div className="p-4 md:p-6 space-y-4 h-full flex flex-col !pt-0">
+    <div className="h-[calc(100vh-85px)] md:h-[calc(100vh-155px)]">
+      <div className="space-y-4 h-full flex flex-col !pt-0">
         {/* Header: selected user and bill stats */}
         <div className="flex items-center justify-between gap-4">
           <div>
