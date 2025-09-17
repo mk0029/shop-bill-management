@@ -63,22 +63,40 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   _subscription: null,
 
   loadRooms: async (opts) => {
+    console.log('loadRooms called with options:', opts);
     set({ isLoading: true, error: null });
     try {
       // Load cached rooms first for instant UI
       try {
         const cached = await cacheGetRooms();
+        console.log('Cached rooms:', cached);
         if (cached && Array.isArray(cached) && cached.length >= 0) {
           set({ rooms: cached });
         }
-      } catch {}
+      } catch (cacheErr) {
+        console.error('Error loading cached rooms:', cacheErr);
+      }
 
-      const rooms = await listRooms({ customerId: opts?.customerId, adminId: opts?.adminId });
+      // Only pass defined parameters to listRooms
+      const fetchOpts: { customerId?: string; adminId?: string } = {};
+      if (opts?.customerId) fetchOpts.customerId = opts.customerId;
+      if (opts?.adminId) fetchOpts.adminId = opts.adminId;
+      
+      console.log('Fetching rooms from API with options:', fetchOpts);
+      const rooms = await listRooms(fetchOpts);
+      console.log('Fetched rooms:', rooms);
+      
       set({ rooms, isLoading: false });
+      
       // Persist to cache
-      try { await cacheSetRooms(rooms); } catch {}
+      try { 
+        await cacheSetRooms(rooms); 
+      } catch (cacheErr) {
+        console.error('Error saving rooms to cache:', cacheErr);
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to load rooms";
+      console.error('Error in loadRooms:', e);
       set({ error: msg, isLoading: false });
     }
   },

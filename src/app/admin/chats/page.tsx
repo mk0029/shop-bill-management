@@ -8,7 +8,7 @@ import { useSearchParams } from "next/navigation";
 
 export default function AdminChatsPage() {
   const { user, role, hydrated } = useAuthStore();
-  const { activeRoomId, setActiveRoom, subscribeRealtime, rooms } = useChatStore();
+  const { activeRoomId, setActiveRoom, subscribeRealtime, rooms, loadRooms } = useChatStore();
   const [initializing, setInitializing] = useState(true);
   const search = useSearchParams();
   const [billStats, setBillStats] = useState<{ count: number; total: number } | null>(null);
@@ -21,10 +21,17 @@ export default function AdminChatsPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    subscribeRealtime();
-    setInitializing(false);
+    
+    // Initialize chat - fetch all rooms without filtering
+    const init = async () => {
+      await loadRooms();
+      subscribeRealtime();
+      setInitializing(false);
+    };
+    
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated]);
+  }, [hydrated, adminId]);
 
   // Auto-open chat from deep link (?roomId=)
   useEffect(() => {

@@ -8,6 +8,8 @@ export async function GET(req: Request) {
     const customerId = searchParams.get("customerId");
     const adminId = searchParams.get("adminId");
 
+    console.log('Fetching rooms with params:', { customerId, adminId });
+
     let filter = "_type == \"chatRoom\"";
     const params: Record<string, unknown> = {};
 
@@ -20,6 +22,9 @@ export async function GET(req: Request) {
       filter += " && $adminId in admins[]._ref";
       params.adminId = adminId;
     }
+
+    console.log('Generated filter:', filter);
+    console.log('Query params:', params);
 
     const where = filter === "_type == \"chatRoom\"" ? filter : `(${filter})`;
     const query = `*[${where}] | order(coalesce(lastMessageAt, createdAt) desc) {
