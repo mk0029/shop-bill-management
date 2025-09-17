@@ -40,7 +40,7 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
   const { roomId } = params;
   try {
     const body = await req.json().catch(() => ({}));
-    const { content, senderId, isCustomer, parentId } = body || {};
+    const { content, senderId, isCustomer, parentId, senderToken } = body || {};
     if (!content || !senderId) {
       return NextResponse.json({ success: false, error: "Missing content or senderId" }, { status: 400 });
     }
@@ -99,7 +99,17 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
 
     // Fire-and-forget push notification (internal call, no HTTP fetch needed)
     try {
-      const title = room.roomName || `New chat message`;
+      // Use sender's name instead of room name for notification title
+      const senderName = (() => {
+        try {
+          const p = (participants || []).find((x) => x.user?._id === String(senderId));
+          return (p?.user as { name?: string } | undefined)?.name?.trim();
+        } catch {
+          return undefined;
+        }
+      })() || "Someone";
+
+      const title = `${senderName}:`;
       const bodyText = content?.slice(0, 120) || "You have a new message";
       const route_path_for_admin = '/admin/chats';
       const route_path_for_customer = '/customer/chat';
@@ -110,11 +120,12 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
         const result = await sendToAdmins(title, bodyText, {
           type: 'chat',
           event: 'chat-message',
+          tag: `chat-room-${String(roomId)}`,
           roomId: String(roomId),
           messageId: String(((doc as { _id?: string })?._id) ?? ''),
           route_path: route_path_for_admin,
           route_query,
-        }, [String(senderId)]);
+        }, [String(senderId)], senderToken ? [String(senderToken)] : undefined);
         if (!result?.success) {
           console.error('[FCM] sendToAdmins failed', result?.errors);
         }
@@ -138,12 +149,15 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
             data: {
               type: 'chat',
               event: 'chat-message',
+              tag: `chat-room-${String(roomId)}`,
               roomId: String(roomId),
               messageId: String(((doc as { _id?: string })?._id) ?? ''),
               route_path: route_path_for_customer,
               route_query,
             },
             sound: 'default',
+            // Also exclude the sender's device token if provided (belt-and-suspenders)
+            excludeTokens: senderToken ? [String(senderToken)] : undefined,
           });
           if (!res?.success) {
             console.error('[FCM] sendNotification to customer failed', res?.errors);

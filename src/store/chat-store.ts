@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { ChatRoom, ChatMessage } from "@/lib/chat-api";
 import { getOrCreateRoomByCustomer, listRooms, listRoomMessages, sendRoomMessage, markRoomRead, markMessageSeen, updateMessage } from "@/lib/chat-api";
+import { getTokenWithoutRegister } from "@/lib/fcm-client";
 import { setupRealtimeListeners } from "@/lib/sanity";
 import { cacheGetRooms, cacheSetRooms, cacheGetMessages, cacheSetMessages, cacheMergeAndSetMessages } from "@/lib/chat-cache";
 
@@ -138,7 +139,10 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     try { await cacheMergeAndSetMessages(roomId, (prev) => [...prev.filter((m) => m._id !== localId), optimistic]); } catch {}
 
     try {
-      const saved = await sendRoomMessage({ roomId, content, senderId, isCustomer, parentId });
+      // Try to fetch current device token to exclude from push targets
+      let senderToken: string | null = null;
+      try { senderToken = await getTokenWithoutRegister(); } catch {}
+      const saved = await sendRoomMessage({ roomId, content, senderId, isCustomer, parentId, senderToken });
       set((s) => {
         // Remove optimistic and also any existing item with same _id to prevent duplicates
         const list = (s.messagesByRoomId[roomId] || [])

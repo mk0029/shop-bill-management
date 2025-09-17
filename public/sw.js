@@ -508,11 +508,15 @@ try {
       tag: wp.tag || data.tag || computeTag(payload),
       renotify: (wp.renotify ?? true),
       requireInteraction: (wp.requireInteraction ?? true),
-      // Show the primary action only for bill-related notifications
+      // Show context-specific actions
       actions: (() => {
         const billId = data.billId;
         if (billId) {
           return [{ action: 'view-bill', title: 'View Bill' }];
+        }
+        // Chat: provide a Reply action to jump straight into the chat room
+        if ((data.type || '').toString() === 'chat') {
+          return [{ action: 'reply-chat', title: 'Reply' }];
         }
         return [];
       })(),
@@ -741,6 +745,16 @@ try {
         url = sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${notifData.billId}`);
       } else {
         url = sanitizeRelativeUrl(`/customers/bills?open=${notifData.billId}`);
+      }
+    } else if (action === 'reply-chat') {
+      // For chat, navigate to the provided route (admin/customer chat page) with roomId
+      if (notifData.meta && notifData.meta.route) {
+        try { url = sanitizeRelativeUrl(buildLinkFromRoute(notifData.meta.route)); } catch { url = '/'; }
+      } else if (notifData.link) {
+        url = sanitizeRelativeUrl(notifData.link);
+      } else {
+        // Fallback to generic chat landing
+        url = '/admin/chats';
       }
     } else if (notifData.meta && notifData.meta.route) {
       try {
