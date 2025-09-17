@@ -3,6 +3,7 @@ import { devtools } from "zustand/middleware";
 import type { ChatRoom, ChatMessage } from "@/lib/chat-api";
 import { getOrCreateRoomByCustomer, listRooms, listRoomMessages, sendRoomMessage, markRoomRead, markMessageSeen, updateMessage } from "@/lib/chat-api";
 import { setupRealtimeListeners } from "@/lib/sanity";
+import { cacheGetRooms, cacheSetRooms, cacheGetMessages, cacheSetMessages, cacheMergeAndSetMessages } from "@/lib/chat-cache";
 
 interface ChatState {
   rooms: ChatRoom[];
@@ -37,8 +38,18 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   loadRooms: async (opts) => {
     set({ isLoading: true, error: null });
     try {
+      // Load cached rooms first for instant UI
+      try {
+        const cached = await cacheGetRooms();
+        if (cached && Array.isArray(cached) && cached.length >= 0) {
+          set({ rooms: cached });
+        }
+      } catch {}
+
       const rooms = await listRooms({ customerId: opts?.customerId, adminId: opts?.adminId });
       set({ rooms, isLoading: false });
+      // Persist to cache
+      try { await cacheSetRooms(rooms); } catch {}
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to load rooms";
       set({ error: msg, isLoading: false });
@@ -59,6 +70,10 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
         [roomId]: (s.messagesByRoomId[roomId] || []).map((m) => m._id === messageId ? { ...m, status: 'seen', seenAt: now, updatedAt: now } : m),
       },
     }));
+    // persist to cache optimistically
+    try {
+      await cacheMergeAndSetMessages(roomId, (prev) => prev.map((m) => m._id === messageId ? { ...m, status: 'seen', seenAt: now, updatedAt: now } as ChatMessage : m));
+    } catch {}
     try {
       await markMessageSeen(messageId);
     } catch {
@@ -84,8 +99,17 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
 
   fetchMessages: async (roomId) => {
     try {
+      // Show cached messages immediately if available
+      try {
+        const cached = await cacheGetMessages(roomId);
+        if (cached && Array.isArray(cached)) {
+          set((s) => ({ messagesByRoomId: { ...s.messagesByRoomId, [roomId]: cached } }));
+        }
+      } catch {}
+
       const msgs = await listRoomMessages(roomId, 100);
       set((s) => ({ messagesByRoomId: { ...s.messagesByRoomId, [roomId]: msgs } }));
+      try { await cacheSetMessages(roomId, msgs); } catch {}
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to load messages";
       set({ error: msg });
@@ -110,6 +134,8 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       const list = s.messagesByRoomId[roomId] || [];
       return { messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, optimistic] } };
     });
+    // persist optimistic to cache
+    try { await cacheMergeAndSetMessages(roomId, (prev) => [...prev.filter((m) => m._id !== localId), optimistic]); } catch {}
 
     try {
       const saved = await sendRoomMessage({ roomId, content, senderId, isCustomer, parentId });
@@ -120,6 +146,11 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
           .filter((m) => m._id !== saved._id);
         return { messagesByRoomId: { ...s.messagesByRoomId, [roomId]: [...list, saved] } };
       });
+      try {
+        const current = get().messagesByRoomId[roomId] || [];
+        const list = current.filter((m) => m._id !== localId).filter((m) => m._id !== saved._id);
+        await cacheSetMessages(roomId, [...list, saved]);
+      } catch {}
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to send message";
       set({ error: msg });
@@ -149,6 +180,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
         [roomId]: (s.messagesByRoomId[roomId] || []).map((m) => m._id === messageId ? { ...m, content, editedAt: now, updatedAt: now } : m),
       },
     }));
+    try { await cacheMergeAndSetMessages(roomId, (prev) => prev.map((m) => m._id === messageId ? { ...m, content, editedAt: now, updatedAt: now } as ChatMessage : m)); } catch {}
     try {
       const saved = await updateMessage({ messageId, content });
       set((s) => ({
@@ -157,6 +189,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
           [roomId]: (s.messagesByRoomId[roomId] || []).map((m) => m._id === messageId ? saved : m),
         },
       }));
+      try { await cacheMergeAndSetMessages(roomId, (prev) => prev.map((m) => m._id === messageId ? saved : m)); } catch {}
     } catch (e: unknown) {
       // On failure, refetch to ensure consistency
       try { await get().fetchMessages(roomId); } catch {}
@@ -186,6 +219,14 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             if (idx >= 0) next[idx] = msg; else next.push(msg);
             return { messagesByRoomId: { ...s.messagesByRoomId, [roomRef]: next } };
           });
+          // persist updated list to cache
+          try {
+            const current = get().messagesByRoomId[roomRef] || [];
+            const idx = current.findIndex((m) => m._id === msg._id);
+            const updated = [...current];
+            if (idx >= 0) updated[idx] = msg; else updated.push(msg);
+            void cacheSetMessages(roomRef, updated);
+          } catch {}
         } else {
           // If we didn't get the full doc (e.g., delete/mutation without result), ensure active room is refreshed
           const active = get().activeRoomId;

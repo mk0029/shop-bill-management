@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import RoomsTopBar from "@/components/chat/RoomsTopBar";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
-// no query param handling here
+import { useSearchParams } from "next/navigation";
 
 export default function AdminChatsPage() {
   const { user, role, hydrated } = useAuthStore();
-  const { activeRoomId, setActiveRoom, subscribeRealtime } = useChatStore();
+  const { activeRoomId, setActiveRoom, subscribeRealtime, rooms } = useChatStore();
   const [initializing, setInitializing] = useState(true);
+  const search = useSearchParams();
+  const [billStats, setBillStats] = useState<{ count: number; total: number } | null>(null);
 
   const adminId = useMemo(() => {
     const u = (user ?? {}) as Partial<{ id: string; _id: string }>;
@@ -24,7 +25,50 @@ export default function AdminChatsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
-  // Do not auto-open any specific chat from query params.
+  // Auto-open chat from deep link (?roomId=)
+  useEffect(() => {
+    if (!hydrated) return;
+    const rid = search?.get("roomId");
+    if (rid) {
+      void setActiveRoom(rid);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, search]);
+
+  // Derive selected customer's basic info from active room
+  const activeCustomer = useMemo(() => {
+    if (!activeRoomId) return null;
+    const r = (rooms || []).find((x) => x._id === activeRoomId);
+    if (!r?.customer) return null;
+    const c = r.customer as { _id?: string; name?: string };
+    const id = c?._id;
+    const name = c?.name || "Customer";
+    return id ? { id, name } : null;
+  }, [rooms, activeRoomId]);
+
+  // Fetch bill stats for header (count and total amount)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!activeCustomer?.id) { setBillStats(null); return; }
+      try {
+        const res = await fetch(`/api/bill-book/user/${encodeURIComponent(activeCustomer.id)}/list`, { cache: 'no-store' });
+        const json = await res.json();
+        if (!alive) return;
+        if (json?.success && Array.isArray(json.data)) {
+          const items = json.data as Array<{ totalAmount?: number }|Record<string, unknown>>;
+          const count = items.length;
+          const total = items.reduce((sum, it) => sum + Number((it as { totalAmount?: number|string }).totalAmount ?? 0), 0);
+          setBillStats({ count, total });
+        } else {
+          setBillStats({ count: 0, total: 0 });
+        }
+      } catch {
+        setBillStats({ count: 0, total: 0 });
+      }
+    })();
+    return () => { alive = false; };
+  }, [activeCustomer?.id]);
 
   if (!hydrated || initializing) {
     return <div className="p-6">Loading chats…</div>;
@@ -34,17 +78,23 @@ export default function AdminChatsPage() {
   }
 
   return (
-    <div className="p-0 md:p-0 h-[calc(100vh-65px)]">
+    <div className="p-0 md:p-0 h-[calc(100vh-85px)] md:h-[calc(100vh-130px)]">
       <div className="p-4 md:p-6 space-y-4 h-full flex flex-col !pt-0">
-          <RoomsTopBar
-          activeRoomId={activeRoomId || undefined}
-          onSelect={(rid) => setActiveRoom(rid)}
-          onAddNew={() => {
-           
-          }}
-        /> 
-      
-   
+        {/* Header: selected user and bill stats */}
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-lg font-semibold">{activeCustomer?.name || "Select a chat"}</div>
+            {activeCustomer && (
+              <div className="text-sm opacity-80">
+                Bills: {billStats ? billStats.count : '…'} · Total: ₹{billStats ? Number(billStats.total).toLocaleString('en-IN') : '…'}
+              </div>
+            )}
+          </div>
+          {/* Placeholder for actions (e.g., View customer, create bill) */}
+          <div className="flex items-center gap-2">
+            {/* Add action buttons later if needed */}
+          </div>
+        </div>
 
         <div className="flex flex-col grow overflow-auto min-h-0">
           {activeRoomId && adminId ? (

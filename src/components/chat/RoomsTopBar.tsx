@@ -24,13 +24,13 @@ export default function RoomsTopBar(props: { activeRoomId?: string; onSelect: (r
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 px-1">
+      <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1 px-1">
         {/* Add new */}
         <button
           type="button"
           onClick={() => setShowNew(true)}
           title="Start new chat"
-          className={`!-translate-y-2.5 flex-shrink-0 w-16 sm:w-20 aspect-square rounded-full border flex items-center justify-center bg-white/70 dark:bg-zinc-900/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60`}
+          className={`!-translate-y-2.5 flex-shrink-0 w-9 sm:w-12 aspect-square rounded-full border flex items-center justify-center bg-white/70 dark:bg-zinc-900/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60`}
         >
           <Plus className="w-6 h-6" />
         </button>
@@ -44,7 +44,7 @@ export default function RoomsTopBar(props: { activeRoomId?: string; onSelect: (r
               <button
                 type="button"
                 onClick={() => props.onSelect(r._id)}
-                className={`relative w-16 sm:w-20 aspect-square rounded-full border flex items-center justify-center ${isActive ? 'ring-2 ring-emerald-500' : ''} bg-zinc-100 dark:bg-zinc-800`}
+                className={`relative w-9 sm:w-12 aspect-square rounded-full border flex items-center justify-center ${isActive ? 'ring-2 ring-emerald-500' : ''} bg-zinc-100 dark:bg-zinc-800`}
                 title={label}
               >
                 <span className="text-sm font-semibold">{initials}</span>
@@ -52,7 +52,7 @@ export default function RoomsTopBar(props: { activeRoomId?: string; onSelect: (r
                   <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center">{unread > 99 ? '99+' : unread}</span>
                 )}
               </button>
-              <div className="mt-1 text-center text-xs truncate w-16 sm:w-20 opacity-80">{label}</div>
+              <div className="mt-1 text-center text-xs truncate w-9 sm:w-12 opacity-80">{label}</div>
             </div>
           );
         })}

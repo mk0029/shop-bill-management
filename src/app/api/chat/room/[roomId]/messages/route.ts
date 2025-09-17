@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { sendNotification, sendToAdmins } from "@/lib/notification-service";
 
 // GET: list messages for a chat room
 export async function GET(req: Request, { params }: { params: { roomId: string } }) {
@@ -39,7 +40,7 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
   const { roomId } = params;
   try {
     const body = await req.json().catch(() => ({}));
-    const { content, senderId, isCustomer } = body || {};
+    const { content, senderId, isCustomer, parentId } = body || {};
     if (!content || !senderId) {
       return NextResponse.json({ success: false, error: "Missing content or senderId" }, { status: 400 });
     }
@@ -73,6 +74,7 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
       content,
       attachments: [],
       status: "sent",
+      parentId: parentId ? String(parentId) : undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -95,30 +97,64 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
       await patch.commit();
     } catch {}
 
-    // Fire-and-forget push notification
+    // Fire-and-forget push notification (internal call, no HTTP fetch needed)
     try {
       const title = room.roomName || `New chat message`;
       const bodyText = content?.slice(0, 120) || "You have a new message";
-      // Target notify-enabled, not-blocked recipients of opposite role
-      const targets: string[] = [];
-      const oppositeRole: 'admin' | 'customer' = isCustomer ? 'admin' : 'customer';
-      for (const p of participants) {
-        if (p.user?._id && p.role === oppositeRole && !p.blocked && p.notify !== false) {
-          targets.push(String(p.user._id));
+      const route_path_for_admin = '/admin/chats';
+      const route_path_for_customer = '/customer/chat';
+      const route_query = JSON.stringify({ roomId: String(roomId) });
+
+      if (isCustomer) {
+        // Customer sent: notify all admins
+        const result = await sendToAdmins(title, bodyText, {
+          type: 'chat',
+          event: 'chat-message',
+          roomId: String(roomId),
+          messageId: String(((doc as { _id?: string })?._id) ?? ''),
+          route_path: route_path_for_admin,
+          route_query,
+        }, [String(senderId)]);
+        if (!result?.success) {
+          console.error('[FCM] sendToAdmins failed', result?.errors);
+        }
+      } else {
+        // Admin sent: notify the room's customer (fallback to participants with role customer)
+        const customerId: string | undefined = room?.customer?._id || undefined;
+        const userIds: string[] = [];
+        if (customerId) userIds.push(String(customerId));
+        if (!userIds.length) {
+          for (const p of (participants || [])) {
+            if (p.user?._id && p.role === 'customer' && !p.blocked && p.notify !== false) {
+              userIds.push(String(p.user._id));
+            }
+          }
+        }
+        if (userIds.length) {
+          const res = await sendNotification({
+            title,
+            body: bodyText,
+            userIds,
+            data: {
+              type: 'chat',
+              event: 'chat-message',
+              roomId: String(roomId),
+              messageId: String(((doc as { _id?: string })?._id) ?? ''),
+              route_path: route_path_for_customer,
+              route_query,
+            },
+            sound: 'default',
+          });
+          if (!res?.success) {
+            console.error('[FCM] sendNotification to customer failed', res?.errors);
+          }
+        } else {
+          console.warn('[FCM] No customer userIds found for room', roomId);
         }
       }
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/api/notifications/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          body: bodyText,
-          userIds: targets,
-          data: { event: 'chat-message', roomId: String(roomId), messageId: String(((doc as { _id?: string })?._id) ?? '') },
-          sound: 'default',
-        }),
-      }).catch(() => {});
-    } catch {}
+    } catch (err) {
+      console.error('[FCM] Error sending chat push', err);
+    }
 
     return NextResponse.json({ success: true, data: doc });
   } catch (error) {

@@ -14,6 +14,7 @@ import {
   Package,
   Plus,
   Receipt,
+  MessageSquare,
   Settings,
   Shield,
   User,
@@ -32,6 +33,9 @@ import { useAuthStore } from "@/store/auth-store";
 import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import { OnlineStatusToggle } from "@/components/online-status-toggle";
+import RoomsTopBar from "@/components/chat/RoomsTopBar";
+import RoomsOverlayList from "@/components/chat/RoomsOverlayList";
+import { useChatStore } from "@/store/chat-store";
 
 interface NavigationItem {
   label: string;
@@ -130,12 +134,14 @@ const customerNavigation: NavigationItem[] = [
 ];
 export function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isRoomsOverlayOpen, setIsRoomsOverlayOpen] = useState(false);
   // Allow only one expanded section at a time on mobile
   const [expandedItems, setExpandedItems] = useState<string | null>(null);
   const prevOverflowRef = useRef<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { role, logout, user } = useAuthStore();
+  const { activeRoomId, setActiveRoom } = useChatStore();
   
   const { user: clerkUser } = useUser();
   // Sanitize displayed text for non-admin users by removing content under specific characters
@@ -207,6 +213,19 @@ export function Navigation() {
       body.style.overflow = prevOverflowRef.current ?? "";
     };
   }, [isMobileMenuOpen]);
+
+  // Auto-open Rooms overlay on mobile when on Chats and no room selected
+  useEffect(() => {
+    // Determine if we are on chats without relying on isActive (to avoid lint dep)
+    const onChats = typeof pathname === 'string' ? pathname.split('?')[0].startsWith('/admin/chats') : false;
+    // basic mobile check
+    const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+    if (role === "admin" && onChats && isMobile) {
+      if (!activeRoomId) {
+        setIsRoomsOverlayOpen(true);
+      }
+    }
+  }, [role, activeRoomId, pathname]);
 
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
     const Icon = item.icon;
@@ -451,22 +470,37 @@ export function Navigation() {
       <div className="h-[65px]"></div>
       <div className="xl:!pl-64 min-h-fit backdrop-blur-lg fixed z-40 top-0 w-full left-0">
         {/* Top Bar */}
-        <div className="border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6">
+        <div className={`border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6 ${isActive("/admin/chats")&&'md:!py-0'}`}>
           <div className="flex items-center justify-between">
            
-              <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+              <h1 className={`text-xl sm:text-2xl font-bold !leading-[125%] text-white ${isActive("/admin/chats")&&'md:hidden'}`}>
                 {navigation.find((item) => isActive(item.href))?.label ||
                   "Dashboard"}
               </h1>
-           
-            
-           
-
-              
-            
-           
+              {role === "admin" && isActive("/admin/chats") && (
+            <div className="mt-3 -mx-2 sm:mx-0 hidden md:block">
+              <RoomsTopBar
+                activeRoomId={activeRoomId || undefined}
+                onSelect={(rid) => {
+                  void setActiveRoom(rid);
+                  try { router.push(`/admin/chats?roomId=${encodeURIComponent(rid)}`); } catch {}
+                }}
+                adminId={(user as { id?: string; _id?: string } | null)?.id || (user as { id?: string; _id?: string } | null)?._id}
+              />
+            </div>
+          )}
             <div className="flex items-center gap-x-3">
              <NotificationsPopover />
+             {/* Mobile: open Rooms overlay when on Chats */}
+             {role === "admin" && isActive("/admin/chats") && (
+               <Button
+                 variant="ghost"
+                 size="sm"
+                 onClick={() => setIsRoomsOverlayOpen(true)}
+                 className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2">
+                 <MessageSquare className="w-5 h-5" />
+               </Button>
+             )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -476,8 +510,62 @@ export function Navigation() {
               </Button>
             </div>
           </div>
+          {/* Chats quick room selector in top bar when on Chats page (admin) */}
+         
         </div>
       </div>
+      {/* Mobile Rooms Overlay (slides in from left) */}
+      <AnimatePresence>
+        {isRoomsOverlayOpen && role === "admin" && isActive("/admin/chats") && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={() => { if (activeRoomId) setIsRoomsOverlayOpen(false); }}
+            />
+            {/* Sliding panel from left */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed top-0 left-0 h-full w-[85vw] max-w-sm bg-gray-900 border-r border-gray-800 z-[60] md:hidden flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-800">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-white" />
+                  <h2 className="text-lg font-bold text-white">Chats</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { if (activeRoomId) setIsRoomsOverlayOpen(false); }}
+                  className={`hover:bg-gray-800 ${!activeRoomId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!activeRoomId}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              {/* Content: vertical rooms list like WhatsApp */}
+              <div className="p-0 sm:p-0 overflow-y-auto flex-1">
+                <RoomsOverlayList
+                  activeRoomId={activeRoomId || undefined}
+                  onSelect={(rid) => {
+                    void setActiveRoom(rid);
+                    setIsRoomsOverlayOpen(false);
+                    try { router.push(`/admin/chats?roomId=${encodeURIComponent(rid)}`); } catch {}
+                  }}
+                  adminId={(user as { id?: string; _id?: string } | null)?.id || (user as { id?: string; _id?: string } | null)?._id}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }
