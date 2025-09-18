@@ -86,21 +86,58 @@ export default function AdminChatsPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-85px)] md:h-[calc(100vh-155px)]">
+    <div className="h-[calc(100vh-65px)] md:h-[calc(100vh-130px)] -mt-6">
       <div className="space-y-4 h-full flex flex-col !pt-0">
-        {/* Header: selected user and bill stats */}
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-lg font-semibold">{activeCustomer?.name || "Select a chat"}</div>
+        {/* Modern Dark Chat Header */}
+        <div className="bg-gray-900 border-b border-gray-700 px-4 py-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            {/* Left side: Avatar + User Info */}
+            <div className="flex items-center gap-3">
+              {activeCustomer ? (
+                <>
+                  {/* User Avatar */}
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-slate-400/80 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                      {activeCustomer.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                  
+                  {/* User Info */}
+                  <div className="flex flex-col">
+                    <div className="font-semibold text-white text-base">{activeCustomer.name}</div>
+                    {billStats && (
+                      <div className="text-xs text-gray-400">
+                        {billStats.count} bills • ₹{Number(billStats.total).toLocaleString('en-IN')}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white">Select a chat</div>
+                    <div className="text-xs text-gray-400">Choose a customer to start messaging</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right side: More options only */}
             {activeCustomer && (
-              <div className="text-sm opacity-80">
-                Bills: {billStats ? billStats.count : '…'} · Total: ₹{billStats ? Number(billStats.total).toLocaleString('en-IN') : '…'}
+              <div className="flex items-center gap-2">
+                {/* More options (3 dots) */}
+                <button className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                  <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                  </svg>
+                </button>
               </div>
             )}
-          </div>
-          {/* Placeholder for actions (e.g., View customer, create bill) */}
-          <div className="flex items-center gap-2">
-            {/* Add action buttons later if needed */}
           </div>
         </div>
 

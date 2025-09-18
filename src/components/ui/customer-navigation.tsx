@@ -277,7 +277,7 @@ export function CustomerNavigation() {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 xl:hidden">
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-800">
+              <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-800">
                 <h2 className="text-xl font-bold text-white">Customer Menu</h2>
                 <Button
                   variant="ghost"

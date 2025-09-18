@@ -58,11 +58,11 @@ export default function CustomerChatPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-85px)] md:h-[calc(100dvh-140px)]">
+    <div className="h-[calc(100vh-70px)] md:h-[calc(100dvh-130px)] -mt-3 md:-mt-12">
       <div className="space-y-4 h-full flex flex-col !pt-0">
-        <div className="flex items-center justify-between gap-4 p-4 border-b dark:border-zinc-700">
+        <div className="flex items-center justify-between gap-4 px-4 pb-2 md:pb-4 border-b dark:border-zinc-700">
           <div>
-            <div className="text-lg font-semibold">Chat with Shop</div>
+            <div className="text-lg font-semibold">Chat With Admin</div>
             <div className="text-sm text-zinc-500">We&apos;re here to help with your orders and questions</div>
           </div>
         </div>

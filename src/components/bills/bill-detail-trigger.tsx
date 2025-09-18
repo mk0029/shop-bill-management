@@ -44,7 +44,6 @@ export const BillDetailTrigger = ({
       onClick={handleClick} 
       className={className}
     >
-      <Eye className="w-4 h-4 mr-2" />
       {buttonLabel}
     </Button>
   );

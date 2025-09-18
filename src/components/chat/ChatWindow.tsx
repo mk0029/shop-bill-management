@@ -39,9 +39,9 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const seenOnceRef = useRef<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   type LiteBill = { _id: string; billNumber?: string; totalAmount?: number; createdAt: string };
   type BillUpdate = { result?: { _id?: string; billNumber?: string; totalAmount?: number; createdAt?: string } };
   const [bills, setBills] = useState<LiteBill[]>([]);
@@ -54,9 +54,45 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   }, [rooms, roomId]);
 
   useEffect(() => {
-    fetchMessages(roomId).then(() => markRead(roomId, actor)).catch(() => {});
+    fetchMessages(roomId).then(() => {
+      markRead(roomId, actor);
+      // Auto-scroll to bottom when chat loads
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.scrollTo({
+            top: listRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
+
+  // Handle scroll detection for scroll-to-bottom button
+  useEffect(() => {
+    const scrollContainer = listRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    if (listRef.current) {
+      listRef.current.scrollTo({
+        top: listRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   // Fetch bills for this room's customer and keep a lightweight list
   useEffect(() => {
@@ -229,7 +265,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <div ref={listRef} className="flex flex-col grow overflow-y-auto pr-1">
         <div className="space-y-4">
           {groupedMessages.map((group, groupIndex) => (
@@ -245,10 +281,11 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                   return (
                     <div key={`bill-${b._id}-${idx}`} className="flex justify-start w-full">
                       <div className="max-w-[90%] md:max-w-[80%] border rounded-md p-3 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <div>
                             <div className="text-sm font-medium">
-                              Bill {b.billNumber ? `#${b.billNumber}` : 'Draft'}
+                              Bill Created of   ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')}
+                              {/* {b.billNumber ? `#${b.billNumber}` : 'Draft'} */}
                             </div>
                             <div className="text-xs text-zinc-500 dark:text-zinc-400">
                               {new Date(item.createdAt).toLocaleString('en-US', {
@@ -261,11 +298,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="text-right">
-                              <div className="font-semibold">
-                                ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')}
-                              </div>
-                            </div>
+                           
                             <BillDetailTrigger 
                               bill={b}
                               buttonLabel="View"
@@ -332,13 +365,31 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           <div ref={bottomRef} />
         </div>
       </div>
+      
+      {/* Scroll to bottom button with animation */}
+      <div className={`absolute bottom-20 right-4 z-10 transition-all duration-300 ease-in-out transform ${
+        showScrollButton 
+          ? 'translate-y-0 opacity-100 scale-100' 
+          : 'translate-y-4 opacity-0 scale-95 pointer-events-none'
+      }`}>
+        <button
+          onClick={scrollToBottom}
+          className="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+          aria-label="Scroll to latest message"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+      </div>
+      
       {replyingTo && (
         <div className="px-4 pt-2 border-t dark:border-zinc-700">
           <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
             <div className="truncate">
               <span className="text-emerald-500">Replying to: </span>
               <span className="text-zinc-400 truncate">
-                {typeof replyingTo.content === 'string' ? 
+                {typeof replyingTo?.content === 'string' ? 
                   replyingTo.content.slice(0, 50) + 
                   (replyingTo.content.length > 50 ? '...' : '') : ''}
               </span>
@@ -375,7 +426,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         {replyingTo && (
           <div className="absolute bottom-full left-0 right-0 bg-zinc-100 dark:bg-zinc-800 p-2 text-sm border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
             <div className="truncate max-w-[calc(100%-24px)]">
-              <span className="font-medium">Replying to:</span> {replyingTo.content}
+              <span className="font-medium">Replying to:</span> {replyingTo?.content}
             </div>
             <button 
               type="button" 
@@ -392,7 +443,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={replyingTo ? 'Type your reply...' : 'Type a message...'}
-          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent"
+          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-base focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
