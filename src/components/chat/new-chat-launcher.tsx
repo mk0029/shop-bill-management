@@ -23,6 +23,7 @@ export default function NewChatLauncher(props: { onClose: () => void; onRoomOpen
       setIsStarting(true);
       setError(null);
       const roomId = await openRoomByCustomer(selectedCustomerId);
+      // Just pass the roomId to the callback - no URL navigation needed
       props.onRoomOpen(roomId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start chat");

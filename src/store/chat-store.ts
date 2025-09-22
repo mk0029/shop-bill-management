@@ -32,6 +32,8 @@ interface ChatState {
   loadRooms: (opts?: { customerId?: string; adminId?: string }) => Promise<void>;
   openRoomByCustomer: (customerId: string) => Promise<string>; // returns roomId
   setActiveRoom: (roomId: string) => Promise<void>;
+  clearActiveRoom: () => void;
+  resetChatState: () => void;
   fetchMessages: (roomId: string) => Promise<void>;
   sendMessage: (
     roomId: string, 
@@ -206,6 +208,17 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     await get().fetchMessages(roomId);
   },
 
+  clearActiveRoom: () => {
+    set({ activeRoomId: null });
+  },
+
+  resetChatState: () => {
+    set({ 
+      activeRoomId: null,
+      error: null
+    });
+  },
+
   fetchMessages: async (roomId) => {
     try {
       // Show cached messages immediately if available
@@ -279,7 +292,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       const notificationStore = useNotificationStore.getState();
       const chatNotifications = notificationStore.items.filter(n => 
         n.type === 'chat' && 
-        n.meta?.route?.query?.roomId === roomId
+        n.meta?.roomId === roomId
       );
       chatNotifications.forEach(n => notificationStore.markAsRead(n.id));
     } catch {}
@@ -398,7 +411,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
               const notificationStore = useNotificationStore.getState();
               const existingChatNotifications = notificationStore.items.filter(n => 
                 n.type === 'chat' && 
-                n.meta?.route?.query?.roomId === roomRef &&
+                n.meta?.roomId === roomRef &&
                 !n.read
               );
               existingChatNotifications.forEach(n => notificationStore.markAsRead(n.id));
@@ -422,7 +435,8 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
               title: `${label}`,
               body: preview || 'New message',
               meta: {
-                route: { pathname: routePath, query: { roomId: roomRef } },
+                route: { pathname: routePath },
+                roomId: roomRef, // Store roomId in meta but not in URL query
               },
             });
           } catch {}

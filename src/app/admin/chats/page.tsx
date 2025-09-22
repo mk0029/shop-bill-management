@@ -4,13 +4,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
-import { useSearchParams } from "next/navigation";
 
 export default function AdminChatsPage() {
   const { user, role, hydrated } = useAuthStore();
-  const { activeRoomId, setActiveRoom, subscribeRealtime, rooms, loadRooms } = useChatStore();
+  const { activeRoomId, subscribeRealtime, rooms, loadRooms, resetChatState } = useChatStore();
   const [initializing, setInitializing] = useState(true);
-  const search = useSearchParams();
   const [billStats, setBillStats] = useState<{ count: number; total: number } | null>(null);
 
   const adminId = useMemo(() => {
@@ -22,6 +20,9 @@ export default function AdminChatsPage() {
   useEffect(() => {
     if (!hydrated) return;
     
+    // Reset chat state on page load (WhatsApp-style)
+    resetChatState();
+    
     // Initialize chat - fetch all rooms without filtering
     const init = async () => {
       await loadRooms();
@@ -32,16 +33,6 @@ export default function AdminChatsPage() {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, adminId]);
-
-  // Auto-open chat from deep link (?roomId=)
-  useEffect(() => {
-    if (!hydrated) return;
-    const rid = search?.get("roomId");
-    if (rid) {
-      void setActiveRoom(rid);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, search]);
 
   // Derive selected customer's basic info from active room
   const activeCustomer = useMemo(() => {

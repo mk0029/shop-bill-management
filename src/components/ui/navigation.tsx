@@ -485,7 +485,7 @@ export function Navigation() {
                 activeRoomId={activeRoomId || undefined}
                 onSelect={(rid) => {
                   void setActiveRoom(rid);
-                  try { router.push(`/admin/chats?roomId=${encodeURIComponent(rid)}`); } catch {}
+                  // No URL navigation needed - WhatsApp style state-based routing
                 }}
                 adminId={(user as { id?: string; _id?: string } | null)?.id || (user as { id?: string; _id?: string } | null)?._id}
               />
@@ -570,7 +570,7 @@ export function Navigation() {
                   onSelect={(rid) => {
                     void setActiveRoom(rid);
                     setIsRoomsOverlayOpen(false);
-                    try { router.push(`/admin/chats?roomId=${encodeURIComponent(rid)}`); } catch {}
+                    // No URL navigation needed - WhatsApp style state-based routing
                   }}
                   adminId={(user as { id?: string; _id?: string } | null)?.id || (user as { id?: string; _id?: string } | null)?._id}
                 />
@@ -582,14 +582,13 @@ export function Navigation() {
 
       {/* New Chat Launcher for Mobile */}
       {showNewChatMobile && (
-        
         <NewChatLauncher 
           onClose={() => setShowNewChatMobile(false)} 
           onRoomOpen={(roomId) => { 
             setShowNewChatMobile(false); 
             void setActiveRoom(roomId);
             setIsRoomsOverlayOpen(false);
-            try { router.push(`/admin/chats?roomId=${encodeURIComponent(roomId)}`); } catch {}
+            // No URL navigation needed - WhatsApp style state-based routing
           }} 
         />
       )}
