@@ -6,7 +6,6 @@ const publicPaths = [
   "/",
   "/api/webhook(.*)",
   "/api/uploadthing",
-  "/api/chat(.*)", // Allow all chat API routes
 ];
 
 const isPublic = (path: string) => {

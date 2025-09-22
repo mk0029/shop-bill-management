@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useSanityRealtimeStore } from "../../store/sanity-realtime-store";
 import { useNotificationStore } from "../../store/notification-store";
+import { useAuthStore } from "../../store/auth-store";
 
 export default function NotificationsBridge() {
   const { on, connect } = useSanityRealtimeStore();
@@ -11,8 +12,29 @@ export default function NotificationsBridge() {
   useEffect(() => {
     connect();
 
+    // Helper function to check if user should receive notification
+    const shouldNotifyUser = (targetCustomerId?: string) => {
+      const auth = useAuthStore.getState();
+      const user = auth.user as { id?: string; _id?: string; role?: string } | null;
+      const userId = user?._id || user?.id;
+      const userRole = user?.role;
+
+      // Admins get all notifications
+      if (userRole === 'admin') return true;
+      
+      // Customers only get notifications for their own data
+      if (userRole === 'customer') {
+        return targetCustomerId && userId && targetCustomerId === userId;
+      }
+      
+      return false;
+    };
+
     // Bill created
-    on("bill:created", (bill: any) => {
+    on("bill:created", (bill: { _id?: string; billNumber?: string; customer?: { _id?: string; name?: string }; totalAmount?: number }) => {
+      const customerId = bill?.customer?._id;
+      if (!shouldNotifyUser(customerId)) return;
+
       try {
         if (typeof window !== "undefined") {
           const key = "recentCreatedBillIds";
@@ -32,12 +54,14 @@ export default function NotificationsBridge() {
         type: "billing",
         title: `New bill #${bill?.billNumber ?? ""}`.trim(),
         body: `${bill?.customer?.name ?? "Customer"} • ₹${(bill?.totalAmount ?? 0).toLocaleString()}`,
-        meta: { billId: bill?._id },
+        meta: { billId: bill?._id, userId: customerId },
       });
     });
 
     // Bill updated (e.g., payment status)
-    on("bill:updated", ({ billId, updates }: any) => {
+    on("bill:updated", ({ billId, updates, customerId }: { billId: string; updates?: { paymentStatus?: string; status?: string; billNumber?: string }; customerId?: string }) => {
+      if (!shouldNotifyUser(customerId)) return;
+
       // Suppress if this tab recently updated this bill
       try {
         if (typeof window !== "undefined") {
@@ -59,12 +83,14 @@ export default function NotificationsBridge() {
         type: "billing",
         title: `Bill updated ${updates?.billNumber ? `#${updates.billNumber}` : ""}`.trim(),
         body: status ? `Status: ${status}` : `Bill ${billId} updated`,
-        meta: { billId },
+        meta: { billId, userId: customerId },
       });
     });
 
-    // Inventory low stock
-    on("inventory:low_stock", (p: any) => {
+    // Inventory low stock (admin only)
+    on("inventory:low_stock", (p: { productName?: string; productId?: string; currentStock?: number; minimumStock?: number }) => {
+      if (!shouldNotifyUser()) return; // Only admins should get inventory notifications
+
       add({
         type: "inventory",
         title: `Low stock: ${p?.productName ?? p?.productId}`,
@@ -74,12 +100,15 @@ export default function NotificationsBridge() {
     });
 
     // Payment created
-    on("payment:created", (payment: any) => {
+    on("payment:created", (payment: { _id?: string; amount?: number; totalAmount?: number; billNumber?: string; customerId?: string }) => {
+      const customerId = payment?.customerId;
+      if (!shouldNotifyUser(customerId)) return;
+
       add({
         type: "payment",
         title: `Payment received`,
         body: `₹${(payment?.amount ?? payment?.totalAmount ?? 0).toLocaleString()} for bill ${payment?.billNumber ?? ""}`.trim(),
-        meta: { paymentId: payment?._id },
+        meta: { paymentId: payment?._id, userId: customerId },
       });
     });
   }, [on, add, connect]);

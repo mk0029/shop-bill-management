@@ -42,11 +42,24 @@ export async function getOrCreateRoomByCustomer(customerId: string) {
   return json.data as ChatRoom;
 }
 
-export async function listRooms(opts?: { customerId?: string; adminId?: string }) {
+export async function listRooms(opts?: { customerId?: string; adminId?: string; userRole?: string; userId?: string }) {
   const qs = new URLSearchParams();
   if (opts?.customerId) qs.set("customerId", String(opts.customerId));
   if (opts?.adminId) qs.set("adminId", String(opts.adminId));
-  const res = await fetch(base(`/api/chat/rooms?${qs.toString()}`), { cache: "no-store" });
+  
+  // Prepare headers for authentication
+  const headers: HeadersInit = {
+    "Cache-Control": "no-store"
+  };
+  
+  // Add user authentication headers if provided
+  if (opts?.userRole) headers["x-user-role"] = opts.userRole;
+  if (opts?.userId) headers["x-user-id"] = opts.userId;
+  
+  const res = await fetch(base(`/api/chat/rooms?${qs.toString()}`), { 
+    cache: "no-store",
+    headers 
+  });
   const json = await res.json();
   if (!json?.success) throw new Error(json?.error || "Failed to fetch rooms");
   return json.data as ChatRoom[];

@@ -7,7 +7,7 @@ import ChatWindow from "@/components/chat/ChatWindow";
 
 export default function CustomerChatPage() {
   const { user, role, hydrated } = useAuthStore();
-  const { openRoomByCustomer, setActiveRoom, activeRoomId, subscribeRealtime } = useChatStore();
+  const { openRoomByCustomer, setActiveRoom, activeRoomId, subscribeRealtime, loadRooms } = useChatStore();
   const [initializing, setInitializing] = React.useState(true);
 
   const customerId = useMemo(() => {
@@ -30,6 +30,9 @@ export default function CustomerChatPage() {
 
     (async () => {
       try {
+        // Load rooms filtered by current customer ID to ensure only customer's rooms are fetched
+        await loadRooms({ customerId: String(customerId) });
+        
         const roomId = await openRoomByCustomer(String(customerId));
         await setActiveRoom(roomId);
       } finally {
@@ -43,7 +46,7 @@ export default function CustomerChatPage() {
         setActiveRoom(activeRoomId).catch(() => {});
       }
     };
-  }, [hydrated, role, customerId, subscribeRealtime, openRoomByCustomer, setActiveRoom, activeRoomId]);
+  }, [hydrated, role, customerId, subscribeRealtime, openRoomByCustomer, setActiveRoom, activeRoomId, loadRooms]);
 
   if (!hydrated || initializing) {
     return <div className="p-6">Loading chat…</div>;

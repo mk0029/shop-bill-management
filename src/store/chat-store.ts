@@ -79,10 +79,20 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
         console.error('Error loading cached rooms:', cacheErr);
       }
 
-      // Only pass defined parameters to listRooms
-      const fetchOpts: { customerId?: string; adminId?: string } = {};
+      // Get current user info for authentication
+      const authStore = useAuthStore.getState();
+      const user = authStore.user as { id?: string; _id?: string; role?: string } | null;
+      const userId = user?._id || user?.id;
+      const userRole = user?.role;
+
+      // Prepare fetch options with authentication
+      const fetchOpts: { customerId?: string; adminId?: string; userRole?: string; userId?: string } = {};
       if (opts?.customerId) fetchOpts.customerId = opts.customerId;
       if (opts?.adminId) fetchOpts.adminId = opts.adminId;
+      
+      // Add authentication headers
+      if (userId) fetchOpts.userId = userId;
+      if (userRole) fetchOpts.userRole = userRole;
       
       console.log('Fetching rooms from API with options:', fetchOpts);
       const rooms = await listRooms(fetchOpts);
@@ -383,11 +393,15 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             const loc = typeof window !== 'undefined' ? window.location : null;
             const pathname = loc ? loc.pathname : '';
             const onChatRoute = pathname.startsWith('/admin/chats') || pathname.startsWith('/customer/chat');
+            
+            // Get current user info for filtering
+            const auth = useAuthStore.getState();
+            const me = (auth?.user as { id?: string; _id?: string; role?: string } | null) || null;
+            const myId: string | undefined = me?._id || me?.id;
+            const myRole = me?.role;
+            
             // Suppress if the message is from the current user (self)
             try {
-              const auth = useAuthStore.getState();
-              const me = (auth?.user as { id?: string; _id?: string } | null) || null;
-              const myId: string | undefined = me?._id || me?.id;
               const sender = (msg?.sender as { _id?: string; _ref?: string } | undefined);
               const senderId = sender?._id || sender?._ref;
               if (myId && senderId && myId === senderId) {
@@ -395,6 +409,24 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
                 return;
               }
             } catch {}
+
+            // SECURITY: Filter notifications based on user role and ownership
+            let roomCustomerId: string | undefined;
+            if (myRole === 'customer') {
+              // Customers should only get notifications for their own chat rooms
+              const room = get().rooms.find((x) => x._id === roomRef);
+              roomCustomerId = room?.customer?._id;
+              
+              if (!roomCustomerId || roomCustomerId !== myId) {
+                // This chat room doesn't belong to the current customer - don't notify
+                return;
+              }
+            } else {
+              // For admins, still get the customer ID for metadata
+              const room = get().rooms.find((x) => x._id === roomRef);
+              roomCustomerId = room?.customer?._id;
+            }
+            
             // Fallback to URL param if activeRoomId not yet set
             let currentRoomId = active || null;
             try {
@@ -437,6 +469,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
               meta: {
                 route: { pathname: routePath },
                 roomId: roomRef, // Store roomId in meta but not in URL query
+                userId: roomCustomerId, // Store customer ID for filtering
               },
             });
           } catch {}
