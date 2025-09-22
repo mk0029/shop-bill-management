@@ -12,6 +12,9 @@ type SwipeableMessageProps = {
   onSwipeDown?: () => void;
   parentMessage?: ChatMessage | null;
   onView?: () => void;
+  showSenderName?: boolean;
+  senderName?: string;
+  actor?: "admin" | "customer";
 };
 
 export function SwipeableMessage({ 
@@ -20,7 +23,10 @@ export function SwipeableMessage({
   onSwipeLeft, 
   onSwipeRight,
   parentMessage,
-  onView
+  onView,
+  showSenderName = false,
+  senderName,
+  actor
 }: SwipeableMessageProps) {
   const controls = useAnimation();
   const constraintsRef = useRef(null);
@@ -92,6 +98,11 @@ export function SwipeableMessage({
               <span className={`text-[11px] ${isSelf ? 'text-white/80' : 'opacity-70'}`}>
                 {/* {new Date(message.createdAt as string).toLocaleString()} */}
                 {new Date(message.createdAt as string).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                {showSenderName && senderName && (
+                  <span className="ml-1 font-medium">
+                    • {senderName}
+                  </span>
+                )}
               </span>
               {message.editedAt && <span className={`text-[10px] italic ml-auto ${isSelf ? 'text-white/70' : 'opacity-60'}`}>edited</span>}
               {isSelf && (

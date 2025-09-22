@@ -297,6 +297,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     return s._id ?? s._ref;
   };
 
+
   return (
     <div className="flex flex-col h-full relative">
       <div ref={listRef} className="flex flex-col grow overflow-y-auto pr-1">
@@ -349,7 +350,47 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                 const m = item.m;
                 if (!m) return null;
                 
-                const isSelf = getMsgSenderId(m) === senderId;
+                // In admin view: ALL admin messages appear on right, customer messages on left
+                // In customer view: only own messages appear on right
+                const msgSenderId = getMsgSenderId(m);
+                let isSelf: boolean;
+                
+                if (actor === "admin") {
+                  // For admin view: determine if message is from admin or customer
+                  // Check if the sender is the customer for this room
+                  const room = rooms.find(r => r._id === roomId);
+                  const customerId = room?.customer?._id;
+                  const isFromCustomer = msgSenderId === customerId;
+                  
+                  isSelf = !isFromCustomer; // All admin messages appear on right, customer messages on left
+                } else {
+                  // For customer view: only own messages appear on right
+                  isSelf = msgSenderId === senderId;
+                }
+                
+                // Determine if we should show sender names and get sender name
+                const room = rooms.find(r => r._id === roomId);
+                const customerId = room?.customer?._id;
+                const isFromCustomer = msgSenderId === customerId;
+                
+                // Get unique admin senders in this chat (excluding customer)
+                const adminSenders = messages
+                  .filter(msg => {
+                    const sId = getMsgSenderId(msg);
+                    return sId && sId !== customerId;
+                  })
+                  .map(msg => getMsgSenderId(msg))
+                  .filter((id, index, arr) => arr.indexOf(id) === index);
+                
+                const hasMultipleAdmins = adminSenders.length > 1;
+                const shouldShowSenderName = hasMultipleAdmins && !isFromCustomer;
+                
+                // Get sender name from message sender object
+                let senderName: string | undefined;
+                if (shouldShowSenderName && m.sender) {
+                  const sender = m.sender as { _id?: string; _ref?: string; name?: string };
+                  senderName = sender.name || `Admin ${msgSenderId?.slice(-4)}`;
+                }
                 const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
 
                 return (
@@ -386,6 +427,9 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                       message={m}
                       isSelf={isSelf}
                       parentMessage={parent}
+                      showSenderName={shouldShowSenderName}
+                      senderName={senderName}
+                      actor={actor}
                       onView={() => {}} // No longer needed, handled by observer
                       onSwipeLeft={() => {
                         // Allow replying to any message, including your own

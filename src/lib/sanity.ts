@@ -37,10 +37,34 @@ export const urlFor = (source: SanityImageSource) => builder.image(source);
 export const setupRealtimeListeners = (callback: (update: unknown) => void) => {
   const subscription = sanityClient
     .listen(
-      '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category", "chatRoom", "chatMessage"]]'
+      '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category", "chatRoom", "chatMessage"]]',
+      {},
+      {
+        includeResult: true,
+        visibility: 'query'
+      }
     )
     .subscribe((update) => {
-      callback(update);
+      // For chatMessage updates, ensure we have the sender name populated
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateData = update as any;
+      if (updateData.result?._type === 'chatMessage') {
+        // Fetch the complete message with sender details
+        sanityClient
+          .fetch('*[_type == "chatMessage" && _id == $id][0]{ ..., sender->{ _id, name } }', { id: updateData.result._id })
+          .then((completeMessage) => {
+            if (completeMessage) {
+              callback({ ...updateData, result: completeMessage });
+            } else {
+              callback(updateData);
+            }
+          })
+          .catch(() => {
+            callback(updateData);
+          });
+      } else {
+        callback(updateData);
+      }
     });
 
   return subscription;

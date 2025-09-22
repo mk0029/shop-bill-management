@@ -45,6 +45,11 @@ export default function AdminChatsPage() {
     return id ? { id, name } : null;
   }, [rooms, activeRoomId]);
 
+  // Reset bill stats immediately when activeRoomId changes to prevent flash of old data
+  useEffect(() => {
+    setBillStats(null);
+  }, [activeRoomId]);
+
   // Fetch bill stats for header (count and total amount)
   useEffect(() => {
     let alive = true;
