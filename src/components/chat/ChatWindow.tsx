@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useChatStore } from "@/store/chat-store";
 import { SwipeableMessage } from "./SwipeableMessage";
-import { SendHorizontalIcon } from "lucide-react";
+import { SendHorizontalIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { BillDetailTrigger } from "../bills/bill-detail-trigger";
 import type { ChatMessage } from "@/lib/chat-api";
 import { motion } from "framer-motion";
@@ -46,6 +46,9 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   const messageRefs = useRef<Map<string, HTMLElement>>(new Map());
   type LiteBill = { _id: string; billNumber?: string; totalAmount?: number; createdAt: string };
   const [bills, setBills] = useState<LiteBill[]>([]);
+  const [attachments, setAttachments] = useState<Array<{ file: File; preview?: string; id: string }>>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
 
   const messages = useMemo(() => messagesByRoomId[roomId] || [], [messagesByRoomId, roomId]);
 
@@ -268,27 +271,142 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     }
   }, []);
 
+  const handleFileSelect = useCallback((files: FileList | null) => {
+    if (!files) return;
+    const newAttachments = Array.from(files).map(file => ({
+      file,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+      id: `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    }));
+    setAttachments(prev => [...prev, ...newAttachments]);
+  }, []);
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments(prev => {
+      const attachment = prev.find(a => a.id === id);
+      if (attachment?.preview) {
+        URL.revokeObjectURL(attachment.preview);
+      }
+      return prev.filter(a => a.id !== id);
+    });
+  }, []);
+
+  const uploadFileWithProgress = (file: File, attachmentId: string): Promise<{ _id: string; filename: string; size: number; type: string; url: string }> => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          setUploadProgress(prev => ({ ...prev, [attachmentId]: percentComplete }));
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          try {
+            const result = JSON.parse(xhr.responseText);
+            if (!result || !result.assetId || !result.url) {
+              reject(new Error(`Invalid upload response for ${file.name}`));
+            } else {
+              resolve({
+                _id: result.assetId,
+                filename: file.name,
+                size: file.size,
+                type: file.type,
+                url: result.url
+              });
+            }
+          } catch (_error) {
+            reject(new Error(`Failed to parse response for ${file.name}`));
+          }
+        } else {
+          reject(new Error(`Upload failed for ${file.name}: ${xhr.statusText}`));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error(`Network error while uploading ${file.name}`));
+      });
+
+      xhr.open('POST', '/api/upload/chat');
+      xhr.send(formData);
+    });
+  };
+
   const onSend = async () => {
     const content = text.trim();
-    if (!content) return;
+    if (!content && (attachments?.length || 0) === 0) return;
+
     const currentEditing = editingId;
     const currentReply = replyingTo;
     setText("");
     setEditingId(null);
     setReplyingTo(null);
+
     if (currentEditing) {
       await editMessage(roomId, currentEditing, content);
       return;
     }
-    
-    // Include parent message details when replying
-    const parentMessage = currentReply ? {
-      _id: currentReply._id,
-      content: currentReply.content,
-      sender: currentReply.sender
-    } : undefined;
-    
-    await sendMessage(roomId, content, senderId, actor === "customer", currentReply?._id, parentMessage);
+
+    try {
+      // Upload attachments first if any
+      let uploadedAttachments: Array<{ _id: string; filename: string; size: number; type: string; url: string }> = [];
+      if ((attachments?.length || 0) > 0) {
+        setUploadingFiles(new Set(attachments.map(a => a.id)));
+
+        const uploadPromises = attachments.map(async (attachment) => {
+          setUploadingFiles(prev => new Set([...prev, attachment.id]));
+
+          try {
+            const result = await uploadFileWithProgress(attachment.file, attachment.id);
+
+            // Mark file as uploaded
+            setUploadingFiles(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(attachment.id);
+              return newSet;
+            });
+
+            return result;
+          } catch (error) {
+            // Mark file as failed
+            setUploadingFiles(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(attachment.id);
+              return newSet;
+            });
+            throw error;
+          }
+        });
+
+        uploadedAttachments = await Promise.all(uploadPromises);
+        setUploadingFiles(new Set());
+      }
+
+      // Include parent message details when replying
+      const parentMessage = currentReply ? {
+        _id: currentReply._id,
+        content: currentReply.content,
+        sender: currentReply.sender
+      } : undefined;
+
+      // Send message with attachments - content can be empty if attachments exist
+      await sendMessage(roomId, content, senderId, actor === "customer", currentReply?._id, parentMessage, uploadedAttachments);
+
+      // Clear attachments after successful send
+      setAttachments([]);
+      setUploadProgress({});
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Restore the text if there was an error
+      if (!currentEditing) {
+        setText(content);
+      }
+    }
   };
 
   const getMsgSenderId = (m: ChatMessage): string | undefined => {
@@ -463,7 +581,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           <div ref={bottomRef} />
         </div>
       </div>
-      
+
       {/* Scroll to bottom button with animation */}
       <div className={`absolute bottom-20 right-4 z-10 transition-all duration-300 ease-in-out transform ${
         showScrollButton 
@@ -480,7 +598,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           </svg>
         </button>
       </div>
-      
+
       {replyingTo && (
         <div className="px-4 pt-2 border-t dark:border-zinc-700">
           <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
@@ -520,14 +638,99 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           </div>
         </div>
       )}
+      {/* Global Upload Status */}
+      {uploadingFiles.size > 0 && (
+        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <span className="text-blue-700 dark:text-blue-300 font-medium">
+                Uploading {uploadingFiles.size} file{uploadingFiles.size > 1 ? 's' : ''}...
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {Array.from(uploadingFiles).map(id => {
+                const progress = uploadProgress[id] || 0;
+                return (
+                  <div key={id} className="flex items-center gap-1">
+                    <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                      <div
+                        className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-blue-600 dark:text-blue-400 min-w-[3ch] text-right">
+                      {Math.round(progress)}%
+                    </span>
+                  </div>
+                );
+
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Attachment Preview */}
+      {(attachments?.length || 0) > 0 && (
+        <div className="px-4 py-2 border-t dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((attachment) => {
+              const isUploading = uploadingFiles.has(attachment.id);
+              const progress = uploadProgress[attachment.id] || 0;
+
+              return (
+                <div key={attachment.id} className="relative group border rounded-lg p-2 bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600">
+                  {attachment.preview ? (
+                    <img
+                      src={attachment.preview}
+                      alt={attachment.file.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 flex items-center justify-center bg-zinc-100 dark:bg-zinc-600 rounded">
+                      <PaperclipIcon className="w-6 h-6 text-zinc-400" />
+                    </div>
+                  )}
+
+                  {/* Upload Progress Overlay */}
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-black/50 rounded flex flex-col items-center justify-center">
+                      <div className="w-full px-2 mb-2">
+                        <div className="w-full bg-white/20 rounded-full h-1">
+                          <div
+                            className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-white text-xs font-medium">{Math.round(progress)}%</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => removeAttachment(attachment.id)}
+                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    disabled={isUploading}
+                  >
+                    <XIcon className="w-3 h-3" />
+                  </button>
+                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 truncate w-16" title={attachment.file.name}>
+                    {attachment.file.name}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="mt-1 flex items-center gap-2 border-t p-1">
         {replyingTo && (
           <div className="absolute bottom-full left-0 right-0 bg-zinc-100 dark:bg-zinc-800 p-2 text-sm border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
             <div className="truncate max-w-[calc(100%-24px)]">
               <span className="font-medium">Replying to:</span> {replyingTo?.content}
             </div>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setReplyingTo(null)}
               className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             >
@@ -535,6 +738,17 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
             </button>
           </div>
         )}
+        <input
+          type="file"
+          multiple
+          accept="image/*,application/pdf,.doc,.docx,.txt"
+          onChange={(e) => handleFileSelect(e.target.files)}
+          className="hidden"
+          id="file-input"
+        />
+        <label htmlFor="file-input" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer transition-colors">
+          <PaperclipIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+        </label>
         <input
           id="message-input"
           type="text"
@@ -549,9 +763,17 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
             }
           }}
         />
-        <button disabled={text.trim() === ''} className="px-2 py-1 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-50" onClick={onSend}>{editingId ? 'Update' : <SendHorizontalIcon />}</button>
+        <button
+          disabled={text.trim() === '' && (attachments?.length || 0) === 0 || uploadingFiles.size > 0}
+          className="px-2 py-1 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-50 flex items-center gap-1"
+          onClick={onSend}
+        >
+          {uploadingFiles.size > 0 && (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          )}
+          {editingId ? 'Update' : <SendHorizontalIcon />}
+        </button>
       </div>
     </div>
   );
 }
-

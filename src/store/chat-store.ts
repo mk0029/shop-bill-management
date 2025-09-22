@@ -23,6 +23,7 @@ interface ChatState {
       content: string;
       sender?: { _id: string; name?: string } | { _ref: string };
     };
+    attachments?: Array<{ _id: string; filename: string; size: number; type: string; url: string }>;
   }>>;
   _sendingBusyByRoomId: Record<string, boolean>;
   activeRoomId: string | null;
@@ -41,7 +42,8 @@ interface ChatState {
     senderId: string, 
     isCustomer?: boolean, 
     parentId?: string,
-    parentMessage?: { _id: string; content: string; sender?: { _id: string; name?: string } | { _ref: string } }
+    parentMessage?: { _id: string; content: string; sender?: { _id: string; name?: string } | { _ref: string } },
+    attachments?: Array<{ _id: string; filename: string; size: number; type: string; url: string }>
   ) => Promise<void>;
   markRead: (roomId: string, actor: "admin" | "customer") => Promise<void>;
   markMessageSeen: (roomId: string, messageId: string) => Promise<void>;
@@ -137,7 +139,8 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             isCustomer: item.isCustomer, 
             parentId: item.parentId,
             parentMessage: item.parentMessage,
-            senderToken 
+            senderToken,
+            attachments: item.attachments
           });
           // Replace the optimistic tempId with saved message
           set((s) => {
@@ -248,7 +251,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     }
   },
 
-  sendMessage: async (roomId, content, senderId, isCustomer, parentId, parentMessage) => {
+  sendMessage: async (roomId, content, senderId, isCustomer, parentId, parentMessage, attachments) => {
     // Enqueue request to preserve order and avoid duplicates during realtime roundtrip
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const optimistic: ChatMessage = {
@@ -256,7 +259,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       room: { _ref: roomId },
       sender: { _ref: senderId },
       content,
-      attachments: [],
+      attachments: attachments || [],
       status: "pending",
       parentId,
       parentMessage,
@@ -276,7 +279,8 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             senderId, 
             isCustomer, 
             parentId,
-            parentMessage // Include parentMessage in the queue
+            parentMessage, // Include parentMessage in the queue
+            attachments
           }] 
         },
       };

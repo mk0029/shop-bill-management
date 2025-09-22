@@ -40,9 +40,24 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
   const { roomId } = params;
   try {
     const body = await req.json().catch(() => ({}));
-    const { content, senderId, isCustomer, parentId, parentMessage, senderToken } = body || {};
-    if (!content || !senderId) {
+    const { content, senderId, isCustomer, parentId, parentMessage, senderToken, attachments } = body || {};
+    if (!senderId || (!content && (!attachments || attachments.length === 0))) {
       return NextResponse.json({ success: false, error: "Missing content or senderId" }, { status: 400 });
+    }
+
+    // Define attachment type
+    interface ChatAttachment {
+      _id?: string;
+      filename: string;
+      size: number;
+      type: string;
+      url: string;
+    }
+
+    // Process attachments - convert URLs to simple array format
+    let processedAttachments: ChatAttachment[] = [];
+    if (attachments && Array.isArray(attachments)) {
+      processedAttachments = attachments as ChatAttachment[];
     }
 
     // Validate room exists and fetch participants
@@ -72,7 +87,7 @@ export async function POST(req: Request, { params }: { params: { roomId: string 
       room: { _type: "reference", _ref: roomId },
       sender: { _type: "reference", _ref: String(senderId) },
       content,
-      attachments: [],
+      ...(processedAttachments.length > 0 ? { attachments: processedAttachments } : {}),
       status: "sent",
       parentId: parentId ? String(parentId) : undefined,
       parentMessage: parentMessage ? {

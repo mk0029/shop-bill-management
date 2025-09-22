@@ -16,7 +16,13 @@ export type ChatMessage = {
   room: { _ref: string } | string;
   sender?: { _id: string; name?: string } | { _ref: string };
   content: string;
-  attachments?: Array<unknown>;
+  attachments?: Array<{
+    _id: string;
+    filename: string;
+    size: number;
+    type: string;
+    url: string;
+  }>;
   status?: "pending" | "sent" | "delivered" | "seen";
   deliveredAt?: string;
   seenAt?: string;
@@ -87,8 +93,15 @@ export async function sendRoomMessage(params: {
   };
   // Optional: current device's FCM token to exclude from push targets
   senderToken?: string | null;
+  attachments?: Array<{
+    _id: string;
+    filename: string;
+    size: number;
+    type: string;
+    url: string;
+  }>;
 }) {
-  const { roomId, content, senderId, isCustomer, parentId, parentMessage, senderToken } = params;
+  const { roomId, content, senderId, isCustomer, parentId, parentMessage, senderToken, attachments } = params;
   const res = await fetch(base(`/api/chat/room/${roomId}/messages`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -98,7 +111,8 @@ export async function sendRoomMessage(params: {
       isCustomer: Boolean(isCustomer), 
       parentId, 
       parentMessage,
-      senderToken: senderToken || undefined 
+      senderToken: senderToken || undefined,
+      attachments
     }),
   });
   const json = await res.json();
