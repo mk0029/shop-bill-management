@@ -29,7 +29,9 @@ export default function RoomsSidebar(props: { adminId?: string; customerId?: str
                 <div className="text-xs opacity-70 truncate max-w-[220px]">{r.lastMessage || ''}</div>
               </div>
               {(() => {
-                const unread = props.customerId ? (r.unreadForCustomer || 0) : (r.unreadForAdmins || 0);
+                // Hide unread count if we're currently viewing this room
+                const isCurrentRoom = props.activeRoomId === r._id;
+                const unread = isCurrentRoom ? 0 : (props.customerId ? (r.unreadForCustomer || 0) : (r.unreadForAdmins || 0));
                 return unread > 0 ? (
                   <span className="ml-2 inline-flex items-center justify-center text-xs bg-blue-600 text-white rounded-full w-6 h-6">{unread}</span>
                 ) : null;

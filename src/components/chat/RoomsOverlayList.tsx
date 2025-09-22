@@ -21,7 +21,9 @@ export default function RoomsOverlayList(props: { activeRoomId?: string; onSelec
   return (
     <div className="divide-y divide-gray-800">
       {ordered.map((r: ChatRoom) => {
-        const unread = props.customerId ? (r.unreadForCustomer || 0) : (r.unreadForAdmins || 0);
+        // Hide unread count if we're currently viewing this room
+        const isCurrentRoom = props.activeRoomId === r._id;
+        const unread = isCurrentRoom ? 0 : (props.customerId ? (r.unreadForCustomer || 0) : (r.unreadForAdmins || 0));
         const label = r.customer?.name || r.roomName || "Chat";
         const initials = (label || "?")
           .split(" ")

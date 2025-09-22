@@ -35,7 +35,9 @@ export default function RoomsTopBar(props: { activeRoomId?: string; onSelect: (r
           <Plus className="w-6 h-6" />
         </button>
         {ordered.map((r: ChatRoom) => {
-          const unread = props.customerId ? (r.unreadForCustomer || 0) : (r.unreadForAdmins || 0);
+          // Hide unread count if we're currently viewing this room
+          const isCurrentRoom = props.activeRoomId === r._id;
+          const unread = isCurrentRoom ? 0 : (props.customerId ? (r.unreadForCustomer || 0) : (r.unreadForAdmins || 0));
           const label = r.customer?.name || r.roomName || "Chat";
           const initials = (label || "?").split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase();
           const isActive = props.activeRoomId === r._id;

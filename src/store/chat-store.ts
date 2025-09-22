@@ -274,6 +274,14 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
           unreadForCustomer: actor === 'customer' ? 0 : r.unreadForCustomer,
         }) : r),
       }));
+      
+      // Clear chat notifications for this room when marked as read
+      const notificationStore = useNotificationStore.getState();
+      const chatNotifications = notificationStore.items.filter(n => 
+        n.type === 'chat' && 
+        n.meta?.route?.query?.roomId === roomId
+      );
+      chatNotifications.forEach(n => notificationStore.markAsRead(n.id));
     } catch {}
   },
 
@@ -386,6 +394,14 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             const isSameRoomOpen = !!currentRoomId && currentRoomId === roomRef && onChatRoute;
             if (isSameRoomOpen) {
               // Do not show in-app notification if user is already on this chat
+              // Also mark any existing chat notifications for this room as read
+              const notificationStore = useNotificationStore.getState();
+              const existingChatNotifications = notificationStore.items.filter(n => 
+                n.type === 'chat' && 
+                n.meta?.route?.query?.roomId === roomRef &&
+                !n.read
+              );
+              existingChatNotifications.forEach(n => notificationStore.markAsRead(n.id));
               return;
             }
 

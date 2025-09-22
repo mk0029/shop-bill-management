@@ -78,6 +78,19 @@ export const useNotificationStore = create<NotificationState>()(
             return state;
           }
 
+          // 3) For chat notifications, also de-dup by roomId to prevent multiple notifications for same room
+          if (n.type === 'chat' && n.meta?.route?.query?.roomId) {
+            const roomId = n.meta.route.query.roomId;
+            const hasRecentSameRoom = state.items.some((x) =>
+              x.type === 'chat' &&
+              x.meta?.route?.query?.roomId === roomId &&
+              Math.abs((Date.parse(x.createdAt) || nowTs) - incomingTs) < windowMs
+            );
+            if (hasRecentSameRoom) {
+              return state;
+            }
+          }
+
           const item: AppNotification = {
             id: n.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             createdAt,

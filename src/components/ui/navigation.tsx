@@ -35,6 +35,7 @@ import Image from "next/image";
 import { OnlineStatusToggle } from "@/components/online-status-toggle";
 import RoomsTopBar from "@/components/chat/RoomsTopBar";
 import RoomsOverlayList from "@/components/chat/RoomsOverlayList";
+import NewChatLauncher from "@/components/chat/new-chat-launcher";
 import { useChatStore } from "@/store/chat-store";
 
 interface NavigationItem {
@@ -135,6 +136,7 @@ const customerNavigation: NavigationItem[] = [
 export function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoomsOverlayOpen, setIsRoomsOverlayOpen] = useState(false);
+  const [showNewChatMobile, setShowNewChatMobile] = useState(false);
   // Allow only one expanded section at a time on mobile
   const [expandedItems, setExpandedItems] = useState<string | null>(null);
   const prevOverflowRef = useRef<string | null>(null);
@@ -540,15 +542,26 @@ export function Navigation() {
                   <MessageSquare className="w-5 h-5 text-white" />
                   <h2 className="text-lg font-bold text-white">Chats</h2>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { if (activeRoomId) setIsRoomsOverlayOpen(false); }}
-                  className={`hover:bg-gray-800 ${!activeRoomId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={!activeRoomId}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowNewChatMobile(true)}
+                    className="hover:bg-gray-800 text-white"
+                    title="Start new chat"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { if (activeRoomId) setIsRoomsOverlayOpen(false); }}
+                    className={`hover:bg-gray-800 ${!activeRoomId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!activeRoomId}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
               {/* Content: vertical rooms list like WhatsApp */}
               <div className="p-0 sm:p-0 overflow-y-auto flex-1">
@@ -566,6 +579,20 @@ export function Navigation() {
           </>
         )}
       </AnimatePresence>
+
+      {/* New Chat Launcher for Mobile */}
+      {showNewChatMobile && (
+        
+        <NewChatLauncher 
+          onClose={() => setShowNewChatMobile(false)} 
+          onRoomOpen={(roomId) => { 
+            setShowNewChatMobile(false); 
+            void setActiveRoom(roomId);
+            setIsRoomsOverlayOpen(false);
+            try { router.push(`/admin/chats?roomId=${encodeURIComponent(roomId)}`); } catch {}
+          }} 
+        />
+      )}
     </>
   );
 }
