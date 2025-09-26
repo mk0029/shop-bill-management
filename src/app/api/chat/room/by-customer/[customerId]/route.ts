@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
 // GET: get or create a chat room for a given customerId
-export async function GET(_req: Request, { params }: { params: { customerId: string } }) {
-  const { customerId } = params;
+export async function GET(_req: Request, { params }: { params: Promise<{ customerId: string }> }) {
+  const { customerId } = await params;
   try {
     // Fetch customer document
     const customer = await sanityClient.fetch(

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
 // POST: mark a room as read by actor (admin or customer)
-export async function POST(req: Request, { params }: { params: { roomId: string } }) {
-  const { roomId } = params;
+export async function POST(req: Request, { params }: { params: Promise<{ roomId: string }> }) {
+  const { roomId } = await params;
   try {
     const body = await req.json().catch(() => ({}));
     const { actor } = body as { actor?: 'admin' | 'customer' };

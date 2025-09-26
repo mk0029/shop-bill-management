@@ -4,12 +4,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
+import { CustomerInfoPopup } from "@/components/chat/CustomerInfoPopup";
+import type { ChatMessage } from "@/lib/chat-api";
 
 export default function AdminChatsPage() {
   const { user, role, hydrated } = useAuthStore();
-  const { activeRoomId, subscribeRealtime, rooms, loadRooms, resetChatState } = useChatStore();
+  const { activeRoomId, subscribeRealtime, rooms, loadRooms, resetChatState, messagesByRoomId } = useChatStore();
   const [initializing, setInitializing] = useState(true);
   const [billStats, setBillStats] = useState<{ count: number; total: number } | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const adminId = useMemo(() => {
     const u = (user ?? {}) as Partial<{ id: string; _id: string }>;
@@ -44,6 +47,11 @@ export default function AdminChatsPage() {
     const name = c?.name || "Customer";
     return id ? { id, name } : null;
   }, [rooms, activeRoomId]);
+
+  const activeRoomMessages: ChatMessage[] = useMemo(() => {
+    if (!activeRoomId) return [] as ChatMessage[];
+    return (messagesByRoomId[activeRoomId] || []) as ChatMessage[];
+  }, [messagesByRoomId, activeRoomId]);
 
   // Reset bill stats immediately when activeRoomId changes to prevent flash of old data
   useEffect(() => {
@@ -93,9 +101,14 @@ export default function AdminChatsPage() {
                 <>
                   {/* User Avatar */}
                   <div className="relative">
-                    <div className="w-10 h-10 bg-slate-400/80 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setInfoOpen(true)}
+                      className="w-10 h-10 bg-slate-400/80 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:opacity-90 focus:outline-none"
+                      aria-label="Open customer info"
+                    >
                       {activeCustomer.name.charAt(0).toUpperCase()}
-                    </div>
+                    </button>
                   </div>
                   
                   {/* User Info */}
@@ -127,7 +140,11 @@ export default function AdminChatsPage() {
             {activeCustomer && (
               <div className="flex items-center gap-2">
                 {/* More options (3 dots) */}
-                <button className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                <button
+                  className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+                  onClick={() => setInfoOpen(true)}
+                  aria-label="Open chat info"
+                >
                   <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                   </svg>
@@ -144,6 +161,18 @@ export default function AdminChatsPage() {
             <div className="h-full flex items-center justify-center text-gray-500">Select a chat to start messaging</div>
           )}
         </div>
+
+        {/* Customer Info Popup */}
+        {activeCustomer && (
+          <CustomerInfoPopup
+            isOpen={infoOpen}
+            onClose={() => setInfoOpen(false)}
+            customerId={activeCustomer.id}
+            customerName={activeCustomer.name}
+            roomId={activeRoomId ?? undefined}
+            messages={activeRoomMessages}
+          />
+        )}
       </div>
     </div>
   );

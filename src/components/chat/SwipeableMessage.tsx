@@ -1,8 +1,9 @@
 import { ChatMessage } from "@/lib/chat-api";
 import { motion, PanInfo, useAnimation } from "framer-motion";
-import { Check, CheckCheck, Clock, File, Download, Play, X, ZoomIn } from "lucide-react";
+import { Check, CheckCheck, Clock, File, Download, Play, ZoomIn } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
+import { AttachmentPreviewModal } from "@/components/chat/AttachmentPreviewModal";
 
 interface ChatAttachment {
   _id?: string;
@@ -44,11 +45,8 @@ export function SwipeableMessage({
   const dragX = useRef(0);
 
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
-  const [fullscreenMedia, setFullscreenMedia] = useState<{
-    type: 'image' | 'video';
-    url: string;
-    filename: string;
-  } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
 
   const handleDownload = async (attachment: ChatAttachment) => {
     if (!attachment || !attachment.url) return;
@@ -74,91 +72,20 @@ export function SwipeableMessage({
     }
   };
 
-  const openFullscreenMedia = (type: 'image' | 'video', url: string, filename: string) => {
-    setFullscreenMedia({ type, url, filename });
+  const openPreview = (attachment: ChatAttachment) => {
+    setPreviewAttachment(attachment);
+    setPreviewOpen(true);
   };
 
-  const closeFullscreenMedia = () => {
-    setFullscreenMedia(null);
-    setPlayingVideo(null);
-  };
+  // no-op: AttachmentPreviewModal handles its own UX
 
-  // Handle ESC key to close fullscreen
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && fullscreenMedia) {
-        closeFullscreenMedia();
-      }
-    };
-
-    if (fullscreenMedia) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden'; // Prevent background scrolling
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
-    };
-  }, [fullscreenMedia]);
-
-  const renderFullscreenModal = () => {
-    if (!fullscreenMedia) return null;
-
-    return (
-      <div
-        className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
-        onClick={closeFullscreenMedia}
-      >
-        <div className="relative max-w-full max-h-full">
-          {/* Close button */}
-          <button
-            onClick={closeFullscreenMedia}
-            className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
-            aria-label="Close fullscreen"
-          >
-            <X className="w-6 h-6" />
-          </button>
-
-          {/* Media content */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
-            {fullscreenMedia.type === 'image' && (
-              <div className="flex flex-col items-center">
-                <Image
-                  src={fullscreenMedia.url}
-                  alt={fullscreenMedia.filename}
-                  width={800}
-                  height={600}
-                  className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
-                <div className="mt-4 text-white/80 text-center">
-                  <div className="text-lg font-medium">{fullscreenMedia.filename}</div>
-                </div>
-              </div>
-            )}
-
-            {fullscreenMedia.type === 'video' && (
-              <div className="flex flex-col items-center">
-                <video
-                  src={fullscreenMedia.url}
-                  className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                  controls
-                  autoPlay
-                />
-                <div className="mt-4 text-white/80 text-center">
-                  <div className="text-lg font-medium">{fullscreenMedia.filename}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const renderPreviewModal = () => (
+    <AttachmentPreviewModal
+      attachment={previewAttachment}
+      isOpen={previewOpen}
+      onClose={() => { setPreviewOpen(false); setPreviewAttachment(null); setPlayingVideo(null); }}
+    />
+  );
 
   const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const threshold = 80; // Reduced threshold for easier swiping
@@ -243,9 +170,10 @@ export function SwipeableMessage({
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                             }}
+                            onClick={() => openPreview(attachment as ChatAttachment)}
                           />
                           <button
-                            onClick={() => openFullscreenMedia('image', attachment.url, attachment.filename)}
+                            onClick={() => openPreview(attachment as ChatAttachment)}
                             className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                             title="View fullscreen"
                           >
@@ -272,7 +200,7 @@ export function SwipeableMessage({
                               </button>
                             )}
                             <button
-                              onClick={() => openFullscreenMedia('video', attachment.url, attachment.filename)}
+                              onClick={() => openPreview(attachment as ChatAttachment)}
                               className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               title="View fullscreen"
                             >
@@ -349,7 +277,7 @@ export function SwipeableMessage({
   return (
     <>
       {renderMessage()}
-      {renderFullscreenModal()}
+      {renderPreviewModal()}
     </>
   );
 }

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
 // GET all messages across all bills for a given user (customer _id)
-export async function GET(_req: Request, { params }: { params: { userId: string } }) {
-  const { userId } = params;
+export async function GET(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
   try {
     // Find all bill ids for this user
     const billIdsQuery = `*[_type == "bill" && customer._ref == $userId]._id`;

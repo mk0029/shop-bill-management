@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { sendNotification, sendToAdmins } from "@/lib/notification-service";
 
 // GET: list messages for a chat room
-export async function GET(req: Request, { params }: { params: { roomId: string } }) {
-  const { roomId } = params;
+export async function GET(req: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
+  const { roomId } = await params;
   try {
+    if (!roomId) {
+      return NextResponse.json({ success: false, error: "Missing roomId in route params" }, { status: 400 });
+    }
     const { searchParams } = new URL(req.url);
     const pageSize = Number(searchParams.get("limit") ?? 50);
 
@@ -36,9 +39,12 @@ export async function GET(req: Request, { params }: { params: { roomId: string }
 }
 
 // POST: create a new message in a chat room
-export async function POST(req: Request, { params }: { params: { roomId: string } }) {
-  const { roomId } = params;
+export async function POST(req: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
+  const { roomId } = await params;
   try {
+    if (!roomId) {
+      return NextResponse.json({ success: false, error: "Missing roomId in route params" }, { status: 400 });
+    }
     const body = await req.json().catch(() => ({}));
     const { content, senderId, isCustomer, parentId, parentMessage, senderToken, attachments } = body || {};
     if (!senderId || (!content && (!attachments || attachments.length === 0))) {

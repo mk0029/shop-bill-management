@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
 // POST: mark a single message as seen
-export async function POST(req: Request, { params }: { params: { messageId: string } }) {
-  const { messageId } = params;
+export async function POST(req: Request, { params }: { params: Promise<{ messageId: string }> }) {
+  const { messageId } = await params;
   try {
     // Ensure message exists and get its current status
     const msg = await sanityClient.fetch(
