@@ -41,19 +41,14 @@ export function useShopStatus() {
 
   const updateStatus = async (newStatus: ShopStatus) => {
     try {
-      console.log('Updating status to:', newStatus);
       setIsLoading(true);
       setError(null);
-      
       const payload = {
         isOnline: newStatus !== 'offline',
         atShop: newStatus === 'at_shop',
         note: "",
         updatedAt: new Date().toISOString()
-      };
-      
-      console.log('Sending payload to update status:', payload);
-      
+      };      
       const result = await onlineApiService.updateOnlineStatus(payload);
       
       if (!result.success) {
@@ -65,7 +60,6 @@ export function useShopStatus() {
         atShop: payload.atShop
       });
       
-      console.log('Status update successful. New status:', updatedStatus);
       setStatus(updatedStatus);
       return updatedStatus;
     } catch (err) {

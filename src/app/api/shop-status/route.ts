@@ -44,7 +44,6 @@ const mapStateToStatus = ({ isOnline, atShop }: { isOnline?: boolean; atShop?: b
 
 export async function POST(req: Request) {
   try {
-    console.log('Received POST request to /api/shop-status');
     
     // Verify authentication
     const { userId } = await auth();
@@ -63,7 +62,6 @@ export async function POST(req: Request) {
     let body;
     try {
       body = await req.json();
-      console.log('Request body:', JSON.stringify(body, null, 2));
     } catch (e) {
       console.error('Error parsing request body:', e);
       return NextResponse.json(
@@ -87,10 +85,8 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log('Updating Sanity document with:', { isOnline, atShop, note, updatedAt });
     
     try {
-      console.log('Checking for existing onlineStatus document');
       const existingDoc = await sanityClient.fetch('*[_id == "onlineStatus"][0]');
       // Compute previous status for notification decisioning
       const prevStatus: ShopStatus | undefined = existingDoc
@@ -98,7 +94,6 @@ export async function POST(req: Request) {
         : undefined;
 
       if (!existingDoc) {
-        console.log('No existing onlineStatus document, creating new one');
         await sanityClient.create({
           _id: 'onlineStatus',
           _type: 'online',
@@ -109,7 +104,6 @@ export async function POST(req: Request) {
         });
       } else {
         // Update existing document
-        console.log('Updating existing onlineStatus document');
         await sanityClient
           .patch('onlineStatus')
           .set({
@@ -156,7 +150,6 @@ export async function POST(req: Request) {
 
     // Return the updated status
     const status = mapStateToStatus({ isOnline, atShop });
-    console.log('Successfully updated status to:', status);
     
     return NextResponse.json({ 
       isOnline,

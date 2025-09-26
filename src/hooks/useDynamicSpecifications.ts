@@ -17,7 +17,6 @@ export function useDynamicSpecifications({
   // Force refresh data when component mounts or categoryId changes
   useEffect(() => {
     if (categoryId) {
-      console.log('useDynamicSpecifications: Force refreshing for categoryId:', categoryId);
       setIsLoading(true);
       fetchCategoryFieldMappings().finally(() => setIsLoading(false));
     }
@@ -26,16 +25,11 @@ export function useDynamicSpecifications({
   // Get field mapping for this category, memoized to prevent re-renders
   const fieldMapping = useMemo(() => {
     if (!categoryId) {
-      console.log('useDynamicSpecifications: No categoryId provided');
       return { requiredFields: [], optionalFields: [] };
     }
 
     try {
-      console.log('useDynamicSpecifications: Getting field mapping for categoryId:', categoryId);
       const mapping = getCategoryFieldMapping(categoryId);
-      console.log('useDynamicSpecifications: Field mapping result:', mapping);
-      console.log('useDynamicSpecifications: Required fields:', mapping.requiredFields);
-      console.log('useDynamicSpecifications: Optional fields:', mapping.optionalFields);
       return mapping;
     } catch (error) {
       console.error("Error getting field mapping:", error);

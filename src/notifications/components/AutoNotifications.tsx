@@ -66,7 +66,6 @@ export default function AutoNotifications() {
         ? await getFcmToken()
         : null
       if (token) {
-        console.log('[FCM] Device token:', token)
         // Attempt to register if we have a logged-in user
         const userId = user?.id ?? null
         if (userId) {

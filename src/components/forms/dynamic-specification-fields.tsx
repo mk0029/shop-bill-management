@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 "use client";
 
 import React from "react";
@@ -29,12 +30,9 @@ export function DynamicSpecificationFields({
 
   // Force refresh specifications store on mount
   React.useEffect(() => {
-    console.log('DynamicSpecificationFields: Effect triggered with categoryId:', categoryId);
     if (categoryId) {
-      console.log('DynamicSpecificationFields: Forcing specifications store refresh');
       const { forceSyncSpecifications } = require('@/store/specifications-store').useSpecificationsStore.getState();
       forceSyncSpecifications().then(() => {
-        console.log('DynamicSpecificationFields: Force sync completed');
       });
     }
   }, [categoryId]);
@@ -56,36 +54,6 @@ export function DynamicSpecificationFields({
         <LoadingSpinner text="Loading specification fields..." />
       </div>
     );
-  }
-
-  // Debug logging
-  console.log('=== DynamicSpecificationFields Debug ===');
-  console.log('categoryId:', categoryId);
-  console.log('fieldMapping:', fieldMapping);
-
-  // Debug: Check if we have dynamic field mapping data
-  if (fieldMapping) {
-    console.log('✅ Found dynamic field mapping for category:', categoryId);
-    console.log('Required fields:', fieldMapping.requiredFields);
-    console.log('Optional fields:', fieldMapping.optionalFields);
-  } else {
-    console.log('❌ No field mapping found for category:', categoryId);
-    const { useSpecificationsStore } = require('@/store/specifications-store');
-    const allMappings = useSpecificationsStore.getState().categoryFieldMappings;
-    console.log('📋 Available mappings in store:', allMappings);
-    
-    // Show what each mapping looks like
-    allMappings?.forEach((mapping, index) => {
-      console.log(`Mapping ${index + 1}:`, {
-        id: mapping._id,
-        categoryType: mapping.categoryType,
-        categoryId: mapping.category?._id,
-        categoryName: mapping.category?.name,
-        isActive: mapping.isActive,
-        requiredFieldsCount: mapping.requiredFields?.length || 0,
-        optionalFieldsCount: mapping.optionalFields?.length || 0
-      });
-    });
   }
 
 

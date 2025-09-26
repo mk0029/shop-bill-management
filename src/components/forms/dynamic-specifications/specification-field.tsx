@@ -32,12 +32,7 @@ export function SpecificationField({
   onFieldChange,
 }: SpecificationFieldProps) {
   const { fieldLabel, fieldType, options } = fieldDefinition;
-  
-  // Debug logging for field options
-  console.log('SpecificationField - fieldName:', fieldName);
-  console.log('SpecificationField - fieldType:', fieldType);
-  console.log('SpecificationField - options:', options);
-  console.log('SpecificationField - fieldDefinition:', fieldDefinition);
+
 
   const label = `${fieldLabel}${isRequired ? " *" : ""}`;
   const placeholder =

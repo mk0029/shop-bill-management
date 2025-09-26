@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useCallback, useRef, useState, useMemo } from "react";
@@ -83,11 +84,6 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
     const { transition, documentId, result } = update;
     const documentType = result?._type || documentId.split(".")[0];
 
-    // console.log("🔄 Real-time update:", {
-    //   transition,
-    //   documentType,
-    //   documentId,
-    // });
 
     switch (documentType) {
       case "bill":
@@ -398,7 +394,6 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
       isConnectedRef.current = false;
-      // console.log("❌ Disconnected from real-time updates");
     }
   }, []);
 

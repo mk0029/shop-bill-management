@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
 
 export async function POST(req: NextRequest) {
   try {
     const { token, userId } = await req.json().catch(() => ({ token: null, userId: null }))
-    try { console.log('[API] register-token request', { userId, hasToken: typeof token === 'string' && token.length > 10 }) } catch {}
+    try {
+       console.log('[API] register-token request') } catch {}
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ success: false, error: 'Missing token' }, { status: 400 })
     }
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
           .setIfMissing({ fcmTokens: [], fcmTokensProd: [], fcmTokensDev: [] })
           .set({ fcmTokens: nextTokens, fcmTokensProd: nextProd, fcmTokensDev: nextDev, updatedAt: new Date().toISOString() })
           .commit({ autoGenerateArrayKeys: true })
-        try { console.log('[API] register-token success', { _id: (updated as any)._id, tokensCount: Array.isArray((updated as any).fcmTokens) ? (updated as any).fcmTokens.length : 0 }) } catch {}
+        try { console.log('[API] register-token success') } catch {}
         return NextResponse.json({ success: true, data: { _id: (updated as any)._id, tokens: (updated as any).fcmTokens || [] } })
       } catch (err: any) {
         const code = err?.statusCode || err?.status

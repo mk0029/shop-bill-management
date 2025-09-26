@@ -67,13 +67,11 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   _subscription: null,
 
   loadRooms: async (opts) => {
-    console.log('loadRooms called with options:', opts);
     set({ isLoading: true, error: null });
     try {
       // Load cached rooms first for instant UI
       try {
         const cached = await cacheGetRooms();
-        console.log('Cached rooms:', cached);
         if (cached && Array.isArray(cached) && cached.length >= 0) {
           set({ rooms: cached });
         }
@@ -96,9 +94,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       if (userId) fetchOpts.userId = userId;
       if (userRole) fetchOpts.userRole = userRole;
       
-      console.log('Fetching rooms from API with options:', fetchOpts);
       const rooms = await listRooms(fetchOpts);
-      console.log('Fetched rooms:', rooms);
       
       set({ rooms, isLoading: false });
       

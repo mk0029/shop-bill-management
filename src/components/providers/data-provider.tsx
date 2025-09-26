@@ -14,14 +14,6 @@ export function DataProvider({ children }: DataProviderProps) {
   const { loadAdminData, loadCustomerData, isLoading, error, lastSyncTime } = useDataStore();
   const { user, role } = useAuthStore();
   const online = useOnline();
-
-  // Component mount effect
-  useEffect(() => {
-    try {
-      console.log("[DataProvider] mounted");
-    } catch {}
-  }, []);
-
   useEffect(() => {
     // Avoid triggering loads until role is determined
     if (!role) return;

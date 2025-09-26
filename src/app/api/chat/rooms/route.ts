@@ -11,9 +11,6 @@ export async function GET(req: Request) {
     // Get user info from request headers (sent by client)
     const userRole = req.headers.get("x-user-role");
     const userId = req.headers.get("x-user-id");
-
-    console.log('Fetching rooms with params:', { customerId, adminId, userRole, userId });
-
     // Security: Enforce role-based access control
     if (userRole === "customer") {
       // Customers can ONLY access their own rooms

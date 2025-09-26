@@ -32,10 +32,7 @@ export function InventoryDashboard({
   } = useInventoryDashboard();
 
   const handleQuickActions = {
-    // onCreatePurchaseOrder: () => console.log("Create Purchase Order"),
-    // onBulkStockUpdate: () => console.log("Bulk Stock Update"),
     onViewStockHistory: () => setShowStockHistory(true),
-    // onGenerateReport: () => console.log("Generate Report"),
   };
 
   return (

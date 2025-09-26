@@ -4,7 +4,7 @@ import { sanityClient } from '@/lib/sanity'
 export async function POST(req: NextRequest) {
   try {
     const { token, userId } = await req.json().catch(() => ({ token: null, userId: null }))
-    try { console.log('[API] unregister-token request', { userId, hasToken: typeof token === 'string' && token.length > 10 }) } catch {}
+    try { console.log('[API] unregister-token request') } catch {}
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ success: false, error: 'Missing token' }, { status: 400 })
     }
@@ -51,12 +51,7 @@ export async function POST(req: NextRequest) {
           .setIfMissing({ fcmTokens: [], fcmTokensProd: [], fcmTokensDev: [] })
           .set({ fcmTokens: nextTokens, fcmTokensProd: nextProd, fcmTokensDev: nextDev, updatedAt: new Date().toISOString() })
           .commit({ autoGenerateArrayKeys: true }) as { _id?: string; fcmTokens?: string[] }
-        try {
-          console.log('[API] unregister-token success', {
-            _id: updated?._id,
-            tokensCount: Array.isArray(updated?.fcmTokens) ? updated!.fcmTokens!.length : 0,
-          })
-        } catch {}
+       
         return NextResponse.json({ success: true, data: { _id: updated?._id, tokens: updated?.fcmTokens || [] } })
       } catch (err: unknown) {
         const e = err as { statusCode?: number; status?: number }

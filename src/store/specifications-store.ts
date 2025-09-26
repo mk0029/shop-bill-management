@@ -1,10 +1,8 @@
-import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
 import {
-  fetchAllSpecificationOptions,
-  fetchAllCategoryFieldMappings,
+  fetchAllSpecificationOptions
 } from "@/lib/sanity-queries";
-import { useCategoryStore } from "@/store/category-store";
+import { create } from "zustand";
 
 // Specification option from Sanity
 export interface SpecificationOption {
@@ -191,9 +189,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
 
     // Fetch category field mappings from Sanity
     fetchCategoryFieldMappings: async () => {
-      // Force refresh - ignore cache for debugging
-      console.log('Force fetching category field mappings from Sanity...');
-      
+      // Force refresh - ignore cache for debugging      
       set({ isLoading: true });
       try {
         const query = `*[_type == "categoryFieldMapping"]{
@@ -235,44 +231,10 @@ export const useSpecificationsStore = create<SpecificationsStore>(
           }
         }`;
         
-        console.log('Sanity query:', query);
+       
         const mappings = await sanityClient.fetch(query);
-        console.log('Raw Sanity response:', mappings);
-        console.log('Number of mappings fetched:', mappings?.length || 0);
-        
-        // Log each mapping in detail
-        mappings?.forEach((mapping, index) => {
-          console.log(`Mapping ${index + 1}:`, {
-            id: mapping._id,
-            isActive: mapping.isActive,
-            categoryType: mapping.categoryType,
-            categoryId: mapping.category?._id,
-            categoryName: mapping.category?.name,
-            requiredFieldsCount: mapping.requiredFields?.length || 0,
-            optionalFieldsCount: mapping.optionalFields?.length || 0,
-            requiredFields: mapping.requiredFields,
-            optionalFields: mapping.optionalFields
-          });
-          
-          // Log field details
-          mapping.requiredFields?.forEach((field, fieldIndex) => {
-            console.log(`  Required Field ${fieldIndex + 1}:`, {
-              fieldKey: field.fieldKey,
-              fieldLabel: field.fieldLabel,
-              fieldType: field.fieldType,
-              options: field.options
-            });
-          });
-          
-          mapping.optionalFields?.forEach((field, fieldIndex) => {
-            console.log(`  Optional Field ${fieldIndex + 1}:`, {
-              fieldKey: field.fieldKey,
-              fieldLabel: field.fieldLabel,
-              fieldType: field.fieldType,
-              options: field.options
-            });
-          });
-        });
+     
+            
         
         set({
           categoryFieldMappings: mappings || [],
@@ -358,12 +320,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
     // Get category field mapping by Category ID
     getCategoryFieldMapping: (categoryId: string | null) => {
       const { categoryFieldMappings } = get();
-
-      console.log('getCategoryFieldMapping called with categoryId:', categoryId);
-      console.log('Available categoryFieldMappings:', categoryFieldMappings);
-
       if (!categoryId) {
-        console.log('No categoryId provided, returning empty mapping');
         return {
           categoryType: "general",
           requiredFields: [],
@@ -378,17 +335,11 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       
       // If this is Wire category, find any wire mapping
       if (isWireCategory) {
-        console.log('Looking for Wire category mapping...');
         specificMapping = categoryFieldMappings.find(mapping => {
-          console.log('Checking mapping:', mapping.categoryType, mapping.isActive);
           return mapping.categoryType === 'wire' && mapping.isActive;
         });
         
-        if (specificMapping) {
-          console.log('Found Wire mapping:', specificMapping);
-        } else {
-          console.log('No Wire mapping found in:', categoryFieldMappings);
-        }
+       
       } else {
         // For other categories, try exact ID match
         specificMapping = categoryFieldMappings.find(
@@ -396,11 +347,8 @@ export const useSpecificationsStore = create<SpecificationsStore>(
         );
       }
 
-      console.log('Found specificMapping:', specificMapping);
-
       // If no specific mapping found, return empty
       if (!specificMapping) {
-        console.log('No specific mapping found for categoryId:', categoryId);
         return {
           categoryType: "general",
           requiredFields: [],
@@ -414,9 +362,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
         requiredFields: specificMapping.requiredFields || [],
         optionalFields: specificMapping.optionalFields || [],
       };
-      
-      console.log('Returning field mapping result:', result);
-      return result;
+            return result;
     },
 
     // Get required fields for category

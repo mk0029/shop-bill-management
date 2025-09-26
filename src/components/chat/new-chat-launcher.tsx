@@ -33,7 +33,7 @@ export default function NewChatLauncher(props: { onClose: () => void; onRoomOpen
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-start z-[9999]">
       <div className="w-[560px] max-w-[92vw] bg-white/60 dark:bg-zinc-900/60 border rounded-lg shadow-xl">
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
           <h3 className="font-semibold">Start new chat</h3>
