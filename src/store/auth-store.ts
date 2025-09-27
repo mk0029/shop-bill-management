@@ -3,6 +3,16 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { User, LoginCredentials, ProfileData } from "@/types";
 import { userApiService } from "@/lib/sanity-api-service";
 import { sanityClient } from "@/lib/sanity";
+import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
+
+type PersistedState = {
+  state?: {
+    user?: User | null;
+    role?: "admin" | "customer" | null;
+    isAuthenticated?: boolean;
+  };
+  version?: number;
+};
 
 interface AuthState {
   user: User | null;
@@ -60,13 +70,11 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         });
-        // Also clear persisted storage in both localStorage and sessionStorage
-        if (typeof window !== "undefined") {
+        // Also clear persisted storage cookie
+        if (typeof document !== "undefined") {
           try {
-            const key = "auth-storage";
-            window.localStorage.removeItem(key);
-            window.sessionStorage.removeItem(key);
-            window.localStorage.removeItem("auth-remember");
+            deleteCookie("auth-storage");
+            deleteCookie("auth-remember");
           } catch (e) {
             // noop
           }
@@ -137,43 +145,37 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "auth-storage",
       storage: createJSONStorage(() => {
-        if (typeof window === "undefined") return undefined as unknown as Storage;
-        const dynamicStorage = {
+        if (typeof document === "undefined") return undefined as unknown as Storage;
+        const cookieStorage = {
           getItem: (key: string) => {
             try {
-              const fromLocal = window.localStorage.getItem(key);
-              if (fromLocal != null) return fromLocal;
-              return window.sessionStorage.getItem(key);
+              return getCookie(key);
             } catch {
               return null;
             }
           },
           setItem: (key: string, value: string) => {
             try {
-              const remember = window.localStorage.getItem("auth-remember") === "true";
-              if (remember) {
-                window.localStorage.setItem(key, value);
-                // ensure session copy is removed to avoid duplicates
-                window.sessionStorage.removeItem(key);
-              } else {
-                window.sessionStorage.setItem(key, value);
-                // avoid persisting in local when not remembering
-                window.localStorage.removeItem(key);
-              }
+              const remember = getCookie("auth-remember") === "true";
+              // If remember => persist for 30 days, else session cookie
+              setCookie(key, value, {
+                days: remember ? 30 : undefined,
+                path: "/",
+                sameSite: "Lax",
+              });
             } catch {
               // noop
             }
           },
           removeItem: (key: string) => {
             try {
-              window.localStorage.removeItem(key);
-              window.sessionStorage.removeItem(key);
+              deleteCookie(key);
             } catch {
               // noop
             }
           },
         } as Storage;
-        return dynamicStorage;
+        return cookieStorage;
       }),
       partialize: (state) => ({
         user: state.user,
@@ -194,22 +196,23 @@ export function prehydrateAuth() {
   if (typeof window === "undefined") return;
   try {
     const key = "auth-storage";
-    // prefer localStorage if remember was set, otherwise try both
-    const remember = window.localStorage.getItem("auth-remember") === "true";
-    const raw = remember
-      ? window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key)
-      : window.sessionStorage.getItem(key) ?? window.localStorage.getItem(key);
+    // Read from cookie
+    const raw = getCookie(key);
     if (!raw) {
       useAuthStore.setState({ hydrated: true });
       return;
     }
     // Zustand persist format: { state: { user, role, isAuthenticated }, version: n }
-    let parsed: any = null;
+    let parsedUnknown: unknown = null;
     try {
-      parsed = JSON.parse(raw);
+      parsedUnknown = JSON.parse(raw);
     } catch {
-      parsed = null;
+      parsedUnknown = null;
     }
+    const parsed =
+      typeof parsedUnknown === "object" && parsedUnknown !== null
+        ? (parsedUnknown as PersistedState)
+        : undefined;
     const st = parsed?.state;
     if (st && (st.user || st.isAuthenticated !== undefined)) {
       useAuthStore.setState({

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
+import { getCookie } from "@/lib/cookies";
 
 export interface BillItem {
   product: string;
@@ -251,13 +252,12 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
           try {
             const actorId = (function getActorId(){
               try {
-                const remember = window.localStorage.getItem('auth-remember') === 'true';
-                const raw = remember
-                  ? window.localStorage.getItem('auth-storage') ?? window.sessionStorage.getItem('auth-storage')
-                  : window.sessionStorage.getItem('auth-storage') ?? window.localStorage.getItem('auth-storage');
+                const raw = getCookie('auth-storage');
                 if (!raw) return null as string | null;
-                const parsed: any = JSON.parse(raw);
-                const user = parsed?.state?.user;
+                let parsedUnknown: unknown = null;
+                try { parsedUnknown = JSON.parse(raw); } catch { parsedUnknown = null; }
+                const parsed = typeof parsedUnknown === 'object' && parsedUnknown !== null ? parsedUnknown as { state?: { user?: any } } : undefined;
+                const user = parsed?.state?.user as any;
                 return (user?.id as string) || (user?._id as string) || null;
               } catch { return null as string | null; }
             })();

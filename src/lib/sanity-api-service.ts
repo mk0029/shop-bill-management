@@ -1,6 +1,7 @@
 import { sanityClient } from "./sanity";
 import { strapiService } from "./strapi-service";
 // Note: Do NOT statically import server-only modules here, this file is used by client code too.
+import { getCookie } from "@/lib/cookies";
 
 // Types for API responses
 export interface ApiResponse<T = any> {
@@ -14,13 +15,12 @@ export interface ApiResponse<T = any> {
 function getActorUserIdFromPersistedAuth(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const remember = window.localStorage.getItem("auth-remember") === "true";
-    const raw = remember
-      ? window.localStorage.getItem("auth-storage") ?? window.sessionStorage.getItem("auth-storage")
-      : window.sessionStorage.getItem("auth-storage") ?? window.localStorage.getItem("auth-storage");
+    const raw = getCookie("auth-storage");
     if (!raw) return null;
-    const parsed: any = JSON.parse(raw);
-    const user = parsed?.state?.user;
+    let parsedUnknown: unknown = null;
+    try { parsedUnknown = JSON.parse(raw); } catch { parsedUnknown = null; }
+    const parsed = typeof parsedUnknown === 'object' && parsedUnknown !== null ? parsedUnknown as { state?: { user?: any } } : undefined;
+    const user = parsed?.state?.user as any;
     return (user?.id as string) || (user?._id as string) || null;
   } catch {
     return null;

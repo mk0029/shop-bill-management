@@ -10,6 +10,7 @@ import { ClientOnly } from "@/components/client-only";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { setCookie } from "@/lib/cookies";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,10 +31,12 @@ export default function LoginPage() {
     try {
       setError(null);
       // Store remember preference so the auth store uses correct storage
-      if (typeof window !== "undefined") {
-        const remember = credentials.rememberMe ? "true" : "false";
-        window.localStorage.setItem("auth-remember", remember);
-      }
+      const remember = credentials.rememberMe ? "true" : "false";
+      setCookie("auth-remember", remember, {
+        days: credentials.rememberMe ? 30 : undefined,
+        path: "/",
+        sameSite: "Lax",
+      });
       await login(credentials);
 
       // Redirect based on role
@@ -134,10 +137,10 @@ export default function LoginPage() {
             <LoginForm
               onSubmit={handleLogin}
               isLoading={isLoading}
-              error={error}
+              error={error ?? undefined}
               initialValues={{
-                phone: phone || '',
-                secretKey: passKey || '',
+                phone: phone || undefined,
+                secretKey: passKey || undefined,
               }}
             />
           </Card>
