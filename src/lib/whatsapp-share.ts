@@ -9,6 +9,12 @@ export interface BillDetails {
     phone?: string;
     location?: string;
   };
+  technician?: {
+    _id?: string;
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
   // Optional authentication details to help customer check the bill
   customerAuth?: {
     customerId?: string;
@@ -165,6 +171,11 @@ const loginUrl = siteUrl || "https://jambh-ell.vercel.app/";
       message += `*Location:* ${bill.customer.location}\n`;
     }
     message += "\n";
+  }
+
+  if (bill.technician?.name) {
+    const techName = sanitizeUserText(bill.technician.name);
+    message += `*Technician:* ${techName}\n`;
   }
 
   if (bill.serviceType) {

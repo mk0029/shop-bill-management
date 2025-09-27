@@ -768,6 +768,9 @@ export async function createBill(billData: {
     const totalAmount =
       Number(subtotal) + homeVisitFee + repairCharges + laborCharges;
 
+    // Determine current actor (admin/technician) to set as bill.technician
+    const actorId = getActorUserId();
+
     const newBill = {
       _type: "bill",
       billId,
@@ -789,6 +792,7 @@ export async function createBill(billData: {
       status: "draft",
       priority: "medium",
       notes: billData.notes,
+      ...(actorId ? { technician: { _type: 'reference', _ref: actorId } } : {}),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

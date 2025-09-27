@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState, ReactNode } from "react";
@@ -74,6 +75,14 @@ export function BillingBrowser({
       _id: bill._id,
       customerName: bill.customer?.name || "Unknown Customer",
       customerId: bill.customer?._id || bill.customer?._ref || "",
+      technician: bill.technician
+        ? {
+            _id: bill.technician?._id || bill.technician?._ref,
+            name: bill.technician?.name,
+            phone: bill.technician?.phone,
+            email: bill.technician?.email,
+          }
+        : undefined,
       date: bill.serviceDate
         ? new Date(bill.serviceDate).toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0],

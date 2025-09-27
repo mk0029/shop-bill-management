@@ -264,6 +264,12 @@ export const queries = {
       location,
       role
     },
+    technician->{
+      _id,
+      name,
+      phone,
+      email
+    },
     "items": items[]{
       ...,
       "product": product->{
@@ -320,6 +326,12 @@ export const queries = {
       email,
       location,
       role
+    },
+    technician->{
+      _id,
+      name,
+      phone,
+      email
     },
     "items": items[]{
       ...,

@@ -26,6 +26,12 @@ interface Bill {
     name: string;
     phone: string;
   };
+  technician?: {
+    _id?: string;
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
   totalAmount: number;
   paidAmount?: number;
   balanceAmount?: number;
@@ -233,8 +239,12 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                           Bill #{bill.billNumber}
                         </h3>
                         <p className="text-sm text-gray-400 truncate capitalize">
-                          {bill.customer?.name || "Unknown Customer"} •{" "}
-                          {bill.serviceType || "Service"}
+                          {bill.customer?.name || "Unknown Customer"} • {bill.serviceType || "Service"}
+                          {bill.technician?.name ? (
+                            <>
+                              {" "}• Tech: {bill.technician?.name}
+                            </>
+                          ) : null}
                         </p>
                         <p className="text-sm text-gray-400">
                           {bill.serviceDate

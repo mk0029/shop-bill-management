@@ -78,6 +78,7 @@ interface Bill {
   billId: string;
   billNumber: string;
   customer: User;
+  technician?: User;
   items: Array<{
     product: {
       _type: "reference";

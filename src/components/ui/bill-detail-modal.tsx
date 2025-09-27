@@ -235,6 +235,12 @@ export const BillDetailModal = ({
                     <span>Location: {bill.locationType}</span>
                   </div>
                 )}
+                {bill.technician?.name && (
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    <span>Technician: {bill.technician.name}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -615,6 +621,7 @@ export const BillDetailModal = ({
                         (bill as any).repairCharges ??
                         0,
                       grandTotal: grandTotal,
+                      technician: bill.technician,
                       customerAuth: {
                         secretKey: bill.customer?.secretKey || undefined,
                       },
@@ -636,6 +643,7 @@ export const BillDetailModal = ({
                         (bill as any).repairCharges ??
                         0,
                       grandTotal: grandTotal,
+                      technician: bill.technician,
                       customerAuth: {
                         secretKey: bill.customer?.secretKey || undefined,
                       },
