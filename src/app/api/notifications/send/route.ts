@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
       const partial = failed > 0
       return NextResponse.json({ ...result, partial }, { status: 200 })
     }
-    // Nothing delivered; keep 400 to indicate an actionable error
-    return NextResponse.json(result, { status: 400 })
+    // Nothing delivered; return 200 with success:false so clients can fire-and-forget without red network errors
+    return NextResponse.json({ success: false, sent, failed }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })

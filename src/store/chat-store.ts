@@ -144,7 +144,9 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             // Replace the temp message if present; otherwise, ensure the saved message exists once.
             const mapped = list.map((m) => {
               if (m._id === item.tempId) {
-                return saved;
+                // Preserve localCreatedAt so the message stays in the same position
+                const localCreatedAt = (m as (ChatMessage & { localCreatedAt?: string })).localCreatedAt || m.createdAt;
+                return { ...saved, ...(localCreatedAt ? { localCreatedAt } : {}) } as ChatMessage & { localCreatedAt?: string };
               }
               return m;
             });
@@ -250,7 +252,8 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   sendMessage: async (roomId, content, senderId, isCustomer, parentId, parentMessage, attachments) => {
     // Enqueue request to preserve order and avoid duplicates during realtime roundtrip
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const optimistic: ChatMessage = {
+    type LocalMsg = ChatMessage & { localCreatedAt?: string };
+    const optimistic: LocalMsg = {
       _id: tempId,
       room: { _ref: roomId },
       sender: { _ref: senderId },
@@ -262,6 +265,8 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    // Add a stable client-side timestamp used for sorting to prevent reordering when server timestamps differ
+    optimistic.localCreatedAt = optimistic.createdAt;
     set((s) => {
       const list = s.messagesByRoomId[roomId] || [];
       const q = s._sendQueueByRoomId[roomId] || [];

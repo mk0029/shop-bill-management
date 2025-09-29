@@ -44,7 +44,16 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   const [seenQueue, setSeenQueue] = useState<Set<string>>(new Set());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const messageRefs = useRef<Map<string, HTMLElement>>(new Map());
-  type LiteBill = { _id: string; billNumber?: string; totalAmount?: number; createdAt: string };
+  type LiteBill = { 
+    _id: string; 
+    billNumber?: string; 
+    totalAmount?: number; 
+    createdAt: string;
+    paymentStatus?: string;
+    status?: string;
+    paidAmount?: number;
+    balanceAmount?: number;
+  };
   const [bills, setBills] = useState<LiteBill[]>([]);
   const [attachments, setAttachments] = useState<Array<{ file: File; preview?: string; id: string }>>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -108,12 +117,20 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         const json = await res.json();
         if (!alive) return;
         if (json?.success && Array.isArray(json.data)) {
-          const list: LiteBill[] = (json.data as Array<Record<string, unknown>>).map((b) => ({
-            _id: String(b._id as string),
-            billNumber: b.billNumber as string | undefined,
-            totalAmount: Number((b.totalAmount as number | string | undefined) ?? 0),
-            createdAt: String(b.createdAt as string),
-          }));
+          const list: LiteBill[] = (json.data as Array<Record<string, unknown>>).map((b) => {
+            const paymentStatusUnknown = (b as { paymentStatus?: unknown }).paymentStatus;
+            const statusUnknown = (b as { status?: unknown }).status;
+            return {
+              _id: String(b._id as string),
+              billNumber: b.billNumber as string | undefined,
+              totalAmount: Number((b.totalAmount as number | string | undefined) ?? 0),
+              createdAt: String(b.createdAt as string),
+              paymentStatus: typeof paymentStatusUnknown === 'string' ? paymentStatusUnknown : undefined,
+              status: typeof statusUnknown === 'string' ? statusUnknown : undefined,
+              paidAmount: typeof (b as { paidAmount?: unknown }).paidAmount === 'number' ? (b as { paidAmount?: unknown }).paidAmount as number : Number(((b as { paidAmount?: unknown }).paidAmount as string) || 0),
+              balanceAmount: typeof (b as { balanceAmount?: unknown }).balanceAmount === 'number' ? (b as { balanceAmount?: unknown }).balanceAmount as number : Number(((b as { balanceAmount?: unknown }).balanceAmount as string) || 0),
+            };
+          });
           setBills(list);
         } else {
           setBills([]);
@@ -192,6 +209,82 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
       )
     }));
   }, [messages, bills]);
+
+  // Helper: compute normalized bill status
+  const getBillStatus = useCallback((b: LiteBill): string => {
+    const stored = (b.paymentStatus || b.status || '').toLowerCase();
+    if (stored) {
+      // Normalize 'draft' to 'pending' for display
+      if (stored === 'draft') return 'pending';
+      // Prefer stored value to avoid flip-flops when numbers momentarily look stale
+      return stored;
+    }
+    // Fallback to derived from numeric fields when no stored status
+    const total = Number(b.totalAmount || 0);
+    const paid = Number(b.paidAmount || 0);
+    const bal = b.balanceAmount != null ? Number(b.balanceAmount) : (total - paid);
+    if (Number.isFinite(bal)) {
+      if (bal <= 0) return 'paid';
+      if (bal > 0 && paid > 0) return 'partial';
+      return 'pending';
+    }
+    if (total > 0 && paid >= total) return 'paid';
+    if (paid > 0 && paid < total) return 'partial';
+    return 'pending';
+  }, []);
+
+  // Helper: get Tailwind classes for bill status (pending=yellow, paid=green, partial=orange, due/overdue=red)
+  const getBillStatusClasses = useCallback((b: LiteBill) => {
+    const raw = getBillStatus(b);
+    if (raw === 'paid') {
+      return {
+        container: 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700',
+        textMuted: 'text-emerald-700 dark:text-emerald-300',
+        button: 'border-emerald-500 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white',
+        title: 'text-emerald-900 dark:text-emerald-200',
+        badge: 'bg-emerald-600 text-white',
+        badgeText: 'PAID',
+      } as const;
+    }
+    if (raw === 'partial') {
+      return {
+        container: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700',
+        textMuted: 'text-orange-700 dark:text-orange-300',
+        button: 'border-orange-500 text-orange-700 dark:text-orange-300 hover:bg-orange-600 hover:text-white',
+        title: 'text-orange-900 dark:text-orange-200',
+        badge: 'bg-orange-500 text-white',
+        badgeText: 'PARTIAL',
+      } as const;
+    }
+    if (raw === 'pending') {
+      return {
+        container: 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-700',
+        textMuted: 'text-yellow-700 dark:text-yellow-300',
+        button: 'border-yellow-500 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-600 hover:text-white',
+        title: 'text-yellow-900 dark:text-yellow-200',
+        badge: 'bg-yellow-500 text-black',
+        badgeText: 'PENDING',
+      } as const;
+    }
+    if (raw === 'due' || raw === 'overdue') {
+      return {
+        container: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700',
+        textMuted: 'text-red-700 dark:text-red-300',
+        button: 'border-red-500 text-red-700 dark:text-red-300 hover:bg-red-600 hover:text-white',
+        title: 'text-red-900 dark:text-red-200',
+        badge: 'bg-red-600 text-white',
+        badgeText: 'DUE',
+      } as const;
+    }
+    return {
+      container: 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700',
+      textMuted: 'text-zinc-500 dark:text-zinc-400',
+      button: 'border-zinc-400 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-700 hover:text-white',
+      title: 'text-zinc-900 dark:text-zinc-100',
+      badge: 'bg-zinc-600 text-white',
+      badgeText: 'BILL',
+    } as const;
+  }, [getBillStatus]);
 
   // Queue mechanism for processing seen messages
   const processSeenQueue = useCallback(async () => {
@@ -430,16 +523,16 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
               {group.items.map((item, idx) => {
                 if (item.kind === 'bill') {
                   const b = item.b;
+                  const billCls = getBillStatusClasses(b);
                   return (
                     <div key={`bill-${b._id}-${idx}`} className="flex justify-start w-full">
-                      <div className="max-w-[90%] md:max-w-[80%] border rounded-md p-3 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
+                      <div className={`max-w-[90%] md:max-w-[80%] border rounded-md p-3 ${billCls.container}`}>
                         <div className="flex items-center justify-between gap-2">
                           <div>
-                            <div className="text-sm font-medium">
-                              Bill Created of   ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')}
-                              {/* {b.billNumber ? `#${b.billNumber}` : 'Draft'} */}
+                            <div className={`text-sm font-semibold ${billCls.title}`}>
+                              Bill Created of ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')}
                             </div>
-                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                            <div className={`text-xs ${billCls.textMuted}`}>
                               {new Date(item.createdAt).toLocaleString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
@@ -450,13 +543,13 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                           
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${billCls.badge}`}>{(getBillStatus(b) || '').toUpperCase()}</span>
                             <BillDetailTrigger 
                               bill={b}
                               buttonLabel="View"
                               variant="outline"
                               size="sm"
-                              className="h-8"
+                              className={`h-8 ${billCls.button}`}
                             />
                           </div>
                         </div>
@@ -590,10 +683,10 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
       }`}>
         <button
           onClick={scrollToBottom}
-          className="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+          className="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
           aria-label="Scroll to latest message"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
         </button>
