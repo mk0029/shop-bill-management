@@ -3,8 +3,11 @@ import imageUrlBuilder from "@sanity/image-url";
 import type { SanityImageSource } from "@sanity/image-url/lib/types/types";
 
 // Decide perspective dynamically: include drafts when a token is available
-const hasToken =
-  !!(process.env.NEXT_PUBLIC_SANITY_API_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN);
+// Server should prefer private SANITY_API_TOKEN; browser must not use it
+const serverToken = process.env.SANITY_API_TOKEN || "";
+const publicToken = process.env.NEXT_PUBLIC_SANITY_API_TOKEN || "";
+const runtimeToken = typeof window === "undefined" ? serverToken : publicToken;
+const hasToken = !!runtimeToken;
 const effectivePerspective = hasToken ? "drafts" : "published";
 
 // Sanity client configuration
@@ -14,8 +17,7 @@ export const sanityClient = createClient({
   useCdn: false, // Real-time updates require CDN to be false
   apiVersion: "2024-01-01",
   // Prefer secure server-side token; fallback to NEXT_PUBLIC for legacy setups
-  token:
-    process.env.NEXT_PUBLIC_SANITY_API_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN,
+  token: runtimeToken || undefined,
   ignoreBrowserTokenWarning: true,
   perspective: effectivePerspective,
 });

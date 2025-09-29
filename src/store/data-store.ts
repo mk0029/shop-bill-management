@@ -1045,28 +1045,49 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   updateBill: async (billId, updates) => {
     try {
+      // Use secure API route in the browser; direct Sanity patch on the server
+      const isBrowser = typeof window !== "undefined";
       // Fetch previous bill snapshot for change detection
       let prev: any = null;
-      try {
-        prev = await sanityClient.fetch(
-          `*[_type == "bill" && _id == $id][0]{
-            _id,
-            billNumber,
-            status,
-            paymentStatus,
-            customer->{ _id }
-          }`,
-          { id: billId }
-        );
-      } catch {}
+      if (isBrowser) {
+        // Use local cached bill as previous state in browser
+        prev = get().bills.get(String(billId));
+      } else {
+        try {
+          prev = await sanityClient.fetch(
+            `*[_type == "bill" && _id == $id][0]{
+              _id,
+              billNumber,
+              status,
+              paymentStatus,
+              customer->{ _id }
+            }`,
+            { id: billId }
+          );
+        } catch {}
+      }
 
-      const result = await sanityClient
-        .patch(billId)
-        .set({
-          ...updates,
-          updatedAt: new Date().toISOString(),
-        })
-        .commit();
+      let result: any = null;
+      if (isBrowser) {
+        const res = await fetch(`/api/bills/${encodeURIComponent(String(billId))}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        const json = await res.json().catch(() => ({} as any));
+        if (!res.ok || (json && json.success === false)) {
+          throw new Error((json && json.error) || `Failed to update bill (${res.status})`);
+        }
+        result = json?.data ?? null;
+      } else {
+        result = await sanityClient
+          .patch(billId)
+          .set({
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          })
+          .commit();
+      }
       // The real-time listener will automatically update the local state
 
       // Fire-and-forget notifications (client-only)
@@ -1081,7 +1102,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
           } catch {}
 
           // Determine customer id from result or previous
-          const customerId: string | null = (result as any)?.customer?._ref || prev?.customer?._id || null;
+          const customerId: string | null = (result as any)?.customer?._ref || (result as any)?.customer?._id || prev?.customer?._id || null;
 
           // Notify customer on paymentStatus changes (more specific message)
           const prevStatus = prev?.paymentStatus;

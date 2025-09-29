@@ -167,7 +167,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     type BillItem = { 
       kind: 'bill'; 
       createdAt: string; 
-      b: { _id: string; billNumber?: string; totalAmount?: number; createdAt: string };
+      b: LiteBill;
     };
 
     type GroupedItem = MessageItem | BillItem;
@@ -523,7 +523,17 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
               {group.items.map((item, idx) => {
                 if (item.kind === 'bill') {
                   const b = item.b;
+                  const status = getBillStatus(b);
                   const billCls = getBillStatusClasses(b);
+                  const total = Number(b.totalAmount ?? 0);
+                  const paid = Number(b.paidAmount ?? 0);
+                  const due = Number(
+                    b.balanceAmount != null ? b.balanceAmount : Math.max(0, total - paid)
+                  );
+                  // Button label based on actor and status
+                  const buttonLabel = actor === 'admin'
+                    ? (status === 'paid' ? 'View' : 'Update')
+                    : (status === 'paid' ? 'View' : 'Pay Now');
                   return (
                     <div key={`bill-${b._id}-${idx}`} className="flex justify-start w-full">
                       <div className={`max-w-[90%] md:max-w-[80%] border rounded-md p-3 ${billCls.container}`}>
@@ -541,12 +551,25 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                                 hour12: true
                               })}
                             </div>
+                            {/* Status-specific details */}
+                            {status === 'partial' && (
+                              <div className="mt-1 flex items-center gap-2 text-[11px]">
+                                <span className="font-medium text-emerald-600 dark:text-emerald-300">Paid ₹{paid.toLocaleString('en-IN')}</span>
+                                <span className="opacity-50">•</span>
+                                <span className="font-medium text-orange-600 dark:text-orange-300">Due ₹{due.toLocaleString('en-IN')}</span>
+                              </div>
+                            )}
+                            {status === 'pending' && due > 0 && (
+                              <div className="mt-1 text-[11px] font-medium text-yellow-700 dark:text-yellow-300">
+                                Pending ₹{due.toLocaleString('en-IN')}
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${billCls.badge}`}>{(getBillStatus(b) || '').toUpperCase()}</span>
+                            {/* <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${billCls.badge}`}>{(status || '').toUpperCase()}</span> */}
                             <BillDetailTrigger 
                               bill={b}
-                              buttonLabel="View"
+                              buttonLabel={buttonLabel}
                               variant="outline"
                               size="sm"
                               className={`h-8 ${billCls.button}`}
