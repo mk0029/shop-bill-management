@@ -138,9 +138,9 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
   // Show loading state while audio is loading
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 min-w-[220px] max-w-xs">
+      <div className="flex items-center gap-1.5 md:gap-3 min-w-[220px] max-w-xs">
         {/* Loading Spinner */}
-        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+        <div className={`flex-shrink-0 md:w-10 md:h-10 w-8 h-8 rounded-full flex items-center justify-center ${
           isSelf ? 'bg-white/20' : 'bg-emerald-500/20'
         }`}>
           <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${
@@ -158,7 +158,7 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
               style={{ width: `${loadProgress}%` }}
             />
           </div>
-          <div className={`text-[11px] font-medium ${isSelf ? 'text-white' : 'text-zinc-600 dark:text-zinc-400'}`}>
+          <div className={`text-[9px] md:text-[11px] font-medium ${isSelf ? 'text-white' : 'text-zinc-600 dark:text-zinc-400'}`}>
             Loading... {Math.round(loadProgress)}%
           </div>
         </div>
@@ -211,12 +211,12 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
   }
 
   return (
-    <div className="flex items-center gap-3 min-w-[220px] max-w-xs">
+    <div className="flex items-center gap-1.5 md:gap-3 min-w-[220px] max-w-xs">
       {/* Play/Pause Button */}
       <button
         onClick={togglePlayPause}
         disabled={isLoading || hasError}
-        className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${
+        className={`flex-shrink-0 md:w-10 md:h-10 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-md ${
           isSelf
             ? 'bg-white hover:bg-white/90 text-emerald-600 hover:scale-105'
             : 'bg-emerald-500 hover:bg-emerald-600 text-white hover:scale-105'
@@ -231,7 +231,7 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
 
       {/* Waveform/Progress Bar */}
       <div className="flex-1 flex flex-col gap-1">
-        <div className="relative h-8 flex items-center">
+        <div className="relative h-5 md:h-8 flex items-center">
           {/* Background bars (waveform simulation) */}
           <div className="absolute inset-0 flex items-center gap-1">
             {waveformHeights.map((height, i) => {
@@ -256,7 +256,7 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
         </div>
 
         {/* Time Display */}
-        <div className={`text-[11px] font-medium ${isSelf ? 'text-white' : 'text-zinc-600 dark:text-zinc-400'}`}>
+        <div className={`text-[9px] md:text-[11px] font-medium ${isSelf ? 'text-white' : 'text-zinc-600 dark:text-zinc-400'}`}>
           {isLoading ? 'Loading...' : formatTime(isPlaying ? currentTime : duration)}
         </div>
       </div>
@@ -265,7 +265,7 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
       <div className="relative flex-shrink-0">
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className={`p-1.5 hover:bg-white/20 rounded-full transition-all ${
+          className={`md:p-1.5 hover:bg-white/20 rounded-full transition-all ${
             isSelf ? 'text-white hover:text-white' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-600'
           }`}
           title="Options"

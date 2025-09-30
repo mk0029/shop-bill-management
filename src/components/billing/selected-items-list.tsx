@@ -80,7 +80,7 @@ export const SelectedItemsList = ({
           variant="ghost"
           size="sm"
           onClick={onClearAll}
-          className="text-red-400 hover:text-red-300 text-[11px] h-7 px-2">
+          className="text-red-400 hover:text-red-300text-[9px] md:text-[11px] h-7 px-2">
           Clear All
         </Button>
       </div>

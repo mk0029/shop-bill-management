@@ -66,7 +66,7 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
                       <span className="text-gray-500">ID: {n.meta?.user?.id || n.meta?.userId}</span>
                     </p>
                   )}
-                  <p className="text-gray-500 text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                  <p className="text-gray-500text-[9px] md:text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {href && (

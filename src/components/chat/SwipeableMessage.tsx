@@ -138,9 +138,9 @@ export function SwipeableMessage({
           onClick={onView}
         >
           <div
-            className={`text-sm px-3 py-2 border shadow-md leading-[120%] ${
+            className={`text-sm px-2.5 py-1.5 border shadow-md leading-[120%] ${
               isSelf
-                ? 'bg-emerald-500 text-white border-emerald-600 rounded-2xl rounded-br-sm'
+                ? 'bg-emerald-500 text-white border-emerald-600 rounded-xl rounded-br-sm'
                 : 'bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-bl-sm'
             }`}
           >
@@ -152,9 +152,9 @@ export function SwipeableMessage({
                 </div>
               </div>
             )}
-            <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+            <div className="whitespace-pre-wrap leading-[120%]">{message.content}</div>
             {message.attachments && message.attachments.length > 0 && (
-              <div className="mt-2 space-y-2">
+              <div className="space-y-2">
                 {/* Group images together */}
                 {(() => {
                   const images = (message.attachments || []).filter(a => a.type?.startsWith('image/'));
@@ -188,8 +188,8 @@ export function SwipeableMessage({
                                 }`}
                                 style={{
                                   aspectRatio: images.length === 1 ? 'auto' : '1/1',
-                                  maxHeight: images.length === 1 ? '400px' : '200px',
-                                  minHeight: images.length === 1 ? '200px' : '150px'
+                                  maxHeight: images.length === 1 ? '280px' : '160px',
+                                  minHeight: images.length === 1 ? '140px' : '120px'
                                 }}
                               >
                                 {attachment.url && !attachment.url.startsWith('blob:') ? (
@@ -197,8 +197,8 @@ export function SwipeableMessage({
                                     <Image
                                       src={attachment.url}
                                       alt={attachment.filename}
-                                      width={300}
-                                      height={300}
+                                      width={240}
+                                      height={240}
                                       className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                       onError={(e) => {
                                         const target = e.target as HTMLImageElement;
@@ -249,7 +249,7 @@ export function SwipeableMessage({
                         const progress = attachment._id ? uploadProgress[attachment._id] || 0 : 0;
 
                         return (
-                    <div key={idx} className={`border rounded-lg p-3 relative ${
+                    <div key={idx} className={`border rounded-lg p-2 md:p-3 relative ${
                       isSelf 
                         ? 'bg-emerald-600/40 border-emerald-400/30 backdrop-blur-sm' 
                         : 'bg-zinc-100 dark:bg-zinc-600/30 border-zinc-300 dark:border-zinc-500/50'
@@ -301,7 +301,7 @@ export function SwipeableMessage({
                       )}
 
                       {isAudio && (
-                        <div className="mb-2">
+                        <div >
                           {attachment.url ? (
                             <AudioPlayer 
                               src={attachment.url} 

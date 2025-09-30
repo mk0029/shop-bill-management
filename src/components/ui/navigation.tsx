@@ -469,7 +469,7 @@ export function Navigation() {
       </nav>
 
       {/* Main Content Wrapper */}
-      <div className="h-[65px]"></div>
+      <div className="h-[62px]"></div>
       <div className="xl:!pl-64 min-h-fit backdrop-blur-lg fixed z-40 top-0 w-full left-0">
         {/* Top Bar */}
         <div className={`border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6 ${isActive("/admin/chats")&&'md:!py-0'}`}>

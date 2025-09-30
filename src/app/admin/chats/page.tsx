@@ -90,7 +90,7 @@ export default function AdminChatsPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-65px)] md:h-[calc(100vh-130px)] -mt-6">
+    <div className="h-[calc(100vh-58px)] md:h-[calc(100vh-130px)] -mt-6">
       <div className="space-y-4 h-full flex flex-col !pt-0">
         {/* Modern Dark Chat Header */}
         <div className="bg-gray-900 border-b border-gray-700 px-4 py-3 shadow-sm">

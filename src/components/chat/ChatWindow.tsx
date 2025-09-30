@@ -67,6 +67,9 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [audioLevels, setAudioLevels] = useState<number[]>(Array(30).fill(0));
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const shouldSendRecordingRef = useRef<boolean>(true); // Flag to control if recording should be sent
 
   const messages = useMemo(() => messagesByRoomId[roomId] || [], [messagesByRoomId, roomId]);
 
@@ -106,16 +109,99 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const attachAudioBlobAsFile = useCallback((blob: Blob, mime: string) => {
+  const attachAudioBlobAsFile = useCallback(async (blob: Blob, mime: string) => {
+    // Check if recording should be sent (not cancelled)
+    if (!shouldSendRecordingRef.current) {
+      console.log('Recording cancelled, not sending');
+      shouldSendRecordingRef.current = true; // Reset flag
+      return;
+    }
+    
     try {
       const filename = `voice-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
       const file = new File([blob], filename, { type: mime || blob.type || 'audio/webm' });
-      const id = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      setAttachments(prev => [...prev, { file, id }]);
+      const attachmentId = `voice_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      
+      // Send directly like WhatsApp (no preview)
+      setUploadingFiles(new Set([attachmentId]));
+      setUploadProgress({ [attachmentId]: 1 });
+      
+      try {
+        // Upload file with progress
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            setUploadProgress(prev => ({ ...prev, [attachmentId]: percentComplete }));
+          }
+        });
+
+        const uploadPromise = new Promise<{ _id: string; filename: string; size: number; type: string; url: string }>((resolve, reject) => {
+          xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+              try {
+                const result = JSON.parse(xhr.responseText);
+                if (!result || !result.assetId || !result.url) {
+                  reject(new Error(`Invalid upload response`));
+                } else {
+                  resolve({
+                    _id: result.assetId,
+                    filename: file.name,
+                    size: file.size,
+                    type: file.type,
+                    url: result.url
+                  });
+                }
+              } catch {
+                reject(new Error(`Failed to parse response`));
+              }
+            } else {
+              reject(new Error(`Upload failed: ${xhr.statusText}`));
+            }
+          });
+
+          xhr.addEventListener('error', () => {
+            reject(new Error(`Network error while uploading`));
+          });
+
+          xhr.open('POST', '/api/upload/chat');
+          xhr.send(formData);
+        });
+
+        const result = await uploadPromise;
+        
+        setUploadingFiles(new Set());
+        setUploadProgress({});
+        
+        // Send voice message immediately
+        await sendMessage(
+          roomId,
+          '', // No text content
+          senderId,
+          actor === "customer",
+          undefined,
+          undefined,
+          [result]
+        );
+        
+        // Focus input after sending
+        setTimeout(() => {
+          const input = document.getElementById('message-input') as HTMLInputElement;
+          input?.focus();
+        }, 50);
+      } catch (error) {
+        console.error('Failed to send voice message:', error);
+        setUploadingFiles(new Set());
+        setUploadProgress({});
+      }
     } catch (e) {
-      console.error('Failed to attach audio file', e);
+      console.error('Failed to process audio file', e);
     }
-  }, []);
+  }, [roomId, senderId, actor, sendMessage]);
 
   const startRecording = useCallback(async () => {
     setRecordingError(null);
@@ -194,6 +280,20 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
       mediaRecorderRef.current = recorder;
       recorder.start();
       setIsRecording(true);
+      setRecordingDuration(0);
+      
+      // Start timer (4 minute max = 240 seconds)
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => {
+          const newDuration = prev + 1;
+          // Auto-stop at 4 minutes (240 seconds)
+          if (newDuration >= 240) {
+            stopRecording();
+            return 240;
+          }
+          return newDuration;
+        });
+      }, 1000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to start recording';
       setRecordingError(message);
@@ -203,14 +303,22 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
   const stopRecording = useCallback(() => {
     try {
+      // Clear timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      
       const r = mediaRecorderRef.current;
       if (r && r.state !== 'inactive') {
         r.stop();
       } else {
         setIsRecording(false);
+        setRecordingDuration(0);
       }
     } catch {
       setIsRecording(false);
+      setRecordingDuration(0);
     }
   }, []);
 
@@ -717,7 +825,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                               </div>
                             )}
                             {status === 'pending' && due > 0 && (
-                              <div className="mt-1 text-[11px] font-medium text-yellow-700 dark:text-yellow-300">
+                              <div className="mt-1 text-[9px] md:text-[11px] font-medium text-yellow-700 dark:text-yellow-300">
                                 Pending ₹{due.toLocaleString('en-IN')}
                               </div>
                             )}
@@ -913,31 +1021,6 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         </div>
       )}
       {/* Upload progress removed - now shown in message bubbles */}
-      {/* Recording Indicator */}
-      {isRecording && (
-        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
-          <div className="flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse" />
-              <span className="text-red-700 dark:text-red-300 font-medium">Recording...</span>
-            </div>
-            <div className="flex-1 flex items-center gap-0.5 h-8">
-              {audioLevels.map((level, i) => {
-                const height = Math.max(20, level * 100); // Min 20%, max 100%
-                return (
-                  <div
-                    key={i}
-                    className="flex-1 bg-red-500 dark:bg-red-400 rounded-full transition-all duration-75"
-                    style={{
-                      height: `${height}%`
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
       {/* Recording Error */}
       {recordingError && (
         <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
@@ -1008,66 +1091,150 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           </div>
         </div>
       )}
-      <div className="mt-1 flex items-center gap-2 border-t p-1">
-        {replyingTo && (
-          <div className="absolute bottom-full left-0 right-0 bg-zinc-100 dark:bg-zinc-800 p-2 text-sm border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
-            <div className="truncate max-w-[calc(100%-24px)]">
-              <span className="font-medium">Replying to:</span> {replyingTo?.content}
-            </div>
+      {replyingTo && (
+        <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
+          <div className="truncate max-w-[calc(100%-24px)]">
+            <span className="font-medium">Replying to:</span> {replyingTo?.content}
+          </div>
+          <button
+            type="button"
+            onClick={() => setReplyingTo(null)}
+            className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {/* Input Area - Shows recording UI when recording, normal input otherwise */}
+      {isRecording ? (
+        /* Recording UI - WhatsApp Style with Neutral Theme */
+        <div className="flex items-center gap-2 p-3 border-t dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800">
+          {/* Recording Indicator */}
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-red-500 font-medium text-sm">Recording</span>
+          </div>
+
+          {/* Timer */}
+          <div className="text-zinc-700 dark:text-zinc-300 font-mono text-sm">
+            {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+          </div>
+
+          {/* Waveform - Fills entire width */}
+          <div className="flex-1 flex items-center gap-[3px] h-8 px-1">
+            {audioLevels.map((level, i) => {
+              // More dynamic height based on audio strength
+              const height = Math.max(8, level * 100); // Min 8%, max 100%
+              return (
+                <div
+                  key={i}
+                  className="flex-1 bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-100"
+                  style={{
+                    height: `${height}%`,
+                    minWidth: '2px'
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Cancel Button - Right side */}
+          <button
+            onClick={() => {
+              // Set flag to prevent sending
+              shouldSendRecordingRef.current = false;
+              stopRecording();
+              // Clear any recorded data and reset states
+              recordingChunksRef.current = [];
+              setRecordingDuration(0);
+              setAudioLevels(Array(30).fill(0));
+            }}
+            className="flex-shrink-0 p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"
+            title="Cancel recording"
+          >
+            <XIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+          </button>
+
+          {/* Send Button - Same as normal */}
+          <button
+            onClick={() => {
+              // Set flag to allow sending
+              shouldSendRecordingRef.current = true;
+              stopRecording();
+            }}
+            className="flex-shrink-0 p-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+            title="Send voice message"
+          >
+            <SendHorizontalIcon className="w-5 h-5" />
+          </button>
+        </div>
+      ) : (
+        /* Normal Input UI */
+        <div className="flex items-center gap-1 md:gap-2 p-2 sm:p-3 border-t dark:border-zinc-700 bg-white dark:bg-zinc-900">
+          {/* Attachment Button - Always visible on left */}
+          <input
+            type="file"
+            multiple
+            accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.txt"
+            onChange={(e) => handleFileSelect(e.target.files)}
+            className="hidden"
+            id="file-input"
+          />
+          <label 
+            htmlFor="file-input" 
+            className="flex-shrink-0 p-1 md:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full cursor-pointer transition-colors"
+            title="Attach file"
+          >
+            <PaperclipIcon className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />
+          </label>
+
+          {/* Message Input Container */}
+          <div className="flex-1 relative">
+            <textarea
+              id="message-input"
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                // Auto-resize textarea
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px';
+              }}
+              placeholder={replyingTo ? 'Type your reply...' : 'Type a message...'}
+              className="w-full rounded-3xl border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 px-4 py-2.5 pr-12 text-base resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all max-h-[96px] overflow-y-auto"
+              rows={1}
+              style={{ minHeight: '44px' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  onSend();
+                  // Reset height after send
+                  e.currentTarget.style.height = 'auto';
+                }
+              }}
+            />
+          </div>
+
+          {/* Right Button - Mic (empty) or Send (has text) */}
+          {text.trim() === '' && (attachments?.length || 0) === 0 ? (
             <button
               type="button"
-              onClick={() => setReplyingTo(null)}
-              className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+              onClick={startRecording}
+              className="flex-shrink-0 p-1 md:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+              title="Record voice message"
             >
-              ✕
+              <MicIcon className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />
             </button>
-          </div>
-        )}
-        <input
-          type="file"
-          multiple
-          accept="image/*,audio/*,application/pdf,.doc,.docx,.txt"
-          onChange={(e) => handleFileSelect(e.target.files)}
-          className="hidden"
-          id="file-input"
-        />
-        <label htmlFor="file-input" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer transition-colors">
-          <PaperclipIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-        </label>
-        <button
-          type="button"
-          onClick={() => (isRecording ? stopRecording() : startRecording())}
-          className={`p-2 rounded transition-colors ${isRecording ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50' : 'hover:bg-zinc-100 dark:hover:bg-zinc-700'}`}
-          title={isRecording ? 'Stop recording' : 'Record voice message'}
-        >
-          {isRecording ? (
-            <StopIcon className="w-5 h-5 text-red-600" />
           ) : (
-            <MicIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+            <button
+              onClick={onSend}
+              className="flex-shrink-0 p-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
+              title={editingId ? 'Update message' : 'Send message'}
+            >
+              <SendHorizontalIcon className="w-5 h-5" />
+            </button>
           )}
-        </button>
-        <input
-          id="message-input"
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={replyingTo ? 'Type your reply...' : 'Type a message...'}
-          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-base focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-transparent"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              onSend();
-            }
-          }}
-        />
-        <button
-          disabled={text.trim() === '' && (attachments?.length || 0) === 0}
-          className="px-2 py-1 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-50 flex items-center gap-1"
-          onClick={onSend}
-        >
-          {editingId ? 'Update' : <SendHorizontalIcon />}
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
