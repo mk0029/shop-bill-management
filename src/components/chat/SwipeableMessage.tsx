@@ -136,10 +136,10 @@ export function SwipeableMessage({
           onClick={onView}
         >
           <div
-            className={`text-sm px-2 py-1 border shadow-sm leading-[120%] ${
+            className={`text-sm px-3 py-2 border shadow-md leading-[120%] ${
               isSelf
-                ? 'bg-emerald-600/90 text-white border-emerald-700 rounded-2xl rounded-br-sm'
-                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-white/90 dark:text-zinc-100 rounded-2xl rounded-bl-sm'
+                ? 'bg-emerald-500 text-white border-emerald-600 rounded-2xl rounded-br-sm'
+                : 'bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-bl-sm'
             }`}
           >
             {(message.parentMessage || parentMessage) && (
@@ -160,7 +160,11 @@ export function SwipeableMessage({
                   const isPdf = attachment.type === 'application/pdf';
 
                   return (
-                    <div key={idx} className="border rounded-lg p-2 bg-white/10 dark:bg-zinc-800/50 border-white/20 dark:border-zinc-600/50">
+                    <div key={idx} className={`border rounded-lg p-3 ${
+                      isSelf 
+                        ? 'bg-emerald-600/40 border-emerald-400/30 backdrop-blur-sm' 
+                        : 'bg-zinc-100 dark:bg-zinc-600/30 border-zinc-300 dark:border-zinc-500/50'
+                    }`}>
                       {isImage && attachment.url && (
                         <div className="mb-2 relative group">
                           <Image
@@ -230,6 +234,15 @@ export function SwipeableMessage({
                             isSelf={isSelf}
                             filename={attachment.filename}
                           />
+                        </div>
+                      )}
+                      
+                      {/* Show disabled message indicator for audio errors */}
+                      {isAudio && !attachment.url && (
+                        <div className={`mb-2 p-2 rounded text-xs ${
+                          isSelf ? 'bg-red-500/20 text-white/80' : 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                        }`}>
+                          ⚠️ Audio file unavailable
                         </div>
                       )}
 

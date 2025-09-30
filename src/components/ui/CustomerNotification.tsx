@@ -2,17 +2,51 @@
 
 import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
+import { useAuthStore } from "@/store/auth-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CustomerNotificationsPage from "./CustomerNotificationPage";
 
 export default function CustomerNotifications() {
-  const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore();
+  const { items, markAllRead } = useNotificationStore();
+  const user = useAuthStore((s) => s.user) as { id?: string; _id?: string; role?: string } | null;
+  const userId = user?._id || user?.id;
+  const userRole = user?.role;
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
-  const [composerOpen, setComposerOpen] = useState(false);
+
+  // Filter notifications for customers to get accurate unread count
+  const filteredItems = useMemo(() => {
+    if (userRole === 'admin') return items;
+    
+    if (userRole === 'customer') {
+      return items.filter(n => {
+        const meta = n.meta;
+        // Shop status notifications - all customers should see these
+        if (meta?.type === 'shop_status' || 
+            n.title?.includes('Shop is') || 
+            n.title?.includes('Available') ||
+            n.title?.includes('Offline')) return true;
+        // Bill and payment notifications - only if it's for this customer
+        if ((n.type === 'billing' || n.type === 'payment') && meta?.userId) return meta.userId === userId;
+        // Chat notifications - only if it's for this customer
+        if (n.type === 'chat' && meta?.userId) return meta.userId === userId;
+        // Inventory notifications - customers should NOT see these
+        if (n.type === 'inventory') return false;
+        // System notifications without shop_status type - filter out
+        if (n.type === 'system' && meta?.type !== 'shop_status') return false;
+        return false;
+      });
+    }
+    
+    return items;
+  }, [items, userRole, userId]);
+
+  const filteredUnread = useMemo(() => {
+    return filteredItems.filter(n => !n.read).length;
+  }, [filteredItems]);
 
   // Close on outside click
   useEffect(() => {
@@ -30,18 +64,13 @@ export default function CustomerNotifications() {
   }, [open]);
 
   useEffect(() => {
-    if (open && unread > 0) {
+    if (open && filteredUnread > 0) {
       // Auto mark all as read on open for simplicity
       markAllRead();
     }
-  }, [open, unread, markAllRead]);
+  }, [open, filteredUnread, markAllRead]);
 
   // Note: Avoid locking body scroll to prevent interference when multiple bells exist
-
-  const header = useMemo(() => {
-    if (items.length === 0) return "No notifications";
-    return `Notifications (${items.length})`;
-  }, [items.length]);
 
   return (
     <div className="relative">
@@ -56,9 +85,9 @@ export default function CustomerNotifications() {
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5" />
-        {unread > 0 && (
+        {filteredUnread > 0 && (
           <span className="absolute top-0.5 sm:-top-1 right-0.5 sm:-right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-[10px] leading-4 text-white text-center">
-            {unread > 9 ? "9+" : unread}
+            {filteredUnread > 9 ? "9+" : filteredUnread}
           </span>
         )}
       </Button>
@@ -85,7 +114,7 @@ export default function CustomerNotifications() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.98 }}
               transition={{ duration: 0.15 }}
-              className={`fixed inset-0 backdrop-blur-2xl ${composerOpen ? "h-screen" : "h-fit"} w-full z-[60] xl:pl-64`}
+              className="fixed inset-0 backdrop-blur-2xl h-fit w-full z-[60] xl:pl-64"
               role="dialog"
               aria-label="Notifications popover"
             >

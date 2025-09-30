@@ -346,10 +346,11 @@ export async function updateStockForBill(
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                audience: 'admins',
+                audience: 'admins', // CRITICAL: Only send to admins
                 title: `Low stock: ${updatedProduct?.name ?? 'Product'}`,
                 body: `Only ${cs} left (min ${min}). Consider restocking.`,
                 data: {
+                  type: 'inventory', // Add explicit type for filtering
                   productId: String(item.productId),
                   stock: String(cs),
                   threshold: String(min),

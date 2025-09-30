@@ -367,10 +367,13 @@ export async function createCustomer(customerData: {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            audience: 'admins',
+            audience: 'admins', // CRITICAL: Only send to admins
             title: 'New customer added',
             body: `${customerData.name} (${customerData.phone})`,
-            data: { event: 'user-created' },
+            data: { 
+              type: 'system', // Add explicit type for filtering
+              event: 'user-created' 
+            },
             excludeUserIds: actorId ? [actorId] : undefined,
             excludeTokens: currentToken ? [currentToken] : undefined,
           }),
