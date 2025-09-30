@@ -1,9 +1,10 @@
 import { ChatMessage } from "@/lib/chat-api";
 import { motion, PanInfo, useAnimation } from "framer-motion";
-import { Check, CheckCheck, Clock, File, Download, Play, ZoomIn } from "lucide-react";
+import { Check, CheckCheck, Clock, File, Download, Play, ZoomIn, MoreVertical } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { AttachmentPreviewModal } from "@/components/chat/AttachmentPreviewModal";
+import { AudioPlayer } from "@/components/chat/AudioPlayer";
 
 interface ChatAttachment {
   _id?: string;
@@ -47,6 +48,7 @@ export function SwipeableMessage({
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   const handleDownload = async (attachment: ChatAttachment) => {
     if (!attachment || !attachment.url) return;
@@ -154,6 +156,7 @@ export function SwipeableMessage({
                 {message.attachments.map((attachment, idx) => {
                   const isVideo = attachment.type?.startsWith('video/') || false;
                   const isImage = attachment.type?.startsWith('image/') || false;
+                  const isAudio = attachment.type?.startsWith('audio/') || false;
                   const isPdf = attachment.type === 'application/pdf';
 
                   return (
@@ -220,7 +223,17 @@ export function SwipeableMessage({
                         </div>
                       )}
 
-                      {!isImage && !isVideo && !isPdf && (
+                      {isAudio && attachment.url && (
+                        <div className="mb-2">
+                          <AudioPlayer 
+                            src={attachment.url} 
+                            isSelf={isSelf}
+                            filename={attachment.filename}
+                          />
+                        </div>
+                      )}
+
+                      {!isImage && !isVideo && !isPdf && !isAudio && (
                         <div className="mb-2 flex items-center gap-2 p-2 bg-white/5 rounded border border-white/10">
                           <File className="w-4 h-4 text-white/60" />
                           <div className="flex-1 min-w-0">
@@ -229,16 +242,40 @@ export function SwipeableMessage({
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleDownload(attachment as ChatAttachment)}
-                          className="text-xs px-2 py-1 bg-white/20 hover:bg-white/30 rounded transition-colors flex items-center gap-1"
-                          title="Download"
-                        >
-                          <Download className="w-3 h-3" />
-                          Download
-                        </button>
-                      </div>
+                      {/* Three-dot menu for non-audio attachments */}
+                      {!isAudio && (
+                        <div className="flex items-center justify-end relative">
+                          <button
+                            onClick={() => setMenuOpen(menuOpen === attachment._id ? null : attachment._id || `${idx}`)}
+                            className="p-1 hover:bg-white/10 rounded transition-colors"
+                            title="Options"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          
+                          {/* Dropdown Menu */}
+                          {menuOpen === (attachment._id || `${idx}`) && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-10" 
+                                onClick={() => setMenuOpen(null)}
+                              />
+                              <div className="absolute right-0 top-8 z-20 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-1 min-w-[140px]">
+                                <button
+                                  onClick={() => {
+                                    handleDownload(attachment as ChatAttachment);
+                                    setMenuOpen(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center gap-2 text-zinc-700 dark:text-zinc-200"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Download
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

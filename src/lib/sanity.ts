@@ -4,7 +4,7 @@ import type { SanityImageSource } from "@sanity/image-url/lib/types/types";
 
 // Decide perspective dynamically: include drafts when a token is available
 // Server should prefer private SANITY_API_TOKEN; browser must not use it
-const serverToken = process.env.SANITY_API_TOKEN || "";
+const serverToken = process.env.SANITY_API_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN || "";
 const publicToken = process.env.NEXT_PUBLIC_SANITY_API_TOKEN || "";
 const runtimeToken = typeof window === "undefined" ? serverToken : publicToken;
 const hasToken = !!runtimeToken;

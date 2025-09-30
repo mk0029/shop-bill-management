@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useChatStore } from "@/store/chat-store";
 import { SwipeableMessage } from "./SwipeableMessage";
-import { SendHorizontalIcon, PaperclipIcon, XIcon } from "lucide-react";
+import { SendHorizontalIcon, PaperclipIcon, XIcon, Mic as MicIcon, Square as StopIcon } from "lucide-react";
 import { BillDetailTrigger } from "../bills/bill-detail-trigger";
 import type { ChatMessage } from "@/lib/chat-api";
 import { motion } from "framer-motion";
@@ -58,6 +58,14 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   const [attachments, setAttachments] = useState<Array<{ file: File; preview?: string; id: string }>>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [audioLevels, setAudioLevels] = useState<number[]>(Array(30).fill(0));
 
   const messages = useMemo(() => messagesByRoomId[roomId] || [], [messagesByRoomId, roomId]);
 
@@ -95,6 +103,114 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
     scrollContainer.addEventListener('scroll', handleScroll);
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const attachAudioBlobAsFile = useCallback((blob: Blob, mime: string) => {
+    try {
+      const filename = `voice-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+      const file = new File([blob], filename, { type: mime || blob.type || 'audio/webm' });
+      const id = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      setAttachments(prev => [...prev, { file, id }]);
+    } catch (e) {
+      console.error('Failed to attach audio file', e);
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    setRecordingError(null);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setRecordingError('Audio recording is not supported in this browser.');
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Set up audio analysis for waveform visualization
+      const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        const audioContext = new AudioContextClass();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 64; // Small FFT for responsive visualization
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
+        
+        // Start visualization loop
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const updateWaveform = () => {
+          if (!analyserRef.current) return;
+          analyserRef.current.getByteFrequencyData(dataArray);
+          
+          // Sample 30 points from the frequency data
+          const levels = Array.from({ length: 30 }, (_, i) => {
+            const index = Math.floor((i / 30) * dataArray.length);
+            return dataArray[index] / 255; // Normalize to 0-1
+          });
+          setAudioLevels(levels);
+          animationFrameRef.current = requestAnimationFrame(updateWaveform);
+        };
+        updateWaveform();
+      }
+      
+      const mimeCandidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg'
+      ];
+      let mimeType = '';
+      const MR: typeof MediaRecorder | undefined = typeof MediaRecorder !== 'undefined' ? MediaRecorder : undefined;
+      for (const m of mimeCandidates) {
+        if (MR?.isTypeSupported && MR.isTypeSupported(m)) { mimeType = m; break; }
+      }
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordingChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        try {
+          const blob = new Blob(recordingChunksRef.current, { type: mimeType || 'audio/webm' });
+          attachAudioBlobAsFile(blob, mimeType || 'audio/webm');
+        } finally {
+          // Stop audio analysis
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+          }
+          if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+          }
+          analyserRef.current = null;
+          setAudioLevels(Array(30).fill(0));
+          // stop tracks
+          try { stream.getTracks().forEach(t => t.stop()); } catch {}
+          setIsRecording(false);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to start recording';
+      setRecordingError(message);
+      setIsRecording(false);
+    }
+  }, [attachAudioBlobAsFile]);
+
+  const stopRecording = useCallback(() => {
+    try {
+      const r = mediaRecorderRef.current;
+      if (r && r.state !== 'inactive') {
+        r.stop();
+      } else {
+        setIsRecording(false);
+      }
+    } catch {
+      setIsRecording(false);
+    }
   }, []);
 
   // Scroll to bottom function
@@ -786,6 +902,45 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           </div>
         </div>
       )}
+      {/* Recording Indicator */}
+      {isRecording && (
+        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
+          <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse" />
+              <span className="text-red-700 dark:text-red-300 font-medium">Recording...</span>
+            </div>
+            <div className="flex-1 flex items-center gap-0.5 h-8">
+              {audioLevels.map((level, i) => {
+                const height = Math.max(20, level * 100); // Min 20%, max 100%
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 bg-red-500 dark:bg-red-400 rounded-full transition-all duration-75"
+                    style={{
+                      height: `${height}%`
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Recording Error */}
+      {recordingError && (
+        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-red-700 dark:text-red-300">{recordingError}</span>
+            <button
+              onClick={() => setRecordingError(null)}
+              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
       {/* Attachment Preview */}
       {(attachments?.length || 0) > 0 && (
         <div className="px-4 py-2 border-t dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
@@ -857,7 +1012,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         <input
           type="file"
           multiple
-          accept="image/*,application/pdf,.doc,.docx,.txt"
+          accept="image/*,audio/*,application/pdf,.doc,.docx,.txt"
           onChange={(e) => handleFileSelect(e.target.files)}
           className="hidden"
           id="file-input"
@@ -865,6 +1020,18 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         <label htmlFor="file-input" className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded cursor-pointer transition-colors">
           <PaperclipIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
         </label>
+        <button
+          type="button"
+          onClick={() => (isRecording ? stopRecording() : startRecording())}
+          className={`p-2 rounded transition-colors ${isRecording ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50' : 'hover:bg-zinc-100 dark:hover:bg-zinc-700'}`}
+          title={isRecording ? 'Stop recording' : 'Record voice message'}
+        >
+          {isRecording ? (
+            <StopIcon className="w-5 h-5 text-red-600" />
+          ) : (
+            <MicIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+          )}
+        </button>
         <input
           id="message-input"
           type="text"

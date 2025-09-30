@@ -19,9 +19,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type (allow images, PDFs, documents, and common file types)
+    // Validate file type (allow images, audio, PDFs, documents, and common file types)
     const allowedTypes = [
       'image/',
+      'audio/',
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const isAllowedType = allowedTypes.some(type => file.type.startsWith(type));
     if (!isAllowedType) {
       return NextResponse.json(
-        { error: "File type not allowed. Allowed types: images, PDF, Word, Excel, text files" },
+        { error: "File type not allowed. Allowed types: images, audio, PDF, Word, Excel, text files" },
         { status: 400 }
       );
     }
@@ -44,12 +45,31 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     // Upload to Sanity with appropriate asset type
+    // Sanity supports 'image' and 'file' types. Audio files should use 'file'.
+    const assetType = file.type.startsWith('image/') ? 'image' : 'file';
+    
+    // Normalize audio MIME types for better Sanity compatibility
+    let contentType = file.type;
+    if (file.type.startsWith('audio/')) {
+      // Sanity sometimes has issues with specific audio codecs in MIME type
+      // Normalize to basic audio types
+      if (file.type.includes('webm')) {
+        contentType = 'audio/webm';
+      } else if (file.type.includes('ogg')) {
+        contentType = 'audio/ogg';
+      } else if (file.type.includes('mp3') || file.type.includes('mpeg')) {
+        contentType = 'audio/mpeg';
+      } else if (file.type.includes('wav')) {
+        contentType = 'audio/wav';
+      }
+    }
+    
     const asset = await sanityClient.assets.upload(
-      file.type.startsWith('image/') ? 'image' : 'file',
+      assetType,
       buffer,
       {
         filename: file.name,
-        contentType: file.type,
+        contentType: contentType,
       }
     );
 
@@ -63,8 +83,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error uploading file:", error);
+    // Log detailed error for debugging
+    if (error instanceof Error) {
+      console.error("Error details:", error.message, error.stack);
+    }
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { 
+        error: "Failed to upload file",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }
