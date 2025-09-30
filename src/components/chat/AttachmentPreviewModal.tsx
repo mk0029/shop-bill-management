@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Download, Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
+import { X, Download, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Attachment {
@@ -21,7 +21,6 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
   const [error, setError] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -140,9 +139,6 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
     }
   };
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -158,25 +154,23 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
         onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className={`bg-white dark:bg-zinc-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden ${
-            isFullscreen ? 'fixed inset-0 w-screen h-screen rounded-none' : ''
-          }`}
+          className="fixed inset-0 w-screen h-screen bg-zinc-900 dark:bg-black flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-2 md:p-4 border-b border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center justify-between p-3 border-b border-zinc-700 dark:border-zinc-800 bg-zinc-800 dark:bg-zinc-900">
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold truncate" title={attachment.filename}>
+              <h3 className="text-base md:text-lg font-semibold truncate text-white" title={attachment.filename}>
                 {attachment.filename || 'Unknown File'}
               </h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs md:text-sm text-zinc-400">
                 {formatFileSize(attachment.size || 0)} • {attachment.type || 'Unknown type'}
               </p>
             </div>
@@ -184,7 +178,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
               {!isDownloading && attachment.url && (
                 <button
                   onClick={handleDownload}
-                  className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded transition-colors"
+                  className="p-2 hover:bg-zinc-700 dark:hover:bg-zinc-800 rounded transition-colors text-white"
                   title="Download"
                 >
                   <Download className="w-5 h-5" />
@@ -192,7 +186,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
               )}
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded transition-colors"
+                className="p-2 hover:bg-zinc-700 dark:hover:bg-zinc-800 rounded transition-colors text-white"
                 title="Close"
               >
                 <X className="w-5 h-5" />
@@ -202,7 +196,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
 
           {/* Download Progress */}
           {isDownloading && (
-            <div className="p-4 border-b border-zinc-200 dark:border-zinc-700">
+            <div className="p-3 border-b border-zinc-700 dark:border-zinc-800 bg-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
@@ -218,7 +212,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
           )}
 
           {/* Content */}
-          <div className="relative">
+          <div className="relative flex-1 flex items-center justify-center p-3 overflow-hidden">
             {error && (
               <div className="absolute inset-0 flex items-center justify-center bg-red-50 dark:bg-red-900/20">
                 <div className="text-center">
@@ -234,14 +228,15 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
 
             {isVideo && attachment.url && (
               <div
-                className={`relative ${isFullscreen ? 'h-screen' : 'max-h-[70vh]'}`}
+                className="relative w-full h-full flex items-center justify-center"
                 onMouseEnter={() => setShowControls(true)}
                 onMouseLeave={() => isPlaying && setShowControls(false)}
               >
                 <video
                   ref={videoRef}
                   src={attachment.url}
-                  className="w-full h-full object-contain"
+                  className="max-w-[80%] max-h-[80%] w-auto h-auto object-contain"
+                  style={{ maxWidth: '80vw', maxHeight: '80vh' }}
                   onLoadedMetadata={handleLoadedMetadata}
                   onTimeUpdate={handleTimeUpdate}
                   onPlay={() => setIsPlaying(true)}
@@ -298,17 +293,6 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
                             {formatTime(currentTime)} / {formatTime(duration)}
                           </span>
                         </div>
-
-                        <button
-                          onClick={toggleFullscreen}
-                          className="p-2 hover:bg-white/20 rounded transition-colors"
-                        >
-                          {isFullscreen ? (
-                            <Minimize className="w-5 h-5 text-white" />
-                          ) : (
-                            <Maximize className="w-5 h-5 text-white" />
-                          )}
-                        </button>
                       </div>
                     </motion.div>
                   )}
@@ -317,36 +301,25 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
             )}
 
             {isImage && attachment.url && (
-              <div className={`relative ${isFullscreen ? 'h-screen' : 'h-[70vh]'} flex items-center justify-center bg-zinc-900`}>
+              <div className="relative w-full h-full flex items-center justify-center">
                 <img
                   src={attachment.url}
                   alt={attachment.filename || 'Image'}
-                  className={`w-full h-full ${isFullscreen ? 'object-contain' : 'object-contain'}`}
+                  className="max-w-[80%] max-h-[80%] w-auto h-auto object-contain"
+                  style={{ maxWidth: '80vw', maxHeight: '80vh' }}
                   onLoad={() => setIsLoading(false)}
                   onError={() => setError('Failed to load image')}
                 />
                 {isLoading && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
                   </div>
                 )}
-                {/* Fullscreen Toggle Button */}
-                <button
-                  onClick={toggleFullscreen}
-                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded transition-colors"
-                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-                >
-                  {isFullscreen ? (
-                    <Minimize className="w-5 h-5 text-white" />
-                  ) : (
-                    <Maximize className="w-5 h-5 text-white" />
-                  )}
-                </button>
               </div>
             )}
 
             {isPdf && attachment.url && (
-              <div className={`relative ${isFullscreen ? 'h-screen' : 'max-h-[70vh]'} w-full`}>
+              <div className="relative w-full h-full">
                 <iframe
                   src={attachment.url}
                   className="w-full h-full border-0"
@@ -355,7 +328,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
                 />
                 {isLoading && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
                   </div>
                 )}
               </div>

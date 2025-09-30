@@ -27,6 +27,7 @@ type SwipeableMessageProps = {
   senderName?: string;
   actor?: "admin" | "customer";
   uploadProgress?: Record<string, number>; // Upload progress for attachments
+  groupPosition?: 'single' | 'first' | 'middle' | 'last'; // Position in message group
 };
 
 export function SwipeableMessage({
@@ -41,7 +42,8 @@ export function SwipeableMessage({
   showSenderName = false,
   senderName,
   actor,
-  uploadProgress = {}
+  uploadProgress = {},
+  groupPosition = 'single'
 }: SwipeableMessageProps) {
   const controls = useAnimation();
   const constraintsRef = useRef(null);
@@ -140,8 +142,26 @@ export function SwipeableMessage({
           <div
             className={`text-sm px-2.5 py-1.5 border shadow-md leading-[120%] ${
               isSelf
-                ? 'bg-emerald-500 text-white border-emerald-600 rounded-xl rounded-br-sm'
-                : 'bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-bl-sm'
+                ? 'bg-emerald-500 text-white border-emerald-600'
+                : 'bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100'
+            } ${
+              // Dynamic border radius based on group position
+              groupPosition === 'single'
+                ? isSelf
+                  ? 'rounded-xl rounded-br-sm' // Single message from self
+                  : 'rounded-2xl rounded-bl-sm' // Single message from other
+                : groupPosition === 'first'
+                ? isSelf
+                  ? 'rounded-xl rounded-br-md' // First in group from self (less rounded bottom-right)
+                  : 'rounded-2xl rounded-bl-md' // First in group from other (less rounded bottom-left)
+                : groupPosition === 'middle'
+                ? isSelf
+                  ? 'rounded-lg rounded-br-md' // Middle in group from self (minimal rounding)
+                  : 'rounded-lg rounded-bl-md' // Middle in group from other (minimal rounding)
+                : // groupPosition === 'last'
+                  isSelf
+                  ? 'rounded-xl rounded-tr-md' // Last in group from self (less rounded top-right)
+                  : 'rounded-2xl rounded-tl-md' // Last in group from other (less rounded top-left)
             }`}
           >
             {(message.parentMessage || parentMessage) && (

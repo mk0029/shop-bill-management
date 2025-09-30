@@ -779,13 +779,41 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
       <div ref={listRef} className="flex flex-col grow overflow-y-auto pr-1">
         <div className="space-y-4">
           {groupedMessages.map((group, groupIndex) => (
-            <div key={`group-${groupIndex}`} className="space-y-2">
-              <div className="sticky top-0  flex justify-center z-30">
+            <div key={`group-${groupIndex}`}>
+              <div className="sticky top-0  flex justify-center z-30 mb-2">
                 <div className="bg-white dark:bg-zinc-800 px-3 py-1 rounded-full text-xs font-medium text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
                   {group.formattedDate}
                 </div>
               </div>
               {group.items.map((item, idx) => {
+                // Helper to determine message grouping position
+                const getMessageGroupPosition = (currentIdx: number): 'single' | 'first' | 'middle' | 'last' => {
+                  const currentItem = group.items[currentIdx];
+                  if (currentItem.kind !== 'msg') return 'single';
+                  
+                  const currentMsg = currentItem.m;
+                  const currentSenderId = getMsgSenderId(currentMsg);
+                  
+                  // Check previous message
+                  const prevItem = currentIdx > 0 ? group.items[currentIdx - 1] : null;
+                  const prevMsg = prevItem?.kind === 'msg' ? prevItem.m : null;
+                  const prevSenderId = prevMsg ? getMsgSenderId(prevMsg) : null;
+                  const hasPrevSameSender = prevSenderId === currentSenderId;
+                  
+                  // Check next message
+                  const nextItem = currentIdx < group.items.length - 1 ? group.items[currentIdx + 1] : null;
+                  const nextMsg = nextItem?.kind === 'msg' ? nextItem.m : null;
+                  const nextSenderId = nextMsg ? getMsgSenderId(nextMsg) : null;
+                  const hasNextSameSender = nextSenderId === currentSenderId;
+                  
+                  if (!hasPrevSameSender && !hasNextSameSender) return 'single';
+                  if (!hasPrevSameSender && hasNextSameSender) return 'first';
+                  if (hasPrevSameSender && hasNextSameSender) return 'middle';
+                  if (hasPrevSameSender && !hasNextSameSender) return 'last';
+                  
+                  return 'single';
+                };
+                
                 if (item.kind === 'bill') {
                   const b = item.b;
                   const status = getBillStatus(b);
@@ -849,6 +877,9 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                 const m = item.m;
                 if (!m) return null;
                 
+                // Get message grouping position
+                const groupPosition = getMessageGroupPosition(idx);
+                
                 // In admin view: ALL admin messages appear on right, customer messages on left
                 // In customer view: only own messages appear on right
                 const msgSenderId = getMsgSenderId(m);
@@ -897,6 +928,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                     key={`m-${m._id}-${idx}`}
                     ref={(el) => registerMessageRef(m._id, el)}
                     data-message-id={m._id}
+                    className={groupPosition === 'single' || groupPosition === 'first' ? 'mt-2' : 'mt-0.5'}
                     initial={{ 
                       opacity: 0, 
                       x: isSelf ? 100 : -100, // Slide from right for sent, left for received
@@ -930,6 +962,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                       senderName={senderName}
                       actor={actor}
                       uploadProgress={uploadProgress}
+                      groupPosition={groupPosition}
                       onView={() => {}} // No longer needed, handled by observer
                       onSwipeLeft={() => {
                         // Allow replying to any message, including your own
