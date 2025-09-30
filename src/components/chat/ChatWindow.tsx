@@ -7,6 +7,7 @@ import { SendHorizontalIcon, PaperclipIcon, XIcon, Mic as MicIcon, Square as Sto
 import { BillDetailTrigger } from "../bills/bill-detail-trigger";
 import type { ChatMessage } from "@/lib/chat-api";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 // Utility function to format date headers
 const getFormattedDate = (dateString: string): string => {
@@ -552,9 +553,19 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
     const currentEditing = editingId;
     const currentReply = replyingTo;
+    const currentAttachments = [...attachments]; // Copy attachments
+    
+    // Clear input and UI immediately
     setText("");
     setEditingId(null);
     setReplyingTo(null);
+    setAttachments([]); // Clear attachments from preview immediately
+
+    // Focus input after clearing text
+    setTimeout(() => {
+      const input = document.getElementById('message-input') as HTMLInputElement;
+      input?.focus();
+    }, 0);
 
     if (currentEditing) {
       await editMessage(roomId, currentEditing, content);
@@ -562,14 +573,23 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     }
 
     try {
-      // Upload attachments first if any
+      // Upload attachments FIRST if any
       let uploadedAttachments: Array<{ _id: string; filename: string; size: number; type: string; url: string }> = [];
-      if ((attachments?.length || 0) > 0) {
-        setUploadingFiles(new Set(attachments.map(a => a.id)));
+      
+      if (currentAttachments.length > 0) {
+        // Mark files as uploading and initialize progress
+        const uploadIds = new Set(currentAttachments.map(a => a.id));
+        setUploadingFiles(uploadIds);
+        
+        // Initialize progress for all attachments
+        const initialProgress: Record<string, number> = {};
+        currentAttachments.forEach(att => {
+          initialProgress[att.id] = 1; // Start at 1% to show it's uploading
+        });
+        setUploadProgress(initialProgress);
 
-        const uploadPromises = attachments.map(async (attachment) => {
-          setUploadingFiles(prev => new Set([...prev, attachment.id]));
-
+        // Upload all files
+        const uploadPromises = currentAttachments.map(async (attachment) => {
           try {
             const result = await uploadFileWithProgress(attachment.file, attachment.id);
 
@@ -588,12 +608,17 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
               newSet.delete(attachment.id);
               return newSet;
             });
-            throw error;
+            console.error(`Failed to upload ${attachment.file.name}:`, error);
+            return null;
           }
         });
 
-        uploadedAttachments = await Promise.all(uploadPromises);
+        // Wait for uploads to complete
+        const results = await Promise.all(uploadPromises);
+        uploadedAttachments = results.filter(Boolean) as Array<{ _id: string; filename: string; size: number; type: string; url: string }>;
+        
         setUploadingFiles(new Set());
+        setUploadProgress({});
       }
 
       // Include parent message details when replying
@@ -603,18 +628,34 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         sender: currentReply.sender
       } : undefined;
 
-      // Send message with attachments - content can be empty if attachments exist
-      await sendMessage(roomId, content, senderId, actor === "customer", currentReply?._id, parentMessage, uploadedAttachments);
-
-      // Clear attachments after successful send
-      setAttachments([]);
-      setUploadProgress({});
+      // Send message with actual uploaded URLs
+      await sendMessage(
+        roomId, 
+        content, 
+        senderId, 
+        actor === "customer", 
+        currentReply?._id, 
+        parentMessage, 
+        uploadedAttachments
+      );
+      
+      // Ensure input stays focused after successful send
+      setTimeout(() => {
+        const input = document.getElementById('message-input') as HTMLInputElement;
+        input?.focus();
+      }, 50);
     } catch (error) {
       console.error('Error sending message:', error);
-      // Restore the text if there was an error
+      // Restore the text and attachments if there was an error
       if (!currentEditing) {
         setText(content);
+        setAttachments(currentAttachments);
       }
+      // Focus input even on error
+      setTimeout(() => {
+        const input = document.getElementById('message-input') as HTMLInputElement;
+        input?.focus();
+      }, 50);
     }
   };
 
@@ -780,6 +821,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                       showSenderName={shouldShowSenderName}
                       senderName={senderName}
                       actor={actor}
+                      uploadProgress={uploadProgress}
                       onView={() => {}} // No longer needed, handled by observer
                       onSwipeLeft={() => {
                         // Allow replying to any message, including your own
@@ -870,38 +912,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           </div>
         </div>
       )}
-      {/* Global Upload Status */}
-      {uploadingFiles.size > 0 && (
-        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-blue-700 dark:text-blue-300 font-medium">
-                Uploading {uploadingFiles.size} file{uploadingFiles.size > 1 ? 's' : ''}...
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {Array.from(uploadingFiles).map(id => {
-                const progress = uploadProgress[id] || 0;
-                return (
-                  <div key={id} className="flex items-center gap-1">
-                    <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1">
-                      <div
-                        className="bg-blue-600 h-1 rounded-full transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-blue-600 dark:text-blue-400 min-w-[3ch] text-right">
-                      {Math.round(progress)}%
-                    </span>
-                  </div>
-                );
-
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Upload progress removed - now shown in message bubbles */}
       {/* Recording Indicator */}
       {isRecording && (
         <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
@@ -952,9 +963,12 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
               return (
                 <div key={attachment.id} className="relative group border rounded-lg p-2 bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600">
                   {attachment.preview ? (
-                    <img
+                    <Image
                       src={attachment.preview}
                       alt={attachment.file.name}
+                      width={48}
+                      height={48}
+                      quality={100} 
                       className="w-16 h-16 object-cover rounded"
                     />
                   ) : (
@@ -1047,13 +1061,10 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
           }}
         />
         <button
-          disabled={text.trim() === '' && (attachments?.length || 0) === 0 || uploadingFiles.size > 0}
+          disabled={text.trim() === '' && (attachments?.length || 0) === 0}
           className="px-2 py-1 rounded bg-black text-white dark:bg-white dark:text-black disabled:opacity-50 flex items-center gap-1"
           onClick={onSend}
         >
-          {uploadingFiles.size > 0 && (
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          )}
           {editingId ? 'Update' : <SendHorizontalIcon />}
         </button>
       </div>

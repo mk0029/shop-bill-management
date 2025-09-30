@@ -316,11 +316,11 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
             )}
 
             {isImage && attachment.url && (
-              <div className={`relative ${isFullscreen ? 'h-screen' : 'max-h-[70vh]'} flex items-center justify-center`}>
+              <div className={`relative ${isFullscreen ? 'h-screen' : 'h-[70vh]'} flex items-center justify-center bg-zinc-900`}>
                 <img
                   src={attachment.url}
                   alt={attachment.filename || 'Image'}
-                  className="max-w-full max-h-full object-contain"
+                  className={`w-full h-full ${isFullscreen ? 'object-contain' : 'object-contain'}`}
                   onLoad={() => setIsLoading(false)}
                   onError={() => setError('Failed to load image')}
                 />
@@ -329,6 +329,18 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   </div>
                 )}
+                {/* Fullscreen Toggle Button */}
+                <button
+                  onClick={toggleFullscreen}
+                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded transition-colors"
+                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                >
+                  {isFullscreen ? (
+                    <Minimize className="w-5 h-5 text-white" />
+                  ) : (
+                    <Maximize className="w-5 h-5 text-white" />
+                  )}
+                </button>
               </div>
             )}
 

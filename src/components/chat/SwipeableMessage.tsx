@@ -26,6 +26,7 @@ type SwipeableMessageProps = {
   showSenderName?: boolean;
   senderName?: string;
   actor?: "admin" | "customer";
+  uploadProgress?: Record<string, number>; // Upload progress for attachments
 };
 
 export function SwipeableMessage({
@@ -39,7 +40,8 @@ export function SwipeableMessage({
   onView,
   showSenderName = false,
   senderName,
-  actor
+  actor,
+  uploadProgress = {}
 }: SwipeableMessageProps) {
   const controls = useAnimation();
   const constraintsRef = useRef(null);
@@ -151,41 +153,112 @@ export function SwipeableMessage({
               </div>
             )}
             <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
-            {message.attachments && message.attachments.length > 0 && message.status !== 'pending' && (
+            {message.attachments && message.attachments.length > 0 && (
               <div className="mt-2 space-y-2">
-                {message.attachments.map((attachment, idx) => {
-                  const isVideo = attachment.type?.startsWith('video/') || false;
-                  const isImage = attachment.type?.startsWith('image/') || false;
-                  const isAudio = attachment.type?.startsWith('audio/') || false;
-                  const isPdf = attachment.type === 'application/pdf';
-
+                {/* Group images together */}
+                {(() => {
+                  const images = (message.attachments || []).filter(a => a.type?.startsWith('image/'));
+                  const nonImages = (message.attachments || []).filter(a => !a.type?.startsWith('image/'));
+                  
                   return (
-                    <div key={idx} className={`border rounded-lg p-3 ${
+                    <>
+                      {/* Image Grid (WhatsApp style) */}
+                      {images.length > 0 && (
+                        <div className={`grid gap-1 ${
+                          images.length === 1 ? 'grid-cols-1' :
+                          images.length === 2 ? 'grid-cols-2' :
+                          images.length === 3 ? 'grid-cols-2' :
+                          images.length === 4 ? 'grid-cols-2' :
+                          'grid-cols-3'
+                        }`}>
+                          {images.map((attachment, idx) => {
+                            // Check if uploading by looking at uploadProgress
+                            const isUploading = attachment._id && uploadProgress[attachment._id] !== undefined && uploadProgress[attachment._id] < 100;
+                            const progress = attachment._id ? uploadProgress[attachment._id] || 0 : 0;
+                            
+                            return (
+                              <div 
+                                key={idx} 
+                                className={`relative rounded-lg overflow-hidden border ${
+                                  isSelf ? 'border-emerald-400/30' : 'border-zinc-300 dark:border-zinc-500/50'
+                                } ${
+                                  images.length === 3 && idx === 2 ? 'col-span-2' : ''
+                                } ${
+                                  images.length === 1 ? 'max-w-sm' : ''
+                                }`}
+                                style={{
+                                  aspectRatio: images.length === 1 ? 'auto' : '1/1',
+                                  maxHeight: images.length === 1 ? '400px' : '200px',
+                                  minHeight: images.length === 1 ? '200px' : '150px'
+                                }}
+                              >
+                                {attachment.url && !attachment.url.startsWith('blob:') ? (
+                                  <>
+                                    <Image
+                                      src={attachment.url}
+                                      alt={attachment.filename}
+                                      width={300}
+                                      height={300}
+                                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
+                                      onClick={() => openPreview(attachment as ChatAttachment)}
+                                    />
+                                    {/* Upload Progress Overlay - only show if actively uploading */}
+                                    {isUploading && progress > 0 && progress < 100 && (
+                                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-10">
+                                        <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-2" />
+                                        <div className="text-white text-sm font-medium">{Math.round(progress)}%</div>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="w-full h-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                                    <div className="text-zinc-400 text-xs">
+                                      {attachment.url?.startsWith('blob:') ? 'Image expired' : 'Loading...'}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Zoom button on hover */}
+                                {attachment.url && (
+                                  <button
+                                    onClick={() => openPreview(attachment as ChatAttachment)}
+                                    className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full opacity-0 hover:opacity-100 transition-opacity"
+                                    title="View fullscreen"
+                                  >
+                                    <ZoomIn className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      
+                      {/* Other attachments (audio, video, pdf, etc.) */}
+                      {nonImages.map((attachment, idx) => {
+                        const isVideo = attachment.type?.startsWith('video/') || false;
+                        const isAudio = attachment.type?.startsWith('audio/') || false;
+                        const isPdf = attachment.type === 'application/pdf';
+
+                        // Check if uploading by looking at uploadProgress
+                        const isUploading = attachment._id && uploadProgress[attachment._id] !== undefined && uploadProgress[attachment._id] < 100;
+                        const progress = attachment._id ? uploadProgress[attachment._id] || 0 : 0;
+
+                        return (
+                    <div key={idx} className={`border rounded-lg p-3 relative ${
                       isSelf 
                         ? 'bg-emerald-600/40 border-emerald-400/30 backdrop-blur-sm' 
                         : 'bg-zinc-100 dark:bg-zinc-600/30 border-zinc-300 dark:border-zinc-500/50'
                     }`}>
-                      {isImage && attachment.url && (
-                        <div className="mb-2 relative group">
-                          <Image
-                            src={attachment.url}
-                            alt={attachment.filename}
-                            width={200}
-                            height={200}
-                            className="w-full max-w-xs max-h-48 object-cover rounded border border-white/10 cursor-pointer hover:opacity-80 transition-opacity"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                            onClick={() => openPreview(attachment as ChatAttachment)}
-                          />
-                          <button
-                            onClick={() => openPreview(attachment as ChatAttachment)}
-                            className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="View fullscreen"
-                          >
-                            <ZoomIn className="w-4 h-4" />
-                          </button>
+                      {/* Upload Progress Overlay */}
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex flex-col items-center justify-center z-10">
+                          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-2" />
+                          <div className="text-white text-sm font-medium">{Math.round(progress)}%</div>
                         </div>
                       )}
 
@@ -227,13 +300,24 @@ export function SwipeableMessage({
                         </div>
                       )}
 
-                      {isAudio && attachment.url && (
+                      {isAudio && (
                         <div className="mb-2">
-                          <AudioPlayer 
-                            src={attachment.url} 
-                            isSelf={isSelf}
-                            filename={attachment.filename}
-                          />
+                          {attachment.url ? (
+                            <AudioPlayer 
+                              src={attachment.url} 
+                              isSelf={isSelf}
+                              filename={attachment.filename}
+                            />
+                          ) : (
+                            <div className={`flex items-center gap-3 min-w-[220px] p-3 rounded-lg ${
+                              isSelf ? 'bg-white/10' : 'bg-zinc-200 dark:bg-zinc-700'
+                            }`}>
+                              <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin border-emerald-500" />
+                              <div className={`text-sm ${isSelf ? 'text-white' : 'text-zinc-600 dark:text-zinc-400'}`}>
+                                Uploading audio...
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       
@@ -246,7 +330,7 @@ export function SwipeableMessage({
                         </div>
                       )}
 
-                      {!isImage && !isVideo && !isPdf && !isAudio && (
+                      {!isVideo && !isPdf && !isAudio && (
                         <div className="mb-2 flex items-center gap-2 p-2 bg-white/5 rounded border border-white/10">
                           <File className="w-4 h-4 text-white/60" />
                           <div className="flex-1 min-w-0">
@@ -292,6 +376,9 @@ export function SwipeableMessage({
                     </div>
                   );
                 })}
+                    </>
+                  );
+                })()}
               </div>
             )}
             <div className={`flex items-center gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
