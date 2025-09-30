@@ -37,6 +37,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
 
   const isVideo = attachment.type?.startsWith('video/') || false;
   const isImage = attachment.type?.startsWith('image/') || false;
+  const isAudio = attachment.type?.startsWith('audio/') || false;
   const isPdf = attachment.type === 'application/pdf';
 
   const formatFileSize = (bytes: number) => {
@@ -170,7 +171,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center justify-between p-2 md:p-4 border-b border-zinc-200 dark:border-zinc-700">
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold truncate" title={attachment.filename}>
                 {attachment.filename || 'Unknown File'}
@@ -360,7 +361,47 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
               </div>
             )}
 
-            {!isVideo && !isImage && !isPdf && (
+            {isAudio && attachment.url && (
+              <div className="flex flex-col items-center justify-center p-8">
+                <div className="w-full max-w-md">
+                  {/* Audio Player */}
+                  <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-6 mb-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <Volume2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-zinc-900 dark:text-white truncate">
+                          {attachment.filename}
+                        </div>
+                        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                          Audio File
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* HTML5 Audio Player */}
+                    <audio
+                      controls
+                      className="w-full"
+                      onLoadedMetadata={() => setIsLoading(false)}
+                      onError={() => setError('Failed to load audio')}
+                    >
+                      <source src={attachment.url} type={attachment.type} />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+
+                  {/* File Info */}
+                  <div className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    <p>{formatFileSize(attachment.size)}</p>
+                    <p className="mt-1">{attachment.type}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isVideo && !isImage && !isPdf && !isAudio && (
               <div className="flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-700 rounded-lg flex items-center justify-center mb-4">
                   <Download className="w-8 h-8 text-zinc-400" />

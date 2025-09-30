@@ -58,7 +58,7 @@ export default function AdminChatsPage() {
     setBillStats(null);
   }, [activeRoomId]);
 
-  // Fetch bill stats for header (count and total amount)
+  // Fetch bill stats for header (pending/partial/due bills and unpaid amount)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -67,11 +67,25 @@ export default function AdminChatsPage() {
         const res = await fetch(`/api/bill-book/user/${encodeURIComponent(activeCustomer.id)}/list`, { cache: 'no-store' });
         const json = await res.json();
         if (!alive) return;
-        if (json?.success && Array.isArray(json.data)) {
-          const items = json.data as Array<{ totalAmount?: number }|Record<string, unknown>>;
-          const count = items.length;
-          const total = items.reduce((sum, it) => sum + Number((it as { totalAmount?: number|string }).totalAmount ?? 0), 0);
-          setBillStats({ count, total });
+        if (json.success && Array.isArray(json.data)) {
+          const items = json.data as Array<{ 
+            paymentStatus?: string; 
+            balanceAmount?: number;
+            totalAmount?: number;
+          }>;
+          
+          // Filter only pending, partial, and due bills (not paid)
+          const unpaidBills = items.filter(bill => {
+            const status = bill.paymentStatus?.toLowerCase();
+            return status === 'pending' || status === 'partial' || status === 'due';
+          });
+          
+          // Calculate total unpaid amount (balance amount for unpaid bills)
+          const totalUnpaid = unpaidBills.reduce((sum, bill) => {
+            return sum + Number(bill.balanceAmount ?? bill.totalAmount ?? 0);
+          }, 0);
+          
+          setBillStats({ count: unpaidBills.length, total: totalUnpaid });
         } else {
           setBillStats({ count: 0, total: 0 });
         }

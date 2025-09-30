@@ -780,7 +780,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         <div className="space-y-4">
           {groupedMessages.map((group, groupIndex) => (
             <div key={`group-${groupIndex}`} className="space-y-2">
-              <div className="sticky top-0  flex justify-center z-50">
+              <div className="sticky top-0  flex justify-center z-30">
                 <div className="bg-white dark:bg-zinc-800 px-3 py-1 rounded-full text-xs font-medium text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
                   {group.formattedDate}
                 </div>

@@ -39,6 +39,8 @@ interface BillItem {
   _id: string;
   billNumber?: string;
   totalAmount?: number;
+  paymentStatus?: string;
+  balanceAmount?: number;
   createdAt: string;
 }
 
@@ -68,6 +70,8 @@ export function CustomerInfoPopup({ isOpen, onClose, customerId, customerName, r
             _id: String(bill._id),
             billNumber: bill.billNumber as string | undefined,
             totalAmount: Number((bill.totalAmount as number | string | undefined) ?? 0),
+            paymentStatus: bill.paymentStatus as string | undefined,
+            balanceAmount: Number((bill.balanceAmount as number | string | undefined) ?? 0),
             createdAt: String(bill.createdAt as string)
           }));
           setBills(billItems);
@@ -273,12 +277,11 @@ export function CustomerInfoPopup({ isOpen, onClose, customerId, customerName, r
                     >
                       View
                     </button>
-                    <button
-                      onClick={() => downloadFile(file.url, file.filename)}
-                      className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
-                    >
-                      <DownloadIcon className="w-3 h-3" />
-                    </button>
+                    <BillDetailTrigger billId={file.messageId}>
+                      <button className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition-colors">
+                        View
+                      </button>
+                    </BillDetailTrigger>
                   </div>
                 </div>
               ))}
@@ -334,30 +337,48 @@ export function CustomerInfoPopup({ isOpen, onClose, customerId, customerName, r
             </div>
           ) : (
             <div className="space-y-3">
-              {bills.map((bill) => (
+              {bills.map((bill) => {
+                const status = bill.paymentStatus?.toLowerCase();
+                const statusColors = {
+                  paid: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+                  partial: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                  pending: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+                  due: 'bg-red-500/20 text-red-400 border-red-500/30'
+                };
+                const statusColor = statusColors[status as keyof typeof statusColors] || statusColors.pending;
+                
+                return (
                 <div key={bill._id} className="border rounded-lg p-3 bg-gray-800 border-gray-700">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-white">
-                        Bill {bill.billNumber ? `#${bill.billNumber}` : ''}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="font-medium text-white">
+                          Bill {bill.billNumber ? `#${bill.billNumber}` : ''}
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${statusColor}`}>
+                          {status?.toUpperCase() || 'PENDING'}
+                        </span>
                       </div>
                       <div className="text-sm text-gray-400">
                         ₹{Number(bill.totalAmount || 0).toLocaleString('en-IN')}
                       </div>
+                      {status !== 'paid' && bill.balanceAmount && bill.balanceAmount > 0 && (
+                        <div className="text-xs text-red-400 mt-0.5">
+                          Due: ₹{Number(bill.balanceAmount).toLocaleString('en-IN')}
+                        </div>
+                      )}
                       <div className="text-xs text-gray-500 mt-1">
-                        {formatDate(bill.createdAt)}
+                        {new Date(bill.createdAt).toLocaleDateString()}
                       </div>
                     </div>
-                    <BillDetailTrigger
-                      bill={bill}
-                      buttonLabel="View"
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                    />
+                    <BillDetailTrigger billId={bill._id}>
+                      <button className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded transition-colors">
+                        View
+                      </button>
+                    </BillDetailTrigger>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </TabsContent>

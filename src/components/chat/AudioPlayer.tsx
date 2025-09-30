@@ -140,10 +140,10 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
     return (
       <div className="flex items-center gap-1.5 md:gap-3 min-w-[220px] max-w-xs">
         {/* Loading Spinner */}
-        <div className={`flex-shrink-0 md:w-10 md:h-10 w-8 h-8 rounded-full flex items-center justify-center ${
+        <div className={`flex-shrink-0 md:w-10 md:h-10 w-6 h-6 rounded-full flex items-center justify-center ${
           isSelf ? 'bg-white/20' : 'bg-emerald-500/20'
         }`}>
-          <div className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${
+          <div className={`md:w-5 md:h-5 h-3 w-3 border-2 border-t-transparent rounded-full animate-spin ${
             isSelf ? 'border-white' : 'border-emerald-500'
           }`} />
         </div>
@@ -216,16 +216,16 @@ export function AudioPlayer({ src, isSelf, filename }: AudioPlayerProps) {
       <button
         onClick={togglePlayPause}
         disabled={isLoading || hasError}
-        className={`flex-shrink-0 md:w-10 md:h-10 w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-md ${
+        className={`flex-shrink-0 md:w-10 md:h-10 w-6 h-6 rounded-full flex items-center justify-center transition-all shadow-md ${
           isSelf
             ? 'bg-white hover:bg-white/90 text-emerald-600 hover:scale-105'
             : 'bg-emerald-500 hover:bg-emerald-600 text-white hover:scale-105'
         } disabled:opacity-50 disabled:hover:scale-100`}
       >
         {isPlaying ? (
-          <Pause className="w-4 h-4" fill="currentColor" />
+          <Pause className="md:w-5 md:h-5 h-3 w-3" fill="currentColor" />
         ) : (
-          <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
+          <Play className="md:w-5 md:h-5 h-3 w-3 ml-0.5" fill="currentColor" />
         )}
       </button>
 

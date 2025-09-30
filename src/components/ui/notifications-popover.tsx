@@ -64,11 +64,6 @@ export default function NotificationsPopover() {
 
   // Note: Avoid locking body scroll to prevent interference when multiple bells exist
 
-  const header = useMemo(() => {
-    if (items.length === 0) return "No notifications";
-    return `Notifications (${items.length})`;
-  }, [items.length]);
-
   return (
     <div className="relative">
       <Button
