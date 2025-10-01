@@ -270,7 +270,7 @@ export function SwipeableMessage({
                             return (
                               <div 
                                 key={idx} 
-                                className={`relative rounded-lg overflow-hidden border p-1 ${idx===0&&'!min-w-[150px]'} ${
+                                className={`relative rounded-lg overflow-hidden border p-1 ${idx===0&&images.length===1&&'!min-w-[150px]'} ${
                                   isSelf ? 'border-slate-500/70 bg-white/10 backdrop-blur-sm' : 'border-zinc-300 dark:border-zinc-500/50'
                                 }`}
                                 style={{
