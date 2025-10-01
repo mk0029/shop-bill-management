@@ -302,7 +302,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
             )}
 
             {isImage && attachment.url && (
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center rounded-lg shadow-[0_0_10px_-5px_#fff]">
                 <Image
                   width={400}
                   quality={100}
