@@ -10,18 +10,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file size (max 10MB for chat attachments)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Validate file size (max 50MB for chat attachments - increased for videos)
+    const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "File size must be less than 10MB" },
+        { error: "File size must be less than 50MB" },
         { status: 400 }
       );
     }
 
-    // Validate file type (allow images, audio, PDFs, documents, and common file types)
+    // Validate file type (allow images, videos, audio, PDFs, documents, and common file types)
     const allowedTypes = [
       'image/',
+      'video/',
       'audio/',
       'application/pdf',
       'application/msword',
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     const isAllowedType = allowedTypes.some(type => file.type.startsWith(type));
     if (!isAllowedType) {
       return NextResponse.json(
-        { error: "File type not allowed. Allowed types: images, audio, PDF, Word, Excel, text files" },
+        { error: "File type not allowed. Allowed types: images, videos, audio, PDF, Word, Excel, text files" },
         { status: 400 }
       );
     }

@@ -49,7 +49,6 @@ export function SwipeableMessage({
   const constraintsRef = useRef(null);
   const dragX = useRef(0);
 
-  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
@@ -70,14 +69,6 @@ export function SwipeableMessage({
     }
   };
 
-  const toggleVideoPlay = (attachmentId: string, url: string) => {
-    if (playingVideo === attachmentId) {
-      setPlayingVideo(null);
-    } else {
-      setPlayingVideo(attachmentId);
-    }
-  };
-
   const openPreview = (attachment: ChatAttachment) => {
     setPreviewAttachment(attachment);
     setPreviewOpen(true);
@@ -89,7 +80,7 @@ export function SwipeableMessage({
     <AttachmentPreviewModal
       attachment={previewAttachment}
       isOpen={previewOpen}
-      onClose={() => { setPreviewOpen(false); setPreviewAttachment(null); setPlayingVideo(null); }}
+      onClose={() => { setPreviewOpen(false); setPreviewAttachment(null); }}
     />
   );
 
@@ -358,29 +349,16 @@ export function SwipeableMessage({
                       )}
 
                       {isVideo && attachment.url && (
-                        <div className="mb-2 relative group">
+                        <div className="mb-2 relative group cursor-pointer" onClick={() => openPreview(attachment as ChatAttachment)}>
                           <div className="relative">
                             <video
                               src={attachment.url}
-                              className="w-full max-w-xs max-h-48 object-cover rounded border border-white/10 cursor-pointer"
-                              controls={playingVideo !== attachment._id}
-                              onClick={() => toggleVideoPlay(attachment._id || `video-${idx}`, attachment.url)}
+                              className="w-full max-w-xs max-h-48 object-cover rounded border border-white/10"
+                              preload="metadata"
                             />
-                            {playingVideo !== attachment._id && (
-                              <button
-                                onClick={() => toggleVideoPlay(attachment._id || `video-${idx}`, attachment.url)}
-                                className="absolute inset-0 flex items-center justify-center bg-black/50 rounded hover:bg-black/30 transition-colors"
-                              >
-                                <Play className="w-8 h-8 text-white" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => openPreview(attachment as ChatAttachment)}
-                              className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="View fullscreen"
-                            >
-                              <ZoomIn className="w-4 h-4" />
-                            </button>
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded hover:bg-black/30 transition-colors">
+                              <Play className="w-12 h-12 text-white" />
+                            </div>
                           </div>
                         </div>
                       )}

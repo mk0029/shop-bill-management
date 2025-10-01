@@ -711,8 +711,27 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         uploadFileWithProgress(attachment.file, attachment.id)
       );
 
-      const uploadedAttachments = (await Promise.all(uploadPromises.map(p => p.catch(e => e))))
-        .filter(result => !(result instanceof Error));
+      const results = await Promise.all(uploadPromises.map(p => p.catch(e => e)));
+      
+      // Separate successful uploads from errors
+      const uploadedAttachments = results.filter(result => !(result instanceof Error));
+      const failedUploads = results.filter(result => result instanceof Error);
+      
+      // Log any upload errors
+      if (failedUploads.length > 0) {
+        console.error('Some attachments failed to upload:', failedUploads);
+        failedUploads.forEach((error, index) => {
+          console.error(`Upload error ${index + 1}:`, error);
+        });
+      }
+      
+      // If we have attachments but all failed to upload, don't send the message
+      if (currentAttachments.length > 0 && uploadedAttachments.length === 0) {
+        console.error('All attachments failed to upload. Message not sent.');
+        useChatStore.getState().updateMessageStatus(roomId, tempId, 'failed');
+        alert('Failed to upload attachments. Please try again.');
+        return;
+      }
 
       // Update the optimistic message with the real data from the server
       await useChatStore.getState().finalizeOptimisticMessage(tempId, {
