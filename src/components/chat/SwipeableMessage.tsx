@@ -182,34 +182,104 @@ export function SwipeableMessage({
                   
                   return (
                     <>
-                      {/* Image Grid (WhatsApp style) */}
+                      {/* Image Grid (WhatsApp style with Flexbox) */}
                       {images.length > 0 && (
-                        <div className={`grid gap-1 ${
-                          images.length === 1 ? 'grid-cols-1' :
-                          images.length === 2 ? 'grid-cols-2' :
-                          images.length === 3 ? 'grid-cols-2' :
-                          images.length === 4 ? 'grid-cols-2' :
-                          'grid-cols-3'
-                        }`}>
-                          {images.map((attachment, idx) => {
+                        <div className="flex flex-wrap gap-1">
+                            {images.map((attachment, idx) => {
                             // Check if uploading by looking at uploadProgress
                             const isUploading = attachment._id && uploadProgress[attachment._id] !== undefined && uploadProgress[attachment._id] < 100;
                             const progress = attachment._id ? uploadProgress[attachment._id] || 0 : 0;
                             
+                            // Calculate flex basis and width based on image count and position
+                            let flexBasis = '100%';
+                            let maxWidth = '100%';
+                            
+                            if (images.length === 1) {
+                              // Single image: full width but constrained
+                              flexBasis = '100%';
+                              maxWidth = 'min(400px, 100%)';
+                            } else if (images.length === 2) {
+                              // Two images: 50% each
+                              flexBasis = 'calc(50% - 2px)';
+                              maxWidth = 'calc(50% - 2px)';
+                            } else if (images.length === 3) {
+                              // Three images: 2 on top (50% each), 1 full width bottom
+                              if (idx < 2) {
+                                flexBasis = 'calc(50% - 2px)';
+                                maxWidth = 'calc(50% - 2px)';
+                              } else {
+                                flexBasis = '100%';
+                                maxWidth = '100%';
+                              }
+                            } else if (images.length === 4) {
+                              // Four images: 2x2 grid (50% each)
+                              flexBasis = 'calc(50% - 2px)';
+                              maxWidth = 'calc(50% - 2px)';
+                            } else if (images.length === 5) {
+                              // Five images: 2-2-1 layout
+                              if (idx < 4) {
+                                flexBasis = 'calc(50% - 2px)';
+                                maxWidth = 'calc(50% - 2px)';
+                              } else {
+                                flexBasis = '100%';
+                                maxWidth = '100%';
+                              }
+                            } else if (images.length === 6) {
+                              // Six images: 3x2 grid (33.33% each)
+                              flexBasis = 'calc(33.333% - 3px)';
+                              maxWidth = 'calc(33.333% - 3px)';
+                            } else if (images.length === 7) {
+                              // Seven images: 3-3-1 layout
+                              if (idx < 6) {
+                                flexBasis = 'calc(33.333% - 3px)';
+                                maxWidth = 'calc(33.333% - 3px)';
+                              } else {
+                                flexBasis = '100%';
+                                maxWidth = '100%';
+                              }
+                            } else if (images.length === 8) {
+                              // Eight images: 3-3-2 layout
+                              if (idx < 6) {
+                                flexBasis = 'calc(33.333% - 3px)';
+                                maxWidth = 'calc(33.333% - 3px)';
+                              } else {
+                                flexBasis = 'calc(50% - 2px)';
+                                maxWidth = 'calc(50% - 2px)';
+                              }
+                            } else if (images.length === 9) {
+                              // Nine images: 3x3 grid (33.33% each)
+                              flexBasis = 'calc(33.333% - 3px)';
+                              maxWidth = 'calc(33.333% - 3px)';
+                            } else {
+                              // 10+ images: 3 columns, last row flexible
+                              const isLastRow = idx >= Math.floor(images.length / 3) * 3;
+                              const remainingInLastRow = images.length % 3;
+                              
+                              if (isLastRow && remainingInLastRow === 1 && idx === images.length - 1) {
+                                flexBasis = '100%';
+                                maxWidth = '100%';
+                              } else if (isLastRow && remainingInLastRow === 2) {
+                                flexBasis = 'calc(50% - 2px)';
+                                maxWidth = 'calc(50% - 2px)';
+                              } else {
+                                flexBasis = 'calc(33.333% - 3px)';
+                                maxWidth = 'calc(33.333% - 3px)';
+                              }
+                            }
+                            
                             return (
                               <div 
                                 key={idx} 
-                                className={`relative rounded-lg overflow-hidden border ${
-                                  isSelf ? 'border-emerald-400/30' : 'border-zinc-300 dark:border-zinc-500/50'
-                                } ${
-                                  images.length === 3 && idx === 2 ? 'col-span-2' : ''
-                                } ${
-                                  images.length === 1 ? 'max-w-sm' : ''
+                                className={`relative rounded-lg overflow-hidden border p-1 ${idx===0&&'!min-w-[150px]'} ${
+                                  isSelf ? 'border-slate-500/70 bg-white/10 backdrop-blur-sm' : 'border-zinc-300 dark:border-zinc-500/50'
                                 }`}
                                 style={{
+                                  flexBasis,
+                                  maxWidth,
                                   aspectRatio: images.length === 1 ? 'auto' : '1/1',
-                                  maxHeight: images.length === 1 ? '280px' : '160px',
-                                  minHeight: images.length === 1 ? '140px' : '120px'
+                                  // Responsive heights for mobile and desktop
+                                  maxHeight: images.length === 1 ? 'clamp(200px, 40vw, 280px)' : 'clamp(100px, 25vw, 160px)',
+                                  minHeight: images.length === 1 ? 'clamp(100px, 20vw, 140px)' : 'clamp(80px, 15vw, 120px)'
                                 }}
                               >
                                 {attachment.url && !attachment.url.startsWith('blob:') ? (
@@ -219,7 +289,7 @@ export function SwipeableMessage({
                                       alt={attachment.filename}
                                       width={240}
                                       height={240}
-                                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      className={` cursor-pointer hover:opacity-90 transition-opacity object-contain  ${idx !== 0 ? 'absolute size-[90%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2' : ' size-full'}`}
                                       onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         target.style.display = 'none';

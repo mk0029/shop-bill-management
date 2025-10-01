@@ -7,6 +7,7 @@ import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { PaperclipIcon, LinkIcon, ReceiptIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react";
 import type { ChatMessage } from "@/lib/chat-api";
 import { AttachmentPreviewModal } from "@/components/chat/AttachmentPreviewModal";
+import Image from "next/image";
 
 interface CustomerInfoPopupProps {
   isOpen: boolean;
@@ -212,7 +213,7 @@ export function CustomerInfoPopup({ isOpen, onClose, customerId, customerName, r
       size="lg"
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 sticky -top-3 z-10">
           <TabsTrigger value="media" className="flex items-center gap-2">
             <PaperclipIcon className="w-4 h-4" />
             Media ({mediaFiles.length})
@@ -243,10 +244,10 @@ export function CustomerInfoPopup({ isOpen, onClose, customerId, customerName, r
                 <div key={file.id} className="border rounded-lg p-3 bg-gray-800 border-gray-700">
                   {file.type.startsWith('image/') ? (
                     <button type="button" onClick={() => openPreview(file)} className="relative group w-full">
-                      <img
+                      <Image width={200} height={200}
                         src={file.url}
                         alt={file.filename}
-                        className="w-full h-24 object-cover rounded"
+                        className="w-full h-24 object-contain rounded"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
                         <ExternalLinkIcon className="w-5 h-5 text-white" />

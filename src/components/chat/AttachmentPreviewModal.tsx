@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Download, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 interface Attachment {
   _id?: string;
@@ -154,18 +155,18 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+        className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="fixed inset-0 w-screen h-screen bg-zinc-900 dark:bg-black flex flex-col"
+          initial={ {opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-50px)] h-[calc(100vh-50px)]  flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-zinc-700 dark:border-zinc-800 bg-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-center justify-between p-3 border-b border-zinc-700 dark:border-zinc-800 bg-zinc-800 shadow-[0_0_20px_-5px_#fff] rounded-md mx-auto max-w-[1140px] w-full">
             <div className="flex-1 min-w-0">
               <h3 className="text-base md:text-lg font-semibold truncate text-white" title={attachment.filename}>
                 {attachment.filename || 'Unknown File'}
@@ -235,7 +236,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
                 <video
                   ref={videoRef}
                   src={attachment.url}
-                  className="max-w-[80%] max-h-[80%] w-auto h-auto object-contain"
+                  className="max-w-[80%] max-h-[80%] w-full h-full object-cover absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                   style={{ maxWidth: '80vw', maxHeight: '80vh' }}
                   onLoadedMetadata={handleLoadedMetadata}
                   onTimeUpdate={handleTimeUpdate}
@@ -251,7 +252,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4"
+                      className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/10 to-transparent p-4"
                     >
                       {/* Progress Bar */}
                       <div
@@ -302,10 +303,13 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
 
             {isImage && attachment.url && (
               <div className="relative w-full h-full flex items-center justify-center">
-                <img
+                <Image
+                  width={400}
+                  quality={100}
+                  height={400}
                   src={attachment.url}
                   alt={attachment.filename || 'Image'}
-                  className="max-w-[80%] max-h-[80%] w-auto h-auto object-contain"
+                  className="max-w-[80%] max-h-[80%] w-full h-full object-contain absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                   style={{ maxWidth: '80vw', maxHeight: '80vh' }}
                   onLoad={() => setIsLoading(false)}
                   onError={() => setError('Failed to load image')}
@@ -335,13 +339,13 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
             )}
 
             {isAudio && attachment.url && (
-              <div className="flex flex-col items-center justify-center p-8">
-                <div className="w-full max-w-md">
+              <div className="flex flex-col items-center justify-center md:p-4 xl:p-8 w-full">
+                <div className="w-full">
                   {/* Audio Player */}
-                  <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-6 mb-4">
+                  <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg md:p-6 p-3 mb-4">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center">
-                        <Volume2 className="w-6 h-6 text-white" />
+                      <div className="md:size-1/2 sm:size-10 size-9 bg-emerald-500 rounded-full flex items-center justify-center">
+                        <Volume2 className=" md:size-6 size-4 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-zinc-900 dark:text-white truncate">
@@ -356,7 +360,7 @@ export function AttachmentPreviewModal({ attachment, isOpen, onClose }: Attachme
                     {/* HTML5 Audio Player */}
                     <audio
                       controls
-                      className="w-full"
+                      className="w-full h-10 md:h-12"
                       onLoadedMetadata={() => setIsLoading(false)}
                       onError={() => setError('Failed to load audio')}
                     >
