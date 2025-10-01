@@ -33,8 +33,9 @@ export default function NewChatLauncher(props: { onClose: () => void; onRoomOpen
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-start z-[9999]">
-      <div className="w-[560px] max-w-[92vw] bg-white/60 dark:bg-zinc-900/60 border rounded-lg shadow-xl">
+    <div className="fixed top-0 right-0 h-screen w-screen lg:w-[calc(100vw-256px)] bg-black/40 backdrop-blur-sm flex items-start justify-center z-[9999] lg:pt-10 pt-4">
+      <div onClick={props.onClose} className="fixed h-screen w-screen top-0 left-0 bg-black/10 backdrop-blur-xl flex items-center justify-center z-[0]"></div>
+      <div className="w-[560px] max-w-[92vw] bg-white/60 dark:bg-zinc-900/60 border rounded-lg shadow-xl relative z-10">
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
           <h3 className="font-semibold">Start new chat</h3>
           <button onClick={props.onClose} className="text-sm px-2 py-1 rounded border bg-transparent hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60">Close</button>
