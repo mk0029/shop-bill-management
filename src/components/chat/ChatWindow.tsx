@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useChatStore } from "@/store/chat-store";
 import { SwipeableMessage } from "./SwipeableMessage";
-import { SendHorizontalIcon, PaperclipIcon, XIcon, Mic as MicIcon, Square as StopIcon } from "lucide-react";
+import { SendHorizontalIcon, PaperclipIcon, XIcon, Mic as MicIcon } from "lucide-react";
 import { BillDetailTrigger } from "../bills/bill-detail-trigger";
 import type { ChatMessage } from "@/lib/chat-api";
 import { motion } from "framer-motion";
@@ -203,6 +203,27 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     }
   }, [roomId, senderId, actor, sendMessage]);
 
+  const stopRecording = useCallback(() => {
+    try {
+      // Clear timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      
+      const r = mediaRecorderRef.current;
+      if (r && r.state !== 'inactive') {
+        r.stop();
+      } else {
+        setIsRecording(false);
+        setRecordingDuration(0);
+      }
+    } catch {
+      setIsRecording(false);
+      setRecordingDuration(0);
+    }
+  }, []);
+
   const startRecording = useCallback(async () => {
     setRecordingError(null);
     try {
@@ -299,28 +320,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
       setRecordingError(message);
       setIsRecording(false);
     }
-  }, [attachAudioBlobAsFile]);
-
-  const stopRecording = useCallback(() => {
-    try {
-      // Clear timer
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      
-      const r = mediaRecorderRef.current;
-      if (r && r.state !== 'inactive') {
-        r.stop();
-      } else {
-        setIsRecording(false);
-        setRecordingDuration(0);
-      }
-    } catch {
-      setIsRecording(false);
-      setRecordingDuration(0);
-    }
-  }, []);
+  }, [attachAudioBlobAsFile, stopRecording]);
 
   // Scroll to bottom function
   const scrollToBottom = () => {
@@ -657,113 +657,77 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
   const onSend = async () => {
     const content = text.trim();
-    if (!content && (attachments?.length || 0) === 0) return;
+    if (!content && attachments.length === 0) return;
 
     const currentEditing = editingId;
     const currentReply = replyingTo;
-    const currentAttachments = [...attachments]; // Copy attachments
-    
-    // Clear input and UI immediately
+    const currentAttachments = [...attachments];
+
+    // --- Optimistic UI: Clear inputs immediately ---
     setText("");
     setEditingId(null);
     setReplyingTo(null);
-    setAttachments([]); // Clear attachments from preview immediately
-
-    // Focus input after clearing text
-    setTimeout(() => {
-      const input = document.getElementById('message-input') as HTMLInputElement;
-      input?.focus();
-    }, 0);
+    setAttachments([]);
+    setTimeout(() => document.getElementById('message-input')?.focus(), 0);
 
     if (currentEditing) {
       await editMessage(roomId, currentEditing, content);
       return;
     }
 
+    // --- Optimistic UI: Create and send a temporary message --- 
+    const tempId = `temp_${Date.now()}`;
+    const optimisticAttachments = currentAttachments.map(att => ({
+      _id: att.id, // This is the temporary attachment ID
+      filename: att.file.name,
+      size: att.file.size,
+      type: att.file.type,
+      url: '', // No URL yet
+    }));
+
+    const optimisticMessage: ChatMessage = {
+      _id: tempId,
+      room: { _ref: roomId },
+      content,
+      sender: { _ref: senderId },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'pending',
+      attachments: optimisticAttachments,
+      ...(currentReply && { parentMessage: { _id: currentReply._id, content: currentReply.content, sender: currentReply.sender } })
+    };
+
+    // Add the optimistic message to the store so it appears instantly
+    useChatStore.getState().addOptimisticMessage(roomId, optimisticMessage);
+
+    // Initialize upload progress for the UI
+    const initialProgress: Record<string, number> = {};
+    currentAttachments.forEach(att => { initialProgress[att.id] = 1; });
+    setUploadProgress(prev => ({ ...prev, ...initialProgress }));
+
+    // --- Background Upload --- 
     try {
-      // Upload attachments FIRST if any
-      let uploadedAttachments: Array<{ _id: string; filename: string; size: number; type: string; url: string }> = [];
-      
-      if (currentAttachments.length > 0) {
-        // Mark files as uploading and initialize progress
-        const uploadIds = new Set(currentAttachments.map(a => a.id));
-        setUploadingFiles(uploadIds);
-        
-        // Initialize progress for all attachments
-        const initialProgress: Record<string, number> = {};
-        currentAttachments.forEach(att => {
-          initialProgress[att.id] = 1; // Start at 1% to show it's uploading
-        });
-        setUploadProgress(initialProgress);
-
-        // Upload all files
-        const uploadPromises = currentAttachments.map(async (attachment) => {
-          try {
-            const result = await uploadFileWithProgress(attachment.file, attachment.id);
-
-            // Mark file as uploaded
-            setUploadingFiles(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(attachment.id);
-              return newSet;
-            });
-
-            return result;
-          } catch (error) {
-            // Mark file as failed
-            setUploadingFiles(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(attachment.id);
-              return newSet;
-            });
-            console.error(`Failed to upload ${attachment.file.name}:`, error);
-            return null;
-          }
-        });
-
-        // Wait for uploads to complete
-        const results = await Promise.all(uploadPromises);
-        uploadedAttachments = results.filter(Boolean) as Array<{ _id: string; filename: string; size: number; type: string; url: string }>;
-        
-        setUploadingFiles(new Set());
-        setUploadProgress({});
-      }
-
-      // Include parent message details when replying
-      const parentMessage = currentReply ? {
-        _id: currentReply._id,
-        content: currentReply.content,
-        sender: currentReply.sender
-      } : undefined;
-
-      // Send message with actual uploaded URLs
-      await sendMessage(
-        roomId, 
-        content, 
-        senderId, 
-        actor === "customer", 
-        currentReply?._id, 
-        parentMessage, 
-        uploadedAttachments
+      const uploadPromises = currentAttachments.map(attachment =>
+        uploadFileWithProgress(attachment.file, attachment.id)
       );
-      
-      // Ensure input stays focused after successful send
-      setTimeout(() => {
-        const input = document.getElementById('message-input') as HTMLInputElement;
-        input?.focus();
-      }, 50);
+
+      const uploadedAttachments = (await Promise.all(uploadPromises.map(p => p.catch(e => e))))
+        .filter(result => !(result instanceof Error));
+
+      // Update the optimistic message with the real data from the server
+      await useChatStore.getState().finalizeOptimisticMessage(tempId, {
+        content,
+        attachments: uploadedAttachments,
+        isCustomer: actor === 'customer',
+        roomId,
+        senderId,
+        ...(currentReply && { parentId: currentReply._id })
+      });
+
     } catch (error) {
-      console.error('Error sending message:', error);
-      // Restore the text and attachments if there was an error
-      if (!currentEditing) {
-        setText(content);
-        setAttachments(currentAttachments);
-      }
-      // Focus input even on error
-      setTimeout(() => {
-        const input = document.getElementById('message-input') as HTMLInputElement;
-        input?.focus();
-      }, 50);
+      console.error('Failed to send message:', error);
+      // Handle error: maybe mark the optimistic message as failed
+      useChatStore.getState().updateMessageStatus(roomId, tempId, 'failed');
     }
   };
 

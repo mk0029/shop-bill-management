@@ -48,6 +48,9 @@ interface ChatState {
   markRead: (roomId: string, actor: "admin" | "customer") => Promise<void>;
   markMessageSeen: (roomId: string, messageId: string) => Promise<void>;
   editMessage: (roomId: string, messageId: string, content: string) => Promise<void>;
+  addOptimisticMessage: (roomId: string, message: ChatMessage) => void;
+  finalizeOptimisticMessage: (tempId: string, finalMessage: { content: string; attachments: ChatMessage['attachments']; isCustomer?: boolean; roomId: string; senderId: string; parentId?: string }) => Promise<void>;
+  updateMessageStatus: (roomId: string, messageId: string, status: "pending" | "sent" | "delivered" | "seen" | "failed") => void;
 
   // realtime sub
   subscribeRealtime: () => void;
@@ -337,6 +340,54 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       try { await get().fetchMessages(roomId); } catch {}
       const msg = e instanceof Error ? e.message : "Failed to update message";
       set({ error: msg });
+    }
+  },
+
+  addOptimisticMessage: (roomId, message) => {
+    set(state => ({
+      messagesByRoomId: {
+        ...state.messagesByRoomId,
+        [roomId]: [...(state.messagesByRoomId[roomId] || []), message]
+      }
+    }));
+  },
+
+  finalizeOptimisticMessage: async (tempId, finalMessage) => {
+    try {
+      const savedMessage = await sendRoomMessage({
+        roomId: finalMessage.roomId,
+        content: finalMessage.content,
+        senderId: finalMessage.senderId,
+        isCustomer: finalMessage.isCustomer,
+        parentId: finalMessage.parentId,
+        attachments: finalMessage.attachments,
+      });
+
+      set(state => {
+        const messages = (state.messagesByRoomId[finalMessage.roomId] || []).map(m => 
+          m._id === tempId ? savedMessage : m
+        );
+        return {
+          messagesByRoomId: {
+            ...state.messagesByRoomId,
+            [finalMessage.roomId]: messages,
+          },
+        };
+      });
+    } catch (error) {
+      console.error('Failed to finalize optimistic message:', error);
+      // Optionally mark the message as failed in the UI
+      set(state => {
+        const messages = (state.messagesByRoomId[finalMessage.roomId] || []).map(m => 
+          m._id === tempId ? { ...m, status: 'failed' as const } : m
+        );
+        return {
+          messagesByRoomId: {
+            ...state.messagesByRoomId,
+            [finalMessage.roomId]: messages,
+          },
+        };
+      });
     }
   },
 

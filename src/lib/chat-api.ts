@@ -23,7 +23,7 @@ export type ChatMessage = {
     type: string;
     url: string;
   }>;
-  status?: "pending" | "sent" | "delivered" | "seen";
+  status?: "pending" | "sent" | "delivered" | "seen" | "failed";
   deliveredAt?: string;
   seenAt?: string;
   editedAt?: string;

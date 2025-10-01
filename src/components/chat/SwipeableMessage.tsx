@@ -307,13 +307,13 @@ export function SwipeableMessage({
                                 ) : (
                                   <div className="w-full h-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
                                     <div className="text-zinc-400 text-xs">
-                                      {attachment.url?.startsWith('blob:') ? 'Image expired' : 'Loading...'}
+                                      {isUploading ? `${Math.round(progress)}%` : (attachment.url?.startsWith('blob:') ? 'Image expired' : 'Loading...')}
                                     </div>
                                   </div>
                                 )}
                                 
                                 {/* Zoom button on hover */}
-                                {attachment.url && (
+                                {attachment.url && !isUploading && (
                                   <button
                                     onClick={() => openPreview(attachment as ChatAttachment)}
                                     className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full opacity-0 hover:opacity-100 transition-opacity"
@@ -349,6 +349,11 @@ export function SwipeableMessage({
                         <div className="absolute inset-0 bg-black/50 rounded-lg flex flex-col items-center justify-center z-10">
                           <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-2" />
                           <div className="text-white text-sm font-medium">{Math.round(progress)}%</div>
+                        </div>
+                      )}
+                      {!attachment.url && isUploading && (
+                        <div style={{ width: '100%', height: `${Math.max(50, Math.min(200, attachment.size / 1000))}px`, backgroundColor: '#e2e8f0' }} className="rounded-lg flex items-center justify-center">
+                          <div className="text-zinc-500">Uploading...</div>
                         </div>
                       )}
 
@@ -391,7 +396,7 @@ export function SwipeableMessage({
                       )}
 
                       {isAudio && (
-                        <div >
+                        <div>
                           {attachment.url ? (
                             <AudioPlayer 
                               src={attachment.url} 
@@ -404,7 +409,7 @@ export function SwipeableMessage({
                             }`}>
                               <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin border-emerald-500" />
                               <div className={`text-sm ${isSelf ? 'text-white' : 'text-zinc-600 dark:text-zinc-400'}`}>
-                                Uploading audio...
+                                {isUploading ? `Uploading audio... ${Math.round(progress)}%` : 'Processing audio...'}
                               </div>
                             </div>
                           )}
