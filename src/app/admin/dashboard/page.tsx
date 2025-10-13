@@ -1,20 +1,33 @@
-"use client";
-
 import { CustomersOverview } from "@/components/dashboard/customers-overview";
 import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import ResponsiveAccordion from "@/components/ui/responsive-accordion";
-import { CheckCircle, FileText, Package, Users } from "lucide-react";
-import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import { productApiService, brandApiService, categoryApiService, userApiService, billApiService } from "@/lib/sanity-api-service";
+import QuickActions from "@/components/dashboard/quick-actions";
 
-export default function AdminDashboard() {
+export const dynamic = 'force-dynamic';
 
-  // Realtime is provided by RealtimeProvider below. Avoid duplicate listeners here.
+export default async function AdminDashboard() {
+  // Page-only SSR: fetch all required data on the server
+  const [productsRes, brandsRes, categoriesRes, customersRes, billsRes] = await Promise.all([
+    productApiService.getAllProducts(),
+    brandApiService.getAllBrands(),
+    categoryApiService.getAllCategories(),
+    userApiService.getCustomers(),
+    billApiService.getAllBills(),
+  ]);
+
+  const products = productsRes.success ? (productsRes.data as any[]) : [];
+  const brands = brandsRes.success ? (brandsRes.data as any[]) : [];
+  const categories = categoriesRes.success ? (categoriesRes.data as any[]) : [];
+  const customers = customersRes.success ? (customersRes.data as any[]) : [];
+  const bills = billsRes.success ? (billsRes.data as any[]) : [];
+
+  // Realtime is provided by RealtimeProvider below for live updates after SSR
   const quickActions = [
     {
-      icon: FileText,
+      iconName: "file" as const,
       title: "Create New Bill",
       description: "Generate a new customer bill",
       bg: "bg-blue-600",
@@ -23,7 +36,7 @@ export default function AdminDashboard() {
       url: "/admin/billing/create?fresh=1",
     },
     {
-      icon: Users,
+      iconName: "users" as const,
       title: "Add Customer",
       description: "Register a new customer",
       bg: "bg-green-600",
@@ -32,7 +45,7 @@ export default function AdminDashboard() {
       url: "/admin/customers/add",
     },
     {
-      icon: Package,
+      iconName: "package" as const,
       title: "Add Product",
       description: "Add new product to inventory",
       bg: "bg-purple-600",
@@ -41,9 +54,6 @@ export default function AdminDashboard() {
       url: "/admin/inventory/add",
     },
   ];
-
-  // Note: All base data (products, customers, bills) are loaded by DataProvider once
-  // and kept fresh via global realtime listeners. Avoid redundant fetches here.
 
   return (
     <RealtimeProvider enableNotifications={false}>
@@ -55,65 +65,25 @@ export default function AdminDashboard() {
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
                 Admin Dashboard
               </h1>
-         
             </div>
           </div>
 
           {/* Real-time Bill Stats */}
           <div>
-            <h2 className="text-xl font-semibold text-white mb-4">
-              Bill Analytics
-            </h2>
+            <h2 className="text-xl font-semibold text-white mb-4">Bill Analytics</h2>
             <RealtimeBillStats key="dashboard-stats" />
           </div>
-         
+
           {/* Quick Actions */}
           <Card>
-           
-            <ResponsiveAccordion defaultOpenMobile={true} removePX title={ <CardHeader className="!p-0">
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>}>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                {quickActions.map((action, index) => {
-                  const Icon = action.icon;
-                  return (
-                    <Link
-                      href={action.url}
-                      key={index}
-                      onClick={() => {
-                        try {
-                          if (action.url.startsWith("/admin/billing/create")) {
-                            localStorage.setItem("bill_create_skip_restore", "1");
-                          }
-                        } catch {}
-                      }}
-                      aria-label={action.title}
-                      className={`w-full min-h-12 p-3 sm:p-4 rounded-lg transition-colors text-left flex items-center gap-x-4 md:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-white/50 ring-offset-gray-900 ${action.bg} ${action.hover}`}>
-                      <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2 flex-shrink-0" />
-                      <div>
-                        <h3 className="font-medium text-white">
-                          {action.title}
-                        </h3>
-                        <p className={`text-sm ${action.text}`}>
-                          {action.description}
-                        </p>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </CardContent></ResponsiveAccordion>
+            <QuickActions actions={quickActions} />
           </Card>
 
-          {/* Products Overview */}
-          <ProductsOverview />
+          {/* Products Overview (SSR initial data) */}
+          <ProductsOverview initial={{ products, brands, categories }} />
 
-          {/* Customers Overview */}
-          <CustomersOverview />
+          {/* Customers Overview (SSR initial data) */}
+          <CustomersOverview initial={{ customers, bills }} />
         </div>
       </div>
     </RealtimeProvider>

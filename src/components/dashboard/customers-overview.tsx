@@ -12,9 +12,15 @@ import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
 import { useCustomerBillsStore } from "@/store/customer-bills-store";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 
-export function CustomersOverview() {
+export function CustomersOverview(props: { initial?: { customers: any[]; bills: any[] } }) {
+  const { initial } = props || {};
   const { customers, isLoading } = useCustomers();
   const { bills } = useBills();
+
+  // Prefer SSR-provided initial data when available
+  const customersData = initial?.customers ?? customers;
+  const billsData = initial?.bills ?? bills;
+  const isLoadingEffective = initial ? false : isLoading;
   const { user, role } = useAuthStore();
   const { bills: customerBills, fetchBillsByCustomer } = useCustomerBillsStore();
 
@@ -36,7 +42,7 @@ export function CustomersOverview() {
   }, [isCustomer, currentUserId, currentCustomerId, fetchBillsByCustomer]);
 
   const visibleCustomers = isCustomer
-    ? customers.filter(
+    ? customersData.filter(
         (c: any) => c?._id === currentUserId || c?.customerId === currentCustomerId
       )
     : customers;
@@ -44,9 +50,9 @@ export function CustomersOverview() {
   // Bills source: for customers, use their dedicated realtime store; for others, use global bills
   const visibleBills = isCustomer
     ? customerBills
-    : bills;
+    : billsData;
 
-  if (isLoading) {
+  if (isLoadingEffective) {
     return (
       <Card>
         <CardHeader>
@@ -179,7 +185,7 @@ export function CustomersOverview() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex w-fit gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="flex gap-2 md:gap-4 w-full sm:w-auto justify-between sm:justify-end">
                     <div className="text-right">
                       <p className="font-medium text-white">
                         ₹{totalSpent.toLocaleString()}

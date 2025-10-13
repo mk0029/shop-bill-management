@@ -12,12 +12,22 @@ import {
 import Link from "next/link";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 
-export function ProductsOverview() {
+export function ProductsOverview(props: { initial?: { products: any[]; brands: any[]; categories: any[] } }) {
+  const { initial } = props || {};
   const { products, activeProducts, isLoading } = useProducts();
   const { brands } = useBrands();
   const { categories } = useCategories();
 
-  if (isLoading) {
+  // Prefer SSR-provided initial data when available
+  const productsData = initial?.products ?? products;
+  const brandsData = initial?.brands ?? brands;
+  const categoriesData = initial?.categories ?? categories;
+  const activeProductsData = initial?.products
+    ? (initial.products as any[]).filter((p: any) => p?.isActive)
+    : activeProducts;
+  const isLoadingEffective = initial ? false : isLoading;
+
+  if (isLoadingEffective) {
     return (
       <Card>
         <CardHeader>
@@ -37,7 +47,7 @@ export function ProductsOverview() {
     );
   }
 
-  const lowStockProducts = products.filter(
+  const lowStockProducts = productsData.filter(
     (product) =>
       product.inventory.currentStock <= product.inventory.minimumStock
   );
@@ -54,7 +64,7 @@ export function ProductsOverview() {
                   Total Products
                 </p>
                 <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {products.length}
+                  {productsData.length}
                 </p>
               </div>
               <Package className="h-8 w-8 text-blue-500" />
@@ -70,7 +80,7 @@ export function ProductsOverview() {
                   Active Products
                 </p>
                 <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {activeProducts.length}
+                  {activeProductsData.length}
                 </p>
               </div>
               <Package className="h-8 w-8 text-green-500" />
@@ -84,7 +94,7 @@ export function ProductsOverview() {
               <div>
                 <p className="text-sm font-medium text-gray-400">Brands</p>
                 <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {brands.length}
+                  {brandsData.length}
                 </p>
               </div>
               <Package className="h-8 w-8 text-purple-500" />
@@ -98,7 +108,7 @@ export function ProductsOverview() {
               <div>
                 <p className="text-sm font-medium text-gray-400">Categories</p>
                 <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {categories.length}
+                  {categoriesData.length}
                 </p>
               </div>
               <Package className="h-8 w-8 text-orange-500" />
@@ -160,7 +170,7 @@ export function ProductsOverview() {
          }>
         <CardContent>
           <div className="space-y-4">
-            {products.slice(0, 5).map((product) => (
+            {productsData.slice(0, 5).map((product) => (
               <div
                 key={product._id}
                 className="flex flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg">
