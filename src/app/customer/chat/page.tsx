@@ -6,6 +6,7 @@ import { useChatStore } from "@/store/chat-store";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { CustomerInfoPopup } from "@/components/chat/CustomerInfoPopup";
 import type { ChatMessage } from "@/lib/chat-api";
+import { ChatLoadingState } from "@/components/chat/ChatLoadingState";
 
 export default function CustomerChatPage() {
   const { user, role, hydrated } = useAuthStore();
@@ -57,7 +58,11 @@ export default function CustomerChatPage() {
   }, [hydrated, role, customerId, subscribeRealtime, openRoomByCustomer, setActiveRoom, activeRoomId, loadRooms]);
 
   if (!hydrated || initializing) {
-    return <div className="p-6">Loading chat…</div>;
+    return (
+      <div className="h-[calc(100vh-49px)] md:h-[calc(100dvh-94px)] -mt-6">
+        <ChatLoadingState title="Loading chat" subtitle="Connecting to the shop and syncing messages…" />
+      </div>
+    );
   }
 
   if (role !== 'customer') {

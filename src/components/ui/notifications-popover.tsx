@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSettingsStore } from "@/store/settings-store";
 import { initSoundOnUserGesture, playNotificationSound } from "@/lib/notification-sound";
 
 export default function NotificationsPopover() {
-  const { items, unread, markAllRead, clear, markAsRead } = useNotificationStore();
+  const { items, unread, markAllRead } = useNotificationStore();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -19,8 +19,6 @@ export default function NotificationsPopover() {
   const showNotificationPopover = useSettingsStore((s) => s.showNotificationPopover);
   const playSoundOnNotification = useSettingsStore((s) => s.playSoundOnNotification);
 
-  // Respect: Hide entirely if in-app notifications are disabled
-  if (!showInAppNotifications) return null;
 
   // Close on outside click
   useEffect(() => {
@@ -39,8 +37,8 @@ export default function NotificationsPopover() {
 
   useEffect(() => {
     if (open && unread > 0) {
-      // Auto mark all as read on open for simplicity
-      markAllRead();
+      // Note: Do NOT auto mark all as read on open.
+      // Users will mark notifications as read explicitly from the list.
     }
   }, [open, unread, markAllRead]);
 

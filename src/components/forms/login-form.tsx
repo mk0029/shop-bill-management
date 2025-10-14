@@ -186,11 +186,11 @@ export function LoginForm({
         </Label>
       </div>
 
-      {error && (
+      {/* {error && (
         <div className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg">
           <p className="text-sm">{error}</p>
         </div>
-      )}
+      )} */}
 
       <Button
         type="submit"

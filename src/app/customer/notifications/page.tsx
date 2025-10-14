@@ -16,16 +16,6 @@ type Props = { composerOpen: boolean; setComposerOpen: (open: boolean) => void; 
 export default function AdminNotificationsPage({composerOpen, setComposerOpen, onNavigate}: Props) {
   const { items, unread, markAllRead, clear, markAsRead, clearRead } = useNotificationStore()
 
-  // Auto-remove read notifications when this page is open
-  // Runs on mount and whenever items change
-  // Keeps only unread items in list automatically
-  React.useEffect(() => {
-    try {
-      const hasRead = (items || []).some((n) => !!n.read);
-      if (hasRead) clearRead();
-    } catch {}
-  }, [items, clearRead]);
-
   return (
     <div className="p-4 sm:p-6">
       <SWNotificationBridge />
@@ -38,6 +28,9 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
         <div className="flex items-center gap-2">
           {unread > 0 && (
             <Button size="sm" variant="secondary" onClick={markAllRead}>Mark all read</Button>
+          )}
+          {(items || []).some(n => !!n.read) && (
+            <Button size="sm" variant="outline" onClick={clearRead}>Clear read</Button>
           )}
           {items.length > 0 && (
             <Button size="sm" variant="outline" onClick={clear}>Clear</Button>

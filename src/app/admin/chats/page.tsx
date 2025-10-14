@@ -6,6 +6,8 @@ import { useAuthStore } from "@/store/auth-store";
 import { useChatStore } from "@/store/chat-store";
 import { CustomerInfoPopup } from "@/components/chat/CustomerInfoPopup";
 import type { ChatMessage } from "@/lib/chat-api";
+import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
+import { ChatLoadingState } from "@/components/chat/ChatLoadingState";
 
 export default function AdminChatsPage() {
   const { user, role, hydrated } = useAuthStore();
@@ -97,7 +99,11 @@ export default function AdminChatsPage() {
   }, [activeCustomer?.id]);
 
   if (!hydrated || initializing) {
-    return <div className="p-6">Loading chats…</div>;
+    return (
+      <div className="h-[calc(100vh-58px)] md:h-[calc(100vh-130px)] -mt-6">
+        <ChatLoadingState title="Loading chats" subtitle="Preparing your conversations and messages…" />
+      </div>
+    );
   }
   if (role !== "admin") {
     return <div className="p-6">You do not have access to this page.</div>;
@@ -172,7 +178,7 @@ export default function AdminChatsPage() {
           {activeRoomId && adminId ? (
             <ChatWindow roomId={activeRoomId} senderId={String(adminId)} actor="admin" />
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-500">Select a chat to start messaging</div>
+            <ChatEmptyState showHeader={false} />
           )}
         </div>
 

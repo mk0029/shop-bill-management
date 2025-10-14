@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { useChatStore } from "@/store/chat-store";
 import type { ChatRoom, ChatMessage } from "@/lib/chat-api";
+import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 
 export default function ChatPageClient(props: {
   initialRooms: ChatRoom[];
@@ -39,7 +40,7 @@ export default function ChatPageClient(props: {
   }, [activeRoomId, actor, initialRooms, initialMessagesByRoomId]);
 
   if (!activeRoomId) {
-    return <div className="p-6">No chat room found.</div>;
+    return <ChatEmptyState />;
   }
 
   return (

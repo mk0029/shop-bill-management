@@ -555,9 +555,9 @@ export function Navigation() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { if (activeRoomId) setIsRoomsOverlayOpen(false); }}
-                    className={`hover:bg-gray-800 ${!activeRoomId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!activeRoomId}
+                    onClick={() => { setIsRoomsOverlayOpen(false)}}
+                    className={`hover:bg-gray-800 ${  'opacity-50 cursor-not-allowed'}`}
+                   
                   >
                     <X className="w-5 h-5" />
                   </Button>
