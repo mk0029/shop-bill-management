@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   User,
   Wrench,
+  Calculator,
   X,
 } from "lucide-react";
 // removed Bell route link; notifications are accessed via header popover
@@ -48,6 +49,11 @@ const customerNavigation: NavigationItem[] = [
     label: "Chat",
     icon: MessageSquare,
     href: "/customer/chat",
+  },
+  {
+    label: "Estimate fitting cos",
+    href: "/customer/estimate-fitting",
+    icon: Calculator,
   },
   {
     label: "Request Repair",
