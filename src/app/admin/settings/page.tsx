@@ -4,6 +4,7 @@ import AdminNotificationsSection from "@/components/settings/AdminNotificationsS
 import AdminSecuritySection from "@/components/settings/AdminSecuritySection";
 import AdminShortcutsSection from "@/components/settings/AdminShortcutsSection";
 import { AdminChatManagementSection } from "@/components/settings/AdminChatManagementSection";
+import AdminFittingRatesSection from "@/components/settings/AdminFittingRatesSection";
 
 export default function SettingsPage() {
   return (
@@ -32,6 +33,7 @@ export default function SettingsPage() {
         {/* Right column */}
         <div className="space-y-4">
           <AdminBillingDefaultsSection />
+          <AdminFittingRatesSection />
           <AdminShortcutsSection />
           <AdminChatManagementSection />
         </div>

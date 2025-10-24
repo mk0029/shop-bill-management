@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    if (!process.env.SANITY_API_TOKEN) {
+    if (!process.env.NEXT_PUBLIC_SANITY_API_TOKEN) {
       return NextResponse.json(
         { success: false, error: "Server is missing SANITY_API_TOKEN (write token)" },
         { status: 500 }

@@ -19,7 +19,8 @@ import {
   MapPin,
   Save,
   Share2,
-  MessageSquare
+  MessageSquare,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -168,6 +169,36 @@ export const BillDetailModal = ({
       onClose();
     } catch (error) {
       console.error("Failed to update payment:", error);
+      toast.error("❌ Failed to update payment. Please try again.");
+    } finally {
+      setIsUpdatingPayment(false);
+    }
+  };
+
+  // Directly mark as fully paid helper
+  const handleMarkAsPaid = async () => {
+    if (!onUpdatePayment) return;
+    // Force paid mode calculation regardless of current input
+    const target = {
+      paymentStatus: "paid" as const,
+      paidAmount: grandTotal,
+      balanceAmount: 0,
+    };
+    setIsUpdatingPayment(true);
+    try {
+      await onUpdatePayment(bill._id || bill.id, target);
+      if (bill) {
+        bill.paymentStatus = target.paymentStatus;
+        bill.paidAmount = target.paidAmount;
+        bill.balanceAmount = target.balanceAmount;
+      }
+      setIsEditingPayment(false);
+      setPaymentMode("partial");
+      setPartialAmount("");
+      toast.success("✅ Bill marked as fully paid!");
+      onClose();
+    } catch (error) {
+      console.error("Failed to mark as paid:", error);
       toast.error("❌ Failed to update payment. Please try again.");
     } finally {
       setIsUpdatingPayment(false);
@@ -513,6 +544,11 @@ export const BillDetailModal = ({
                               placeholder="0"
                               className="bg-gray-900 border-gray-600 text-white"
                             />
+                            {paymentMode === "partial" && (!partialAmount || Number(partialAmount) <= 0) && (
+                              <p className="mt-1 text-xs text-gray-400">
+                                Enter an amount greater than 0 to enable Save.
+                              </p>
+                            )}
                           </div>
                           {/* Quick chips removed */}
 
@@ -570,6 +606,24 @@ export const BillDetailModal = ({
                     {/* Payment Action Buttons */}
                     <div className="flex gap-3 pt-2">
                       <Button
+                        type="button"
+                        onClick={handleMarkAsPaid}
+                        disabled={isUpdatingPayment}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        {isUpdatingPayment ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Marking...
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4" />
+                            Mark as Paid
+                          </div>
+                        )}
+                      </Button>
+                      <Button
                         onClick={handlePaymentUpdate}
                         disabled={
                           isUpdatingPayment ||
@@ -585,7 +639,7 @@ export const BillDetailModal = ({
                         ) : (
                           <div className="flex items-center gap-2">
                             <Save className="w-4 h-4" />
-                            Save Payment
+                            {paymentMode === "paid" ? "Save (Paid)" : "Save Payment"}
                           </div>
                         )}
                       </Button>

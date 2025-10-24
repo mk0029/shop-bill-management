@@ -20,9 +20,7 @@ export async function DELETE(
     console.log("attachmentId:", attachmentId);
     
     // Verify Sanity token is configured
-    const sanityToken = process.env.SANITY_API_TOKEN || 
-                       process.env.SANITY_API_WRITE_TOKEN || 
-                       process.env.NEXT_PUBLIC_SANITY_API_TOKEN;
+    const sanityToken = process.env.NEXT_PUBLIC_SANITY_API_TOKEN 
     
     if (!sanityToken) {
       console.log("ERROR: No Sanity API token configured");

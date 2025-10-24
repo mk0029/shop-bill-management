@@ -10,10 +10,12 @@ interface ConfirmationModalProps {
   onClose: () => void | Promise<void>;
   onConfirm: () => void | Promise<void>;
   title: string;
-  message: string;
+  message?: string;
   type?: "confirm" | "alert" | "success" | "error";
   confirmText?: string;
   cancelText?: string;
+  content?: React.ReactNode; // optional rich content area
+  size?: "sm" | "md" | "lg" | "xl" | "full"; // forwarded to Modal
 }
 
 export function ConfirmationModal({
@@ -25,6 +27,8 @@ export function ConfirmationModal({
   type = "confirm",
   confirmText = "Confirm",
   cancelText = "Cancel",
+  content,
+  size = "sm",
 }: ConfirmationModalProps) {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -79,14 +83,20 @@ export function ConfirmationModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="sm" title="">
+    <Modal isOpen={isOpen} onClose={handleClose} size={size} title="">
       <div className="text-center space-y-4">
         <div className="flex justify-center">{getIcon()}</div>
 
         <div>
           <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-          <p className="text-gray-400">{message}</p>
+          {message && <p className="text-gray-400">{message}</p>}
         </div>
+
+        {content && (
+          <div className="text-left bg-gray-900/50 border border-gray-800 rounded-md p-3">
+            {content}
+          </div>
+        )}
 
         <div className="flex gap-3 pt-4">
           {type === "confirm" && (
