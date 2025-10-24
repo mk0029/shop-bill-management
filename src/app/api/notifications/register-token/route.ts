@@ -39,8 +39,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Ensure token uniqueness across ALL users: remove token from any other user docs first
+    try {
+      const others = await sanityClient.fetch<{ _id: string; _rev: string; fcmTokens?: string[]; fcmTokensProd?: string[]; fcmTokensDev?: string[] }[]>(
+        `*[_type=="user" && $token in fcmTokens && _id != $id]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
+        { token, id: doc._id }
+      )
+      if (Array.isArray(others) && others.length) {
+        await Promise.allSettled(others.map(u =>
+          sanityClient
+            .patch(u._id)
+            .ifRevisionId(u._rev)
+            .setIfMissing({ fcmTokens: [], fcmTokensProd: [], fcmTokensDev: [] })
+            .set({
+              fcmTokens: (Array.isArray(u.fcmTokens) ? u.fcmTokens : []).filter(t => t !== token),
+              fcmTokensProd: (Array.isArray(u.fcmTokensProd) ? u.fcmTokensProd : []).filter(t => t !== token),
+              fcmTokensDev: (Array.isArray(u.fcmTokensDev) ? u.fcmTokensDev : []).filter(t => t !== token),
+              updatedAt: new Date().toISOString(),
+            })
+            .commit({ autoGenerateArrayKeys: true })
+        ))
+      }
+    } catch (removeErr) {
+      try { console.warn('[API] register-token: failed to evict token from other users', removeErr) } catch {}
+    }
+
     // Compute unique array and commit with optimistic concurrency control
     const makeUnique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)))
+    const moveToEnd = (arr: string[], value: string) => {
+      const filtered = (arr || []).filter(t => t && t !== value)
+      filtered.push(value)
+      return filtered
+    }
+    const cap = (arr: string[], max = 4) => (arr || []).slice(-max)
+
     let attempt = 0
     while (attempt < 2) {
       attempt++
@@ -49,12 +81,17 @@ export async function POST(req: NextRequest) {
         { id: doc._id }
       ))?.fcmTokens ?? []
 
-      const nextTokens = makeUnique([...(Array.isArray(current) ? current : []), token])
+      // Keep latest 4, move current token to end
+      const nextTokens = cap(makeUnique(moveToEnd(Array.isArray(current) ? current : [], token)))
       // Prepare env-specific arrays
       const currentProd = attempt === 1 ? tokensProd : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0].fcmTokensProd`, { id: doc._id })) || []
       const currentDev = attempt === 1 ? tokensDev : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0].fcmTokensDev`, { id: doc._id })) || []
-      const nextProd = env === 'prod' ? makeUnique([...(Array.isArray(currentProd) ? currentProd : []), token]) : makeUnique([...(Array.isArray(currentProd) ? currentProd : [])].filter(t => t !== token))
-      const nextDev = env === 'dev' ? makeUnique([...(Array.isArray(currentDev) ? currentDev : []), token]) : makeUnique([...(Array.isArray(currentDev) ? currentDev : [])].filter(t => t !== token))
+      const nextProd = env === 'prod'
+        ? cap(makeUnique(moveToEnd(Array.isArray(currentProd) ? currentProd : [], token)))
+        : cap(makeUnique((Array.isArray(currentProd) ? currentProd : []).filter(t => t !== token)))
+      const nextDev = env === 'dev'
+        ? cap(makeUnique(moveToEnd(Array.isArray(currentDev) ? currentDev : [], token)))
+        : cap(makeUnique((Array.isArray(currentDev) ? currentDev : []).filter(t => t !== token)))
 
       try {
         const updated = await sanityClient
