@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 // Switch not needed after redesign of payment UI
 import { BillDetails, shareBillOnWhatsApp, shareBillViaSMS } from "@/lib/whatsapp-share";
 import { useLocaleStore } from "@/store/locale-store";
@@ -50,6 +51,7 @@ export const BillDetailModal = ({
   showShareButton = true,
   showPaymentControls = true,
 }: BillDetailModalProps) => {
+  const router = useRouter();
   const { currency } = useLocaleStore();
 
   // Payment state management (redesigned)
@@ -213,6 +215,15 @@ export const BillDetailModal = ({
     setPaymentMode("partial");
     setPartialAmount("");
     onClose();
+  };
+  const getCustomerId = (c: any) => (typeof c === "string" ? c : c?._id || c?._ref);
+  const resolveCustomerIdFromBill = (b: any) => {
+    const c = b?.customer;
+    if (typeof c === "string" && c) return c;
+    const direct = c?._id || c?.id || c?._ref;
+    if (direct) return direct;
+    const viaField = b?.customerId || b?.customer_id || b?.customerRef || b?.customer_ref;
+    return viaField || null;
   };
   const additionalChargesF = [
     {
@@ -660,10 +671,22 @@ export const BillDetailModal = ({
             )}
 
           {/* Action Buttons */}
-         
-           
             {showShareButton && (
               <div className="flex gap-3 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const id = resolveCustomerIdFromBill(bill);
+                    if (!id) {
+                      toast.error("Customer ID not available for this bill.");
+                      return;
+                    }
+                    router.push(`/admin/customers/${id}/bills`);
+                  }}
+                  className="w-full flex-1 border-gray-300 text-gray-200 hover:bg-gray-800 hover:text-white"
+                >
+                  Check all bills
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => {

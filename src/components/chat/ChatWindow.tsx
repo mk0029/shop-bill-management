@@ -1186,7 +1186,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         </div>
       ) : (
         /* Normal Input UI */
-        <div className="flex items-center gap-1 md:gap-2 p-2 sm:p-3 border-t dark:border-zinc-700 bg-white dark:bg-zinc-900">
+        <div className="flex items-center gap-1 md:gap-2 p-2 sm:py-3 border-t rounded-lg dark:border-zinc-900 bg-white dark:bg-zinc-900">
           {/* Attachment Button - Always visible on left */}
           <input
             type="file"
@@ -1216,7 +1216,7 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
                 e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px';
               }}
               placeholder={replyingTo ? 'Type your reply...' : 'Type a message...'}
-              className="w-full rounded-3xl border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 px-4 py-2.5 pr-12 text-base resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all max-h-[96px] overflow-y-auto"
+              className="w-full rounded-3xl border border-zinc-300 dark:border-zinc-600 bg-zinc-50 hide-scroll dark:bg-zinc-800 px-4 py-2.5 pr-12 text-base resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all max-h-[96px] overflow-y-auto"
               rows={1}
               style={{ minHeight: '44px' }}
               onKeyDown={(e) => {

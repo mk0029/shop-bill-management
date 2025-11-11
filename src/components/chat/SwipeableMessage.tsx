@@ -133,7 +133,7 @@ export function SwipeableMessage({
           <div
             className={`text-sm px-2.5 py-1.5 border shadow-md leading-[120%] ${
               isSelf
-                ? 'bg-emerald-500 text-white border-emerald-600'
+                ? 'bg-emerald-900 text-white border-emerald-800'
                 : 'bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100'
             } ${
               // Dynamic border radius based on group position

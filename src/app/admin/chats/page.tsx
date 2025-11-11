@@ -8,13 +8,16 @@ import { CustomerInfoPopup } from "@/components/chat/CustomerInfoPopup";
 import type { ChatMessage } from "@/lib/chat-api";
 import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { ChatLoadingState } from "@/components/chat/ChatLoadingState";
+import { useSearchParams } from "next/navigation";
 
 export default function AdminChatsPage() {
   const { user, role, hydrated } = useAuthStore();
-  const { activeRoomId, subscribeRealtime, rooms, loadRooms, resetChatState, messagesByRoomId } = useChatStore();
+  const { activeRoomId, subscribeRealtime, rooms, loadRooms, resetChatState, messagesByRoomId, openRoomByCustomer, setActiveRoom } = useChatStore();
   const [initializing, setInitializing] = useState(true);
   const [billStats, setBillStats] = useState<{ count: number; total: number } | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const targetCustomerId = useMemo(() => searchParams?.get("customerId") || undefined, [searchParams]);
 
   const adminId = useMemo(() => {
     const u = (user ?? {}) as Partial<{ id: string; _id: string }>;
@@ -32,12 +35,19 @@ export default function AdminChatsPage() {
     const init = async () => {
       await loadRooms();
       subscribeRealtime();
-      setInitializing(false);
+      try {
+        if (targetCustomerId) {
+          const roomId = await openRoomByCustomer(String(targetCustomerId));
+          await setActiveRoom(roomId);
+        }
+      } finally {
+        setInitializing(false);
+      }
     };
     
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, adminId]);
+  }, [hydrated, adminId, targetCustomerId]);
 
   // Derive selected customer's basic info from active room
   const activeCustomer = useMemo(() => {

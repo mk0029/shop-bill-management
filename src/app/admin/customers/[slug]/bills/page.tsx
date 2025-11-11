@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { useBills, useCustomers } from "@/hooks/use-sanity-data";
 import { useLocaleStore } from "@/store/locale-store";
-import { ArrowLeft, FileText, Search } from "lucide-react";
+import { ArrowLeft, FileText, Search, MessageSquare } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useChatStore } from "@/store/chat-store";
 
 export default function CustomerBillsPage() {
   const params = useParams();
@@ -22,6 +23,7 @@ export default function CustomerBillsPage() {
 
   const { customers, isLoading: customersLoading } = useCustomers();
   const { bills, isLoading: billsLoading, updateBill } = useBills();
+  const { openRoomByCustomer, setActiveRoom } = useChatStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<any>(null);
@@ -80,6 +82,16 @@ export default function CustomerBillsPage() {
     router.push(`/admin/billing/create?customerId=${customerId}&fresh=1`);
   };
 
+  const handleOpenChat = async () => {
+    try {
+      const roomId = await openRoomByCustomer(String(customerId));
+      await setActiveRoom(roomId);
+      router.push(`/admin/chats?customerId=${encodeURIComponent(String(customerId))}`);
+    } catch {
+      toast.error("❌ Unable to open chat. Please try again.");
+    }
+  };
+
   const handleUpdatePayment = async (
     billId: string,
     paymentData: { paymentStatus: "pending" | "partial" | "paid"; paidAmount: number; balanceAmount: number }
@@ -131,9 +143,15 @@ export default function CustomerBillsPage() {
             {customer.phone} • {customer.location}
           </p>
         </div>
-        <Button onClick={handleCreateBill} className="bg-blue-600 hover:bg-blue-700">
-          Add Bill
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleOpenChat}>
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Chat
+          </Button>
+          <Button onClick={handleCreateBill} className="bg-blue-600 hover:bg-blue-700">
+            Add Bill
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
