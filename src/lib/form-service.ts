@@ -99,7 +99,7 @@ export async function saveDraftBill(billData: {
     isCustom?: boolean;
     isRewinding?: boolean;
   }>;
-  serviceType?: "repair" | "sale" | "installation" | "maintenance" | "custom";
+  serviceType?: "repair" | "sale" | "installation" | "maintenance" | "custom" | "fitting_wiring";
   locationType?: "shop" | "home" | "office";
   homeVisitFee?: number;
   repairCharges?: number;
@@ -209,7 +209,7 @@ export async function updateDraftBill(
       isCustom?: boolean;
       isRewinding?: boolean;
     }>;
-    serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
+    serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom" | "fitting_wiring";
     locationType: "shop" | "home" | "office";
     homeVisitFee: number;
     repairCharges: number;
@@ -641,7 +641,7 @@ export async function createBill(billData: {
     isCustom?: boolean;
     isRewinding?: boolean;
   }>;
-  serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
+  serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom" | "fitting_wiring";
   locationType: "shop" | "home" | "office";
   homeVisitFee?: number;
   repairCharges?: number;

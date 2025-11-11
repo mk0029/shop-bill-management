@@ -315,7 +315,8 @@ export const useBillForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Allow service-only bills: if there are no items, require at least one service charge
-    if (selectedItems.length === 0) {
+    // Exception: if service type is 'custom' or 'fitting_wiring', allow submitting without forcing charges
+    if (selectedItems.length === 0 && !["custom", "fitting_wiring"].includes(formData.serviceType)) {
       const anyServiceCharge =
         Number(formData.repairFee || 0) > 0 ||
         Number(formData.homeVisitFee || 0) > 0 ||
@@ -353,7 +354,8 @@ export const useBillForm = () => {
           | "repair"
           | "custom"
           | "installation"
-          | "maintenance",
+          | "maintenance"
+          | "fitting_wiring",
         locationType: formData.location as "home" | "shop" | "office",
         homeVisitFee: Number(formData.homeVisitFee),
         repairFee: Number(formData.repairFee),

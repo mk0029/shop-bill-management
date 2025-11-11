@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useRouter } from "next/navigation";
-import { User } from "lucide-react";
 import { useLocaleStore } from "@/store/locale-store";
 
 interface CustomerInfoSectionProps {
@@ -21,6 +20,7 @@ const serviceTypeOptions = [
   { value: "sale", label: "Sale" },
   { value: "repair", label: "Repair" },
   { value: "custom", label: "Custom" },
+  { value: "fitting_wiring", label: "Fitting/Wiring" },
 ];
 
 const locationOptions = [
@@ -86,26 +86,34 @@ export const CustomerInfoSection = ({
             <Dropdown
               options={serviceTypeOptions}
               value={formData.serviceType}
-              onValueChange={(value) => onInputChange("serviceType", value)}
+              onValueChange={(value) => {
+                onInputChange("serviceType", value);
+                // Show location only for 'repair'; clear it when switching away from repair
+                if (value !== "repair") {
+                  onInputChange("location", "");
+                }
+              }}
               placeholder="Select service type"
               searchable={false}
               className="bg-gray-800 border-gray-700"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="location" className="text-gray-300">
-              Location Type *
-            </Label>
-            <Dropdown
-              options={locationOptions}
-              value={formData.location}
-              onValueChange={(value) => onInputChange("location", value)}
-              placeholder="Select location type"
-              searchable={false}
-              className="bg-gray-800 border-gray-700"
-            />
-          </div>
+          {formData.serviceType === "repair" && (
+            <div className="space-y-2">
+              <Label htmlFor="location" className="text-gray-300">
+                Location Type *
+              </Label>
+              <Dropdown
+                options={locationOptions}
+                value={formData.location}
+                onValueChange={(value) => onInputChange("location", value)}
+                placeholder="Select location type"
+                searchable={false}
+                className="bg-gray-800 border-gray-700"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="billDate" className="text-gray-300">
@@ -167,7 +175,7 @@ export const CustomerInfoSection = ({
           </div>
         )}
 
-        {formData.location === "home" && (
+        {formData.serviceType === "repair" && formData.location === "home" && (
           <div className="space-y-2">
             <Label htmlFor="homeVisitFee" className="text-gray-300">
               Home Visit Fee ({currency})
@@ -187,7 +195,7 @@ export const CustomerInfoSection = ({
           </div>
         )}
 
-        {formData.location === "home" && (
+        {formData.serviceType === "repair" && formData.location === "home" && (
           <div className="space-y-2">
             <Label htmlFor="laborCharges" className="text-gray-300">
               Labor Charges ({currency})

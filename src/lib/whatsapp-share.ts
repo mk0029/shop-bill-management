@@ -56,13 +56,19 @@ export interface BillDetails {
 const sanitizeUserText = (text: string): string => {
   try {
     let s = text ?? "";
-    s = s.replace(/\(.*?\)/g, "");
-    s = s.replace(/\{.*?\}/g, "");
-    s = s.replace(/\[.*?\]/g, "");
+    let prev: string;
+    do {
+      prev = s;
+      s = s.replace(/\([^()]*\)/g, "");
+      s = s.replace(/\{[^{}]*\}/g, "");
+      s = s.replace(/\[[^\[\]]*\]/g, "");
+    } while (s !== prev);
+    s = s.replace(/[(){}\[\]]/g, "");
     s = s.replace(/"[^"]*"/g, "");
     s = s.replace(/'[^']*'/g, "");
     s = s.replace(/\*\*.*?\*\*/g, "");
     s = s.replace(/\*.*?\*/g, "");
+    s = s.replace(/[\\/]/g, "");
     s = s.replace(/\s{2,}/g, " ").trim();
     return s;
   } catch {

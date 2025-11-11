@@ -28,27 +28,27 @@ const CATEGORY_OPTIONS: { value: FittingCategoryKey; label: string }[] = [
   { value: "open_wire", label: "Open Wire (Wire Clamp)" },
 ];
 
-function safeNum(n: number | string): number {
+function safeNum(n: number | string | undefined | null): number {
   const x = typeof n === "string" ? Number(n) : n;
-  return Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0;
+  return Number.isFinite(x) && (x as number) >= 0 ? Math.floor(x as number) : 0;
 }
 
 export type CalculatorInputs = {
-  switches: number;
-  regulators: number;
-  mcb: number;
-  rccb: number;
-  indicators: number;
-  tvSockets: number;
+  switches: string;
+  regulators: string;
+  mcb: string;
+  rccb: string;
+  indicators: string;
+  tvSockets: string;
 };
 
 const DEFAULT_INPUTS: CalculatorInputs = {
-  switches: 0,
-  regulators: 0,
-  mcb: 0,
-  rccb: 0,
-  indicators: 0,
-  tvSockets: 0,
+  switches: "",
+  regulators: "",
+  mcb: "",
+  rccb: "",
+  indicators: "",
+  tvSockets: "",
 };
 
 export function useFittingRates() {
@@ -117,7 +117,7 @@ export function FittingCalculator({
   const amount = useMemo(() => points * rate, [points, rate]);
 
   const setField = (key: keyof CalculatorInputs) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = safeNum(e.target.value);
+    const v = e.target.value;
     setInputs((prev) => ({ ...prev, [key]: v }));
   };
 
@@ -175,32 +175,32 @@ export function FittingCalculator({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <Label>Switches</Label>
-              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.switches}
+              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.switches ?? ""}
                 onChange={setField("switches")} />
             </div>
             <div>
               <Label>Fan Regulators</Label>
-              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.regulators}
+              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.regulators ?? ""}
                 onChange={setField("regulators")} />
             </div>
             <div>
               <Label>MCB</Label>
-              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.mcb}
+              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.mcb ?? ""}
                 onChange={setField("mcb")} />
             </div>
             <div>
               <Label>RCCB</Label>
-              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.rccb}
+              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.rccb ?? ""}
                 onChange={setField("rccb")} />
             </div>
             <div>
               <Label>Indicators</Label>
-              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.indicators}
+              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.indicators ?? ""}
                 onChange={setField("indicators")} />
             </div>
             <div>
               <Label>TV Sockets</Label>
-              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.tvSockets}
+              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs.tvSockets ?? ""}
                 onChange={setField("tvSockets")} />
             </div>
           </div>

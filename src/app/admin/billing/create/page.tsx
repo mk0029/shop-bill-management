@@ -114,6 +114,17 @@ export default function CreateBillPage() {
     clearLocalDraft,
   } = useBillForm();
 
+  // Auto-enable and focus Fitting section when service type is Fitting/Wiring
+  useEffect(() => {
+    if (formData.serviceType === "fitting_wiring") {
+      if (!enableFitting) setEnableFitting(true);
+      // open the Fitting section
+      setActiveSection("fitting");
+      // ensure persisted toggle reflects this
+      try { sessionStorage.setItem("bill_toggle_fitting", "1"); } catch {}
+    }
+  }, [formData.serviceType]);
+
   const handleBack = () => {
 
       router.back();
@@ -254,14 +265,21 @@ export default function CreateBillPage() {
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <div className="text-white font-medium">Optional Sections</div>
           <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 text-gray-300">
-              <Switch checked={enableRewinding} onCheckedChange={setEnableRewinding} />
-              <span>Rewinding</span>
-            </label>
-            <label className="flex items-center gap-2 text-gray-300">
-              <Switch checked={enableFitting} onCheckedChange={setEnableFitting} />
-              <span>Fitting/Wiring</span>
-            </label>
+            {formData.serviceType !== "fitting_wiring" && (
+              <label className="flex items-center gap-2 text-gray-300">
+                <Switch checked={enableRewinding} onCheckedChange={setEnableRewinding} />
+                <span>Rewinding</span>
+              </label>
+            )}
+            {formData.serviceType === "custom" && (
+              <label className="flex items-center gap-2 text-gray-300">
+                <Switch
+                  checked={enableFitting}
+                  onCheckedChange={setEnableFitting}
+                />
+                <span>Fitting/Wiring</span>
+              </label>
+            )}
           </div>
         </div>
       </div>

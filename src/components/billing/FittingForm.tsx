@@ -16,9 +16,9 @@ const CATEGORY_OPTIONS: { value: FittingCategoryKey; label: string }[] = [
   { value: "open_wire", label: "Open Wire (Wire Clamp)" },
 ];
 
-function safeInt(n: number | string): number {
+function safeInt(n: number | string | undefined | null): number {
   const x = typeof n === "string" ? Number(n) : n;
-  return Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0;
+  return Number.isFinite(x) && (x as number) >= 0 ? Math.floor(x as number) : 0;
 }
 
 export interface FittingComponentCfg {
@@ -46,7 +46,8 @@ export default function FittingForm({
   const { rates, loading: ratesLoading, error: ratesError } = useFittingRates();
   const [category, setCategory] = useState<FittingCategoryKey>("underground");
   const [components, setComponents] = useState<FittingComponentCfg[]>([]);
-  const [inputs, setInputs] = useState<Record<string, number>>({});
+  // Store inputs as strings so the fields can be empty instead of defaulting to 0
+  const [inputs, setInputs] = useState<Record<string, string>>({});
   const [loadingCfg, setLoadingCfg] = useState(true);
   const [errorCfg, setErrorCfg] = useState<string | null>(null);
 
@@ -63,8 +64,11 @@ export default function FittingForm({
         if (mounted) {
           setComponents(list);
           // initialize inputs state keys
-          const init: Record<string, number> = {};
-          list.forEach((c) => { init[c.key] = 0; });
+          const init: Record<string, string> = {};
+          list.forEach((c) => { init[c.key] = ""; });
+          // Extra charge fields (do not affect points directly)
+          init["earthingCharge"] = "";
+          init["inverterFittingCharge"] = "";
           setInputs(init);
         }
       } catch (e: any) {
@@ -79,19 +83,25 @@ export default function FittingForm({
   }, [components, inputs]);
 
   const rate = useMemo(() => (rates ? rates[category] || 0 : 0), [rates, category]);
-  const amount = useMemo(() => points * rate, [points, rate]);
+  // Extra charge amounts
+  const earthingCharge = useMemo(() => safeInt(inputs["earthingCharge"]), [inputs]);
+  const inverterFittingCharge = useMemo(() => safeInt(inputs["inverterFittingCharge"]), [inputs]);
+  const amount = useMemo(() => points * rate + earthingCharge + inverterFittingCharge, [points, rate, earthingCharge, inverterFittingCharge]);
 
   const setField = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = safeInt(e.target.value);
+    const v = e.target.value;
+    // Keep raw string for controlled input; calculations use safeInt
     setInputs((prev) => ({ ...prev, [key]: v }));
   };
 
   const onSubmit = () => {
-    if (!points || !amount) return;
-    const breakdown = components
+    if (amount <= 0) return;
+    const breakdownList: string[] = components
       .map((c) => `${c.label}: ${safeInt(inputs[c.key])} × ${c.pointsPerUnit}`)
-      .filter((s) => !/\b0 ×/.test(s))
-      .join(", ");
+      .filter((s) => !/\b0 ×/.test(s));
+    if (earthingCharge > 0) breakdownList.push(`Earthing Charge: ₹${earthingCharge}`);
+    if (inverterFittingCharge > 0) breakdownList.push(`Inverter Fitting Charge: ₹${inverterFittingCharge}`);
+    const breakdown = breakdownList.join(", ");
     const specs = `${breakdown} | Points: ${points} | Rate: ₹${rate}/pt`;
     onAddItem({
       productName: `Fitting/Wiring - ${CATEGORY_OPTIONS.find((o) => o.value === category)?.label || category}`,
@@ -103,8 +113,10 @@ export default function FittingForm({
       unit: "service",
     });
     // reset counts but keep category
-    const reset: Record<string, number> = {};
-    components.forEach((c) => { reset[c.key] = 0; });
+    const reset: Record<string, string> = {};
+    components.forEach((c) => { reset[c.key] = ""; });
+    reset["earthingCharge"] = "";
+    reset["inverterFittingCharge"] = "";
     setInputs(reset);
     onSubmitted?.();
   };
@@ -138,19 +150,28 @@ export default function FittingForm({
           {components.map((c) => (
             <div key={c.key}>
               <Label>{c.label}</Label>
-              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs[c.key] ?? 0} onChange={setField(c.key)} />
+              <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs[c.key] ?? ""} onChange={setField(c.key)} />
             </div>
           ))}
+          {/* Extra charges */}
+          <div>
+            <Label>Earthing Charge (₹)</Label>
+            <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs["earthingCharge"] ?? ""} onChange={setField("earthingCharge")} />
+          </div>
+          <div>
+            <Label>Inverter Fitting Charge (₹)</Label>
+            <Input inputMode="numeric" className="bg-gray-800 border-gray-700 text-white mt-1" value={inputs["inverterFittingCharge"] ?? ""} onChange={setField("inverterFittingCharge")} />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Card className="bg-gray-800 border-gray-700"><CardContent className="p-4"><div className="text-gray-400 text-sm">Total Points</div><div className="text-2xl font-bold text-white">{points}</div></CardContent></Card>
           <Card className="bg-gray-800 border-gray-700"><CardContent className="p-4"><div className="text-gray-400 text-sm">Rate (₹/pt)</div><div className="text-2xl font-bold text-white">{rate}</div></CardContent></Card>
-          <Card className="bg-gray-800 border-gray-700"><CardContent className="p-4"><div className="text-gray-400 text-sm">Total Amount (₹)</div><div className="text-2xl font-bold text-white">{amount}</div></CardContent></Card>
+          <Card className="bg-gray-800 border-gray-700"><CardContent className="p-4"><div className="text-gray-400 text-sm">Total Amount (₹)</div><div className="text-2xl font-bold text-white">{amount}</div><div className="text-xs text-gray-400 mt-1">Includes extra charges</div></CardContent></Card>
         </div>
 
         <div className="pt-2">
-          <Button className="bg-blue-600 hover:bg-blue-500" onClick={onSubmit} disabled={points <= 0 || rate <= 0}>Add to Bill</Button>
+          <Button className="bg-blue-600 hover:bg-blue-500" onClick={onSubmit} disabled={amount <= 0}>Add to Bill</Button>
         </div>
       </CardContent>
     </Card>
