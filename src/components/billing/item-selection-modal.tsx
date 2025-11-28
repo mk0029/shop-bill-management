@@ -157,7 +157,7 @@ export const ItemSelectionModal = ({
           )}
           <div className="space-y-2">
             <Label className="text-gray-300">Brand</Label>
-            <Dropdown
+            <Dropdown disabled={categoryBrands.length <= 1}
               options={[
                 { value: "", label: "All Brands" },
                 ...categoryBrands.map((brand) => ({
@@ -168,7 +168,7 @@ export const ItemSelectionModal = ({
               value={selectedSpecifications.brand || ""}
               onValueChange={(value) => onUpdateSpecification("brand", value)}
               placeholder="Select brand"
-              className="bg-gray-800 border-gray-700"
+              className="bg-gray-800 border-gray-700 "
             />
           </div>
 
@@ -234,9 +234,9 @@ export const ItemSelectionModal = ({
                 <h4 className="font-medium text-white mb-1">
                   Available Items ({displayedItems.length})
                 </h4>
-                <p className="text-xs text-gray-500 mb-2">
+                {/* <p className="text-xs text-gray-500 mb-2">
                   Category: {selectedCategory || "(none)"} • Filtered: {filteredItems.length} • Active: {activeProducts.length}
-                </p>
+                </p> */}
                 {filteredItems.length === 0 && fallbackMatches.length > 0 && (
                   <p className="text-xs text-amber-400 mb-2">
                     Showing best matches for "{selectedCategory}" (no exact category matches found)

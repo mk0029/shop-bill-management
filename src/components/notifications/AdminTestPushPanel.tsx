@@ -7,10 +7,10 @@ export default function AdminTestPushPanel({composerOpen, setComposerOpen}: {com
   // Only composer state is needed now
 
   return (
-    <div className="mb-6 p-4 border border-gray-800 rounded-lg bg-gray-900">
-      <div className="flex items-center justify-between mb-3">
+    <div className="mb-6 p-2 sm:p-4 border border-gray-800 rounded-lg bg-gray-900">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-white font-semibold">Send Notifications</h2>
+          <h2 className="text-white font-semibold text-sm sm:text-base">Send Notifications</h2>
           <p className="text-xs text-gray-400">
           Send notifications to users
           </p>

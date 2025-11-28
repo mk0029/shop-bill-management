@@ -23,7 +23,7 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
       <AdminTestPushPanel composerOpen={composerOpen} setComposerOpen={setComposerOpen} />
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Notifications</h1>
+          <h1 className="text-lg sm:text-2xl font-bold text-white">Notifications</h1>
         </div>
         <div className="flex items-center gap-2">
           {unread > 0 && (
@@ -47,11 +47,11 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
             return (
               <div key={n.id} className="p-4 flex items-start gap-3">
                 <div className="mt-0.5">
-                  <Badge variant="secondary" className="capitalize">{n.type}</Badge>
+                  <Badge variant="secondary" className="capitalize max-sm:!text-xs ">{n.type}</Badge>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium">{n.title}</p>
-                  <p className="text-gray-400 text-sm whitespace-pre-line">{n.body}</p>
+                  <p className="text-gray-400 text-xs sm:text-sm whitespace-pre-line">{n.body}</p>
                   {(n.meta?.user || n.meta?.userId) && (
                     <p className="text-gray-400 text-xs mt-1">
                       {n.meta?.user?.name && <span className="mr-2">{n.meta.user.name}</span>}
@@ -59,7 +59,7 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
                       <span className="text-gray-500">ID: {n.meta?.user?.id || n.meta?.userId}</span>
                     </p>
                   )}
-                  <p className="text-gray-500text-[9px] md:text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                  <p className="text-gray-500 text-[9px] md:text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {href && (

@@ -92,7 +92,7 @@ export default function CustomerNotificationsPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-white font-medium">{n.title}</p>
                 <p className="text-gray-400 text-sm whitespace-pre-line">{n.body}</p>
-                <p className="text-gray-500text-[9px] md:text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                <p className="text-gray-500 text-[9px] md:text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
               </div>
               <div className="flex gap-2">
                 {!n.read && (

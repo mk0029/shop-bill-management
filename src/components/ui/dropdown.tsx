@@ -172,7 +172,7 @@ export function Dropdown({
               </div>
             </div>
           )}
-          <div className="max-h-48 overflow-auto pb-1.5 sm:pb-3">
+          <div className="max-h-40 sm:max-h-48 overflow-auto pb-1.5 sm:pb-3">
             {filteredOptions.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-400 text-center">
                 {searchTerm ? "No results found" : "No options available"}

@@ -87,7 +87,7 @@ export const InventoryFilters = ({
 
           <div className="space-y-2">
             <label className="text-sm text-gray-300">Brand</label>
-            <Dropdown
+            <Dropdown disabled={brands.length <= 1}
               options={[
                 { value: "all", label: "All Brands" },
                 ...brands.map((brand) => ({
