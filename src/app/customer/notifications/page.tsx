@@ -11,6 +11,7 @@ import Link from "next/link"
 import { buildNotificationHref } from "@/store/notification-store"
 import SWNotificationBridge from "@/components/notifications/sw-bridge"
 import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel"
+import { CheckCheckIcon } from "lucide-react"
 
 type Props = { composerOpen: boolean; setComposerOpen: (open: boolean) => void; onNavigate?: () => void };
 export default function AdminNotificationsPage({composerOpen, setComposerOpen, onNavigate}: Props) {
@@ -27,10 +28,10 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
         </div>
         <div className="flex items-center gap-2">
           {unread > 0 && (
-            <Button size="sm" variant="secondary" onClick={markAllRead}>Mark all read</Button>
+            <Button size="sm" variant="secondary" onClick={markAllRead}>Mark all</Button>
           )}
           {(items || []).some(n => !!n.read) && (
-            <Button size="sm" variant="outline" onClick={clearRead}>Clear read</Button>
+            <Button size="sm" variant="outline" onClick={clearRead}>Clear Read</Button>
           )}
           {items.length > 0 && (
             <Button size="sm" variant="outline" onClick={clear}>Clear</Button>
@@ -72,7 +73,10 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
                     </Link>
                   )}
                   {!n.read && (
-                    <Button size="sm" variant="ghost" onClick={() => markAsRead(n.id)}>Mark read</Button>
+                    <Button size="sm" variant="secondary" onClick={() => markAsRead(n.id)}><CheckCheckIcon className="w-4 h-4" /></Button>
+                  )}
+                  {n.read && (
+                    <Button disabled size="sm"  onClick={() => markAsRead(n.id)}><CheckCheckIcon className="w-4 h-4 text-white" /></Button>
                   )}
                 </div>
               </div>
