@@ -5,7 +5,7 @@ import { useProducts, useBrands, useCategories } from "@/hooks/use-sanity-data";
 
 export const useInventoryManagement = () => {
   const router = useRouter();
-  const { products, deleteProduct, updateProduct, isLoading: productsLoading } = useProducts();
+  const { activeProducts, deleteProduct, updateProduct, isLoading: productsLoading } = useProducts();
   const { brands, isLoading: brandsLoading } = useBrands();
   const { categories, isLoading: categoriesLoading } = useCategories();
 
@@ -71,7 +71,7 @@ export const useInventoryManagement = () => {
     return true;
   };
 
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = activeProducts.filter((product) => {
     const q = debouncedSearchTerm.toLowerCase();
     const matchesSearch =
       product.name?.toLowerCase().includes(q) ||
@@ -132,9 +132,23 @@ export const useInventoryManagement = () => {
       toast.success("Product deleted successfully");
       setShowDeleteDialog(false);
       setSelectedProduct(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting product:", error);
-      toast.error("Failed to delete product");
+      const msg: string = (error && (error.message || String(error))) || "";
+      const hasReferenceConstraint = msg.includes("cannot be deleted as there are references") || msg.includes("references to it");
+      if (hasReferenceConstraint) {
+        try {
+          await updateProduct(selectedProduct._id, { isActive: false, archivedAt: new Date().toISOString() } as any);
+          toast.success("Product is used in history, so it was archived instead.");
+          setShowDeleteDialog(false);
+          setSelectedProduct(null);
+        } catch (archiveErr) {
+          console.error("Failed to archive product after delete constraint:", archiveErr);
+          toast.error("Product is referenced in bills/stock. Archiving also failed.");
+        }
+      } else {
+        toast.error("Failed to delete product");
+      }
     }
   };
 
@@ -171,13 +185,13 @@ export const useInventoryManagement = () => {
   };
 
   const getLowStockCount = () => {
-    return products.filter(
+    return activeProducts.filter(
       (product) => Number(product.inventory?.currentStock || 0) < 10
     ).length;
   };
 
   const getOutOfStockCount = () => {
-    return products.filter(
+    return activeProducts.filter(
       (product) => Number(product.inventory?.currentStock || 0) === 0
     ).length;
   };
