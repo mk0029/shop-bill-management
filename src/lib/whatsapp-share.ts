@@ -89,7 +89,8 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
     (bill.repairFee || 0) +
     (bill.laborCharges || 0);
 
-  const grandTotal = bill.balanceAmount || itemsTotal + additionalCharges;
+  const computedTotal = Math.max(0, itemsTotal + additionalCharges - (bill.discountAmount || 0));
+  const grandTotal = (typeof (bill as any).grandTotal === 'number' ? (bill as any).grandTotal : undefined) ?? computedTotal;
 
   const items =
     bill.items

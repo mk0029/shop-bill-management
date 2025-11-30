@@ -162,6 +162,7 @@ export function BillingBrowser({
       paymentStatus: "pending" | "partial" | "paid";
       paidAmount: number;
       balanceAmount: number;
+      discountAmount?: number;
     }
   ) => {
     try {
@@ -173,6 +174,7 @@ export function BillingBrowser({
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
+        ...(typeof paymentData.discountAmount === 'number' ? { discountAmount: paymentData.discountAmount } : {}),
       } as any);
       if (process.env.NODE_ENV === "development") {
         console.timeEnd("updateBill->commit");
@@ -186,6 +188,7 @@ export function BillingBrowser({
           paymentStatus: paymentData.paymentStatus,
           paidAmount: paymentData.paidAmount,
           balanceAmount: paymentData.balanceAmount,
+          ...(typeof paymentData.discountAmount === 'number' ? { discountAmount: paymentData.discountAmount } : {}),
         });
         if (process.env.NODE_ENV === "development") {
           console.timeEnd("optimistic-selectedBill-set");
