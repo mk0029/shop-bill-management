@@ -90,13 +90,31 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = '�
     (bill.laborCharges || 0);
 
   const computedTotal = Math.max(0, itemsTotal + additionalCharges - (bill.discount || 0));
-  const grandTotal = (typeof (bill as any).grandTotal === 'number' ? (bill as any).grandTotal : undefined) ?? computedTotal;
 
+  const grandTotal =
+    (typeof (bill as any).grandTotal === "number"
+      ? (bill as any).grandTotal
+      : undefined) ?? computedTotal;
+
+  const passKey = bill.customerAuth?.secretKey || (bill as any)?.customer?.secretKey;
+  const phone = bill.customer?.phone?.replace(/\D/g, "") || "";
+
+  const siteUrl =
+    (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_WEBSITE_URL) ||
+    (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_SITE_URL) ||
+    "";
+
+  const loginUrl = siteUrl || "https://jambh-ell.vercel.app/";
+  const loginLink = passKey
+    ? `${loginUrl}/login?phone=${phone}&passKey=${passKey}`
+    : "";
+
+  // Prepare items list
   const items =
     bill.items
       ?.map((item: any) => {
-        // Prepare display name with category if available
         const baseName = item.productName || item.name || "Item";
+
         const category =
           item.categoryName ||
           item.category ||
@@ -104,161 +122,72 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = '�
           item.product?.category?.name ||
           item.product?.category ||
           item.category?.name;
+
         const nameWithCategory = category ? `${baseName} (${category})` : baseName;
 
-        const itemText = `• ${nameWithCategory}: ${item.quantity} ${item.unit || "pcs"} x ${currency}${(item.unitPrice || item.price).toFixed(2)} = ${currency}${(item.totalPrice || item.total).toFixed(2)}`;
-
-        // Merge possible specification sources
-        const rawA = item.specifications;
-        const rawB = item.product?.specifications;
-
-        // Normalize specifications into a readable string
-        const normalizeSpecs = (spec: any): string => {
-          if (!spec) return "";
-          // If already a string, return trimmed
-          if (typeof spec === "string") return spec.trim();
-          // If array, join non-empty values
-          if (Array.isArray(spec)) return spec.filter(Boolean).join(", ");
-          // If object, format key: value pairs nicely
-          if (typeof spec === "object") {
-            const entries = Object.entries(spec)
-              .filter(([, v]) => v !== undefined && v !== null && String(v) !== "");
-            if (entries.length === 0) return "";
-            return entries
-              .map(([key, value]) => {
-                // Format camelCase/PascalCase into spaced words
-                const readableKey = key
-                  .replace(/([a-z])([A-Z])/g, "$1 $2")
-                  .replace(/^./, (s) => s.toUpperCase());
-                // Convert boolean-like strings to Yes/No
-                const valStr = String(value).toLowerCase();
-                if (valStr === "true") value = "Yes";
-                else if (valStr === "false") value = "No";
-                return `${readableKey}: ${value}`;
-              })
-              .join(", ");
-          }
-          // Fallback to string coercion
-          return String(spec);
-        };
-
-        const specTextParts: string[] = [];
-        const a = normalizeSpecs(rawA);
-        const b = normalizeSpecs(rawB);
-        if (a) specTextParts.push(a);
-        if (b && b !== a) specTextParts.push(b);
-
-      // const specText = specTextParts.join(", ");
-        // if (specText) {
-        //   itemText += `\n  Specifications: ${specText}`;
-        // }
-
-        return itemText;
+        return `• ${nameWithCategory}: ${item.quantity} ${item.unit || "pcs"} x ${currency}${(
+          item.unitPrice || item.price
+        ).toFixed(2)} = ${currency}${(item.totalPrice || item.total).toFixed(2)}`;
       })
       .join("\n") || "";
 
-  // Generate login link if customer has auth details
-  const passKey = bill.customerAuth?.secretKey || (bill as any)?.customer?.secretKey;
-  const phone = bill.customer?.phone?.replace(/\D/g, "") || "";
-  const siteUrl =
-  (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_WEBSITE_URL) ||
-  (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_SITE_URL) ||
-  "";
-const loginUrl = siteUrl || "https://jambh-ell.vercel.app/";
-  const loginLink = passKey
-    ? `${loginUrl}/login?phone=${phone}&passKey=${passKey}`
-    : '';
+  // Final Total / Paid / Balance logic
+  const total = grandTotal || 0;
+  const paid = bill.paidAmount || 0;
+  const rawBalance = total - paid;
+  const balance = paid >= total ? 0 : Math.max(0, rawBalance);
 
-  let message = `*Bill #${bill.billNumber || bill._id}*\n\n`;
+  const paymentStatus = (bill.paymentStatus || "Pending").toUpperCase();
 
-  if (bill.customer) {
-    const customerName = bill.customer.name ? sanitizeUserText(bill.customer.name) : 'Customer';
-    message += `*Customer:* ${customerName}\n`;
-    if (bill.customer.location) {
-      message += `*Location:* ${bill.customer.location}\n`;
-    }
-    message += "\n";
-  }
+  // --- BUILD FINAL MESSAGE --- //
+  let message = `*Bill Id :- ${bill.billNumber || bill._id}*\n\n`;
+
+  // Customer info should NOT display – as per your instruction (commented)
+  // if (bill.customer?.name) message += `*Customer:* ${sanitizeUserText(bill.customer.name)}\n`;
+  // if (bill.customer?.location) message += `*Location:* ${bill.customer.location}\n\n`;
 
   if (bill.technician?.name) {
-    const techName = sanitizeUserText(bill.technician.name);
-    message += `*Technician:* ${techName}\n`;
+    message += `*Technician:* ${sanitizeUserText(bill.technician.name)}\n`;
   }
 
   if (bill.serviceType) {
-    message += `*Service Type:* ${bill.serviceType.charAt(0).toUpperCase() + bill.serviceType.slice(1)}\n`;
+    message += `*Service:* ${bill.serviceType.charAt(0).toUpperCase() + bill.serviceType.slice(1)}\n`;
   }
+
   const serviceDateValue = bill.serviceDate ?? bill.createdAt;
   if (serviceDateValue) {
     message += `*Service Date:* ${new Date(serviceDateValue).toLocaleDateString("en-IN")}\n`;
   }
+
   if (bill.priority) {
     message += `*Priority:* ${bill.priority.charAt(0).toUpperCase() + bill.priority.slice(1)}\n`;
   }
-  message += "\n";
-if (items) {
-  message += `*Items:*\n${items}\n\n`;
-}
 
-  message += `*Pricing Details:*\n`;
-  if (bill.subtotal) {
-    message += `• Subtotal: ${currency}${bill.subtotal.toFixed(2)}\n`;
-  }
-  if (bill.repairFee && bill.repairFee > 0) {
-    message += `• Repair Charges: ${currency}${bill.repairFee.toFixed(2)}\n`;
-  }
-  if (bill.laborCharges && bill.laborCharges > 0) {
-    message += `• Labor Charges: ${currency}${bill.laborCharges.toFixed(2)}\n`;
-  }
-  if (bill.homeVisitFee && bill.homeVisitFee > 0) {
-    message += `• Home Visit Fee: ${currency}${bill.homeVisitFee.toFixed(2)}\n`;
-  }
-  if (bill.transportationFee && bill.transportationFee > 0) {
-    message += `• Transportation Fee: ${currency}${bill.transportationFee.toFixed(2)}\n`;
-  }
-  if (bill.taxAmount && bill.taxAmount > 0) {
-    message += `• Tax: ${currency}${bill.taxAmount.toFixed(2)}\n`;
-  }
-  if (bill.discount && bill.discount > 0) {
-    message += `• Discount: -${currency}${bill.discount.toFixed(2)}\n`;
-  }
+  message += `\n*Items:*\n${items}\n`;
 
-  message += `\n*Total Amount: ${currency}${grandTotal.toFixed(2)}*\n`;
+  message += `\n*Pricing Details:*\n`;
+  message += `• Total: ${currency}${total.toFixed(2)}\n`;
+  message += `• Paid: ${currency}${paid.toFixed(2)}\n`;
+  message += `• Balance: ${currency}${balance.toFixed(2)}\n`;
 
-  if (bill.paidAmount && bill.paidAmount > 0) {
-    message += `*Paid Amount: ${currency}${bill.paidAmount.toFixed(2)}*\n`;
-    if (bill.balanceAmount) {
-      message += `*Balance Amount: ${currency}${bill.balanceAmount.toFixed(2)}*\n`;
-    }
-  }
-
-  if (bill.paymentStatus) {
-    message += `*Payment Status:* ${bill.paymentStatus || 'Pending'}\n`;
-  }
-
-
-  message += "\n";
+  message += `\n*Payment Status:* ${paymentStatus}\n`;
 
   if (bill.notes && bill.notes.trim()) {
-    message += `*Notes:*\n${bill.notes}\n\n`;
+    message += `\n*Notes:*\n${bill.notes}\n`;
   }
 
   if (bill.internalNotes && bill.internalNotes.trim()) {
-    message += `*Additional Information:*\n${bill.internalNotes}\n\n`;
+    message += `\n*Additional Information:*\n${bill.internalNotes}\n`;
   }
 
-  // Business/site link (from env) with fallback to provided website URL
+  if (loginLink) {
+    message += `\n*Login to your account:* ${loginLink}\n`;
+    message += `Your bill details will be auto-loaded.`;
+  }
 
-  // Optional authentication details for customers to check bill
-    // Add login link if available
-
-    if (loginLink) {
-      message += `\n*Login to your account:* ${loginLink}\n`;
-      message += "Click the link above to login and view your bill details. Your credentials will be auto-filled.";
-    }
-    
   return message;
 }
+
 
 export async function shareBillOnWhatsApp(bill: BillDetails): Promise<void> {
   let phone = bill.customer?.phone?.replace(/\D/g, "") || "";

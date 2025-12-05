@@ -151,8 +151,8 @@ export default function CustomerBillsPage() {
   return (
     <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => router.back()} className="p-2">
+      <div className="flex max-sm:flex-col sm:items-center gap-4 w-full justify-between">
+       <div className="flex items-center gap-4"> <Button variant="ghost" onClick={() => router.back()} className="p-2">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1">
@@ -162,8 +162,8 @@ export default function CustomerBillsPage() {
           <p className="text-gray-400 mt-1 text-sm md:text-base">
             {customer.phone} • {customer.location}
           </p>
-        </div>
-        <div className="flex gap-2">
+        </div></div>
+        <div className="flex gap-2 max-md:justify-end">
           <Button variant="outline" onClick={handleOpenChat}>
             <MessageSquare className="w-4 h-4 mr-2" />
             Chat

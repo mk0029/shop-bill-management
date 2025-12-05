@@ -309,7 +309,20 @@ export const BillDetailModal = ({
                 {bill.technician?.name && (
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
-                    <span>Technician: {bill.technician.name}</span>
+                    <span>
+                      Technician: {bill.technician.name}
+                      {bill.technician?.phone && (
+                        <>
+&nbsp; | &nbsp;Call :-&nbsp;
+                          <a
+                            href={`tel:${bill.technician.phone}`}
+                            className="text-blue-400 hover:underline"
+                          >
+                            {bill.technician.phone}
+                          </a>
+                        </>
+                      )}
+                    </span>
                   </div>
                 )}
               </div>
