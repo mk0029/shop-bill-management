@@ -223,8 +223,8 @@ export default function ChatManagementPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 sm:p-6">
       {/* Delete Room Confirmation Modal */}
       {roomToDelete && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full z-[10001]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-white flex items-center">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
@@ -276,8 +276,8 @@ export default function ChatManagementPage() {
 
       {/* Delete Asset Confirmation Modal */}
       {assetToDelete && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full z-[10001]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-white flex items-center">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
