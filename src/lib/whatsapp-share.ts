@@ -166,6 +166,9 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = '�
   message += `\n*Items:*\n${items}\n`;
 
   message += `\n*Pricing Details:*\n`;
+  if ((bill.discount || 0) > 0) {
+    message += `• *Discount:* *-${currency}${(bill.discount || 0).toFixed(2)}*\n`;
+  }
   message += `• Total: ${currency}${total.toFixed(2)}\n`;
   message += `• Paid: ${currency}${paid.toFixed(2)}\n`;
   message += `• Balance: ${currency}${balance.toFixed(2)}\n`;
