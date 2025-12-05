@@ -146,9 +146,8 @@ export const BillSummarySidebar = ({
             <Input
               id="bill-discount"
               type="number"
-              min={0}
-              step="1"
-              value={formData.discount ?? ""}
+               min="0"
+                        step="1"              value={formData.discount}
               onChange={(e) => onInputChange("discount", (e.target as HTMLInputElement).value)}
               placeholder="0"
               className="bg-gray-900 border-gray-600 text-white focus-visible:ring-1 focus-visible:ring-blue-500"

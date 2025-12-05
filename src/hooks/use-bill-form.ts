@@ -662,7 +662,7 @@ export const useBillForm = () => {
     setSelectedItems,
     addCustomItemToBill,
   };
-
+}
 // Helper functions
 const hasDraftContent = (formData: BillFormData, selectedItems: BillItem[]) => {
   if (selectedItems && selectedItems.length > 0) return true;
