@@ -35,9 +35,9 @@ export function Modal({
 }: ModalProps) {
   React.useEffect(() => {
     if (isOpen) {
-      document.documentElement.classList.add("overflow-hidden");
+      // document.documentElement.classList.add("overflow-hidden");
     } else {
-      document.documentElement.classList.remove("overflow-hidden");
+      // document.documentElement.classList.remove("overflow-hidden");
     }
   }, [isOpen]);
 

@@ -42,7 +42,7 @@ export interface BillDetails {
   homeVisitFee?: number;
   transportationFee?: number;
   taxAmount?: number;
-  discountAmount?: number;
+  discount?: number;
   grandTotal: number;
   paidAmount?: number;
   balanceAmount?: number;
@@ -89,7 +89,7 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = '�
     (bill.repairFee || 0) +
     (bill.laborCharges || 0);
 
-  const computedTotal = Math.max(0, itemsTotal + additionalCharges - (bill.discountAmount || 0));
+  const computedTotal = Math.max(0, itemsTotal + additionalCharges - (bill.discount || 0));
   const grandTotal = (typeof (bill as any).grandTotal === 'number' ? (bill as any).grandTotal : undefined) ?? computedTotal;
 
   const items =
@@ -219,8 +219,8 @@ if (items) {
   if (bill.taxAmount && bill.taxAmount > 0) {
     message += `• Tax: ${currency}${bill.taxAmount.toFixed(2)}\n`;
   }
-  if (bill.discountAmount && bill.discountAmount > 0) {
-    message += `• Discount: -${currency}${bill.discountAmount.toFixed(2)}\n`;
+  if (bill.discount && bill.discount > 0) {
+    message += `• Discount: -${currency}${bill.discount.toFixed(2)}\n`;
   }
 
   message += `\n*Total Amount: ${currency}${grandTotal.toFixed(2)}*\n`;

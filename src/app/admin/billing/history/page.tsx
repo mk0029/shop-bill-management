@@ -144,13 +144,23 @@ export default function BillHistoryPage() {
       paymentStatus: "pending" | "partial" | "paid";
       paidAmount: number;
       balanceAmount: number;
+      discount?: number;
     }
   ) => {
     try {
+      // Calculate cumulative discount = existing + new
+      const existingBill = rawBillById[billId] as any;
+      const existingDiscount = Number(
+        (existingBill?.discount ?? existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0
+      );
+      const addDiscount = typeof paymentData.discount === 'number' ? Math.max(Number(paymentData.discount || 0), 0) : 0;
+      const totalDiscount = existingDiscount + addDiscount;
+
       await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
+        ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
       });
     } catch (error) {
       console.error("❌ Error updating payment:", error);

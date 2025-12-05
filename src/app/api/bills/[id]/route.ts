@@ -30,6 +30,7 @@ export async function PATCH(
       "status",
       "notes",
       "internalNotes",
+      "discount",
     ]);
     const updates: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(body || {})) {

@@ -769,10 +769,10 @@ export default function CustomerBillsPage() {
                     {formatCurrency(selectedBill.taxAmount)}
                   </p>
                 </div>}
-               { selectedBill?.discountAmount !== null && selectedBill?.discountAmount>0 && <div>
+               { selectedBill?.discount !== null && selectedBill?.discount>0 && <div>
                   <p className="text-gray-400">Discount</p>
                   <p className="text-white">
-                    {formatCurrency(selectedBill.discountAmount)}
+                    {formatCurrency(selectedBill.discount)}
                   </p>
                 </div>}
                 <div>

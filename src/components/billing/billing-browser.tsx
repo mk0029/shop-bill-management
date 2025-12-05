@@ -115,6 +115,8 @@ export function BillingBrowser({
       paidAmount: bill.paidAmount,
       balanceAmount: bill.balanceAmount,
       notes: bill.notes,
+      // Include discount for modal display
+      discount: (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0,
       customer: {
         name: bill.customer?.name || "Unknown Customer",
         phone: bill.customer?.phone || "",
@@ -162,10 +164,17 @@ export function BillingBrowser({
       paymentStatus: "pending" | "partial" | "paid";
       paidAmount: number;
       balanceAmount: number;
-      discountAmount?: number;
+      discount?: number;
     }
   ) => {
     try {
+      // Determine cumulative discount = existing + newly added
+      const existingBill = bills.find((b: any) => (b._id || b.id) === billId) as any;
+      const existingDiscount = Number(
+        (existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0
+      );
+      const addDiscount = typeof paymentData.discount === 'number' ? Math.max(Number(paymentData.discount || 0), 0) : 0;
+      const totalDiscount = existingDiscount + addDiscount;
       if (process.env.NODE_ENV === "development") {
         console.time("updateBill->commit");
       }
@@ -174,7 +183,7 @@ export function BillingBrowser({
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
-        ...(typeof paymentData.discountAmount === 'number' ? { discountAmount: paymentData.discountAmount } : {}),
+        ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
       } as any);
       if (process.env.NODE_ENV === "development") {
         console.timeEnd("updateBill->commit");
@@ -188,7 +197,7 @@ export function BillingBrowser({
           paymentStatus: paymentData.paymentStatus,
           paidAmount: paymentData.paidAmount,
           balanceAmount: paymentData.balanceAmount,
-          ...(typeof paymentData.discountAmount === 'number' ? { discountAmount: paymentData.discountAmount } : {}),
+          ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
         });
         if (process.env.NODE_ENV === "development") {
           console.timeEnd("optimistic-selectedBill-set");

@@ -37,7 +37,7 @@ Defined and referenced across files like src/store/data-store.ts and src/lib/que
 - Bill
   - Fields: _id, billId, billNumber, customer (ref), items[] { product (ref), productName, category, brand, specifications, quantity, unitPrice, totalPrice, unit },
     serviceType, locationType, serviceDate, homeVisitFee, transportationFee?, repairFee?, laborCharges?,
-    subtotal, taxAmount, discountAmount?, totalAmount, paymentStatus, paymentMethod?, paidAmount, balanceAmount,
+    subtotal, taxAmount, discount?, totalAmount, paymentStatus, paymentMethod?, paidAmount, balanceAmount,
     status, priority, notes?, internalNotes?, createdAt, updatedAt
 - StockTransaction
   - Fields: _id, transactionId, type ('purchase'|'sale'|'adjustment'|'return'|'damage'), product (ref), quantity,

@@ -103,7 +103,7 @@ interface Bill {
   laborCharges?: number;
   subtotal: number;
   taxAmount: number;
-  discountAmount?: number;
+  discount?: number;
   totalAmount: number;
   paymentStatus: "pending" | "partial" | "paid" | "overdue";
   paymentMethod?: string;

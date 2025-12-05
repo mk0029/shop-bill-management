@@ -95,7 +95,7 @@ export function calculateBillTotals(
     laborCharges?: number;
     transportationFee?: number;
     taxRate?: number;
-    discountAmount?: number;
+    discount?: number;
   } = {}
 ) {
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -109,9 +109,9 @@ export function calculateBillTotals(
   const beforeTax =
     subtotal + homeVisitFee + repairCharges + laborCharges + transportationFee;
   const taxAmount = (beforeTax * (additionalCharges.taxRate || 0)) / 100;
-  const discountAmount = additionalCharges.discountAmount || 0;
+  const discount = additionalCharges.discount || 0;
 
-  const totalAmount = beforeTax + taxAmount - discountAmount;
+  const totalAmount = beforeTax + taxAmount - discount;
 
   return {
     subtotal,
@@ -120,7 +120,7 @@ export function calculateBillTotals(
     laborCharges,
     transportationFee,
     taxAmount,
-    discountAmount,
+    discount,
     totalAmount,
   };
 }

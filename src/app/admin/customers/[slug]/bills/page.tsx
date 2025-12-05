@@ -94,10 +94,24 @@ export default function CustomerBillsPage() {
 
   const handleUpdatePayment = async (
     billId: string,
-    paymentData: { paymentStatus: "pending" | "partial" | "paid"; paidAmount: number; balanceAmount: number }
+    paymentData: { paymentStatus: "pending" | "partial" | "paid"; paidAmount: number; balanceAmount: number; discount?: number }
   ) => {
     try {
-      await updateBill(billId, { ...paymentData, updatedAt: new Date().toISOString() });
+      // Calculate cumulative discount = existing + new
+      const existingBill = bills.find((b: any) => (b._id || b.id) === billId) as any;
+      const existingDiscount = Number(
+        (existingBill?.discount ?? existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0
+      );
+      const addDiscount = typeof paymentData.discount === 'number' ? Math.max(Number(paymentData.discount || 0), 0) : 0;
+      const totalDiscount = existingDiscount + addDiscount;
+
+      await updateBill(billId, {
+        paymentStatus: paymentData.paymentStatus,
+        paidAmount: paymentData.paidAmount,
+        balanceAmount: paymentData.balanceAmount,
+        ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
+        updatedAt: new Date().toISOString(),
+      } as any);
 
       toast.success(
         paymentData.paymentStatus === "paid"
@@ -106,7 +120,13 @@ export default function CustomerBillsPage() {
       );
 
       if (selectedBill?._id === billId) {
-        setSelectedBill({ ...selectedBill, ...paymentData });
+        setSelectedBill({
+          ...selectedBill,
+          paymentStatus: paymentData.paymentStatus,
+          paidAmount: paymentData.paidAmount,
+          balanceAmount: paymentData.balanceAmount,
+          ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
+        });
       }
     } catch {
       toast.error("❌ Failed to update payment. Please try again.");

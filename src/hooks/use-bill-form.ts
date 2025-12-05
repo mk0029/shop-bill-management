@@ -41,7 +41,7 @@ export interface BillFormData {
   repairFee: number;
   homeVisitFee: number;
   laborCharges: number;
-  discountAmount?: number;
+  discount?: number;
   // Payment Fields
   isMarkAsPaid: boolean;
   enablePartialPayment: boolean;
@@ -103,7 +103,7 @@ export const useBillForm = () => {
     repairFee: Number(repairFeeDefault || 0),
     homeVisitFee: Number(homeVisitFeeDefault || 0),
     laborCharges: Number(laborChargesDefault || 0),
-    discountAmount: 0,
+    discount: 0,
     isMarkAsPaid: false,
     enablePartialPayment: false,
     partialPaymentAmount: 0,
@@ -115,7 +115,7 @@ export const useBillForm = () => {
       "repairFee",
       "homeVisitFee",
       "laborCharges",
-      "discountAmount",
+      "discount",
       "partialPaymentAmount",
     ];
 
@@ -282,7 +282,7 @@ export const useBillForm = () => {
       Number(formData.repairFee || 0) +
       Number(formData.homeVisitFee || 0) +
       Number(formData.laborCharges || 0);
-    const discount = Number(formData.discountAmount || 0);
+    const discount = Number(formData.discount || 0);
     return Math.max(0, itemsTotal + additionalCharges - discount);
   };
 
@@ -364,7 +364,7 @@ export const useBillForm = () => {
         homeVisitFee: Number(formData.homeVisitFee),
         repairFee: Number(formData.repairFee),
         laborCharges: Number(formData.laborCharges),
-        discountAmount: Number(formData.discountAmount || 0),
+        discount: Number(formData.discount || 0),
         notes: formData.notes,
         // Payment details
         paymentStatus: paymentDetails.paymentStatus,
@@ -391,7 +391,7 @@ export const useBillForm = () => {
           repairFee: Number(repairFeeDefault || 0),
           homeVisitFee: Number(homeVisitFeeDefault || 0),
           laborCharges: Number(laborChargesDefault || 0),
-          discountAmount: 0,
+          discount: 0,
           isMarkAsPaid: false,
           enablePartialPayment: false,
           partialPaymentAmount: 0,
@@ -484,7 +484,7 @@ export const useBillForm = () => {
         repairFee: Number(repairFeeDefault || 0),
         homeVisitFee: Number(homeVisitFeeDefault || 0),
         laborCharges: Number(laborChargesDefault || 0),
-        discountAmount: 0,
+        discount: 0,
         isMarkAsPaid: false,
         enablePartialPayment: false,
         partialPaymentAmount: 0,
@@ -677,7 +677,7 @@ const hasDraftContent = (formData: BillFormData, selectedItems: BillItem[]) => {
     Number(formData.repairFee || 0) > 0 ||
     Number(formData.homeVisitFee || 0) > 0 ||
     Number(formData.laborCharges || 0) > 0 ||
-    Number(formData.discountAmount || 0) > 0 ||
+    Number(formData.discount || 0) > 0 ||
     Number(formData.partialPaymentAmount || 0) > 0
   )
     return true;

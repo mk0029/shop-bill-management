@@ -36,7 +36,7 @@ interface BillDetailModalProps {
       paymentStatus: "pending" | "partial" | "paid";
       paidAmount: number;
       balanceAmount: number;
-      discountAmount?: number;
+      discount?: number;
     }
   ) => Promise<void>;
   showShareButton?: boolean;
@@ -59,8 +59,8 @@ export const BillDetailModal = ({
   const [isEditingPayment, setIsEditingPayment] = useState(false);
   const [paymentMode, setPaymentMode] = useState<"paid" | "partial">("partial");
   const [partialAmount, setPartialAmount] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("");
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
-  const [discountValue, setDiscountValue] = useState<string>(String((bill as any)?.discountAmount || 0));
 
   if (!bill) return null;
 
@@ -122,48 +122,32 @@ export const BillDetailModal = ({
 
   // Prefer explicit totals from bill to match list cards
   const explicitTotal = toNum((bill as any).totalAmount ?? (bill as any).total);
-  const discountAmount = toNum(discountValue || (bill as any).discountAmount || 0);
-  const preDiscountTotal = itemsTotal + additionalCharges;
-  const computedTotal = Math.max(0, preDiscountTotal - discountAmount);
-  const grandTotal = explicitTotal > 0 ? explicitTotal : computedTotal;
-  const alreadyPaidView = toNum(bill.paidAmount || 0);
-  const maxBalance = Math.max(0, grandTotal - alreadyPaidView);
-  // Dynamic cap: discount cannot exceed remaining pending after applying the entered payment
-  const partialNum = Math.max(Number(partialAmount || 0), 0);
-  const dynamicMaxDiscount = Math.max(0, preDiscountTotal - alreadyPaidView - partialNum);
-  // Live preview numbers with current inputs
-  const newPaidPreview = Math.min(alreadyPaidView + partialNum, grandTotal);
-  const newPendingPreview = Math.max(0, grandTotal - newPaidPreview);
+  const grandTotal = explicitTotal > 0 ? explicitTotal : itemsTotal + additionalCharges;
+  const existingDiscountTotal = toNum((bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0);
+  const getEffectiveGrandTotal = () => {
+    const addDiscount = Math.max(Number(discountAmount || 0), 0);
+    return Math.max(0, grandTotal - (existingDiscountTotal + addDiscount));
+  };
   // Payment calculation logic
   const calculatePaymentDetails = () => {
     const alreadyPaid = toNum(bill.paidAmount || 0);
     if (paymentMode === "paid") {
       return {
         paymentStatus: "paid" as const,
-        paidAmount: grandTotal,
+        paidAmount: getEffectiveGrandTotal(),
         balanceAmount: 0,
       };
     }
-    if (paymentMode === "partial" && partialAmount) {
-      const add = Math.max(Number(partialAmount), 0);
-      const newPaid = Math.min(alreadyPaid + add, grandTotal);
-      const balanceAmount = Math.max(0, grandTotal - newPaid);
+    if (paymentMode === "partial") {
+      const add = Math.max(Number(partialAmount || 0), 0);
+      const effectiveGrand = getEffectiveGrandTotal();
+      const newPaid = Math.min(alreadyPaid + add, effectiveGrand);
+      const balanceAmount = Math.max(0, effectiveGrand - newPaid);
       return {
         paymentStatus: balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
         paidAmount: newPaid,
         balanceAmount,
       };
-    }
-    // If no partial amount entered, but discount reduces balance to 0, allow save to mark paid
-    if (paymentMode === "partial") {
-      const balanceAmount = Math.max(0, grandTotal - alreadyPaid);
-      if (balanceAmount <= 0) {
-        return {
-          paymentStatus: "paid" as const,
-          paidAmount: alreadyPaid,
-          balanceAmount: 0,
-        };
-      }
     }
     return null;
   };
@@ -175,17 +159,30 @@ export const BillDetailModal = ({
     if (!paymentDetails) return;
     setIsUpdatingPayment(true);
     try {
-      await onUpdatePayment(bill._id || bill.id, { ...paymentDetails, discountAmount: toNum(discountValue) });
+      await onUpdatePayment(bill._id || bill.id, {
+        ...paymentDetails,
+        // Send discount only if provided and > 0
+        ...(discountAmount !== "" && Number(discountAmount) > 0
+          ? { discount: Number(discountAmount) }
+          : {}),
+      });
       // Removed forced global refetch; rely on optimistic update + realtime
       if (bill) {
         bill.paymentStatus = paymentDetails.paymentStatus;
         bill.paidAmount = paymentDetails.paidAmount;
         bill.balanceAmount = paymentDetails.balanceAmount;
-        (bill as any).discountAmount = toNum(discountValue);
+        // Optimistically update discount to cumulative value (only 'discount' key)
+        const add = Math.max(Number(discountAmount || 0), 0);
+        if (add > 0) {
+          const prevDiscount = Number((bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0) || 0;
+          const totalDiscount = prevDiscount + add;
+          (bill as any).discount = totalDiscount;
+        }
       }
       setIsEditingPayment(false);
       setPaymentMode("partial");
       setPartialAmount("");
+      setDiscountAmount("");
       const isFull = paymentDetails.paymentStatus === "paid";
       const added = Math.max(Number(partialAmount || 0), 0);
       toast.success(
@@ -208,21 +205,26 @@ export const BillDetailModal = ({
     // Force paid mode calculation regardless of current input
     const target = {
       paymentStatus: "paid" as const,
-      paidAmount: grandTotal,
+      paidAmount: getEffectiveGrandTotal(),
       balanceAmount: 0,
     };
     setIsUpdatingPayment(true);
     try {
-      await onUpdatePayment(bill._id || bill.id, { ...target, discountAmount: toNum(discountValue) });
+      await onUpdatePayment(bill._id || bill.id, {
+        ...target,
+        ...(discountAmount !== "" && Number(discountAmount) > 0
+          ? { discount: Number(discountAmount) }
+          : {}),
+      });
       if (bill) {
         bill.paymentStatus = target.paymentStatus;
         bill.paidAmount = target.paidAmount;
         bill.balanceAmount = target.balanceAmount;
-        (bill as any).discountAmount = toNum(discountValue);
       }
       setIsEditingPayment(false);
       setPaymentMode("partial");
       setPartialAmount("");
+      setDiscountAmount("");
       toast.success("✅ Bill marked as fully paid!");
       onClose();
     } catch (error) {
@@ -240,6 +242,7 @@ export const BillDetailModal = ({
     setIsEditingPayment(false);
     setPaymentMode("partial");
     setPartialAmount("");
+    setDiscountAmount("");
     onClose();
   };
   const getCustomerId = (c: any) => (typeof c === "string" ? c : c?._id || c?._ref);
@@ -483,15 +486,24 @@ export const BillDetailModal = ({
                   {grandTotal?.toFixed(2) || bill?.balanceAmount}
                 </span>
               </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-300">Discount</span>
-                  <span className="text-green-400">-
-                    {currency}
-                    {discountAmount.toFixed(2)}
-                  </span>
-                </div>
-              )}
+
+              {/* Show Discount row (existing + currently entered, for live preview) */}
+              {(() => {
+                const liveAdd = Math.max(Number(discountAmount || 0), 0);
+                const totalDiscountShow = existingDiscountTotal + liveAdd;
+                return totalDiscountShow > 0 ? (
+                  <div className="flex justify-between items-center sm:text-base text-sm ">
+                    <span className="text-gray-300">Discount</span>
+                    <span className="text-red-300 font-medium">
+                      -{currency}
+                      {totalDiscountShow.toFixed(2)}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Net Payable after discount (live) */}
+             
 
               <AnimatePresence>
                 {bill.paymentStatus === "partial" && (
@@ -510,16 +522,20 @@ export const BillDetailModal = ({
                         {(toNum(bill.paidAmount || 0)).toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-xs sm:text-sm">
-                      <span className="text-orange-400">Pending Amount</span>
-                      <span className="text-orange-400 font-medium">
-                        {currency}
-                        {(bill.balanceAmount || (grandTotal - (bill.paidAmount || 0))).toFixed(2)}
-                      </span>
-                    </div>
+                    
                   </motion.div>
                 )}
               </AnimatePresence>
+               {(() => {
+                const liveAdd = Math.max(Number(discountAmount || 0), 0);
+                const net = Math.max(0, grandTotal - (existingDiscountTotal + liveAdd));
+                return (
+                  <div className="flex justify-between items-center text-sm sm:text-base font-semibold">
+                    <span className="text-gray-200">Net Payable</span>
+                    <span className="text-white">{currency}{net.toFixed(2)}</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -549,7 +565,7 @@ export const BillDetailModal = ({
                 </div>
 
                 {isEditingPayment && (
-          <div className="space-y-4">
+                  <div className="space-y-4">
                
                     <div className="flex gap-2 items-center mt-2">
                      <p className="text-base font-normal leading-none">Mark Full Paid</p>
@@ -583,41 +599,14 @@ export const BillDetailModal = ({
                               id="partial-amount"
                               type="number"
                               min="0"
-                              max={maxBalance}
+                              max={grandTotal}
                               step="1"
                               value={partialAmount}
-                              onChange={(e) => {
-                                const next = e.target.value;
-                                const pn = Math.max(Number(next || 0), 0);
-                                const newMax = Math.max(0, preDiscountTotal - alreadyPaidView - pn);
-                                const curDisc = Number(discountValue || 0);
-                                if (curDisc > newMax) setDiscountValue(String(newMax));
-                                setPartialAmount(next);
-                              }}
+                              onChange={(e) => setPartialAmount(e.target.value)}
                               placeholder="0"
                               className="bg-gray-900 border-gray-600 text-white"
                             />
-                            {/* Discount input below Amount Received */}
-                            <div className="mt-3">
-                              <Label htmlFor="discount-modal-input" className="text-xs text-gray-400">Discount</Label>
-                              <Input
-                                id="discount-modal-input"
-                                type="number"
-                                min="0"
-                                max={dynamicMaxDiscount}
-                                step="1"
-                                value={discountValue}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const n = Number(raw);
-                                  const safe = Number.isFinite(n) ? Math.max(0, Math.min(n, dynamicMaxDiscount)) : 0;
-                                  setDiscountValue(String(safe));
-                                }}
-                                placeholder="0"
-                                className="bg-gray-900 border-gray-600 text-white"
-                              />
-                            </div>
-                            {paymentMode === "partial" && (!partialAmount || Number(partialAmount) <= 0) && (grandTotal - toNum(bill.paidAmount || 0) > 0) && (
+                            {paymentMode === "partial" && (!partialAmount || Number(partialAmount) <= 0) && (
                               <p className="mt-1 text-xs text-gray-400">
                                 Enter an amount greater than 0 to enable Save.
                               </p>
@@ -625,42 +614,77 @@ export const BillDetailModal = ({
                           </div>
                           {/* Quick chips removed */}
 
-                          {/* Live summary (always visible, reflects discount and amount) */}
+                          {/* Live summary */}
                           <AnimatePresence>
-                            <motion.div
-                              key="partial-controls"
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2, ease: "easeOut" }}
-                              className="space-y-1 overflow-hidden"
-                            >
-                              <div className="flex justify-between text-gray-400 text-sm">
-                                <span>Already paid:</span>
-                                <span className="text-green-400">
-                                  {currency}
-                                  {alreadyPaidView.toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-gray-400 text-sm">
-                                <span>New total paid:</span>
-                                <span className="text-green-400">
-                                  {currency}
-                                  {newPaidPreview.toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-gray-400 text-sm">
-                                <span>Will remain pending:</span>
-                                <span className="text-orange-400">
-                                  {currency}
-                                  {newPendingPreview.toFixed(2)}
-                                </span>
-                              </div>
-                            </motion.div>
+                            {Number(partialAmount) >= 0 && partialAmount !== "" && (
+                             <motion.div
+                             key="partial-controls"
+                             initial={{ height: 0, opacity: 0 }}
+                             animate={{ height: "auto", opacity: 1 }}
+                             exit={{ height: 0, opacity: 0 }}
+                             transition={{ duration: 0.2, ease: "easeOut" }}
+                             className="space-y-1 overflow-hidden"
+                           >
+                                <div className="flex justify-between text-gray-400 text-sm">
+                                  <span>Already paid:</span>
+                                  <span className="text-green-400">
+                                    {currency}
+                                    {toNum(bill.paidAmount || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-gray-400 text-sm">
+                                  <span>New total paid:</span>
+                                  <span className="text-green-400">
+                                    {currency}
+                                    {(() => {
+                                      const effectiveGrand = getEffectiveGrandTotal();
+                                      return Math.min(
+                                        toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0),
+                                        effectiveGrand
+                                      ).toFixed(2);
+                                    })()}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-gray-400 text-sm">
+                                  <span>Will remain pending:</span>
+                                  <span className="text-orange-400">
+                                    {currency}
+                                    {(() => {
+                                      const effectiveGrand = getEffectiveGrandTotal();
+                                      return Math.max(
+                                        0,
+                                        effectiveGrand -
+                                          Math.min(
+                                            toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0),
+                                            effectiveGrand
+                                          )
+                                      ).toFixed(2);
+                                    })()}
+                                  </span>
+                                </div>
+                              </motion.div>
+                            )}
                           </AnimatePresence>
                         </motion.div>
                       )}
                     </AnimatePresence>
+
+                    {/* Discount input (applies to both modes) */}
+                    <div>
+                      <Label htmlFor="discount-amount" className="text-xs text-gray-400">
+                        Add Discount (will be added to existing discount)
+                      </Label>
+                      <Input
+                        id="discount-amount"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={discountAmount}
+                        onChange={(e) => setDiscountAmount(e.target.value)}
+                        placeholder="0"
+                        className="bg-gray-900 border-gray-600 text-white"
+                      />
+                    </div>
 
                     {/* Payment Action Buttons */}
                     <div className="flex gap-3 pt-2">
@@ -686,11 +710,11 @@ export const BillDetailModal = ({
                         onClick={handlePaymentUpdate}
                         disabled={
                           isUpdatingPayment ||
-                          (paymentMode === "partial" &&
-                            !(
-                              Number(partialAmount) > 0 ||
-                              (grandTotal - toNum(bill.paidAmount || 0) <= 0)
-                            ))
+                          (
+                            paymentMode === "partial" &&
+                            (!partialAmount || Number(partialAmount) <= 0) &&
+                            (!discountAmount || Number(discountAmount) <= 0)
+                          )
                         }
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white">
                         {isUpdatingPayment ? (

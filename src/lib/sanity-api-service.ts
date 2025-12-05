@@ -657,6 +657,7 @@ export const billApiService = {
     try {
       const query = `*[_type == "bill"] {
         ...,
+        "discount": coalesce(discount, discountAmount, 0),
         customer->{
           _id,
           name,
@@ -693,6 +694,7 @@ export const billApiService = {
     try {
       const query = `*[_type == "bill" && _id == $billId][0] {
         ...,
+        "discount": coalesce(discount, discountAmount, 0),
         customer->{
           _id,
           name,
@@ -722,6 +724,7 @@ export const billApiService = {
           },
           quantity,
           unitPrice,
+          discount,
           totalPrice
         }
       }`;
@@ -744,6 +747,7 @@ export const billApiService = {
     try {
       const query = `*[_type == "bill" && customer._ref == $customerId] {
         ...,
+        "discount": coalesce(discount, discountAmount, 0),
         customer->{
           _id,
           name,

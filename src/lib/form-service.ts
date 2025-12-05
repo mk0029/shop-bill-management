@@ -106,7 +106,7 @@ export async function saveDraftBill(billData: {
   // Backward/forward compatibility: allow repairFee as alias of repairCharges
   repairFee?: number;
   laborCharges?: number;
-  discountAmount?: number;
+  discount?: number;
   notes?: string;
   paymentStatus?: "pending" | "partial" | "paid";
   paidAmount?: number;
@@ -144,8 +144,8 @@ export async function saveDraftBill(billData: {
       billData.repairCharges ?? (billData as any).repairFee ?? 0
     );
     const laborCharges = Number(billData.laborCharges || 0);
-    const discountAmount = Number(billData.discountAmount || 0);
-    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges + laborCharges - discountAmount);
+    const discount = Number(billData.discount || 0);
+    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges + laborCharges);
 
     const newDraft = {
       _type: "bill",
@@ -163,7 +163,7 @@ export async function saveDraftBill(billData: {
       repairFee: repairCharges,
       laborCharges,
       subtotal,
-      discountAmount,
+      discount,
       totalAmount,
       paymentStatus: billData.paymentStatus || "pending",
       paidAmount: Number(billData.paidAmount || 0),
@@ -219,7 +219,7 @@ export async function updateDraftBill(
     // Allow repairFee as alias
     repairFee: number;
     laborCharges: number;
-    discountAmount: number;
+    discount: number;
     notes: string;
     paymentStatus: "pending" | "partial" | "paid";
     paidAmount: number;
@@ -252,8 +252,8 @@ export async function updateDraftBill(
       updates.repairCharges ?? (updates as any).repairFee ?? 0
     );
     const laborCharges = Number(updates.laborCharges || 0);
-    const discountAmount = Number((updates as any).discountAmount || 0);
-    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges + laborCharges - discountAmount);
+    const discount = Number((updates as any).discount || 0);
+    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges + laborCharges);
 
     const patch: any = {
       ...(updates.customerId
@@ -267,7 +267,7 @@ export async function updateDraftBill(
       repairFee: repairCharges,
       laborCharges,
       subtotal,
-      discountAmount,
+      discount,
       totalAmount,
       paymentStatus: updates.paymentStatus || "pending",
       paidAmount: Number(updates.paidAmount || 0),
@@ -654,7 +654,7 @@ export async function createBill(billData: {
   // Allow repairFee as alias
   repairFee?: number;
   laborCharges?: number;
-  discountAmount?: number;
+  discount?: number;
   notes?: string;
   paymentStatus?: "pending" | "partial" | "paid";
   paidAmount?: number;
@@ -775,10 +775,10 @@ export async function createBill(billData: {
     const repairChargesInput = billData.repairCharges ?? (billData as any).repairFee ?? 0;
     const repairCharges = Number(repairChargesInput);
     const laborCharges = Number(billData.laborCharges || 0);
-    const discountAmount = Number(billData.discountAmount || 0);
+    const discount = Number(billData.discount || 0);
     const totalAmount = Math.max(
       0,
-      Number(subtotal) + homeVisitFee + repairCharges + laborCharges - discountAmount
+      Number(subtotal) + homeVisitFee + repairCharges + laborCharges - discount
     );
 
     // Determine current actor (admin/technician) to set as bill.technician
@@ -798,7 +798,7 @@ export async function createBill(billData: {
       repairFee: repairCharges,
       laborCharges,
       subtotal,
-      discountAmount,
+      discount,
       totalAmount,
       paymentStatus: billData.paymentStatus || "pending",
       paidAmount: billData.paidAmount || 0,

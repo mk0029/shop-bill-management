@@ -36,7 +36,7 @@ export interface Bill {
   laborCharges: number;
   subtotal: number;
   taxAmount: number;
-  discountAmount: number;
+  discount: number;
   totalAmount: number;
   paymentStatus: string;
   paymentMethod?: string;
