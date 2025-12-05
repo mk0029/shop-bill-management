@@ -776,10 +776,10 @@ export async function createBill(billData: {
     const repairCharges = Number(repairChargesInput);
     const laborCharges = Number(billData.laborCharges || 0);
     const discount = Number(billData.discount || 0);
-    const totalAmount = Math.max(
-      0,
-      Number(subtotal) + homeVisitFee + repairCharges + laborCharges - discount
-    );
+    // Gross total before discount (to be persisted as totalAmount)
+    const grossTotal = Math.max(0, Number(subtotal) + homeVisitFee + repairCharges + laborCharges);
+    // Net payable after discount (used for balance/payment flows and notifications)
+    const netPayable = Math.max(0, grossTotal - discount);
 
     // Determine current actor (admin/technician) to set as bill.technician
     const actorId = getActorUserId();
@@ -799,10 +799,10 @@ export async function createBill(billData: {
       laborCharges,
       subtotal,
       discount,
-      totalAmount,
+      totalAmount: grossTotal,
       paymentStatus: billData.paymentStatus || "pending",
       paidAmount: billData.paidAmount || 0,
-      balanceAmount: billData.balanceAmount || totalAmount,
+      balanceAmount: billData.balanceAmount ?? netPayable,
       status: "draft",
       priority: "medium",
       notes: billData.notes,
@@ -846,12 +846,12 @@ export async function createBill(billData: {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: `Bill created: ${billNumber}`,
-            body: `Your bill ${billNumber} has been created. Total: ₹${totalAmount}`,
+            body: `Your bill ${billNumber} has been created. Total: ₹${grossTotal}`,
             userIds: [customerUserId],
             data: {
               billId: String(createdId),
               billNumber: String(billNumber),
-              totalAmount: String(totalAmount),
+              totalAmount: String(grossTotal),
               event: 'bill-created',
               role: 'customer',
               customerId: String(customerUserId),
@@ -872,7 +872,7 @@ export async function createBill(billData: {
             body: JSON.stringify({
               audience: 'admins',
               title: 'Bill created',
-              body: `Bill ${billNumber} created • Total ₹${totalAmount}`,
+              body: `Bill ${billNumber} created • Total ₹${grossTotal}`,
               data: { billId: String(createdId), billNumber: String(billNumber), event: 'bill-created', role: 'admin', customerId: String(billData.customerId) },
               excludeUserIds: actorId ? [actorId] : undefined,
             }),
@@ -885,9 +885,9 @@ export async function createBill(billData: {
         data: {
           ...result,
           billNumber,
-          totalAmount,
+          totalAmount: grossTotal,
         },
-        message: `Bill ${billNumber} has been created successfully! Total: ₹${totalAmount}`,
+        message: `Bill ${billNumber} has been created successfully! Total: ₹${grossTotal}`,
       };
     } catch (transactionError) {
       console.error("❌ Failed to create bill transaction:", transactionError);

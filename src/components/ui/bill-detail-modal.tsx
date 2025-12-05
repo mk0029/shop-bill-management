@@ -123,7 +123,13 @@ export const BillDetailModal = ({
   // Prefer explicit totals from bill to match list cards
   const explicitTotal = toNum((bill as any).totalAmount ?? (bill as any).total);
   const grandTotal = explicitTotal > 0 ? explicitTotal : itemsTotal + additionalCharges;
-  const existingDiscountTotal = toNum((bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0);
+  const existingDiscountTotal = toNum(
+    (bill as any)?.discount ??
+      (bill as any)?.discountAmount ??
+      (bill as any)?.customerDiscount ??
+      (bill as any)?.appliedDiscount ??
+      0
+  );
   const getEffectiveGrandTotal = () => {
     const addDiscount = Math.max(Number(discountAmount || 0), 0);
     return Math.max(0, grandTotal - (existingDiscountTotal + addDiscount));

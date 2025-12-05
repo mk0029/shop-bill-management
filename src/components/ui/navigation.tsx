@@ -67,7 +67,7 @@ const adminNavigation: NavigationItem[] = [
     children: [
       { label: "All Bills", href: "/admin/billing", icon: FileText },
       { label: "Create Bill", href: "/admin/billing/create?fresh=1", icon: Plus },
-      { label: "Fitting/Wiring Bill", href: "/admin/billing/fitting-wiring", icon: FileText },
+      { label: "Estimate Fitting Cost", href: "/admin/billing/fitting-wiring", icon: FileText },
       { label: "Draft Bills", href: "/admin/billing/drafts", icon: FileText },
     ],
   },

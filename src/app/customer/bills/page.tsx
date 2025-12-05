@@ -734,7 +734,7 @@ export default function CustomerBillsPage() {
               <h4 className="font-medium text-white mb-3">Charges & Totals</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                {selectedBill.subtotal !== selectedBill.totalAmount && <div>
-                  <p className="text-gray-400">Subtotal</p>
+                  <p className="text-gray-400">Items Subtotal</p>
                   <p className="text-white">
                     {currency}
                     {selectedBill.subtotal?.toLocaleString() || "-"}
