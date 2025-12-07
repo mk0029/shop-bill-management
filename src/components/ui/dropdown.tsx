@@ -142,7 +142,7 @@ export function Dropdown({
           classNameButton
         )}>
         <span
-          className={`leading-none text-sm ${
+          className={`leading-none text-sm min-w-0 truncate ${
             selectedOption ? "text-white" : "text-gray-400"
           }`}>
           {selectedOption ? selectedOption.label : placeholder}
@@ -185,7 +185,7 @@ export function Dropdown({
                   onClick={() => !option.disabled && handleSelect(option.value)}
                   disabled={option.disabled}
                   className={cn(
-                    "w-full px-3 py-1.5 sm:py-2 text-left text-sm transition-colors duration-150 flex items-center justify-between touch-manipulation",
+                    "border-b border-white/20 w-full px-3 py-1.5 sm:py-2 text-left text-sm transition-colors duration-150 flex items-center justify-between touch-manipulation",
                     option.disabled
                       ? "text-gray-500 cursor-not-allowed"
                       : "text-white hover:bg-gray-700 cursor-pointer",

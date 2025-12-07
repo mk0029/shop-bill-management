@@ -50,7 +50,7 @@ export interface BillDetails {
   notes?: string;
   internalNotes?: string;
   billId?: string;
-}
+};
 
 // Sanitize displayed text by removing content enclosed in (), {}, [], quotes, and markdown * or **
 const sanitizeUserText = (text: string): string => {
@@ -76,6 +76,16 @@ const sanitizeUserText = (text: string): string => {
   }
 };
 
+// Convert snake_case or kebab-case to human readable Title Case (e.g., "Fitting_wiring" -> "Fitting Wiring")
+const humanize = (text?: string): string => {
+  if (!text) return "";
+  const replaced = text.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  return replaced
+    .split(" ")
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+};
+
 export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â‚¹') {
   const itemsTotal =
     bill.items?.reduce(
@@ -91,10 +101,9 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
 
   const computedTotal = Math.max(0, itemsTotal + additionalCharges - (bill.discount || 0));
 
-  const grandTotal =
-    (typeof (bill as any).grandTotal === "number"
-      ? (bill as any).grandTotal
-      : undefined) ?? computedTotal;
+  // Use the computed total as the source of truth to ensure discount is deducted
+  // even if an external grandTotal is provided without discount applied.
+  const effectiveTotal = computedTotal;
 
   const passKey = bill.customerAuth?.secretKey || (bill as any)?.customer?.secretKey;
   const phone = bill.customer?.phone?.replace(/\D/g, "") || "";
@@ -113,9 +122,10 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
   const items =
     bill.items
       ?.map((item: any) => {
-        const baseName = item.productName || item.name || "Item";
+        const baseNameRaw = item.productName || item.name || "Item";
+        const baseName = humanize(baseNameRaw);
 
-        const category =
+        const categoryRaw =
           item.categoryName ||
           item.category ||
           item.catogary ||
@@ -123,16 +133,20 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
           item.product?.category ||
           item.category?.name;
 
+        const category = humanize(categoryRaw);
+
         const nameWithCategory = category ? `${baseName} (${category})` : baseName;
 
-        return `â€¢ ${nameWithCategory}: ${item.quantity} ${item.unit || "pcs"} x ${currency}${(
+        const unit = humanize(item.unit) || "pcs";
+
+        return `â€¢ ${nameWithCategory}: ${item.quantity} ${unit} x ${currency}${(
           item.unitPrice || item.price
         ).toFixed(2)} = ${currency}${(item.totalPrice || item.total).toFixed(2)}`;
       })
       .join("\n") || "";
 
   // Final Total / Paid / Balance logic
-  const total = grandTotal || 0;
+  const total = effectiveTotal || 0;
   const paid = bill.paidAmount || 0;
   const rawBalance = total - paid;
   const balance = paid >= total ? 0 : Math.max(0, rawBalance);
@@ -151,7 +165,7 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
   }
 
   if (bill.serviceType) {
-    message += `*Service:* ${bill.serviceType.charAt(0).toUpperCase() + bill.serviceType.slice(1)}\n`;
+    message += `*Service:* ${humanize(bill.serviceType)}\n`;
   }
 
   const serviceDateValue = bill.serviceDate ?? bill.createdAt;
@@ -160,7 +174,7 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
   }
 
   if (bill.priority) {
-    message += `*Priority:* ${bill.priority.charAt(0).toUpperCase() + bill.priority.slice(1)}\n`;
+    message += `*Priority:* ${humanize(bill.priority)}\n`;
   }
 
   message += `\n*Items:*\n${items}\n`;
@@ -191,22 +205,20 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
   return message;
 }
 
-
 export async function shareBillOnWhatsApp(bill: BillDetails): Promise<void> {
   let phone = bill.customer?.phone?.replace(/\D/g, "") || "";
 
-if (!phone) {
-  toast.error(
-    "âŒ Unable to share bill - Customer's phone number not found. Please add a phone number to the customer's profile."
-  );
-  return;
-}
+  if (!phone) {
+    toast.error(
+      "âŒ Unable to share bill - Customer's phone number not found. Please add a phone number to the customer's profile."
+    );
+    return;
+  }
 
-// If number length > 10, trim to last 10 digits
-if (phone.length > 10) {
-  phone = phone.slice(-10);
-}
-
+  // If number length > 10, trim to last 10 digits
+  if (phone.length > 10) {
+    phone = phone.slice(-10);
+  }
 
   const message = generateWhatsAppMessage(bill);
   const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
