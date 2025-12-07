@@ -124,7 +124,7 @@ export const RealtimeInventoryHeader = ({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-            Inventory Management
+            Inventory Management 
           </h1>
         
         </div>

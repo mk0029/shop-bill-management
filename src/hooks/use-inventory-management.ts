@@ -13,8 +13,8 @@ export const useInventoryManagement = () => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
-  const [sortBy, setSortBy] = useState("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -83,8 +83,12 @@ export const useInventoryManagement = () => {
     const matchesBrand =
       selectedBrand === "all" || product.brand?.name === selectedBrand;
 
-    // Apply time filter against updatedAt primarily, fallback to createdAt
-    const dateRef = (product as any).updatedAt || (product as any).createdAt;
+    // Apply time filter against updatedAt primarily, fallback to createdAt (support Sanity underscore fields)
+    const dateRef =
+      (product as any).updatedAt ||
+      (product as any).createdAt ||
+      (product as any)._updatedAt ||
+      (product as any)._createdAt;
     const matchesTime = withinTimeRange(dateRef);
 
     return matchesSearch && matchesCategory && matchesBrand && matchesTime;
@@ -93,8 +97,16 @@ export const useInventoryManagement = () => {
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     // Handle date fields explicitly
     if (sortBy === "createdAt" || sortBy === "updatedAt") {
-      const av = new Date((a as any)[sortBy] || 0).getTime();
-      const bv = new Date((b as any)[sortBy] || 0).getTime();
+      const aDate =
+        (a as any)[sortBy] ||
+        (a as any)[`_${sortBy}`] ||
+        0;
+      const bDate =
+        (b as any)[sortBy] ||
+        (b as any)[`_${sortBy}`] ||
+        0;
+      const av = new Date(aDate).getTime();
+      const bv = new Date(bDate).getTime();
       return sortOrder === "asc" ? av - bv : bv - av;
     }
 
