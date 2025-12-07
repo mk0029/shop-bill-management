@@ -261,7 +261,16 @@ export const useMultipleInventoryForm = () => {
         
         // Log any failures
         if (failed.length > 0) {
-          console.warn("Some products failed to create:", failed);
+          console.error("❌ Some products failed to create:");
+          // Print a concise table for quick diagnosis
+          console.table(
+            failed.map((f: any) => ({
+              name: f?.product?.name,
+              brandId: f?.product?.brandId,
+              categoryId: f?.product?.categoryId,
+              error: f?.error,
+            }))
+          );
         }
       } else {
         console.error("❌ Bulk product creation failed:", bulkResult.error);

@@ -46,7 +46,11 @@ export const bulkInventoryApi = {
     };
   }>> {
     try {
-      const results = {
+      const results: {
+        successful: Array<{ name: string; productId: string; inventory: BulkProductData["inventory"]; pricing: BulkProductData["pricing"] }>;
+        failed: Array<{ product: BulkProductData; error: string }>;
+        summary: { total: number; successful: number; failed: number };
+      } = {
         successful: [],
         failed: [],
         summary: {
@@ -71,10 +75,13 @@ export const bulkInventoryApi = {
             name: productData.name + ' - ' + productData.brandName,
             slug: {
               _type: "slug",
-              current: (productData.name + productData.brandName)
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9-]/g, ""),
+              current: (
+                (productData.name + ' ' + productData.brandName)
+                  .toLowerCase()
+                  .replace(/\s+/g, "-")
+                  .replace(/[^a-z0-9-]/g, "") + '-' +
+                productId.toLowerCase().replace(/[^a-z0-9-]/g, "")
+              ),
             },
             description: productData.description,
             brand: { _type: "reference", _ref: productData.brandId },
@@ -136,10 +143,16 @@ export const bulkInventoryApi = {
             },
           };
         } catch (error) {
+          const err: any = error as any;
+          const detailedMessage =
+            err?.response?.body?.error?.description ||
+            err?.response?.body?.message ||
+            err?.message ||
+            "Unknown error";
           return {
             success: false,
             product: productData,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: detailedMessage,
           };
         }
       });
@@ -155,15 +168,16 @@ export const bulkInventoryApi = {
             results.summary.successful++;
           } else {
             results.failed.push({
-              product: result.value.product,
-              error: result.value.error,
+              product: result.value.product as BulkProductData,
+              error: result.value.error as string,
             });
             results.summary.failed++;
           }
         } else {
           results.failed.push({
-            product: null,
-            error: result.reason?.message || "Promise rejected",
+            // When Promise rejected before building payload, include a minimal placeholder
+            product: productsData[0],
+            error: (result as any).reason?.message || "Promise rejected",
           });
           results.summary.failed++;
         }
