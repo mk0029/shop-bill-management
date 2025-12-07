@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useAuthStore } from "@/store/auth-store";
 import { useDataStore } from "@/store/data-store";
 import { sanityClient } from "@/lib/sanity";
 import {
@@ -28,7 +28,7 @@ interface AdminUser {
 
 export const useAdminManagement = () => {
   const router = useRouter();
-  const { user: clerkUser } = useUser();
+  const { user: authUser } = useAuthStore();
   const { users: admins, fetchUsers: fetchAdmins } = useDataStore() as any;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +53,7 @@ export const useAdminManagement = () => {
   // Check if admin management is enabled and user has permission
   const canManageAdmins =
     isAdminManagementEnabled() &&
-    clerkUser?.emailAddresses?.[0]?.emailAddress === getSuperAdminEmail();
+    (authUser as any)?.email === getSuperAdminEmail();
 
   useEffect(() => {
     if (!canManageAdmins) {
@@ -125,7 +125,7 @@ export const useAdminManagement = () => {
         phone: newAdminForm.phone,
         role: newAdminForm.role,
         isActive: true,
-        createdBy: clerkUser?.id,
+        createdBy: (authUser as any)?.id || (authUser as any)?._id,
         createdAt: new Date().toISOString(),
         // Store hashed password or reference to Clerk user
         clerkId: "", // This would be set after Clerk user creation

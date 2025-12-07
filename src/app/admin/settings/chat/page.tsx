@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { toast } from 'sonner';
@@ -46,7 +45,6 @@ interface Attachment {
 
 export default function ChatManagementPage() {
   const router = useRouter();
-  const { getToken } = useAuth();
   const { rooms, loadRooms, messagesByRoomId, fetchMessages } = useChatStore();
   
   const [isLoading, setIsLoading] = useState(false);
@@ -126,13 +124,10 @@ export default function ChatManagementPage() {
     
     setIsDeleting(true);
     try {
-      const token = await getToken();
-      
       const response = await fetch(`/api/chat/room/${roomToDelete._id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
       });
       
@@ -167,13 +162,10 @@ export default function ChatManagementPage() {
     
     setIsDeleting(true);
     try {
-      const token = await getToken();
-      
       const response = await fetch(`/api/chat/message/${assetToDelete.messageId}/attachment/${assetToDelete._id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
       });
       

@@ -30,7 +30,6 @@ import { Dropdown } from "./dropdown";
 import NotificationsPopover from "@/components/ui/notifications-popover";
 import { canManageAdmins } from "@/lib/admin-utils";
 import { useAuthStore } from "@/store/auth-store";
-import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
 import { OnlineStatusToggle } from "@/components/online-status-toggle";
 import RoomsTopBar from "@/components/chat/RoomsTopBar";
@@ -151,7 +150,6 @@ export function Navigation() {
   const { role, logout, user } = useAuthStore();
   const { activeRoomId, setActiveRoom } = useChatStore();
   
-  const { user: clerkUser } = useUser();
   // Sanitize displayed text for non-admin users by removing content under specific characters
   const sanitizeUserText = (text: string): string => {
     try {
@@ -179,7 +177,7 @@ export function Navigation() {
   const displayName = role === "admin" ? rawDisplayName : (sanitizeUserText(rawDisplayName) || "User");
   // Filter admin navigation based on permissions
   const getFilteredAdminNavigation = () => {
-    const userEmail = clerkUser?.emailAddresses[0]?.emailAddress;
+    const userEmail = (user as any)?.email;
     const showAdminManagement = canManageAdmins(userEmail);
 
     return adminNavigation.filter((item) => {

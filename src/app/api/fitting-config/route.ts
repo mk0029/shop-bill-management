@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@sanity/client';
-import { auth } from '@clerk/nextjs/server';
 
 // Sanity client
 const getSanityClient = () => {
@@ -58,10 +57,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { userId, sessionClaims } = await auth();
-    if (!userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    const role = (sessionClaims as any)?.role || (sessionClaims as any)?.publicMetadata?.role;
-    if (role !== 'admin') return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    // Custom auth: admin-only via header
+    const roleHeader = (req.headers.get('x-user-role') || '').toLowerCase();
+    if (roleHeader !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
 
     let body: unknown;
     try { body = await req.json(); } catch { return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 }); }

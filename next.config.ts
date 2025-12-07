@@ -1,16 +1,13 @@
-import type { NextConfig } from "next";
-import path from "path";
+ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
   // Use the default dist directory. Turbopack expects '.next' and may fail to
   // resolve certain internal modules (e.g. next/font loaders) when this is customized.
   distDir: ".next",
+  turbopack: {},
   images: {
     remotePatterns: [
       {
@@ -35,15 +32,6 @@ const nextConfig: NextConfig = {
   // Strip all console.* calls in production builds to keep output clean
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
-  },
-  webpack: (config) => {
-    // Enable '@' alias to map to the src directory
-    config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...(config.resolve.alias || {}),
-      ['@']: path.resolve(__dirname, 'src'),
-    };
-    return config;
   },
 };
 

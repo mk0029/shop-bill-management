@@ -10,7 +10,6 @@
         "fcm:server": "node index.js"
     },
     "dependencies": {
-        "@clerk/nextjs": "^6.32.0",
         "@hookform/resolvers": "^5.2.1",
         "@radix-ui/react-avatar": "^1.1.10",
         "@radix-ui/react-dialog": "^1.1.14",
@@ -34,10 +33,10 @@
         "framer-motion": "^12.23.12",
         "google-auth-library": "^9.14.1",
         "lucide-react": "^0.536.0",
-        "next": "15.4.5",
+        "next": "^16.0.7",
         "nprogress": "^0.2.0",
-        "react": "19.1.0",
-        "react-dom": "19.1.0",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
         "react-hook-form": "^7.62.0",
         "sanity": "^4.3.0",
         "sonner": "^2.0.7",
@@ -53,7 +52,7 @@
         "@types/socket.io-client": "^1.4.36",
         "autoprefixer": "^10.4.20",
         "eslint": "^9",
-        "eslint-config-next": "15.4.5",
+        "eslint-config-next": "16.0.7",
         "postcss": "^8.4.49",
         "tailwindcss": "^3.4.17",
         "typescript": "^5"

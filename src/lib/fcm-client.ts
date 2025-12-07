@@ -285,7 +285,6 @@ Usage example (React):
 
 import { useEffect } from 'react'
 import { initFCM, requestNotificationPermissionAndGetToken } from '@/lib/fcm-client'
-import { useAuth } from '@clerk/nextjs' // or your auth provider
 
 export function FCMInitializer() {
   const { userId } = useAuth()

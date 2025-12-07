@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@sanity/client';
-import { auth } from '@clerk/nextjs/server';
 import { sendToAll } from '@/lib/notification-service';
 
 type ShopStatus = 'offline' | 'online' | 'at_shop';
@@ -44,15 +43,12 @@ const mapStateToStatus = ({ isOnline, atShop }: { isOnline?: boolean; atShop?: b
 
 export async function POST(req: Request) {
   try {
-    
-    // Verify authentication
-    const { userId } = await auth();
-    
-    if (!userId) {
-      console.error('No user ID found in session');
+    // Verify authentication via custom header (admin only)
+    const roleHeader = (req.headers.get('x-user-role') || '').toLowerCase();
+    if (roleHeader !== 'admin') {
       return NextResponse.json(
-        { error: 'Unauthorized - No user session' },
-        { status: 401 }
+        { error: 'Forbidden' },
+        { status: 403 }
       );
     }
 
@@ -180,15 +176,7 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      console.error('No user ID found in session (GET)');
-      return NextResponse.json(
-        { error: 'Unauthorized - No user session' },
-        { status: 401 }
-      );
-    }
+    // Public GET (used by client to read status); no Clerk auth required
 
     // Fetch the current status from Sanity
     const client = getSanityClient();

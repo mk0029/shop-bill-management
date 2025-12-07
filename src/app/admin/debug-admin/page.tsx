@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useAuthStore } from "@/store/auth-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,9 +12,9 @@ import {
 import { Shield, User, Settings, CheckCircle, XCircle } from "lucide-react";
 
 export default function DebugAdminPage() {
-  const { user: clerkUser } = useUser();
+  const { user } = useAuthStore();
 
-  const userEmail = clerkUser?.emailAddresses[0]?.emailAddress;
+  const userEmail = (user as any)?.email;
   const adminManagementEnabled = isAdminManagementEnabled();
   const superAdminEmail = getSuperAdminEmail();
   const userIsSuperAdmin = isSuperAdmin(userEmail);
@@ -116,7 +116,7 @@ export default function DebugAdminPage() {
               <div className="space-y-2">
                 <p className="text-gray-400 text-sm">User Name</p>
                 <p className="text-white font-medium">
-                  {clerkUser?.fullName || clerkUser?.firstName || "Unknown"}
+                  {(user as any)?.name || (user as any)?.email?.split("@")[0] || "Unknown"}
                 </p>
               </div>
             </div>
@@ -149,11 +149,11 @@ export default function DebugAdminPage() {
               </div>
 
               <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-                <span className="text-gray-300">Clerk User ID</span>
+                <span className="text-gray-300">User ID</span>
                 <Badge
                   variant="outline"
                   className="text-blue-400 border-blue-400">
-                  {clerkUser?.id ? "Set" : "Not Set"}
+                  {((user as any)?.id || (user as any)?._id) ? "Set" : "Not Set"}
                 </Badge>
               </div>
             </div>

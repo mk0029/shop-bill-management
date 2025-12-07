@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuthStore } from "@/store/auth-store";
 import { useBills } from "@/hooks/use-sanity-api";
 
 export const useCustomerBills = () => {
-  const { user } = useUser();
+  const { user } = useAuthStore();
   const { getCustomerBills } = useBills();
   const [bills, setBills] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -14,10 +14,11 @@ export const useCustomerBills = () => {
   const [showBillModal, setShowBillModal] = useState(false);
 
   useEffect(() => {
-    if (user?.id) {
+    const uid = (user as any)?.id || (user as any)?._id || (user as any)?.customerId;
+    if (uid) {
       setIsLoading(true);
       getCustomerBills
-        .execute(user.id)
+        .execute(uid)
         .then((result: any) => {
           setBills(result?.data || []);
           setError(null);
@@ -25,12 +26,14 @@ export const useCustomerBills = () => {
         .catch((err) => setError(err))
         .finally(() => setIsLoading(false));
     }
-  }, [user?.id, getCustomerBills]);
+  }, [user, getCustomerBills]);
 
   // Filter bills for current customer
   const customerBills = bills.filter(
-    (bill) =>
-      bill.customer?.customerId === user?.id || bill.customer?._id === user?.id
+    (bill) => {
+      const uid = (user as any)?.id || (user as any)?._id || (user as any)?.customerId;
+      return bill.customer?.customerId === uid || bill.customer?._id === uid;
+    }
   );
 
   // Apply search and status filters
