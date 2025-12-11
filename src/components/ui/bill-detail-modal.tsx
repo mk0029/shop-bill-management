@@ -165,7 +165,9 @@ export const BillDetailModal = ({
     if (!paymentDetails) return;
     setIsUpdatingPayment(true);
     try {
-      await onUpdatePayment(bill._id || bill.id, {
+      const id = (bill as any)?._id ?? (bill as any)?.id ?? (bill as any)?.billId ?? (bill as any)?._ref;
+      if (!id) throw new Error("Missing bill id");
+      await onUpdatePayment(String(id), {
         ...paymentDetails,
         // Send discount only if provided and > 0
         ...(discountAmount !== "" && Number(discountAmount) > 0
@@ -216,7 +218,9 @@ export const BillDetailModal = ({
     };
     setIsUpdatingPayment(true);
     try {
-      await onUpdatePayment(bill._id || bill.id, {
+      const id = (bill as any)?._id ?? (bill as any)?.id ?? (bill as any)?.billId ?? (bill as any)?._ref;
+      if (!id) throw new Error("Missing bill id");
+      await onUpdatePayment(String(id), {
         ...target,
         ...(discountAmount !== "" && Number(discountAmount) > 0
           ? { discount: Number(discountAmount) }

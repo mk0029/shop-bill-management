@@ -2,6 +2,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useLocaleStore } from "@/store/locale-store";
 import type { CustomerWithStats } from "@/types/customer";
+import Link from "next/link";
 
 interface CustomerDetailModalProps {
   customer: CustomerWithStats | null;
@@ -22,6 +23,22 @@ export default function CustomerDetailModal({
 
   if (!customer) return null;
 
+  const formatDate = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      return new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(d);
+    } catch {
+      return iso;
+    }
+  };
+
   const customerDetails = [
     { label: "Phone", value: customer.phone },
     { label: "Location", value: customer.location },
@@ -30,8 +47,11 @@ export default function CustomerDetailModal({
       label: "Total Spent",
       value: `${currency}${customer.totalSpent.toLocaleString()}`,
     },
-    { label: "Last Bill", value: customer.lastBillDate || "No bills yet" },
-    { label: "Member Since", value: customer.createdAt },
+    {
+      label: "Last Bill",
+      value: customer.lastBillDate ? formatDate(customer.lastBillDate) : "No bills yet",
+    },
+    { label: "Member Since", value: formatDate(customer.createdAt) },
   ];
 
   return (
@@ -52,14 +72,49 @@ export default function CustomerDetailModal({
 
         {/* Customer Details Grid */}
         <div className="grid grid-cols-2 gap-4">
-          {customerDetails.map((detail, index) => (
-            <div
-              key={index}
-              className="p-3 bg-gray-800 rounded border border-gray-700">
-              <p className="text-sm text-gray-400">{detail.label}</p>
-              <p className="text-white">{detail.value}</p>
-            </div>
-          ))}
+          {customerDetails.map((detail, index) => {
+            const isPhone =
+              typeof detail.label === "string" &&
+              detail.label.toLowerCase() === "phone" &&
+              !!detail.value;
+            const isEmail =
+              typeof detail.label === "string" &&
+              detail.label.toLowerCase() === "email" &&
+              !!detail.value;
+
+            if (isPhone) {
+              return (
+                <Link
+                  key={index}
+                  href={`tel:${String(detail.value).replace(/\s+/g, "")}`}
+                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70">
+                  <p className="text-sm text-gray-400">{detail.label}</p>
+                  <p className="text-white">{detail.value}</p>
+                </Link>
+              );
+            }
+
+            if (isEmail) {
+              return (
+                <Link
+                  key={index}
+                  href={`mailto:${String(detail.value)}`}
+                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70">
+                  <p className="text-sm text-gray-400">{detail.label}</p>
+                  <p className="text-white">{detail.value}</p>
+                </Link>
+              );
+            }
+
+            return (
+              <div
+                key={index}
+                className="p-3 bg-gray-800 rounded border border-gray-700">
+                <p className="text-sm text-gray-400">{detail.label}</p>
+                <p className="text-white">{detail.value}</p>
+              </div>
+            );
+          })}
         </div>
 
         {/* Action Buttons */}

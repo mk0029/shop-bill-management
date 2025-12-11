@@ -14,7 +14,31 @@ export async function PATCH(
       );
     }
 
-    const { id } = params;
+    // Derive bill id from params or fallback to URL path as a safety net (handles trailing slashes)
+    const fromParams = (params as any)?.id as string | undefined;
+    const fromUrl = (() => {
+      try {
+        const u = new URL(req.url);
+        const parts = u.pathname.split('/').filter(Boolean); // remove empty segments
+        // Find the segment after 'bills'
+        const billsIndex = parts.lastIndexOf('bills');
+        if (billsIndex >= 0 && parts[billsIndex + 1]) return parts[billsIndex + 1];
+        // Otherwise, use the last non-empty segment as a fallback
+        return parts[parts.length - 1] || undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const id = String(fromParams || fromUrl || '').trim();
+    // Debug: log id derivation
+    try {
+      console.log("[API] PATCH /api/bills - id derivation", {
+        url: req.url,
+        fromParams,
+        fromUrl,
+        id,
+      });
+    } catch {}
     if (!id) {
       return NextResponse.json(
         { success: false, error: "Missing bill id" },

@@ -1045,13 +1045,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   updateBill: async (billId, updates) => {
     try {
+      const _id = String(billId ?? "").trim();
+      if (!_id) {
+        throw new Error("Missing bill id");
+      }
       // Use secure API route in the browser; direct Sanity patch on the server
       const isBrowser = typeof window !== "undefined";
       // Fetch previous bill snapshot for change detection
       let prev: any = null;
       if (isBrowser) {
         // Use local cached bill as previous state in browser
-        prev = get().bills.get(String(billId));
+        prev = get().bills.get(_id);
       } else {
         try {
           prev = await sanityClient.fetch(
@@ -1062,14 +1066,14 @@ export const useDataStore = create<DataStore>((set, get) => ({
               paymentStatus,
               customer->{ _id }
             }`,
-            { id: billId }
+            { id: _id }
           );
         } catch {}
       }
 
       let result: any = null;
       if (isBrowser) {
-        const res = await fetch(`/api/bills/${encodeURIComponent(String(billId))}`, {
+        const res = await fetch(`/api/bills/${encodeURIComponent(_id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updates),
@@ -1081,7 +1085,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         result = json?.data ?? null;
       } else {
         result = await sanityClient
-          .patch(billId)
+          .patch(_id)
           .set({
             ...updates,
             updatedAt: new Date().toISOString(),
@@ -1115,7 +1119,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 title: 'Bill updated',
                 body: `Status: ${String(nextStatus ?? 'updated')}`,
                 userIds: [customerId],
-                data: { billId: String((result as any)?._id ?? billId), role: 'customer', customerId: String(customerId) },
+                data: { billId: String((result as any)?._id ?? _id), role: 'customer', customerId: String(customerId) },
                 sound: 'default',
               }),
             }).catch(() => {});
@@ -1131,7 +1135,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 title: 'Bill updated',
                 body: billNo ? `Bill ${billNo} was updated` : 'Your bill was updated',
                 userIds: [customerId],
-                data: { billId: String((result as any)?._id ?? billId), event: 'bill-updated', role: 'customer', customerId: String(customerId) },
+                data: { billId: String((result as any)?._id ?? _id), event: 'bill-updated', role: 'customer', customerId: String(customerId) },
                 sound: 'default',
               }),
             }).catch(() => {});
@@ -1170,7 +1174,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
                 audience: 'admins',
                 title: 'Bill updated',
                 body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
-                data: { billId: String((result as any)?._id ?? billId), event: 'bill-updated', role: 'admin', customerId: String(prev?.customer?._id || '') },
+                data: { billId: String((result as any)?._id ?? _id), event: 'bill-updated', role: 'admin', customerId: String(prev?.customer?._id || '') },
                 excludeUserIds: actorId ? [actorId] : undefined,
               }),
             }).catch(() => {});
