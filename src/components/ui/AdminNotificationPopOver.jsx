@@ -47,6 +47,7 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen}) 
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium">{n.title}</p>
                   <p className="text-gray-400 text-sm whitespace-pre-line">{n.body}</p>
+                
                   {(n.meta?.user || n.meta?.userId) && (
                     <p className="text-gray-400 text-xs mt-1">
                       {n.meta?.user?.name && <span className="mr-2">{n.meta.user.name}</span>}
