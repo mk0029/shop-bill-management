@@ -29,7 +29,11 @@ interface AdminUser {
 export const useAdminManagement = () => {
   const router = useRouter();
   const { user: authUser } = useAuthStore();
-  const { users: admins, fetchUsers: fetchAdmins } = useDataStore() as any;
+  // Source of truth is a Map in the data store. Normalize to array for consumers.
+  const { users: adminsMap, fetchUsers: fetchAdmins } = useDataStore() as any;
+  const admins: AdminUser[] = Array.isArray(adminsMap)
+    ? (adminsMap as any)
+    : Array.from((adminsMap as Map<string, AdminUser>)?.values?.() ?? []);
 
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -93,9 +97,9 @@ export const useAdminManagement = () => {
     }
 
     // Check if email already exists
-    const emailExists = Array.from(admins.values()).some(
+    const emailExists = admins.some(
       (admin: any) =>
-        admin.email.toLowerCase() === newAdminForm.email.toLowerCase()
+        admin.email?.toLowerCase?.() === newAdminForm.email.toLowerCase()
     );
     if (emailExists) {
       newErrors.email = "An admin with this email already exists";

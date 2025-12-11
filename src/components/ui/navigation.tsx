@@ -100,11 +100,6 @@ const adminNavigation: NavigationItem[] = [
     icon: BarChart3,
   },
   {
-    label: "Admin Management",
-    href: "/admin/manage-admins",
-    icon: Shield,
-  },
-  {
     label: "Settings",
     href: "/admin/settings",
     icon: Settings,
