@@ -54,23 +54,34 @@ export default function AdminNotificationsPage({composerOpen, setComposerOpen, o
             const customerId = customerFromBill?._id
             const customerFromUsers = customerId ? (users as Map<string, any>)?.get?.(customerId) : undefined
             const derivedUser = (n as any)?.meta?.user || (customerFromBill || customerFromUsers)
+            // Build friendlier title/body for billing events
+            const customerName = (derivedUser as any)?.name
+            const lowerTitle = (n.title || "").toLowerCase()
+            const action = (n as any)?.meta?.action
+              || (lowerTitle.includes("bill updated") ? "updated"
+                : lowerTitle.includes("bill created") ? "created"
+                : undefined)
+            const displayTitle = (customerName && action)
+              ? `Bill ${action} for ${customerName}`
+              : (n.title || "").replace(/#?BILL[-\d]+/gi, "").trim() || n.title
+            const displayBody = (n.body || "").replace(/#?BILL[-\d]+/gi, "").replace(/\s{2,}/g, " ").trim()
             return (
               <div key={n.id} className="p-4 flex items-start gap-3">
                 <div className="mt-0.5">
                   <Badge variant="secondary" className="capitalize max-sm:!text-xs ">{n.type}</Badge>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{n.title}</p> 
-                  {(derivedUser || (n as any)?.meta?.userId) && (
+                  <p className="text-white font-medium">{displayTitle}</p> 
+                  {/* {(derivedUser || (n as any)?.meta?.userId) && (
                     <p className="text-white/80 text-sm mt-1">
                       {(derivedUser as any)?.name && <span className="mr-2">{(derivedUser as any).name}</span>}
                       {(derivedUser as any)?.email && <span className="mr-2">({(derivedUser as any).email})</span>}
-                      {/* <span className="text-gray-500">ID: {(derivedUser as any)?._id || (derivedUser as any)?.id || (n as any)?.meta?.userId}</span> */}
+                      <span className="text-gray-500">ID: {(derivedUser as any)?._id || (derivedUser as any)?.id || (n as any)?.meta?.userId}</span>
                     </p>
-                  )}
-                  <p className="text-gray-400 text-xs sm:text-sm whitespace-pre-line">{n.body}</p>
+                  )} */}
+                  <p className="text-gray-400 text-xs sm:text-sm whitespace-pre-line capitalize">{displayBody}</p>
                 
-                  <p className="text-gray-500 text-[9px] md:text-[11px] mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                  <p className="text-gray-500 text-[11px] sm:text-sm mt-0.5">{new Date(n.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {href && (

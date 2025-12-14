@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
@@ -46,6 +46,69 @@ export default function BulkAddInventoryPage() {
   // Track which accordion item is open; only one at a time
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // Helpers for normalization and matching
+  const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+
+  // Filtered suggestions per form based on current input (lowercase partial match)
+  const filteredProductsByForm = useMemo(() => {
+    const map: Record<string, typeof products> = {};
+    for (const form of formDataList) {
+      const query = normalize(form.productName || "");
+      map[form.id] = query
+        ? products.filter(
+            (p) => p.isActive && normalize(p.name).includes(query)
+          )
+        : products.filter((p) => p.isActive);
+    }
+    return map;
+  }, [formDataList, products]);
+
+  // Wrapped input change: keep user's casing/spaces, but match using normalized value
+  const handleNormalizedInputChange = (
+    formId: string,
+    field: string,
+    value: string
+  ) => {
+    if (field === "productName") {
+      // Keep what user typed (do not force lowercase or trim)
+      handleInputChange(formId, field, value);
+
+      const normalizedValue = normalize(value);
+
+      // Exact match -> auto-select existing item and populate
+      const exact = products.find(
+        (p) => normalize(p.name) === normalizedValue && p.isActive
+      );
+      if (exact) {
+        handleExistingProductSelect(formId, exact._id);
+        return;
+      }
+
+      // No exact match -> only clear the selection flag, keep typed name intact
+      handleInputChange(formId, "selectedExistingProduct", "");
+      return;
+    }
+
+    // Non-name fields pass through
+    handleInputChange(formId, field, value);
+  };
+
+  const onFormSubmit = (e: React.FormEvent) => {
+    // Ensure duplicates are prevented just before submit by auto-selecting matches
+    for (const form of formDataList) {
+      const normalized = normalize(form.productName || "");
+      if (!normalized) continue;
+      const exact = products.find(
+        (p) => p.isActive && normalize(p.name) === normalized
+      );
+      if (exact && form.selectedExistingProduct !== exact._id) {
+        handleExistingProductSelect(form.id, exact._id);
+      }
+    }
+    // Proceed with existing submit flow
+    handleSubmit(e);
+  };
+
   return (
     <div className="space-y-6 max-md:space-y-4 max-md:pb-4">
       {/* Header */}
@@ -62,7 +125,7 @@ export default function BulkAddInventoryPage() {
       
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4">
+      <form onSubmit={onFormSubmit} className="space-y-6 max-md:space-y-4">
         {formDataList.map((formData: InventoryFormData, index) => (
           <ResponsiveAccordion
             key={formData.id}
@@ -109,10 +172,10 @@ export default function BulkAddInventoryPage() {
                   formData={formData as any}
                   categories={categories}
                   brands={brands}
-                  products={products}
+                  products={filteredProductsByForm[formData.id] || products}
                   errors={errors[formData.id] || {}}
                   onInputChange={(field, value) =>
-                    handleInputChange(formData.id, field, value)
+                    handleNormalizedInputChange(formData.id, field, value)
                   }
                   onExistingProductSelect={(productId) =>
                     handleExistingProductSelect(formData.id, productId)

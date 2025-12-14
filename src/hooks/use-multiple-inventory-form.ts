@@ -5,6 +5,7 @@ import { useProducts, useBrands, useCategories } from "@/hooks/use-sanity-data";
 import { validateProduct } from "@/lib/dynamic-validation";
 import { useDynamicFieldRegistry } from "@/hooks/use-dynamic-field-registry";
 import { initFieldRegistry } from "@/lib/field-registry-init";
+import { inventoryApi, stockApi } from "@/lib/inventory-api";
 import type { Specification } from "@/store/inventory-store";
 
 export interface InventoryFormData {
@@ -181,15 +182,14 @@ export const useMultipleInventoryForm = () => {
     const categoryTitle = category?.name || "Unknown Category";
     const brandTitle = brand?.name || "Unknown Brand";
 
-    const forKey = Object.keys(formData.specifications).find(
-      (key) =>
-        key.endsWith("For") &&
-        formData.specifications[key] &&
-        formData.specifications[key].toString().trim() !== ""
-    );
+    const forKey = Object.keys(formData.specifications).find((key) => {
+      const val = (formData.specifications as Record<string, unknown>)[key];
+      return key.endsWith("For") && String(val ?? "").trim() !== "";
+    });
 
-    if (forKey && formData.specifications[forKey]) {
-      return `${categoryTitle} - ${formData.specifications[forKey]}`;
+    if (forKey) {
+      const val = (formData.specifications as Record<string, unknown>)[forKey];
+      return `${categoryTitle} - ${String(val ?? "")}`;
     }
 
     return `${categoryTitle} - ${brandTitle}`;
@@ -206,25 +206,44 @@ export const useMultipleInventoryForm = () => {
     // track successful names via API response below
 
     try {
-      setProgress({ current: 0, total: formDataList.length });
-      
-      // Prepare bulk products data
-      const bulkProductsData = formDataList.map((formData) => {
-        const brand = brands.find((b) => b._id === formData.brand);
+      // Normalize helper
+      const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
 
-        const productPayload = {
+      // Partition forms into updates (existing product) and creations (new)
+      const updates: Array<{ productId: string; quantity: number; unitPrice: number; name: string }> = [];
+      const creations: Array<any> = [];
+
+      for (const formData of formDataList) {
+        const qty = parseInt(formData.currentStock, 10) || 0;
+        const purchasePrice = parseFloat(formData.purchasePrice) || 0;
+        const targetName = normalize(formData.productName || "");
+
+        // Prefer explicit selection, else try exact normalized match
+        const existing = formData.selectedExistingProduct
+          ? products.find((p) => p._id === formData.selectedExistingProduct)
+          : products.find((p) => normalize(p.name) === targetName);
+
+        if (existing) {
+          if (qty > 0) {
+            updates.push({ productId: existing._id, quantity: qty, unitPrice: purchasePrice, name: existing.name });
+          }
+          continue;
+        }
+
+        const brand = brands.find((b) => b._id === formData.brand);
+        creations.push({
           name: formData.productName || generateProductName(formData),
           brandId: formData.brand,
           brandName: brand?.name || "",
           categoryId: formData.category,
           specifications: formData.specifications,
           pricing: {
-            purchasePrice: parseFloat(formData.purchasePrice) || 0,
+            purchasePrice,
             sellingPrice: parseFloat(formData.sellingPrice) || 0,
             unit: formData.unit,
           },
           inventory: {
-            currentStock: parseInt(formData.currentStock, 10) || 0,
+            currentStock: qty,
             minimumStock: 10,
             reorderLevel: 5,
           },
@@ -232,49 +251,55 @@ export const useMultipleInventoryForm = () => {
           tags: [],
           initialStockTransaction: {
             type: "purchase" as const,
-            quantity: parseInt(formData.currentStock, 10) || 0,
-            unitPrice: parseFloat(formData.purchasePrice) || 0,
+            quantity: qty,
+            unitPrice: purchasePrice,
             notes: `Bulk creation: ${formData.productName || generateProductName(formData)} - initial stock`,
           },
-        };
-
-        return productPayload;
-      });
-
-      // Use bulk API instead of individual calls
-      const { bulkInventoryApi } = await import("@/lib/inventory-bulk-api");
-      const bulkResult = await bulkInventoryApi.createBulkProducts(bulkProductsData);
-
-      if (bulkResult.success && bulkResult.data) {
-        const { successful: successfulProducts, failed, summary } = bulkResult.data;
-        
-        // Update progress to show completion
-        setProgress({ current: summary.successful, total: summary.total });
-        
-        // Collect successful product names
-        const successfulNames = successfulProducts.map((p: { name: string }) => p.name);
-        setSuccessfulProducts(successfulNames);
-        
-        if (successfulNames.length > 0) {
-          setShowSuccessPopup(true);
-        }
-        
-        // Log any failures
-        if (failed.length > 0) {
-          console.error("❌ Some products failed to create:");
-          // Print a concise table for quick diagnosis
-          console.table(
-            failed.map((f: any) => ({
-              name: f?.product?.name,
-              brandId: f?.product?.brandId,
-              categoryId: f?.product?.categoryId,
-              error: f?.error,
-            }))
-          );
-        }
-      } else {
-        console.error("❌ Bulk product creation failed:", bulkResult.error);
+        });
       }
+
+      setProgress({ current: 0, total: updates.length + creations.length });
+
+      // Perform stock updates first
+      const successNames: string[] = [];
+      for (const u of updates) {
+        const res = await stockApi.createStockTransaction({
+          productId: u.productId,
+          type: "purchase",
+          quantity: u.quantity,
+          unitPrice: u.unitPrice,
+        });
+        if (res.success) {
+          successNames.push(u.name);
+        }
+        setProgress((p) => ({ ...p, current: p.current + 1 }));
+      }
+
+      // Then create new products in bulk
+      if (creations.length > 0) {
+        const bulkResult = await inventoryApi.createBulkProducts(creations as any);
+        if (bulkResult.success && bulkResult.data) {
+          const { successful, failed, summary } = bulkResult.data as any;
+          successNames.push(...successful.map((p: { name: string }) => p.name));
+          setProgress((p) => ({ ...p, current: updates.length + summary.successful }));
+          if (failed?.length) {
+            console.error("❌ Some products failed to create:");
+            console.table(
+              failed.map((f: any) => ({
+                name: f?.product?.name,
+                brandId: f?.product?.brandId,
+                categoryId: f?.product?.categoryId,
+                error: f?.error,
+              }))
+            );
+          }
+        } else if (!bulkResult.success) {
+          console.error("❌ Bulk product creation failed:", bulkResult.error);
+        }
+      }
+
+      setSuccessfulProducts(successNames);
+      if (successNames.length > 0) setShowSuccessPopup(true);
     } catch (error) {
       console.error("Error in bulk product creation:", error);
     } finally {

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Package } from "lucide-react";
+import { Package, X } from "lucide-react";
 import { DynamicForm } from "@/components/dynamic-fields/dynamic-form";
 import { useDynamicFieldRegistry } from "@/hooks/use-dynamic-field-registry";
 import { useState } from "react";
@@ -58,42 +58,57 @@ export const BasicInfoSection = ({
           <Label htmlFor="productName" className="text-gray-300">
             Product Name *
           </Label>
-          <div className="flex w-full items-center gap-2">
-            <div className="flex-1">
-              <Input
-                id="productName"
-                value={formData.productName}
-                onChange={(e) => onInputChange("productName", e.target.value)}
-                className="flex-[0.8] bg-[#1e2530] border-gray-700 text-gray-300"
-                placeholder="Type new product name"
-                onFocus={() => setIsCustomNameFocused(true)}
-                onBlur={() => setIsCustomNameFocused(false)}
-                disabled={isExistingProductSelected}
-              />
-            </div>
+          <div className="w-full relative">
+            <Input
+              id="productName"
+              value={formData.productName}
+              onChange={(e) => onInputChange("productName", e.target.value)}
+              className="bg-[#1e2530] border-gray-700 text-gray-300"
+              placeholder="Type new product name"
+              onFocus={() => setIsCustomNameFocused(true)}
+              onBlur={() => setIsCustomNameFocused(false)}
+              disabled={isExistingProductSelected}
+              autoComplete="off"
+            />
+
+            {isExistingProductSelected && (
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                onClick={() => {
+                  onInputChange("selectedExistingProduct", "");
+                  onInputChange("productName", "");
+                }}
+                aria-label="Clear selected product"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
 
             <AnimatePresence initial={false}>
-              {products.length > 0 && !isCustomNameFocused && (
+              {isCustomNameFocused &&
+                !isExistingProductSelected &&
+                (formData.productName || "").trim().length > 0 &&
+                products.length > 0 && (
                 <motion.div
-                  className="flex-[0.2]"
-                  initial={{ opacity: 0, scale: 0.98, y: -4 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.98, y: -4 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-               >
-                  <Dropdown
-                    options={products
-                      .filter((product) => product.isActive && !product.deleted)
-                      .map((product) => ({
-                        value: product._id,
-                        label: product.name,
-                      }))}
-                    value={formData.selectedExistingProduct}
-                    onValueChange={onExistingProductSelect}
-                    placeholder="Select existing"
-                    className={`w-full !h-full bg-[#1e2530] border-gray-700 hover:bg-[#2a3441]`}
-                   
-                  />
+                  className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-md border border-gray-700 bg-[#1e2530] shadow-lg"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.12, ease: "easeOut" }}
+                >
+                  {products
+                    .filter((p) => p.isActive)
+                    .map((product) => (
+                      <button
+                        type="button"
+                        key={product._id}
+                        className="w-full text-left px-3 py-2 hover:bg-[#2a3441] text-gray-200"
+                        onMouseDown={() => onExistingProductSelect(product._id)}
+                      >
+                        {product.name}
+                      </button>
+                    ))}
                 </motion.div>
               )}
             </AnimatePresence>
