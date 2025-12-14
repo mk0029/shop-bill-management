@@ -238,19 +238,7 @@ export default function BulkAddInventoryPage() {
               <Plus className="w-4 h-4" />
               Add More Product
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                resetForms();
-                setOpenId(null);
-              }}
-              disabled={isLoading}>
-              Reset All
-            </Button>
-          </div>
-
-          <Button
+         <Button
             type="submit"
             variant="secondary"
             disabled={isLoading || formDataList.length === 0}>
@@ -266,7 +254,19 @@ export default function BulkAddInventoryPage() {
                 {formDataList.length !== 1 ? "s" : ""}
               </div>
             )}
-          </Button>
+          </Button>   
+          </div>
+
+          <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                resetForms();
+                setOpenId(null);
+              }}
+              disabled={isLoading}>
+              Reset All
+            </Button>
         </div>
       </form>
 

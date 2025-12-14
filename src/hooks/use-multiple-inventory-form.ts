@@ -16,6 +16,7 @@ export interface InventoryFormData {
   purchasePrice: string;
   sellingPrice: string;
   currentStock: string;
+  minimumStock: string;
   unit: string;
   description: string;
   specifications: Specification;
@@ -47,6 +48,7 @@ export const useMultipleInventoryForm = () => {
     purchasePrice: "",
     sellingPrice: "",
     currentStock: "",
+    minimumStock: "10",
     unit: "piece",
     description: "",
     specifications: {} as Specification,
@@ -122,6 +124,7 @@ export const useMultipleInventoryForm = () => {
                 purchasePrice: selectedProduct.pricing.purchasePrice.toString(),
                 sellingPrice: selectedProduct.pricing.sellingPrice.toString(),
                 currentStock: "",
+                minimumStock: String(selectedProduct.inventory?.minimumStock ?? "10"),
                 unit: selectedProduct.pricing.unit || "piece",
                 description: selectedProduct.description || "",
                 specifications: selectedProduct.specifications || {},
@@ -244,7 +247,7 @@ export const useMultipleInventoryForm = () => {
           },
           inventory: {
             currentStock: qty,
-            minimumStock: 10,
+            minimumStock: parseInt(formData.minimumStock, 10) || 0,
             reorderLevel: 5,
           },
           description: formData.description,

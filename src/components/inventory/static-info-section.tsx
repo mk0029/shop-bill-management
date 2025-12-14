@@ -39,7 +39,7 @@ export const StaticInfoSection = ({
               value={formData.unit}
               onValueChange={(value) => onInputChange("unit", value)}
               placeholder="Select unit"
-              className="bg-gray-800 border-gray-700"
+              className="bg-gray-800 border-gray-700 "
               disabled={isExistingProductSelected}
             />
             {errors.unit && (
@@ -62,6 +62,24 @@ export const StaticInfoSection = ({
             />
             {errors.currentStock && (
               <p className="text-red-400 text-sm">{errors.currentStock}</p>
+            )}
+          </div>
+
+          <div className="space-y-2 col-span-2 md:col-span-1">
+            <Label htmlFor="minimumStock" className="text-gray-300">
+              Minimum Stock
+            </Label>
+            <Input
+              id="minimumStock"
+              type="number"
+              min="0"
+              value={formData.minimumStock}
+              onChange={(e) => onInputChange("minimumStock", e.target.value)}
+              className="bg-gray-800 border-gray-700 text-white"
+              placeholder="Enter minimum stock"
+            />
+            {errors.minimumStock && (
+              <p className="text-red-400 text-sm">{errors.minimumStock}</p>
             )}
           </div>
         </div>
