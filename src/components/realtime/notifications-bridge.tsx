@@ -91,6 +91,36 @@ export default function NotificationsBridge() {
     on("inventory:low_stock", (p: { productName?: string; productId?: string; currentStock?: number; minimumStock?: number }) => {
       if (!shouldNotifyUser()) return; // Only admins should get inventory notifications
 
+      // De-duplicate rapid/repeat low-stock toasts for the same product + stock level
+      try {
+        if (typeof window !== "undefined") {
+          const key = "recentLowStockEvents";
+          const raw = window.sessionStorage.getItem(key);
+          const now = Date.now();
+          type Entry = { id: string; stock: number; t: number };
+          const list: Entry[] = raw ? JSON.parse(raw) : [];
+          const fresh = list.filter((x) => now - x.t < 10 * 60_000); // keep last 10 minutes
+          const id = String(p?.productId ?? "");
+          const stock = Number(p?.currentStock ?? NaN);
+          const existing = fresh.find((x) => x.id === id);
+          // Suppress if we've already notified for the same stock level recently
+          if (existing && Number.isFinite(stock) && existing.stock === stock) {
+            window.sessionStorage.setItem(key, JSON.stringify(fresh));
+            return;
+          }
+          // Update tracker: notify only when stock decreases further or no entry exists
+          if (Number.isFinite(stock)) {
+            const updated = [
+              ...fresh.filter((x) => x.id !== id),
+              { id, stock, t: now },
+            ];
+            window.sessionStorage.setItem(key, JSON.stringify(updated));
+          } else {
+            window.sessionStorage.setItem(key, JSON.stringify(fresh));
+          }
+        }
+      } catch {}
+
       add({
         type: "inventory",
         title: `Low stock: ${p?.productName ?? p?.productId}`,
