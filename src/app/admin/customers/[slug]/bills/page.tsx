@@ -9,16 +9,17 @@ import { Input } from "@/components/ui/input";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { useBills, useCustomers } from "@/hooks/use-sanity-data";
 import { useLocaleStore } from "@/store/locale-store";
-import { ArrowLeft, FileText, Search, MessageSquare } from "lucide-react";
+import { ArrowLeft, FileText, Search, MessageSquare, Share2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useChatStore } from "@/store/chat-store";
+import { sharePendingBills } from "@/lib/pending-bill-share";
 
 export default function CustomerBillsPage() {
   const params = useParams();
   const router = useRouter();
-  const customerId = params.slug as string;
+  const customerId = (params as { slug?: string } | null)?.slug as string;
   const { currency } = useLocaleStore();
 
   const { customers, isLoading: customersLoading } = useCustomers();
@@ -50,6 +51,8 @@ export default function CustomerBillsPage() {
       .filter((b) => b.paymentStatus !== "paid")
       .reduce((s, b) => s + (b.balanceAmount || b.totalAmount || 0), 0),
   };
+
+  const pendingBillsCount = customerBills.filter((b) => b.paymentStatus !== "paid").length;
 
   const statCards = [
     { label: "Total Bills", value: stats.totalBills, color: "text-white" },
@@ -89,6 +92,19 @@ export default function CustomerBillsPage() {
       router.push(`/admin/chats?customerId=${encodeURIComponent(String(customerId))}`);
     } catch {
       toast.error("❌ Unable to open chat. Please try again.");
+    }
+  };
+
+  const handleSharePendingBills = async () => {
+    try {
+      await sharePendingBills({
+        customer: { name: customer?.name, phone: customer?.phone },
+        pendingBillsCount,
+        pendingAmount: stats.pendingAmount,
+        currency,
+      });
+    } catch {
+      toast.error("❌ Unable to share pending bill details. Please try again.");
     }
   };
 
@@ -164,6 +180,10 @@ export default function CustomerBillsPage() {
           </p>
         </div></div>
         <div className="flex gap-2 max-md:justify-end">
+          <Button variant="secondary" onClick={handleSharePendingBills}>
+            <Share2 className="w-4 h-4 mr-2" />
+            Share Pending Bill Details
+          </Button>
           <Button variant="outline" onClick={handleOpenChat}>
             <MessageSquare className="w-4 h-4 mr-2" />
             Chat

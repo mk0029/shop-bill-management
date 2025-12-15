@@ -9,8 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 // Switch not needed after redesign of payment UI
-import { BillDetails, shareBillOnWhatsApp, shareBillViaSMS } from "@/lib/whatsapp-share";
-import { useLocaleStore } from "@/store/locale-store";
+import { BillDetails, shareBillOnWhatsApp, generateWhatsAppMessage } from "@/lib/whatsapp-share";import { useLocaleStore } from "@/store/locale-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Calendar,
@@ -785,52 +784,37 @@ export const BillDetailModal = ({
                 >
                   Check all bills
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    // Transform the bill object to match the BillDetails interface
-                    const billDetails: BillDetails = {
-                      ...bill,
-                      repairFee:
-                        (bill as any).repairFee ??
-                        (bill as any).repairCharges ??
-                        0,
-                      grandTotal: grandTotal,
-                      technician: bill.technician,
-                      customerAuth: {
-                        secretKey: bill.customer?.secretKey || undefined,
-                      },
-                    };
-                    shareBillOnWhatsApp(billDetails);
-                  }}
-                  className=" w-full flex-1 border-green-300 text-green-500 hover:bg-green-800 hover:text-white">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  <span className="sm:inline">WhatsApp</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const billDetails: BillDetails = {
-                      ...bill,
-                      repairFee:
-                        (bill as any).repairFee ??
-                        (bill as any).repairCharges ??
-                        0,
-                      grandTotal: grandTotal,
-                      technician: bill.technician,
-                      customerAuth: {
-                        secretKey: bill.customer?.secretKey || undefined,
-                      },
-                    };
-                    // Use customer's phone if available; otherwise open composer without recipient
-                    const recipient = bill.customer?.phone;
-                    shareBillViaSMS(billDetails, recipient);
-                  }}
-                  className="flex-1 w-full border-blue-300 text-blue-400 hover:bg-blue-800 hover:text-white">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  <span className="sm:inline">SMS</span>
-                </Button>
+             <Button
+  variant="outline"
+  onClick={() => {
+    // Transform the bill object to match the BillDetails interface
+    const billDetails: BillDetails = {
+      ...bill,
+      repairFee:
+        (bill as any).repairFee ??
+        (bill as any).repairCharges ??
+        0,
+      grandTotal: grandTotal,
+      technician: bill.technician,
+      customerAuth: {
+        secretKey: bill.customer?.secretKey || undefined,
+      },
+    };
+    const message = generateWhatsAppMessage(billDetails, currency);
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        (navigator as any).share({ text: message }).catch(() => {});
+        return;
+      }
+    } catch {}
+    // Fallback to WhatsApp
+    shareBillOnWhatsApp(billDetails);
+  }}
+  className=" w-full flex-1 border-green-300 text-green-500 hover:bg-green-800 hover:text-white"
+>
+  <Share2 className="w-4 h-4 mr-2" />
+  <span className="sm:inline">Share</span>
+</Button>
               </div>
             )}
 
