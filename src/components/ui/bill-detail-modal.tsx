@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 // Switch not needed after redesign of payment UI
 import { BillDetails, shareBillOnWhatsApp, generateWhatsAppMessage } from "@/lib/whatsapp-share";import { useLocaleStore } from "@/store/locale-store";
 import { AnimatePresence, motion } from "framer-motion";
@@ -817,6 +818,7 @@ export const BillDetailModal = ({
 </Button>
               </div>
             )}
+            
 
             {/* {onDownloadPDF && (
               <Button

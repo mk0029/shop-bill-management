@@ -97,11 +97,58 @@ export default function CustomerBillsPage() {
 
   const handleSharePendingBills = async () => {
     try {
+      const pending = customerBills.filter((b: any) => b.paymentStatus !== "paid");
+
+      const pendingBillsDetailed = pending.map((b: any) => {
+        const amount =
+          Number(
+            b.balanceAmount ??
+            b.totalAmount ??
+            b.total ??
+            0
+          ) || 0;
+
+        const tech =
+          typeof b.technician === "string"
+            ? b.technician
+            : b.technician?.name
+            ? { name: b.technician.name }
+            : undefined;
+
+        const items = Array.isArray(b.items)
+          ? b.items.map((it: any) => {
+              const qty = it?.qty ?? it?.quantity ?? it?.qtyCount;
+              const rate = it?.rate ?? it?.price ?? it?.unitPrice;
+              const amountLine =
+                it?.totalPrice ?? it?.amount ?? (Number(qty || 0) * Number(rate || 0) || undefined);
+              return {
+                name: it?.product?.name || it?.name,
+                qty: typeof qty === "number" ? qty : undefined,
+                rate: typeof rate === "number" ? rate : undefined,
+                amount: typeof amountLine === "number" ? amountLine : undefined,
+              };
+            })
+          : undefined;
+
+        return {
+          billId: b._id || b.id || b.billId,
+          billNumber: b.billNumber,
+          amount,
+          service: b.serviceType || b.service || b.title,
+          serviceDate: b.serviceDate,
+          createdAt: b.createdAt,
+          note: b.note || b.notes || b.description,
+          technician: tech,
+          items,
+        };
+      });
+
       await sharePendingBills({
         customer: { name: customer?.name, phone: customer?.phone },
-        pendingBillsCount,
+        pendingBillsCount: pendingBillsDetailed.length,
         pendingAmount: stats.pendingAmount,
         currency,
+        pendingBills: pendingBillsDetailed,
       });
     } catch {
       toast.error("❌ Unable to share pending bill details. Please try again.");
@@ -113,7 +160,6 @@ export default function CustomerBillsPage() {
     paymentData: { paymentStatus: "pending" | "partial" | "paid"; paidAmount: number; balanceAmount: number; discount?: number }
   ) => {
     try {
-      // Calculate cumulative discount = existing + new
       const existingBill = bills.find((b: any) => (b._id || b.id) === billId) as any;
       const existingDiscount = Number(
         (existingBill?.discount ?? existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0
