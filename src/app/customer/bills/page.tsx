@@ -20,7 +20,7 @@ import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
 import { useDocumentListener } from "@/hooks/use-realtime-sync";
-import { sanityClient } from "@/lib/sanity";
+import { sanityClient, queries } from "@/lib/sanity";
 import { Badge } from "@/components/ui/badge";
 type SanityBill = StoreBill;
 
@@ -255,6 +255,7 @@ export default function CustomerBillsPage() {
   const allBills = useCustomerBillsStore((s) => s.bills) || [];
   const billsLoading = useCustomerBillsStore((s) => s.loading);
   const fetchBillsByCustomer = useCustomerBillsStore((s) => s.fetchBillsByCustomer);
+  const setBills = useCustomerBillsStore((s) => s.setBills);
   const {
     customer,
     loading: customerLoading,
@@ -458,6 +459,28 @@ export default function CustomerBillsPage() {
     user,
     fetchBillsByCustomer,
   ]);
+
+  // Fallback: if API-backed store returned empty but identifiers exist, fetch directly via GROQ
+  useEffect(() => {
+    const hasAnyId = Boolean((customer as any)?._id || (customer as any)?.customerId || (user as any)?.customerId || resolvedSanityIdRef.current);
+    if (!hasAnyId) return;
+    if (billsLoading) return;
+    if (allBills && allBills.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const cid = (customer as any)?._id || resolvedSanityIdRef.current || (customer as any)?.customerId || (user as any)?.customerId;
+        if (!cid) return;
+        const list = await sanityClient.fetch(queries.customerBills(String(cid)));
+        if (!cancelled && Array.isArray(list) && list.length > 0) {
+          setBills(list as any);
+        }
+      } catch (e) {
+        // silent fallback
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [allBills?.length, billsLoading, customer?._id, (customer as any)?.customerId, (user as any)?.customerId, setBills]);
 
   // Since fetchBillsByCustomer already filters bills by customer,
   // we can use the bills directly from the store
