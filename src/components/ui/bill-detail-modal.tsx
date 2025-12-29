@@ -30,6 +30,7 @@ interface BillDetailModalProps {
   onClose: () => void;
   bill: any;
   onDownloadPDF?: (bill: any) => void;
+  onPayOnline?: (bill: any) => void;
   onUpdatePayment?: (
     billId: string,
     paymentData: {
@@ -47,6 +48,7 @@ export const BillDetailModal = ({
   isOpen,
   onClose,
   bill,
+  onPayOnline,
   onDownloadPDF,
   onUpdatePayment,
   showShareButton = true,
