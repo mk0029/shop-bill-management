@@ -28,6 +28,9 @@ export async function POST(req: Request) {
         currency: "INR",
         receipt: String(billId),
         payment_capture: 1,
+        notes: {
+          billId: String(billId),
+        },
       }),
     });
 

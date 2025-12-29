@@ -255,7 +255,9 @@ export default function CustomerBillsPage() {
   // Hooks must be called unconditionally at the top level
   const allBills = useCustomerBillsStore((s) => s.bills) || [];
   const billsLoading = useCustomerBillsStore((s) => s.loading);
-  const fetchBillsByCustomer = useCustomerBillsStore((s) => s.fetchBillsByCustomer);
+  const fetchBillsByCustomer = useCustomerBillsStore(
+    (s) => s.fetchBillsByCustomer
+  );
   const setBills = useCustomerBillsStore((s) => s.setBills);
   const {
     customer,
@@ -283,17 +285,20 @@ export default function CustomerBillsPage() {
   const resolvedSanityIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const currentSanityId = (customer as any)?._id as string | undefined;
-    const currentBizId = ((customer as any)?.customerId || (user as any)?.customerId) as string | undefined;
+    const currentBizId = ((customer as any)?.customerId ||
+      (user as any)?.customerId) as string | undefined;
     if (currentSanityId) {
       resolvedSanityIdRef.current = currentSanityId;
       return;
     }
     if (!currentBizId) return;
     let cancelled = false;
-    ;(async () => {
+    (async () => {
       try {
         const q = `*[customerId == $cid][0]{ _id }`;
-        const res = await sanityClient.fetch<{ _id?: string }>(q, { cid: currentBizId });
+        const res = await sanityClient.fetch<{ _id?: string }>(q, {
+          cid: currentBizId,
+        });
         if (!cancelled && res?._id) {
           resolvedSanityIdRef.current = res._id;
           // debug log removed for production
@@ -303,24 +308,33 @@ export default function CustomerBillsPage() {
     return () => {
       cancelled = true;
     };
-  }, [ (customer as any)?._id, (customer as any)?.customerId, (user as any)?.customerId ]);
+  }, [
+    (customer as any)?._id,
+    (customer as any)?.customerId,
+    (user as any)?.customerId,
+  ]);
 
   // Realtime: subscribe to this customer's bills (supports _id and customerId)
   useCustomerBillRealtime({
     _id: (customer as any)?._id as string | undefined,
-    customerId: ((customer as any)?.customerId || (user as any)?.customerId) as string | undefined,
+    customerId: ((customer as any)?.customerId || (user as any)?.customerId) as
+      | string
+      | undefined,
   });
 
   // Also listen to GLOBAL bill updates and filter for current customer only
   useDocumentListener<any>("bill", undefined, {
     onAppear: (doc) => {
-      const currentSanityId = (customer as any)?._id || resolvedSanityIdRef.current; // Sanity _id (fallback resolved)
-      const currentBizId = (customer as any)?.customerId || (user as any)?.customerId;
+      const currentSanityId =
+        (customer as any)?._id || resolvedSanityIdRef.current; // Sanity _id (fallback resolved)
+      const currentBizId =
+        (customer as any)?.customerId || (user as any)?.customerId;
       const belongs = Boolean(
         (doc?.customer?._ref && doc.customer._ref === currentSanityId) ||
           (doc?.customer?._id && doc.customer._id === currentSanityId) ||
           (doc?.customerId && eqBiz(doc.customerId, currentBizId)) ||
-          (doc?.customer?.customerId && eqBiz(doc.customer.customerId, currentBizId)) ||
+          (doc?.customer?.customerId &&
+            eqBiz(doc.customer.customerId, currentBizId)) ||
           (doc?.billId && eqBiz(doc.billId, currentBizId))
       );
       // debug log removed for production
@@ -332,12 +346,17 @@ export default function CustomerBillsPage() {
       if (!belongs && doc?.customer?._ref && currentBizId) {
         const refId = doc.customer._ref as string;
         sanityClient
-          .fetch<{ customerId?: string; bizId?: string; businessId?: string; id?: string }>(
-            `*[_id == $id][0]{ customerId, bizId, businessId, id }`,
-            { id: refId }
-          )
+          .fetch<{
+            customerId?: string;
+            bizId?: string;
+            businessId?: string;
+            id?: string;
+          }>(`*[_id == $id][0]{ customerId, bizId, businessId, id }`, {
+            id: refId,
+          })
           .then((r) => {
-            const candidate = r?.customerId || r?.bizId || r?.businessId || r?.id;
+            const candidate =
+              r?.customerId || r?.bizId || r?.businessId || r?.id;
             const match = eqBiz(candidate, currentBizId);
             // debug log removed for production
             if (match) {
@@ -349,13 +368,16 @@ export default function CustomerBillsPage() {
     },
     onUpdate: (u) => {
       const result = (u as any)?.result as any;
-      const currentSanityId = (customer as any)?._id || resolvedSanityIdRef.current; // Sanity _id (fallback resolved)
-      const currentBizId = (customer as any)?.customerId || (user as any)?.customerId;
+      const currentSanityId =
+        (customer as any)?._id || resolvedSanityIdRef.current; // Sanity _id (fallback resolved)
+      const currentBizId =
+        (customer as any)?.customerId || (user as any)?.customerId;
       const belongs = Boolean(
         (result?.customer?._ref && result.customer._ref === currentSanityId) ||
           (result?.customer?._id && result.customer._id === currentSanityId) ||
           (result?.customerId && eqBiz(result.customerId, currentBizId)) ||
-          (result?.customer?.customerId && eqBiz(result.customer.customerId, currentBizId)) ||
+          (result?.customer?.customerId &&
+            eqBiz(result.customer.customerId, currentBizId)) ||
           (result?.billId && eqBiz(result.billId, currentBizId))
       );
       // debug log removed for production
@@ -367,12 +389,17 @@ export default function CustomerBillsPage() {
       if (!belongs && result?.customer?._ref && currentBizId) {
         const refId = result.customer._ref as string;
         sanityClient
-          .fetch<{ customerId?: string; bizId?: string; businessId?: string; id?: string }>(
-            `*[_id == $id][0]{ customerId, bizId, businessId, id }`,
-            { id: refId }
-          )
+          .fetch<{
+            customerId?: string;
+            bizId?: string;
+            businessId?: string;
+            id?: string;
+          }>(`*[_id == $id][0]{ customerId, bizId, businessId, id }`, {
+            id: refId,
+          })
           .then((r) => {
-            const candidate = r?.customerId || r?.bizId || r?.businessId || r?.id;
+            const candidate =
+              r?.customerId || r?.bizId || r?.businessId || r?.id;
             const match = eqBiz(candidate, currentBizId);
             // debug log removed for production
             if (match) {
@@ -397,7 +424,14 @@ export default function CustomerBillsPage() {
       secretKey: (customer as any)?.secretKey || (user as any)?.secretKey,
     } as { _id?: string; customerId?: string; secretKey?: string };
     // debug exposure removed for production
-  }, [customer?._id, (customer as any)?.customerId, (customer as any)?.secretKey, (user as any)?.id, (user as any)?.customerId, (user as any)?.secretKey]);
+  }, [
+    customer?._id,
+    (customer as any)?.customerId,
+    (customer as any)?.secretKey,
+    (user as any)?.id,
+    (user as any)?.customerId,
+    (user as any)?.secretKey,
+  ]);
 
   // State for search and filter
   const [searchTerm, setSearchTerm] = useState("");
@@ -411,6 +445,7 @@ export default function CustomerBillsPage() {
 
   // Razorpay helpers
   const [payLoading, setPayLoading] = useState(false);
+
   const loadRazorpay = useCallback(async () => {
     if (typeof window === "undefined") return false;
     if ((window as any).Razorpay) return true;
@@ -425,87 +460,110 @@ export default function CustomerBillsPage() {
     return Boolean((window as any).Razorpay);
   }, []);
 
-  const handlePayOnline = useCallback(async (b: any) => {
-    try {
-      if (!b) return;
-      if (typeof window === "undefined") return;
-      const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || (window as any).NEXT_PUBLIC_RAZORPAY_KEY_ID;
-      if (!key) {
-        toast.error("Payment key not configured. Set NEXT_PUBLIC_RAZORPAY_KEY_ID.");
-        return;
-      }
-      setPayLoading(true);
-      const total = Number(b.totalAmount || 0) || 0;
-      const paid = Number(b.paidAmount || 0) || 0;
-      const balance = Math.max(0, total - paid);
-      if (balance <= 0) {
-        toast.info("This bill is already fully paid.");
-        return;
-      }
+  const handlePayOnline = useCallback(
+    async (b: any) => {
+      try {
+        if (!b) return;
+        if (typeof window === "undefined") return;
+        const key =
+          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+          (window as any).NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!key) {
+          toast.error(
+            "Payment key not configured. Set NEXT_PUBLIC_RAZORPAY_KEY_ID."
+          );
+          return;
+        }
+        setPayLoading(true);
+        const total = Number(b.totalAmount || 0) || 0;
+        const paid = Number(b.paidAmount || 0) || 0;
+        const balance = Math.max(0, total - paid);
+        if (balance <= 0) {
+          toast.info("This bill is already fully paid.");
+          return;
+        }
 
-      const orderRes = await fetch("/api/payments/razorpay/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ billId: String(b._id || b.id || b.billId), amount: balance }),
-      });
-      const orderJson = await orderRes.json().catch(() => ({}));
-      if (!orderRes.ok || !orderJson?.order?.id) {
-        toast.error("Failed to start payment.");
-        return;
-      }
+        const orderRes = await fetch("/api/payments/razorpay/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            billId: String(b._id || b.id || b.billId),
+            amount: balance,
+          }),
+        });
+        const orderJson = await orderRes.json().catch(() => ({}));
+        if (!orderRes.ok || !orderJson?.order?.id) {
+          toast.error("Failed to start payment.");
+          return;
+        }
 
-      const ok = await loadRazorpay();
-      if (!ok) {
-        toast.error("Unable to load payment SDK.");
-        return;
-      }
+        const ok = await loadRazorpay();
+        if (!ok) {
+          toast.error("Unable to load payment SDK.");
+          return;
+        }
 
-      const options: any = {
-        key,
-        order_id: orderJson.order.id,
-        name: "Jambh Electrics",
-        description: b.billNumber ? `Payment for ${b.billNumber}` : "Bill Payment",
-        theme: { color: "#059669" },
-        handler: async (resp: any) => {
-          try {
-            const verifyRes = await fetch("/api/payments/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: resp.razorpay_order_id,
-                razorpay_payment_id: resp.razorpay_payment_id,
-                razorpay_signature: resp.razorpay_signature,
-                billId: String(b._id || b.id || b.billId),
-                amount: balance,
-              }),
-            });
-            const verifyJson = await verifyRes.json().catch(() => ({}));
-            if (!verifyRes.ok || verifyJson?.success === false) {
-              toast.error(verifyJson?.error || "Payment verification failed");
-              return;
+        const options: any = {
+          key,
+          order_id: orderJson.order.id,
+          name: "Jambh Electrics",
+          description: b.billNumber
+            ? `Payment for ${b.billNumber}`
+            : "Bill Payment",
+          theme: { color: "#059669" },
+          method: {
+            upi: true,
+            netbanking: true,
+            card: true,
+            wallet: true,
+            emandate: false,
+            emi: false,
+          },
+          upi: {
+            flow: "otp",
+          },
+          handler: async (resp: any) => {
+            try {
+              const verifyRes = await fetch("/api/payments/razorpay/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_order_id: resp.razorpay_order_id,
+                  razorpay_payment_id: resp.razorpay_payment_id,
+                  razorpay_signature: resp.razorpay_signature,
+                  billId: String(b._id || b.id || b.billId),
+                  amount: balance,
+                }),
+              });
+              const verifyJson = await verifyRes.json().catch(() => ({}));
+              if (!verifyRes.ok || verifyJson?.success === false) {
+                toast.error(verifyJson?.error || "Payment verification failed");
+                return;
+              }
+              toast.success("Payment successful");
+              setShowBillModal(false);
+            } catch (e) {
+              toast.error("Verification failed");
             }
-            toast.success("Payment successful");
-            setShowBillModal(false);
-          } catch (e) {
-            toast.error("Verification failed");
-          }
-        },
-        modal: { ondismiss: () => {} },
-        prefill: {
-          name: b?.customer?.name || "",
-          email: b?.customer?.email || "",
-          contact: b?.customer?.phone || "",
-        },
-      };
+          },
+          modal: { ondismiss: () => {} },
+          prefill: {
+            name: b?.customer?.name || "",
+            email: b?.customer?.email || "",
+            contact: b?.customer?.phone || "",
+          },
+        };
 
-      const rz = new (window as any).Razorpay(options);
-      rz.open();
-    } catch (e) {
-      toast.error("Payment failed to start");
-    } finally {
-      setPayLoading(false);
-    }
-  }, [loadRazorpay]);
+        const rz = new (window as any).Razorpay(options);
+        rz.open();
+      } catch (e) {
+        toast.error("Payment failed to start");
+      } finally {
+        setPayLoading(false);
+      }
+    },
+    [loadRazorpay]
+  );
 
   // Track if bills have been fetched to prevent duplicate requests
   const billsFetchedRef = useRef(false);
@@ -517,14 +575,20 @@ export default function CustomerBillsPage() {
     });
     // debug helper removed for production
     return () => {
-      try { unsub(); } catch {}
+      try {
+        unsub();
+      } catch {}
     };
   }, []);
 
   // Reset bills fetched flag when customer changes
   useEffect(() => {
     billsFetchedRef.current = false;
-  }, [customer?._id, (customer as any)?.customerId, (customer as any)?.secretKey]);
+  }, [
+    customer?._id,
+    (customer as any)?.customerId,
+    (customer as any)?.secretKey,
+  ]);
 
   // Fetch customer bills when identifiers are available from either customer API or auth user
   useEffect(() => {
@@ -538,7 +602,8 @@ export default function CustomerBillsPage() {
       } as { _id?: string; customerId?: string; secretKey?: string };
 
       // If we still have no identifiers, wait
-      if (!identifiers._id && !identifiers.customerId && !identifiers.secretKey) return;
+      if (!identifiers._id && !identifiers.customerId && !identifiers.secretKey)
+        return;
 
       billsFetchedRef.current = true;
       // debug log removed for production
@@ -561,16 +626,27 @@ export default function CustomerBillsPage() {
 
   // Fallback: if API-backed store returned empty but identifiers exist, fetch directly via GROQ
   useEffect(() => {
-    const hasAnyId = Boolean((customer as any)?._id || (customer as any)?.customerId || (user as any)?.customerId || resolvedSanityIdRef.current);
+    const hasAnyId = Boolean(
+      (customer as any)?._id ||
+        (customer as any)?.customerId ||
+        (user as any)?.customerId ||
+        resolvedSanityIdRef.current
+    );
     if (!hasAnyId) return;
     if (billsLoading) return;
     if (allBills && allBills.length > 0) return;
     let cancelled = false;
     (async () => {
       try {
-        const cid = (customer as any)?._id || resolvedSanityIdRef.current || (customer as any)?.customerId || (user as any)?.customerId;
+        const cid =
+          (customer as any)?._id ||
+          resolvedSanityIdRef.current ||
+          (customer as any)?.customerId ||
+          (user as any)?.customerId;
         if (!cid) return;
-        const list = await sanityClient.fetch(queries.customerBills(String(cid)));
+        const list = await sanityClient.fetch(
+          queries.customerBills(String(cid))
+        );
         if (!cancelled && Array.isArray(list) && list.length > 0) {
           setBills(list as any);
         }
@@ -578,8 +654,17 @@ export default function CustomerBillsPage() {
         // silent fallback
       }
     })();
-    return () => { cancelled = true; };
-  }, [allBills?.length, billsLoading, customer?._id, (customer as any)?.customerId, (user as any)?.customerId, setBills]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    allBills?.length,
+    billsLoading,
+    customer?._id,
+    (customer as any)?.customerId,
+    (user as any)?.customerId,
+    setBills,
+  ]);
 
   // Since fetchBillsByCustomer already filters bills by customer,
   // we can use the bills directly from the store
@@ -595,14 +680,24 @@ export default function CustomerBillsPage() {
     return customerBills.filter((bill) => {
       // Filter by search term (safe ops)
       const searchLower = (searchTerm || "").toLowerCase();
-      const numberMatch = ((bill.billNumber as string) || "").toLowerCase().includes(searchLower);
+      const numberMatch = ((bill.billNumber as string) || "")
+        .toLowerCase()
+        .includes(searchLower);
       const itemsMatch = Array.isArray(bill.items)
-        ? bill.items.some((item: any) => ((item?.productName as string) || "").toLowerCase().includes(searchLower))
+        ? bill.items.some((item: any) =>
+            ((item?.productName as string) || "")
+              .toLowerCase()
+              .includes(searchLower)
+          )
         : false;
       const matchesSearch = numberMatch || itemsMatch;
 
       // Multi-status chips (pending/partial/overdue/paid/draft). Empty => all
-      const statusValue = (((bill.paymentStatus as string) || (bill.status as string) || "").toLowerCase());
+      const statusValue = (
+        (bill.paymentStatus as string) ||
+        (bill.status as string) ||
+        ""
+      ).toLowerCase();
       const matchesStatus =
         selectedStatuses.length === 0 || selectedStatuses.includes(statusValue);
 
@@ -661,13 +756,14 @@ export default function CustomerBillsPage() {
       case "partial":
         return "bg-orange-400 text-orange-300 border-orange-700";
       case "pending":
-        return "bg-yellow-500 text-yellow-300 border-yellow-700";
+        return "bg-yellow-800 text-yellow-300 border-yellow-700";
       case "overdue":
         return "bg-red-900 text-red-300 border-red-700";
       default:
         return "bg-gray-900 text-gray-300 border-gray-700";
     }
-  };  return (
+  };
+  return (
     <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -781,37 +877,37 @@ export default function CustomerBillsPage() {
           <div className="space-y-6 max-md:space-y-4">
             {/* Bill Info */}
             <div className="bg-gray-800 rounded-lg p-4">
-             <div className="flex justify-between gap-3 flex-wrap">   <h4 className="font-medium text-white">Bill Information</h4><Badge
-              className={`${getStatusColor(selectedBill.paymentStatus || selectedBill.status)} px-2 py-0.5 text-xs font-medium `}>
-              {(selectedBill.paymentStatus || selectedBill.status || "pending").toUpperCase()}
-            </Badge></div>
-            {(() => {
-              const total = Number(selectedBill.totalAmount || 0) || 0;
-              const paid = Number(selectedBill.paidAmount || 0) || 0;
-              const balance = Math.max(0, total - paid);
-              if (selectedBill.paymentStatus === "paid" || balance <= 0) return null;
-              return (
-                <Button
-                  onClick={() => handlePayOnline(selectedBill)}
-                  disabled={payLoading}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {payLoading ? "Processing..." : "Pay Online"}
-                </Button>
-              );
-            })()}
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex justify-between gap-3 flex-wrap">
+                {" "}
+                <h4 className="font-medium text-white">Bill Information</h4>
+                <Badge
+                  className={`${getStatusColor(selectedBill.paymentStatus || selectedBill.status)} px-2 py-0.5 text-xs font-medium `}>
+                  {(
+                    selectedBill.paymentStatus ||
+                    selectedBill.status ||
+                    "pending"
+                  ).toUpperCase()}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm mt-4">
                 <div>
                   <p className="text-gray-400">Service Type</p>
-                  <p className="text-white capitalize">{selectedBill.serviceType}</p>
+                  <p className="text-white capitalize">
+                    {selectedBill.serviceType}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Location</p>
-                  <p className="text-white capitalize">{selectedBill.locationType}</p>
+                  <p className="text-white capitalize">
+                    {selectedBill.locationType}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Bill Number</p>
-                  <p className="text-white capitalize">{selectedBill.billNumber}</p>
+                  <p className="text-white capitalize">
+                    {selectedBill.billNumber}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-400">Bill Date</p>
@@ -821,31 +917,29 @@ export default function CustomerBillsPage() {
                       : "-"}
                   </p>
                 </div>
-                <div>
-
-                
-                </div>
               </div>
             </div>
-
             {/* Bill Items */}
-            <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
-              <h4 className="font-medium text-white mb-3">Bill Items</h4>
-              <div className="space-y-3">
-                {selectedBill.items && selectedBill.items.length > 0 ? (
-                  selectedBill.items.map((item: any, index: number) => (
+            {selectedBill.items && selectedBill.items.length > 0 && (
+              <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
+                <h4 className="font-medium text-white mb-3">Bill Items</h4>
+                <div className="space-y-3">
+                  {selectedBill.items.map((item: any, index: number) => (
                     <div
                       key={index}
                       className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
                       <div>
-                      <div className="flex items-center gap-2 flex-wrap">  <p className="text-white">
-                          {item.productName || "Product"}
-                        </p>
-                        <Badge
-                              variant="outline"
-                              className="text-purple-400 border-purple-600 max-sm:!py-0.5 max-sm:px-2 max-sm:text-xs">
-                              {item.category}
-                            </Badge></div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {" "}
+                          <p className="text-white">
+                            {item.productName || "Product"}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className="text-purple-400 border-purple-600 max-sm:!py-0.5 max-sm:px-2 max-sm:text-xs">
+                            {item.category}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-gray-400">
                           {item.quantity} × ₹{item.unitPrice?.toLocaleString()}
                         </p>
@@ -859,59 +953,75 @@ export default function CustomerBillsPage() {
                         ₹{item.totalPrice?.toLocaleString() || "0"}
                       </p>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-400">No items found.</p>
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
-
+            )}
             {/* Charges & Totals */}
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
               <h4 className="font-medium text-white mb-3">Charges & Totals</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-               {selectedBill.subtotal !== selectedBill.totalAmount && <div>
-                  <p className="text-gray-400">Items Subtotal</p>
-                  <p className="text-white">
-                    {currency}
-                    {selectedBill.subtotal?.toLocaleString() || "-"}
-                  </p>
-                </div>}
-                {selectedBill.homeVisitFee !== null && selectedBill?.homeVisitFee>0 && <div>
-                  <p className="text-gray-400">Home Visit Fee</p>
-                  <p className="text-white">
-                    {currency}
-                    {selectedBill.homeVisitFee?.toLocaleString() || "-"}
-                  </p>
-                </div>}
-                {selectedBill?.repairFee !== null && selectedBill?.repairFee>0 && <div>
-                  <p className="text-gray-400">Repair Charges</p>
-                  <p className="text-white">
-                    {currency}
-                    {(selectedBill as any).repairFee?.toLocaleString?.() ||
-                      (selectedBill as any).repairCharges?.toLocaleString?.() ||
-                      "-"}
-                  </p>
-                </div>}
-               { selectedBill?.laborCharges !== null && selectedBill?.laborCharges>0 && <div>
-                  <p className="text-gray-400">Labor Charges</p>
-                  <p className="text-white">
-                    {currency}
-                    {selectedBill.laborCharges?.toLocaleString() || "-"}
-                  </p>
-                </div>}
-               {selectedBill?.taxAmount !== null && selectedBill?.taxAmount>0 && <div>
-                  <p className="text-gray-400">Tax</p>
-                  <p className="text-white">
-                    {formatCurrency(selectedBill.taxAmount)}
-                  </p>
-                </div>}
-               { selectedBill?.discount !== null && selectedBill?.discount>0 && <div>
-                  <p className="text-gray-400">Discount</p>
-                  <p className="text-white">
-                    {formatCurrency(selectedBill.discount)}
-                  </p>
-                </div>}
+                {selectedBill.subtotal !== selectedBill.totalAmount && (
+                  <div>
+                    <p className="text-gray-400">Items Subtotal</p>
+                    <p className="text-white">
+                      {currency}
+                      {selectedBill.subtotal?.toLocaleString() || "-"}
+                    </p>
+                  </div>
+                )}
+                {selectedBill.homeVisitFee !== null &&
+                  selectedBill?.homeVisitFee > 0 && (
+                    <div>
+                      <p className="text-gray-400">Home Visit Fee</p>
+                      <p className="text-white">
+                        {currency}
+                        {selectedBill.homeVisitFee?.toLocaleString() || "-"}
+                      </p>
+                    </div>
+                  )}
+                {selectedBill?.repairFee !== null &&
+                  selectedBill?.repairFee > 0 && (
+                    <div>
+                      <p className="text-gray-400">Repair Charges</p>
+                      <p className="text-white">
+                        {currency}
+                        {(selectedBill as any).repairFee?.toLocaleString?.() ||
+                          (
+                            selectedBill as any
+                          ).repairCharges?.toLocaleString?.() ||
+                          "-"}
+                      </p>
+                    </div>
+                  )}
+                {selectedBill?.laborCharges !== null &&
+                  selectedBill?.laborCharges > 0 && (
+                    <div>
+                      <p className="text-gray-400">Labor Charges</p>
+                      <p className="text-white">
+                        {currency}
+                        {selectedBill.laborCharges?.toLocaleString() || "-"}
+                      </p>
+                    </div>
+                  )}
+                {selectedBill?.taxAmount !== null &&
+                  selectedBill?.taxAmount > 0 && (
+                    <div>
+                      <p className="text-gray-400">Tax</p>
+                      <p className="text-white">
+                        {formatCurrency(selectedBill.taxAmount)}
+                      </p>
+                    </div>
+                  )}
+                {selectedBill?.discount !== null &&
+                  selectedBill?.discount > 0 && (
+                    <div>
+                      <p className="text-gray-400">Discount</p>
+                      <p className="text-white">
+                        {formatCurrency(selectedBill.discount)}
+                      </p>
+                    </div>
+                  )}
                 <div>
                   <p className="text-gray-400">Total</p>
                   <p className="text-white font-bold text-base md:text-lg">
@@ -924,12 +1034,14 @@ export default function CustomerBillsPage() {
                     {formatCurrency(selectedBill.paidAmount)}
                   </p>
                 </div>
-               {selectedBill.balanceAmount !==selectedBill.paidAmount && <div>
-                  <p className="text-gray-400">Balance</p>
-                  <p className="text-white">
-                    {formatCurrency(selectedBill.balanceAmount)}
-                  </p>
-                </div>}
+                {selectedBill.balanceAmount !== selectedBill.paidAmount && (
+                  <div>
+                    <p className="text-gray-400">Balance</p>
+                    <p className="text-white">
+                      {formatCurrency(selectedBill.balanceAmount)}
+                    </p>
+                  </div>
+                )}
               </div>
               {selectedBill.notes && (
                 <div className="mt-4">
@@ -937,8 +1049,27 @@ export default function CustomerBillsPage() {
                   <p className="text-white">{selectedBill.notes}</p>
                 </div>
               )}
+            </div>{" "}
+            <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
+              <h4 className="font-medium text-white mb-3">Pay Online</h4>
+              {(() => {
+                const total = Number(selectedBill.totalAmount || 0) || 0;
+                const paid = Number(selectedBill.paidAmount || 0) || 0;
+                const balance = Math.max(0, total - paid);
+                if (selectedBill.paymentStatus === "paid" || balance <= 0)
+                  return null;
+                return (
+                  <Button
+                    onClick={() => handlePayOnline(selectedBill)}
+                    disabled={payLoading}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full">
+                    {payLoading
+                      ? "Processing..."
+                      : `Pay ${formatCurrency(selectedBill.balanceAmount)}`}
+                  </Button>
+                );
+              })()}
             </div>
-
             {/* <div className="flex gap-3">
               <Button className="flex-1">
                 <Download className="w-4 h-4 mr-2" />
