@@ -25,6 +25,40 @@ import { sanityClient, queries } from "@/lib/sanity";
 import { Badge } from "@/components/ui/badge";
 type SanityBill = StoreBill;
 
+// CSS for shine animation
+const shineAnimation = `
+  @keyframes shine {
+    0% {
+      transform: translateX(100%) skewX(-20deg);
+    }
+    100% {
+      transform: translateX(-100%) skewX(-20deg);
+    }
+  }
+  
+  .shine-button {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shine-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    animation: shine 2s infinite;
+    pointer-events: none;
+  }
+`;
+
 // Customer-specific bill stats component that uses filtered data
 function CustomerBillStats({ bills = [] }: { bills: any[] }) {
   const stats = useMemo(() => {
@@ -42,16 +76,33 @@ function CustomerBillStats({ bills = [] }: { bills: any[] }) {
       (bill) => bill.paymentStatus === "overdue"
     );
 
-    // Calculate amounts
+    // Calculate amounts - now considering discount
     const totalAmount = bills.reduce(
       (sum, bill) => sum + (bill.totalAmount || 0),
       0
     );
 
+    // Total discount amount
+    const totalDiscount = bills.reduce(
+      (sum, bill) => sum + (bill.discount || 0),
+      0
+    );
+
+    // Total payable amount after discount
+    const totalPayableAmount = bills.reduce((sum, bill) => {
+      const total = Number(bill.totalAmount || 0) || 0;
+      const discount = Number(bill.discount || 0) || 0;
+      return sum + Math.max(0, total - discount);
+    }, 0);
+
     // Total paid amount (including partial payments)
     const paidAmount = bills.reduce((sum, bill) => {
+      const total = Number(bill.totalAmount || 0) || 0;
+      const discount = Number(bill.discount || 0) || 0;
+      const actualPayableAmount = Math.max(0, total - discount);
+      
       if (bill.paymentStatus === "paid") {
-        return sum + (bill.totalAmount || 0);
+        return sum + actualPayableAmount;
       } else if (bill.paymentStatus === "partial") {
         return sum + (bill.paidAmount || 0);
       }
@@ -60,10 +111,16 @@ function CustomerBillStats({ bills = [] }: { bills: any[] }) {
 
     // Total pending amount (including remaining balance of partial payments)
     const pendingAmount = bills.reduce((sum, bill) => {
+      const total = Number(bill.totalAmount || 0) || 0;
+      const discount = Number(bill.discount || 0) || 0;
+      const paid = Number(bill.paidAmount || 0) || 0;
+      const actualPayableAmount = Math.max(0, total - discount);
+      const balance = Math.max(0, actualPayableAmount - paid);
+      
       if (bill.paymentStatus === "pending") {
-        return sum + (bill.totalAmount || 0);
+        return sum + actualPayableAmount;
       } else if (bill.paymentStatus === "partial") {
-        return sum + (bill.balanceAmount || 0);
+        return sum + balance;
       }
       return sum;
     }, 0);
@@ -75,6 +132,8 @@ function CustomerBillStats({ bills = [] }: { bills: any[] }) {
       partial: partialBills.length,
       overdue: overdueBills.length,
       totalAmount,
+      totalDiscount,
+      totalPayableAmount,
       paidAmount,
       pendingAmount,
     };
@@ -89,6 +148,15 @@ function CustomerBillStats({ bills = [] }: { bills: any[] }) {
       icon: Receipt,
       iconColor: "text-blue-500",
       bgColor: "bg-blue-500/10",
+    },
+    {
+      title: "Discount",
+      value: `₹${stats.totalDiscount.toLocaleString()}`,
+      subtitle: "Total discount given",
+      subtitleColor: "text-purple-400",
+      icon: Clock,
+      iconColor: "text-purple-500",
+      bgColor: "bg-purple-500/10",
     },
     {
       title: "Paid Amount",
@@ -107,15 +175,6 @@ function CustomerBillStats({ bills = [] }: { bills: any[] }) {
       icon: Clock,
       iconColor: "text-yellow-500",
       bgColor: "bg-yellow-500/10",
-    },
-    {
-      title: "Overdue",
-      value: stats.overdue,
-      subtitle: `${stats.overdue} ${stats.overdue === 1 ? "bill" : "bills"}`,
-      subtitleColor: "text-red-500",
-      icon: AlertCircle,
-      iconColor: "text-red-500",
-      bgColor: "bg-red-500/10",
     },
   ];
 
@@ -206,45 +265,69 @@ const BillItem = ({ bill, onClick }: BillItemProps) => {
           </p>
         </div>
         <div className="text-right">
-          <p
-            className={` ${bill.totalAmount - bill.paidAmount < 1 ? "text-green-400" : "text-yellow-300"} font-medium`}>
-            {new Intl.NumberFormat("en-IN", {
-              style: "currency",
-              currency: "INR",
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-              .format(
-                bill.totalAmount - bill.paidAmount < 1
-                  ? bill.totalAmount
-                  : bill.totalAmount - bill.paidAmount || 0
-              )
-              .replace("₹", "₹")}
-          </p>
-          {bill.paymentStatus === "paid" ? (
-            <span className="inline-block bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
-              Paid
-            </span>
-          ) : (
-            <p className="text-xs text-gray-400">
-              {bill.paymentStatus === "partial"
-                ? `Paid: ${new Intl.NumberFormat("en-IN", {
+          {(() => {
+            const total = Number(bill.totalAmount || 0) || 0;
+            const discount = Number(bill.discount || 0) || 0;
+            const paid = Number(bill.paidAmount || 0) || 0;
+            const actualPayableAmount = Math.max(0, total - discount);
+            const balance = Math.max(0, actualPayableAmount - paid);
+            const isFullyPaid = balance <= 0;
+            
+            return (
+              <>
+                <p
+                  className={` ${isFullyPaid ? "text-green-400 font-medium" : "text-white font-light text-sm"} `}>
+                {!isFullyPaid&&'Total '}  {new Intl.NumberFormat("en-IN", {
                     style: "currency",
                     currency: "INR",
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
-                  }).format(bill.paidAmount || 0)} of ${new Intl.NumberFormat(
-                    "en-IN",
-                    {
-                      style: "currency",
-                      currency: "INR",
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    }
-                  ).format(bill.totalAmount || 0)}`
-                : "Payment pending"}
-            </p>
-          )}
+                  })
+                    .format(
+                      isFullyPaid
+                        ? total
+                        : total
+                    )
+                    .replace("₹", "₹")}
+                </p>
+{ !isFullyPaid&&                <p
+                  className={` ${isFullyPaid ? "text-green-400" : "text-yellow-300"} font-medium`}>
+                Pending  {new Intl.NumberFormat("en-IN", {
+                    style: "currency",
+                    currency: "INR",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                    .format(  total-discount )
+                    .replace("₹", "₹")}
+                </p>}
+                {bill.paymentStatus === "paid" ? (
+                  <span className="inline-block bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                    Paid
+                  </span>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    {bill.paymentStatus === "partial"
+                      ? `Paid: ${new Intl.NumberFormat("en-IN", {
+                          style: "currency",
+                          currency: "INR",
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }).format(paid || 0)} of ${new Intl.NumberFormat(
+                          "en-IN",
+                          {
+                            style: "currency",
+                            currency: "INR",
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        ).format(total || 0)}`
+                      : ""}
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -252,6 +335,17 @@ const BillItem = ({ bill, onClick }: BillItemProps) => {
 };
 
 export default function CustomerBillsPage() {
+  // Inject shine animation CSS
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = shineAnimation;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
+
   // Hooks must be called unconditionally at the top level
   const allBills = useCustomerBillsStore((s) => s.bills) || [];
   const billsLoading = useCustomerBillsStore((s) => s.loading);
@@ -476,8 +570,10 @@ export default function CustomerBillsPage() {
         }
         setPayLoading(true);
         const total = Number(b.totalAmount || 0) || 0;
+        const discount = Number(b.discount || 0) || 0;
         const paid = Number(b.paidAmount || 0) || 0;
-        const balance = Math.max(0, total - paid);
+        const actualPayableAmount = Math.max(0, total - discount);
+        const balance = Math.max(0, actualPayableAmount - paid);
         if (balance <= 0) {
           toast.info("This bill is already fully paid.");
           return;
@@ -513,8 +609,10 @@ export default function CustomerBillsPage() {
           theme: { color: "#059669" },
           method: {
             upi: true,
+            paylater: false,
+
             netbanking: true,
-            card: true,
+            card: false,
             wallet: true,
             emandate: false,
             emi: false,
@@ -961,7 +1059,7 @@ export default function CustomerBillsPage() {
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
               <h4 className="font-medium text-white mb-3">Charges & Totals</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                {selectedBill.subtotal !== selectedBill.totalAmount && (
+                { selectedBill.subtotal !== selectedBill.totalAmount  && selectedBill?.subtotal > 0 && (
                   <div>
                     <p className="text-gray-400">Items Subtotal</p>
                     <p className="text-white">
@@ -1034,14 +1132,24 @@ export default function CustomerBillsPage() {
                     {formatCurrency(selectedBill.paidAmount)}
                   </p>
                 </div>
-                {selectedBill.balanceAmount !== selectedBill.paidAmount && (
-                  <div>
-                    <p className="text-gray-400">Balance</p>
-                    <p className="text-white">
-                      {formatCurrency(selectedBill.balanceAmount)}
-                    </p>
-                  </div>
-                )}
+                {(() => {
+                  const total = Number(selectedBill.totalAmount || 0) || 0;
+                  const discount = Number(selectedBill.discount || 0) || 0;
+                  const paid = Number(selectedBill.paidAmount || 0) || 0;
+                  const actualPayableAmount = Math.max(0, total - discount);
+                  const balance = Math.max(0, actualPayableAmount - paid);
+                  if (balance > 0) {
+                    return (
+                      <div>
+                        <p className="text-white font-medium">Pending</p>
+                        <p className="text-yellow-300 text-xl font-bold">
+                          {formatCurrency(balance)}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               {selectedBill.notes && (
                 <div className="mt-4">
@@ -1051,22 +1159,25 @@ export default function CustomerBillsPage() {
               )}
             </div>{" "}
             <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
-              <h4 className="font-medium text-white mb-3">Pay Online</h4>
+             <div className="flex gap-x-3 mb-3 items-center"> <h4 className="font-medium text-white border ">Pay Online</h4> <Badge variant='outline' className="shine-button border-white border-solid px-2! py-1! text-xs! font-medium ">New</Badge></div>
               {(() => {
                 const total = Number(selectedBill.totalAmount || 0) || 0;
+                const discount = Number(selectedBill.discount || 0) || 0;
                 const paid = Number(selectedBill.paidAmount || 0) || 0;
-                const balance = Math.max(0, total - paid);
+                const actualPayableAmount = Math.max(0, total - discount);
+                const balance = Math.max(0, actualPayableAmount - paid);
                 if (selectedBill.paymentStatus === "paid" || balance <= 0)
                   return null;
                 return (
+                  <div className="relative w-full overflow-hidden">
                   <Button
                     onClick={() => handlePayOnline(selectedBill)}
                     disabled={payLoading}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full">
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full relative shine-button">
                     {payLoading
                       ? "Processing..."
-                      : `Pay ${formatCurrency(selectedBill.balanceAmount)}`}
-                  </Button>
+                      : `Pay ${formatCurrency(balance)}`}
+                  </Button></div>
                 );
               })()}
             </div>
