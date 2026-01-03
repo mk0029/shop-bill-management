@@ -35,7 +35,7 @@ export function BillDetailsModal({
           <div className="flex justify-between gap-3 flex-wrap">
             <h4 className="font-medium text-white">Bill Information</h4>
             <Badge
-              className={`${getStatusColor(selectedBill.paymentStatus || selectedBill.status)} px-2 py-0.5 text-xs font-medium `}>
+              className={`${getStatusColor(selectedBill.paymentStatus || selectedBill.status)} px-2 py-0.5 text-xs font-medium pointer-events-none`}>
               {(
                 selectedBill.paymentStatus ||
                 selectedBill.status ||

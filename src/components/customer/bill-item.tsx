@@ -89,7 +89,7 @@ export function BillItem({ bill, onClick }: BillItemProps) {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })
-                    .format(  total-discount )
+                    .format(  (total-discount)-paid )
                     .replace("₹", "₹")}
                 </p>}
                 {bill.paymentStatus === "paid" ? (

@@ -12,7 +12,7 @@ export const getStatusColor = (status: string) => {
     case "paid":
       return "bg-green-900 text-green-300 border-green-700";
     case "partial":
-      return "bg-orange-400 text-orange-300 border-orange-700";
+      return "bg-orange-500 text-white border-orange-700";
     case "pending":
       return "bg-yellow-800 text-yellow-300 border-yellow-700";
     case "overdue":

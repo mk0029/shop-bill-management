@@ -174,8 +174,9 @@ export function BillPaymentSection({ selectedBill }: BillPaymentSectionProps) {
     },
     [loadRazorpay]
   );
-
+const hide = true
   return (
+hide ?'':
     <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
       <style>{shineAnimation}</style>
       <div className="flex gap-x-3 mb-3 items-center">
