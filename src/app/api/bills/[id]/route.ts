@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { sanityApiService } from "@/lib/sanity-api-service";
 
 export async function PATCH(
   req: Request,
@@ -64,7 +65,42 @@ export async function PATCH(
     updates["updatedAt"] = new Date().toISOString();
 
     // Patch published doc
+    const startTime = Date.now();
     const updated = await sanityClient.patch(id).set(updates).commit();
+    console.log(`updateBill->commit: ${Date.now() - startTime} ms`);
+    
+    // Create cash book entry asynchronously (don't wait for it)
+    if (updates.paidAmount && Number(updates.paidAmount) > 0) {
+      // Fire and forget - don't await to avoid slowing down the bill update
+      (async () => {
+        try {
+          // Fetch the bill to get customer details
+          const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, billNumber, paidAmount, customer->{_id, name} }`, { id });
+          
+          if (bill && bill.customer) {
+            console.log('💰 Creating cash book entry for bill payment via API:', { billId: id, amount: updates.paidAmount });
+            
+            const result = await sanityApiService.cashBook.createEntryFromBillPayment({
+              billId: id,
+              userId: bill.customer._id,
+              userName: bill.customer.name,
+              amount: Number(updates.paidAmount),
+              paymentType: 'credit'
+            });
+            
+            if (result.success) {
+              console.log('✅ Cash book entry created via bill API');
+            } else {
+              console.error('❌ Failed to create cash book entry via bill API:', result.error);
+            }
+          }
+        } catch (cashBookError) {
+          console.error('❌ Error creating cash book entry in bill API:', cashBookError);
+          // Don't fail the bill update if cash book entry fails
+        }
+      })(); // Execute async function without awaiting
+    }
+    
     // Best-effort: also patch draft if it exists
     try {
       await sanityClient.patch(`drafts.${id}`).set(updates).commit();

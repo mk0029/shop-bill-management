@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ExternalLink, Receipt } from "lucide-react";
+import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { format } from "date-fns";
 import { Plus, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { sanityApiService } from "@/lib/sanity-api-service";
@@ -66,6 +68,8 @@ export function CashBookPage({
   const [entries, setEntries] = useState<CashBookEntry[]>(initialEntries);
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [summary, setSummary] = useState<CashBookSummary>(initialSummary);
+  const [selectedBill, setSelectedBill] = useState<any>(null);
+  const [showBillModal, setShowBillModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -131,6 +135,23 @@ export function CashBookPage({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
+  };
+
+  // Handle bill detail view
+  const handleViewBill = async (billId: string) => {
+    try {
+      // Fetch the bill details
+      const bill = await sanityApiService.bills.getBillById(billId);
+      if (bill.success && bill.data) {
+        setSelectedBill(bill.data);
+        setShowBillModal(true);
+      } else {
+        toast.error("Failed to fetch bill details");
+      }
+    } catch (error) {
+      console.error("Error fetching bill:", error);
+      toast.error("Failed to fetch bill details");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -410,9 +431,18 @@ export function CashBookPage({
                             {entry.source}
                           </Badge>
                           {entry.bill && (
-                            <span className="text-gray-400 text-sm">
-                              Bill: {entry.bill.billNumber}
-                            </span>
+                            <>
+                              {/* <span className="text-gray-400 text-sm">
+                                Bill: {entry.bill.billNumber}
+                              </span> */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
+                              >
+                                Check Bill
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -464,9 +494,20 @@ export function CashBookPage({
                   {entry.source}
                 </Badge>
                 {entry.bill && (
-                  <span className="text-gray-400 text-xs">
-                    Bill: {entry.bill.billNumber}
-                  </span>
+                  <>
+                    <span className="text-gray-400 text-xs">
+                      Bill: {entry.bill.billNumber}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewBill(entry.bill._id)}
+                      className="h-5 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
+                    >
+                      <Receipt className="w-2 h-2 mr-1" />
+                      View
+                    </Button>
+                  </>
                 )}
               </div>
               <p className="text-gray-400 text-xs">
@@ -480,6 +521,16 @@ export function CashBookPage({
             </Card>
           )}
         </div>
+
+        {/* Bill Detail Modal */}
+        <BillDetailModal
+          isOpen={showBillModal}
+          onClose={() => setShowBillModal(false)}
+          bill={selectedBill}
+          onDownloadPDF={() => {}}
+          showShareButton={false}
+          showPaymentControls={false}
+        />
       </div>
     </div>
   );

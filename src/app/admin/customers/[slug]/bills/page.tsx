@@ -160,6 +160,8 @@ export default function CustomerBillsPage() {
     billId: string,
     paymentData: { paymentStatus: "pending" | "partial" | "paid"; paidAmount: number; balanceAmount: number; discount?: number }
   ) => {
+    console.log('🔥 handleUpdatePayment called:', { billId, paymentData });
+    
     try {
       const existingBill = bills.find((b: any) => (b._id || b.id) === billId) as any;
       const existingDiscount = Number(
@@ -172,7 +174,15 @@ export default function CustomerBillsPage() {
       const previousPaidAmount = Number(existingBill?.paidAmount || 0);
       const newPaidAmount = paymentData.paidAmount;
       const paymentAmount = newPaidAmount - previousPaidAmount;
+      
+      console.log('💰 Payment calculation:', {
+        previousPaidAmount,
+        newPaidAmount,
+        paymentAmount,
+        customer: customer?.name
+      });
 
+      const updateStartTime = Date.now();
       await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
@@ -180,37 +190,48 @@ export default function CustomerBillsPage() {
         ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
         updatedAt: new Date().toISOString(),
       } as any);
+      
+      console.log(`✅ Bill updated successfully in ${Date.now() - updateStartTime} ms`);
 
-      // Create cash book entry for manual payment (only if there's an actual payment)
+      // Create cash book entry asynchronously (don't wait for it)
       if (paymentAmount > 0 && customer) {
-        try {
-          console.log('Creating cash book entry for manual payment:', {
-            billId,
-            userId: customer._id,
-            userName: customer.name,
-            amount: paymentAmount,
-            paymentType: 'credit'
-          });
-          
-          const result = await sanityApiService.cashBook.createEntryFromBillPayment({
-            billId: billId,
-            userId: customer._id,
-            userName: customer.name,
-            amount: paymentAmount,
-            paymentType: 'credit'
-          });
-          
-          console.log('Manual payment cash book entry result:', result);
-          
-          if (!result.success) {
-            console.error('Failed to create cash book entry for manual payment:', result.error);
+        // Fire and forget - don't await to avoid blocking the UI
+        (async () => {
+          try {
+            console.log('🏦 Creating cash book entry for manual payment:', {
+              billId,
+              userId: customer._id,
+              userName: customer.name,
+              amount: paymentAmount,
+              paymentType: 'credit'
+            });
+            
+            const result = await sanityApiService.cashBook.createEntryFromBillPayment({
+              billId: billId,
+              userId: customer._id,
+              userName: customer.name,
+              amount: paymentAmount,
+              paymentType: 'credit'
+            });
+            
+            console.log('📊 Manual payment cash book entry result:', result);
+            
+            if (!result.success) {
+              console.error('❌ Failed to create cash book entry for manual payment:', result.error);
+            } else {
+              console.log('✅ Cash book entry created successfully:', result.data);
+            }
+          } catch (cashBookError) {
+            console.error('❌ Failed to create cash book entry:', cashBookError);
+            // Don't fail payment update if cash book entry fails
           }
-        } catch (cashBookError) {
-          console.error('Failed to create cash book entry:', cashBookError);
-          // Don't fail payment update if cash book entry fails
-        }
+        })(); // Execute async function without awaiting
       } else {
-        console.log('No payment amount or customer data, skipping cash book entry');
+        console.log('⚠️ No payment amount or customer data, skipping cash book entry:', {
+          paymentAmount,
+          customerExists: !!customer,
+          customerName: customer?.name
+        });
       }
 
       toast.success(
@@ -228,7 +249,8 @@ export default function CustomerBillsPage() {
           ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
         });
       }
-    } catch {
+    } catch (error) {
+      console.error('❌ Payment update failed:', error);
       toast.error("❌ Failed to update payment. Please try again.");
     }
   };
