@@ -21,6 +21,7 @@ import {
   Building2,
   Users,
   X,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -93,6 +94,11 @@ const adminNavigation: NavigationItem[] = [
     label: "Chats",
     href: "/admin/chats",
     icon: Receipt,
+  },
+  {
+    label: "Cash Book",
+    href: "/admin/cash-book",
+    icon: DollarSign,
   },
   {
     label: "Sales Report",

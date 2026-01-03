@@ -14,6 +14,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useChatStore } from "@/store/chat-store";
+import { sanityApiService } from "@/lib/sanity-api-service";
 import { sharePendingBills } from "@/lib/pending-bill-share";
 
 export default function CustomerBillsPage() {
@@ -167,6 +168,11 @@ export default function CustomerBillsPage() {
       const addDiscount = typeof paymentData.discount === 'number' ? Math.max(Number(paymentData.discount || 0), 0) : 0;
       const totalDiscount = existingDiscount + addDiscount;
 
+      // Calculate the amount being paid in this transaction
+      const previousPaidAmount = Number(existingBill?.paidAmount || 0);
+      const newPaidAmount = paymentData.paidAmount;
+      const paymentAmount = newPaidAmount - previousPaidAmount;
+
       await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
@@ -174,6 +180,38 @@ export default function CustomerBillsPage() {
         ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
         updatedAt: new Date().toISOString(),
       } as any);
+
+      // Create cash book entry for manual payment (only if there's an actual payment)
+      if (paymentAmount > 0 && customer) {
+        try {
+          console.log('Creating cash book entry for manual payment:', {
+            billId,
+            userId: customer._id,
+            userName: customer.name,
+            amount: paymentAmount,
+            paymentType: 'credit'
+          });
+          
+          const result = await sanityApiService.cashBook.createEntryFromBillPayment({
+            billId: billId,
+            userId: customer._id,
+            userName: customer.name,
+            amount: paymentAmount,
+            paymentType: 'credit'
+          });
+          
+          console.log('Manual payment cash book entry result:', result);
+          
+          if (!result.success) {
+            console.error('Failed to create cash book entry for manual payment:', result.error);
+          }
+        } catch (cashBookError) {
+          console.error('Failed to create cash book entry:', cashBookError);
+          // Don't fail payment update if cash book entry fails
+        }
+      } else {
+        console.log('No payment amount or customer data, skipping cash book entry');
+      }
 
       toast.success(
         paymentData.paymentStatus === "paid"

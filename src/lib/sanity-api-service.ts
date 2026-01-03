@@ -1738,6 +1738,160 @@ export const onlineApiService = {
   },
 };
 
+// Cash Book API Service
+export const cashBookApiService = {
+  /**
+   * Get all cash book entries
+   */
+  async getAllEntries(): Promise<ApiResponse<any[]>> {
+    try {
+      const query = `*[_type == "cashBookEntry"] {
+        ...,
+        user->{
+          _id,
+          name,
+          phone,
+          email
+        },
+        bill->{
+          _id,
+          billNumber,
+          customer->{
+            _id,
+            name
+          }
+        }
+      } | order(createdAt desc)`;
+
+      const entries = await sanityClient.fetch(query);
+      return { success: true, data: entries };
+    } catch (error) {
+      console.error('Error fetching cash book entries:', error);
+      return { success: false, error: 'Failed to fetch cash book entries' };
+    }
+  },
+
+  /**
+   * Create cash book entry
+   */
+  async createEntry(entryData: any): Promise<ApiResponse<any>> {
+    try {
+      const newEntry = {
+        _type: "cashBookEntry",
+        ...entryData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const createdEntry = await sanityClient.create(newEntry);
+      
+      // Note: Strapi sync for cash book not implemented yet
+      // TODO: Add Strapi sync when cash book model is added to Strapi
+
+      return { success: true, data: createdEntry };
+    } catch (error) {
+      console.error('Error creating cash book entry:', error);
+      return { success: false, error: 'Failed to create cash book entry' };
+    }
+  },
+
+  /**
+   * Create cash book entry from bill payment
+   */
+  async createEntryFromBillPayment(paymentData: {
+    billId: string;
+    userId: string;
+    userName: string;
+    amount: number;
+    paymentType: 'credit' | 'debit';
+  }): Promise<ApiResponse<any>> {
+    try {
+      const entryData = {
+        user: {
+          _type: "reference",
+          _ref: paymentData.userId
+        },
+        userName: paymentData.userName,
+        amount: paymentData.amount,
+        type: paymentData.paymentType,
+        source: "Bill Payment",
+        bill: {
+          _type: "reference", 
+          _ref: paymentData.billId
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      return await this.createEntry(entryData);
+    } catch (error) {
+      console.error('Error creating cash book entry from bill payment:', error);
+      return { success: false, error: 'Failed to create cash book entry from bill payment' };
+    }
+  },
+
+  /**
+   * Get cash book entries by date range
+   */
+  async getEntriesByDateRange(startDate: string, endDate: string): Promise<ApiResponse<any[]>> {
+    try {
+      const query = `*[_type == "cashBookEntry" && createdAt >= $startDate && createdAt <= $endDate] {
+        ...,
+        user->{
+          _id,
+          name,
+          phone,
+          email
+        },
+        bill->{
+          _id,
+          billNumber,
+          customer->{
+            _id,
+            name
+          }
+        }
+      } | order(createdAt desc)`;
+
+      const entries = await sanityClient.fetch(query, { startDate, endDate });
+      return { success: true, data: entries };
+    } catch (error) {
+      console.error('Error fetching cash book entries by date range:', error);
+      return { success: false, error: 'Failed to fetch cash book entries by date range' };
+    }
+  },
+
+  /**
+   * Get cash book summary (total credits, debits, balance)
+   */
+  async getSummary(): Promise<ApiResponse<any>> {
+    try {
+      const query = `*[_type == "cashBookEntry"] {
+        type,
+        amount
+      }`;
+
+      const entries = await sanityClient.fetch(query);
+      
+      const summary = entries.reduce((acc: any, entry: any) => {
+        if (entry.type === 'credit') {
+          acc.totalCredits += entry.amount;
+        } else if (entry.type === 'debit') {
+          acc.totalDebits += entry.amount;
+        }
+        return acc;
+      }, { totalCredits: 0, totalDebits: 0, balance: 0 });
+
+      summary.balance = summary.totalCredits - summary.totalDebits;
+
+      return { success: true, data: summary };
+    } catch (error) {
+      console.error('Error fetching cash book summary:', error);
+      return { success: false, error: 'Failed to fetch cash book summary' };
+    }
+  },
+};
+
 // Export all API services
 export const sanityApiService = {
   users: userApiService,
@@ -1751,4 +1905,5 @@ export const sanityApiService = {
   followUps: followUpApiService,
   suppliers: supplierApiService,
   online: onlineApiService,
+  cashBook: cashBookApiService,
 };

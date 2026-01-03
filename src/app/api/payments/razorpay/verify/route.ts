@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { sanityClient } from "@/lib/sanity";
+import { sanityApiService } from "@/lib/sanity-api-service";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch bill to compute amounts
-    const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, totalAmount, paidAmount, discount }`, { id: billId });
+    const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, totalAmount, paidAmount, discount, customer->{_id, name, phone, email} }`, { id: billId });
     if (!bill) {
       return NextResponse.json({ error: "Bill not found" }, { status: 404 });
     }
@@ -67,6 +68,37 @@ export async function POST(req: Request) {
     const updated = await sanityClient.patch(billId)
       .set({ paidAmount: paidNext, balanceAmount: balance, paymentStatus, updatedAt: new Date().toISOString() })
       .commit();
+
+    // Create cash book entry for this payment
+    try {
+      console.log('Creating cash book entry for payment:', {
+        billId,
+        customer: bill.customer,
+        amount: add,
+        paymentType: 'credit'
+      });
+      
+      if (bill.customer && add > 0) {
+        const result = await sanityApiService.cashBook.createEntryFromBillPayment({
+          billId: billId,
+          userId: bill.customer._id,
+          userName: bill.customer.name,
+          amount: add,
+          paymentType: 'credit'
+        });
+        
+        console.log('Cash book entry creation result:', result);
+        
+        if (!result.success) {
+          console.error('Failed to create cash book entry:', result.error);
+        }
+      } else {
+        console.log('No customer data or zero amount, skipping cash book entry');
+      }
+    } catch (cashBookError) {
+      console.error('Failed to create cash book entry:', cashBookError);
+      // Don't fail payment if cash book entry fails
+    }
 
     return NextResponse.json({ success: true, bill: updated });
   } catch (error: any) {

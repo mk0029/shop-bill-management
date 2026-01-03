@@ -404,6 +404,41 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       };
       const response = await stockApi.createStockTransaction(payload);
       if (response.success) {
+        // Create cash book entry for inventory debit (only for certain transaction types)
+        try {
+          const transaction = response.data as StockTransaction;
+          const shouldCreateDebit = ['sale', 'adjustment', 'damage', 'return'].includes(transaction.type);
+          
+          if (shouldCreateDebit && transaction.totalAmount > 0) {
+            console.log('Creating cash book entry for inventory debit:', {
+              transactionId: transaction._id,
+              type: transaction.type,
+              amount: transaction.totalAmount,
+              userName: user?.name || 'System'
+            });
+            
+            // Import here to avoid circular dependency
+            const { sanityApiService } = await import("@/lib/sanity-api-service");
+            
+            const cashBookResult = await sanityApiService.cashBook.createEntry({
+              userName: user?.name || 'System',
+              amount: transaction.totalAmount,
+              type: 'debit',
+              source: 'Manual', // Inventory transactions are manual debits
+              notes: `Inventory ${transaction.type}: ${transaction.product.name || transaction.transactionId}`
+            });
+            
+            console.log('Inventory debit cash book entry result:', cashBookResult);
+            
+            if (!cashBookResult.success) {
+              console.error('Failed to create cash book entry for inventory debit:', cashBookResult.error);
+            }
+          }
+        } catch (cashBookError) {
+          console.error('Failed to create cash book entry for inventory transaction:', cashBookError);
+          // Don't fail stock transaction if cash book entry fails
+        }
+        
         get().fetchStockTransactions();
         get().fetchInventorySummary();
         return true;

@@ -1,0 +1,486 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { Plus, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { sanityApiService } from "@/lib/sanity-api-service";
+import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
+
+interface CashBookEntry {
+  _id: string;
+  _createdAt: string;
+  user?: {
+    _id: string;
+    name: string;
+    phone?: string;
+    email?: string;
+  };
+  userName: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  source: 'Manual' | 'Bill Payment';
+  bill?: {
+    _id: string;
+    billNumber: string;
+    customer?: {
+      _id: string;
+      name: string;
+    };
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CashBookSummary {
+  totalCredits: number;
+  totalDebits: number;
+  balance: number;
+}
+
+interface User {
+  _id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  role?: string;
+}
+
+interface CashBookPageProps {
+  initialEntries: CashBookEntry[];
+  initialUsers: User[];
+  initialSummary: CashBookSummary;
+}
+
+export function CashBookPage({ 
+  initialEntries, 
+  initialUsers, 
+  initialSummary 
+}: CashBookPageProps) {
+  const [entries, setEntries] = useState<CashBookEntry[]>(initialEntries);
+  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [summary, setSummary] = useState<CashBookSummary>(initialSummary);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Form state
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const [transactionType, setTransactionType] = useState<'credit' | 'debit'>('credit');
+
+  // Real-time updates
+  const { isConnected } = useCashBookRealtime({
+    onEntryAdded: (newEntry) => {
+      setEntries(prev => [newEntry, ...prev]);
+      // Update summary
+      setSummary(prev => ({
+        ...prev,
+        totalCredits: prev.totalCredits + (newEntry.type === 'credit' ? newEntry.amount : 0),
+        totalDebits: prev.totalDebits + (newEntry.type === 'debit' ? newEntry.amount : 0),
+        balance: prev.balance + (newEntry.type === 'credit' ? newEntry.amount : -newEntry.amount)
+      }));
+      toast.success(`Cash book entry added: ${newEntry.type === 'credit' ? '+' : '-'}₹${newEntry.amount}`);
+    },
+    onEntryUpdated: (updatedEntry) => {
+      setEntries(prev => prev.map(entry => 
+        entry._id === updatedEntry._id ? updatedEntry : entry
+      ));
+      // Recalculate summary
+      setEntries(currentEntries => {
+        const newSummary = currentEntries.reduce((acc, entry) => {
+          if (entry.type === 'credit') {
+            acc.totalCredits += entry.amount;
+          } else if (entry.type === 'debit') {
+            acc.totalDebits += entry.amount;
+          }
+          return acc;
+        }, { totalCredits: 0, totalDebits: 0, balance: 0 });
+        
+        newSummary.balance = newSummary.totalCredits - newSummary.totalDebits;
+        setSummary(newSummary);
+        return currentEntries;
+      });
+    },
+    onEntryDeleted: (deletedId) => {
+      setEntries(prev => {
+        const deletedEntry = prev.find(entry => entry._id === deletedId);
+        if (deletedEntry) {
+          // Update summary
+          setSummary(summary => ({
+            ...summary,
+            totalCredits: summary.totalCredits - (deletedEntry.type === 'credit' ? deletedEntry.amount : 0),
+            totalDebits: summary.totalDebits - (deletedEntry.type === 'debit' ? deletedEntry.amount : 0),
+            balance: summary.balance - (deletedEntry.type === 'credit' ? deletedEntry.amount : -deletedEntry.amount)
+          }));
+        }
+        return prev.filter(entry => entry._id !== deletedId);
+      });
+    }
+  });
+
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!amount || parseFloat(amount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    if (!selectedUserId) {
+      toast.error("Please select a user");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const selectedUser = users.find(u => u._id === selectedUserId);
+      if (!selectedUser) {
+        toast.error("Selected user not found");
+        return;
+      }
+
+      const entryData = {
+        user: {
+          _type: "reference",
+          _ref: selectedUserId
+        },
+        userName: selectedUser.name,
+        amount: parseFloat(amount),
+        type: transactionType,
+        source: "Manual"
+      };
+
+      const result = await sanityApiService.cashBook.createEntry(entryData);
+      
+      if (result.success) {
+        // Reset form
+        setAmount("");
+        setSelectedUserId("");
+        setTransactionType('credit');
+        setShowAddForm(false);
+        
+        toast.success(`Manual ${transactionType} entry of ${formatCurrency(parseFloat(amount))} added successfully`);
+      } else {
+        toast.error(result.error || "Failed to add cash book entry");
+      }
+    } catch (error) {
+      console.error('Error adding cash book entry:', error);
+      toast.error("Failed to add cash book entry");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const selectedUser = users.find(u => u._id === selectedUserId);
+
+  return (
+    <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+              Cash Book
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">
+              Real-time cash payment ledger
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-xs text-gray-400">
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card className="bg-gray-800 border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Total Credits</p>
+                <p className="text-green-400 text-xl font-bold flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4" />
+                  {formatCurrency(summary.totalCredits)}
+                </p>
+              </div>
+              <div className="bg-green-500/20 p-2 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-green-500" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="bg-gray-800 border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Total Debits</p>
+                <p className="text-red-400 text-xl font-bold flex items-center gap-1">
+                  <TrendingDown className="w-4 h-4" />
+                  {formatCurrency(summary.totalDebits)}
+                </p>
+              </div>
+              <div className="bg-red-500/20 p-2 rounded-lg">
+                <TrendingDown className="w-6 h-6 text-red-500" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="bg-gray-800 border-gray-700 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Balance</p>
+                <p className={`text-xl font-bold flex items-center gap-1 ${
+                  summary.balance >= 0 ? 'text-blue-400' : 'text-orange-400'
+                }`}>
+                  <DollarSign className="w-4 h-4" />
+                  {formatCurrency(Math.abs(summary.balance))}
+                  {summary.balance < 0 && ' (Deficit)'}
+                </p>
+              </div>
+              <div className={`${summary.balance >= 0 ? 'bg-blue-500/20' : 'bg-orange-500/20'} p-2 rounded-lg`}>
+                <DollarSign className={`w-6 h-6 ${summary.balance >= 0 ? 'text-blue-500' : 'text-orange-500'}`} />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Add Record Button */}
+        <div className="flex justify-end">
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Record
+          </Button>
+        </div>
+
+        {/* Add Record Form */}
+        {showAddForm && (
+          <Card className="bg-gray-800 border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Add Manual Record</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="user" className="text-gray-300 text-sm">User</Label>
+                  <SelectField
+                    value={selectedUserId}
+                    onValueChange={setSelectedUserId}
+                    options={[
+                      { value: "other", label: "Other" },
+                      ...users.map((user) => ({
+                        value: user._id,
+                        label: user.name
+                      }))
+                    ]}
+                    placeholder="Select user"
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="amount" className="text-gray-300 text-sm">Amount</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-gray-300 text-sm">Transaction Type</Label>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant={transactionType === 'credit' ? 'default' : 'outline'}
+                    onClick={() => setTransactionType('credit')}
+                    className={`flex-1 ${
+                      transactionType === 'credit' 
+                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    Credit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={transactionType === 'debit' ? 'default' : 'outline'}
+                    onClick={() => setTransactionType('debit')}
+                    className={`flex-1 ${
+                      transactionType === 'debit' 
+                        ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    Debit
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Entry'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddForm(false)}
+                  className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Card>
+        )}
+
+        {/* Records Table - Desktop View */}
+        <div className="hidden lg:block">
+          <Card className="bg-gray-800 border-gray-700">
+            <div className="p-4 border-b border-gray-700">
+              <h3 className="text-lg font-semibold text-white">Cash Book Records</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left p-4 text-gray-400 font-medium">User</th>
+                    <th className="text-left p-4 text-gray-400 font-medium">Amount</th>
+                    <th className="text-left p-4 text-gray-400 font-medium">Type</th>
+                    <th className="text-left p-4 text-gray-400 font-medium">Source</th>
+                    <th className="text-left p-4 text-gray-400 font-medium">Date & Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((entry) => (
+                    <tr key={entry._id} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
+                      <td className="p-4">
+                        <div>
+                          <p className="text-white font-medium">{entry.userName}</p>
+                          {entry.user?.phone && (
+                            <p className="text-gray-400 text-sm">{entry.user.phone}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className={`font-bold ${
+                          entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                        </p>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
+                               className={entry.type === 'credit' 
+                                 ? 'bg-green-600 text-white' 
+                                 : 'bg-red-600 text-white'}>
+                          {entry.type === 'credit' ? 'Credit' : 'Debit'}
+                        </Badge>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="border-gray-600 text-gray-300">
+                            {entry.source}
+                          </Badge>
+                          {entry.bill && (
+                            <span className="text-gray-400 text-sm">
+                              Bill: {entry.bill.billNumber}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-gray-300">
+                          {format(new Date(entry.createdAt), 'dd MMM yyyy, hh:mm a')}
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {entries.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">No cash book entries found</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Records Cards - Mobile View */}
+        <div className="lg:hidden space-y-3">
+          {entries.map((entry) => (
+            <Card key={entry._id} className="bg-gray-800 border-gray-700 p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="text-white font-medium">{entry.userName}</h4>
+                  {entry.user?.phone && (
+                    <p className="text-gray-400 text-sm">{entry.user.phone}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold text-lg ${
+                    entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
+                       className={entry.type === 'credit' 
+                         ? 'bg-green-600 text-white text-xs' 
+                         : 'bg-red-600 text-white text-xs'}>
+                  {entry.type === 'credit' ? 'Credit' : 'Debit'}
+                </Badge>
+                <Badge variant="outline" className="border-gray-600 text-gray-300 text-xs">
+                  {entry.source}
+                </Badge>
+                {entry.bill && (
+                  <span className="text-gray-400 text-xs">
+                    Bill: {entry.bill.billNumber}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-400 text-xs">
+                {format(new Date(entry.createdAt), 'dd MMM yyyy, hh:mm a')}
+              </p>
+            </Card>
+          ))}
+          {entries.length === 0 && (
+            <Card className="bg-gray-800 border-gray-700 p-8 text-center">
+              <p className="text-gray-400">No cash book entries found</p>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

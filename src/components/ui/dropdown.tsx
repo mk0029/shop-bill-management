@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { Input } from "./input";
 
-interface DropdownOption {
+export interface DropdownOption {
   value: string;
   label: string;
   disabled?: boolean;
