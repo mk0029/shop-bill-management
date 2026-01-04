@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BillDetailModal } from "@/components/ui/bill-detail-modal";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
-import { toast } from "sonner";
-import { ExternalLink, Receipt } from "lucide-react";
-import { BillDetailModal } from "@/components/ui/bill-detail-modal";
-import { format } from "date-fns";
-import { Plus, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { sanityApiService } from "@/lib/sanity-api-service";
 import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
+import { sanityApiService } from "@/lib/sanity-api-service";
+import { format } from "date-fns";
+import { DollarSign, Plus, Receipt, TrendingDown, TrendingUp, XIcon, Calendar } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import ResponsiveAccordion from "../ui/responsive-accordion";
 
 interface CashBookEntry {
   _id: string;
@@ -77,6 +77,26 @@ export function CashBookPage({
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [transactionType, setTransactionType] = useState<'credit' | 'debit'>('credit');
+  
+  // Pagination - show only 20 entries
+  const displayedEntries = entries.slice(0, 20);
+  
+  // Group entries by date for date separators
+  const groupEntriesByDate = (entries: CashBookEntry[]) => {
+    const groups: { [date: string]: CashBookEntry[] } = {};
+    
+    entries.forEach(entry => {
+      const date = format(new Date(entry.createdAt), 'yyyy-MM-dd');
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(entry);
+    });
+    
+    return groups;
+  };
+  
+  const groupedEntries = groupEntriesByDate(displayedEntries);
 
   // Real-time updates
   const { isConnected } = useCashBookRealtime({
@@ -211,11 +231,13 @@ export function CashBookPage({
   const selectedUser = users.find(u => u._id === selectedUserId);
 
   return (
-    <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
+    <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-4">
+       <ResponsiveAccordion
+      defaultOpenMobile={true}
+      // removePX
+      title={
+        <CardHeader className="!p-0">
+                   <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
               Cash Book
             </h1>
@@ -223,12 +245,14 @@ export function CashBookPage({
               Real-time cash payment ledger
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-xs text-gray-400">
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
+        </CardHeader>
+      }
+    >
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+         
         </div>
 
         {/* Summary Cards */}
@@ -282,23 +306,32 @@ export function CashBookPage({
           </Card>
         </div>
 
-        {/* Add Record Button */}
-        <div className="flex justify-end">
+ 
+      </div></ResponsiveAccordion>
+      <div className=" mx-auto space-y-4 sm:space-y-6 mt-6">
+               {/* Add Record & History Buttons */}
+        <div className="flex justify-between">
+          <Button
+            onClick={() => window.location.href = '/cash-book/history'}
+            className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2"
+          >
+            <Calendar className="w-4 h-4" />
+            View History
+          </Button>
           <Button
             onClick={() => setShowAddForm(!showAddForm)}
             className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" />
-            Add Record
+           {showAddForm ? <><XIcon className="w-4 h-4" /> Close</> : <><Plus className="w-4 h-4" /> Add Record</>}
           </Button>
         </div>
 
         {/* Add Record Form */}
         {showAddForm && (
-          <Card className="bg-gray-800 border-gray-700 p-6">
+          <Card className="bg-gray-800 border-gray-700 p-3 md:p-6">
             <h3 className="text-lg font-semibold text-white mb-4">Add Manual Record</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4">
                 <div>
                   <Label htmlFor="user" className="text-gray-300 text-sm">User</Label>
                   <SelectField
@@ -361,7 +394,7 @@ export function CashBookPage({
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex gap-2 pt-2 md:pt-4">
                 <Button
                   type="submit"
                   disabled={isSubmitting}
@@ -386,139 +419,165 @@ export function CashBookPage({
         <div className="hidden lg:block">
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-4 border-b border-gray-700">
-              <h3 className="text-lg font-semibold text-white">Cash Book Records</h3>
+              <h3 className="text-lg font-semibold text-white">Cash Book Records (Latest 20)</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left p-4 text-gray-400 font-medium">User</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Amount</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Type</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Source</th>
-                    <th className="text-left p-4 text-gray-400 font-medium">Date & Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((entry) => (
-                    <tr key={entry._id} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
-                      <td className="p-4">
-                        <div>
-                          <p className="text-white font-medium">{entry.userName}</p>
-                          {entry.user?.phone && (
-                            <p className="text-gray-400 text-sm">{entry.user.phone}</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <p className={`font-bold ${
-                          entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
-                        </p>
-                      </td>
-                      <td className="p-4">
-                        <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
-                               className={entry.type === 'credit' 
-                                 ? 'bg-green-600 text-white' 
-                                 : 'bg-red-600 text-white'}>
-                          {entry.type === 'credit' ? 'Credit' : 'Debit'}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="border-gray-600 text-gray-300">
-                            {entry.source}
-                          </Badge>
-                          {entry.bill && (
-                            <>
-                              {/* <span className="text-gray-400 text-sm">
-                                Bill: {entry.bill.billNumber}
-                              </span> */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
-                              >
-                                Check Bill
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <p className="text-gray-300">
-                          {format(new Date(entry.createdAt), 'dd MMM yyyy, hh:mm a')}
-                        </p>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {entries.length === 0 && (
+              {Object.keys(groupedEntries).length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-400">No cash book entries found</p>
                 </div>
+              ) : (
+                Object.entries(groupedEntries).map(([date, dateEntries]) => (
+                  <div key={date}>
+                    {/* Date Separator */}
+                    <div className="border-t border-gray-600 my-2"></div>
+                    <div className="px-4 py-2 bg-gray-700/50">
+                      <p className="text-sm font-medium text-gray-300">
+                        {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                      </p>
+                    </div>
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-700">
+                          <th className="text-left p-4 text-gray-400 font-medium">User</th>
+                          <th className="text-left p-4 text-gray-400 font-medium">Amount</th>
+                          <th className="text-left p-4 text-gray-400 font-medium">Type</th>
+                          <th className="text-left p-4 text-gray-400 font-medium">Source</th>
+                          <th className="text-left p-4 text-gray-400 font-medium">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dateEntries.map((entry) => (
+                          <tr key={entry._id} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
+                            <td className="p-4">
+                              <div>
+                                <p className="text-white font-medium">{entry.userName}</p>
+                                {entry.user?.phone && (
+                                  <p className="text-gray-400 text-sm">{entry.user.phone}</p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <p className={`font-bold ${
+                                entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                              </p>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
+                                     className={entry.type === 'credit' 
+                                       ? 'bg-green-600 text-white' 
+                                       : 'bg-red-600 text-white'}>
+                                {entry.type === 'credit' ? 'Credit' : 'Debit'}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="border-gray-600 text-gray-300">
+                                  {entry.source}
+                                </Badge>
+                                {entry.bill && (
+                                  <>
+                                    {/* <span className="text-gray-400 text-sm">
+                                      Bill: {entry.bill.billNumber}
+                                    </span> */}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
+                                    >
+                                      Check Bill
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <p className="text-gray-300">
+                                {format(new Date(entry.createdAt), 'hh:mm a')}
+                              </p>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))
               )}
             </div>
           </Card>
         </div>
 
         {/* Records Cards - Mobile View */}
-        <div className="lg:hidden space-y-3">
-          {entries.map((entry) => (
-            <Card key={entry._id} className="bg-gray-800 border-gray-700 p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="text-white font-medium">{entry.userName}</h4>
-                  {entry.user?.phone && (
-                    <p className="text-gray-400 text-sm">{entry.user.phone}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className={`font-bold text-lg ${
-                    entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
-                       className={entry.type === 'credit' 
-                         ? 'bg-green-600 text-white text-xs' 
-                         : 'bg-red-600 text-white text-xs'}>
-                  {entry.type === 'credit' ? 'Credit' : 'Debit'}
-                </Badge>
-                <Badge variant="outline" className="border-gray-600 text-gray-300 text-xs">
-                  {entry.source}
-                </Badge>
-                {entry.bill && (
-                  <>
-                    <span className="text-gray-400 text-xs">
-                      Bill: {entry.bill.billNumber}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewBill(entry.bill._id)}
-                      className="h-5 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
-                    >
-                      <Receipt className="w-2 h-2 mr-1" />
-                      View
-                    </Button>
-                  </>
-                )}
-              </div>
-              <p className="text-gray-400 text-xs">
-                {format(new Date(entry.createdAt), 'dd MMM yyyy, hh:mm a')}
-              </p>
-            </Card>
-          ))}
-          {entries.length === 0 && (
+        <div className="lg:hidden">
+          {Object.keys(groupedEntries).length === 0 ? (
             <Card className="bg-gray-800 border-gray-700 p-8 text-center">
               <p className="text-gray-400">No cash book entries found</p>
             </Card>
+          ) : (
+            Object.entries(groupedEntries).map(([date, dateEntries]) => (
+              <div key={date} className="mb-4">
+                {/* Date Separator */}
+                <div className="border-t border-gray-600 my-2"></div>
+                <div className="px-4 py-2 bg-gray-700/50">
+                  <p className="text-sm font-medium text-gray-300">
+                    {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {dateEntries.map((entry) => (
+                    <Card key={entry._id} className="bg-gray-800 border-gray-700 p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="text-white font-medium">{entry.userName}</h4>
+                          {entry.user?.phone && (
+                            <p className="text-gray-400 text-sm">{entry.user.phone}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-bold text-lg ${
+                            entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
+                               className={entry.type === 'credit' 
+                                 ? 'bg-green-600 text-white text-xs' 
+                                 : 'bg-red-600 text-white text-xs'}>
+                          {entry.type === 'credit' ? 'Credit' : 'Debit'}
+                        </Badge>
+                        <Badge variant="outline" className="border-gray-600 text-gray-300 text-xs">
+                          {entry.source}
+                        </Badge>
+                        {entry.bill && (
+                          <>
+                            <span className="text-gray-400 text-xs">
+                              Bill: {entry.bill.billNumber}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewBill(entry.bill._id)}
+                              className="h-5 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
+                            >
+                              <Receipt className="w-2 h-2 mr-1" />
+                              View
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-gray-400 text-xs">
+                        {format(new Date(entry.createdAt), 'hh:mm a')}
+                      </p>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ))
           )}
         </div>
 

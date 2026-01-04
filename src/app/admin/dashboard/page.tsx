@@ -53,6 +53,15 @@ export default async function AdminDashboard() {
       text: "text-purple-100",
       url: "/admin/inventory/add",
     },
+    {
+      iconName: "file" as const,
+      title: "Add Cash Entry",
+      description: "Add new cash entry",
+      bg: "bg-yellow-500",
+      hover: "hover:bg-yellow-700",
+      text: "text-yellow-100",
+      url: "/admin/cash-book",
+    },
   ];
 
   return (
@@ -69,10 +78,10 @@ export default async function AdminDashboard() {
           </div>
 
           {/* Real-time Bill Stats */}
-          <div>
+          {/* <div>
             <h2 className="text-xl font-semibold text-white mb-4">Bill Analytics</h2>
             <RealtimeBillStats key="dashboard-stats" />
-          </div>
+          </div> */}
 
           {/* Quick Actions */}
           <Card>

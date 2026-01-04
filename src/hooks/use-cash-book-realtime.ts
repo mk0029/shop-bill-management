@@ -5,9 +5,12 @@ import { sanityClient } from "@/lib/sanity";
 
 export interface CashBookEntry {
   _id: string;
+  _createdAt: string;
   user?: {
     _id: string;
     name: string;
+    phone?: string;
+    email?: string;
   };
   userName: string;
   amount: number;
@@ -16,6 +19,10 @@ export interface CashBookEntry {
   bill?: {
     _id: string;
     billNumber: string;
+    customer?: {
+      _id: string;
+      name: string;
+    };
   };
   createdAt: string;
   updatedAt: string;
