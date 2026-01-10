@@ -12,6 +12,7 @@ import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { BillFormData, Customer, Item } from "@/types";
 import { RealtimeBillList, RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { FileText, Plus, Search, Calculator, FileTextIcon } from "lucide-react";
+import ResponsiveAccordion from "../ui/responsive-accordion";
 
 export type BillingBrowserVariant = "all" | "pending";
 
@@ -262,11 +263,12 @@ export function BillingBrowser({
 
       {/* Bill Statistics */}
       <div>
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+       
+         <ResponsiveAccordion className="mb-4" title={ <h2 className="text-lg font-semibold text-white  flex items-center gap-2">
           <Calculator className="w-5 h-5 text-blue-400" />
           Bill Statistics
-        </h2>
-        <RealtimeBillStats key={`billing-stats-${variant}`} initialBills={bills} />
+        </h2>}>
+        <RealtimeBillStats key={`billing-stats-${variant}`} initialBills={bills} /></ResponsiveAccordion>
       </div>
 
       {/* Search and Filter */}
@@ -282,7 +284,14 @@ export function BillingBrowser({
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            {(["pending", "partial", "overdue", "paid", "draft"] as readonly string[]).map(
+              <button
+              type="button"
+              onClick={() => setSelectedStatuses([])}
+              className={`px-3 py-1 text-xs rounded-full border ${selectedStatuses.length === 0 ? "bg-blue-600 text-white border-blue-500" : "bg-gray-800 text-gray-300 border-gray-700"}`}
+            >
+              All
+            </button>
+            {(["pending", "partial", "overdue", "paid"] as readonly string[]).map(
               (status) => {
                 const active = selectedStatuses.includes(status);
                 return (
@@ -308,13 +317,7 @@ export function BillingBrowser({
                 );
               }
             )}
-            <button
-              type="button"
-              onClick={() => setSelectedStatuses([])}
-              className={`px-3 py-1 text-xs rounded-full border ${selectedStatuses.length === 0 ? "bg-blue-600 text-white border-blue-500" : "bg-gray-800 text-gray-300 border-gray-700"}`}
-            >
-              All
-            </button>
+          
           </div>
         </div>
       </Card>
