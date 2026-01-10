@@ -81,7 +81,7 @@ export function ResponsiveAccordion({
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="inline-flex"
             >
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-4 h-4 xl:hidden" />
             </motion.span>
           </button>
         </div>

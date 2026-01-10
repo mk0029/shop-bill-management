@@ -12,7 +12,7 @@ import { sanityApiService } from "@/lib/sanity-api-service";
 import { syncBillPaymentsToCashBook, getSyncStatistics } from "@/lib/bill-payment-sync";
 import { format } from "date-fns";
 import { DollarSign, Plus, Receipt, TrendingDown, TrendingUp, XIcon, Calendar, RefreshCw, Trash } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 
@@ -81,6 +81,18 @@ export function CashBookPage({
   const [customUserName, setCustomUserName] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [transactionType, setTransactionType] = useState<'credit' | 'debit'>('credit');
+  
+  // Ref for custom name input
+  const customNameRef = useRef<HTMLInputElement>(null);
+  
+  // Auto-focus custom name input when "Other" is selected
+  useEffect(() => {
+    if (selectedUserId === "other" && customNameRef.current) {
+      setTimeout(() => {
+        customNameRef.current?.focus();
+      }, 100);
+    }
+  }, [selectedUserId]);
   
   // Pagination - show only 20 entries
   const displayedEntries = entries.slice(0, 20);
@@ -465,6 +477,7 @@ export function CashBookPage({
                   <div>
                     <Label htmlFor="customName" className="text-gray-300 text-sm">Custom Name</Label>
                     <Input
+                      ref={customNameRef}
                       id="customName"
                       type="text"
                       value={customUserName}

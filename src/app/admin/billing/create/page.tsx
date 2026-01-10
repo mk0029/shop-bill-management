@@ -249,7 +249,7 @@ export default function CreateBillPage() {
                 // ignore close to always keep one open
               }}
             >
-              <div className="sm:px-2 sm:pb-1">
+              <div className="sm:px-0 sm:pb-1">
                 <CustomerInfoSection
                   formData={formData}
                   customers={customers}

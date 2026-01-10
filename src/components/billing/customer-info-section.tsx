@@ -111,8 +111,8 @@ export const CustomerInfoSection = ({
                 onValueChange={(value) => onInputChange("location", value)}
                 className="bg-gray-800 border-gray-700"
                 trackClassName="bg-gray-700"
-                thumbClassName="bg-blue-600"
-                labelClassName="text-sm text-gray-300"
+                thumbClassName="bg-white/20"
+                labelClassName="text-sm text-white"
               />
             </div>
           )}
