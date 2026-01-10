@@ -15,6 +15,8 @@ export interface Customer {
 export interface CustomerWithStats extends Customer {
   totalBills: number;
   totalSpent: number;
+  pendingAmount: number;
+  partialAmount: number;
   lastBillDate: string | null;
 }
 

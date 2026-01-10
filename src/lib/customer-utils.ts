@@ -46,10 +46,11 @@ export function formatCustomerActivity(
   customer: CustomerWithStats,
   currency: string
 ): string {
-  const billText = customer.totalBills === 1 ? "bill" : "bills";
-  return `${
-    customer.totalBills
-  } ${billText} • ${currency}${customer.totalSpent.toLocaleString()}`;
+  const totalPending = customer.pendingAmount + customer.partialAmount;
+  if (totalPending > 0) {
+    return `${currency}${totalPending.toLocaleString()} pending`;
+  }
+  return `All Paid`;
 }
 
 /**

@@ -20,6 +20,23 @@ export function useCustomerStats() {
         }
         return sum;
       }, 0);
+      
+      // Calculate pending amount (fully unpaid bills)
+      const pendingAmount = customerBills.reduce((sum, bill) => {
+        if (bill.paymentStatus === "pending") {
+          return sum + (bill.totalAmount || 0);
+        }
+        return sum;
+      }, 0);
+      
+      // Calculate partial amount (remaining balance for partially paid bills)
+      const partialAmount = customerBills.reduce((sum, bill) => {
+        if (bill.paymentStatus === "partial") {
+          return sum + (bill.balanceAmount || 0);
+        }
+        return sum;
+      }, 0);
+      
       const lastBill = customerBills.sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -29,6 +46,8 @@ export function useCustomerStats() {
         ...customer,
         totalBills,
         totalSpent,
+        pendingAmount,
+        partialAmount,
         lastBillDate: lastBill ? lastBill.createdAt.split("T")[0] : null,
       };
     });

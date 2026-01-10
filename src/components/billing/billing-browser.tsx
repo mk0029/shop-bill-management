@@ -11,7 +11,7 @@ import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { BillFormData, Customer, Item } from "@/types";
 import { RealtimeBillList, RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
-import { FileText, Plus, Search, Calculator } from "lucide-react";
+import { FileText, Plus, Search, Calculator, FileTextIcon } from "lucide-react";
 
 export type BillingBrowserVariant = "all" | "pending";
 
@@ -238,18 +238,25 @@ export function BillingBrowser({
         
         </div>
         {rightAction ?? (
-          <Button
+         <div className="flex items-center gap-2"> <Button
             onClick={() => {
-              try {
-                localStorage.setItem("bill_create_skip_restore", "1");
-              } catch {}
+           
+              router.push("/admin/billing/admin/billing/drafts");
+            }}
+            className="w-full sm:w-auto" variant="outline"
+          >
+            <FileTextIcon className="w-4 h-4 mr-2" />
+           Drafts
+          </Button> <Button
+            onClick={() => {
+              
               router.push("/admin/billing/create?fresh=1");
             }}
             className="w-full sm:w-auto"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Bill
-          </Button>
+          </Button></div>
         )}
       </div>
 

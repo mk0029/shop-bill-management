@@ -127,7 +127,7 @@ export default function CreateBillPage() {
 
   const handleBack = () => {
 
-      router.back();
+      router.push("/admin/billing");
     
   };
 

@@ -60,22 +60,23 @@ const adminNavigation: NavigationItem[] = [
     label: "Customers",
     href: "/admin/customers",
     icon: Users,
-    children: [
-      { label: "All Customers", href: "/admin/customers", icon: Users },
-      { label: "Add Customer", href: "/admin/customers/add", icon: Plus },
-    ],
+    // children: [
+    //   { label: "All Customers", href: "/admin/customers", icon: Users },
+    //   { label: "Add Customer", href: "/admin/customers/add", icon: Plus },
+    // ],
   },
   {
     label: "Billing",
     href: "/admin/billing",
     icon: FileText,
-    children: [
-      { label: "All Bills", href: "/admin/billing", icon: FileText },
-      { label: "Create Bill", href: "/admin/billing/create?fresh=1", icon: Plus },
-      { label: "Estimate Fitting Cost", href: "/admin/billing/fitting-wiring", icon: FileText },
-      { label: "Draft Bills", href: "/admin/billing/drafts", icon: FileText },
-    ],
+    // children: [
+    //   { label: "All Bills", href: "/admin/billing", icon: FileText },
+    //   // { label: "Create Bill", href: "/admin/billing/create?fresh=1", icon: Plus },
+    //   { label: "Estimate Fitting Cost", href: "/admin/billing/fitting-wiring", icon: FileText },
+    //   // { label: "Draft Bills", href: "/admin/billing/drafts", icon: FileText },
+    // ],
   },
+
   {
     label: "Inventory",
     href: "/admin/inventory",
@@ -96,21 +97,22 @@ const adminNavigation: NavigationItem[] = [
     ],
   },
   {
+    label: "Other",
+    href: "/admin/inventory",
+    icon: Package,
+    children: [
+      { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
+      { label: "Estimate Fitting Cost", href: "/admin/billing/fitting-wiring", icon: Settings },
+      { label: "Settings", href: "/admin/settings", icon: Settings },
+     
+    ],
+  },
+    {
     label: "Chats",
     href: "/admin/chats",
     icon: Receipt,
   },
 
-  {
-    label: "Sales Report",
-    href: "/admin/sales-report",
-    icon: BarChart3,
-  },
-  {
-    label: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-  },
 ];
 
 const customerNavigation: NavigationItem[] = [
@@ -346,7 +348,7 @@ export function Navigation() {
       <Link
         key={item.label}
         href={item.href}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
           active ? "bg-gray-500 text-white" : "text-gray-300 hover:bg-gray-800"
         }`}
       >

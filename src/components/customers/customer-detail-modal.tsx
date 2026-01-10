@@ -1,6 +1,7 @@
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useLocaleStore } from "@/store/locale-store";
+import { formatCustomerActivity } from "@/lib/customer-utils";
 import type { CustomerWithStats } from "@/types/customer";
 import Link from "next/link";
 
@@ -64,9 +65,16 @@ export default function CustomerDetailModal({
               {customer.name.charAt(0)}
             </span>
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="text-xl font-bold text-white">{customer.name}</h3>
-            <p className="text-gray-400">Customer ID: {customer.clerkId}</p>
+            {/* <p className="text-gray-400">Customer ID: {customer.clerkId}</p> */}
+            <p className="text-white font-bold text-base sm:text-lg mt-1">
+              {formatCustomerActivity(customer, currency) === "All Paid" ? (
+                <span className="text-green-500">All Paid</span>
+              ) : (
+                <span className="text-yellow-500">{formatCustomerActivity(customer, currency)}</span>
+              )}
+            </p>
           </div>
         </div>
 
