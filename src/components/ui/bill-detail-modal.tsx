@@ -7,6 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { Modal } from "@/components/ui/modal";
+import {
+  BillHeader,
+  BillItems,
+  BillCharges,
+  BillTotals,
+  PaymentControls,
+  BillActions,
+  ShareModal
+} from "./bill-detail-modal/index";
 
 import { useState } from "react";
 
@@ -377,80 +386,29 @@ export const BillDetailModal = ({
       <div className="relative">
         <div className="space-y-6 max-md:space-y-3 md:p-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="flex-1">
-              <h2 className="text-base sm:text-base md:text-lg lg:text-2xl xl:text-3xl font-bold text-white mb-3 text-ellipsis max-sm:max-w-[78%] max-w-full whitespace-nowrap overflow-hidden">
-                Bill #{bill.billNumber || bill._id}
-              </h2>
-
-              <div className="flex flex-wrap gap-3 text-sm text-gray-400">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>
-                    Date: {formatDate(bill.serviceDate || bill.createdAt)}
-                  
-                  </span>
-                </div>
-
-                {bill.serviceType && (
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    <span>Service: {bill.serviceType}</span>
-                  </div>
-                )}
-
-                {bill.locationType && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>Location: {bill.locationType}</span>
-                  </div>
-                )}
-                {bill.technician?.name && (
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    <span>
-                      Technician: {bill.technician.name}
-                      {bill.technician?.phone && (
-                        <>
-&nbsp; | &nbsp;Call :-&nbsp;
-                          <a
-                            href={`tel:${bill.technician.phone}`}
-                            className="text-blue-400 hover:underline"
-                          >
-                            {bill.technician.phone}
-                          </a>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Badge
-              className={`${getStatusColor(bill.paymentStatus || bill.status)} px-2 py-0.5 text-xs font-medium max-sm:absolute max-sm:-right-1 max-sm:top-0 z-10`}>
-              {(bill.paymentStatus || bill.status || "pending").toUpperCase()}
-            </Badge>
-          </div>
+          <BillHeader 
+            bill={bill}
+            getStatusColor={getStatusColor}
+            formatDate={formatDate}
+          />
 
           {/* Customer Info */}
           {bill.customer && (
             <div className="bg-gray-800/50 rounded-lg p-2 sm:p-4 border border-gray-700">
-             
               <div className="text-sm text-gray-300 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">  <p className="font-medium">{bill.customer.name}</p>
-                {bill.customer.phone && (
-                  <p className="text-gray-400">{bill.customer.phone}</p>
-                )}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium">{bill.customer.name}</p>
+                  {bill.customer.phone && (
+                    <p className="text-gray-400">{bill.customer.phone}</p>
+                  )}
+                </div>
                 {bill.customer.email && (
                   <p className="text-gray-400">{bill.customer.email}</p>
                 )}
                 {(bill.customerAddress || bill.customer.location) && (
                   <p className="text-gray-400">
-                    {bill.customerAddress?.addressLine1 ||
-                      bill.customer.location}
-                    {bill.customerAddress?.city &&
-                      `, ${bill.customerAddress.city}`}
+                    {bill.customerAddress?.addressLine1 || bill.customer.location}
+                    {bill.customerAddress?.city && `, ${bill.customerAddress.city}`}
                   </p>
                 )}
               </div>
@@ -458,198 +416,30 @@ export const BillDetailModal = ({
           )}
 
           {/* Items */}
-          {bill.items && bill.items.length > 0 && (
-            <div>
-              <h3 className="font-medium text-white mb-2 sm:mb-3 md:mb-4">Items</h3>
-              <div className="space-y-3">
-                {bill.items.map((item: any, index: number) => {
-                  return (
-                    <div
-                      key={index}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 sm:p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                      <div className="flex-1">
-                       <div className="flex items-center gap-2 justify-between flex-wrap"> <p className="font-medium text-white mb-1">
-                          {item?.product?.name || item.name || "Unknown Item"}
-                        </p>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {/* {item.brand && (
-                          <Badge
-                            variant="outline"
-                            className="text-blue-400 border-blue-600">
-                            {item.brand}
-                          </Badge>
-                        )} */}
-                          {item.category && (
-                            <Badge
-                              variant="outline"
-                              className="text-purple-400 border-purple-600 max-sm:!py-0.5 max-sm:px-2 max-sm:text-xs">
-                              {item.category}
-                            </Badge>
-                          )}
-                        </div></div>
-                        {item.specifications && (
-                          <p className="text-sm text-gray-400 mb-2">
-                            {item.specifications}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-gray-400">
-                          <span>
-                            Qty: {item.quantity} {item.unit || "piece"}
-                          </span>
-                          <span>
-                            Unit Price: {currency}
-                            {(item.unitPrice || item.price || 0).toFixed(2)}
-                          </span>
-                          {item.discount > 0 && (
-                            <span className="text-green-400">
-                              Discount: {currency}
-                              {item.discount.toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-white text-base md:text-lg">
-                          {currency}
-                          {(item.totalPrice || item.total || 0).toFixed(2)}
-                        </p>
-                      </div>
-                      {item.productDetails && (
-                        <p className="text-sm text-gray-200 capitalize">
-                          {Object.entries(
-                            item.productDetails.specifications || {}
-                          )
-                            .filter(
-                              ([_, value]) =>
-                                value !== undefined &&
-                                value !== null &&
-                                value !== ""
-                            )
-                            .map(([key, value]) => {
-                              // 1️⃣ Format camelCase / PascalCase into spaced words
-                              let formattedKey = key.replace(
-                                /([a-z])([A-Z])/g,
-                                "$1 $2"
-                              );
-
-                              // 2️⃣ Split into words, remove "is", capitalize each
-                              formattedKey = formattedKey
-                                .split(" ")
-                                .filter((word) => word.toLowerCase() !== "is")
-                                .map(
-                                  (word) =>
-                                    word.charAt(0).toUpperCase() + word.slice(1)
-                                )
-                                .join(" ");
-
-                              // 3️⃣ Convert boolean strings to Yes/No
-                              if (String(value).toLowerCase() === "true")
-                                value = "Yes";
-                              else if (String(value).toLowerCase() === "false")
-                                value = "No";
-
-                              return `${formattedKey}: ${value}`;
-                            })
-                            .join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <BillItems 
+            bill={bill}
+            currency={currency}
+          />
 
           {/* Additional Charges */}
-          {hasAnyCharge && (
-            <div>
-              <h3 className="font-medium text-white mb-2 sm:mb-3 md:mb-4">
-                Additional Charges
-              </h3>
-              <div className="space-y-3">
-                {additionalChargesF?.map(
-                  (charge, index) =>
-                    charge.value > 0 && (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center py-1.5 px-2 sm:p-3 bg-gray-800/50 rounded-lg border border-gray-700 sm:text-base text-sm">
-                        <span className="text-gray-300">{charge.label}</span>
-                        <span className="font-medium text-white">
-                          {currency}
-                          {charge.value.toFixed(2)}
-                        </span>
-                      </div>
-                    )
-                )}
-              </div>
-            </div>
-          )}
+          <BillCharges 
+            bill={bill}
+            currency={currency}
+            transportationFee={transportationFee}
+            homeVisitFee={homeVisitFee}
+            repairChargeValue={repairChargeValue}
+            laborCharges={laborCharges}
+          />
 
           {/* Total Section */}
-          <div className="border-t border-gray-700 pt-3 sm:pt-4 md:pt-6">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center text-base sm:text-lg md:text-xl font-bold">
-                <span className="text-white">Total Amount</span>
-                <span className="text-white">
-                  {currency}
-                  {/* {grandTotal <= 0
-                    ? grandTotal.toFixed(2)
-                    : bill.balanceAmount?.toFixed(2)} */}
-                  {grandTotal?.toFixed(2) || bill?.balanceAmount}
-                </span>
-              </div>
-
-              {/* Show Discount row (existing + currently entered, for live preview) */}
-              {(() => {
-                const liveAdd = Math.max(Number(discountAmount || 0), 0);
-                const totalDiscountShow = existingDiscountTotal + liveAdd;
-                return totalDiscountShow > 0 ? (
-                  <div className="flex justify-between items-center sm:text-base text-sm ">
-                    <span className="text-gray-300">Discount</span>
-                    <span className="text-red-300 font-medium">
-                      -{currency}
-                      {totalDiscountShow.toFixed(2)}
-                    </span>
-                  </div>
-                ) : null;
-              })()}
-
-              {/* Net Payable after discount (live) */}
-             
-
-              <AnimatePresence>
-                {bill.paymentStatus === "partial" && (
-                  <motion.div
-                    key="partial-status-breakdown"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="space-y-1 sm:space-y-2 pt-2 border-t border-gray-800"
-                  >
-                    <div className="flex justify-between items-center text-xs sm:text-sm">
-                      <span className="text-green-400">Paid Amount</span>
-                      <span className="text-green-400 font-medium">
-                        {currency}
-                        {(toNum(bill.paidAmount || 0)).toFixed(2)}
-                      </span>
-                    </div>
-                    
-                  </motion.div>
-                )}
-              </AnimatePresence>
-               {(() => {
-                const liveAdd = Math.max(Number(discountAmount || 0), 0);
-                const net = Math.max(0, grandTotal - (existingDiscountTotal + liveAdd));
-                return (
-                  <div className="flex justify-between items-center text-sm sm:text-base font-semibold">
-                    <span className="text-gray-200">Net Payable</span>
-                    <span className="text-white">{currency}{net.toFixed(2)}</span>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
+          <BillTotals 
+            bill={bill}
+            currency={currency}
+            grandTotal={grandTotal}
+            existingDiscountTotal={existingDiscountTotal}
+            discountAmount={discountAmount}
+            toNum={toNum}
+          />
 
           {/* Notes */}
           {bill.notes && (
@@ -665,295 +455,48 @@ export const BillDetailModal = ({
           {showPaymentControls &&
             onUpdatePayment &&
             bill.paymentStatus !== "paid" && (
-              <div className="bg-gray-800/50 rounded-lg p-2 sm:py-2 sm:px-3 border border-gray-700">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-white flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    Update Payment
-                  </h3>
-                  {!isEditingPayment && (
-                 <button onClick={() => setIsEditingPayment(true)} className="text-sm font-normal leading-none p-2 rounded-md border border-solid border-slate-300"><Edit3 className="size-3 md:size-4" /></button>
-                  )}
-                </div>
-
-                {isEditingPayment && (
-                  <div className="space-y-4">
-               
-                    <div className="flex gap-2 items-center mt-2">
-                     <p className="text-base font-normal leading-none">Mark Full Paid</p>
-                      <div   onClick={() => setPaymentMode(paymentMode === "paid" ? "partial" : "paid")} className={`w-10 h-6 cursor-pointer rounded-full border border-solid  relative ${paymentMode === "paid" ? "border-green-300" : "border-slate-300"}`}>
-                        <div className={`w-4 h-4 transition-all ease-linear duration-100 rounded-full  absolute top-1/2  -translate-x-0 -translate-y-1/2
-                          ${paymentMode === "partial" ? "left-0.5 bg-slate-300" : "left-5 bg-green-300 "}`}></div>
-                      </div>
-                      
-                      <p className="text-sm font-normal leading-none">{paymentMode === "paid" ? "Paid" : "Partial"}</p>
-                    </div>
-
-                    {/* Partial amount controls */}
-                    <AnimatePresence initial={false}>
-                      {paymentMode === "partial" && (
-                        <motion.div
-                          key="partial-controls"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2, ease: "easeOut" }}
-                          className="space-y-3 overflow-hidden"
-                        >
-                          <div>
-                            <Label
-                              htmlFor="partial-amount"
-                              className="text-xs text-gray-400"
-                            >
-                              Amount Received
-                            </Label>
-                            <Input
-                              id="partial-amount"
-                              type="number"
-                              min="0"
-                              max={grandTotal}
-                              step="1"
-                              value={partialAmount}
-                              onChange={(e) => setPartialAmount(e.target.value)}
-                              placeholder="0"
-                              className="bg-gray-900 border-gray-600 text-white"
-                            />
-                            {paymentMode === "partial" && (!partialAmount || Number(partialAmount) <= 0) && (
-                              <p className="mt-1 text-xs text-gray-400">
-                                Enter an amount greater than 0 to enable Save.
-                              </p>
-                            )}
-                          </div>
-                          {/* Quick chips removed */}
-
-                          {/* Live summary */}
-                          <AnimatePresence>
-                            {Number(partialAmount) >= 0 && partialAmount !== "" && (
-                             <motion.div
-                             key="partial-controls"
-                             initial={{ height: 0, opacity: 0 }}
-                             animate={{ height: "auto", opacity: 1 }}
-                             exit={{ height: 0, opacity: 0 }}
-                             transition={{ duration: 0.2, ease: "easeOut" }}
-                             className="space-y-1 overflow-hidden"
-                           >
-                                <div className="flex justify-between text-gray-400 text-sm">
-                                  <span>Already paid:</span>
-                                  <span className="text-green-400">
-                                    {currency}
-                                    {toNum(bill.paidAmount || 0).toFixed(2)}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-gray-400 text-sm">
-                                  <span>New total paid:</span>
-                                  <span className="text-green-400">
-                                    {currency}
-                                    {(() => {
-                                      const effectiveGrand = getEffectiveGrandTotal();
-                                      return Math.min(
-                                        toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0),
-                                        effectiveGrand
-                                      ).toFixed(2);
-                                    })()}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-gray-400 text-sm">
-                                  <span>Will remain pending:</span>
-                                  <span className="text-orange-400">
-                                    {currency}
-                                    {(() => {
-                                      const effectiveGrand = getEffectiveGrandTotal();
-                                      return Math.max(
-                                        0,
-                                        effectiveGrand -
-                                          Math.min(
-                                            toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0),
-                                            effectiveGrand
-                                          )
-                                      ).toFixed(2);
-                                    })()}
-                                  </span>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    {/* Discount input (applies to both modes) */}
-                    <div>
-                      <Label htmlFor="discount-amount" className="text-xs text-gray-400">
-                        Add Discount (will be added to existing discount)
-                      </Label>
-                      <Input
-                        id="discount-amount"
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={discountAmount}
-                        onChange={(e) => setDiscountAmount(e.target.value)}
-                        placeholder="0"
-                        className="bg-gray-900 border-gray-600 text-white"
-                      />
-                    </div>
-
-                    {/* Payment Action Buttons */}
-                    <div className="flex gap-3 pt-2">
-                      <Button
-                        type="button"
-                        onClick={handleMarkAsPaid}
-                        disabled={isUpdatingPayment}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        {isUpdatingPayment ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Marking...
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4" />
-                            Mark as Paid
-                          </div>
-                        )}
-                      </Button>
-                      <Button
-                        onClick={handlePaymentUpdate}
-                        disabled={
-                          isUpdatingPayment ||
-                          (
-                            paymentMode === "partial" &&
-                            (!partialAmount || Number(partialAmount) <= 0) &&
-                            (!discountAmount || Number(discountAmount) <= 0)
-                          )
-                        }
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white">
-                        {isUpdatingPayment ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Updating...
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Save className="w-4 h-4" />
-                            {paymentMode === "paid" ? "Save (Paid)" : "Save Payment"}
-                          </div>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setIsEditingPayment(false);
-                          setPaymentMode("partial");
-                          setPartialAmount("");
-                        }}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white">
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+              <PaymentControls
+                isEditingPayment={isEditingPayment}
+                setIsEditingPayment={setIsEditingPayment}
+                paymentMode={paymentMode}
+                setPaymentMode={setPaymentMode}
+                partialAmount={partialAmount}
+                setPartialAmount={setPartialAmount}
+                discountAmount={discountAmount}
+                setDiscountAmount={setDiscountAmount}
+                isUpdatingPayment={isUpdatingPayment}
+                grandTotal={grandTotal}
+                getEffectiveGrandTotal={getEffectiveGrandTotal}
+                toNum={toNum}
+                bill={bill}
+                handleMarkAsPaid={handleMarkAsPaid}
+                handlePaymentUpdate={handlePaymentUpdate}
+                currency={currency}
+              />
+          )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {showShareButton && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const id = resolveCustomerIdFromBill(bill);
-                    if (!id) {
-                      toast.error("Customer ID not available for this bill.");
-                      return;
-                    }
-                    router.push(`/admin/customers/${id}/bills`);
-                  }}
-                  className="w-full flex-1 border-gray-300 text-gray-200 hover:bg-gray-800 hover:text-white"
-                >
-                  Check all bills
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleShare}
-                  className="w-full flex-1 border-green-300 text-green-500 hover:bg-green-800 hover:text-white"
-                >
-                  <Share2 className="w-4 h-4 mr-2" />
-                  <span className="sm:inline">Share</span>
-                </Button>
-              </>
-            )}
-
-            {/* {onDownloadPDF && (
-              <Button
-                onClick={() => onDownloadPDF(bill)}
-                className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                <span className="sm:inline">Download PDF</span>
-              </Button>
-            )} */}
-          </div>
+          <BillActions
+            showShareButton={showShareButton}
+            onShare={handleShare}
+            onCheckAllBills={() => {
+              const id = resolveCustomerIdFromBill(bill);
+              if (!id) {
+                toast.error("Customer ID not available for this bill.");
+                return;
+              }
+              router.push(`/admin/customers/${id}/bills`);
+            }}
+          />
 
           {/* Share Modal */}
-          <AnimatePresence>
-            {showShareModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-                onClick={() => setShowShareModal(false)}
-              >
-                <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  transition={{ type: "spring", duration: 0.2 }}
-                  className="bg-gray-800 rounded-lg p-6 max-w-sm w-full border border-gray-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <h3 className="text-lg font-semibold text-white mb-4">Share Bill</h3>
-                  <div className="space-y-3">
-                    <Button
-                      onClick={handleShareOnWhatsApp}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-3"
-                    >
-                      <MessageSquare className="w-5 h-5" />
-                      Share on WhatsApp
-                    </Button>
-                    
-                    <Button
-                      onClick={handleNativeShare}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-3"
-                    >
-                      <Smartphone className="w-5 h-5" />
-                      Native Share
-                    </Button>
-                    
-                    <Button
-                      onClick={handleCopyToClipboard}
-                      variant="outline"
-                      className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
-                    >
-                      <Copy className="w-5 h-5" />
-                      Copy to Clipboard
-                    </Button>
-                    
-                    <Button
-                      onClick={() => setShowShareModal(false)}
-                      variant="outline"
-                      className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <ShareModal
+            showShareModal={showShareModal}
+            setShowShareModal={setShowShareModal}
+            onShareOnWhatsApp={handleShareOnWhatsApp}
+            onNativeShare={handleNativeShare}
+            onCopyToClipboard={handleCopyToClipboard}
+          />
         </div>
       </div>
     </Modal>
