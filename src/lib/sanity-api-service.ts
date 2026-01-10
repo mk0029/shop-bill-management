@@ -1746,7 +1746,16 @@ export const cashBookApiService = {
   async getAllEntries(): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "cashBookEntry"] {
-        ...,
+        _id,
+        _createdAt,
+        createdAt,
+        updatedAt,
+        user,
+        userName,
+        amount,
+        type,
+        source,
+        bill,
         user->{
           _id,
           name,
@@ -1776,10 +1785,14 @@ export const cashBookApiService = {
    */
   async createEntry(entryData: any): Promise<ApiResponse<any>> {
     try {
+      console.log('📝 Creating cash book entry with data:', entryData);
+      console.log('⏰ Entry createdAt being used:', entryData.createdAt);
+      
       const newEntry = {
         _type: "cashBookEntry",
         ...entryData,
-        createdAt: new Date().toISOString(),
+        // Preserve custom createdAt for bill payment dates, let Sanity handle _createdAt
+        createdAt: entryData.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
@@ -1827,6 +1840,38 @@ export const cashBookApiService = {
     } catch (error) {
       console.error('Error creating cash book entry from bill payment:', error);
       return { success: false, error: 'Failed to create cash book entry from bill payment' };
+    }
+  },
+
+  /**
+   * Delete all cash book entries
+   */
+  async deleteAllEntries(): Promise<ApiResponse<any>> {
+    try {
+      // First get all entries to delete them one by one
+      const getAllQuery = `*[_type == "cashBookEntry"] { _id }`;
+      const entries = await sanityClient.fetch(getAllQuery);
+      
+      if (entries.length === 0) {
+        return { success: true, data: { deletedCount: 0 }, message: 'No entries to delete' };
+      }
+
+      // Delete all entries
+      const transaction = sanityClient.transaction();
+      entries.forEach((entry: any) => {
+        transaction.delete(entry._id);
+      });
+      
+      const result = await transaction.commit();
+      
+      return { 
+        success: true, 
+        data: { deletedCount: entries.length, result },
+        message: `Successfully deleted ${entries.length} cash book entries`
+      };
+    } catch (error) {
+      console.error('Error deleting all cash book entries:', error);
+      return { success: false, error: 'Failed to delete cash book entries' };
     }
   },
 

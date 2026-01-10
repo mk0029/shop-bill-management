@@ -166,9 +166,9 @@ export default function CashBookHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-4">
+    <div className="min-h-screen rounded-lg max-md:p-4">
       
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 md:pb-6">
             <Button
               variant="ghost"
               size="sm"
@@ -187,10 +187,10 @@ export default function CashBookHistoryPage() {
           </div>
         
       
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 mt-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 mt-4 sm:mt-6">
         {/* Filters */}
-        <ResponsiveAccordion
-        title={  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <ResponsiveAccordion className="mb-4"
+        title={  <h3 className="text-lg font-semibold text-white  flex items-center gap-2">
             <Filter className="w-4 h-4" />
             Filters
           </h3>}>
@@ -332,9 +332,9 @@ export default function CashBookHistoryPage() {
         </div>
 
         {/* Desktop Table */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block max-h-[88dvh] overflow-auto">
           <Card className="bg-gray-800 border-gray-700">
-            <div className="p-4 border-b border-gray-700">
+            <div className="p-4 border-b border-gray-700 sticky top-0 z-10 bg-gray-800">
               <h3 className="text-lg font-semibold text-white">
                 All Records ({filteredEntries.length})
               </h3>

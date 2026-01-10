@@ -17,6 +17,7 @@ export interface BillPaymentData {
   paymentStatus: 'paid' | 'partial';
   paymentDate?: string;
   lastPaymentDate?: string;
+  billDate?: string; // Add bill creation date
   totalAmount: number;
   paidAmount: number;
   balanceAmount: number;
@@ -55,7 +56,7 @@ export async function getBillsWithPayments(): Promise<BillPaymentData[]> {
         name,
         phone
       },
-      createdAt,
+      createdAt, // This will be used as billDate
       updatedAt
     } | order(paymentDate desc, lastPaymentDate desc, updatedAt desc)`;
 
@@ -71,6 +72,7 @@ export async function getBillsWithPayments(): Promise<BillPaymentData[]> {
       paymentStatus: bill.paymentStatus,
       paymentDate: bill.paymentDate,
       lastPaymentDate: bill.lastPaymentDate,
+      billDate: bill.createdAt, // Map createdAt to billDate
       totalAmount: bill.totalAmount || 0,
       paidAmount: bill.paidAmount || 0,
       balanceAmount: bill.balanceAmount || 0,
@@ -103,8 +105,19 @@ export async function checkCashBookEntryExists(billId: string): Promise<boolean>
  */
 export async function createCashBookEntryFromBill(billData: BillPaymentData): Promise<{ success: boolean; message: string }> {
   try {
-    // Use the payment date if available, otherwise use last payment date, or current date
-    const entryDate = billData.paymentDate || billData.lastPaymentDate || new Date().toISOString();
+    // Use the payment date if available, otherwise use last payment date, 
+    // then bill creation date, or current date as final fallback
+    const entryDate = billData.paymentDate || 
+                      billData.lastPaymentDate || 
+                      billData.billDate || // Add bill creation date as fallback
+                      new Date().toISOString();
+    
+    console.log('💰 Creating cash book entry with date:', entryDate, 'for bill:', billData.billNumber);
+    console.log('📅 Bill data dates:', {
+      paymentDate: billData.paymentDate,
+      lastPaymentDate: billData.lastPaymentDate,
+      billDate: billData.billDate
+    });
     
     const entryData = {
       user: {
@@ -119,7 +132,7 @@ export async function createCashBookEntryFromBill(billData: BillPaymentData): Pr
         _type: "reference", 
         _ref: billData.billId
       },
-      createdAt: entryDate,
+      createdAt: entryDate, // Use custom createdAt field for bill payment date
       updatedAt: new Date().toISOString(),
     };
 
@@ -257,7 +270,8 @@ export async function syncSingleBillPayment(billId: string): Promise<{ success: 
         _id,
         name,
         phone
-      }
+      },
+      createdAt // Add createdAt for billDate
     }`;
     
     const bill = await sanityClient.fetch(query, { billId });
@@ -290,6 +304,7 @@ export async function syncSingleBillPayment(billId: string): Promise<{ success: 
       paymentStatus: bill.paymentStatus,
       paymentDate: bill.paymentDate,
       lastPaymentDate: bill.lastPaymentDate,
+      billDate: bill.createdAt, // Add bill creation date
       totalAmount: bill.totalAmount || 0,
       paidAmount: bill.paidAmount || 0,
       balanceAmount: bill.balanceAmount || 0,

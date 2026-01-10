@@ -11,7 +11,7 @@ import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { syncBillPaymentsToCashBook, getSyncStatistics } from "@/lib/bill-payment-sync";
 import { format } from "date-fns";
-import { DollarSign, Plus, Receipt, TrendingDown, TrendingUp, XIcon, Calendar, RefreshCw } from "lucide-react";
+import { DollarSign, Plus, Receipt, TrendingDown, TrendingUp, XIcon, Calendar, RefreshCw, Trash } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import ResponsiveAccordion from "../ui/responsive-accordion";
@@ -74,6 +74,7 @@ export function CashBookPage({
   const [showAddForm, setShowAddForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -243,37 +244,80 @@ export function CashBookPage({
     }
   };
 
-  // Handle bill payment sync
-  const handleSyncBillPayments = async () => {
-    setIsSyncing(true);
+  // // Handle bill payment sync
+  // const handleSyncBillPayments = async () => {
+  //   setIsSyncing(true);
     
-    try {
-      const result = await syncBillPaymentsToCashBook();
+  //   try {
+  //     const result = await syncBillPaymentsToCashBook();
       
-      if (result.success) {
-        toast.success(`Sync completed! ${result.syncedCount} payments synced to cash book`);
+  //     if (result.success) {
+  //       toast.success(`Sync completed! ${result.syncedCount} payments synced to cash book`);
         
-        // Refresh the entries
-        const entriesResponse = await sanityApiService.cashBook.getAllEntries();
-        if (entriesResponse.success && entriesResponse.data) {
-          setEntries(entriesResponse.data);
-        }
+  //       // Refresh the entries
+  //       const entriesResponse = await sanityApiService.cashBook.getAllEntries();
+  //       if (entriesResponse.success && entriesResponse.data) {
+  //         setEntries(entriesResponse.data);
+  //       }
         
-        // Show detailed results
-        if (result.errors.length > 0) {
-          console.error('Sync errors:', result.errors);
-          toast.warning(`${result.errors.length} errors occurred during sync`);
-        }
-      } else {
-        toast.error(`Sync failed: ${result.errors.join(', ')}`);
-      }
-    } catch (error) {
-      console.error('Error syncing bill payments:', error);
-      toast.error("Failed to sync bill payments");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  //       // Show detailed results
+  //       if (result.errors.length > 0) {
+  //         console.error('Sync errors:', result.errors);
+  //         toast.warning(`${result.errors.length} errors occurred during sync`);
+  //       }
+  //     } else {
+  //       toast.error(`Sync failed: ${result.errors.join(', ')}`);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error syncing bill payments:', error);
+  //     toast.error("Failed to sync bill payments");
+  //   } finally {
+  //     setIsSyncing(false);
+  //   }
+  // };
+
+  // const handleClearBook = async () => {
+  //   // Confirm before clearing
+  //   const confirmed = window.confirm(
+  //     'Are you sure you want to clear all cash book entries? This action cannot be undone and will delete all entries permanently.'
+  //   );
+    
+  //   if (!confirmed) return;
+    
+  //   setIsClearing(true);
+    
+  //   try {
+  //     const result = await sanityApiService.cashBook.deleteAllEntries();
+      
+  //     if (result.success) {
+  //       toast.success(result.message || `Cash book cleared successfully! ${result.data?.deletedCount || 0} entries deleted.`);
+        
+  //       // Clear local state
+  //       setEntries([]);
+  //       setSummary({
+  //         totalCredits: 0,
+  //         totalDebits: 0,
+  //         balance: 0
+  //       });
+        
+  //       // Close add form if open
+  //       setShowAddForm(false);
+        
+  //       // Reset form
+  //       setSelectedUserId("");
+  //       setCustomUserName("");
+  //       setAmount("");
+  //       setTransactionType('credit');
+  //     } else {
+  //       toast.error(result.error || "Failed to clear cash book");
+  //     }
+  //   } catch (error) {
+  //     console.error('Error clearing cash book:', error);
+  //     toast.error("Failed to clear cash book");
+  //   } finally {
+  //     setIsClearing(false);
+  //   }
+  // };
 
   const selectedUser = users.find(u => u._id === selectedUserId);
 
@@ -373,6 +417,14 @@ export function CashBookPage({
               <Calendar className="w-4 h-4" />
               View History
             </Button>
+            {/* <Button
+              onClick={handleClearBook}
+              disabled={isClearing}
+              className="bg-red-600 hover:bg-red-700 text-white flex w-full items-center gap-2"
+            >
+              <Trash className={`w-4 h-4 ${isClearing ? 'animate-pulse' : ''}`} />
+              {isClearing ? 'Clearing...' : 'Clear Book'}
+            </Button> */}
           <Button
             onClick={() => setShowAddForm(!showAddForm)}
             className="bg-blue-600 hover:bg-blue-700 text-white w-full flex items-center gap-2"
