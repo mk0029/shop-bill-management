@@ -51,6 +51,11 @@ const adminNavigation: NavigationItem[] = [
     href: "/admin/dashboard",
     icon: Home,
   },
+    {
+    label: "Cash Book",
+    href: "/admin/cash-book",
+    icon: DollarSign,
+  },
   {
     label: "Customers",
     href: "/admin/customers",
@@ -95,11 +100,7 @@ const adminNavigation: NavigationItem[] = [
     href: "/admin/chats",
     icon: Receipt,
   },
-  {
-    label: "Cash Book",
-    href: "/admin/cash-book",
-    icon: DollarSign,
-  },
+
   {
     label: "Sales Report",
     href: "/admin/sales-report",

@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
 import { sanityApiService } from "@/lib/sanity-api-service";
+import { syncBillPaymentsToCashBook, getSyncStatistics } from "@/lib/bill-payment-sync";
 import { format } from "date-fns";
-import { DollarSign, Plus, Receipt, TrendingDown, TrendingUp, XIcon, Calendar } from "lucide-react";
+import { DollarSign, Plus, Receipt, TrendingDown, TrendingUp, XIcon, Calendar, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import ResponsiveAccordion from "../ui/responsive-accordion";
@@ -72,9 +73,11 @@ export function CashBookPage({
   const [showBillModal, setShowBillModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [customUserName, setCustomUserName] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [transactionType, setTransactionType] = useState<'credit' | 'debit'>('credit');
   
@@ -187,25 +190,36 @@ export function CashBookPage({
       return;
     }
 
+    if (selectedUserId === "other" && !customUserName.trim()) {
+      toast.error("Please enter a name");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const selectedUser = users.find(u => u._id === selectedUserId);
-      if (!selectedUser) {
-        toast.error("Selected user not found");
-        return;
-      }
-
-      const entryData = {
-        user: {
-          _type: "reference",
-          _ref: selectedUserId
-        },
-        userName: selectedUser.name,
+      let entryData: any = {
         amount: parseFloat(amount),
         type: transactionType,
         source: "Manual"
       };
+
+      if (selectedUserId === "other") {
+        // Use custom name directly without user reference
+        entryData.userName = customUserName.trim();
+      } else {
+        // Use existing user reference
+        const selectedUser = users.find(u => u._id === selectedUserId);
+        if (!selectedUser) {
+          toast.error("Selected user not found");
+          return;
+        }
+        entryData.user = {
+          _type: "reference",
+          _ref: selectedUserId
+        };
+        entryData.userName = selectedUser.name;
+      }
 
       const result = await sanityApiService.cashBook.createEntry(entryData);
       
@@ -213,6 +227,7 @@ export function CashBookPage({
         // Reset form
         setAmount("");
         setSelectedUserId("");
+        setCustomUserName("");
         setTransactionType('credit');
         setShowAddForm(false);
         
@@ -228,10 +243,42 @@ export function CashBookPage({
     }
   };
 
+  // Handle bill payment sync
+  const handleSyncBillPayments = async () => {
+    setIsSyncing(true);
+    
+    try {
+      const result = await syncBillPaymentsToCashBook();
+      
+      if (result.success) {
+        toast.success(`Sync completed! ${result.syncedCount} payments synced to cash book`);
+        
+        // Refresh the entries
+        const entriesResponse = await sanityApiService.cashBook.getAllEntries();
+        if (entriesResponse.success && entriesResponse.data) {
+          setEntries(entriesResponse.data);
+        }
+        
+        // Show detailed results
+        if (result.errors.length > 0) {
+          console.error('Sync errors:', result.errors);
+          toast.warning(`${result.errors.length} errors occurred during sync`);
+        }
+      } else {
+        toast.error(`Sync failed: ${result.errors.join(', ')}`);
+      }
+    } catch (error) {
+      console.error('Error syncing bill payments:', error);
+      toast.error("Failed to sync bill payments");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const selectedUser = users.find(u => u._id === selectedUserId);
 
   return (
-    <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-4">
+    <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-3">
        <ResponsiveAccordion
       defaultOpenMobile={true}
       // removePX
@@ -242,7 +289,7 @@ export function CashBookPage({
               Cash Book
             </h1>
             <p className="text-gray-400 text-sm mt-1">
-              Real-time cash payment ledger
+              Real-time payment ledger
             </p>
           </div>
         </CardHeader>
@@ -308,16 +355,24 @@ export function CashBookPage({
 
  
       </div></ResponsiveAccordion>
-      <div className=" mx-auto space-y-4 sm:space-y-6 mt-6">
-               {/* Add Record & History Buttons */}
-        <div className="flex justify-between">
-          <Button
-            onClick={() => window.location.href = '/cash-book/history'}
-            className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2"
-          >
-            <Calendar className="w-4 h-4" />
-            View History
-          </Button>
+      <div className=" mx-auto space-y-4 sm:space-y-6 pt-6 md:px-3">
+               {/* Add Record, Sync & History Buttons */}
+        <div className="flex flex-col-reverse sm:flex-row gap-2">
+            {/* <Button
+              onClick={handleSyncBillPayments}
+              disabled={isSyncing}
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : 'Sync Payments'}
+            </Button> */}
+            <Button
+              onClick={() => window.location.href = '/admin/cash-book/history'}
+              className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2"
+            >
+              <Calendar className="w-4 h-4" />
+              View History
+            </Button>
           <Button
             onClick={() => setShowAddForm(!showAddForm)}
             className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
@@ -336,9 +391,14 @@ export function CashBookPage({
                   <Label htmlFor="user" className="text-gray-300 text-sm">User</Label>
                   <SelectField
                     value={selectedUserId}
-                    onValueChange={setSelectedUserId}
+                    onValueChange={(value) => {
+                      setSelectedUserId(value);
+                      if (value !== "other") {
+                        setCustomUserName("");
+                      }
+                    }}
                     options={[
-                      { value: "other", label: "Other" },
+                      { value: "other", label: "Other (Enter custom name)" },
                       ...users.map((user) => ({
                         value: user._id,
                         label: user.name
@@ -348,6 +408,20 @@ export function CashBookPage({
                     className="bg-gray-700 border-gray-600 text-white"
                   />
                 </div>
+
+                {selectedUserId === "other" && (
+                  <div>
+                    <Label htmlFor="customName" className="text-gray-300 text-sm">Custom Name</Label>
+                    <Input
+                      id="customName"
+                      type="text"
+                      value={customUserName}
+                      onChange={(e) => setCustomUserName(e.target.value)}
+                      placeholder="Enter customer name"
+                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <Label htmlFor="amount" className="text-gray-300 text-sm">Amount</Label>
@@ -520,14 +594,14 @@ export function CashBookPage({
               <div key={date} className="mb-4">
                 {/* Date Separator */}
                 <div className="border-t border-gray-600 my-2"></div>
-                <div className="px-4 py-2 bg-gray-700/50">
+                <div className="px-4 py-2 bg-gray-700/50 rounded-md">
                   <p className="text-sm font-medium text-gray-300">
                     {format(new Date(date), 'EEEE, MMMM d, yyyy')}
                   </p>
                 </div>
-                <div className="space-y-3">
-                  {dateEntries.map((entry) => (
-                    <Card key={entry._id} className="bg-gray-800 border-gray-700 p-4">
+                <div className="space-y-1 mt-2">
+                  {dateEntries.map((entry,index) => (
+                    <Card key={entry._id} className={`bg-gray-800 border-gray-700 p-4 ${index===0 ? 'rounded-none rounded-t-lg' : dateEntries.length-1 === index? 'rounded-none rounded-b-lg' : 'rounded-none '}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h4 className="text-white font-medium">{entry.userName}</h4>
@@ -555,9 +629,9 @@ export function CashBookPage({
                         </Badge>
                         {entry.bill && (
                           <>
-                            <span className="text-gray-400 text-xs">
+                            {/* <span className="text-gray-400 text-xs">
                               Bill: {entry.bill.billNumber}
-                            </span>
+                            </span> */}
                             <Button
                               variant="outline"
                               size="sm"

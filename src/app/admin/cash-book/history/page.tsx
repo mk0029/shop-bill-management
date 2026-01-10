@@ -167,9 +167,7 @@ export default function CashBookHistoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-4">
-      <ResponsiveAccordion
-        defaultOpenMobile={true}
-        title={
+      
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -182,30 +180,22 @@ export default function CashBookHistoryPage() {
             </Button>
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                Cash Book History
+              Cash Book History
               </h1>
-              <p className="text-gray-400 text-sm mt-1">
-                Complete payment ledger
-              </p>
+             
             </div>
           </div>
-        }
-      >
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-xs text-gray-400">
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
-      </ResponsiveAccordion>
-
+        
+      
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 mt-6">
         {/* Filters */}
-        <Card className="bg-gray-800 border-gray-700 p-4">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <ResponsiveAccordion
+        title={  <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Filter className="w-4 h-4" />
             Filters
-          </h3>
+          </h3>}>
+        <Card className="bg-gray-800 border-gray-700 p-4">
+        
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="search" className="text-gray-300 text-sm">Search</Label>
@@ -267,9 +257,10 @@ export default function CashBookHistoryPage() {
             </div>
           </div>
         </Card>
+        </ResponsiveAccordion>
 
         {/* Records */}
-        <div className="lg:hidden">
+        <div className="lg:hidden max-h-[88dvh] overflow-auto">
           {Object.keys(groupedEntries).length === 0 ? (
             <Card className="bg-gray-800 border-gray-700 p-8 text-center">
               <p className="text-gray-400">No entries found matching your filters</p>
@@ -277,15 +268,16 @@ export default function CashBookHistoryPage() {
           ) : (
             Object.entries(groupedEntries).map(([date, dateEntries]) => (
               <div key={date} className="mb-4">
+                {/* Date Separator */}
                 <div className="border-t border-gray-600 my-2"></div>
-                <div className="px-4 py-2 bg-gray-700/50">
+                <div className="px-4 py-2 bg-gray-700 rounded-md sticky top-1 z-10">
                   <p className="text-sm font-medium text-gray-300">
                     {format(new Date(date), 'EEEE, MMMM d, yyyy')}
                   </p>
                 </div>
-                <div className="space-y-3">
-                  {dateEntries.map((entry) => (
-                    <Card key={entry._id} className="bg-gray-800 border-gray-700 p-4">
+                <div className="space-y-1 mt-2">
+                  {dateEntries.map((entry,index) => (
+                    <Card key={entry._id} className={`bg-gray-800 border-gray-700 p-4 ${index===0 ? 'rounded-none rounded-t-lg' : dateEntries.length-1 === index? 'rounded-none rounded-b-lg' : 'rounded-none '}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h4 className="text-white font-medium">{entry.userName}</h4>

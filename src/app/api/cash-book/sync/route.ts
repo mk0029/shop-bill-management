@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
+import { syncBillPaymentsToCashBook, syncSingleBillPayment } from "@/lib/bill-payment-sync";
 
 export const runtime = "nodejs";
 
@@ -44,23 +45,16 @@ export async function POST(req: Request) {
 async function handleBillSync(billId: string, bill: any) {
   if (!bill) return;
 
-  const paidAmount = Number(bill.paidAmount || 0);
-  
-  if (paidAmount > 0 && bill.customer) {
-    console.log('💰 Creating cash book entry for bill:', billId);
+  // Only sync if bill is paid or partial and has a customer
+  if (['paid', 'partial'].includes(bill.paymentStatus) && bill.customer) {
+    console.log('💰 Syncing bill payment to cash book:', billId);
     
-    const result = await sanityApiService.cashBook.createEntryFromBillPayment({
-      billId: billId,
-      userId: bill.customer._ref || bill.customer._id,
-      userName: bill.customer.name || 'Customer',
-      amount: paidAmount,
-      paymentType: 'credit'
-    });
+    const result = await syncSingleBillPayment(billId);
 
     if (result.success) {
       console.log('✅ Cash book entry created for bill payment');
     } else {
-      console.error('❌ Failed to create cash book entry for bill:', result.error);
+      console.error('❌ Failed to sync bill payment:', result.message);
     }
   }
 }
@@ -102,23 +96,10 @@ export async function GET(req: Request) {
   try {
     console.log('🔄 Starting manual cash book sync...');
 
-    // Sync all existing bills with payments
-    const bills = await sanityClient.fetch(`
-      *[_type == "bill" && paidAmount > 0 && defined(customer)] {
-        _id,
-        billNumber,
-        paidAmount,
-        customer->{_id, name}
-      }
-    `);
+    // Use the new sync service for bill payments
+    const syncResult = await syncBillPaymentsToCashBook();
 
-    console.log(`📄 Found ${bills.length} bills with payments`);
-
-    for (const bill of bills) {
-      await handleBillSync(bill._id, bill);
-    }
-
-    // Sync existing stock transactions
+    // Sync existing stock transactions (legacy functionality)
     const transactions = await sanityClient.fetch(`
       *[_type == "stockTransaction" && type in ["sale", "adjustment", "damage", "return"] && totalAmount > 0] {
         _id,
@@ -130,15 +111,24 @@ export async function GET(req: Request) {
 
     console.log(`📦 Found ${transactions.length} inventory transactions`);
 
+    let syncedTransactions = 0;
     for (const transaction of transactions) {
       await handleInventorySync(transaction._id, transaction);
+      syncedTransactions++;
     }
 
     return NextResponse.json({ 
-      success: true, 
+      success: true,
       message: 'Manual cash book sync completed',
-      billsProcessed: bills.length,
-      transactionsProcessed: transactions.length
+      billSync: {
+        syncedCount: syncResult.syncedCount,
+        skippedCount: syncResult.skippedCount,
+        errors: syncResult.errors.length
+      },
+      inventorySync: {
+        syncedTransactions
+      },
+      details: syncResult.details
     });
   } catch (error: any) {
     console.error('❌ Manual sync error:', error);
