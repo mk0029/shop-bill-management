@@ -5,23 +5,33 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
 import { Modal } from "@/components/ui/modal";
+
 import { useState } from "react";
+
 import { useRouter } from "next/navigation";
 
 // Switch not needed after redesign of payment UI
-import { BillDetails, shareBillOnWhatsApp, generateWhatsAppMessage } from "@/lib/whatsapp-share";import { useLocaleStore } from "@/store/locale-store";
+import { BillDetails, shareBillOnWhatsApp, generateWhatsAppMessage } from "@/lib/whatsapp-share";
+
+import { useLocaleStore } from "@/store/locale-store";
+
 import { AnimatePresence, motion } from "framer-motion";
+
 import {
   Calendar,
   CreditCard,
+  Download,
   Edit3,
   FileText,
   MapPin,
   Save,
   Share2,
   MessageSquare,
-  CheckCircle2
+  CheckCircle2,
+  Copy,
+  Smartphone
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,6 +73,7 @@ export const BillDetailModal = ({
   const [partialAmount, setPartialAmount] = useState("");
   const [discountAmount, setDiscountAmount] = useState("");
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   if (!bill) return null;
 
@@ -255,8 +266,10 @@ export const BillDetailModal = ({
     setPaymentMode("partial");
     setPartialAmount("");
     setDiscountAmount("");
+    setShowShareModal(false);
     onClose();
   };
+
   const getCustomerId = (c: any) => (typeof c === "string" ? c : c?._id || c?._ref);
   const resolveCustomerIdFromBill = (b: any) => {
     const c = b?.customer;
@@ -266,6 +279,7 @@ export const BillDetailModal = ({
     const viaField = b?.customerId || b?.customer_id || b?.customerRef || b?.customer_ref;
     return viaField || null;
   };
+
   const additionalChargesF = [
     {
       label: "Transportation Fee",
@@ -284,7 +298,80 @@ export const BillDetailModal = ({
       value: laborCharges,
     },
   ];
-  
+
+  // Handle share functionality
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const handleShareOnWhatsApp = () => {
+    const billDetails: BillDetails = {
+      ...bill,
+      repairFee:
+        (bill as any).repairFee ??
+        (bill as any).repairCharges ??
+        0,
+      grandTotal: grandTotal,
+      technician: bill.technician,
+      customerAuth: {
+        secretKey: bill.customer?.secretKey || undefined,
+      },
+    };
+    shareBillOnWhatsApp(billDetails);
+    setShowShareModal(false);
+  };
+
+  const handleNativeShare = () => {
+    const billDetails: BillDetails = {
+      ...bill,
+      repairFee:
+        (bill as any).repairFee ??
+        (bill as any).repairCharges ??
+        0,
+      grandTotal: grandTotal,
+      technician: bill.technician,
+      customerAuth: {
+        secretKey: bill.customer?.secretKey || undefined,
+      },
+    };
+    const message = generateWhatsAppMessage(billDetails, currency);
+    
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        (navigator as any).share({ text: message }).catch(() => {});
+        setShowShareModal(false);
+      }
+    } catch {
+      // Fallback to WhatsApp if native share fails
+      handleShareOnWhatsApp();
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    const billDetails: BillDetails = {
+      ...bill,
+      repairFee:
+        (bill as any).repairFee ??
+        (bill as any).repairCharges ??
+        0,
+      grandTotal: grandTotal,
+      technician: bill.technician,
+      customerAuth: {
+        secretKey: bill.customer?.secretKey || undefined,
+      },
+    };
+    const message = generateWhatsAppMessage(billDetails, currency);
+    
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(message).then(() => {
+        toast.success("Bill details copied to clipboard!");
+        setShowShareModal(false);
+      }).catch(() => {
+        toast.error("Failed to copy to clipboard");
+      });
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <div className="relative">
@@ -771,8 +858,9 @@ export const BillDetailModal = ({
             )}
 
           {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
             {showShareButton && (
-              <div className="flex gap-3 w-full sm:w-auto">
+              <>
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -787,51 +875,86 @@ export const BillDetailModal = ({
                 >
                   Check all bills
                 </Button>
-             <Button
-  variant="outline"
-  onClick={() => {
-    // Transform the bill object to match the BillDetails interface
-    const billDetails: BillDetails = {
-      ...bill,
-      repairFee:
-        (bill as any).repairFee ??
-        (bill as any).repairCharges ??
-        0,
-      grandTotal: grandTotal,
-      technician: bill.technician,
-      customerAuth: {
-        secretKey: bill.customer?.secretKey || undefined,
-      },
-    };
-    const message = generateWhatsAppMessage(billDetails, currency);
-    try {
-      if (typeof navigator !== "undefined" && (navigator as any).share) {
-        (navigator as any).share({ text: message }).catch(() => {});
-        return;
-      }
-    } catch {}
-    // Fallback to WhatsApp
-    shareBillOnWhatsApp(billDetails);
-  }}
-  className=" w-full flex-1 border-green-300 text-green-500 hover:bg-green-800 hover:text-white"
->
-  <Share2 className="w-4 h-4 mr-2" />
-  <span className="sm:inline">Share</span>
-</Button>
-              </div>
+                <Button
+                  variant="outline"
+                  onClick={handleShare}
+                  className="w-full flex-1 border-green-300 text-green-500 hover:bg-green-800 hover:text-white"
+                >
+                  <Share2 className="w-4 h-4 mr-2" />
+                  <span className="sm:inline">Share</span>
+                </Button>
+              </>
             )}
-            
 
             {/* {onDownloadPDF && (
               <Button
                 onClick={() => onDownloadPDF(bill)}
-                className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white">
+                className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white"
+              >
                 <Download className="w-4 h-4 mr-2" />
                 <span className="sm:inline">Download PDF</span>
               </Button>
             )} */}
           </div>
-       
+
+          {/* Share Modal */}
+          <AnimatePresence>
+            {showShareModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                onClick={() => setShowShareModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  transition={{ type: "spring", duration: 0.2 }}
+                  className="bg-gray-800 rounded-lg p-6 max-w-sm w-full border border-gray-700"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="text-lg font-semibold text-white mb-4">Share Bill</h3>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleShareOnWhatsApp}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-3"
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      Share on WhatsApp
+                    </Button>
+                    
+                    <Button
+                      onClick={handleNativeShare}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-3"
+                    >
+                      <Smartphone className="w-5 h-5" />
+                      Native Share
+                    </Button>
+                    
+                    <Button
+                      onClick={handleCopyToClipboard}
+                      variant="outline"
+                      className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
+                    >
+                      <Copy className="w-5 h-5" />
+                      Copy to Clipboard
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowShareModal(false)}
+                      variant="outline"
+                      className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </Modal>
   );
