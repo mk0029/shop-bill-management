@@ -189,7 +189,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   const displayBills = maxItems ? sortedBills.slice(0, maxItems) : sortedBills;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 md:space-y-4">
       <AnimatePresence mode="popLayout">
         {displayBills.map((bill) => {
           const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
@@ -235,11 +235,11 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         <StatusIcon className="w-6 h-6 text-blue-400" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-medium text-white truncate">
-                          Bill #{bill.billNumber}
+                        <h3 className="font-medium text-white truncate capitalize">
+                          {bill.customer?.name ? bill.customer.name.replace(/\s*\([^)]*\)|\s*\[[^\]]*\]|\s*\{[^}]*\}/g, '') : `Bill #${bill.billNumber}`}
                         </h3>
                         <p className="text-sm text-gray-400 truncate capitalize">
-                          {bill.customer?.name || "Unknown Customer"} • {bill.serviceType || "Service"}
+                          {bill.serviceType.replace(/_/g, " ") || "Service"}
                           {bill.technician?.name ? (
                             <>
                               {" "}• Tech: {bill.technician?.name}
