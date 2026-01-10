@@ -28,14 +28,14 @@ export const BillHeader = ({ bill, getStatusColor, formatDate }: BillHeaderProps
           {bill.serviceType && (
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              <span>Service: {bill.serviceType}</span>
+              <span className="capitalize">Service: {bill.serviceType.replace(/_/g, " ")}</span>
             </div>
           )}
 
           {bill.locationType && (
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              <span>Location: {bill.locationType}</span>
+              <span className="capitalize">Location: {bill.locationType==="shop" ? "Shop" : "Not At Shop"}</span>
             </div>
           )}
           

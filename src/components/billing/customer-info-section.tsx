@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
+import { SwitchToggle } from "@/components/ui/switch-toggle";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 
@@ -19,13 +20,8 @@ interface CustomerInfoSectionProps {
 const serviceTypeOptions = [
   { value: "sale", label: "Sale" },
   { value: "repair", label: "Repair" },
-  { value: "custom", label: "Custom" },
-  { value: "fitting_wiring", label: "Fitting/Wiring" },
-];
-
-const locationOptions = [
-  { value: "home", label: "Home Service" },
-  { value: "shop", label: "Shop Service" },
+  { value: "multiple_work", label: "Other" },
+  // { value: "fitting_wiring", label: "Fitting/Wiring" },
 ];
 
 export const CustomerInfoSection = ({
@@ -88,9 +84,11 @@ export const CustomerInfoSection = ({
               value={formData.serviceType}
               onValueChange={(value) => {
                 onInputChange("serviceType", value);
-                // Show location only for 'repair'; clear it when switching away from repair
-                if (value !== "repair") {
-                  onInputChange("location", "");
+                // Set location based on service type
+                if (value === "repair" || value === "multiple_work") {
+                  onInputChange("location", "shop"); // Default to shop for repair and multiple work
+                } else {
+                  onInputChange("location", ""); // Clear for other service types
                 }
               }}
               placeholder="Select service type"
@@ -99,18 +97,22 @@ export const CustomerInfoSection = ({
             />
           </div>
 
-          {formData.serviceType === "repair" && (
+          {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && (
             <div className="space-y-2">
               <Label htmlFor="location" className="text-gray-300">
                 Location Type *
               </Label>
-              <Dropdown
-                options={locationOptions}
-                value={formData.location}
+              <SwitchToggle
+                steps={[
+                  { value: "shop", label: "Shop" },
+                  { value: "home", label: "Other" }
+                ]}
+                value={formData.location || "shop"}
                 onValueChange={(value) => onInputChange("location", value)}
-                placeholder="Select location type"
-                searchable={false}
                 className="bg-gray-800 border-gray-700"
+                trackClassName="bg-gray-700"
+                thumbClassName="bg-blue-600"
+                labelClassName="text-sm text-gray-300"
               />
             </div>
           )}
@@ -157,7 +159,7 @@ export const CustomerInfoSection = ({
         </div>
 
         {/* Conditional charges based on service type and location */}
-        {formData.serviceType === "repair" && (
+        {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && (
           <div className="space-y-2">
             <Label htmlFor="repairFee" className="text-gray-300">
               Repair Charges ({currency})
@@ -175,10 +177,10 @@ export const CustomerInfoSection = ({
           </div>
         )}
 
-        {formData.serviceType === "repair" && formData.location === "home" && (
+        {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && formData.location === "home" && (
           <div className="space-y-2">
             <Label htmlFor="homeVisitFee" className="text-gray-300">
-              Home Visit Fee ({currency})
+               Visit Fee ({currency})
             </Label>
             <Input
               id="homeVisitFee"
@@ -195,7 +197,7 @@ export const CustomerInfoSection = ({
           </div>
         )}
 
-        {formData.serviceType === "repair" && formData.location === "home" && (
+        {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && formData.location === "home" && (
           <div className="space-y-2">
             <Label htmlFor="laborCharges" className="text-gray-300">
               Labor Charges ({currency})
