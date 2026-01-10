@@ -8,6 +8,7 @@ import {
 } from "./inventory-management";
 import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 import { TAX_RATE } from "../constants/defaults";
+import { syncSingleBillPayment } from "./bill-payment-sync";
 
 export interface FormSubmissionResult {
   success: boolean;
@@ -820,7 +821,22 @@ export async function createBill(billData: {
       // Create the bill
       const result = await transaction.create(newBill).commit();
       const createdId = (result as any)?.results?.[0]?.id || (result as any)?._id;
-      // Step 8: Update stock levels in background (non-blocking)
+      // Step 8: Create cash book entry for paid/partial bills (non-blocking)
+      if (['paid', 'partial'].includes(billData.paymentStatus || 'pending')) {
+        syncSingleBillPayment(String(createdId))
+          .then((syncResult) => {
+            if (syncResult.success) {
+              console.log('✅ Cash book entry created for bill payment:', billNumber);
+            } else {
+              console.warn('⚠️ Failed to create cash book entry:', syncResult.message);
+            }
+          })
+          .catch((error) => {
+            console.error('❌ Cash book sync error:', error);
+          });
+      }
+
+      // Step 9: Update stock levels in background (non-blocking)
       if (standardItems.length > 0) {
         // Run stock updates asynchronously to not block the response
         updateStockForBill(standardItems, createdId, "reduce")
@@ -838,7 +854,7 @@ export async function createBill(billData: {
           });
       }
 
-      // Fire-and-forget: notify customer about bill creation via API (avoids importing server-only code)
+      // Step 10: Fire-and-forget: notify customer about bill creation via API (avoids importing server-only code)
       try {
         const customerUserId = billData.customerId
         void fetch('/api/notifications/send', {
@@ -862,7 +878,7 @@ export async function createBill(billData: {
         console.warn('⚠️ Failed to send bill notification', notifyErr)
       }
 
-      // Fire-and-forget: notify all admins (excluding the actor) about bill creation
+      // Step 11: Fire-and-forget: notify all admins (excluding actor) about bill creation
       try {
         const actorId = getActorUserId();
         if (typeof window !== 'undefined') {

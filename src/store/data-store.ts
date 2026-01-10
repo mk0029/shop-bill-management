@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
+import { syncSingleBillPayment } from "@/lib/bill-payment-sync";
 import { getCookie } from "@/lib/cookies";
 import { useAuthStore } from "@/store/auth-store";
 import { useBillBookStore } from "@/store/bill-book-store";
@@ -1093,6 +1094,22 @@ export const useDataStore = create<DataStore>((set, get) => ({
           .commit();
       }
       // The real-time listener will automatically update the local state
+
+      // Create cash book entry for paid/partial bills (non-blocking)
+      const nextStatus = (result as any)?.paymentStatus ?? (updates as any)?.paymentStatus;
+      if (['paid', 'partial'].includes(nextStatus)) {
+        syncSingleBillPayment(String((result as any)?._id ?? _id))
+          .then((syncResult) => {
+            if (syncResult.success) {
+              console.log('✅ Cash book entry created for bill payment update:', (result as any)?.billNumber);
+            } else {
+              console.warn('⚠️ Failed to create cash book entry:', syncResult.message);
+            }
+          })
+          .catch((error) => {
+            console.error('❌ Cash book sync error:', error);
+          });
+      }
 
       // Fire-and-forget notifications (client-only)
       try {

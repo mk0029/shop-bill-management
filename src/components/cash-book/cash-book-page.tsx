@@ -280,7 +280,7 @@ export function CashBookPage({
   return (
     <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-3">
        <ResponsiveAccordion
-      defaultOpenMobile={true}
+      defaultOpenMobile={false}
       // removePX
       title={
         <CardHeader className="!p-0">
@@ -357,7 +357,7 @@ export function CashBookPage({
       </div></ResponsiveAccordion>
       <div className=" mx-auto space-y-4 sm:space-y-6 pt-6 md:px-3">
                {/* Add Record, Sync & History Buttons */}
-        <div className="flex flex-col-reverse sm:flex-row gap-2">
+        <div className="flex w-full gap-2">
             {/* <Button
               onClick={handleSyncBillPayments}
               disabled={isSyncing}
@@ -368,14 +368,14 @@ export function CashBookPage({
             </Button> */}
             <Button
               onClick={() => window.location.href = '/admin/cash-book/history'}
-              className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2"
+              className="bg-gray-600 hover:bg-gray-700 text-white flex w-full items-center gap-2"
             >
               <Calendar className="w-4 h-4" />
               View History
             </Button>
           <Button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white w-full flex items-center gap-2"
           >
            {showAddForm ? <><XIcon className="w-4 h-4" /> Close</> : <><Plus className="w-4 h-4" /> Add Record</>}
           </Button>
