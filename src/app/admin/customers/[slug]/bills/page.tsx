@@ -3,6 +3,7 @@
 
 import { RealtimeBillList } from "@/components/realtime/realtime-bill-list";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
+import { ShareModal } from "@/components/ui/bill-detail-modal/ShareModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useChatStore } from "@/store/chat-store";
 import { sanityApiService } from "@/lib/sanity-api-service";
-import { sharePendingBills } from "@/lib/pending-bill-share";
+import { sharePendingBills, generatePendingBillsMessage, PendingBillShareInput } from "@/lib/pending-bill-share";
 
 export default function CustomerBillsPage() {
   const params = useParams();
@@ -30,6 +31,7 @@ export default function CustomerBillsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const customer = customers.find((c) => c._id === customerId);
 
@@ -96,63 +98,111 @@ export default function CustomerBillsPage() {
     }
   };
 
-  const handleSharePendingBills = async () => {
-    try {
-      const pending = customerBills.filter((b: any) => b.paymentStatus !== "paid");
+  const handleSharePendingBills = () => {
+    setShowShareModal(true);
+  };
 
-      const pendingBillsDetailed = pending.map((b: any) => {
-        const amount =
-          Number(
-            b.balanceAmount ??
-            b.totalAmount ??
-            b.total ??
-            0
-          ) || 0;
+  const getPendingBillsShareData = (): PendingBillShareInput => {
+    const pending = customerBills.filter((b: any) => b.paymentStatus !== "paid");
 
-        const tech =
-          typeof b.technician === "string"
-            ? b.technician
-            : b.technician?.name
-            ? { name: b.technician.name }
-            : undefined;
+    const pendingBillsDetailed = pending.map((b: any) => {
+      const amount =
+        Number(
+          b.balanceAmount ??
+          b.totalAmount ??
+          b.total ??
+          0
+        ) || 0;
 
-        const items = Array.isArray(b.items)
-          ? b.items.map((it: any) => {
-              const qty = it?.qty ?? it?.quantity ?? it?.qtyCount;
-              const rate = it?.rate ?? it?.price ?? it?.unitPrice;
-              const amountLine =
-                it?.totalPrice ?? it?.amount ?? (Number(qty || 0) * Number(rate || 0) || undefined);
-              return {
-                name: it?.product?.name || it?.name,
-                qty: typeof qty === "number" ? qty : undefined,
-                rate: typeof rate === "number" ? rate : undefined,
-                amount: typeof amountLine === "number" ? amountLine : undefined,
-              };
-            })
+      const tech =
+        typeof b.technician === "string"
+          ? b.technician
+          : b.technician?.name
+          ? { name: b.technician.name }
           : undefined;
 
-        return {
-          billId: b._id || b.id || b.billId,
-          billNumber: b.billNumber,
-          amount,
-          service: b.serviceType || b.service || b.title,
-          serviceDate: b.serviceDate,
-          createdAt: b.createdAt,
-          note: b.note || b.notes || b.description,
-          technician: tech,
-          items,
-        };
-      });
+      const items = Array.isArray(b.items)
+        ? b.items.map((it: any) => {
+            const qty = it?.qty ?? it?.quantity ?? it?.qtyCount;
+            const rate = it?.rate ?? it?.price ?? it?.unitPrice;
+            const amountLine =
+              it?.totalPrice ?? it?.amount ?? (Number(qty || 0) * Number(rate || 0) || undefined);
+            return {
+              name: it?.product?.name || it?.name,
+              qty: typeof qty === "number" ? qty : undefined,
+              rate: typeof rate === "number" ? rate : undefined,
+              amount: typeof amountLine === "number" ? amountLine : undefined,
+            };
+          })
+        : undefined;
 
-      await sharePendingBills({
-        customer: { name: customer?.name, phone: customer?.phone },
-        pendingBillsCount: pendingBillsDetailed.length,
-        pendingAmount: stats.pendingAmount,
-        currency,
-        pendingBills: pendingBillsDetailed,
-      });
+      return {
+        billId: b._id || b.id || b.billId,
+        billNumber: b.billNumber,
+        amount,
+        service: b.serviceType || b.service || b.title,
+        serviceDate: b.serviceDate,
+        createdAt: b.createdAt,
+        note: b.note || b.notes || b.description,
+        technician: tech,
+        items,
+      };
+    });
+
+    return {
+      customer: { name: customer?.name, phone: customer?.phone },
+      pendingBillsCount: pendingBillsDetailed.length,
+      pendingAmount: stats.pendingAmount,
+      currency,
+      customerAuth: { secretKey: customer?.secretKey },
+      pendingBills: pendingBillsDetailed,
+    };
+  };
+
+  const handleShareOnWhatsApp = () => {
+    const shareData = getPendingBillsShareData();
+    const message = generatePendingBillsMessage(shareData);
+    
+    const phone = shareData.customer?.phone?.replace(/\D/g, "");
+    const base = phone ? `https://wa.me/91${phone}` : `https://wa.me/`;
+    const url = `${base}?text=${encodeURIComponent(message)}`;
+
+    try {
+      if (typeof window !== "undefined") {
+        window.open(url, "_blank");
+      }
     } catch {
-      toast.error("❌ Unable to share pending bill details. Please try again.");
+      // Swallow errors in share path to avoid UI disruption
+    }
+    setShowShareModal(false);
+  };
+
+  const handleNativeShare = () => {
+    const shareData = getPendingBillsShareData();
+    const message = generatePendingBillsMessage(shareData);
+    
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        (navigator as any).share({ text: message }).catch(() => {});
+        setShowShareModal(false);
+      }
+    } catch {
+      // Fallback to WhatsApp if native share fails
+      handleShareOnWhatsApp();
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    const shareData = getPendingBillsShareData();
+    const message = generatePendingBillsMessage(shareData);
+    
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(message).then(() => {
+        toast.success("Pending bill details copied to clipboard!");
+        setShowShareModal(false);
+      }).catch(() => {
+        toast.error("Failed to copy to clipboard");
+      });
     }
   };
 
@@ -288,8 +338,8 @@ export default function CustomerBillsPage() {
         <div className="flex gap-2 max-md:justify-end">
           <Button variant="secondary" onClick={handleSharePendingBills}>
             <Share2 className="w-4 h-4 mr-2" />
-            Share Pending Bill Details
-          </Button>
+            Share Pending Bill's
+          </Button> 
           <Button variant="outline" onClick={handleOpenChat}>
             <MessageSquare className="w-4 h-4 mr-2" />
             Chat
@@ -358,6 +408,15 @@ export default function CustomerBillsPage() {
         onUpdatePayment={handleUpdatePayment}
         showShareButton
         showPaymentControls
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        showShareModal={showShareModal}
+        setShowShareModal={setShowShareModal}
+        onShareOnWhatsApp={handleShareOnWhatsApp}
+        onNativeShare={handleNativeShare}
+        onCopyToClipboard={handleCopyToClipboard}
       />
     </div>
   );
