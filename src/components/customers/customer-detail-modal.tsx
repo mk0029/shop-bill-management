@@ -41,12 +41,21 @@ export default function CustomerDetailModal({
   };
 
   const customerDetails = [
-    { label: "Phone", value: customer.phone },
+    { label: <span>Phone&nbsp; &nbsp;  &nbsp; <span className="text-xs text-yellow-400/50">click for call</span></span>, value: customer.phone },
     { label: "Location", value: customer.location },
+    { label: "ID", value: customer.customerId },
     { label: "Total Bills", value: customer.totalBills.toString() },
     {
       label: "Total Spent",
       value: `${currency}${customer.totalSpent.toLocaleString()}`,
+    },
+    {
+      label: "Pending",
+      value: <span>  {formatCustomerActivity(customer, currency) === "All Paid" ? (
+                <span className="text-green-500">All Paid</span>
+              ) : (
+                <span className="text-yellow-500">{formatCustomerActivity(customer, currency)}</span>
+              )}</span>,
     },
     {
       label: "Last Bill",
@@ -68,13 +77,9 @@ export default function CustomerDetailModal({
           <div className="flex-1">
             <h3 className="text-xl font-bold text-white">{customer.name}</h3>
             {/* <p className="text-gray-400">Customer ID: {customer.clerkId}</p> */}
-            <p className="text-white font-bold text-base sm:text-lg mt-1">
-              {formatCustomerActivity(customer, currency) === "All Paid" ? (
-                <span className="text-green-500">All Paid</span>
-              ) : (
-                <span className="text-yellow-500">{formatCustomerActivity(customer, currency)}</span>
-              )}
-            </p>
+            {/* <p className="text-white font-bold text-base sm:text-lg mt-1">
+            
+            </p> */}
           </div>
         </div>
 
@@ -119,7 +124,7 @@ export default function CustomerDetailModal({
                 key={index}
                 className="p-3 bg-gray-800 rounded border border-gray-700">
                 <p className="text-sm text-gray-400">{detail.label}</p>
-                <p className="text-white">{detail.value}</p>
+                <p className="text-white capitalize">{detail.value}</p>
               </div>
             );
           })}

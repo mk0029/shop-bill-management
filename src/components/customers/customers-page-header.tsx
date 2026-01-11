@@ -11,7 +11,7 @@ export default function CustomersPageHeader({
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white pl-2 sm:pl-0">
           Customer Management
         </h1>
        

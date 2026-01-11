@@ -1,14 +1,15 @@
-import { motion } from "framer-motion";
-import { Eye, Edit, Trash2, Phone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLocaleStore } from "@/store/locale-store";
 import {
-  getCustomerInitials,
-  getCustomerStatusColor,
   formatCustomerActivity,
   formatLastBillDate,
+  getCustomerInitials,
+  getCustomerStatusColor,
 } from "@/lib/customer-utils";
+import { useLocaleStore } from "@/store/locale-store";
 import type { CustomerWithStats } from "@/types/customer";
+import { motion } from "framer-motion";
+import { Eye, MapPin, Phone } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface CustomerTableRowProps {
   customer: CustomerWithStats;
@@ -27,27 +28,38 @@ export default function CustomerTableRow({
 }: CustomerTableRowProps) {
   const { currency } = useLocaleStore();
   const statusColors = getCustomerStatusColor(customer.isActive);
+  const [isMobile, setIsMobile] = useState(true);
 
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
   return (
     <motion.tr
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      className="border-b border-gray-800 hover:bg-gray-800/50">
-      <td className="p-3 sm:p-4">
+      className="border-b border-gray-800 hover:bg-gray-800/50"
+      onClick={()=>{if(window.innerWidth<=640){ return onView(customer) } else{ return }}}>
+      <td className="py-3 px-1 sm:p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+          <div className="w-10 h-10 bg-gray-600/80 rounded-full flex items-center justify-center">
             <span className="text-white font-medium text-sm">
               {getCustomerInitials(customer.name)}
             </span>
           </div>
           <div>
             <p className="text-white font-medium">{customer.name}</p>
-            <p className="text-gray-400 text-sm">ID: {customer.customerId}</p>
+            {/* <p className="text-gray-400 text-sm">ID: {customer.customerId}</p> */}
           </div>
         </div>
       </td>
-      <td className="py-4 px-4 max-sm:hidden">
+     { !isMobile&&<td className="py-4 px-4 max-sm:hidden">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm">
             <Phone className="w-4 h-4 text-gray-400" />
@@ -64,8 +76,8 @@ export default function CustomerTableRow({
             <span className="text-gray-400">{customer.location}</span>
           </div>
         </div>
-      </td>
-      <td className="py-4 px-4 max-sm:hidden">
+      </td>}
+      { !isMobile&&<td className="py-4 px-4 max-sm:hidden">
         <div className="space-y-1">
           <p className="text-white text-sm">
             {formatCustomerActivity(customer, currency)}
@@ -74,23 +86,23 @@ export default function CustomerTableRow({
             {formatLastBillDate(customer.lastBillDate)}
           </p>
         </div>
-      </td>
-      <td className="py-4 px-4 max-sm:hidden">
+      </td>}
+{ !isMobile&&<td className="py-4 px-4 max-sm:hidden">
         <span
           className={`px-2 py-1 rounded-full text-xs ${statusColors.bg} ${statusColors.text}`}>
           {customer.isActive ? "Active" : "Inactive"}
         </span>
-      </td>
-      <td className="py-4 px-4">
+      </td>}
+{ !isMobile&&<td className="py-4 px-4 max-sm:hidden">
         <div className="flex gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onView(customer)}
             className="hover:bg-gray-800">
-            <Eye className="w-4 h-4" />
+            <Eye className="w-4 h-4" />&nbsp; View
           </Button>
-          {onEdit && (
+          {/* {onEdit && (
             <Button
               variant="ghost"
               size="sm"
@@ -98,16 +110,16 @@ export default function CustomerTableRow({
               className="hover:bg-gray-800 max-sm:hidden">
               <Edit className="w-4 h-4" />
             </Button>
-          )}
-          <Button
+          )} */}
+          {/* <Button
             variant="ghost"
             size="sm"
             onClick={() => onDelete(customer._id)}
             className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
             <Trash2 className="w-4 h-4" />
-          </Button>
+          </Button> */}
         </div>
-      </td>
+      </td>}
     </motion.tr>
   );
 }

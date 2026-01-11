@@ -2,6 +2,7 @@ import { Users, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import CustomerTableRow from "./customer-table-row";
 import type { CustomerWithStats } from "@/types/customer";
+import { useEffect, useState } from "react";
 
 interface CustomerTableProps {
   customers: CustomerWithStats[];
@@ -19,7 +20,9 @@ export default function CustomerTable({
   onViewCustomer,
   onEditCustomer,
   onDeleteCustomer,
-}: CustomerTableProps) {
+}: CustomerTableProps) 
+
+{
   if (isLoading) {
     return (
       <Card className="bg-gray-900 border-gray-800">
@@ -60,32 +63,43 @@ export default function CustomerTable({
       </Card>
     );
   }
+    const [isMobile, setIsMobile] = useState(true);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   return (
-    <Card className="bg-gray-900 border-gray-800">
-      <div className="p-3 md:p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Customers</h2>
+    <Card className="bg-gray-900 border-gray-800 max-h-[85vh] overflow-y-auto">
+      <div className="p-3 pt-2 md:p-6 md:pt-5">
+        <h2 className="text-xl font-semibold text-white mb-2 sticky pt-2 top-0 pb-2 bg-gray-900">Customers</h2>
         <div className="overflow-x-auto">
           <table className="w-full">
+            {!isMobile&&
             <thead>
-              <tr className="border-b border-gray-800">
+              <tr className="border-b border-gray-800 max-sm:hidden">
                 <th className="text-left py-3 px-4 text-gray-300 font-medium">
                   Customer
                 </th>
-                <th className="text-left py-3 px-4 text-gray-300 font-medium max-sm:hidden">
+                <th className="text-left py-3 px-4 text-gray-300 font-medium">
                   Contact
                 </th>
-                <th className="text-left py-3 px-4 text-gray-300 font-medium max-sm:hidden">
+                <th className="text-left py-3 px-4 text-gray-300 font-medium">
                   Activity
                 </th>
-                <th className="text-left py-3 px-4 text-gray-300 font-medium max-sm:hidden">
+                <th className="text-left py-3 px-4 text-gray-300 font-medium">
                   Status
                 </th>
                 <th className="text-left py-3 px-4 text-gray-300 font-medium">
                   Actions
                 </th>
               </tr>
-            </thead>
+            </thead>}
             <tbody>
               {customers.map((customer, index) => (
                 <CustomerTableRow
@@ -98,6 +112,7 @@ export default function CustomerTable({
                 />
               ))}
             </tbody>
+
           </table>
         </div>
       </div>
