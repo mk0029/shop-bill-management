@@ -48,8 +48,8 @@ export const ShareModal = ({
               </Button>
               
               <Button
-                onClick={onNativeShare}                variant="outline"
-
+                onClick={onNativeShare}
+                variant="outline"
                 className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
               >
                 <Smartphone className="w-5 h-5" />

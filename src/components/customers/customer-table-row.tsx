@@ -53,10 +53,11 @@ export default function CustomerTableRow({
               {getCustomerInitials(customer.name)}
             </span>
           </div>
-          <div>
-            <p className="text-white font-medium">{customer.name}</p>
-            {/* <p className="text-gray-400 text-sm">ID: {customer.customerId}</p> */}
-          </div>
+          <div className="flex justify-between max-sm:w-[85%] sm:gap-3">  <p className="text-white font-medium truncate overflow-hidden max-sm:max-w-[210px]">{customer.name}</p>
+         
+          <span>  {formatCustomerActivity(customer, currency) === "All Paid" ? null : (
+                <span className="text-yellow-500">{formatCustomerActivity(customer, currency).replace('pending', '')}</span>
+              )}</span></div>
         </div>
       </td>
      { !isMobile&&<td className="py-4 px-4 max-sm:hidden">
