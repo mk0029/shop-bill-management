@@ -17,7 +17,7 @@ import {
   ShareModal,
 } from "./bill-detail-modal/index";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -88,6 +88,17 @@ export const BillDetailModal = ({
   const [discountAmount, setDiscountAmount] = useState("");
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // Ensure hooks are called unconditionally: reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEditingPayment(false);
+      setPaymentMode("partial");
+      setPartialAmount("");
+      setDiscountAmount("");
+      setShowShareModal(false);
+    }
+  }, [isOpen]);
 
   if (!bill) return null;
 
@@ -354,7 +365,7 @@ export const BillDetailModal = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} size="lg">
       <div className="relative">
         <div className="space-y-6 max-md:space-y-3 md:p-6">
           {/* Header */}

@@ -93,7 +93,7 @@ export const BillItems = ({ bill, currency }: BillItemsProps) => {
               </div>
             </div>
             {item.productDetails && (
-              <p className="text-sm text-gray-200 capitalize max-w-[50px]">
+              <p className="text-sm text-gray-200 capitalize ">
                 {formatSpecifications(item.productDetails.specifications)}
               </p>
             )}

@@ -41,6 +41,12 @@ export const PaymentControls = ({
   handlePaymentUpdate,
   currency,
 }: PaymentControlsProps) => {
+  // Compute remaining amount after applying the current partial input, capped by grand total
+  const effectiveGrand = getEffectiveGrandTotal();
+  const alreadyPaid = toNum(bill?.paidAmount || 0);
+  const partialNum = Math.max(Number(partialAmount || 0), 0);
+  const newTotalPaid = Math.min(alreadyPaid + partialNum, effectiveGrand);
+  const remainingAfterPartial = Math.max(0, effectiveGrand - newTotalPaid);
   return (
     <div className="bg-gray-800/50 rounded-lg p-2 sm:py-2 sm:px-3 border border-gray-700">
       <div className="flex items-center justify-between">
@@ -174,27 +180,38 @@ export const PaymentControls = ({
             )}
           </AnimatePresence>
 
-          {/* Discount input (applies to both modes) */}
-          {paymentMode === "partial" && (
-            <div>
-              <Label
-                htmlFor="discount-amount"
-                className="text-xs text-gray-400"
+          {/* Discount input: show only when in partial mode AND there is remaining amount */}
+          <AnimatePresence initial={false}>
+            {paymentMode === "partial" && remainingAfterPartial > 0 && (
+              <motion.div
+                key="discount-input"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="overflow-hidden"
               >
-                Add Discount (will be added to existing discount)
-              </Label>
-              <Input
-                id="discount-amount"
-                type="number"
-                min="0"
-                step="1"
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(e.target.value)}
-                placeholder="0"
-                className="bg-gray-900 border-gray-600 text-white"
-              />
-            </div>
-          )}
+                <div>
+                  <Label
+                    htmlFor="discount-amount"
+                    className="text-xs text-gray-400"
+                  >
+                    Add Discount (will be added to existing discount)
+                  </Label>
+                  <Input
+                    id="discount-amount"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(e.target.value)}
+                    placeholder="0"
+                    className="bg-gray-900 border-gray-600 text-white"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Payment Action Buttons */}
           <div className="flex gap-3 pt-2">
