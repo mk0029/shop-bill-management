@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { FileText } from "lucide-react";
 import { useState } from "react";
@@ -22,10 +23,14 @@ export const ItemSelectionSection = ({
   onOpenItemModal,
 }: ItemSelectionSectionProps) => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   // Show ALL categories (parents + subcategories)
   const filteredCategories = categories.filter((category) => {
-    if (categoryFilter === "all") return true;
-    return category.name.toLowerCase() === categoryFilter;
+    const name = (category.name || "").toLowerCase();
+    const matchesDropdown = categoryFilter === "all" || name === categoryFilter;
+    const matchesSearch =
+      !searchTerm || name.includes(searchTerm.toLowerCase());
+    return matchesDropdown && matchesSearch;
   });
 
   return (
@@ -34,78 +39,73 @@ export const ItemSelectionSection = ({
         {/* Category Filter */}
         <div className="mb-4">
           <Label className="text-gray-300 mb-2 block">Filter by Category</Label>
-          <Dropdown
-            options={[
-              { value: "all", label: "All Categories" },
-              ...categories.map((cat) => ({
-                value: cat.name.toLowerCase(),
-                label: cat.name,
-              })),
-            ]}
-            value={categoryFilter}
-            onValueChange={(v) => {
-             
-              // If a specific category is selected from the dropdown, open its popup directly
-              if (v && v !== "all") {
-                onOpenItemModal(v);
-              }
-              else{ setCategoryFilter(v);}
-            }}
-            placeholder="Select category to filter"
-            className="bg-gray-800 border-gray-700"
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Type to filter categories"
+            className="mb-2 bg-gray-800 border-gray-700 text-white"
           />
         </div>
 
         {/* Category Buttons */}
-    <div className="max-h-[200px] overflow-auto">    <div className=" flex flex-wrap gap-2 mb-3">
-          {filteredCategories.map((category) => {
-            return (
+        <div className="max-h-[200px] overflow-auto">
+          {" "}
+          <div className=" flex flex-wrap gap-2 mb-3">
+            {filteredCategories.map((category) => {
+              return (
+                <motion.div
+                  key={category._id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0.1, filter: "blur(1px)" }} // starting state
+                  whileInView={{ opacity: 1, filter: "blur(0px)" }} // when it enters viewport
+                  transition={{ duration: 0.3, ease: "linear" }}
+                  viewport={{ once: false, amount: 0.5 }} // 👈 viewport settings
+                >
+                  <div
+                    // variant="outline"
+                    onClick={() => onOpenItemModal(category.name.toLowerCase())}
+                    className={`w-full h-auto px-3 py-2 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md cursor-pointer`}
+                    aria-disabled
+                  >
+                    <p className="font-medium text-white text-xs">
+                      {category.name}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+            {categoryFilter === "all" ? (
+              ""
+            ) : (
               <motion.div
-                key={category._id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                initial={{ opacity:0.1,filter: 'blur(1px)' }} // starting state
-                whileInView={{opacity:1,filter: 'blur(0px)' }} // when it enters viewport
-                transition={{ duration: 0.3, ease: "linear" }} 
-                viewport={{ once: false, amount: 0.5 }}  // 👈 viewport settings
-              
-  
-                >
+                initial={{ opacity: 0.1, filter: "blur(1px)" }} // starting state
+                whileInView={{ opacity: 1, filter: "blur(0px)" }} // when it enters viewport
+                transition={{ duration: 0.3, ease: "linear" }}
+                viewport={{ once: false, amount: 0.5 }} // 👈 viewport settings
+              >
                 <div
                   // variant="outline"
-                  onClick={() => onOpenItemModal(category.name.toLowerCase())}
-                  className={`w-full h-auto px-3 py-2 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md cursor-pointer`}
-                  aria-disabled>
-                    <p className="font-medium text-white text-xs">{category.name}</p>
+                  onClick={() => setCategoryFilter("all")}
+                  className={`w-full h-auto cursor-pointer pt-2`}
+                  aria-disabled
+                >
+                  <p className="font-noraml text-white text-sm">Reset Items</p>
                 </div>
               </motion.div>
-            );
-          })}
-            {categoryFilter==='all'? '':  <motion.div 
-             whileHover={{ scale: 1.02 }}
-             whileTap={{ scale: 0.98 }}
-             initial={{ opacity:0.1,filter: 'blur(1px)' }} // starting state
-             whileInView={{opacity:1,filter: 'blur(0px)' }} // when it enters viewport
-             transition={{ duration: 0.3, ease: "linear" }} 
-             viewport={{ once: false, amount: 0.5 }}  // 👈 viewport settings
->
-                <div
-                  // variant="outline"
-                  onClick={() => setCategoryFilter('all')}
-                  className={`w-full h-auto cursor-pointer pt-2`}
-                  aria-disabled>
-                    <p className="font-noraml text-white text-sm">Reset Items</p>
-                </div>
-              </motion.div>}
+            )}
 
-          {/* Loading state */}
-          {productsLoading && (
-            <div className="col-span-full text-center py-8">
-              <div className="h-6 w-6 sm:w-8 sm:h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-400">Loading categories...</p>
-            </div>
-          )}
-        </div></div>
+            {/* Loading state */}
+            {productsLoading && (
+              <div className="col-span-full text-center py-8">
+                <div className="h-6 w-6 sm:w-8 sm:h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-400">Loading categories...</p>
+              </div>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
