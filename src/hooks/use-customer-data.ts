@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import { useCustomerBillsStore } from '@/store/customer-bills-store';
 
@@ -19,6 +19,7 @@ export const useCustomerData = (): UseCustomerDataReturn => {
   const [customer, setCustomer] = useState<unknown | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const hasFetchedRef = useRef(false);
 
   const fetchCustomerData = useCallback(async () => {
     // Fallback: if secretKey is not available, use the auth user object as customer
@@ -54,10 +55,17 @@ export const useCustomerData = (): UseCustomerDataReturn => {
     }
   }, [user?.secretKey]);
 
-  // Initial data fetch
+  // Initial data fetch (guarded to avoid double-call in React StrictMode dev)
   useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     fetchCustomerData();
   }, [fetchCustomerData]);
+
+  // Reset guard when the identifier changes
+  useEffect(() => {
+    hasFetchedRef.current = false;
+  }, [user?.secretKey]);
 
   // Generate activity data from bills
   const activity = useMemo(() => {

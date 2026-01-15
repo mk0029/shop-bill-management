@@ -84,11 +84,16 @@ export const useCustomerBillsStore = create<CustomerBillsState>((set) => ({
       if (!res.ok) throw new Error("Failed to fetch bills");
       const data = await res.json();
       const bills = Array.isArray(data?.bills) ? (data.bills as CustomerBill[]) : [];
-      // debug log removed for production
-      set({ bills, loading: false });
+      // Only overwrite if we actually received results; otherwise keep existing bills and just stop loading
+      if (bills.length > 0) {
+        set({ bills, loading: false });
+      } else {
+        set({ loading: false });
+      }
       return bills;
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : "Failed to fetch bills", loading: false, bills: [] });
+      // Preserve existing bills on error; just surface error and stop loading
+      set({ error: e instanceof Error ? e.message : "Failed to fetch bills", loading: false });
       return [];
     }
   },
@@ -114,11 +119,12 @@ export const useCustomerBillsStore = create<CustomerBillsState>((set) => ({
         }
       }
 
-      // debug log removed for production
-      set({ bills: [], loading: false });
+      // No results from any identifier: do not clear existing bills; just stop loading
+      set({ loading: false });
       return [];
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : "Failed to fetch bills", loading: false, bills: [] });
+      // Preserve existing bills on error; just surface error
+      set({ error: e instanceof Error ? e.message : "Failed to fetch bills", loading: false });
       return [];
     }
   },
