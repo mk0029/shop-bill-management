@@ -41,27 +41,58 @@ export default function CustomerDetailModal({
   };
 
   const customerDetails = [
-    { label: <span>Phone&nbsp; &nbsp;  &nbsp; <span className="text-xs text-yellow-400/50">click for call</span></span>, value: customer.phone },
-    { label: "Location", value: customer.location },
-    { label: "ID", value: customer.customerId },
-    { label: "Total Bills", value: customer.totalBills.toString() },
     {
+      type: "phone",
+      label: (
+        <span>
+          Phone&nbsp; &nbsp; &nbsp;{" "}
+          <span className="text-xs text-yellow-400/50 sm:hidden">
+            click for call
+          </span>
+        </span>
+      ),
+      value: customer.phone,
+    },
+    { type: "string", label: "Location", value: customer.location },
+    { type: "string", label: "ID", value: customer.customerId },
+    {
+      type: "string",
+      label: "Total Bills",
+      value: customer.totalBills.toString(),
+    },
+    {
+      type: "string",
       label: "Total Spent",
       value: `${currency}${customer.totalSpent.toLocaleString()}`,
     },
     {
+      type: "string",
       label: "Pending",
-      value: <span>  {formatCustomerActivity(customer, currency) === "All Paid" ? (
-                <span className="text-green-500">All Paid</span>
-              ) : (
-                <span className="text-yellow-500">{formatCustomerActivity(customer, currency)}</span>
-              )}</span>,
+      value: (
+        <span>
+          {" "}
+          {formatCustomerActivity(customer, currency) === "All Paid" ? (
+            <span className="text-green-500">All Paid</span>
+          ) : (
+            <span className="text-yellow-500">
+              {formatCustomerActivity(customer, currency)}
+            </span>
+          )}
+        </span>
+      ),
     },
     {
+      type: "string",
       label: "Last Bill",
-      value: customer.lastBillDate ? formatDate(customer.lastBillDate) : "No bills yet",
+      value: customer.lastBillDate
+        ? formatDate(customer.lastBillDate)
+        : "No bills yet",
     },
-    { label: "Member Since", value: formatDate(customer.createdAt) },
+    {
+      type: "string",
+      label: "Member Since",
+      value: formatDate(customer.createdAt),
+    },
   ];
 
   return (
@@ -87,12 +118,12 @@ export default function CustomerDetailModal({
         <div className="grid grid-cols-2 gap-4">
           {customerDetails.map((detail, index) => {
             const isPhone =
-              typeof detail.label === "string" &&
-              detail.label.toLowerCase() === "phone" &&
+              typeof detail.type === "string" &&
+              detail.type.toLowerCase() === "phone" &&
               !!detail.value;
             const isEmail =
-              typeof detail.label === "string" &&
-              detail.label.toLowerCase() === "email" &&
+              typeof detail.type === "string" &&
+              detail.type.toLowerCase() === "email" &&
               !!detail.value;
 
             if (isPhone) {
@@ -100,7 +131,8 @@ export default function CustomerDetailModal({
                 <Link
                   key={index}
                   href={`tel:${String(detail.value).replace(/\s+/g, "")}`}
-                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70">
+                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70"
+                >
                   <p className="text-sm text-gray-400">{detail.label}</p>
                   <p className="text-white">{detail.value}</p>
                 </Link>
@@ -112,7 +144,8 @@ export default function CustomerDetailModal({
                 <Link
                   key={index}
                   href={`mailto:${String(detail.value)}`}
-                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70">
+                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70"
+                >
                   <p className="text-sm text-gray-400">{detail.label}</p>
                   <p className="text-white">{detail.value}</p>
                 </Link>
@@ -122,7 +155,8 @@ export default function CustomerDetailModal({
             return (
               <div
                 key={index}
-                className="p-3 bg-gray-800 rounded border border-gray-700">
+                className="p-3 bg-gray-800 rounded border border-gray-700"
+              >
                 <p className="text-sm text-gray-400">{detail.label}</p>
                 <p className="text-white capitalize">{detail.value}</p>
               </div>
@@ -141,7 +175,8 @@ export default function CustomerDetailModal({
             <Button
               variant="outline"
               className="flex-1"
-              onClick={() => onEditCustomer(customer)}>
+              onClick={() => onEditCustomer(customer)}
+            >
               Edit Customer
             </Button>
           )}

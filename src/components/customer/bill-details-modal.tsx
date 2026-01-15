@@ -114,6 +114,7 @@ export function BillDetailsModal({
                       <p className="text-white">
                         {item.productName || "Product"}
                       </p>
+                      &nbsp;|&nbsp;
                       <Badge
                         variant="outline"
                         className="text-purple-400 border-purple-600 max-sm:!py-0.5 max-sm:px-2 max-sm:text-xs"

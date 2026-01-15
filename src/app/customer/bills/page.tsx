@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { useCustomerData } from "@/hooks/use-customer-data";
-import { useCustomerBillsStore, type CustomerBill as StoreBill } from "@/store/customer-bills-store";
 import {
-  AlertCircle,
-  Receipt,
-} from "lucide-react";
+  useCustomerBillsStore,
+  type CustomerBill as StoreBill,
+} from "@/store/customer-bills-store";
+import { AlertCircle, Receipt } from "lucide-react";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
@@ -21,7 +21,10 @@ import { CustomerBillStats } from "@/components/customer/customer-bill-stats";
 import { BillItem } from "@/components/customer/bill-item";
 import { BillFilters } from "@/components/customer/bill-filters";
 import { BillDetailsModal } from "@/components/customer/bill-details-modal";
-import { formatCurrency, getStatusColor } from "@/components/customer/bill-utils";
+import {
+  formatCurrency,
+  getStatusColor,
+} from "@/components/customer/bill-utils";
 
 type SanityBill = StoreBill;
 
@@ -341,6 +344,7 @@ export default function CustomerBillsPage() {
       </div>
     );
   }
+  console.log(customer?._id, "custoemr");
 
   return (
     <div className="space-y-6 max-md:space-y-4">
@@ -350,7 +354,7 @@ export default function CustomerBillsPage() {
           <h2 className="text-2xl font-bold text-white">
             {customer?.name ? `${customer.name}'s Bills` : "Your Bills"}
           </h2>
-          <p className="text-gray-400">View and manage your billing history</p>
+          <p className="text-gray-400">View and Pay your Bills </p>
         </div>
       </div>
 
