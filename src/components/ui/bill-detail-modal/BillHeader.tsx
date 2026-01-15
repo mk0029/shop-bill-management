@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Calendar, FileText, MapPin } from "lucide-react";
+import Link from "next/link";
 
 interface BillHeaderProps {
   bill: any;
@@ -9,7 +10,11 @@ interface BillHeaderProps {
   formatDate: (dateString: string) => string;
 }
 
-export const BillHeader = ({ bill, getStatusColor, formatDate }: BillHeaderProps) => {
+export const BillHeader = ({
+  bill,
+  getStatusColor,
+  formatDate,
+}: BillHeaderProps) => {
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
       <div className="flex-1">
@@ -20,25 +25,28 @@ export const BillHeader = ({ bill, getStatusColor, formatDate }: BillHeaderProps
         <div className="flex flex-wrap gap-3 text-sm text-gray-400">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            <span>
-              Date: {formatDate(bill.serviceDate || bill.createdAt)}
-            </span>
+            <span>Date: {formatDate(bill.serviceDate || bill.createdAt)}</span>
           </div>
 
           {bill.serviceType && (
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              <span className="capitalize">Service: {bill.serviceType.replace(/_/g, " ")}</span>
+              <span className="capitalize">
+                Service: {bill.serviceType.replace(/_/g, " ")}
+              </span>
             </div>
           )}
 
           {bill.locationType && (
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              <span className="capitalize">Location: {bill.locationType==="shop" ? "Shop" : "Not At Shop"}</span>
+              <span className="capitalize">
+                Location:{" "}
+                {bill.locationType === "shop" ? "Shop" : "Not At Shop"}
+              </span>
             </div>
           )}
-          
+
           {bill.technician?.name && (
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
@@ -46,13 +54,13 @@ export const BillHeader = ({ bill, getStatusColor, formatDate }: BillHeaderProps
                 Technician: {bill.technician.name}
                 {bill.technician?.phone && (
                   <>
-                    &nbsp; | &nbsp;Call :-&nbsp;
-                    <a
+                    &nbsp; | &nbsp;
+                    <Link
                       href={`tel:${bill.technician.phone}`}
-                      className="text-blue-400 hover:underline"
+                      className="text-blue-400 hover:underline text-base"
                     >
-                      {bill.technician.phone}
-                    </a>
+                      Call
+                    </Link>
                   </>
                 )}
               </span>

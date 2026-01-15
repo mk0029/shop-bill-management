@@ -14,7 +14,7 @@ import {
   BillTotals,
   PaymentControls,
   BillActions,
-  ShareModal
+  ShareModal,
 } from "./bill-detail-modal/index";
 
 import { useState } from "react";
@@ -22,7 +22,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Switch not needed after redesign of payment UI
-import { BillDetails, shareBillOnWhatsApp, generateWhatsAppMessage } from "@/lib/whatsapp-share";
+import {
+  BillDetails,
+  shareBillOnWhatsApp,
+  generateWhatsAppMessage,
+} from "@/lib/whatsapp-share";
 
 import { useLocaleStore } from "@/store/locale-store";
 
@@ -40,9 +44,10 @@ import {
   MessageSquare,
   CheckCircle2,
   Copy,
-  Smartphone
+  Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -144,7 +149,8 @@ export const BillDetailModal = ({
 
   // Prefer explicit totals from bill to match list cards
   const explicitTotal = toNum((bill as any).totalAmount ?? (bill as any).total);
-  const grandTotal = explicitTotal > 0 ? explicitTotal : itemsTotal + additionalCharges;
+  const grandTotal =
+    explicitTotal > 0 ? explicitTotal : itemsTotal + additionalCharges;
   const existingDiscountTotal = toNum(
     (bill as any)?.discount ??
       (bill as any)?.discountAmount ??
@@ -172,7 +178,8 @@ export const BillDetailModal = ({
       const newPaid = Math.min(alreadyPaid + add, effectiveGrand);
       const balanceAmount = Math.max(0, effectiveGrand - newPaid);
       return {
-        paymentStatus: balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
+        paymentStatus:
+          balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
         paidAmount: newPaid,
         balanceAmount,
       };
@@ -187,7 +194,11 @@ export const BillDetailModal = ({
     if (!paymentDetails) return;
     setIsUpdatingPayment(true);
     try {
-      const id = (bill as any)?._id ?? (bill as any)?.id ?? (bill as any)?.billId ?? (bill as any)?._ref;
+      const id =
+        (bill as any)?._id ??
+        (bill as any)?.id ??
+        (bill as any)?.billId ??
+        (bill as any)?._ref;
       if (!id) throw new Error("Missing bill id");
       await onUpdatePayment(String(id), {
         ...paymentDetails,
@@ -204,7 +215,10 @@ export const BillDetailModal = ({
         // Optimistically update discount to cumulative value (only 'discount' key)
         const add = Math.max(Number(discountAmount || 0), 0);
         if (add > 0) {
-          const prevDiscount = Number((bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0) || 0;
+          const prevDiscount =
+            Number(
+              (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0
+            ) || 0;
           const totalDiscount = prevDiscount + add;
           (bill as any).discount = totalDiscount;
         }
@@ -240,7 +254,11 @@ export const BillDetailModal = ({
     };
     setIsUpdatingPayment(true);
     try {
-      const id = (bill as any)?._id ?? (bill as any)?.id ?? (bill as any)?.billId ?? (bill as any)?._ref;
+      const id =
+        (bill as any)?._id ??
+        (bill as any)?.id ??
+        (bill as any)?.billId ??
+        (bill as any)?._ref;
       if (!id) throw new Error("Missing bill id");
       await onUpdatePayment(String(id), {
         ...target,
@@ -279,13 +297,15 @@ export const BillDetailModal = ({
     onClose();
   };
 
-  const getCustomerId = (c: any) => (typeof c === "string" ? c : c?._id || c?._ref);
+  const getCustomerId = (c: any) =>
+    typeof c === "string" ? c : c?._id || c?._ref;
   const resolveCustomerIdFromBill = (b: any) => {
     const c = b?.customer;
     if (typeof c === "string" && c) return c;
     const direct = c?._id || c?.id || c?._ref;
     if (direct) return direct;
-    const viaField = b?.customerId || b?.customer_id || b?.customerRef || b?.customer_ref;
+    const viaField =
+      b?.customerId || b?.customer_id || b?.customerRef || b?.customer_ref;
     return viaField || null;
   };
 
@@ -316,10 +336,7 @@ export const BillDetailModal = ({
   const handleShareOnWhatsApp = () => {
     const billDetails: BillDetails = {
       ...bill,
-      repairFee:
-        (bill as any).repairFee ??
-        (bill as any).repairCharges ??
-        0,
+      repairFee: (bill as any).repairFee ?? (bill as any).repairCharges ?? 0,
       grandTotal: grandTotal,
       technician: bill.technician,
       customerAuth: {
@@ -333,10 +350,7 @@ export const BillDetailModal = ({
   const handleNativeShare = () => {
     const billDetails: BillDetails = {
       ...bill,
-      repairFee:
-        (bill as any).repairFee ??
-        (bill as any).repairCharges ??
-        0,
+      repairFee: (bill as any).repairFee ?? (bill as any).repairCharges ?? 0,
       grandTotal: grandTotal,
       technician: bill.technician,
       customerAuth: {
@@ -344,7 +358,7 @@ export const BillDetailModal = ({
       },
     };
     const message = generateWhatsAppMessage(billDetails, currency);
-    
+
     try {
       if (typeof navigator !== "undefined" && (navigator as any).share) {
         (navigator as any).share({ text: message }).catch(() => {});
@@ -359,10 +373,7 @@ export const BillDetailModal = ({
   const handleCopyToClipboard = () => {
     const billDetails: BillDetails = {
       ...bill,
-      repairFee:
-        (bill as any).repairFee ??
-        (bill as any).repairCharges ??
-        0,
+      repairFee: (bill as any).repairFee ?? (bill as any).repairCharges ?? 0,
       grandTotal: grandTotal,
       technician: bill.technician,
       customerAuth: {
@@ -370,14 +381,17 @@ export const BillDetailModal = ({
       },
     };
     const message = generateWhatsAppMessage(billDetails, currency);
-    
+
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(message).then(() => {
-        toast.success("Bill details copied to clipboard!");
-        setShowShareModal(false);
-      }).catch(() => {
-        toast.error("Failed to copy to clipboard");
-      });
+      navigator.clipboard
+        .writeText(message)
+        .then(() => {
+          toast.success("Bill details copied to clipboard!");
+          setShowShareModal(false);
+        })
+        .catch(() => {
+          toast.error("Failed to copy to clipboard");
+        });
     }
   };
 
@@ -386,7 +400,7 @@ export const BillDetailModal = ({
       <div className="relative">
         <div className="space-y-6 max-md:space-y-3 md:p-6">
           {/* Header */}
-          <BillHeader 
+          <BillHeader
             bill={bill}
             getStatusColor={getStatusColor}
             formatDate={formatDate}
@@ -401,14 +415,27 @@ export const BillDetailModal = ({
                   {bill.customer.phone && (
                     <p className="text-gray-400">{bill.customer.phone}</p>
                   )}
+                  {bill.customer.phone && (
+                    <>
+                      &nbsp; | &nbsp;
+                      <Link
+                        href={`tel:${bill.customer.phone}`}
+                        className="text-blue-400 hover:underline text-base"
+                      >
+                        Call
+                      </Link>
+                    </>
+                  )}
                 </div>
                 {bill.customer.email && (
                   <p className="text-gray-400">{bill.customer.email}</p>
                 )}
                 {(bill.customerAddress || bill.customer.location) && (
                   <p className="text-gray-400">
-                    {bill.customerAddress?.addressLine1 || bill.customer.location}
-                    {bill.customerAddress?.city && `, ${bill.customerAddress.city}`}
+                    {bill.customerAddress?.addressLine1 ||
+                      bill.customer.location}
+                    {bill.customerAddress?.city &&
+                      `, ${bill.customerAddress.city}`}
                   </p>
                 )}
               </div>
@@ -416,13 +443,10 @@ export const BillDetailModal = ({
           )}
 
           {/* Items */}
-          <BillItems 
-            bill={bill}
-            currency={currency}
-          />
+          <BillItems bill={bill} currency={currency} />
 
           {/* Additional Charges */}
-          <BillCharges 
+          <BillCharges
             bill={bill}
             currency={currency}
             transportationFee={transportationFee}
@@ -432,7 +456,7 @@ export const BillDetailModal = ({
           />
 
           {/* Total Section */}
-          <BillTotals 
+          <BillTotals
             bill={bill}
             currency={currency}
             grandTotal={grandTotal}
@@ -473,7 +497,7 @@ export const BillDetailModal = ({
                 handlePaymentUpdate={handlePaymentUpdate}
                 currency={currency}
               />
-          )}
+            )}
 
           {/* Action Buttons */}
           <BillActions

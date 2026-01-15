@@ -11,13 +11,13 @@ interface BillTotalsProps {
   toNum: (v: any) => number;
 }
 
-export const BillTotals = ({ 
-  bill, 
-  currency, 
-  grandTotal, 
-  existingDiscountTotal, 
-  discountAmount, 
-  toNum 
+export const BillTotals = ({
+  bill,
+  currency,
+  grandTotal,
+  existingDiscountTotal,
+  discountAmount,
+  toNum,
 }: BillTotalsProps) => {
   return (
     <div className="border-t border-gray-700 pt-3 sm:pt-4 md:pt-6">
@@ -59,20 +59,28 @@ export const BillTotals = ({
                 <span className="text-green-400">Paid Amount</span>
                 <span className="text-green-400 font-medium">
                   {currency}
-                  {(toNum(bill.paidAmount || 0)).toFixed(2)}
+                  {toNum(bill.paidAmount || 0).toFixed(2)}
                 </span>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {(() => {
           const liveAdd = Math.max(Number(discountAmount || 0), 0);
-          const net = Math.max(0, grandTotal - (existingDiscountTotal + liveAdd));
+          const paidAmount =
+            bill.paymentStatus === "partial" ? toNum(bill.paidAmount || 0) : 0;
+          const net = Math.max(
+            0,
+            grandTotal - (existingDiscountTotal + liveAdd) - paidAmount
+          );
           return (
             <div className="flex justify-between items-center text-sm sm:text-base font-semibold">
               <span className="text-gray-200">Net Payable</span>
-              <span className="text-white">{currency}{net.toFixed(2)}</span>
+              <span className="text-white">
+                {currency}
+                {net.toFixed(2)}
+              </span>
             </div>
           );
         })()}

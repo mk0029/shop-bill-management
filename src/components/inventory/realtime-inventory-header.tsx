@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, TrendingUp, PackagePlus } from "lucide-react";
+import { Plus, Package, TrendingUp, PackagePlus, History } from "lucide-react";
 import { useEffect, useRef } from "react";
 import ResponsiveAccordion from "../ui/responsive-accordion";
+import { useRouter } from "next/navigation";
 
 // Helper: Currency formatter
 const formatCurrency = (amount: number) => {
@@ -33,7 +34,7 @@ const StatCard = ({
   const hasChanged = value !== prevValue;
 
   return (
-        <div className="bg-card border border-border rounded-lg p-3 sm:p-4 flex items-center">
+    <div className="bg-card border border-border rounded-lg p-3 sm:p-4 flex items-center">
       <div className="flex items-center gap-2 sm:gap-3">
         <div className={`p-1 sm:p-2 rounded-lg max-sm:hidden ${stat.bg}`}>
           {stat.icon}
@@ -46,7 +47,8 @@ const StatCard = ({
               initial={hasChanged ? { y: -20, opacity: 0 } : false}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className={`text-xl font-semibold ${stat.valueClass}`}>
+              className={`text-xl font-semibold ${stat.valueClass}`}
+            >
               {value}
             </motion.p>
           </AnimatePresence>
@@ -117,37 +119,47 @@ export const RealtimeInventoryHeader = ({
       valueClass: "text-white",
     },
   ];
+  const router = useRouter();
 
   return (
     <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-            Inventory Management 
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+            Inventory Management
           </h1>
-        
         </div>
-        <Button
-          onClick={onAddProduct}
-          className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="w-4 h-4 sm:mr-2" />
-          <span className="max-sm:hidden">Add Products</span>
-        </Button>
+        <div className="flex items-center gap-2 justify-end">
+          <Button
+            onClick={() => {
+              router.push("/admin/inventory/history");
+            }}
+            className=" w-full"
+            variant="outline"
+          >
+            <History className="w-4 h-4 mr-2" />
+            Stoke History
+          </Button>
+          <Button onClick={onAddProduct} className=" w-full">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Products
+          </Button>
+        </div>
       </div>
-
-      <ResponsiveAccordion title='Inventory'>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => (
-          <StatCard
-            key={i}
-            stat={stat}
-            value={stat.value}
-            prevValue={stat.prevValue}
-          />
-        ))}
-      </div></ResponsiveAccordion>
+      <ResponsiveAccordion title="Inventory">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map((stat, i) => (
+            <StatCard
+              key={i}
+              stat={stat}
+              value={stat.value}
+              prevValue={stat.prevValue}
+            />
+          ))}
+        </div>
+      </ResponsiveAccordion>
     </div>
   );
 };

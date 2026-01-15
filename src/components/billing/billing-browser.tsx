@@ -10,7 +10,10 @@ import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { BillFormData, Customer, Item } from "@/types";
-import { RealtimeBillList, RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
+import {
+  RealtimeBillList,
+  RealtimeBillStats,
+} from "@/components/realtime/realtime-bill-list";
 import { FileText, Plus, Search, Calculator, FileTextIcon } from "lucide-react";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 
@@ -107,7 +110,8 @@ export function BillingBrowser({
       locationType: bill.locationType || "shop",
       homeVisitFee: bill.homeVisitFee || 0,
       transportationFee: bill.transportationFee || 0,
-      repairCharges: (bill as any).repairCharges ?? (bill as any).repairFee ?? 0,
+      repairCharges:
+        (bill as any).repairCharges ?? (bill as any).repairFee ?? 0,
       laborCharges: bill.laborCharges || 0,
       subtotal: bill.subtotal || 0,
       total: bill.totalAmount || 0,
@@ -127,7 +131,9 @@ export function BillingBrowser({
         secretKey:
           customers.find(
             (c: any) => c._id === (bill.customer?._id || bill.customer?._ref)
-          )?.secretKey || bill.customer?.secretKey || "",
+          )?.secretKey ||
+          bill.customer?.secretKey ||
+          "",
       },
     };
   };
@@ -142,7 +148,10 @@ export function BillingBrowser({
     const openId = searchParams?.get("open");
     if (!openId) return;
     // If a bill is already selected for the same id, skip
-    if (selectedBill && (selectedBill._id === openId || selectedBill.id === openId)) {
+    if (
+      selectedBill &&
+      (selectedBill._id === openId || selectedBill.id === openId)
+    ) {
       return;
     }
     const match = bills.find((b: any) => b._id === openId);
@@ -170,11 +179,16 @@ export function BillingBrowser({
   ) => {
     try {
       // Determine cumulative discount = existing + newly added
-      const existingBill = bills.find((b: any) => (b._id || b.id) === billId) as any;
+      const existingBill = bills.find(
+        (b: any) => (b._id || b.id) === billId
+      ) as any;
       const existingDiscount = Number(
         (existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0
       );
-      const addDiscount = typeof paymentData.discount === 'number' ? Math.max(Number(paymentData.discount || 0), 0) : 0;
+      const addDiscount =
+        typeof paymentData.discount === "number"
+          ? Math.max(Number(paymentData.discount || 0), 0)
+          : 0;
       const totalDiscount = existingDiscount + addDiscount;
       if (process.env.NODE_ENV === "development") {
         console.time("updateBill->commit");
@@ -192,7 +206,10 @@ export function BillingBrowser({
       }
 
       // Optimistically update currently open modal bill
-      if (selectedBill && (selectedBill.id === billId || (selectedBill as any)._id === billId)) {
+      if (
+        selectedBill &&
+        (selectedBill.id === billId || (selectedBill as any)._id === billId)
+      ) {
         setSelectedBill({
           ...selectedBill,
           paymentStatus: paymentData.paymentStatus,
@@ -212,14 +229,20 @@ export function BillingBrowser({
 
   // Additional filter for pending variant
   const computedFilterStatus = "all"; // We will handle status filtering locally when multi-select is used
-  const baseBills = variant === "pending"
-    ? bills.filter((b: any) => ["pending", "partial", "overdue"].includes(b.paymentStatus))
-    : bills;
-  const initialForList = selectedStatuses.length > 0
-    ? baseBills.filter((b: any) =>
-        selectedStatuses.includes(b.paymentStatus) || selectedStatuses.includes(b.status)
-      )
-    : baseBills;
+  const baseBills =
+    variant === "pending"
+      ? bills.filter((b: any) =>
+          ["pending", "partial", "overdue"].includes(b.paymentStatus)
+        )
+      : bills;
+  const initialForList =
+    selectedStatuses.length > 0
+      ? baseBills.filter(
+          (b: any) =>
+            selectedStatuses.includes(b.paymentStatus) ||
+            selectedStatuses.includes(b.status)
+        )
+      : baseBills;
   const filterOptionsAll = [
     { value: "all", label: "All Bills" },
     { value: "paid", label: "Paid" },
@@ -236,39 +259,49 @@ export function BillingBrowser({
             <FileText className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-400" />
             {title}
           </h1>
-        
         </div>
         {rightAction ?? (
-         <div className="flex items-center gap-2"> <Button
-            onClick={() => {
-           
-              router.push("/admin/billing/admin/billing/drafts");
-            }}
-            className="w-full sm:w-auto" variant="outline"
-          >
-            <FileTextIcon className="w-4 h-4 mr-2" />
-           Drafts
-          </Button> <Button
-            onClick={() => {
-              
-              router.push("/admin/billing/create?fresh=1");
-            }}
-            className="w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Bill
-          </Button></div>
+          <div className="flex items-center gap-2">
+            {" "}
+            <Button
+              onClick={() => {
+                router.push("/admin/billing/drafts");
+              }}
+              className="w-full sm:w-auto"
+              variant="outline"
+            >
+              <FileTextIcon className="w-4 h-4 mr-2" />
+              Drafts
+            </Button>{" "}
+            <Button
+              onClick={() => {
+                router.push("/admin/billing/create?fresh=1");
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Bill
+            </Button>
+          </div>
         )}
       </div>
 
       {/* Bill Statistics */}
       <div>
-       
-         <ResponsiveAccordion className="mb-4" title={ <h2 className="text-lg font-semibold text-white  flex items-center gap-2">
-          <Calculator className="w-5 h-5 text-blue-400" />
-          Bill Statistics
-        </h2>}>
-        <RealtimeBillStats key={`billing-stats-${variant}`} initialBills={bills} /></ResponsiveAccordion>
+        <ResponsiveAccordion
+          className="mb-4"
+          title={
+            <h2 className="text-lg font-semibold text-white  flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-blue-400" />
+              Bill Statistics
+            </h2>
+          }
+        >
+          <RealtimeBillStats
+            key={`billing-stats-${variant}`}
+            initialBills={bills}
+          />
+        </ResponsiveAccordion>
       </div>
 
       {/* Search and Filter */}
@@ -284,40 +317,39 @@ export function BillingBrowser({
             />
           </div>
           <div className="flex flex-wrap gap-2">
-              <button
+            <button
               type="button"
               onClick={() => setSelectedStatuses([])}
               className={`px-3 py-1 text-xs rounded-full border ${selectedStatuses.length === 0 ? "bg-blue-600 text-white border-blue-500" : "bg-gray-800 text-gray-300 border-gray-700"}`}
             >
               All
             </button>
-            {(["pending", "partial", "overdue", "paid"] as readonly string[]).map(
-              (status) => {
-                const active = selectedStatuses.includes(status);
-                return (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => {
-                      setSelectedStatuses((prev) => {
-                        const set = new Set(prev);
-                        if (set.has(status)) set.delete(status);
-                        else set.add(status);
-                        return Array.from(set);
-                      });
-                    }}
-                    className={`px-3 py-1 text-xs rounded-full border ${
-                      active
-                        ? "bg-blue-600 text-white border-blue-500"
-                        : "bg-gray-800 text-gray-300 border-gray-700"
-                    }`}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </button>
-                );
-              }
-            )}
-          
+            {(
+              ["pending", "partial", "overdue", "paid"] as readonly string[]
+            ).map((status) => {
+              const active = selectedStatuses.includes(status);
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStatuses((prev) => {
+                      const set = new Set(prev);
+                      if (set.has(status)) set.delete(status);
+                      else set.add(status);
+                      return Array.from(set);
+                    });
+                  }}
+                  className={`px-3 py-1 text-xs rounded-full border ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-500"
+                      : "bg-gray-800 text-gray-300 border-gray-700"
+                  }`}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              );
+            })}
           </div>
         </div>
       </Card>
@@ -334,9 +366,7 @@ export function BillingBrowser({
               initialBills={initialForList}
               searchTerm={searchTerm}
               filterStatus={computedFilterStatus}
-              onBillClick={(bill) =>
-                handleViewBill(buildSelectedBill(bill))
-              }
+              onBillClick={(bill) => handleViewBill(buildSelectedBill(bill))}
               showNewBillAnimation={true}
             />
           </div>
@@ -363,7 +393,9 @@ export function BillingBrowser({
             if (sp.has("open")) {
               sp.delete("open");
               const q = sp.toString();
-              router.replace(q ? `${pathname}?${q}` : `${pathname}`, { scroll: false });
+              router.replace(q ? `${pathname}?${q}` : `${pathname}`, {
+                scroll: false,
+              });
             }
           } catch {}
         }}

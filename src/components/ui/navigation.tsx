@@ -51,7 +51,7 @@ const adminNavigation: NavigationItem[] = [
     href: "/admin/dashboard",
     icon: Home,
   },
-    {
+  {
     label: "Cash Book",
     href: "/admin/cash-book",
     icon: DollarSign,
@@ -66,7 +66,7 @@ const adminNavigation: NavigationItem[] = [
     // ],
   },
   {
-    label: "Billing",
+    label: "Bills",
     href: "/admin/billing",
     icon: FileText,
     // children: [
@@ -81,14 +81,33 @@ const adminNavigation: NavigationItem[] = [
     label: "Inventory",
     href: "/admin/inventory",
     icon: Package,
+    // children: [
+    //   { label: "All Items", href: "/admin/inventory", icon: Package },
+    //   { label: "Add Item", href: "/admin/inventory/add", icon: Plus },
+    // ],
+  },
+  {
+    label: "Brand Management",
+    href: "/admin/inventory/brands",
+    icon: Building2,
+    // children: [
+    //   { label: "All Brands", href: "/admin/inventory/brands", icon: Building2 },
+    //   { label: "Add Brand", href: "/admin/inventory/brands/add", icon: Plus },
+
+    // ],
+  },
+  {
+    label: "Other",
+    href: "/admin/inventory",
+    icon: Package,
     children: [
-      { label: "All Items", href: "/admin/inventory", icon: Package },
-      { label: "Add Item", href: "/admin/inventory/add", icon: Plus },
+      { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
       {
-        label: "Brand Management",
-        href: "/admin/inventory/brands",
-        icon: Building2,
+        label: "Estimate Fitting Cost",
+        href: "/admin/billing/fitting-wiring",
+        icon: Settings,
       },
+      { label: "Settings", href: "/admin/settings", icon: Settings },
       {
         label: "Stock History",
         href: "/admin/inventory/history",
@@ -97,22 +116,10 @@ const adminNavigation: NavigationItem[] = [
     ],
   },
   {
-    label: "Other",
-    href: "/admin/inventory",
-    icon: Package,
-    children: [
-      { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
-      { label: "Estimate Fitting Cost", href: "/admin/billing/fitting-wiring", icon: Settings },
-      { label: "Settings", href: "/admin/settings", icon: Settings },
-     
-    ],
-  },
-    {
     label: "Chats",
     href: "/admin/chats",
     icon: Receipt,
   },
-
 ];
 
 const customerNavigation: NavigationItem[] = [
@@ -153,7 +160,7 @@ export function Navigation() {
   const router = useRouter();
   const { role, logout, user } = useAuthStore();
   const { activeRoomId, setActiveRoom } = useChatStore();
-  
+
   // Sanitize displayed text for non-admin users by removing content under specific characters
   const sanitizeUserText = (text: string): string => {
     try {
@@ -177,8 +184,14 @@ export function Navigation() {
   };
 
   // Compute a safe display name depending on role
-  const rawDisplayName = user?.name || user?.email?.split('@')[0] || (role === "admin" ? "Admin" : "User");
-  const displayName = role === "admin" ? rawDisplayName : (sanitizeUserText(rawDisplayName) || "User");
+  const rawDisplayName =
+    user?.name ||
+    user?.email?.split("@")[0] ||
+    (role === "admin" ? "Admin" : "User");
+  const displayName =
+    role === "admin"
+      ? rawDisplayName
+      : sanitizeUserText(rawDisplayName) || "User";
   // Filter admin navigation based on permissions
   const getFilteredAdminNavigation = () => {
     const userEmail = (user as any)?.email;
@@ -227,9 +240,13 @@ export function Navigation() {
   // Auto-open Rooms overlay on mobile when on Chats and no room selected
   useEffect(() => {
     // Determine if we are on chats without relying on isActive (to avoid lint dep)
-    const onChats = typeof pathname === 'string' ? pathname.split('?')[0].startsWith('/admin/chats') : false;
+    const onChats =
+      typeof pathname === "string"
+        ? pathname.split("?")[0].startsWith("/admin/chats")
+        : false;
     // basic mobile check
-    const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+    const isMobile =
+      typeof window !== "undefined" ? window.innerWidth < 768 : false;
     if (role === "admin" && onChats && isMobile) {
       if (!activeRoomId) {
         setIsRoomsOverlayOpen(true);
@@ -316,7 +333,7 @@ export function Navigation() {
       const activeChild = item.children!.find((child) => isActive(child.href));
       return (
         <Dropdown
-        dropLeft
+          dropLeft
           searchable={false}
           key={item.label}
           options={item.children!.map((child) => ({
@@ -333,7 +350,9 @@ export function Navigation() {
             } catch {}
             // Trigger global route progress if available
             try {
-              (globalThis as { __routeProgressStart?: () => void }).__routeProgressStart?.();
+              (
+                globalThis as { __routeProgressStart?: () => void }
+              ).__routeProgressStart?.();
             } catch {}
             // Use client-side navigation for faster route switching
             router.push(value);
@@ -375,14 +394,14 @@ export function Navigation() {
               onClick={() => setIsMobileMenuOpen(false)}
             />
 
-            {/* Mobile Menu */
-            }
+            {/* Mobile Menu */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-[60] xl:hidden flex flex-col">
+              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-[60] xl:hidden flex flex-col"
+            >
               {/* Header */}
               <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-800">
                 <h2 className="text-xl font-bold text-white">Menu</h2>
@@ -390,7 +409,8 @@ export function Navigation() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="hover:bg-gray-800">
+                  className="hover:bg-gray-800"
+                >
                   <X className="w-5 h-5" />
                 </Button>
               </div>
@@ -420,7 +440,8 @@ export function Navigation() {
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="w-full">
+                  className="w-full"
+                >
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
@@ -436,7 +457,14 @@ export function Navigation() {
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Image src="/je-p-48.png" alt="Logo" width={40} height={40} sizes="100vw" quality={100}/>
+              <Image
+                src="/je-p-48.png"
+                alt="Logo"
+                width={40}
+                height={40}
+                sizes="100vw"
+                quality={100}
+              />
             </div>
             <div>
               <h1 className="text-lg font-bold text-white">Jambh Electrics</h1>
@@ -463,7 +491,7 @@ export function Navigation() {
               <User className="w-5 h-5 text-white" />
             </div>
             <div>
-            <p className="text-white font-medium">{displayName}</p>
+              <p className="text-white font-medium">{displayName}</p>
               <p className="text-gray-400 text-sm">
                 {role === "admin" ? "Administrator" : "User"}
               </p>
@@ -480,48 +508,55 @@ export function Navigation() {
       <div className="h-[62px]"></div>
       <div className="xl:!pl-64 min-h-fit backdrop-blur-lg fixed z-40 top-0 w-full left-0">
         {/* Top Bar */}
-        <div className={`border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6 ${isActive("/admin/chats")&&'md:!py-0'}`}>
+        <div
+          className={`border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6 ${isActive("/admin/chats") && "md:!py-0"}`}
+        >
           <div className="flex items-center justify-between">
-           
-              <h1 className={`text-xl sm:text-2xl font-bold !leading-[125%] text-white ${isActive("/admin/chats")&&'md:hidden'}`}>
-                {navigation.find((item) => isActive(item.href))?.label ||
-                  "Dashboard"}
-              </h1>
-              {role === "admin" && isActive("/admin/chats") && (
-            <div className="mt-3 -mx-2 sm:mx-0 hidden md:block">
-              <RoomsTopBar
-                activeRoomId={activeRoomId || undefined}
-                onSelect={(rid) => {
-                  void setActiveRoom(rid);
-                  // No URL navigation needed - WhatsApp style state-based routing
-                }}
-                adminId={(user as { id?: string; _id?: string } | null)?.id || (user as { id?: string; _id?: string } | null)?._id}
-              />
-            </div>
-          )}
+            <h1
+              className={`text-xl sm:text-2xl font-bold !leading-[125%] text-white ${isActive("/admin/chats") && "md:hidden"}`}
+            >
+              {navigation.find((item) => isActive(item.href))?.label ||
+                "Dashboard"}
+            </h1>
+            {role === "admin" && isActive("/admin/chats") && (
+              <div className="mt-3 -mx-2 sm:mx-0 hidden md:block">
+                <RoomsTopBar
+                  activeRoomId={activeRoomId || undefined}
+                  onSelect={(rid) => {
+                    void setActiveRoom(rid);
+                    // No URL navigation needed - WhatsApp style state-based routing
+                  }}
+                  adminId={
+                    (user as { id?: string; _id?: string } | null)?.id ||
+                    (user as { id?: string; _id?: string } | null)?._id
+                  }
+                />
+              </div>
+            )}
             <div className="flex items-center gap-x-3">
-             <NotificationsPopover />
-             {/* Mobile: open Rooms overlay when on Chats */}
-             {role === "admin" && isActive("/admin/chats") && (
-               <Button
-                 variant="ghost"
-                 size="sm"
-                 onClick={() => setIsRoomsOverlayOpen(true)}
-                 className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2">
-                 <MessageSquare className="w-5 h-5" />
-               </Button>
-             )}
+              <NotificationsPopover />
+              {/* Mobile: open Rooms overlay when on Chats */}
+              {role === "admin" && isActive("/admin/chats") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsRoomsOverlayOpen(true)}
+                  className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2">
+                className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2"
+              >
                 <Menu className="w-5 h-5" />
               </Button>
             </div>
           </div>
           {/* Chats quick room selector in top bar when on Chats page (admin) */}
-         
         </div>
       </div>
       {/* Mobile Rooms Overlay (slides in from left) */}
@@ -534,7 +569,9 @@ export function Navigation() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 z-40 md:hidden"
-              onClick={() => { if (activeRoomId) setIsRoomsOverlayOpen(false); }}
+              onClick={() => {
+                if (activeRoomId) setIsRoomsOverlayOpen(false);
+              }}
             />
             {/* Sliding panel from left */}
             <motion.div
@@ -563,9 +600,10 @@ export function Navigation() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { setIsRoomsOverlayOpen(false)}}
-                    className={`hover:bg-gray-800 ${  'opacity-50 cursor-not-allowed'}`}
-                   
+                    onClick={() => {
+                      setIsRoomsOverlayOpen(false);
+                    }}
+                    className={`hover:bg-gray-800 ${"opacity-50 cursor-not-allowed"}`}
                   >
                     <X className="w-5 h-5" />
                   </Button>
@@ -580,7 +618,10 @@ export function Navigation() {
                     setIsRoomsOverlayOpen(false);
                     // No URL navigation needed - WhatsApp style state-based routing
                   }}
-                  adminId={(user as { id?: string; _id?: string } | null)?.id || (user as { id?: string; _id?: string } | null)?._id}
+                  adminId={
+                    (user as { id?: string; _id?: string } | null)?.id ||
+                    (user as { id?: string; _id?: string } | null)?._id
+                  }
                 />
               </div>
             </motion.div>
@@ -590,14 +631,14 @@ export function Navigation() {
 
       {/* New Chat Launcher for Mobile */}
       {showNewChatMobile && (
-        <NewChatLauncher 
-          onClose={() => setShowNewChatMobile(false)} 
-          onRoomOpen={(roomId) => { 
-            setShowNewChatMobile(false); 
+        <NewChatLauncher
+          onClose={() => setShowNewChatMobile(false)}
+          onRoomOpen={(roomId) => {
+            setShowNewChatMobile(false);
             void setActiveRoom(roomId);
             setIsRoomsOverlayOpen(false);
             // No URL navigation needed - WhatsApp style state-based routing
-          }} 
+          }}
         />
       )}
     </>
