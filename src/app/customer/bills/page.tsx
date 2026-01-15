@@ -25,6 +25,7 @@ import {
   formatCurrency,
   getStatusColor,
 } from "@/components/customer/bill-utils";
+import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 
 type SanityBill = StoreBill;
 
@@ -344,7 +345,7 @@ export default function CustomerBillsPage() {
       </div>
     );
   }
-  console.log(customer?._id, "custoemr");
+  console.log(customer, "custoemr");
 
   return (
     <div className="space-y-6 max-md:space-y-4">
@@ -352,14 +353,22 @@ export default function CustomerBillsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-white">
-            {customer?.name ? `${customer.name}'s Bills` : "Your Bills"}
+            {(() => {
+              const raw = (customer?.name as string) || "";
+              const cleaned = raw
+                .replace(/\s*[\(\[\{][^\)\]\}]*[\)\]\}]\s*/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+              return cleaned ? `${cleaned}'s Bills` : "Your Bills";
+            })()}
           </h2>
-          <p className="text-gray-400">View and Pay your Bills </p>
         </div>
       </div>
 
       {/* Bill Stats */}
-      <CustomerBillStats bills={customerBills} />
+      <ResponsiveAccordion title="Bill Stats">
+        <CustomerBillStats bills={customerBills} />
+      </ResponsiveAccordion>
 
       {/* Filters */}
       <BillFilters

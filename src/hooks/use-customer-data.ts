@@ -21,8 +21,11 @@ export const useCustomerData = (): UseCustomerDataReturn => {
   const [error, setError] = useState<Error | null>(null);
 
   const fetchCustomerData = useCallback(async () => {
-
+    // Fallback: if secretKey is not available, use the auth user object as customer
     if (!user?.secretKey) {
+      if (user) {
+        setCustomer(user);
+      }
       setLoading(false);
       return;
     }

@@ -9,11 +9,11 @@ interface BillFiltersProps {
   onStatusChange: (statuses: string[] | ((prev: string[]) => string[])) => void;
 }
 
-export function BillFilters({ 
-  searchTerm, 
-  onSearchChange, 
-  selectedStatuses, 
-  onStatusChange 
+export function BillFilters({
+  searchTerm,
+  onSearchChange,
+  selectedStatuses,
+  onStatusChange,
 }: BillFiltersProps) {
   const handleStatusToggle = (status: string) => {
     onStatusChange((prev) => {
@@ -39,6 +39,17 @@ export function BillFilters({
             />
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onStatusChange([])}
+              className={`px-3 py-1 text-xs rounded-full border ${
+                selectedStatuses.length === 0
+                  ? "bg-blue-600 text-white border-blue-500"
+                  : "bg-gray-800 text-gray-300 border-gray-700"
+              }`}
+            >
+              All
+            </button>{" "}
             {(["pending", "partial", "overdue", "paid"] as const).map(
               (status) => {
                 const active = selectedStatuses.includes(status);
@@ -51,22 +62,13 @@ export function BillFilters({
                       active
                         ? "bg-blue-600 text-white border-blue-500"
                         : "bg-gray-800 text-gray-300 border-gray-700"
-                    }`}>
+                    }`}
+                  >
                     {status.charAt(0).toUpperCase() + status.slice(1)}
                   </button>
                 );
               }
             )}
-            <button
-              type="button"
-              onClick={() => onStatusChange([])}
-              className={`px-3 py-1 text-xs rounded-full border ${
-                selectedStatuses.length === 0
-                  ? "bg-blue-600 text-white border-blue-500"
-                  : "bg-gray-800 text-gray-300 border-gray-700"
-              }`}>
-              All
-            </button>
           </div>
         </div>
       </CardContent>
