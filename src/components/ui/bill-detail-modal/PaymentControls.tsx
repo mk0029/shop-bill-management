@@ -20,7 +20,6 @@ interface PaymentControlsProps {
   getEffectiveGrandTotal: () => number;
   toNum: (v: any) => number;
   bill: any;
-  handleMarkAsPaid: () => void;
   handlePaymentUpdate: () => void;
   currency: string;
 }
@@ -39,7 +38,6 @@ export const PaymentControls = ({
   getEffectiveGrandTotal,
   toNum,
   bill,
-  handleMarkAsPaid,
   handlePaymentUpdate,
   currency,
 }: PaymentControlsProps) => {
@@ -51,8 +49,8 @@ export const PaymentControls = ({
           Update Payment
         </h3>
         {!isEditingPayment && (
-          <button 
-            onClick={() => setIsEditingPayment(true)} 
+          <button
+            onClick={() => setIsEditingPayment(true)}
             className="text-sm font-normal leading-none p-2 rounded-md border border-solid border-slate-300"
           >
             <Edit3 className="size-3 md:size-4" />
@@ -64,17 +62,22 @@ export const PaymentControls = ({
         <div className="space-y-4">
           <div className="flex gap-2 items-center mt-2">
             <p className="text-base font-normal leading-none">Mark Full Paid</p>
-            <div   
-              onClick={() => setPaymentMode(paymentMode === "paid" ? "partial" : "paid")} 
+            <div
+              onClick={() =>
+                setPaymentMode(paymentMode === "paid" ? "partial" : "paid")
+              }
               className={`w-10 h-6 cursor-pointer rounded-full border border-solid relative ${
                 paymentMode === "paid" ? "border-green-300" : "border-slate-300"
               }`}
             >
-              <div className={`w-4 h-4 transition-all ease-linear duration-100 rounded-full absolute top-1/2 -translate-x-0 -translate-y-1/2
+              <div
+                className={`w-4 h-4 transition-all ease-linear duration-100 rounded-full absolute top-1/2 -translate-x-0 -translate-y-1/2
                 ${paymentMode === "partial" ? "left-0.5 bg-slate-300" : "left-5 bg-green-300"}`}
               ></div>
             </div>
-            <p className="text-sm font-normal leading-none">{paymentMode === "paid" ? "Paid" : "Partial"}</p>
+            <p className="text-sm font-normal leading-none">
+              {paymentMode === "paid" ? "Paid" : "Partial"}
+            </p>
           </div>
 
           {/* Partial amount controls */}
@@ -106,11 +109,12 @@ export const PaymentControls = ({
                     placeholder="0"
                     className="bg-gray-900 border-gray-600 text-white"
                   />
-                  {paymentMode === "partial" && (!partialAmount || Number(partialAmount) <= 0) && (
-                    <p className="mt-1 text-xs text-gray-400">
-                      Enter an amount greater than 0 to enable Save.
-                    </p>
-                  )}
+                  {paymentMode === "partial" &&
+                    (!partialAmount || Number(partialAmount) <= 0) && (
+                      <p className="mt-1 text-xs text-gray-400">
+                        Enter an amount greater than 0 to enable Save.
+                      </p>
+                    )}
                 </div>
 
                 {/* Live summary */}
@@ -138,7 +142,8 @@ export const PaymentControls = ({
                           {(() => {
                             const effectiveGrand = getEffectiveGrandTotal();
                             return Math.min(
-                              toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0),
+                              toNum(bill.paidAmount || 0) +
+                                Math.max(Number(partialAmount), 0),
                               effectiveGrand
                             ).toFixed(2);
                           })()}
@@ -154,7 +159,8 @@ export const PaymentControls = ({
                               0,
                               effectiveGrand -
                                 Math.min(
-                                  toNum(bill.paidAmount || 0) + Math.max(Number(partialAmount), 0),
+                                  toNum(bill.paidAmount || 0) +
+                                    Math.max(Number(partialAmount), 0),
                                   effectiveGrand
                                 )
                             ).toFixed(2);
@@ -169,51 +175,36 @@ export const PaymentControls = ({
           </AnimatePresence>
 
           {/* Discount input (applies to both modes) */}
-          <div>
-            <Label htmlFor="discount-amount" className="text-xs text-gray-400">
-              Add Discount (will be added to existing discount)
-            </Label>
-            <Input
-              id="discount-amount"
-              type="number"
-              min="0"
-              step="1"
-              value={discountAmount}
-              onChange={(e) => setDiscountAmount(e.target.value)}
-              placeholder="0"
-              className="bg-gray-900 border-gray-600 text-white"
-            />
-          </div>
+          {paymentMode === "partial" && (
+            <div>
+              <Label
+                htmlFor="discount-amount"
+                className="text-xs text-gray-400"
+              >
+                Add Discount (will be added to existing discount)
+              </Label>
+              <Input
+                id="discount-amount"
+                type="number"
+                min="0"
+                step="1"
+                value={discountAmount}
+                onChange={(e) => setDiscountAmount(e.target.value)}
+                placeholder="0"
+                className="bg-gray-900 border-gray-600 text-white"
+              />
+            </div>
+          )}
 
           {/* Payment Action Buttons */}
           <div className="flex gap-3 pt-2">
             <Button
-              type="button"
-              onClick={handleMarkAsPaid}
-              disabled={isUpdatingPayment}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {isUpdatingPayment ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Marking...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Mark as Paid
-                </div>
-              )}
-            </Button>
-            <Button
               onClick={handlePaymentUpdate}
               disabled={
                 isUpdatingPayment ||
-                (
-                  paymentMode === "partial" &&
+                (paymentMode === "partial" &&
                   (!partialAmount || Number(partialAmount) <= 0) &&
-                  (!discountAmount || Number(discountAmount) <= 0)
-                )
+                  (!discountAmount || Number(discountAmount) <= 0))
               }
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
             >

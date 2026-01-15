@@ -243,48 +243,6 @@ export const BillDetailModal = ({
     }
   };
 
-  // Directly mark as fully paid helper
-  const handleMarkAsPaid = async () => {
-    if (!onUpdatePayment) return;
-    // Force paid mode calculation regardless of current input
-    const target = {
-      paymentStatus: "paid" as const,
-      paidAmount: getEffectiveGrandTotal(),
-      balanceAmount: 0,
-    };
-    setIsUpdatingPayment(true);
-    try {
-      const id =
-        (bill as any)?._id ??
-        (bill as any)?.id ??
-        (bill as any)?.billId ??
-        (bill as any)?._ref;
-      if (!id) throw new Error("Missing bill id");
-      await onUpdatePayment(String(id), {
-        ...target,
-        ...(discountAmount !== "" && Number(discountAmount) > 0
-          ? { discount: Number(discountAmount) }
-          : {}),
-      });
-      if (bill) {
-        bill.paymentStatus = target.paymentStatus;
-        bill.paidAmount = target.paidAmount;
-        bill.balanceAmount = target.balanceAmount;
-      }
-      setIsEditingPayment(false);
-      setPaymentMode("partial");
-      setPartialAmount("");
-      setDiscountAmount("");
-      toast.success("✅ Bill marked as fully paid!");
-      onClose();
-    } catch (error) {
-      console.error("Failed to mark as paid:", error);
-      toast.error("❌ Failed to update payment. Please try again.");
-    } finally {
-      setIsUpdatingPayment(false);
-    }
-  };
-
   // Quick amount helpers removed per UX request
 
   // Reset payment state when modal closes
@@ -493,7 +451,6 @@ export const BillDetailModal = ({
                 getEffectiveGrandTotal={getEffectiveGrandTotal}
                 toNum={toNum}
                 bill={bill}
-                handleMarkAsPaid={handleMarkAsPaid}
                 handlePaymentUpdate={handlePaymentUpdate}
                 currency={currency}
               />
