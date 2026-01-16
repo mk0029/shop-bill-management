@@ -1,6 +1,5 @@
-import ClientRedirect from "../components/home/client-redirect";
+import HomeLanding from "../components/home/HomeLanding";
 
 export default function Home() {
-  // Render only the redirector; no UI for the root page
-  return <ClientRedirect />;
+  return <HomeLanding />;
 }
