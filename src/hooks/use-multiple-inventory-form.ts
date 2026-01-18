@@ -6,6 +6,7 @@ import { validateProduct } from "@/lib/dynamic-validation";
 import { useDynamicFieldRegistry } from "@/hooks/use-dynamic-field-registry";
 import { initFieldRegistry } from "@/lib/field-registry-init";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
+import { useInventoryStore } from "@/store/inventory-store";
 import type { Specification } from "@/store/inventory-store";
 
 export interface InventoryFormData {
@@ -29,6 +30,7 @@ export const useMultipleInventoryForm = () => {
   const { categories } = useCategories();
   const specifications = useSpecificationsStore((state) => state.specificationOptions);
   const { products } = useProducts();
+  const { createStockTransaction } = useInventoryStore();
 
   // Initialize dynamic field registry
   const { isReady: isDynamicFieldsReady } = useDynamicFieldRegistry();
@@ -266,13 +268,14 @@ export const useMultipleInventoryForm = () => {
       // Perform stock updates first
       const successNames: string[] = [];
       for (const u of updates) {
-        const res = await stockApi.createStockTransaction({
-          productId: u.productId,
+        const res = await createStockTransaction({
+          product: { _id: u.productId, name: u.name, productId: u.productId },
           type: "purchase",
           quantity: u.quantity,
           unitPrice: u.unitPrice,
+          notes: `Bulk update: ${u.name} - added ${u.quantity} units`,
         });
-        if (res.success) {
+        if (res) {
           successNames.push(u.name);
         }
         setProgress((p) => ({ ...p, current: p.current + 1 }));

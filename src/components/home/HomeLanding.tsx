@@ -9,6 +9,7 @@ import ServicesSection from "./sections/ServicesSection";
 import RequestAccountSection from "./sections/RequestAccountSection";
 import ContactSection from "./sections/ContactSection";
 import FooterSection from "./sections/FooterSection";
+import ClientRedirect from "./client-redirect";
 import {
   PlugZap,
   Wrench,
@@ -61,6 +62,8 @@ export default function HomeLanding() {
     <>
       <Header />
       <main className="min-h-screen bg-background text-foreground">
+        {/* If already authenticated in this browser, redirect to dashboard/customer portal. */}
+        <ClientRedirect redirectUnauthenticated={false} />
         <HeroSection
           support={{ phone: support.phone, whatsapp: support.whatsapp }}
         />

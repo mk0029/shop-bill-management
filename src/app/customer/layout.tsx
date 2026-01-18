@@ -27,7 +27,7 @@ export default function CustomerLayout({
   useEffect(() => {
     if (isClient && !isLoading && hydrated) {
       if (!isAuthenticated) {
-        router.push("/login");
+        router.push("/");
       } else if (role !== "customer") {
         router.push("/admin/dashboard");
       }
@@ -63,7 +63,8 @@ export default function CustomerLayout({
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}>
+            transition={{ duration: 0.3 }}
+          >
             {children}
           </motion.div>
         </div>

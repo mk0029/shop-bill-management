@@ -407,13 +407,14 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
         // Create cash book entry for inventory debit (only for certain transaction types)
         try {
           const transaction = response.data as StockTransaction;
-          const shouldCreateDebit = ['sale', 'adjustment', 'damage', 'return'].includes(transaction.type);
+          const shouldCreateDebit = ['purchase', 'sale', 'adjustment', 'damage', 'return'].includes(transaction.type);
           
           if (shouldCreateDebit && transaction.totalAmount > 0) {
             console.log('Creating cash book entry for inventory debit:', {
               transactionId: transaction._id,
               type: transaction.type,
               amount: transaction.totalAmount,
+              itemName: transaction.product.name,
               userName: user?.name || 'System'
             });
             
@@ -421,11 +422,12 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
             const { sanityApiService } = await import("@/lib/sanity-api-service");
             
             const cashBookResult = await sanityApiService.cashBook.createEntry({
-              userName: user?.name || 'System',
+              userName: transaction.product.name, // Use item name as userName
               amount: transaction.totalAmount,
               type: 'debit',
               source: 'Manual', // Inventory transactions are manual debits
-              notes: `Inventory ${transaction.type}: ${transaction.product.name || transaction.transactionId}`
+              category: 'inventory', // Set category to inventory
+              notes: `Inventory ${transaction.type}: ${transaction.quantity} units at ₹${transaction.unitPrice} each (Transaction ID: ${transaction.transactionId})`
             });
             
             console.log('Inventory debit cash book entry result:', cashBookResult);

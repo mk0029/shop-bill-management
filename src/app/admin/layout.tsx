@@ -24,7 +24,7 @@ export default function AdminLayout({
   useEffect(() => {
     if (isClient && !isLoading && hydrated) {
       if (!isAuthenticated) {
-        router.push("/login");
+        router.push("/");
       } else if (role !== "admin") {
         router.push("/customer/bills");
       }

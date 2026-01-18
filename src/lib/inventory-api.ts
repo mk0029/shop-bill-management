@@ -634,7 +634,7 @@ export const inventoryApi = {
                   .toString("base64")
                   .substring(0, 12);
 
-                return await sanityClient.create({
+                const createdTxn = await sanityClient.create({
                   _type: "stockTransaction",
                   transactionId: stockTransactionId,
                   type: originalData.initialStockTransaction.type,
@@ -654,6 +654,31 @@ export const inventoryApi = {
                   createdByName: originalData.createdBy?.name,
                   createdById: originalData.createdBy?.id,
                 });
+
+                // Create corresponding cash book debit entry for the initial stock
+                try {
+                  const isInventoryAddition = ["purchase", "adjustment"].includes(
+                    originalData.initialStockTransaction.type
+                  );
+                  const totalAmount =
+                    originalData.initialStockTransaction.quantity *
+                    originalData.initialStockTransaction.unitPrice;
+                  if (isInventoryAddition && totalAmount > 0) {
+                    const { sanityApiService } = await import("@/lib/sanity-api-service");
+                    await sanityApiService.cashBook.createEntry({
+                      userName: (createdProduct as any)?.name || originalData.name || "Inventory Item",
+                      amount: totalAmount,
+                      type: "debit",
+                      source: "Manual",
+                      category: "inventory",
+                      notes: `Inventory ${originalData.initialStockTransaction.type}: ${originalData.initialStockTransaction.quantity} units at ₹${originalData.initialStockTransaction.unitPrice} each (Transaction ID: ${stockTransactionId})`,
+                    });
+                  }
+                } catch (cashErr) {
+                  console.warn("Failed to create cash book entry for initial stock:", cashErr);
+                }
+
+                return createdTxn;
               } catch (error) {
                 console.warn(`Failed to create stock transaction for product ${createdProduct._id}:`, error);
                 return null;
@@ -837,6 +862,31 @@ export const stockApi = {
           .inc({ "inventory.currentStock": stockChange })
           .set({ updatedAt: new Date().toISOString() })
           .commit();
+      }
+      // Create a cash book entry for inventory additions (purchase/adjustment)
+      try {
+        const isInventoryAddition = ["purchase", "adjustment"].includes(transactionData.type);
+        const totalAmount = (newTransaction as any).totalAmount as number;
+        if (isInventoryAddition && totalAmount > 0) {
+          // Fetch product name for display
+          const product = await sanityClient.fetch(
+            `*[_type == "product" && _id == $id][0]{ _id, name }`,
+            { id: transactionData.productId }
+          );
+          // Lazy import to avoid circular deps
+          const { sanityApiService } = await import("@/lib/sanity-api-service");
+          await sanityApiService.cashBook.createEntry({
+            userName: (product?.name as string) || "Inventory Item",
+            amount: totalAmount,
+            type: "debit",
+            source: "Manual",
+            category: "inventory",
+            notes: `Inventory ${transactionData.type}: ${transactionData.quantity} units at ₹${transactionData.unitPrice} each (Transaction ID: ${(newTransaction as any).transactionId})`,
+          });
+        }
+      } catch (cashErr) {
+        // Best effort: don't fail stock transaction on cash book error
+        console.warn("Failed to create cash book entry for inventory addition:", cashErr);
       }
 
       return { success: true, data: result };

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Dropdown } from "@/components/ui/dropdown";
 import { MessageCircle, Mail } from "lucide-react";
 
 export default function RequestAccountSection({
@@ -80,13 +81,22 @@ export default function RequestAccountSection({
               </div>
               <div>
                 <label className="block text-sm mb-1">Location / Village</label>
-                <Input
-                  required
+                <Dropdown
+                  options={[
+                    { value: "Lilas", label: "Lilas" },
+                    { value: "Sainiwas", label: "Sainiwas" },
+                    { value: "Dhani Silawali", label: "Dhani Silawali" },
+                    { value: "Siwani", label: "Siwani" },
+                  ]}
                   value={form.location}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, location: e.target.value }))
-                  }
-                  placeholder="Your area"
+                  onValueChange={(v) => setForm((f) => ({ ...f, location: v }))}
+                  placeholder="Select village"
+                />
+                <Input
+                  className="hidden"
+                  readOnly
+                  value={form.location}
+                  required
                 />
               </div>
               <div>

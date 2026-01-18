@@ -1755,6 +1755,8 @@ export const cashBookApiService = {
         amount,
         type,
         source,
+        category,
+        notes,
         bill,
         user->{
           _id,
@@ -1881,7 +1883,18 @@ export const cashBookApiService = {
   async getEntriesByDateRange(startDate: string, endDate: string): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "cashBookEntry" && createdAt >= $startDate && createdAt <= $endDate] {
-        ...,
+        _id,
+        _createdAt,
+        createdAt,
+        updatedAt,
+        user,
+        userName,
+        amount,
+        type,
+        source,
+        category,
+        notes,
+        bill,
         user->{
           _id,
           name,
