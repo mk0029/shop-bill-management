@@ -488,14 +488,56 @@ export const inventoryApi = {
 
       // If stock was added, create a stock transaction record
       if (stockToAdd > 0) {
+        // Determine effective unitPrice: prefer provided pricing.purchasePrice, else fetch current product price
+        let effectiveUnitPrice = typeof pricing.purchasePrice === 'number' ? pricing.purchasePrice : 0;
+        let productNameForLog: string | undefined;
+        if (!(effectiveUnitPrice > 0)) {
+          const productDoc = await sanityClient.fetch(
+            `*[_type == "product" && _id == $id][0]{ _id, name, pricing{purchasePrice} }`,
+            { id: productId }
+          );
+          productNameForLog = productDoc?.name as string | undefined;
+          const fetchedPrice = Number(productDoc?.pricing?.purchasePrice || 0);
+          if (isFinite(fetchedPrice) && fetchedPrice > 0) {
+            effectiveUnitPrice = fetchedPrice;
+          }
+        }
+
         await stockApi.createStockTransaction({
           productId,
           type: "adjustment",
           quantity: stockToAdd,
-          unitPrice: pricing.purchasePrice || 0, // Assuming purchase price for adjustment
+          unitPrice: effectiveUnitPrice || 0,
           notes: "Stock updated from inventory edit popup",
           updateInventory: false, // Inventory is already updated by the patch
         });
+
+        // Also create a corresponding cash book debit entry so the cash book reflects this edit flow
+        try {
+          const totalAmount = (effectiveUnitPrice || 0) * stockToAdd;
+          if (totalAmount > 0) {
+            // Ensure product name for display
+            if (!productNameForLog) {
+              const product = await sanityClient.fetch(
+                `*[_type == "product" && _id == $id][0]{ _id, name }`,
+                { id: productId }
+              );
+              productNameForLog = product?.name as string | undefined;
+            }
+            const { sanityApiService } = await import("@/lib/sanity-api-service");
+            await sanityApiService.cashBook.createEntry({
+              userName: productNameForLog || "Inventory Item",
+              amount: totalAmount,
+              type: "debit",
+              source: "Inventory",
+              category: "inventory",
+              notes: `Inventory adjustment: ${stockToAdd} units at ₹${effectiveUnitPrice || 0} each (Edit popup)`,
+            });
+          }
+        } catch (cashErr) {
+          // Non-blocking: do not fail product update if cash book entry fails
+          console.warn("Failed to create cash book entry for inventory edit flow:", cashErr);
+        }
       }
 
       return { success: true, data: result };
@@ -669,7 +711,7 @@ export const inventoryApi = {
                       userName: (createdProduct as any)?.name || originalData.name || "Inventory Item",
                       amount: totalAmount,
                       type: "debit",
-                      source: "Manual",
+                      source: "Inventory",
                       category: "inventory",
                       notes: `Inventory ${originalData.initialStockTransaction.type}: ${originalData.initialStockTransaction.quantity} units at ₹${originalData.initialStockTransaction.unitPrice} each (Transaction ID: ${stockTransactionId})`,
                     });
@@ -863,32 +905,6 @@ export const stockApi = {
           .set({ updatedAt: new Date().toISOString() })
           .commit();
       }
-      // Create a cash book entry for inventory additions (purchase/adjustment)
-      try {
-        const isInventoryAddition = ["purchase", "adjustment"].includes(transactionData.type);
-        const totalAmount = (newTransaction as any).totalAmount as number;
-        if (isInventoryAddition && totalAmount > 0) {
-          // Fetch product name for display
-          const product = await sanityClient.fetch(
-            `*[_type == "product" && _id == $id][0]{ _id, name }`,
-            { id: transactionData.productId }
-          );
-          // Lazy import to avoid circular deps
-          const { sanityApiService } = await import("@/lib/sanity-api-service");
-          await sanityApiService.cashBook.createEntry({
-            userName: (product?.name as string) || "Inventory Item",
-            amount: totalAmount,
-            type: "debit",
-            source: "Manual",
-            category: "inventory",
-            notes: `Inventory ${transactionData.type}: ${transactionData.quantity} units at ₹${transactionData.unitPrice} each (Transaction ID: ${(newTransaction as any).transactionId})`,
-          });
-        }
-      } catch (cashErr) {
-        // Best effort: don't fail stock transaction on cash book error
-        console.warn("Failed to create cash book entry for inventory addition:", cashErr);
-      }
-
       return { success: true, data: result };
     } catch (error) {
       console.error("Error creating stock transaction:", error);

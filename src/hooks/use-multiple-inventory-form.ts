@@ -269,7 +269,7 @@ export const useMultipleInventoryForm = () => {
       const successNames: string[] = [];
       for (const u of updates) {
         const res = await createStockTransaction({
-          product: { _id: u.productId, name: u.name, productId: u.productId },
+          productId: u.productId,
           type: "purchase",
           quantity: u.quantity,
           unitPrice: u.unitPrice,

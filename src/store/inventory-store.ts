@@ -121,7 +121,7 @@ interface InventoryStore {
     inventoryUpdate: Partial<Product["inventory"] & Product["pricing"]>
   ) => Promise<boolean>;
   createStockTransaction: (
-    transactionData: Partial<StockTransaction>
+    transactionData: StockTransactionCreationPayload
   ) => Promise<boolean>;
   findExistingProduct: (productData: {
     brandId: string;
@@ -410,11 +410,22 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
           const shouldCreateDebit = ['purchase', 'sale', 'adjustment', 'damage', 'return'].includes(transaction.type);
           
           if (shouldCreateDebit && transaction.totalAmount > 0) {
+            // Make sure we have the product name
+            let productName = transaction?.product?.name;
+            if (!productName) {
+              try {
+                const productRes = await inventoryApi.getProductById(payload.productId);
+                if (productRes.success && productRes.data) {
+                  productName = (productRes.data as any).name;
+                }
+              } catch {}
+            }
+
             console.log('Creating cash book entry for inventory debit:', {
               transactionId: transaction._id,
               type: transaction.type,
               amount: transaction.totalAmount,
-              itemName: transaction.product.name,
+              itemName: productName || '(unknown)',
               userName: user?.name || 'System'
             });
             
@@ -422,11 +433,11 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
             const { sanityApiService } = await import("@/lib/sanity-api-service");
             
             const cashBookResult = await sanityApiService.cashBook.createEntry({
-              userName: transaction.product.name, // Use item name as userName
+              userName: productName || '(unknown)',
               amount: transaction.totalAmount,
               type: 'debit',
-              source: 'Manual', // Inventory transactions are manual debits
-              category: 'inventory', // Set category to inventory
+              source: 'Inventory',
+              category: 'inventory',
               notes: `Inventory ${transaction.type}: ${transaction.quantity} units at ₹${transaction.unitPrice} each (Transaction ID: ${transaction.transactionId})`
             });
             
@@ -867,13 +878,13 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
           ),
         }));
         await get().createStockTransaction({
-          product: { _id: product._id, name: product.name, productId: product.productId },
+          productId: product._id,
           type: "sale",
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          bill: { _id: bill._id, billNumber: bill.billNumber },
+          billId: bill._id,
           notes: `Sold via bill ${bill.billNumber}`,
-        } as Partial<StockTransaction>);
+        });
       }
     });
     get().fetchInventorySummary();
