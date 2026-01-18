@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
+import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { SwitchToggle } from "@/components/ui/switch-toggle";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
@@ -35,31 +36,19 @@ export const CustomerInfoSection = ({
 
   return (
     <Card className="bg-gray-900 border-gray-800">
-      
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <div className="space-y-2">
             <Label htmlFor="customerId" className="text-gray-300">
               Select Customer *
             </Label>
-            <Dropdown
-              options={customers.map((c) => ({
-                value: c._id,
-                label: `${c.name} (${c.phone}) - ${c.location}`,
-              }))}
+            <CustomerAutocomplete
+              customers={customers}
               value={formData.customerId}
-              onValueChange={(value) => onInputChange("customerId", value)}
+              onChange={(value) => onInputChange("customerId", value)}
               placeholder={
-                customersLoading
-                  ? "Loading customers..."
-                  : customers.length === 0
-                    ? "No customers found"
-                    : "Choose customer"
+                customersLoading ? "Loading customers..." : "Type customer name"
               }
-              searchable={true}
-              searchPlaceholder="Search customers..."
-              className="bg-gray-800 border-gray-700"
-              disabled={customersLoading || customers.length === 0}
             />
             {customers.length === 0 && !customersLoading && (
               <div className="text-xs text-yellow-400">
@@ -68,8 +57,9 @@ export const CustomerInfoSection = ({
                   variant="link"
                   size="sm"
                   onClick={() => router.push("/admin/customers/add")}
-                  className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs">
-                  Add your first customer →
+                  className="text-blue-400 hover:text-blue-300 p-0 h-auto text-xs"
+                >
+                  Add customer →
                 </Button>
               </div>
             )}
@@ -97,7 +87,8 @@ export const CustomerInfoSection = ({
             />
           </div>
 
-          {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && (
+          {(formData.serviceType === "repair" ||
+            formData.serviceType === "multiple_work") && (
             <div className="space-y-2">
               <Label htmlFor="location" className="text-gray-300">
                 Location Type *
@@ -105,7 +96,7 @@ export const CustomerInfoSection = ({
               <SwitchToggle
                 steps={[
                   { value: "shop", label: "Shop" },
-                  { value: "home", label: "Other" }
+                  { value: "home", label: "Other" },
                 ]}
                 value={formData.location || "shop"}
                 onValueChange={(value) => onInputChange("location", value)}
@@ -159,7 +150,8 @@ export const CustomerInfoSection = ({
         </div>
 
         {/* Conditional charges based on service type and location */}
-        {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && (
+        {(formData.serviceType === "repair" ||
+          formData.serviceType === "multiple_work") && (
           <div className="space-y-2">
             <Label htmlFor="repairFee" className="text-gray-300">
               Repair Charges ({currency})
@@ -177,43 +169,47 @@ export const CustomerInfoSection = ({
           </div>
         )}
 
-        {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && formData.location === "home" && (
-          <div className="space-y-2">
-            <Label htmlFor="homeVisitFee" className="text-gray-300">
-               Visit Fee ({currency})
-            </Label>
-            <Input
-              id="homeVisitFee"
-              type="number"
-              min="50"
-              max="200"
-              step="1"
-              value={formData.homeVisitFee || ""}
-              onChange={(e) => onInputChange("homeVisitFee", e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white"
-              placeholder="50-200"
-            />
-            <p className="text-xs text-gray-400">Minimum ₹50, Maximum ₹200</p>
-          </div>
-        )}
+        {(formData.serviceType === "repair" ||
+          formData.serviceType === "multiple_work") &&
+          formData.location === "home" && (
+            <div className="space-y-2">
+              <Label htmlFor="homeVisitFee" className="text-gray-300">
+                Visit Fee ({currency})
+              </Label>
+              <Input
+                id="homeVisitFee"
+                type="number"
+                min="50"
+                max="200"
+                step="1"
+                value={formData.homeVisitFee || ""}
+                onChange={(e) => onInputChange("homeVisitFee", e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="50-200"
+              />
+              <p className="text-xs text-gray-400">Minimum ₹50, Maximum ₹200</p>
+            </div>
+          )}
 
-        {(formData.serviceType === "repair" || formData.serviceType === "multiple_work") && formData.location === "home" && (
-          <div className="space-y-2">
-            <Label htmlFor="laborCharges" className="text-gray-300">
-              Labor Charges ({currency})
-            </Label>
-            <Input
-              id="laborCharges"
-              type="number"
-              min="0"
-              step="0.01"
-              value={formData.laborCharges || ""}
-              onChange={(e) => onInputChange("laborCharges", e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white"
-              placeholder="Enter labor charges"
-            />
-          </div>
-        )}
+        {(formData.serviceType === "repair" ||
+          formData.serviceType === "multiple_work") &&
+          formData.location === "home" && (
+            <div className="space-y-2">
+              <Label htmlFor="laborCharges" className="text-gray-300">
+                Labor Charges ({currency})
+              </Label>
+              <Input
+                id="laborCharges"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.laborCharges || ""}
+                onChange={(e) => onInputChange("laborCharges", e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+                placeholder="Enter labor charges"
+              />
+            </div>
+          )}
       </CardContent>
     </Card>
   );

@@ -9,12 +9,26 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
 import { sanityApiService } from "@/lib/sanity-api-service";
-import { syncBillPaymentsToCashBook, getSyncStatistics } from "@/lib/bill-payment-sync";
+import {
+  syncBillPaymentsToCashBook,
+  getSyncStatistics,
+} from "@/lib/bill-payment-sync";
 import { format } from "date-fns";
-import { DollarSign, Plus, Receipt, TrendingDown, TrendingUp, XIcon, Calendar, RefreshCw, Trash } from "lucide-react";
+import {
+  DollarSign,
+  Plus,
+  Receipt,
+  TrendingDown,
+  TrendingUp,
+  XIcon,
+  Calendar,
+  RefreshCw,
+  Trash,
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import ResponsiveAccordion from "../ui/responsive-accordion";
+import Link from "next/link";
 
 interface CashBookEntry {
   _id: string;
@@ -27,8 +41,8 @@ interface CashBookEntry {
   };
   userName: string;
   amount: number;
-  type: 'credit' | 'debit';
-  source: 'Manual' | 'Bill Payment';
+  type: "credit" | "debit";
+  source: "Manual" | "Bill Payment";
   bill?: {
     _id: string;
     billNumber: string;
@@ -61,10 +75,10 @@ interface CashBookPageProps {
   initialSummary: CashBookSummary;
 }
 
-export function CashBookPage({ 
-  initialEntries, 
-  initialUsers, 
-  initialSummary 
+export function CashBookPage({
+  initialEntries,
+  initialUsers,
+  initialSummary,
 }: CashBookPageProps) {
   const [entries, setEntries] = useState<CashBookEntry[]>(initialEntries);
   const [users, setUsers] = useState<User[]>(initialUsers);
@@ -75,16 +89,18 @@ export function CashBookPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
-  
+
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [customUserName, setCustomUserName] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
-  const [transactionType, setTransactionType] = useState<'credit' | 'debit'>('credit');
-  
+  const [transactionType, setTransactionType] = useState<"credit" | "debit">(
+    "credit",
+  );
+
   // Ref for custom name input
   const customNameRef = useRef<HTMLInputElement>(null);
-  
+
   // Auto-focus custom name input when "Other" is selected
   useEffect(() => {
     if (selectedUserId === "other" && customNameRef.current) {
@@ -93,75 +109,95 @@ export function CashBookPage({
       }, 100);
     }
   }, [selectedUserId]);
-  
+
   // Pagination - show only 20 entries
   const displayedEntries = entries.slice(0, 20);
-  
+
   // Group entries by date for date separators
   const groupEntriesByDate = (entries: CashBookEntry[]) => {
     const groups: { [date: string]: CashBookEntry[] } = {};
-    
-    entries.forEach(entry => {
-      const date = format(new Date(entry.createdAt), 'yyyy-MM-dd');
+
+    entries.forEach((entry) => {
+      const date = format(new Date(entry.createdAt), "yyyy-MM-dd");
       if (!groups[date]) {
         groups[date] = [];
       }
       groups[date].push(entry);
     });
-    
+
     return groups;
   };
-  
+
   const groupedEntries = groupEntriesByDate(displayedEntries);
 
   // Real-time updates
   const { isConnected } = useCashBookRealtime({
     onEntryAdded: (newEntry) => {
-      setEntries(prev => [newEntry, ...prev]);
+      setEntries((prev) => [newEntry, ...prev]);
       // Update summary
-      setSummary(prev => ({
+      setSummary((prev) => ({
         ...prev,
-        totalCredits: prev.totalCredits + (newEntry.type === 'credit' ? newEntry.amount : 0),
-        totalDebits: prev.totalDebits + (newEntry.type === 'debit' ? newEntry.amount : 0),
-        balance: prev.balance + (newEntry.type === 'credit' ? newEntry.amount : -newEntry.amount)
+        totalCredits:
+          prev.totalCredits +
+          (newEntry.type === "credit" ? newEntry.amount : 0),
+        totalDebits:
+          prev.totalDebits + (newEntry.type === "debit" ? newEntry.amount : 0),
+        balance:
+          prev.balance +
+          (newEntry.type === "credit" ? newEntry.amount : -newEntry.amount),
       }));
-      toast.success(`Cash book entry added: ${newEntry.type === 'credit' ? '+' : '-'}₹${newEntry.amount}`);
+      toast.success(
+        `Cash book entry added: ${newEntry.type === "credit" ? "+" : "-"}₹${newEntry.amount}`,
+      );
     },
     onEntryUpdated: (updatedEntry) => {
-      setEntries(prev => prev.map(entry => 
-        entry._id === updatedEntry._id ? updatedEntry : entry
-      ));
+      setEntries((prev) =>
+        prev.map((entry) =>
+          entry._id === updatedEntry._id ? updatedEntry : entry,
+        ),
+      );
       // Recalculate summary
-      setEntries(currentEntries => {
-        const newSummary = currentEntries.reduce((acc, entry) => {
-          if (entry.type === 'credit') {
-            acc.totalCredits += entry.amount;
-          } else if (entry.type === 'debit') {
-            acc.totalDebits += entry.amount;
-          }
-          return acc;
-        }, { totalCredits: 0, totalDebits: 0, balance: 0 });
-        
+      setEntries((currentEntries) => {
+        const newSummary = currentEntries.reduce(
+          (acc, entry) => {
+            if (entry.type === "credit") {
+              acc.totalCredits += entry.amount;
+            } else if (entry.type === "debit") {
+              acc.totalDebits += entry.amount;
+            }
+            return acc;
+          },
+          { totalCredits: 0, totalDebits: 0, balance: 0 },
+        );
+
         newSummary.balance = newSummary.totalCredits - newSummary.totalDebits;
         setSummary(newSummary);
         return currentEntries;
       });
     },
     onEntryDeleted: (deletedId) => {
-      setEntries(prev => {
-        const deletedEntry = prev.find(entry => entry._id === deletedId);
+      setEntries((prev) => {
+        const deletedEntry = prev.find((entry) => entry._id === deletedId);
         if (deletedEntry) {
           // Update summary
-          setSummary(summary => ({
+          setSummary((summary) => ({
             ...summary,
-            totalCredits: summary.totalCredits - (deletedEntry.type === 'credit' ? deletedEntry.amount : 0),
-            totalDebits: summary.totalDebits - (deletedEntry.type === 'debit' ? deletedEntry.amount : 0),
-            balance: summary.balance - (deletedEntry.type === 'credit' ? deletedEntry.amount : -deletedEntry.amount)
+            totalCredits:
+              summary.totalCredits -
+              (deletedEntry.type === "credit" ? deletedEntry.amount : 0),
+            totalDebits:
+              summary.totalDebits -
+              (deletedEntry.type === "debit" ? deletedEntry.amount : 0),
+            balance:
+              summary.balance -
+              (deletedEntry.type === "credit"
+                ? deletedEntry.amount
+                : -deletedEntry.amount),
           }));
         }
-        return prev.filter(entry => entry._id !== deletedId);
+        return prev.filter((entry) => entry._id !== deletedId);
       });
-    }
+    },
   });
 
   const formatCurrency = (value: number): string => {
@@ -192,7 +228,7 @@ export function CashBookPage({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!amount || parseFloat(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
@@ -214,7 +250,7 @@ export function CashBookPage({
       let entryData: any = {
         amount: parseFloat(amount),
         type: transactionType,
-        source: "Manual"
+        source: "Manual",
       };
 
       if (selectedUserId === "other") {
@@ -222,34 +258,36 @@ export function CashBookPage({
         entryData.userName = customUserName.trim();
       } else {
         // Use existing user reference
-        const selectedUser = users.find(u => u._id === selectedUserId);
+        const selectedUser = users.find((u) => u._id === selectedUserId);
         if (!selectedUser) {
           toast.error("Selected user not found");
           return;
         }
         entryData.user = {
           _type: "reference",
-          _ref: selectedUserId
+          _ref: selectedUserId,
         };
         entryData.userName = selectedUser.name;
       }
 
       const result = await sanityApiService.cashBook.createEntry(entryData);
-      
+
       if (result.success) {
         // Reset form
         setAmount("");
         setSelectedUserId("");
         setCustomUserName("");
-        setTransactionType('credit');
+        setTransactionType("credit");
         setShowAddForm(false);
-        
-        toast.success(`Manual ${transactionType} entry of ${formatCurrency(parseFloat(amount))} added successfully`);
+
+        toast.success(
+          `Manual ${transactionType} entry of ${formatCurrency(parseFloat(amount))} added successfully`,
+        );
       } else {
         toast.error(result.error || "Failed to add cash book entry");
       }
     } catch (error) {
-      console.error('Error adding cash book entry:', error);
+      console.error("Error adding cash book entry:", error);
       toast.error("Failed to add cash book entry");
     } finally {
       setIsSubmitting(false);
@@ -259,19 +297,19 @@ export function CashBookPage({
   // // Handle bill payment sync
   // const handleSyncBillPayments = async () => {
   //   setIsSyncing(true);
-    
+
   //   try {
   //     const result = await syncBillPaymentsToCashBook();
-      
+
   //     if (result.success) {
   //       toast.success(`Sync completed! ${result.syncedCount} payments synced to cash book`);
-        
+
   //       // Refresh the entries
   //       const entriesResponse = await sanityApiService.cashBook.getAllEntries();
   //       if (entriesResponse.success && entriesResponse.data) {
   //         setEntries(entriesResponse.data);
   //       }
-        
+
   //       // Show detailed results
   //       if (result.errors.length > 0) {
   //         console.error('Sync errors:', result.errors);
@@ -293,17 +331,17 @@ export function CashBookPage({
   //   const confirmed = window.confirm(
   //     'Are you sure you want to clear all cash book entries? This action cannot be undone and will delete all entries permanently.'
   //   );
-    
+
   //   if (!confirmed) return;
-    
+
   //   setIsClearing(true);
-    
+
   //   try {
   //     const result = await sanityApiService.cashBook.deleteAllEntries();
-      
+
   //     if (result.success) {
   //       toast.success(result.message || `Cash book cleared successfully! ${result.data?.deletedCount || 0} entries deleted.`);
-        
+
   //       // Clear local state
   //       setEntries([]);
   //       setSummary({
@@ -311,10 +349,10 @@ export function CashBookPage({
   //         totalDebits: 0,
   //         balance: 0
   //       });
-        
+
   //       // Close add form if open
   //       setShowAddForm(false);
-        
+
   //       // Reset form
   //       setSelectedUserId("");
   //       setCustomUserName("");
@@ -331,90 +369,99 @@ export function CashBookPage({
   //   }
   // };
 
-  const selectedUser = users.find(u => u._id === selectedUserId);
+  const selectedUser = users.find((u) => u._id === selectedUserId);
 
   return (
     <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-3">
-       <ResponsiveAccordion
-      defaultOpenMobile={false}
-      // removePX
-      title={
-        <CardHeader className="!p-0">
-                   <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-              Cash Book
-            </h1>
-            <p className="text-gray-400 text-sm mt-1">
-              Real-time payment ledger
-            </p>
+      <ResponsiveAccordion
+        defaultOpenMobile={false}
+        // removePX
+        title={
+          <CardHeader className="!p-0">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
+                Cash Book
+              </h1>
+              <div className="flex items-center gap-2">
+                <Link href="/admin/cashbooks">
+                  <Button size="sm" variant="secondary">
+                    Visit Books
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-gray-400 text-sm mt-1">
+                Real-time payment ledger
+              </p>
+            </div>
+          </CardHeader>
+        }
+      >
+        <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"></div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="bg-gray-800 border-gray-700 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Total Credits</p>
+                  <p className="text-green-400 text-xl font-bold flex items-center gap-1">
+                    <TrendingUp className="w-4 h-4" />
+                    {formatCurrency(summary.totalCredits)}
+                  </p>
+                </div>
+                <div className="bg-green-500/20 p-2 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-green-500" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Total Debits</p>
+                  <p className="text-red-400 text-xl font-bold flex items-center gap-1">
+                    <TrendingDown className="w-4 h-4" />
+                    {formatCurrency(summary.totalDebits)}
+                  </p>
+                </div>
+                <div className="bg-red-500/20 p-2 rounded-lg">
+                  <TrendingDown className="w-6 h-6 text-red-500" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm">Balance</p>
+                  <p
+                    className={`text-xl font-bold flex items-center gap-1 ${
+                      summary.balance >= 0 ? "text-blue-400" : "text-orange-400"
+                    }`}
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    {formatCurrency(Math.abs(summary.balance))}
+                    {summary.balance < 0 && " (Deficit)"}
+                  </p>
+                </div>
+                <div
+                  className={`${summary.balance >= 0 ? "bg-blue-500/20" : "bg-orange-500/20"} p-2 rounded-lg`}
+                >
+                  <DollarSign
+                    className={`w-6 h-6 ${summary.balance >= 0 ? "text-blue-500" : "text-orange-500"}`}
+                  />
+                </div>
+              </div>
+            </Card>
           </div>
-        </CardHeader>
-      }
-    >
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-
-         
         </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="bg-gray-800 border-gray-700 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">Total Credits</p>
-                <p className="text-green-400 text-xl font-bold flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4" />
-                  {formatCurrency(summary.totalCredits)}
-                </p>
-              </div>
-              <div className="bg-green-500/20 p-2 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-green-500" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">Total Debits</p>
-                <p className="text-red-400 text-xl font-bold flex items-center gap-1">
-                  <TrendingDown className="w-4 h-4" />
-                  {formatCurrency(summary.totalDebits)}
-                </p>
-              </div>
-              <div className="bg-red-500/20 p-2 rounded-lg">
-                <TrendingDown className="w-6 h-6 text-red-500" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-400 text-sm">Balance</p>
-                <p className={`text-xl font-bold flex items-center gap-1 ${
-                  summary.balance >= 0 ? 'text-blue-400' : 'text-orange-400'
-                }`}>
-                  <DollarSign className="w-4 h-4" />
-                  {formatCurrency(Math.abs(summary.balance))}
-                  {summary.balance < 0 && ' (Deficit)'}
-                </p>
-              </div>
-              <div className={`${summary.balance >= 0 ? 'bg-blue-500/20' : 'bg-orange-500/20'} p-2 rounded-lg`}>
-                <DollarSign className={`w-6 h-6 ${summary.balance >= 0 ? 'text-blue-500' : 'text-orange-500'}`} />
-              </div>
-            </div>
-          </Card>
-        </div>
-
- 
-      </div></ResponsiveAccordion>
+      </ResponsiveAccordion>
       <div className=" mx-auto space-y-4 sm:space-y-6 pt-6 md:px-3">
-               {/* Add Record, Sync & History Buttons */}
+        {/* Add Record, Sync & History Buttons */}
         <div className="flex w-full gap-2">
-            {/* <Button
+          {/* <Button
               onClick={handleSyncBillPayments}
               disabled={isSyncing}
               className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
@@ -422,14 +469,14 @@ export function CashBookPage({
               <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
               {isSyncing ? 'Syncing...' : 'Sync Payments'}
             </Button> */}
-            <Button
-              onClick={() => window.location.href = '/admin/cash-book/history'}
-              className="bg-gray-600 hover:bg-gray-700 text-white flex w-full items-center gap-2"
-            >
-              <Calendar className="w-4 h-4" />
-              View History
-            </Button>
-            {/* <Button
+          <Button
+            onClick={() => (window.location.href = "/admin/cash-book/history")}
+            className="bg-gray-600 hover:bg-gray-700 text-white flex w-full items-center gap-2"
+          >
+            <Calendar className="w-4 h-4" />
+            View History
+          </Button>
+          {/* <Button
               onClick={handleClearBook}
               disabled={isClearing}
               className="bg-red-600 hover:bg-red-700 text-white flex w-full items-center gap-2"
@@ -441,18 +488,30 @@ export function CashBookPage({
             onClick={() => setShowAddForm(!showAddForm)}
             className="bg-blue-600 hover:bg-blue-700 text-white w-full flex items-center gap-2"
           >
-           {showAddForm ? <><XIcon className="w-4 h-4" /> Close</> : <><Plus className="w-4 h-4" /> Add Record</>}
+            {showAddForm ? (
+              <>
+                <XIcon className="w-4 h-4" /> Close
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" /> Add Record
+              </>
+            )}
           </Button>
         </div>
 
         {/* Add Record Form */}
         {showAddForm && (
           <Card className="bg-gray-800 border-gray-700 p-3 md:p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Add Manual Record</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Add Manual Record
+            </h3>
             <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4">
                 <div>
-                  <Label htmlFor="user" className="text-gray-300 text-sm">User</Label>
+                  <Label htmlFor="user" className="text-gray-300 text-sm">
+                    User
+                  </Label>
                   <SelectField
                     value={selectedUserId}
                     onValueChange={(value) => {
@@ -465,8 +524,8 @@ export function CashBookPage({
                       { value: "other", label: "Other (Enter custom name)" },
                       ...users.map((user) => ({
                         value: user._id,
-                        label: user.name
-                      }))
+                        label: user.name,
+                      })),
                     ]}
                     placeholder="Select user"
                     className="bg-gray-700 border-gray-600 text-white"
@@ -475,7 +534,12 @@ export function CashBookPage({
 
                 {selectedUserId === "other" && (
                   <div>
-                    <Label htmlFor="customName" className="text-gray-300 text-sm">Custom Name</Label>
+                    <Label
+                      htmlFor="customName"
+                      className="text-gray-300 text-sm"
+                    >
+                      Custom Name
+                    </Label>
                     <Input
                       ref={customNameRef}
                       id="customName"
@@ -489,7 +553,9 @@ export function CashBookPage({
                 )}
 
                 <div>
-                  <Label htmlFor="amount" className="text-gray-300 text-sm">Amount</Label>
+                  <Label htmlFor="amount" className="text-gray-300 text-sm">
+                    Amount
+                  </Label>
                   <Input
                     id="amount"
                     type="number"
@@ -504,28 +570,34 @@ export function CashBookPage({
               </div>
 
               <div>
-                <Label className="text-gray-300 text-sm">Transaction Type</Label>
+                <Label className="text-gray-300 text-sm">
+                  Transaction Type
+                </Label>
                 <div className="flex gap-2 mt-2">
                   <Button
                     type="button"
-                    variant={transactionType === 'credit' ? 'default' : 'outline'}
-                    onClick={() => setTransactionType('credit')}
+                    variant={
+                      transactionType === "credit" ? "default" : "outline"
+                    }
+                    onClick={() => setTransactionType("credit")}
                     className={`flex-1 ${
-                      transactionType === 'credit' 
-                        ? 'bg-green-600 hover:bg-green-700 text-white' 
-                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                      transactionType === "credit"
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
                     }`}
                   >
                     Credit
                   </Button>
                   <Button
                     type="button"
-                    variant={transactionType === 'debit' ? 'default' : 'outline'}
-                    onClick={() => setTransactionType('debit')}
+                    variant={
+                      transactionType === "debit" ? "default" : "outline"
+                    }
+                    onClick={() => setTransactionType("debit")}
                     className={`flex-1 ${
-                      transactionType === 'debit' 
-                        ? 'bg-red-600 hover:bg-red-700 text-white' 
-                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                      transactionType === "debit"
+                        ? "bg-red-600 hover:bg-red-700 text-white"
+                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
                     }`}
                   >
                     Debit
@@ -539,7 +611,7 @@ export function CashBookPage({
                   disabled={isSubmitting}
                   className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Entry'}
+                  {isSubmitting ? "Saving..." : "Save Entry"}
                 </Button>
                 <Button
                   type="button"
@@ -558,7 +630,9 @@ export function CashBookPage({
         <div className="hidden lg:block">
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-4 border-b border-gray-700">
-              <h3 className="text-lg font-semibold text-white">Cash Book Records (Latest 20)</h3>
+              <h3 className="text-lg font-semibold text-white">
+                Cash Book Records (Latest 20)
+              </h3>
             </div>
             <div className="overflow-x-auto">
               {Object.keys(groupedEntries).length === 0 ? (
@@ -572,48 +646,81 @@ export function CashBookPage({
                     <div className="border-t border-gray-600 my-2"></div>
                     <div className="px-4 py-2 bg-gray-700/50">
                       <p className="text-sm font-medium text-gray-300">
-                        {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                        {format(new Date(date), "EEEE, MMMM d, yyyy")}
                       </p>
                     </div>
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-gray-700">
-                          <th className="text-left p-4 text-gray-400 font-medium">User</th>
-                          <th className="text-left p-4 text-gray-400 font-medium">Amount</th>
-                          <th className="text-left p-4 text-gray-400 font-medium">Type</th>
-                          <th className="text-left p-4 text-gray-400 font-medium">Source</th>
-                          <th className="text-left p-4 text-gray-400 font-medium">Time</th>
+                          <th className="text-left p-4 text-gray-400 font-medium">
+                            User
+                          </th>
+                          <th className="text-left p-4 text-gray-400 font-medium">
+                            Amount
+                          </th>
+                          <th className="text-left p-4 text-gray-400 font-medium">
+                            Type
+                          </th>
+                          <th className="text-left p-4 text-gray-400 font-medium">
+                            Source
+                          </th>
+                          <th className="text-left p-4 text-gray-400 font-medium">
+                            Time
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {dateEntries.map((entry) => (
-                          <tr key={entry._id} className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
+                          <tr
+                            key={entry._id}
+                            className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
+                          >
                             <td className="p-4">
                               <div>
-                                <p className="text-white font-medium">{entry.userName}</p>
+                                <p className="text-white font-medium">
+                                  {entry.userName}
+                                </p>
                                 {entry.user?.phone && (
-                                  <p className="text-gray-400 text-sm">{entry.user.phone}</p>
+                                  <p className="text-gray-400 text-sm">
+                                    {entry.user.phone}
+                                  </p>
                                 )}
                               </div>
                             </td>
                             <td className="p-4">
-                              <p className={`font-bold ${
-                                entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
-                              }`}>
-                                {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                              <p
+                                className={`font-bold ${
+                                  entry.type === "credit"
+                                    ? "text-green-400"
+                                    : "text-red-400"
+                                }`}
+                              >
+                                {entry.type === "credit" ? "+" : "-"}
+                                {formatCurrency(entry.amount)}
                               </p>
                             </td>
                             <td className="p-4">
-                              <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
-                                     className={entry.type === 'credit' 
-                                       ? 'bg-green-600 text-white' 
-                                       : 'bg-red-600 text-white'}>
-                                {entry.type === 'credit' ? 'Credit' : 'Debit'}
+                              <Badge
+                                variant={
+                                  entry.type === "credit"
+                                    ? "default"
+                                    : "destructive"
+                                }
+                                className={
+                                  entry.type === "credit"
+                                    ? "bg-green-600 text-white"
+                                    : "bg-red-600 text-white"
+                                }
+                              >
+                                {entry.type === "credit" ? "Credit" : "Debit"}
                               </Badge>
                             </td>
                             <td className="p-4">
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="border-gray-600 text-gray-300">
+                                <Badge
+                                  variant="outline"
+                                  className="border-gray-600 text-gray-300"
+                                >
                                   {entry.source}
                                 </Badge>
                                 {entry.bill && (
@@ -634,7 +741,7 @@ export function CashBookPage({
                             </td>
                             <td className="p-4">
                               <p className="text-gray-300">
-                                {format(new Date(entry.createdAt), 'hh:mm a')}
+                                {format(new Date(entry.createdAt), "hh:mm a")}
                               </p>
                             </td>
                           </tr>
@@ -661,35 +768,56 @@ export function CashBookPage({
                 <div className="border-t border-gray-600 my-2"></div>
                 <div className="px-4 py-2 bg-gray-700/50 rounded-md">
                   <p className="text-sm font-medium text-gray-300">
-                    {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                    {format(new Date(date), "EEEE, MMMM d, yyyy")}
                   </p>
                 </div>
                 <div className="space-y-1 mt-2">
-                  {dateEntries.map((entry,index) => (
-                    <Card key={entry._id} className={`bg-gray-800 border-gray-700 p-4 ${index===0 ? 'rounded-none rounded-t-lg' : dateEntries.length-1 === index? 'rounded-none rounded-b-lg' : 'rounded-none '}`}>
+                  {dateEntries.map((entry, index) => (
+                    <Card
+                      key={entry._id}
+                      className={`bg-gray-800 border-gray-700 p-4 ${index === 0 ? "rounded-none rounded-t-lg" : dateEntries.length - 1 === index ? "rounded-none rounded-b-lg" : "rounded-none "}`}
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h4 className="text-white font-medium">{entry.userName}</h4>
+                          <h4 className="text-white font-medium">
+                            {entry.userName}
+                          </h4>
                           {entry.user?.phone && (
-                            <p className="text-gray-400 text-sm">{entry.user.phone}</p>
+                            <p className="text-gray-400 text-sm">
+                              {entry.user.phone}
+                            </p>
                           )}
                         </div>
                         <div className="text-right">
-                          <p className={`font-bold text-lg ${
-                            entry.type === 'credit' ? 'text-green-400' : 'text-red-400'
-                          }`}>
-                            {entry.type === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                          <p
+                            className={`font-bold text-lg ${
+                              entry.type === "credit"
+                                ? "text-green-400"
+                                : "text-red-400"
+                            }`}
+                          >
+                            {entry.type === "credit" ? "+" : "-"}
+                            {formatCurrency(entry.amount)}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge variant={entry.type === 'credit' ? 'default' : 'destructive'}
-                               className={entry.type === 'credit' 
-                                 ? 'bg-green-600 text-white text-xs' 
-                                 : 'bg-red-600 text-white text-xs'}>
-                          {entry.type === 'credit' ? 'Credit' : 'Debit'}
+                        <Badge
+                          variant={
+                            entry.type === "credit" ? "default" : "destructive"
+                          }
+                          className={
+                            entry.type === "credit"
+                              ? "bg-green-600 text-white text-xs"
+                              : "bg-red-600 text-white text-xs"
+                          }
+                        >
+                          {entry.type === "credit" ? "Credit" : "Debit"}
                         </Badge>
-                        <Badge variant="outline" className="border-gray-600 text-gray-300 text-xs">
+                        <Badge
+                          variant="outline"
+                          className="border-gray-600 text-gray-300 text-xs"
+                        >
                           {entry.source}
                         </Badge>
                         {entry.bill && (
@@ -710,7 +838,7 @@ export function CashBookPage({
                         )}
                       </div>
                       <p className="text-gray-400 text-xs">
-                        {format(new Date(entry.createdAt), 'hh:mm a')}
+                        {format(new Date(entry.createdAt), "hh:mm a")}
                       </p>
                     </Card>
                   ))}
