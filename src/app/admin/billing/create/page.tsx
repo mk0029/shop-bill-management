@@ -27,10 +27,12 @@ export default function CreateBillPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preSelectedCustomerId = searchParams?.get("customerId") || "";
-  
+
   // Exit confirmation state and handlers
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"customer" | "rewinding" | "fitting" | "items">("customer");
+  const [activeSection, setActiveSection] = useState<
+    "customer" | "rewinding" | "fitting" | "items"
+  >("customer");
 
   // Refs for accordion sections to enable scroll-to-header on open
   const customerRef = useRef<HTMLDivElement>(null);
@@ -52,10 +54,17 @@ export default function CreateBillPage() {
     } catch {}
   }, []);
   useEffect(() => {
-    try { sessionStorage.setItem("bill_toggle_rewinding", enableRewinding ? "1" : "0"); } catch {}
+    try {
+      sessionStorage.setItem(
+        "bill_toggle_rewinding",
+        enableRewinding ? "1" : "0",
+      );
+    } catch {}
   }, [enableRewinding]);
   useEffect(() => {
-    try { sessionStorage.setItem("bill_toggle_fitting", enableFitting ? "1" : "0"); } catch {}
+    try {
+      sessionStorage.setItem("bill_toggle_fitting", enableFitting ? "1" : "0");
+    } catch {}
   }, [enableFitting]);
 
   const confirmSaveDraftAndExit = async () => {
@@ -66,15 +75,17 @@ export default function CreateBillPage() {
   };
 
   // Helper to open a section and immediately scroll its header into view
-  const handleOpenSection = (section: "customer" | "rewinding" | "fitting" | "items") => {
-  setTimeout(() => {
-    setActiveSection(section);
-    requestAnimationFrame(() => {
-      document
-        .getElementById(`${section}-section`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start", });
-    });
-  }, 400);
+  const handleOpenSection = (
+    section: "customer" | "rewinding" | "fitting" | "items",
+  ) => {
+    setTimeout(() => {
+      setActiveSection(section);
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`${section}-section`)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }, 400);
   };
 
   const discardAndExit = async () => {
@@ -121,14 +132,14 @@ export default function CreateBillPage() {
       // open the Fitting section
       setActiveSection("fitting");
       // ensure persisted toggle reflects this
-      try { sessionStorage.setItem("bill_toggle_fitting", "1"); } catch {}
+      try {
+        sessionStorage.setItem("bill_toggle_fitting", "1");
+      } catch {}
     }
   }, [formData.serviceType]);
 
   const handleBack = () => {
-
-      router.push("/admin/billing");
-    
+    router.push("/admin/billing");
   };
 
   const {
@@ -210,26 +221,24 @@ export default function CreateBillPage() {
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
               Create New Bill
             </h1>
-          
           </div>
 
-      {/* Exit confirmation */}
-      <ConfirmationModal
-        isOpen={showExitConfirm}
-        onClose={discardAndExit}
-        onConfirm={confirmSaveDraftAndExit}
-        title="Unsaved bill data"
-        message="You have unsaved changes. Save as draft or discard?"
-        type="confirm"
-        confirmText="Save as Draft"
-        cancelText="Discard"
-      />
+          {/* Exit confirmation */}
+          <ConfirmationModal
+            isOpen={showExitConfirm}
+            onClose={discardAndExit}
+            onConfirm={confirmSaveDraftAndExit}
+            title="Unsaved bill data"
+            message="You have unsaved changes. Save as draft or discard?"
+            type="confirm"
+            confirmText="Save as Draft"
+            cancelText="Discard"
+          />
         </div>
         {/* Save as Draft moved to sidebar next to Create Bill */}
       </div>
 
       {/* Section visibility toggles */}
-    
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bill Form */}
@@ -240,7 +249,9 @@ export default function CreateBillPage() {
               desktopCollapsible
               title={
                 <div>
-                  <h2 className="text-white font-semibold">Customer Information</h2>
+                  <h2 className="text-white font-semibold">
+                    Customer Information
+                  </h2>
                 </div>
               }
               open={activeSection === "customer"}
@@ -261,28 +272,28 @@ export default function CreateBillPage() {
               </div>
             </ResponsiveAccordion>
           </div>
-  <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-          <div className="text-white font-medium">Optional Sections</div>
-          <div className="flex flex-wrap gap-4">
-            {formData.serviceType !== "fitting_wiring" && (
-              <label className="flex items-center gap-2 text-gray-300">
-                <Switch checked={enableRewinding} onCheckedChange={setEnableRewinding} />
-                <span>Rewinding</span>
-              </label>
-            )}
-            {formData.serviceType === "custom" && (
-              <label className="flex items-center gap-2 text-gray-300">
-                <Switch
-                  checked={enableFitting}
-                  onCheckedChange={setEnableFitting}
-                />
-                <span>Fitting/Wiring</span>
-              </label>
-            )}
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+              <div className="text-white font-medium">Optional Sections</div>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-gray-300">
+                  <Switch
+                    checked={enableRewinding}
+                    onCheckedChange={setEnableRewinding}
+                  />
+                  <span>Rewinding</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-gray-300">
+                  <Switch
+                    checked={enableFitting}
+                    onCheckedChange={setEnableFitting}
+                  />
+                  <span>Fitting/Wiring</span>
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
           {/* Accordion Section: Rewinding */}
           {enableRewinding && (
             <div ref={rewindingRef}>
@@ -290,7 +301,9 @@ export default function CreateBillPage() {
                 desktopCollapsible
                 title={
                   <div>
-                    <h2 className="text-white font-semibold">Rewinding Services & Items</h2>
+                    <h2 className="text-white font-semibold">
+                      Rewinding Services & Items
+                    </h2>
                   </div>
                 }
                 open={activeSection === "rewinding"}
@@ -374,19 +387,20 @@ export default function CreateBillPage() {
 
         {/* Sidebar */}
         <div>
-        <BillSummarySidebar
-          selectedCustomer={selectedCustomer}
-          selectedItems={selectedItems}
-          formData={formData}
-          calculateTotal={calculateTotal}
-          calculateGrandTotal={calculateGrandTotal}
-          getPaymentDetails={getPaymentDetails}
-          onInputChange={handleInputChange}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-          onSaveDraft={saveDraft}
-          savingDraft={savingDraft}
-        /></div>
+          <BillSummarySidebar
+            selectedCustomer={selectedCustomer}
+            selectedItems={selectedItems}
+            formData={formData}
+            calculateTotal={calculateTotal}
+            calculateGrandTotal={calculateGrandTotal}
+            getPaymentDetails={getPaymentDetails}
+            onInputChange={handleInputChange}
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+            onSaveDraft={saveDraft}
+            savingDraft={savingDraft}
+          />
+        </div>
       </div>
 
       {/* Modals */}
@@ -412,7 +426,7 @@ export default function CreateBillPage() {
         cancelText="Create Bill"
         onConfirm={handleSuccessClose}
         size="lg"
-        content={(
+        content={
           <div className="space-y-4">
             <div className="text-gray-200 font-medium">Items</div>
             <div className="space-y-2">
@@ -420,21 +434,31 @@ export default function CreateBillPage() {
                 <div className="text-gray-400">No items added.</div>
               ) : (
                 selectedItems.map((i) => (
-                  <div key={i.id} className="flex items-start justify-between gap-3 border-b border-gray-800 pb-2">
+                  <div
+                    key={i.id}
+                    className="flex items-start justify-between gap-3 border-b border-gray-800 pb-2"
+                  >
                     <div>
                       <div className="text-white font-medium">{i.name}</div>
                       <div className="text-xs text-gray-400">
                         {i.category}
                         {/Rewinding/i.test(i.category) && " • Rewinding"}
-                        {/Fitting\/Wiring/i.test(i.category) && " • Fitting/Wiring"}
+                        {/Fitting\/Wiring/i.test(i.category) &&
+                          " • Fitting/Wiring"}
                       </div>
                       {i.specifications && (
-                        <div className="text-xs text-gray-500 mt-0.5">{i.specifications}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {i.specifications}
+                        </div>
                       )}
                     </div>
                     <div className="text-right text-gray-300 min-w-[140px]">
-                      <div>{i.quantity} × ₹{Number(i.price).toFixed(2)}</div>
-                      <div className="text-white font-semibold">₹{Number(i.total).toFixed(2)}</div>
+                      <div>
+                        {i.quantity} × ₹{Number(i.price).toFixed(2)}
+                      </div>
+                      <div className="text-white font-semibold">
+                        ₹{Number(i.total).toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -444,32 +468,46 @@ export default function CreateBillPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-gray-900/60 border border-gray-800 rounded-md p-3">
                 <div className="text-xs text-gray-400">Repair Fee</div>
-                <div className="text-white font-semibold">₹{Number(formData.repairFee || 0).toFixed(2)}</div>
+                <div className="text-white font-semibold">
+                  ₹{Number(formData.repairFee || 0).toFixed(2)}
+                </div>
               </div>
               <div className="bg-gray-900/60 border border-gray-800 rounded-md p-3">
                 <div className="text-xs text-gray-400">Home Visit</div>
-                <div className="text-white font-semibold">₹{Number(formData.homeVisitFee || 0).toFixed(2)}</div>
+                <div className="text-white font-semibold">
+                  ₹{Number(formData.homeVisitFee || 0).toFixed(2)}
+                </div>
               </div>
               <div className="bg-gray-900/60 border border-gray-800 rounded-md p-3">
                 <div className="text-xs text-gray-400">Labor</div>
-                <div className="text-white font-semibold">₹{Number(formData.laborCharges || 0).toFixed(2)}</div>
+                <div className="text-white font-semibold">
+                  ₹{Number(formData.laborCharges || 0).toFixed(2)}
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3 text-xs text-gray-400">
               <div>Sections used:</div>
               <div className="flex gap-2">
-                <span className={`px-2 py-0.5 rounded border ${enableRewinding ? 'border-green-700 text-green-400' : 'border-gray-700 text-gray-500'}`}>Rewinding {enableRewinding ? 'ON' : 'OFF'}</span>
-                <span className={`px-2 py-0.5 rounded border ${enableFitting ? 'border-green-700 text-green-400' : 'border-gray-700 text-gray-500'}`}>Fitting {enableFitting ? 'ON' : 'OFF'}</span>
+                <span
+                  className={`px-2 py-0.5 rounded border ${enableRewinding ? "border-green-700 text-green-400" : "border-gray-700 text-gray-500"}`}
+                >
+                  Rewinding {enableRewinding ? "ON" : "OFF"}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded border ${enableFitting ? "border-green-700 text-green-400" : "border-gray-700 text-gray-500"}`}
+                >
+                  Fitting {enableFitting ? "ON" : "OFF"}
+                </span>
               </div>
             </div>
           </div>
-        )}
+        }
       />
 
       {(() => {
         const isRestoreAlert = alertMessage?.startsWith(
-          "Restored unsaved bill"
+          "Restored unsaved bill",
         );
         return (
           <ConfirmationModal

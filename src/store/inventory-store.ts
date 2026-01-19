@@ -407,7 +407,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
         // Create cash book entry for inventory debit (only for certain transaction types)
         try {
           const transaction = response.data as StockTransaction;
-          const shouldCreateDebit = ['purchase', 'sale', 'adjustment', 'damage', 'return'].includes(transaction.type);
+          const shouldCreateDebit = ['purchase', 'adjustment', 'damage', 'return'].includes(transaction.type);
           
           if (shouldCreateDebit && transaction.totalAmount > 0) {
             // Make sure we have the product name

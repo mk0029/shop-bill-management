@@ -51,36 +51,39 @@ export default function CashbooksRealtimeList({ initial }: Props) {
     if (!books || books.length === 0) {
       return <div className="text-gray-400">No cashbooks found.</div>;
     }
-    return books.map((b) => (
-      <Link key={b._id} href={`/admin/cashbooks/${b._id}`}>
-        <Card className="cursor-pointer hover:bg-gray-800 transition-colors">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center justify-between">
-              <span>{b.name || b.customer?.name || "Cashbook"}</span>
-              <span
-                className={`text-xs px-2 py-1 rounded ${
-                  b.status === "open"
-                    ? "bg-green-900 text-green-300"
-                    : "bg-gray-700 text-gray-300"
-                }`}
-              >
-                {b.status || "open"}
-              </span>
-            </CardTitle>
-            <div className="text-gray-400 text-sm">
-              Customer: {b.customer?.name || "Unknown"}{" "}
-              {b.customer?.phone ? `• ${b.customer.phone}` : ""}
-            </div>
-            <div className="text-gray-500 text-xs mt-1">
-              Updated{" "}
-              {new Date(
-                b.updatedAt || b._updatedAt || Date.now(),
-              ).toLocaleString()}
-            </div>
-          </CardHeader>
-        </Card>
-      </Link>
-    ));
+    return books.map((b) => {
+      const linkId = b._id?.startsWith("drafts.") ? b._id.slice(7) : b._id;
+      return (
+        <Link key={b._id} href={`/admin/cashbooks/${linkId}`}>
+          <Card className="cursor-pointer hover:bg-gray-800 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center justify-between">
+                <span>{b.name || b.customer?.name || "Cashbook"}</span>
+                <span
+                  className={`text-xs px-2 py-1 rounded ${
+                    b.status === "open"
+                      ? "bg-green-900 text-green-300"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  {b.status || "open"}
+                </span>
+              </CardTitle>
+              <div className="text-gray-400 text-sm">
+                Customer: {b.customer?.name || "Unknown"}{" "}
+                {b.customer?.phone ? `• ${b.customer.phone}` : ""}
+              </div>
+              <div className="text-gray-500 text-xs mt-1">
+                Updated{" "}
+                {new Date(
+                  b.updatedAt || b._updatedAt || Date.now(),
+                ).toLocaleString()}
+              </div>
+            </CardHeader>
+          </Card>
+        </Link>
+      );
+    });
   }, [books]);
 
   return (

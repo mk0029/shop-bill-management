@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,9 +25,18 @@ import {
   Trash,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { stockApi } from "@/lib/inventory-api";
 import { toast } from "sonner";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 import Link from "next/link";
+import { ItemSelectionSection } from "@/components/billing/item-selection-section";
+import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
+import { useItemSelection } from "@/hooks/use-item-selection";
+import { useBrands, useCategories, useProducts } from "@/hooks/use-sanity-data";
+import { SelectedItemsList } from "@/components/billing/selected-items-list";
+import { Badge } from "../ui/badge";
+import { sanityClient } from "@/lib/sanity";
+import { Modal } from "@/components/ui/modal";
 
 interface CashBookEntry {
   _id: string;
@@ -42,7 +50,7 @@ interface CashBookEntry {
   userName: string;
   amount: number;
   type: "credit" | "debit";
-  source: "Manual" | "Bill Payment";
+  source: "Manual" | "Bill Payment" | "Inventory" | "Sale";
   bill?: {
     _id: string;
     billNumber: string;
@@ -89,6 +97,24 @@ export function CashBookPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  // Inventory sale modal state
+  const [showInventorySale, setShowInventorySale] = useState(false);
+  const [isAddingSale, setIsAddingSale] = useState(false);
+  const [selectedSaleItems, setSelectedSaleItems] = useState<
+    Record<string, { name: string; price: number; qty: number; maxQty: number }>
+  >({});
+
+  // Shared item selection (reuse Billing components)
+  const { activeProducts, isLoading: productsLoading } = useProducts();
+  const { categories } = useCategories();
+  const { brands } = useBrands();
+  const {
+    itemSelectionModal,
+    openItemSelectionModal,
+    closeItemSelectionModal,
+    updateSpecificationFilter,
+    filterItemsBySpecifications,
+  } = useItemSelection();
 
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -129,6 +155,154 @@ export function CashBookPage({
   };
 
   const groupedEntries = groupEntriesByDate(displayedEntries);
+
+  const filteredItems = filterItemsBySpecifications(activeProducts);
+
+  const saleTotal = Object.values(selectedSaleItems).reduce(
+    (sum, it) => sum + (Number(it.qty) || 0) * (Number(it.price) || 0),
+    0,
+  );
+
+  const onAddSaleItem = (p: any) => {
+    setSelectedSaleItems((prev) => {
+      const next = { ...prev } as typeof prev;
+      const available = Number(p?.inventory?.currentStock ?? 0) || 0;
+      const defaultPrice = Number(p?.pricing?.sellingPrice || 0) || 0;
+      if (available <= 0) {
+        toast.error(`${p?.name ?? "Item"} is out of stock`);
+        return prev;
+      }
+      const existing = next[p._id];
+      if (existing) {
+        const newQty = Math.min(existing.qty + 1, available);
+        next[p._id] = { ...existing, qty: newQty };
+      } else {
+        next[p._id] = {
+          name: p.name,
+          price: defaultPrice,
+          qty: 1,
+          maxQty: available,
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleUpdateQuantity = (itemId: string, quantity: number) => {
+    setSelectedSaleItems((prev) => {
+      const current = prev[itemId];
+      if (!current) return prev;
+      const clamped = Math.max(
+        1,
+        Math.min(current.maxQty, Number(quantity) || 1),
+      );
+      return { ...prev, [itemId]: { ...current, qty: clamped } };
+    });
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setSelectedSaleItems((prev) => {
+      if (!prev[itemId]) return prev;
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const handleClearAll = () => setSelectedSaleItems({});
+
+  const submitInventorySale = async () => {
+    const items = Object.values(selectedSaleItems);
+    if (items.length === 0) {
+      toast.error("Select at least one item");
+      return;
+    }
+    const total = items.reduce(
+      (s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0),
+      0,
+    );
+    if (!(total > 0)) {
+      toast.error("Total must be greater than 0");
+      return;
+    }
+    try {
+      setIsAddingSale(true);
+      // Validate stock limits before submitting
+      for (const [productId, it] of Object.entries(selectedSaleItems)) {
+        if (it.qty > it.maxQty) {
+          toast.error(
+            `Quantity for ${it.name} exceeds available stock (${it.maxQty})`,
+          );
+          setIsAddingSale(false);
+          return;
+        }
+        if (it.qty <= 0) {
+          toast.error(`Quantity for ${it.name} must be at least 1`);
+          setIsAddingSale(false);
+          return;
+        }
+      }
+      // Create one entry + stock transaction per item and cross-link them
+      for (const [productId, it] of Object.entries(selectedSaleItems)) {
+        const amount = (Number(it.qty) || 0) * (Number(it.price) || 0);
+        if (!(amount > 0)) continue;
+        // 1) Cash book credit entry
+        const createdEntryRes = await sanityApiService.cashBook.createEntry({
+          userName: it.name,
+          amount,
+          type: "credit",
+          source: "Sale",
+          category: "inventory",
+          notes: `Cash sale: ${it.name} x${it.qty} @₹${it.price}`,
+          createdAt: new Date().toISOString(),
+          product: { _type: "reference", _ref: productId },
+          quantity: Number(it.qty) || 0,
+          unitPrice: Number(it.price) || 0,
+        });
+        const createdEntryId = (createdEntryRes as any)?.data?._id as
+          | string
+          | undefined;
+
+        // 2) Inventory deduction via stock transaction (sale)
+        const stockTxRes = await stockApi.createStockTransaction({
+          productId,
+          type: "sale",
+          quantity: Number(it.qty) || 0,
+          unitPrice: Number(it.price) || 0,
+          notes: "Sold via Cash Book",
+          updateInventory: true,
+        });
+
+        const stockTxId = (stockTxRes as any)?.data?._id as string | undefined;
+
+        // 3) Patch only the stock transaction to reference the cash book entry (avoid circular references)
+        if (createdEntryId && stockTxId) {
+          try {
+            await sanityClient
+              .patch(stockTxId)
+              .set({
+                cashBookEntry: { _type: "reference", _ref: createdEntryId },
+              })
+              .commit();
+          } catch {}
+        }
+      }
+
+      toast.success("Sale items recorded in cash book");
+      setShowInventorySale(false);
+      setSelectedSaleItems({});
+      // Refresh list to show new entries at top
+      const entriesResponse = await sanityApiService.cashBook.getAllEntries();
+      if (entriesResponse.success && entriesResponse.data) {
+        setEntries(entriesResponse.data);
+      }
+    } catch (e) {
+      console.error("Failed to add sale record", e);
+      toast.error("Failed to add sale record");
+    } finally {
+      setIsAddingSale(false);
+    }
+  };
 
   // Real-time updates
   const { isConnected } = useCashBookRealtime({
@@ -294,81 +468,6 @@ export function CashBookPage({
     }
   };
 
-  // // Handle bill payment sync
-  // const handleSyncBillPayments = async () => {
-  //   setIsSyncing(true);
-
-  //   try {
-  //     const result = await syncBillPaymentsToCashBook();
-
-  //     if (result.success) {
-  //       toast.success(`Sync completed! ${result.syncedCount} payments synced to cash book`);
-
-  //       // Refresh the entries
-  //       const entriesResponse = await sanityApiService.cashBook.getAllEntries();
-  //       if (entriesResponse.success && entriesResponse.data) {
-  //         setEntries(entriesResponse.data);
-  //       }
-
-  //       // Show detailed results
-  //       if (result.errors.length > 0) {
-  //         console.error('Sync errors:', result.errors);
-  //         toast.warning(`${result.errors.length} errors occurred during sync`);
-  //       }
-  //     } else {
-  //       toast.error(`Sync failed: ${result.errors.join(', ')}`);
-  //     }
-  //   } catch (error) {
-  //     console.error('Error syncing bill payments:', error);
-  //     toast.error("Failed to sync bill payments");
-  //   } finally {
-  //     setIsSyncing(false);
-  //   }
-  // };
-
-  // const handleClearBook = async () => {
-  //   // Confirm before clearing
-  //   const confirmed = window.confirm(
-  //     'Are you sure you want to clear all cash book entries? This action cannot be undone and will delete all entries permanently.'
-  //   );
-
-  //   if (!confirmed) return;
-
-  //   setIsClearing(true);
-
-  //   try {
-  //     const result = await sanityApiService.cashBook.deleteAllEntries();
-
-  //     if (result.success) {
-  //       toast.success(result.message || `Cash book cleared successfully! ${result.data?.deletedCount || 0} entries deleted.`);
-
-  //       // Clear local state
-  //       setEntries([]);
-  //       setSummary({
-  //         totalCredits: 0,
-  //         totalDebits: 0,
-  //         balance: 0
-  //       });
-
-  //       // Close add form if open
-  //       setShowAddForm(false);
-
-  //       // Reset form
-  //       setSelectedUserId("");
-  //       setCustomUserName("");
-  //       setAmount("");
-  //       setTransactionType('credit');
-  //     } else {
-  //       toast.error(result.error || "Failed to clear cash book");
-  //     }
-  //   } catch (error) {
-  //     console.error('Error clearing cash book:', error);
-  //     toast.error("Failed to clear cash book");
-  //   } finally {
-  //     setIsClearing(false);
-  //   }
-  // };
-
   const selectedUser = users.find((u) => u._id === selectedUserId);
 
   return (
@@ -389,9 +488,6 @@ export function CashBookPage({
                   </Button>
                 </Link>
               </div>
-              <p className="text-gray-400 text-sm mt-1">
-                Real-time payment ledger
-              </p>
             </div>
           </CardHeader>
         }
@@ -474,7 +570,14 @@ export function CashBookPage({
             className="bg-gray-600 hover:bg-gray-700 text-white flex w-full items-center gap-2"
           >
             <Calendar className="w-4 h-4" />
-            View History
+            <span className="max-sm:hidden">View</span> History
+          </Button>
+          <Button
+            onClick={() => setShowInventorySale(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white flex w-full items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />{" "}
+            <span className="max-sm:hidden">Add</span> Sale
           </Button>
           {/* <Button
               onClick={handleClearBook}
@@ -494,137 +597,240 @@ export function CashBookPage({
               </>
             ) : (
               <>
-                <Plus className="w-4 h-4" /> Add Record
+                <Plus className="w-4 h-4" />{" "}
+                <span className="max-sm:hidden">Add</span> Record
               </>
             )}
           </Button>
         </div>
 
-        {/* Add Record Form */}
-        {showAddForm && (
-          <Card className="bg-gray-800 border-gray-700 p-3 md:p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Add Manual Record
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4">
-                <div>
-                  <Label htmlFor="user" className="text-gray-300 text-sm">
-                    User
-                  </Label>
-                  <SelectField
-                    value={selectedUserId}
-                    onValueChange={(value) => {
-                      setSelectedUserId(value);
-                      if (value !== "other") {
-                        setCustomUserName("");
-                      }
-                    }}
-                    options={[
-                      { value: "other", label: "Other (Enter custom name)" },
-                      ...users.map((user) => ({
-                        value: user._id,
-                        label: user.name,
-                      })),
-                    ]}
-                    placeholder="Select user"
-                    className="bg-gray-700 border-gray-600 text-white"
+        {/* Inventory Sale Modal (moved outside of buttons to avoid click bubbling) */}
+        {showInventorySale && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowInventorySale(false);
+              }}
+            ></div>
+            <div
+              className="relative bg-gray-800 border border-gray-700 rounded-lg w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                <h3 className="text-white font-semibold">
+                  Add Sale (Select Items)
+                </h3>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowInventorySale(false)}
+                  className="text-gray-300"
+                >
+                  Close
+                </Button>
+              </div>
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <ItemSelectionSection
+                    categories={categories}
+                    activeProducts={activeProducts}
+                    productsLoading={productsLoading}
+                    onOpenItemModal={(category) =>
+                      openItemSelectionModal(category)
+                    }
                   />
                 </div>
-
-                {selectedUserId === "other" && (
-                  <div>
-                    <Label
-                      htmlFor="customName"
-                      className="text-gray-300 text-sm"
-                    >
-                      Custom Name
-                    </Label>
-                    <Input
-                      ref={customNameRef}
-                      id="customName"
-                      type="text"
-                      value={customUserName}
-                      onChange={(e) => setCustomUserName(e.target.value)}
-                      placeholder="Enter customer name"
-                      className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-white font-medium">Selected Items</h4>
+                    <div className="text-white font-semibold">
+                      Total: {formatCurrency(saleTotal)}
+                    </div>
+                  </div>
+                  <div className="border border-gray-700 rounded-md max-h-[50vh] overflow-auto p-2">
+                    <SelectedItemsList
+                      selectedItems={Object.entries(selectedSaleItems).map(
+                        ([id, it]) => ({
+                          id,
+                          name: it.name,
+                          price: Number(it.price) || 0,
+                          quantity: Number(it.qty) || 0,
+                          total:
+                            (Number(it.qty) || 0) * (Number(it.price) || 0),
+                          category: "",
+                          brand: "",
+                          specifications: "",
+                          unit: "",
+                          maxStock: Number(it.maxQty) || 0,
+                        }),
+                      )}
+                      onUpdateQuantity={handleUpdateQuantity}
+                      onRemoveItem={handleRemoveItem}
+                      onClearAll={handleClearAll}
                     />
                   </div>
-                )}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      className="bg-gray-700 border-gray-600 text-gray-200"
+                      onClick={() => setShowInventorySale(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className={`bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 ${isAddingSale ? "opacity-80 cursor-not-allowed" : ""}`}
+                      onClick={submitInventorySale}
+                      disabled={
+                        isAddingSale ||
+                        Object.keys(selectedSaleItems).length === 0
+                      }
+                    >
+                      {isAddingSale ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />{" "}
+                          Adding...
+                        </>
+                      ) : (
+                        <>Add Sale</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              {/* Shared modal to pick items from category */}
+              <ItemSelectionModal
+                isOpen={itemSelectionModal.isOpen}
+                onClose={closeItemSelectionModal}
+                selectedCategory={itemSelectionModal.selectedCategory}
+                selectedSpecifications={
+                  itemSelectionModal.selectedSpecifications
+                }
+                onUpdateSpecification={updateSpecificationFilter}
+                filteredItems={filteredItems}
+                brands={brands}
+                onAddItem={onAddSaleItem}
+                activeProducts={activeProducts}
+              />
+            </div>
+          </div>
+        )}
 
+        {/* Add Record Form */}
+        <Modal
+          isOpen={showAddForm}
+          onClose={() => setShowAddForm(false)}
+          title="Add Manual Record"
+        >
+          <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4">
+              <div>
+                <Label htmlFor="user" className="text-gray-300 text-sm">
+                  User
+                </Label>
+                <SelectField
+                  value={selectedUserId}
+                  onValueChange={(value) => {
+                    setSelectedUserId(value);
+                    if (value !== "other") {
+                      setCustomUserName("");
+                    }
+                  }}
+                  options={[
+                    { value: "other", label: "Other (Enter custom name)" },
+                    ...users.map((user) => ({
+                      value: user._id,
+                      label: user.name,
+                    })),
+                  ]}
+                  placeholder="Select user"
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
+              </div>
+
+              {selectedUserId === "other" && (
                 <div>
-                  <Label htmlFor="amount" className="text-gray-300 text-sm">
-                    Amount
+                  <Label htmlFor="customName" className="text-gray-300 text-sm">
+                    Custom Name
                   </Label>
                   <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
+                    ref={customNameRef}
+                    id="customName"
+                    type="text"
+                    value={customUserName}
+                    onChange={(e) => setCustomUserName(e.target.value)}
+                    placeholder="Enter customer name"
                     className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                   />
                 </div>
-              </div>
+              )}
 
               <div>
-                <Label className="text-gray-300 text-sm">
-                  Transaction Type
+                <Label htmlFor="amount" className="text-gray-300 text-sm">
+                  Amount
                 </Label>
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    type="button"
-                    variant={
-                      transactionType === "credit" ? "default" : "outline"
-                    }
-                    onClick={() => setTransactionType("credit")}
-                    className={`flex-1 ${
-                      transactionType === "credit"
-                        ? "bg-green-600 hover:bg-green-700 text-white"
-                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    Credit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      transactionType === "debit" ? "default" : "outline"
-                    }
-                    onClick={() => setTransactionType("debit")}
-                    className={`flex-1 ${
-                      transactionType === "debit"
-                        ? "bg-red-600 hover:bg-red-700 text-white"
-                        : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    Debit
-                  </Button>
-                </div>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                />
               </div>
+            </div>
 
-              <div className="flex gap-2 pt-2 md:pt-4">
+            <div>
+              <Label className="text-gray-300 text-sm">Transaction Type</Label>
+              <div className="flex gap-2 mt-2">
                 <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                  type="button"
+                  variant={transactionType === "credit" ? "default" : "outline"}
+                  onClick={() => setTransactionType("credit")}
+                  className={`flex-1 ${
+                    transactionType === "credit"
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                  }`}
                 >
-                  {isSubmitting ? "Saving..." : "Save Entry"}
+                  Credit
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => setShowAddForm(false)}
-                  className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                  variant={transactionType === "debit" ? "default" : "outline"}
+                  onClick={() => setTransactionType("debit")}
+                  className={`flex-1 ${
+                    transactionType === "debit"
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+                  }`}
                 >
-                  Cancel
+                  Debit
                 </Button>
               </div>
-            </form>
-          </Card>
-        )}
+            </div>
+
+            <div className="flex gap-2 pt-2 md:pt-4">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+              >
+                {isSubmitting ? "Saving..." : "Save Entry"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddForm(false)}
+                className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Modal>
 
         {/* Records Table - Desktop View */}
         <div className="hidden lg:block">
