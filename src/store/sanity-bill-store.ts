@@ -33,7 +33,6 @@ export interface Bill {
   // Optional legacy alias for older documents
   repairCharges?: number;
   transportationFee: number;
-  laborCharges: number;
   subtotal: number;
   taxAmount: number;
   discount: number;

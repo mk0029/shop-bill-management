@@ -106,7 +106,6 @@ export async function saveDraftBill(billData: {
   repairCharges?: number;
   // Backward/forward compatibility: allow repairFee as alias of repairCharges
   repairFee?: number;
-  laborCharges?: number;
   discount?: number;
   notes?: string;
   paymentStatus?: "pending" | "partial" | "paid";
@@ -144,9 +143,8 @@ export async function saveDraftBill(billData: {
     const repairCharges = Number(
       billData.repairCharges ?? (billData as any).repairFee ?? 0
     );
-    const laborCharges = Number(billData.laborCharges || 0);
     const discount = Number(billData.discount || 0);
-    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges + laborCharges);
+    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges);
 
     const newDraft = {
       _type: "bill",
@@ -162,7 +160,6 @@ export async function saveDraftBill(billData: {
       homeVisitFee,
       // Persist only repairFee in DB
       repairFee: repairCharges,
-      laborCharges,
       subtotal,
       discount,
       totalAmount,
@@ -219,7 +216,6 @@ export async function updateDraftBill(
     repairCharges: number;
     // Allow repairFee as alias
     repairFee: number;
-    laborCharges: number;
     discount: number;
     notes: string;
     paymentStatus: "pending" | "partial" | "paid";
@@ -252,9 +248,8 @@ export async function updateDraftBill(
     const repairCharges = Number(
       updates.repairCharges ?? (updates as any).repairFee ?? 0
     );
-    const laborCharges = Number(updates.laborCharges || 0);
     const discount = Number((updates as any).discount || 0);
-    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges + laborCharges);
+    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges);
 
     const patch: any = {
       ...(updates.customerId
@@ -266,7 +261,6 @@ export async function updateDraftBill(
       homeVisitFee,
       // Keep repairFee updated (single source of truth)
       repairFee: repairCharges,
-      laborCharges,
       subtotal,
       discount,
       totalAmount,
@@ -654,7 +648,6 @@ export async function createBill(billData: {
   repairCharges?: number;
   // Allow repairFee as alias
   repairFee?: number;
-  laborCharges?: number;
   discount?: number;
   notes?: string;
   paymentStatus?: "pending" | "partial" | "paid";
@@ -775,10 +768,9 @@ export async function createBill(billData: {
     const homeVisitFee = Number(billData.homeVisitFee || 0);
     const repairChargesInput = billData.repairCharges ?? (billData as any).repairFee ?? 0;
     const repairCharges = Number(repairChargesInput);
-    const laborCharges = Number(billData.laborCharges || 0);
     const discount = Number(billData.discount || 0);
     // Gross total before discount (to be persisted as totalAmount)
-    const grossTotal = Math.max(0, Number(subtotal) + homeVisitFee + repairCharges + laborCharges);
+    const grossTotal = Math.max(0, Number(subtotal) + homeVisitFee + repairCharges);
     // Net payable after discount (used for balance/payment flows and notifications)
     const netPayable = Math.max(0, grossTotal - discount);
 
@@ -797,7 +789,6 @@ export async function createBill(billData: {
       homeVisitFee,
       // Persist only repairFee in DB
       repairFee: repairCharges,
-      laborCharges,
       subtotal,
       discount,
       totalAmount: grossTotal,

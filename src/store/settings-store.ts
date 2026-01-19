@@ -4,7 +4,6 @@ import { persist, createJSONStorage } from "zustand/middleware";
 interface SettingsState {
   // Billing defaults
   homeVisitFeeDefault: number;
-  laborChargesDefault: number;
   repairFeeDefault: number;
   offlineAutoUploadDefault: boolean;
   // Notification prefs
@@ -15,7 +14,7 @@ interface SettingsState {
 
   // Actions
   setDefaults: (partial: Partial<Pick<SettingsState,
-    'homeVisitFeeDefault' | 'laborChargesDefault' | 'repairFeeDefault' | 'offlineAutoUploadDefault' |
+    'homeVisitFeeDefault' | 'repairFeeDefault' | 'offlineAutoUploadDefault' |
     'showInAppNotifications' | 'showNotificationPopover' | 'playSoundOnNotification' | 'pauseIncomingNotifications'
   >>) => void;
 }
@@ -24,7 +23,6 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       homeVisitFeeDefault: 0,
-      laborChargesDefault: 0,
       repairFeeDefault: 0,
       offlineAutoUploadDefault: true,
       showInAppNotifications: true,
@@ -38,7 +36,6 @@ export const useSettingsStore = create<SettingsState>()(
       storage: createJSONStorage(() => (typeof window === 'undefined' ? undefined as unknown as Storage : window.localStorage)),
       partialize: (s) => ({
         homeVisitFeeDefault: s.homeVisitFeeDefault,
-        laborChargesDefault: s.laborChargesDefault,
         repairFeeDefault: s.repairFeeDefault,
         offlineAutoUploadDefault: s.offlineAutoUploadDefault,
         showInAppNotifications: s.showInAppNotifications,

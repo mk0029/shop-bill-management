@@ -1,12 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FileText, Search, Trash2 } from "lucide-react";
-import { localDraftService, type LocalDraftSummary, type LocalBillDraft } from "@/lib/local-draft-service";
+import {
+  localDraftService,
+  type LocalDraftSummary,
+  type LocalBillDraft,
+} from "@/lib/local-draft-service";
 import { useCustomers } from "@/hooks/use-sanity-data";
 
 export default function DraftBillsPage() {
@@ -17,14 +27,19 @@ export default function DraftBillsPage() {
   const [isPending, startTransition] = useTransition();
   const [drafts, setDrafts] = useState<LocalDraftSummary[]>([]);
   const { getUserById } = useCustomers();
-  const [details, setDetails] = useState<Record<string, {
-    billerName: string;
-    phone?: string;
-    serviceType: string;
-    itemCount: number;
-    total: number;
-    billDate?: string;
-  }>>({});
+  const [details, setDetails] = useState<
+    Record<
+      string,
+      {
+        billerName: string;
+        phone?: string;
+        serviceType: string;
+        itemCount: number;
+        total: number;
+        billDate?: string;
+      }
+    >
+  >({});
 
   // Prefetch create route to reduce navigation latency
   useEffect(() => {
@@ -47,14 +62,17 @@ export default function DraftBillsPage() {
 
   // Compute per-draft details (biller name, totals) whenever drafts or customers change
   useEffect(() => {
-    const map: Record<string, {
-      billerName: string;
-      phone?: string;
-      serviceType: string;
-      itemCount: number;
-      total: number;
-      billDate?: string;
-    }> = {};
+    const map: Record<
+      string,
+      {
+        billerName: string;
+        phone?: string;
+        serviceType: string;
+        itemCount: number;
+        total: number;
+        billDate?: string;
+      }
+    > = {};
     for (const s of drafts) {
       const d = localDraftService.get(s.id);
       if (!d) continue;
@@ -64,16 +82,34 @@ export default function DraftBillsPage() {
       const phone = cust?.phone;
       const serviceType = (fd.serviceType as string) || "sale";
       const itemCount = (d.selectedItems || []).length;
-      const itemsTotal = (d.selectedItems || []).reduce((sum, it) => sum + (Number(it.total) || 0), 0);
-      const fees = Number(fd.repairFee || 0) + Number(fd.homeVisitFee || 0) + Number(fd.laborCharges || 0);
+      const itemsTotal = (d.selectedItems || []).reduce(
+        (sum, it) => sum + (Number(it.total) || 0),
+        0,
+      );
+      const fees = Number(fd.repairFee || 0) + Number(fd.homeVisitFee || 0);
       const total = itemsTotal + fees;
       const billDate = fd.billDate as string | undefined;
-      map[s.id] = { billerName, phone, serviceType, itemCount, total, billDate };
+      map[s.id] = {
+        billerName,
+        phone,
+        serviceType,
+        itemCount,
+        total,
+        billDate,
+      };
     }
     setDetails(map);
   }, [drafts, getUserById]);
 
-  const fmtCurrency = useCallback((n: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n || 0), []);
+  const fmtCurrency = useCallback(
+    (n: number) =>
+      new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 2,
+      }).format(n || 0),
+    [],
+  );
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -83,45 +119,53 @@ export default function DraftBillsPage() {
       return (
         d.title.toLowerCase().includes(q) ||
         d.id.toLowerCase().includes(q) ||
-        (det?.billerName?.toLowerCase?.().includes(q)) ||
-        (det?.serviceType?.toLowerCase?.().includes(q)) ||
-        (det?.phone?.toLowerCase?.().includes(q))
+        det?.billerName?.toLowerCase?.().includes(q) ||
+        det?.serviceType?.toLowerCase?.().includes(q) ||
+        det?.phone?.toLowerCase?.().includes(q)
       );
     });
   }, [drafts, details, searchTerm]);
 
-  const handleDeleteDraft = useCallback((id: string) => {
-    const ok = window.confirm("Delete this draft permanently from this browser?");
-    if (!ok) return;
-    try {
-      setDeletingId(id);
-      localDraftService.remove(id);
-      loadDrafts();
-    } finally {
-      setDeletingId(null);
-    }
-  }, [loadDrafts]);
+  const handleDeleteDraft = useCallback(
+    (id: string) => {
+      const ok = window.confirm(
+        "Delete this draft permanently from this browser?",
+      );
+      if (!ok) return;
+      try {
+        setDeletingId(id);
+        localDraftService.remove(id);
+        loadDrafts();
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [loadDrafts],
+  );
 
-  const handleOpenDraft = useCallback((id: string) => {
-    const draft = localDraftService.get(id) as LocalBillDraft | null;
-    if (!draft) return;
-    try {
-      setNavigatingId(id);
-      const payload = {
-        formData: draft.formData,
-        selectedItems: draft.selectedItems,
-        draftId: draft.id,
-        updatedAt: Date.now(),
-        fromDraft: true,
-      };
-      localStorage.setItem("bill_create_autosave", JSON.stringify(payload));
-      startTransition(() => router.push("/admin/billing/create"));
-    } catch (e) {
-      console.error("Failed to open draft", e);
-      alert("Failed to open draft");
-      setNavigatingId(null);
-    }
-  }, [router, startTransition]);
+  const handleOpenDraft = useCallback(
+    (id: string) => {
+      const draft = localDraftService.get(id) as LocalBillDraft | null;
+      if (!draft) return;
+      try {
+        setNavigatingId(id);
+        const payload = {
+          formData: draft.formData,
+          selectedItems: draft.selectedItems,
+          draftId: draft.id,
+          updatedAt: Date.now(),
+          fromDraft: true,
+        };
+        localStorage.setItem("bill_create_autosave", JSON.stringify(payload));
+        startTransition(() => router.push("/admin/billing/create"));
+      } catch (e) {
+        console.error("Failed to open draft", e);
+        alert("Failed to open draft");
+        setNavigatingId(null);
+      }
+    },
+    [router, startTransition],
+  );
 
   return (
     <div className="space-y-6 max-md:space-y-4">
@@ -141,7 +185,8 @@ export default function DraftBillsPage() {
               localStorage.setItem("bill_create_skip_restore", "1");
             } catch {}
             router.push("/admin/billing/create");
-          }}>
+          }}
+        >
           Create New Bill
         </Button>
       </div>
@@ -174,7 +219,8 @@ export default function DraftBillsPage() {
                 <div
                   onClick={() => handleOpenDraft(d.id)}
                   key={d.id}
-                  className="flex items-center justify-between py-3">
+                  className="flex items-center justify-between py-3"
+                >
                   <div className="min-w-0">
                     <p className="text-white font-medium truncate sm:text-base text-sm">
                       {d.title}
@@ -198,7 +244,8 @@ export default function DraftBillsPage() {
                       size="sm"
                       variant="destructive"
                       onClick={() => handleDeleteDraft(d.id)}
-                      disabled={deletingId === d.id}>
+                      disabled={deletingId === d.id}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

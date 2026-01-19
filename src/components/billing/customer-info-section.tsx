@@ -190,26 +190,6 @@ export const CustomerInfoSection = ({
               <p className="text-xs text-gray-400">Minimum ₹50, Maximum ₹200</p>
             </div>
           )}
-
-        {(formData.serviceType === "repair" ||
-          formData.serviceType === "multiple_work") &&
-          formData.location === "home" && (
-            <div className="space-y-2">
-              <Label htmlFor="laborCharges" className="text-gray-300">
-                Labor Charges ({currency})
-              </Label>
-              <Input
-                id="laborCharges"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.laborCharges || ""}
-                onChange={(e) => onInputChange("laborCharges", e.target.value)}
-                className="bg-gray-800 border-gray-700 text-white"
-                placeholder="Enter labor charges"
-              />
-            </div>
-          )}
       </CardContent>
     </Card>
   );

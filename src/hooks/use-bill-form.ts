@@ -40,7 +40,6 @@ export interface BillFormData {
   notes: string;
   repairFee: number;
   homeVisitFee: number;
-  laborCharges: number;
   discount?: number;
   // Payment Fields
   isMarkAsPaid: boolean;
@@ -74,7 +73,6 @@ export const useBillForm = () => {
   // Billing defaults (persisted)
   const {
     homeVisitFeeDefault,
-    laborChargesDefault,
     repairFeeDefault,
     offlineAutoUploadDefault,
   } = useSettingsStore();
@@ -102,7 +100,6 @@ export const useBillForm = () => {
     notes: "",
     repairFee: Number(repairFeeDefault || 0),
     homeVisitFee: Number(homeVisitFeeDefault || 0),
-    laborCharges: Number(laborChargesDefault || 0),
     discount: 0,
     isMarkAsPaid: false,
     enablePartialPayment: false,
@@ -114,7 +111,6 @@ export const useBillForm = () => {
     const numericFields = [
       "repairFee",
       "homeVisitFee",
-      "laborCharges",
       "discount",
       "partialPaymentAmount",
     ];
@@ -280,8 +276,7 @@ export const useBillForm = () => {
     const itemsTotal = calculateTotal();
     const additionalCharges =
       Number(formData.repairFee || 0) +
-      Number(formData.homeVisitFee || 0) +
-      Number(formData.laborCharges || 0);
+      Number(formData.homeVisitFee || 0);
     const discount = Number(formData.discount || 0);
     return Math.max(0, itemsTotal + additionalCharges - discount);
   };
@@ -323,11 +318,10 @@ export const useBillForm = () => {
     if (selectedItems.length === 0 && !["custom", "fitting_wiring"].includes(formData.serviceType)) {
       const anyServiceCharge =
         Number(formData.repairFee || 0) > 0 ||
-        Number(formData.homeVisitFee || 0) > 0 ||
-        Number(formData.laborCharges || 0) > 0;
+        Number(formData.homeVisitFee || 0) > 0;
       if (!anyServiceCharge) {
         setAlertMessage(
-          "Please add at least one item or enter service charges (labour/home visit/repair)"
+          "Please add at least one item or enter service charges (home visit/repair)"
         );
         setShowAlertModal(true);
         return;
@@ -363,7 +357,6 @@ export const useBillForm = () => {
         locationType: formData.location as "home" | "shop" | "office",
         homeVisitFee: Number(formData.homeVisitFee),
         repairFee: Number(formData.repairFee),
-        laborCharges: Number(formData.laborCharges),
         discount: Number(formData.discount || 0),
         notes: formData.notes,
         // Payment details
@@ -390,7 +383,6 @@ export const useBillForm = () => {
           notes: "",
           repairFee: Number(repairFeeDefault || 0),
           homeVisitFee: Number(homeVisitFeeDefault || 0),
-          laborCharges: Number(laborChargesDefault || 0),
           discount: 0,
           isMarkAsPaid: false,
           enablePartialPayment: false,
@@ -483,7 +475,6 @@ export const useBillForm = () => {
         notes: "",
         repairFee: Number(repairFeeDefault || 0),
         homeVisitFee: Number(homeVisitFeeDefault || 0),
-        laborCharges: Number(laborChargesDefault || 0),
         discount: 0,
         isMarkAsPaid: false,
         enablePartialPayment: false,
@@ -628,7 +619,6 @@ export const useBillForm = () => {
       notes: "",
       repairFee: Number(repairFeeDefault || 0),
       homeVisitFee: Number(homeVisitFeeDefault || 0),
-      laborCharges: Number(laborChargesDefault || 0),
       isMarkAsPaid: false,
       enablePartialPayment: false,
       partialPaymentAmount: 0,
@@ -676,7 +666,6 @@ const hasDraftContent = (formData: BillFormData, selectedItems: BillItem[]) => {
   if (
     Number(formData.repairFee || 0) > 0 ||
     Number(formData.homeVisitFee || 0) > 0 ||
-    Number(formData.laborCharges || 0) > 0 ||
     Number(formData.discount || 0) > 0 ||
     Number(formData.partialPaymentAmount || 0) > 0
   )

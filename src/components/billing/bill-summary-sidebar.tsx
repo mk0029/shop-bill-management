@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-
 import { useOnline } from "../../hooks/use-online";
 import { useRef } from "react";
 import { useLocaleStore } from "../../store/locale-store";
@@ -82,17 +81,25 @@ export const BillSummarySidebar = ({
               Offline Mode
             </h4>
             <div className="flex items-center justify-between">
-              <Label htmlFor="offline-auto-upload" className="text-sm text-gray-300">
+              <Label
+                htmlFor="offline-auto-upload"
+                className="text-sm text-gray-300"
+              >
                 Auto-upload when online
               </Label>
               <Switch
                 id="offline-auto-upload"
                 checked={!!formData.offlineAutoUpload}
-                onCheckedChange={(checked) => onInputChange("offlineAutoUpload", checked)}
+                onCheckedChange={(checked) =>
+                  onInputChange("offlineAutoUpload", checked)
+                }
               />
             </div>
             <p className="text-xs text-gray-400">
-              You&apos;re offline. Bills created now will {formData.offlineAutoUpload ? "be queued and uploaded automatically when you're back online." : "be saved as drafts locally."}
+              You&apos;re offline. Bills created now will{" "}
+              {formData.offlineAutoUpload
+                ? "be queued and uploaded automatically when you're back online."
+                : "be saved as drafts locally."}
             </p>
           </div>
         )}
@@ -128,16 +135,6 @@ export const BillSummarySidebar = ({
             </div>
           )}
 
-          {formData.laborCharges > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Labor Charges</span>
-              <span className="text-white">
-                {currency}
-                {Number(formData.laborCharges).toFixed(2)}
-              </span>
-            </div>
-          )}
-
           {/* Discount input */}
           <div className="space-y-2">
             <Label htmlFor="bill-discount" className="text-xs text-gray-400">
@@ -146,9 +143,12 @@ export const BillSummarySidebar = ({
             <Input
               id="bill-discount"
               type="number"
-               min="0"
-                step="1"              value={formData.discount}
-              onChange={(e) => onInputChange("discount", (e.target as HTMLInputElement).value)}
+              min="0"
+              step="1"
+              value={formData.discount}
+              onChange={(e) =>
+                onInputChange("discount", (e.target as HTMLInputElement).value)
+              }
               placeholder="0"
               className="bg-gray-900 border-gray-600 text-white focus-visible:ring-1 focus-visible:ring-blue-500"
             />
@@ -158,8 +158,8 @@ export const BillSummarySidebar = ({
           {Number(formData.discount) > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">Discount</span>
-              <span className="text-red-400">-
-                {currency}
+              <span className="text-red-400">
+                -{currency}
                 {Number(formData.discount).toFixed(2)}
               </span>
             </div>
@@ -188,10 +188,31 @@ export const BillSummarySidebar = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-gray-300">Payment Mode <span className={formData.isMarkAsPaid ? "text-green-400" : formData.enablePartialPayment ? "text-yellow-600" : "text-yellow-400"}>{formData.isMarkAsPaid ? "Paid" : formData.enablePartialPayment ? "Partial" : "Pending"}</span></span>
+                <span className="text-sm text-gray-300">
+                  Payment Mode{" "}
+                  <span
+                    className={
+                      formData.isMarkAsPaid
+                        ? "text-green-400"
+                        : formData.enablePartialPayment
+                          ? "text-yellow-600"
+                          : "text-yellow-400"
+                    }
+                  >
+                    {formData.isMarkAsPaid
+                      ? "Paid"
+                      : formData.enablePartialPayment
+                        ? "Partial"
+                        : "Pending"}
+                  </span>
+                </span>
               </div>
               {(() => {
-                const paymentIndex = formData.isMarkAsPaid ? 2 : (formData.enablePartialPayment ? 1 : 0);
+                const paymentIndex = formData.isMarkAsPaid
+                  ? 2
+                  : formData.enablePartialPayment
+                    ? 1
+                    : 0;
                 const setIndex = (idx: 0 | 1 | 2) => {
                   if (idx === 0) {
                     onInputChange("isMarkAsPaid", false);
@@ -209,14 +230,18 @@ export const BillSummarySidebar = ({
                   const el = sliderRef.current;
                   if (!el) return;
                   const rect = el.getBoundingClientRect();
-                  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+                  const ratio = Math.min(
+                    1,
+                    Math.max(0, (clientX - rect.left) / rect.width),
+                  );
                   const idx = Math.round(ratio * 2) as 0 | 1 | 2;
                   setIndex(idx);
                 };
                 const startMouseDrag = (e: React.MouseEvent) => {
                   e.preventDefault();
                   handlePointerAt(e.clientX);
-                  const onMove = (ev: MouseEvent) => handlePointerAt(ev.clientX);
+                  const onMove = (ev: MouseEvent) =>
+                    handlePointerAt(ev.clientX);
                   const onUp = () => {
                     window.removeEventListener("mousemove", onMove);
                     window.removeEventListener("mouseup", onUp);
@@ -253,11 +278,17 @@ export const BillSummarySidebar = ({
                       onKeyDown={(e) => {
                         if (e.key === "ArrowRight") {
                           e.preventDefault();
-                          const nextRight = Math.min(2, paymentIndex + 1) as 0 | 1 | 2;
+                          const nextRight = Math.min(2, paymentIndex + 1) as
+                            | 0
+                            | 1
+                            | 2;
                           setIndex(nextRight);
                         } else if (e.key === "ArrowLeft") {
                           e.preventDefault();
-                          const nextLeft = Math.max(0, paymentIndex - 1) as 0 | 1 | 2;
+                          const nextLeft = Math.max(0, paymentIndex - 1) as
+                            | 0
+                            | 1
+                            | 2;
                           setIndex(nextLeft);
                         }
                       }}
@@ -268,22 +299,35 @@ export const BillSummarySidebar = ({
                     >
                       {/* segments */}
                       <div className="absolute inset-0 grid grid-cols-3">
-                        <button type="button" className="col-span-1" onClick={() => setIndex(0)} aria-label="Pending" />
-                        <button type="button" className="col-span-1" onClick={() => setIndex(1)} aria-label="Partial" />
-                        <button type="button" className="col-span-1" onClick={() => setIndex(2)} aria-label="Paid" />
+                        <button
+                          type="button"
+                          className="col-span-1"
+                          onClick={() => setIndex(0)}
+                          aria-label="Pending"
+                        />
+                        <button
+                          type="button"
+                          className="col-span-1"
+                          onClick={() => setIndex(1)}
+                          aria-label="Partial"
+                        />
+                        <button
+                          type="button"
+                          className="col-span-1"
+                          onClick={() => setIndex(2)}
+                          aria-label="Paid"
+                        />
                       </div>
                       {/* knob */}
                       <div
                         className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${paymentIndex === 2 ? "bg-green-300" : paymentIndex === 1 ? "bg-amber-300" : "bg-slate-300"}`}
                         style={{ left: knobLeft }}
                       />
-                       
                     </div>
                   </div>
                 );
               })()}
             </div>
-           
           </div>
 
           {/* Partial Payment Input (visible when partial mode) */}
@@ -298,7 +342,12 @@ export const BillSummarySidebar = ({
                 max={grandTotal}
                 step="1"
                 value={formData.partialPaymentAmount ?? ""}
-                onChange={(e) => onInputChange("partialPaymentAmount", (e.target as HTMLInputElement).value)}
+                onChange={(e) =>
+                  onInputChange(
+                    "partialPaymentAmount",
+                    (e.target as HTMLInputElement).value,
+                  )
+                }
                 placeholder=""
                 className="bg-gray-900 border-gray-600 text-white focus-visible:ring-1 focus-visible:ring-blue-500"
               />
@@ -325,13 +374,12 @@ export const BillSummarySidebar = ({
         </div>
 
         <div className="flex gap-2">
-        <Button
+          <Button
             variant="outline"
             onClick={onSaveDraft}
-            disabled={
-             savingDraft|| isLoading || !formData.customerId
-            }
-            className="w-full sm:flex-1 border-gray-700 text-white hover:bg-gray-800">
+            disabled={savingDraft || isLoading || !formData.customerId}
+            className="w-full sm:flex-1 border-gray-700 text-white hover:bg-gray-800"
+          >
             {savingDraft ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -343,13 +391,12 @@ export const BillSummarySidebar = ({
                 Save as Draft
               </div>
             )}
-          </Button> <Button
+          </Button>{" "}
+          <Button
             onClick={onSubmit}
-
-            disabled={
-              isLoading || !formData.customerId
-            }
-            className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+            disabled={isLoading || !formData.customerId}
+            className="w-full sm:flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+          >
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -358,11 +405,12 @@ export const BillSummarySidebar = ({
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="w-4 h-4" />
-                {(!online && installed && formData.offlineAutoUpload) ? "Queue Bill" : "Create Bill"}
+                {!online && installed && formData.offlineAutoUpload
+                  ? "Queue Bill"
+                  : "Create Bill"}
               </div>
             )}
           </Button>
-        
         </div>
 
         {selectedItems.length === 0 && (

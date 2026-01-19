@@ -91,7 +91,8 @@ export const BillsList = ({
           key={bill._id}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}>
+          transition={{ delay: index * 0.1 }}
+        >
           <Card className="bg-gray-900 border-gray-800 hover:border-gray-700 transition-colors">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -102,8 +103,9 @@ export const BillsList = ({
                     </h3>
                     <span
                       className={`px-2 py-1 text-xs font-medium rounded ${getBillStatusColor(
-                        bill.status
-                      )}`}>
+                        bill.status,
+                      )}`}
+                    >
                       {bill.status?.toUpperCase() || "UNKNOWN"}
                     </span>
                   </div>
@@ -137,7 +139,8 @@ export const BillsList = ({
                           .map((item: any, idx: number) => (
                             <span
                               key={idx}
-                              className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded">
+                              className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded"
+                            >
                               {item.product?.name || "Unknown Item"} x
                               {item.quantity}
                             </span>
@@ -175,7 +178,8 @@ export const BillsList = ({
                       variant="outline"
                       size="sm"
                       onClick={() => onDownloadBill(bill)}
-                      className="text-green-400 border-green-400 hover:bg-green-400/10">
+                      className="text-green-400 border-green-400 hover:bg-green-400/10"
+                    >
                       <Download className="w-4 h-4 mr-1" />
                       Download
                     </Button>
@@ -185,8 +189,7 @@ export const BillsList = ({
 
               {/* Additional charges */}
               {(bill.homeVisitFee > 0 ||
-                ((bill as any).repairFee ?? bill.repairCharges) > 0 ||
-                bill.laborCharges > 0) && (
+                ((bill as any).repairFee ?? bill.repairCharges) > 0) && (
                 <div className="border-t border-gray-800 pt-3">
                   <p className="text-sm text-gray-400 mb-2">
                     Additional Charges:
@@ -198,16 +201,10 @@ export const BillsList = ({
                         {bill.homeVisitFee}
                       </span>
                     )}
-                    {(((bill as any).repairFee ?? bill.repairCharges) > 0) && (
+                    {((bill as any).repairFee ?? bill.repairCharges) > 0 && (
                       <span className="text-gray-300">
                         Repair: {currency}
                         {(bill as any).repairFee ?? bill.repairCharges}
-                      </span>
-                    )}
-                    {bill.laborCharges > 0 && (
-                      <span className="text-gray-300">
-                        Labor: {currency}
-                        {bill.laborCharges}
                       </span>
                     )}
                   </div>

@@ -51,7 +51,7 @@ export function BillingBrowser({
       ? defaultFilterStatuses
       : defaultFilterStatus && defaultFilterStatus !== "all"
         ? [defaultFilterStatus]
-        : []
+        : [],
   );
 
   // All initial data load and realtime setup is handled globally in `DataProvider`
@@ -112,7 +112,6 @@ export function BillingBrowser({
       transportationFee: bill.transportationFee || 0,
       repairCharges:
         (bill as any).repairCharges ?? (bill as any).repairFee ?? 0,
-      laborCharges: bill.laborCharges || 0,
       subtotal: bill.subtotal || 0,
       total: bill.totalAmount || 0,
       status: bill.paymentStatus === "paid" ? "paid" : "pending",
@@ -130,7 +129,7 @@ export function BillingBrowser({
         customerId: bill.customer?.customerId || bill.customerId || "",
         secretKey:
           customers.find(
-            (c: any) => c._id === (bill.customer?._id || bill.customer?._ref)
+            (c: any) => c._id === (bill.customer?._id || bill.customer?._ref),
           )?.secretKey ||
           bill.customer?.secretKey ||
           "",
@@ -175,15 +174,15 @@ export function BillingBrowser({
       paidAmount: number;
       balanceAmount: number;
       discount?: number;
-    }
+    },
   ) => {
     try {
       // Determine cumulative discount = existing + newly added
       const existingBill = bills.find(
-        (b: any) => (b._id || b.id) === billId
+        (b: any) => (b._id || b.id) === billId,
       ) as any;
       const existingDiscount = Number(
-        (existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0
+        (existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0,
       );
       const addDiscount =
         typeof paymentData.discount === "number"
@@ -232,7 +231,7 @@ export function BillingBrowser({
   const baseBills =
     variant === "pending"
       ? bills.filter((b: any) =>
-          ["pending", "partial", "overdue"].includes(b.paymentStatus)
+          ["pending", "partial", "overdue"].includes(b.paymentStatus),
         )
       : bills;
   const initialForList =
@@ -240,7 +239,7 @@ export function BillingBrowser({
       ? baseBills.filter(
           (b: any) =>
             selectedStatuses.includes(b.paymentStatus) ||
-            selectedStatuses.includes(b.status)
+            selectedStatuses.includes(b.status),
         )
       : baseBills;
   const filterOptionsAll = [

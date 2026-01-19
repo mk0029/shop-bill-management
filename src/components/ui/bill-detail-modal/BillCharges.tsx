@@ -6,16 +6,14 @@ interface BillChargesProps {
   transportationFee: number;
   homeVisitFee: number;
   repairChargeValue: number;
-  laborCharges: number;
 }
 
-export const BillCharges = ({ 
-  bill, 
-  currency, 
-  transportationFee, 
-  homeVisitFee, 
-  repairChargeValue, 
-  laborCharges 
+export const BillCharges = ({
+  bill,
+  currency,
+  transportationFee,
+  homeVisitFee,
+  repairChargeValue,
 }: BillChargesProps) => {
   // Show Additional Charges section if any charge field is present on the bill
   const hasAnyCharge =
@@ -23,8 +21,7 @@ export const BillCharges = ({
     bill.transportationFee !== undefined ||
     bill.repairCharges !== undefined ||
     (bill as any).repairCharge !== undefined ||
-    bill.repairFee !== undefined ||
-    bill.laborCharges !== undefined;
+    bill.repairFee !== undefined;
 
   if (!hasAnyCharge) {
     return null;
@@ -42,10 +39,6 @@ export const BillCharges = ({
     {
       label: "Repair Charges",
       value: repairChargeValue,
-    },
-    {
-      label: "Labor Charges",
-      value: laborCharges,
     },
   ];
 
@@ -68,7 +61,7 @@ export const BillCharges = ({
                   {charge.value.toFixed(2)}
                 </span>
               </div>
-            )
+            ),
         )}
       </div>
     </div>

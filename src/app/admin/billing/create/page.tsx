@@ -478,12 +478,6 @@ export default function CreateBillPage() {
                   ₹{Number(formData.homeVisitFee || 0).toFixed(2)}
                 </div>
               </div>
-              <div className="bg-gray-900/60 border border-gray-800 rounded-md p-3">
-                <div className="text-xs text-gray-400">Labor</div>
-                <div className="text-white font-semibold">
-                  ₹{Number(formData.laborCharges || 0).toFixed(2)}
-                </div>
-              </div>
             </div>
 
             <div className="flex items-center gap-3 text-xs text-gray-400">

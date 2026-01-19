@@ -24,7 +24,6 @@ export type LocalBillFormData = {
   notes: string;
   repairFee: number;
   homeVisitFee: number;
-  laborCharges: number;
   isMarkAsPaid: boolean;
   enablePartialPayment: boolean;
   partialPaymentAmount: number;

@@ -183,16 +183,7 @@ export function BillDetailsModal({
                   </p>
                 </div>
               )}
-            {selectedBill?.laborCharges !== null &&
-              selectedBill?.laborCharges > 0 && (
-                <div>
-                  <p className="text-gray-400">Labor Charges</p>
-                  <p className="text-white">
-                    {currency}
-                    {selectedBill.laborCharges?.toLocaleString() || "-"}
-                  </p>
-                </div>
-              )}
+
             {selectedBill?.taxAmount !== null &&
               selectedBill?.taxAmount > 0 && (
                 <div>

@@ -101,7 +101,6 @@ interface Bill {
   homeVisitFee: number;
   transportationFee?: number;
   repairFee?: number;
-  laborCharges?: number;
   subtotal: number;
   taxAmount: number;
   discount?: number;

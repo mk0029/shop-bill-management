@@ -134,7 +134,6 @@ export const customerCashbookService = {
     notes?: string;
     homeVisitFee?: number;
     repairFee?: number;
-    laborCharges?: number;
     paymentStatus?: 'pending' | 'partial' | 'paid';
     paidAmount?: number;
   }): Promise<ApiResponse<{ bill: any; count: number }>> {
@@ -164,8 +163,7 @@ export const customerCashbookService = {
       const subtotal = billItems.reduce((sum: number, it: any) => sum + (Number(it.totalPrice) || 0), 0);
       const homeVisitFee = Number(params.homeVisitFee || 0);
       const repairFee = Number(params.repairFee || 0);
-      const laborCharges = Number(params.laborCharges || 0);
-      const totalAmount = Math.max(0, subtotal + homeVisitFee + repairFee + laborCharges);
+      const totalAmount = Math.max(0, subtotal + homeVisitFee + repairFee);
       const paidAmount = Number(params.paidAmount || 0);
       const balanceAmount = Math.max(0, totalAmount - paidAmount);
 
@@ -179,7 +177,6 @@ export const customerCashbookService = {
         serviceDate: new Date().toISOString(),
         homeVisitFee,
         repairFee,
-        laborCharges,
         subtotal,
         discount: 0,
         totalAmount,

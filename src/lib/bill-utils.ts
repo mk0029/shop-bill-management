@@ -92,7 +92,6 @@ export function calculateBillTotals(
     // Prefer repairFee; keep repairCharges for backward compatibility
     repairFee?: number;
     repairCharges?: number;
-    laborCharges?: number;
     transportationFee?: number;
     taxRate?: number;
     discount?: number;
@@ -103,11 +102,10 @@ export function calculateBillTotals(
   const homeVisitFee = additionalCharges.homeVisitFee || 0;
   const repairCharges =
     (additionalCharges.repairFee ?? additionalCharges.repairCharges) || 0;
-  const laborCharges = additionalCharges.laborCharges || 0;
   const transportationFee = additionalCharges.transportationFee || 0;
 
   const beforeTax =
-    subtotal + homeVisitFee + repairCharges + laborCharges + transportationFee;
+    subtotal + homeVisitFee + repairCharges + transportationFee;
   const taxAmount = (beforeTax * (additionalCharges.taxRate || 0)) / 100;
   const discount = additionalCharges.discount || 0;
 
@@ -117,7 +115,6 @@ export function calculateBillTotals(
     subtotal,
     homeVisitFee,
     repairCharges,
-    laborCharges,
     transportationFee,
     taxAmount,
     discount,

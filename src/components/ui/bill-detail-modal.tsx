@@ -62,7 +62,7 @@ interface BillDetailModalProps {
       paidAmount: number;
       balanceAmount: number;
       discount?: number;
-    }
+    },
   ) => Promise<void>;
   showShareButton?: boolean;
   showPaymentControls?: boolean;
@@ -128,7 +128,7 @@ export const BillDetailModal = ({
   const itemsTotal =
     bill.items?.reduce(
       (total: number, item: any) => total + (item.totalPrice || 0),
-      0
+      0,
     ) || 0;
 
   // Helper to coerce possibly string numeric fields to number
@@ -141,13 +141,12 @@ export const BillDetailModal = ({
   // Normalize charge fields to numbers and coalesce keys
   const transportationFee = toNum(bill.transportationFee);
   const homeVisitFee = toNum(bill.homeVisitFee);
-  const laborCharges = toNum(bill.laborCharges);
   const repairChargeValue = toNum(
-    bill.repairCharges ?? bill.repairFee ?? (bill as any).repairCharge ?? 0
+    bill.repairCharges ?? bill.repairFee ?? (bill as any).repairCharge ?? 0,
   );
 
   const additionalCharges =
-    homeVisitFee + transportationFee + repairChargeValue + laborCharges;
+    homeVisitFee + transportationFee + repairChargeValue;
 
   // Show Additional Charges section if any charge field is present on the bill
   const hasAnyCharge =
@@ -155,8 +154,7 @@ export const BillDetailModal = ({
     bill.transportationFee !== undefined ||
     bill.repairCharges !== undefined ||
     (bill as any).repairCharge !== undefined ||
-    bill.repairFee !== undefined ||
-    bill.laborCharges !== undefined;
+    bill.repairFee !== undefined;
 
   // Prefer explicit totals from bill to match list cards
   const explicitTotal = toNum((bill as any).totalAmount ?? (bill as any).total);
@@ -167,7 +165,7 @@ export const BillDetailModal = ({
       (bill as any)?.discountAmount ??
       (bill as any)?.customerDiscount ??
       (bill as any)?.appliedDiscount ??
-      0
+      0,
   );
   const getEffectiveGrandTotal = () => {
     const addDiscount = Math.max(Number(discountAmount || 0), 0);
@@ -228,7 +226,7 @@ export const BillDetailModal = ({
         if (add > 0) {
           const prevDiscount =
             Number(
-              (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0
+              (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0,
             ) || 0;
           const totalDiscount = prevDiscount + add;
           (bill as any).discount = totalDiscount;
@@ -243,7 +241,7 @@ export const BillDetailModal = ({
       toast.success(
         isFull
           ? "✅ Bill marked as fully paid!"
-          : `✅ Payment of ₹${added.toFixed(2)} recorded successfully!`
+          : `✅ Payment of ₹${added.toFixed(2)} recorded successfully!`,
       );
       onClose();
     } catch (error) {
@@ -290,10 +288,6 @@ export const BillDetailModal = ({
     {
       label: "Repair Charges",
       value: repairChargeValue,
-    },
-    {
-      label: "Labor Charges",
-      value: laborCharges,
     },
   ];
 
@@ -421,7 +415,6 @@ export const BillDetailModal = ({
             transportationFee={transportationFee}
             homeVisitFee={homeVisitFee}
             repairChargeValue={repairChargeValue}
-            laborCharges={laborCharges}
           />
 
           {/* Total Section */}
