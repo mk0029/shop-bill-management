@@ -17,7 +17,7 @@ import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
 import { SelectedItemsList } from "@/components/billing/selected-items-list";
 import { useProducts, useCategories, useBrands } from "@/hooks/use-sanity-data";
 import { useItemSelection } from "@/hooks/use-item-selection";
-import { RefreshCw, MoreVertical, ArrowLeft } from "lucide-react";
+import { RefreshCw, MoreVertical, ArrowLeft, XIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Heading from "../ui/common/Heading";
 import ResponsiveAccordion from "../ui/responsive-accordion";
@@ -369,6 +369,7 @@ export default function CashbookComposer({
         </div>
       </div>
       <ResponsiveAccordion
+        removePX
         desktopCollapsible
         title={
           <div className="grid grid-cols-1 gap-4">
@@ -382,7 +383,7 @@ export default function CashbookComposer({
           </div>
         }
       >
-        <div className="bg-gray-900 rounded-lg p-4 space-y-3">
+        <div className="bg-gray-900 rounded-lg px-2 py-3 sm:p-4 space-y-3">
           <div className="space-y-1">
             <Label className="text-gray-300">Notes</Label>
             <Textarea
@@ -392,7 +393,7 @@ export default function CashbookComposer({
               placeholder="Any notes..."
             />
           </div>
-          <div className="rounded-lg p-4 bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 shadow-sm">
+          <div className="rounded-lg px-2 py-3 sm:p-4 bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 shadow-sm max-h-[50dvh] flex flex-col overflow-hidden">
             <h2 className="text-blue-300 text-sm font-semibold tracking-wide mb-3">
               Billed Items
             </h2>
@@ -401,11 +402,11 @@ export default function CashbookComposer({
                 No billed items
               </div>
             )}
-            <ul className="divide-y divide-gray-800 flex -mx-1 flex-wrap gap-y-2">
+            <ul className="flex grow h-full overflow-auto -mx-1 flex-wrap space-y-2">
               {billed.map((it) => (
                 <li
                   key={it._id}
-                  className="px-1 w-full sm:w-6/12 md:4/12 xl:w-3/12"
+                  className="px-1  w-full sm:w-6/12 md:4/12 xl:w-3/12"
                 >
                   <div className="py-3 px-3 flex items-center justify-between h-full hover:bg-gray-900/80 border border-white/50 border-solid rounded-md relative ">
                     {" "}
@@ -436,13 +437,21 @@ export default function CashbookComposer({
                         <MoreVertical className="w-4 h-4 text-gray-300" />
                       </Button>
                       {menuOpenId === it._id && (
-                        <div className="absolute right-0 mt-2 w-40 bg-gray-900 border border-gray-700 rounded-md shadow-md z-10">
+                        <div className="absolute  flex items-center right-0 top-1/2 -translate-y-1/2 w-40 bg-gray-900 border border-gray-700 rounded-md shadow-md z-10">
                           <button
                             className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
                             onClick={() => removeFromBill(it)}
                           >
                             Remove from Bill
                           </button>
+                          <span
+                            className="inline-block pr-1"
+                            onClick={() => {
+                              setMenuOpenId("");
+                            }}
+                          >
+                            <XIcon className="size-5" />
+                          </span>
                         </div>
                       )}
                     </div>
@@ -454,63 +463,58 @@ export default function CashbookComposer({
         </div>
       </ResponsiveAccordion>
 
-      <div className="grid grid-cols-1 gap-6">
-        <div className="rounded-lg p-4 bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 shadow-sm">
-          <h2 className="text-blue-300 text-basse sm:text-lg font-semibold tracking-wide mb-3">
-            Pending Items
-          </h2>
-          {pending.length === 0 && (
-            <div className="text-gray-400 text-sm sm:text-base italic">
-              No pending items
-            </div>
-          )}
-          <ul className="divide-y divide-gray-800">
-            {pending.map((it) => (
-              <li
-                key={it._id}
-                className="py-3 px-3 flex items-center justify-between gap-3 hover:bg-gray-900/40 rounded-md"
-                title="Right-click to delete"
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setDeleteTarget(it);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <div className="text-gray-100">
-                  <div className="font-semibold flex items-center gap-2">
-                    {it.itemName}
-                    <Badge
-                      variant="secondary"
-                      className="h-5 px-1.5 text-[10px] border-yellow-300 text-yellow-300"
-                    >
-                      Not Added
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    {formatCurrency(Number(it.unitPrice) || 0)} each
-                  </div>
+      <div className="flex flex-col sm:gap-3 xl:gap-6 max-h-[88dvh] rounded-lg p-4 bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 shadow-sm">
+        <h2 className="text-blue-300 text-basse sm:text-lg font-semibold tracking-wide mb-3">
+          Pending Items
+        </h2>
+        {pending.length === 0 && (
+          <div className="text-gray-400 text-sm sm:text-base">
+            No pending items
+          </div>
+        )}
+        <ul className="divide-y divide-gray-800  h-full  overflow-auto flex flex-col grow">
+          {pending.map((it) => (
+            <li
+              key={it._id}
+              className="py-3 px-3 flex items-center justify-between gap-3 hover:bg-gray-900/40 rounded-md"
+              title="Right-click to delete"
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setDeleteTarget(it);
+                setDeleteDialogOpen(true);
+              }}
+            >
+              <div className="text-gray-100">
+                <div className="font-semibold flex items-center gap-2">
+                  {it.itemName}
+                  <Badge
+                    variant="secondary"
+                    className="h-5 px-1.5 text-[10px] border-yellow-300 text-yellow-300"
+                  >
+                    Not Added
+                  </Badge>
                 </div>
-
-                <div className="text-right text-blue-300 font-semibold w-28 text-lg md:text-xl">
-                  {formatCurrency(Number(it.totalPrice) || 0)}
+                <div className="text-sm text-gray-400">
+                  {formatCurrency(Number(it.unitPrice) || 0)} each
                 </div>
-              </li>
-            ))}
-          </ul>
-          {pending.length > 0 && (
-            <div className="mt-3 border-t border-gray-800 pt-3 flex items-center justify-between">
-              <div className="text-base sm:text-lg text-gray-400">Subtotal</div>
-              <div className="text-white font-semibold text-xl sm:text-2xl">
-                {formatCurrency(
-                  pending.reduce(
-                    (s, it) => s + (Number(it.totalPrice) || 0),
-                    0,
-                  ),
-                )}
               </div>
+
+              <div className="text-right text-blue-300 font-semibold w-28 text-lg md:text-xl">
+                {formatCurrency(Number(it.totalPrice) || 0)}
+              </div>
+            </li>
+          ))}
+        </ul>
+        {pending.length > 0 && (
+          <div className="mt-3 border-t border-gray-800 pt-3 flex items-center justify-between">
+            <div className="text-base sm:text-lg text-gray-400">Subtotal</div>
+            <div className="text-white font-semibold text-xl sm:text-2xl">
+              {formatCurrency(
+                pending.reduce((s, it) => s + (Number(it.totalPrice) || 0), 0),
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Confirm Add to Bill */}

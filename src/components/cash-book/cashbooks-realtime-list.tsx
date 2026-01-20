@@ -81,7 +81,20 @@ export default function CashbooksRealtimeList({ initial }: Props) {
               e.preventDefault();
               e.stopPropagation();
               setMenuOpenId(null);
-              setCtxMenu({ open: true, x: e.clientX, y: e.clientY, book: b });
+              const menuWidth = 176; // w-44 (~11rem)
+              const menuHeight = 120; // approximate height
+              const pad = 8;
+              const rect = (
+                e.currentTarget as HTMLElement
+              ).getBoundingClientRect();
+              const vw = window.innerWidth;
+              const vh = window.innerHeight;
+              let x = rect.right - pad - menuWidth; // 8px from right edge
+              let y = rect.top + rect.height / 2 - menuHeight / 2; // vertically centered
+              // clamp to viewport
+              x = Math.max(pad, Math.min(x, vw - menuWidth - pad));
+              y = Math.max(pad, Math.min(y, vh - menuHeight - pad));
+              setCtxMenu({ open: true, x, y, book: b });
             }}
           >
             <CardHeader>
