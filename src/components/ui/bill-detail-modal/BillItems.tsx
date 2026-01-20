@@ -15,7 +15,7 @@ export const BillItems = ({ bill, currency }: BillItemsProps) => {
   const formatSpecifications = (specifications: any) => {
     return Object.entries(specifications || {})
       .filter(
-        ([_, value]) => value !== undefined && value !== null && value !== ""
+        ([_, value]) => value !== undefined && value !== null && value !== "",
       )
       .map(([key, value]) => {
         // 1️⃣ Format camelCase / PascalCase into spaced words
@@ -64,7 +64,9 @@ export const BillItems = ({ bill, currency }: BillItemsProps) => {
 
                 {item.specifications && (
                   <p className="text-sm text-gray-400 mb-2">
-                    {item.specifications}
+                    {typeof item.specifications === "object"
+                      ? formatSpecifications(item.specifications)
+                      : String(item.specifications)}
                   </p>
                 )}
 

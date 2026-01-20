@@ -3,6 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
@@ -10,6 +11,9 @@ interface ItemSelectionSectionProps {
   categories: any[];
   activeProducts: any[];
   productsLoading: boolean;
+  searcItemsClass?: string;
+  searcHeaderClass?: string;
+  searcCardClass?: string;
   onOpenItemModal: (category: string) => void;
 }
 
@@ -18,6 +22,9 @@ export const ItemSelectionSection = ({
   activeProducts,
   productsLoading,
   onOpenItemModal,
+  searcItemsClass,
+  searcCardClass,
+  searcHeaderClass,
 }: ItemSelectionSectionProps) => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -32,9 +39,9 @@ export const ItemSelectionSection = ({
 
   return (
     <Card className="bg-gray-900 border-gray-800">
-      <CardContent>
+      <CardContent className={searcCardClass}>
         {/* Category Filter */}
-        <div className="mb-4">
+        <div className={cn("mb-4", searcHeaderClass)}>
           <Label className="text-gray-300 mb-2 block">Filter by Category</Label>
           <Input
             value={searchTerm}
@@ -45,7 +52,7 @@ export const ItemSelectionSection = ({
         </div>
 
         {/* Category Buttons */}
-        <div className="max-h-[200px] overflow-auto">
+        <div className={cn("max-h-[200px] overflow-auto", searcItemsClass)}>
           {" "}
           <div className=" flex flex-wrap gap-2 mb-3">
             {filteredCategories.map((category) => {

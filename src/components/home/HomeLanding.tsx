@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { getSupportContact } from "@/lib/auth-service";
 import Header from "./Header";
 import HeroSection from "./sections/HeroSection";
@@ -9,7 +9,8 @@ import ServicesSection from "./sections/ServicesSection";
 import RequestAccountSection from "./sections/RequestAccountSection";
 import ContactSection from "./sections/ContactSection";
 import FooterSection from "./sections/FooterSection";
-import ClientRedirect from "./client-redirect";
+import { useAuthStore } from "@/store/auth-store";
+import { useRouter } from "next/navigation";
 import {
   PlugZap,
   Wrench,
@@ -21,6 +22,8 @@ import {
 
 export default function HomeLanding() {
   const support = getSupportContact();
+  const router = useRouter();
+  const { isAuthenticated, role, hydrated } = useAuthStore();
 
   const services = useMemo(
     () => [
@@ -55,15 +58,38 @@ export default function HomeLanding() {
         desc: "Transparent, fair estimates with no hidden costs.",
       },
     ],
-    []
+    [],
   );
+
+  // Verify auth first, then render or redirect
+  useEffect(() => {
+    if (!hydrated) return;
+    if (isAuthenticated) {
+      router.replace(role === "admin" ? "/admin/dashboard" : "/customer/bills");
+    }
+  }, [hydrated, isAuthenticated, role, router]);
+
+  // While verifying, show a lightweight loader to avoid flashing the landing UI
+  if (!hydrated) {
+    return (
+      <main className="min-h-screen bg-background text-foreground grid place-items-center">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          Verifying...
+        </div>
+      </main>
+    );
+  }
+
+  // If authenticated, redirect effect will run; render nothing
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <>
       <Header />
       <main className="min-h-screen bg-background text-foreground">
-        {/* If already authenticated in this browser, redirect to dashboard/customer portal. */}
-        <ClientRedirect redirectUnauthenticated={false} />
         <HeroSection
           support={{ phone: support.phone, whatsapp: support.whatsapp }}
         />

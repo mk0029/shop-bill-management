@@ -42,7 +42,7 @@ export function ResponsiveAccordion({
   className,
   defaultOpenMobile = false,
   headerRight,
-  removePX=false,
+  removePX = false,
   open: controlledOpen,
   onOpenChange,
   desktopCollapsible = false,
@@ -50,7 +50,7 @@ export function ResponsiveAccordion({
   const [internalOpen, setInternalOpen] = useState<boolean>(defaultOpenMobile);
   const open = useMemo(
     () => (controlledOpen !== undefined ? controlledOpen : internalOpen),
-    [controlledOpen, internalOpen]
+    [controlledOpen, internalOpen],
   );
 
   const toggle = () => {
@@ -60,11 +60,18 @@ export function ResponsiveAccordion({
   };
 
   return (
-    <div className={`rounded-lg border border-gray-800 bg-gray-900 ${className ?? ""}`}>
+    <div
+      className={`rounded-lg border border-gray-800 bg-gray-900 ${className ?? ""}`}
+    >
       {/* Header */}
-      <div   onClick={toggle} className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 cursor-pointer select-none">
+      <div
+        onClick={toggle}
+        className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 cursor-pointer select-none"
+      >
         <div className="flex items-center gap-3 min-w-0 w-full">
-          <div className="font-semibold text-white truncate w-full">{title}</div>
+          <div className="font-semibold text-white truncate w-full">
+            {title}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {headerRight}
@@ -81,7 +88,9 @@ export function ResponsiveAccordion({
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="inline-flex"
             >
-              <ChevronDown className="w-4 h-4 xl:hidden" />
+              <ChevronDown
+                className={`w-4 h-4 ${!desktopCollapsible ? "xl:hidden" : ""}`}
+              />
             </motion.span>
           </button>
         </div>
@@ -91,7 +100,11 @@ export function ResponsiveAccordion({
       {/* Desktop: always visible; Mobile: animated collapse */}
       {/* Desktop always open when not collapsible */}
       {!desktopCollapsible && (
-        <div className={`${removePX ? "" : "pb-3 px-3 sm:px-4 sm:pb-4"} hidden md:block`}>{children}</div>
+        <div
+          className={`${removePX ? "" : "pb-3 px-3 sm:px-4 sm:pb-4"} hidden md:block`}
+        >
+          {children}
+        </div>
       )}
       {/* Animated container for mobile, and for desktop when collapsible */}
       <AnimatePresence initial={false}>
