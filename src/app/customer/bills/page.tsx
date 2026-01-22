@@ -26,6 +26,7 @@ import {
   getStatusColor,
 } from "@/components/customer/bill-utils";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
+import { sanitizeUserText } from "@/constants/defaults";
 
 type SanityBill = StoreBill;
 
@@ -34,7 +35,7 @@ export default function CustomerBillsPage() {
   const allBills = useCustomerBillsStore((s) => s.bills) || [];
   const billsLoading = useCustomerBillsStore((s) => s.loading);
   const fetchBillsByCustomer = useCustomerBillsStore(
-    (s) => s.fetchBillsByCustomer
+    (s) => s.fetchBillsByCustomer,
   );
   const setBills = useCustomerBillsStore((s) => s.setBills);
   const {
@@ -112,7 +113,7 @@ export default function CustomerBillsPage() {
           (doc?.customerId && eqBiz(doc.customerId, currentBizId)) ||
           (doc?.customer?.customerId &&
             eqBiz(doc.customer.customerId, currentBizId)) ||
-          (doc?.billId && eqBiz(doc.billId, currentBizId))
+          (doc?.billId && eqBiz(doc.billId, currentBizId)),
       );
       if (belongs) {
         useCustomerBillsStore.getState().addOrUpdateBill(doc as any);
@@ -153,7 +154,7 @@ export default function CustomerBillsPage() {
           (result?.customerId && eqBiz(result.customerId, currentBizId)) ||
           (result?.customer?.customerId &&
             eqBiz(result.customer.customerId, currentBizId)) ||
-          (result?.billId && eqBiz(result.billId, currentBizId))
+          (result?.billId && eqBiz(result.billId, currentBizId)),
       );
       if (belongs) {
         useCustomerBillsStore.getState().addOrUpdateBill(result as any);
@@ -238,7 +239,7 @@ export default function CustomerBillsPage() {
       (customer as any)?._id ||
         (customer as any)?.customerId ||
         (user as any)?.customerId ||
-        resolvedSanityIdRef.current
+        resolvedSanityIdRef.current,
     );
     if (!hasAnyId) return;
     if (billsLoading) return;
@@ -253,7 +254,7 @@ export default function CustomerBillsPage() {
           (user as any)?.customerId;
         if (!cid) return;
         const list = await sanityClient.fetch(
-          queries.customerBills(String(cid))
+          queries.customerBills(String(cid)),
         );
         if (!cancelled && Array.isArray(list) && list.length > 0) {
           setBills(list as any);
@@ -299,7 +300,7 @@ export default function CustomerBillsPage() {
         ? bill.items.some((item: any) =>
             ((item?.productName as string) || "")
               .toLowerCase()
-              .includes(searchLower)
+              .includes(searchLower),
           )
         : false;
       const matchesSearch = numberMatch || itemsMatch;
@@ -354,11 +355,7 @@ export default function CustomerBillsPage() {
         <div>
           <h2 className="text-2xl font-bold text-white">
             {(() => {
-              const raw = (customer?.name as string) || "";
-              const cleaned = raw
-                .replace(/\s*[\(\[\{][^\)\]\}]*[\)\]\}]\s*/g, " ")
-                .replace(/\s+/g, " ")
-                .trim();
+              const cleaned = sanitizeUserText(customer?.name);
               return cleaned ? `${cleaned}'s Bills` : "Your Bills";
             })()}
           </h2>

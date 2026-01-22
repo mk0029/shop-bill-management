@@ -10,13 +10,24 @@ import { Input } from "@/components/ui/input";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { useBills, useCustomers } from "@/hooks/use-sanity-data";
 import { useLocaleStore } from "@/store/locale-store";
-import { ArrowLeft, FileText, Search, MessageSquare, Share2 } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Search,
+  MessageSquare,
+  Share2,
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useChatStore } from "@/store/chat-store";
 import { sanityApiService } from "@/lib/sanity-api-service";
-import { sharePendingBills, generatePendingBillsMessage, PendingBillShareInput } from "@/lib/pending-bill-share";
+import {
+  sharePendingBills,
+  generatePendingBillsMessage,
+  PendingBillShareInput,
+} from "@/lib/pending-bill-share";
+import { sanitizeUserText } from "@/constants/defaults";
 
 export default function CustomerBillsPage() {
   const params = useParams();
@@ -32,14 +43,14 @@ export default function CustomerBillsPage() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-
+  const [shareMode, setShareMode] = useState<"pending" | "thank">("pending");
   const customer = customers.find((c) => c._id === customerId);
 
   const getCustomerId = (c: any) =>
     typeof c === "string" ? c : c?._id || c?._ref;
 
   const customerBills = bills.filter(
-    (bill: any) => getCustomerId(bill.customer) === customerId
+    (bill: any) => getCustomerId(bill.customer) === customerId,
   );
 
   const stats = {
@@ -55,7 +66,9 @@ export default function CustomerBillsPage() {
       .reduce((s, b) => s + (b.balanceAmount || b.totalAmount || 0), 0),
   };
 
-  const pendingBillsCount = customerBills.filter((b) => b.paymentStatus !== "paid").length;
+  const pendingBillsCount = customerBills.filter(
+    (b) => b.paymentStatus !== "paid",
+  ).length;
 
   const statCards = [
     { label: "Total Bills", value: stats.totalBills, color: "text-white" },
@@ -92,41 +105,47 @@ export default function CustomerBillsPage() {
     try {
       const roomId = await openRoomByCustomer(String(customerId));
       await setActiveRoom(roomId);
-      router.push(`/admin/chats?customerId=${encodeURIComponent(String(customerId))}`);
+      router.push(
+        `/admin/chats?customerId=${encodeURIComponent(String(customerId))}`,
+      );
     } catch {
       toast.error("❌ Unable to open chat. Please try again.");
     }
   };
 
   const handleSharePendingBills = () => {
+    setShareMode("pending");
+    setShowShareModal(true);
+  };
+  const handleShareThankNote = () => {
+    setShareMode("thank");
     setShowShareModal(true);
   };
 
   const getPendingBillsShareData = (): PendingBillShareInput => {
-    const pending = customerBills.filter((b: any) => b.paymentStatus !== "paid");
+    const pending = customerBills.filter(
+      (b: any) => b.paymentStatus !== "paid",
+    );
 
     const pendingBillsDetailed = pending.map((b: any) => {
       const amount =
-        Number(
-          b.balanceAmount ??
-          b.totalAmount ??
-          b.total ??
-          0
-        ) || 0;
+        Number(b.balanceAmount ?? b.totalAmount ?? b.total ?? 0) || 0;
 
       const tech =
         typeof b.technician === "string"
           ? b.technician
           : b.technician?.name
-          ? { name: b.technician.name }
-          : undefined;
+            ? { name: b.technician.name }
+            : undefined;
 
       const items = Array.isArray(b.items)
         ? b.items.map((it: any) => {
             const qty = it?.qty ?? it?.quantity ?? it?.qtyCount;
             const rate = it?.rate ?? it?.price ?? it?.unitPrice;
             const amountLine =
-              it?.totalPrice ?? it?.amount ?? (Number(qty || 0) * Number(rate || 0) || undefined);
+              it?.totalPrice ??
+              it?.amount ??
+              (Number(qty || 0) * Number(rate || 0) || undefined);
             return {
               name: it?.product?.name || it?.name,
               qty: typeof qty === "number" ? qty : undefined,
@@ -158,12 +177,18 @@ export default function CustomerBillsPage() {
       pendingBills: pendingBillsDetailed,
     };
   };
-
   const handleShareOnWhatsApp = () => {
-    const shareData = getPendingBillsShareData();
-    const message = generatePendingBillsMessage(shareData);
-    
-    const phone = shareData.customer?.phone?.replace(/\D/g, "");
+    const pendingData = getPendingBillsShareData();
+    const message =
+      shareMode === "pending"
+        ? generatePendingBillsMessage(pendingData)
+        : generateThankYouMessage({
+            name: customer?.name || "Customer",
+            phone: customer?.phone || "",
+            secretKey: customer?.secretKey || "",
+          });
+
+    const phone = (customer?.phone || "").replace(/\D/g, "");
     const base = phone ? `https://wa.me/91${phone}` : `https://wa.me/`;
     const url = `${base}?text=${encodeURIComponent(message)}`;
 
@@ -172,64 +197,124 @@ export default function CustomerBillsPage() {
         window.open(url, "_blank");
       }
     } catch {
-      // Swallow errors in share path to avoid UI disruption
+      // swallow
     }
     setShowShareModal(false);
   };
 
   const handleNativeShare = () => {
-    const shareData = getPendingBillsShareData();
-    const message = generatePendingBillsMessage(shareData);
-    
+    const pendingData = getPendingBillsShareData();
+    const message =
+      shareMode === "pending"
+        ? generatePendingBillsMessage(pendingData)
+        : generateThankYouMessage({
+            name: customer?.name || "Customer",
+            phone: customer?.phone || "",
+            secretKey: customer?.secretKey || "",
+          });
+
     try {
       if (typeof navigator !== "undefined" && (navigator as any).share) {
         (navigator as any).share({ text: message }).catch(() => {});
         setShowShareModal(false);
       }
     } catch {
-      // Fallback to WhatsApp if native share fails
       handleShareOnWhatsApp();
     }
   };
 
   const handleCopyToClipboard = () => {
-    const shareData = getPendingBillsShareData();
-    const message = generatePendingBillsMessage(shareData);
-    
+    const pendingData = getPendingBillsShareData();
+    const message =
+      shareMode === "pending"
+        ? generatePendingBillsMessage(pendingData)
+        : generateThankYouMessage({
+            name: customer?.name || "Customer",
+            phone: customer?.phone || "",
+            secretKey: customer?.secretKey || "",
+          });
+
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(message).then(() => {
-        toast.success("Pending bill details copied to clipboard!");
-        setShowShareModal(false);
-      }).catch(() => {
-        toast.error("Failed to copy to clipboard");
-      });
+      navigator.clipboard
+        .writeText(message)
+        .then(() => {
+          toast.success(
+            shareMode === "pending"
+              ? "Pending bill details copied to clipboard!"
+              : "Thank note copied to clipboard!",
+          );
+          setShowShareModal(false);
+        })
+        .catch(() => {
+          toast.error("Failed to copy to clipboard");
+        });
     }
   };
+  function generateThankYouMessage({
+    name,
+    phone,
+    secretKey,
+  }: {
+    name?: string;
+    phone?: string;
+    secretKey?: string;
+  }) {
+    const safeName = name || "Customer";
+    const digits = (phone || "").replace(/\D/g, "");
+    const passKey = secretKey || "";
+    const loginUrl = `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(
+      digits,
+    )}&passKey=${encodeURIComponent(passKey)}`;
 
+    return (
+      `Dear ${sanitizeUserText(name || "Customer")},\n\n` +
+      `We’re happy to let you know that all your bills have been successfully paid ✅\n` +
+      `Thank you so much for clearing everything on time — we really appreciate it.\n\n` +
+      `🔐 View all your bills anytime here:\n` +
+      `${loginUrl}\n\n` +
+      `Thanks for trusting Jambh Electrical Services.\n` +
+      `Always here if you need anything ⚡🙏\n\n` +
+      `— Jambh Electrical Services`
+    );
+  }
   const handleUpdatePayment = async (
     billId: string,
-    paymentData: { paymentStatus: "pending" | "partial" | "paid"; paidAmount: number; balanceAmount: number; discount?: number }
+    paymentData: {
+      paymentStatus: "pending" | "partial" | "paid";
+      paidAmount: number;
+      balanceAmount: number;
+      discount?: number;
+    },
   ) => {
-    console.log('🔥 handleUpdatePayment called:', { billId, paymentData });
-    
+    console.log("🔥 handleUpdatePayment called:", { billId, paymentData });
+
     try {
-      const existingBill = bills.find((b: any) => (b._id || b.id) === billId) as any;
+      const existingBill = bills.find(
+        (b: any) => (b._id || b.id) === billId,
+      ) as any;
       const existingDiscount = Number(
-        (existingBill?.discount ?? existingBill?.discount ?? existingBill?.discountAmount ?? 0) || 0
+        (existingBill?.discount ??
+          existingBill?.discount ??
+          existingBill?.discountAmount ??
+          0) ||
+          0,
       );
-      const addDiscount = typeof paymentData.discount === 'number' ? Math.max(Number(paymentData.discount || 0), 0) : 0;
+      const addDiscount =
+        typeof paymentData.discount === "number"
+          ? Math.max(Number(paymentData.discount || 0), 0)
+          : 0;
       const totalDiscount = existingDiscount + addDiscount;
 
       // Calculate the amount being paid in this transaction
       const previousPaidAmount = Number(existingBill?.paidAmount || 0);
       const newPaidAmount = paymentData.paidAmount;
       const paymentAmount = newPaidAmount - previousPaidAmount;
-      
-      console.log('💰 Payment calculation:', {
+
+      console.log("💰 Payment calculation:", {
         previousPaidAmount,
         newPaidAmount,
         paymentAmount,
-        customer: customer?.name
+        customer: customer?.name,
       });
 
       const updateStartTime = Date.now();
@@ -240,54 +325,69 @@ export default function CustomerBillsPage() {
         ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
         updatedAt: new Date().toISOString(),
       } as any);
-      
-      console.log(`✅ Bill updated successfully in ${Date.now() - updateStartTime} ms`);
+
+      console.log(
+        `✅ Bill updated successfully in ${Date.now() - updateStartTime} ms`,
+      );
 
       // Create cash book entry asynchronously (don't wait for it)
       if (paymentAmount > 0 && customer) {
         // Fire and forget - don't await to avoid blocking the UI
         (async () => {
           try {
-            console.log('🏦 Creating cash book entry for manual payment:', {
+            console.log("🏦 Creating cash book entry for manual payment:", {
               billId,
               userId: customer._id,
               userName: customer.name,
               amount: paymentAmount,
-              paymentType: 'credit'
+              paymentType: "credit",
             });
-            
-            const result = await sanityApiService.cashBook.createEntryFromBillPayment({
-              billId: billId,
-              userId: customer._id,
-              userName: customer.name,
-              amount: paymentAmount,
-              paymentType: 'credit'
-            });
-            
-            console.log('📊 Manual payment cash book entry result:', result);
-            
+
+            const result =
+              await sanityApiService.cashBook.createEntryFromBillPayment({
+                billId: billId,
+                userId: customer._id,
+                userName: customer.name,
+                amount: paymentAmount,
+                paymentType: "credit",
+              });
+
+            console.log("📊 Manual payment cash book entry result:", result);
+
             if (!result.success) {
-              console.error('❌ Failed to create cash book entry for manual payment:', result.error);
+              console.error(
+                "❌ Failed to create cash book entry for manual payment:",
+                result.error,
+              );
             } else {
-              console.log('✅ Cash book entry created successfully:', result.data);
+              console.log(
+                "✅ Cash book entry created successfully:",
+                result.data,
+              );
             }
           } catch (cashBookError) {
-            console.error('❌ Failed to create cash book entry:', cashBookError);
+            console.error(
+              "❌ Failed to create cash book entry:",
+              cashBookError,
+            );
             // Don't fail payment update if cash book entry fails
           }
         })(); // Execute async function without awaiting
       } else {
-        console.log('⚠️ No payment amount or customer data, skipping cash book entry:', {
-          paymentAmount,
-          customerExists: !!customer,
-          customerName: customer?.name
-        });
+        console.log(
+          "⚠️ No payment amount or customer data, skipping cash book entry:",
+          {
+            paymentAmount,
+            customerExists: !!customer,
+            customerName: customer?.name,
+          },
+        );
       }
 
       toast.success(
         paymentData.paymentStatus === "paid"
           ? "✅ Bill marked as fully paid!"
-          : `✅ Payment of ₹${paymentData.paidAmount.toFixed(2)} recorded successfully!`
+          : `✅ Payment of ₹${paymentData.paidAmount.toFixed(2)} recorded successfully!`,
       );
 
       if (selectedBill?._id === billId) {
@@ -300,19 +400,25 @@ export default function CustomerBillsPage() {
         });
       }
     } catch (error) {
-      console.error('❌ Payment update failed:', error);
+      console.error("❌ Payment update failed:", error);
       toast.error("❌ Failed to update payment. Please try again.");
     }
   };
 
   if (customersLoading || billsLoading) {
-    return <div className="flex items-center justify-center min-h-screen text-white">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen text-white">
+        Loading...
+      </div>
+    );
   }
 
   if (!customer) {
     return (
       <div className="flex items-center justify-center min-h-screen text-center">
-        <h1 className="text-2xl font-bold text-white mb-4">Customer Not Found</h1>
+        <h1 className="text-2xl font-bold text-white mb-4">
+          Customer Not Found
+        </h1>
         <Button onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Go Back
         </Button>
@@ -324,61 +430,82 @@ export default function CustomerBillsPage() {
     <div className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex max-sm:flex-col sm:items-center gap-4 w-full justify-between">
-       <div className="flex items-center gap-4"> <Button variant="ghost" onClick={() => router.back()} className="p-2">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-base md:text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-            {customer.name}&apos;s Bills
-          </h1>
-          <p className="text-gray-400 mt-1 text-sm md:text-base">
-            {customer.phone} • {customer.location}
-          </p>
-        </div></div>
+        <div className="flex items-center gap-4">
+          {" "}
+          <Button variant="ghost" onClick={() => router.back()} className="p-2">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-base md:text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
+              {customer.name}&apos;s Bills
+            </h1>
+            <p className="text-gray-400 mt-1 text-sm md:text-base">
+              {customer.phone} • {customer.location}
+            </p>
+          </div>
+        </div>
         <div className="flex gap-2 max-md:justify-end">
-          <Button variant="secondary" onClick={handleSharePendingBills}>
-            <Share2 className="w-4 h-4 mr-2" />
-            Share Pending Bill's
-          </Button> 
+          {pendingBillsCount > 0 ? (
+            <Button variant="secondary" onClick={handleSharePendingBills}>
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Pending Bill's
+            </Button>
+          ) : (
+            <Button variant="secondary" onClick={handleShareThankNote}>
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Thank Note
+            </Button>
+          )}
           <Button variant="outline" onClick={handleOpenChat}>
             <MessageSquare className="w-4 h-4 mr-2" />
             Chat
           </Button>
-          <Button onClick={handleCreateBill} className="bg-blue-600 hover:bg-blue-700">
+          <Button
+            onClick={handleCreateBill}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
             Add Bill
           </Button>
         </div>
       </div>
 
       {/* Stats */}
-      <ResponsiveAccordion title="Stats and Filters" >
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4 mt-2">
-        {statCards.map((s) => (
-          <Card key={s.label} className="bg-gray-900 border-gray-800">
-            <CardContent className="p-2 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm font-medium leading-none">{s.label}</p>
-                  <p className={`text-base md:text-lg lg:text-2xl font-bold ${s.color}`}>{s.value}</p>
+      <ResponsiveAccordion title="Stats and Filters">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4 mt-2">
+          {statCards.map((s) => (
+            <Card key={s.label} className="bg-gray-900 border-gray-800">
+              <CardContent className="p-2 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-400 text-sm font-medium leading-none">
+                      {s.label}
+                    </p>
+                    <p
+                      className={`text-base md:text-lg lg:text-2xl font-bold ${s.color}`}
+                    >
+                      {s.value}
+                    </p>
+                  </div>
+                  <FileText className={`md:w-8 md:h-8 h-5 w-5 ${s.color}`} />
                 </div>
-                <FileText className={`md:w-8 md:h-8 h-5 w-5 ${s.color}`} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-     
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-      {/* Search */}
-     
-         <div className="relative mt-3"> <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+        {/* Search */}
+
+        <div className="relative mt-3">
+          {" "}
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
           <Input
             placeholder="Search bills by bill number or date..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
-          /></div>
-        </ResponsiveAccordion>
+          />
+        </div>
+      </ResponsiveAccordion>
 
       {/* Bills List */}
       <Card className="bg-gray-900 border-gray-800">

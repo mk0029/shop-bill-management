@@ -13,9 +13,10 @@ export interface DropdownOption {
 }
 
 interface DropdownProps {
-  options: DropdownOption[];  dropLeft?: boolean;
-  dropTop?:boolean,
-  minW?: boolean,
+  options: DropdownOption[];
+  dropLeft?: boolean;
+  dropTop?: boolean;
+  minW?: boolean;
   value?: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
@@ -23,6 +24,7 @@ interface DropdownProps {
   className?: string;
   size?: "sm" | "md" | "lg";
   searchable?: boolean;
+  removeSearchForce?: boolean;
   searchPlaceholder?: string;
   classNameButton?: string;
   scrollLock?: boolean;
@@ -43,6 +45,7 @@ export function Dropdown({
   className,
   size = "md",
   searchable,
+  removeSearchForce,
   searchPlaceholder = "Search...",
   classNameButton = "",
   dropLeft = false,
@@ -65,7 +68,7 @@ export function Dropdown({
       return options;
     }
     return options.filter((option) =>
-      option.label.toLowerCase().includes(searchTerm.toLowerCase())
+      option.label.toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }, [options, searchTerm, isSearchAvialable]);
 
@@ -99,8 +102,13 @@ export function Dropdown({
     };
   }, [isOpen, scrollLock]);
   React.useEffect(() => {
-    setIsSearch(options.length > 5 || searchable);
-  }, [options]);
+    if (removeSearchForce) {
+      setIsSearch(false);
+      return;
+    } else {
+      setIsSearch(options.length > 5 || searchable);
+    }
+  }, [options, removeSearchForce]);
 
   // Focus search input when dropdown opens
   React.useEffect(() => {
@@ -129,7 +137,8 @@ export function Dropdown({
     <div
       className={cn("relative rounded-md", className)}
       ref={dropdownRef}
-      onKeyDown={handleKeyDown}>
+      onKeyDown={handleKeyDown}
+    >
       <Button
         type="button"
         variant="outline"
@@ -139,24 +148,28 @@ export function Dropdown({
         className={cn(
           "max-sm:text-sm !h-[42px]  !min-h-[42px] w-full justify-between bg-gray-800 border-gray-700 text-white hover:bg-gray-700 hover:border-gray-600 touch-manipulation max-md:px-2 !py-1.5 sm:!py-2.5 px-2 sm:px-2.5",
           sizeClasses[size],
-          classNameButton
-        )}>
+          classNameButton,
+        )}
+      >
         <span
           className={`leading-none text-sm min-w-0 truncate ${
             selectedOption ? "text-white" : "text-gray-400"
-          }`}>
+          }`}
+        >
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown
           className={cn(
             "h-4 w-4 transition-transform duration-200",
-            isOpen && "rotate-180"
+            isOpen && "rotate-180",
           )}
         />
       </Button>
 
       {isOpen && (
-        <div className={`absolute ${minW?'min-w-[250px]':'w-full'} ${dropLeft?'left-0':'right-0'} ${!dropTop?'top-full mt-1':'bottom-full mb-1'}   bg-gray-800 border border-gray-400 rounded-lg shadow-2xl shadow-black/50 z-50 max-h-60 sm:max-h-60 overflow-hidden pb-2`}>
+        <div
+          className={`absolute ${minW ? "min-w-[250px]" : "w-full"} ${dropLeft ? "left-0" : "right-0"} ${!dropTop ? "top-full mt-1" : "bottom-full mb-1"}   bg-gray-800 border border-gray-400 rounded-lg shadow-2xl shadow-black/50 z-50 max-h-60 sm:max-h-60 overflow-hidden pb-2`}
+        >
           {isSearchAvialable && (
             <div className="p-1 sm:p-2 border-b border-gray-400">
               <div className="relative">
@@ -190,8 +203,9 @@ export function Dropdown({
                       ? "text-gray-500 cursor-not-allowed"
                       : "text-white hover:bg-gray-700 cursor-pointer",
                     option.value === value &&
-                      "bg-slate-600 text-white hover:bg-slate-700"
-                  )}>
+                      "bg-slate-600 text-white hover:bg-slate-700",
+                  )}
+                >
                   <span>{option.label}</span>
                   {option.value === value && <Check className="h-4 w-4" />}
                 </button>

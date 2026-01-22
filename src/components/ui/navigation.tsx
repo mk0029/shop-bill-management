@@ -37,6 +37,7 @@ import RoomsTopBar from "@/components/chat/RoomsTopBar";
 import RoomsOverlayList from "@/components/chat/RoomsOverlayList";
 import NewChatLauncher from "@/components/chat/new-chat-launcher";
 import { useChatStore } from "@/store/chat-store";
+import { sanitizeUserText } from "@/constants/defaults";
 
 interface NavigationItem {
   label: string;
@@ -107,6 +108,11 @@ const adminNavigation: NavigationItem[] = [
         href: "/admin/billing/fitting-wiring",
         icon: Settings,
       },
+      {
+        label: "Fitting Items List",
+        href: "/admin/tools/fitting-items",
+        icon: Settings,
+      },
       { label: "Settings", href: "/admin/settings", icon: Settings },
       {
         label: "Stock History",
@@ -162,26 +168,6 @@ export function Navigation() {
   const { activeRoomId, setActiveRoom } = useChatStore();
 
   // Sanitize displayed text for non-admin users by removing content under specific characters
-  const sanitizeUserText = (text: string): string => {
-    try {
-      let s = text ?? "";
-      // Remove content within (), {}, []
-      s = s.replace(/\(.*?\)/g, "");
-      s = s.replace(/\{.*?\}/g, "");
-      s = s.replace(/\[.*?\]/g, "");
-      // Remove content within single and double quotes
-      s = s.replace(/"[^"]*"/g, "");
-      s = s.replace(/'[^']*'/g, "");
-      // Remove markdown italic/bold segments
-      s = s.replace(/\*\*.*?\*\*/g, "");
-      s = s.replace(/\*.*?\*/g, "");
-      // Collapse extra whitespace
-      s = s.replace(/\s{2,}/g, " ").trim();
-      return s;
-    } catch {
-      return "";
-    }
-  };
 
   // Compute a safe display name depending on role
   const rawDisplayName =

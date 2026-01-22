@@ -12,12 +12,12 @@ interface ShareModalProps {
   onCopyToClipboard: () => void;
 }
 
-export const ShareModal = ({ 
-  showShareModal, 
-  setShowShareModal, 
-  onShareOnWhatsApp, 
-  onNativeShare, 
-  onCopyToClipboard 
+export const ShareModal = ({
+  showShareModal,
+  setShowShareModal,
+  onShareOnWhatsApp,
+  onNativeShare,
+  onCopyToClipboard,
 }: ShareModalProps) => {
   return (
     <AnimatePresence>
@@ -37,16 +37,16 @@ export const ShareModal = ({
             className="bg-gray-800 rounded-lg p-6 max-w-sm w-full border border-gray-700"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white mb-4">Share Bill</h3>
+            <h3 className="text-lg font-semibold text-white mb-4">Share To</h3>
             <div className="space-y-3">
               <Button
                 onClick={onShareOnWhatsApp}
                 className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-3"
               >
                 <MessageSquare className="w-5 h-5" />
-                Share on WhatsApp
+                WhatsApp
               </Button>
-              
+
               <Button
                 onClick={onNativeShare}
                 variant="outline"
@@ -55,16 +55,16 @@ export const ShareModal = ({
                 <Smartphone className="w-5 h-5" />
                 Native Share
               </Button>
-              
+
               <Button
                 onClick={onCopyToClipboard}
                 variant="outline"
                 className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
               >
                 <Copy className="w-5 h-5" />
-                Copy to Clipboard
+                Or Copy to Clipboard
               </Button>
-              
+
               <Button
                 onClick={() => setShowShareModal(false)}
                 variant="outline"
