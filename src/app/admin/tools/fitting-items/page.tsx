@@ -490,12 +490,18 @@ export default function FittingItemsListPage() {
 
     // Add categorized items with section headers
     const categoryEmojis = {
-      "Pipes & Accessories": "🟦",
-      "Boxes & Enclosures": "🟨",
-      "Switches & Accessories": "🟩",
-      "Protection Devices": "🟦",
-      "Wires & Cables": "🟪",
-      "Tools & Others": "🟥",
+      // "Pipes & Accessories": "🟦",
+      // "Boxes & Enclosures": "🟨",
+      // "Switches & Accessories": "🟩",
+      // "Protection Devices": "🟦",
+      // "Wires & Cables": "🟪",
+      // "Tools & Others": "🟥",
+      "Pipes & Accessories": "",
+      "Boxes & Enclosures": "",
+      "Switches & Accessories": "",
+      "Protection Devices": "",
+      "Wires & Cables": "",
+      "Tools & Others": "",
     };
 
     Object.entries(groupedItems).forEach(([category, items]) => {
