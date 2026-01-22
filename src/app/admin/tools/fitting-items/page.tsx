@@ -383,6 +383,9 @@ export default function FittingItemsListPage() {
       };
     });
     setItems((prev) => [...prev, ...newItems]);
+
+    // Clear all fixed quantities after adding to list
+    setFixedQuantities({});
   };
 
   const shareLine = useMemo(() => {
@@ -426,7 +429,7 @@ export default function FittingItemsListPage() {
 
     items.forEach((item) => {
       const itemName = item.name.toLowerCase();
-      const formattedLine = `• ${item.name} : ${item.qty} ${formatUnit(item.unit)}`;
+      const formattedLine = `• ${item.qty} ${formatUnit(item.unit)} : ${item.name} `;
 
       // Categorize based on keywords
       if (
@@ -964,6 +967,15 @@ export default function FittingItemsListPage() {
                     </div>
                   </div>
                 ))}
+                <div className="flex items-end justify-end">
+                  {" "}
+                  <Button
+                    onClick={clearAll}
+                    className="bg-red-600 hover:bg-red-500 mt-3 text-white"
+                  >
+                    Erase
+                  </Button>
+                </div>
               </div>
             )}
 
