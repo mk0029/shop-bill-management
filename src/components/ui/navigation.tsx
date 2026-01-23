@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -38,6 +38,15 @@ import RoomsOverlayList from "@/components/chat/RoomsOverlayList";
 import NewChatLauncher from "@/components/chat/new-chat-launcher";
 import { useChatStore } from "@/store/chat-store";
 import { sanitizeUserText } from "@/constants/defaults";
+
+// Helper function to calculate total unread messages for admins
+const getUnreadMessagesCount = (rooms: any[]) => {
+  if (!rooms || rooms.length === 0) return 0;
+  return rooms.reduce((total, room) => {
+    const unreadCount = room.unreadForAdmins || 0;
+    return total + unreadCount;
+  }, 0);
+};
 
 interface NavigationItem {
   label: string;
@@ -165,7 +174,7 @@ export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, logout, user } = useAuthStore();
-  const { activeRoomId, setActiveRoom } = useChatStore();
+  const { activeRoomId, setActiveRoom, rooms, loadRooms } = useChatStore();
 
   // Sanitize displayed text for non-admin users by removing content under specific characters
 
@@ -223,6 +232,16 @@ export function Navigation() {
     };
   }, [isMobileMenuOpen]);
 
+  // Load chat rooms for admin users to show unread message indicator on all pages
+  useEffect(() => {
+    if (role === "admin" && user) {
+      // Load rooms in background for unread message indicator
+      loadRooms().catch(() => {
+        // Silently fail - rooms will be loaded when user visits chat page
+      });
+    }
+  }, [role, user, loadRooms]);
+
   // Auto-open Rooms overlay on mobile when on Chats and no room selected
   useEffect(() => {
     // Determine if we are on chats without relying on isActive (to avoid lint dep)
@@ -239,6 +258,11 @@ export function Navigation() {
       }
     }
   }, [role, activeRoomId, pathname]);
+
+  // Calculate unread messages count for the orange dot indicator
+  const unreadMessagesCount = useMemo(() => {
+    return getUnreadMessagesCount(rooms || []);
+  }, [rooms]);
 
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
     const Icon = item.icon;
@@ -273,7 +297,7 @@ export function Navigation() {
             <Link
               href={item.href}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center justify-between w-full px-3 py-2 rounded-md text-base ${
+              className={`flex items-center justify-between w-full px-3 py-2 rounded-md text-base relative ${
                 active
                   ? "bg-slate-600 text-white"
                   : "text-gray-300 hover:bg-gray-800"
@@ -283,6 +307,10 @@ export function Navigation() {
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>
               </div>
+              {/* Orange dot indicator for new messages in Chats */}
+              {item.label === "Chats" && unreadMessagesCount > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+              )}
             </Link>
           )}
 
@@ -353,12 +381,16 @@ export function Navigation() {
       <Link
         key={item.label}
         href={item.href}
-        className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+        className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors relative ${
           active ? "bg-gray-500 text-white" : "text-gray-300 hover:bg-gray-800"
         }`}
       >
         <Icon className="w-5 h-5" />
         <span className="font-medium">{item.label}</span>
+        {/* Orange dot indicator for new messages in Chats */}
+        {item.label === "Chats" && unreadMessagesCount > 0 && (
+          <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+        )}
       </Link>
     );
   };
@@ -536,9 +568,13 @@ export function Navigation() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2"
+                className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2 relative"
               >
                 <Menu className="w-5 h-5" />
+                {/* Orange dot indicator for new messages on hamburger menu */}
+                {role === "admin" && unreadMessagesCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                )}
               </Button>
             </div>
           </div>

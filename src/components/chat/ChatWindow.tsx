@@ -1,32 +1,18 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { useChatStore } from "@/store/chat-store";
-import { SwipeableMessage } from "./SwipeableMessage";
-import { SendHorizontalIcon, PaperclipIcon, XIcon, Mic as MicIcon } from "lucide-react";
-import { BillDetailTrigger } from "../bills/bill-detail-trigger";
+import MessageList from "./MessageList";
+import MessageInput from "./MessageInput";
+import VoiceRecorder from "./VoiceRecorder";
+import {
+  useChatData,
+  useScrollToBottom,
+  useMessageSeen,
+  useFileUpload,
+  useVoiceRecorder,
+} from "./hooks/useChatHooks";
 import type { ChatMessage } from "@/lib/chat-api";
-import { motion } from "framer-motion";
-import Image from "next/image";
-
-// Utility function to format date headers
-const getFormattedDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Check if the date is today
-  if (date.toDateString() === today.toDateString()) {
-    return 'Today';
-  }
-  // Check if the date is yesterday
-  if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday';
-  }
-  // For older dates, return in DD/MM/YYYY format
-  return date.toLocaleDateString('en-GB'); // This will format as DD/MM/YYYY
-};
 
 type Props = {
   roomId: string;
@@ -35,625 +21,68 @@ type Props = {
 };
 
 export default function ChatWindow({ roomId, senderId, actor }: Props) {
-  const { messagesByRoomId, fetchMessages, sendMessage, markRead, markMessageSeen, rooms, editMessage } = useChatStore();
+  const { sendMessage, editMessage } = useChatStore();
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
-  const [showScrollButton, setShowScrollButton] = useState(false);
-  const [seenQueue, setSeenQueue] = useState<Set<string>>(new Set());
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const messageRefs = useRef<Map<string, HTMLElement>>(new Map());
-  type LiteBill = { 
-    _id: string; 
-    billNumber?: string; 
-    totalAmount?: number; 
-    createdAt: string;
-    paymentStatus?: string;
-    status?: string;
-    paidAmount?: number;
-    balanceAmount?: number;
-  };
-  const [bills, setBills] = useState<LiteBill[]>([]);
-  const [attachments, setAttachments] = useState<Array<{ file: File; preview?: string; id: string }>>([]);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingError, setRecordingError] = useState<string | null>(null);
-  const [audioLevels, setAudioLevels] = useState<number[]>(Array(30).fill(0));
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const shouldSendRecordingRef = useRef<boolean>(true); // Flag to control if recording should be sent
 
-  const messages = useMemo(() => messagesByRoomId[roomId] || [], [messagesByRoomId, roomId]);
+  // Use custom hooks
+  const { messages, bills, rooms } = useChatData(roomId, senderId, actor);
+  const { showScrollButton, scrollToBottom, bottomRef } =
+    useScrollToBottom(listRef);
+  const { registerMessageRef } = useMessageSeen(roomId, senderId, messages);
+  const {
+    attachments,
+    uploadProgress,
+    uploadingFiles,
+    handleFileSelect,
+    removeAttachment,
+    uploadFileWithProgress,
+    clearAttachments,
+  } = useFileUpload();
+  const {
+    isRecording,
+    recordingError,
+    audioLevels,
+    recordingDuration,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+  } = useVoiceRecorder();
 
-  const customerId = useMemo(() => {
-    const r = (rooms || []).find((x) => x._id === roomId);
-    return r?.customer?._id;
-  }, [rooms, roomId]);
-
-  useEffect(() => {
-    fetchMessages(roomId).then(() => {
-      markRead(roomId, actor);
-      // Auto-scroll to bottom when chat loads
-      setTimeout(() => {
-        if (listRef.current) {
-          listRef.current.scrollTo({
-            top: listRef.current.scrollHeight,
-            behavior: 'smooth'
-          });
-        }
-      }, 100);
-    }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
-
-  // Handle scroll detection for scroll-to-bottom button
-  useEffect(() => {
-    const scrollContainer = listRef.current;
-    if (!scrollContainer) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setShowScrollButton(!isNearBottom);
-    };
-
-    scrollContainer.addEventListener('scroll', handleScroll);
-    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  // Event handlers
+  const handleReply = useCallback((message: ChatMessage) => {
+    setReplyingTo(message);
+    setEditingId(null);
+    const input = document.getElementById("message-input");
+    input?.focus();
   }, []);
 
-  const attachAudioBlobAsFile = useCallback(async (blob: Blob, mime: string) => {
-    // Check if recording should be sent (not cancelled)
-    if (!shouldSendRecordingRef.current) {
-      console.log('Recording cancelled, not sending');
-      shouldSendRecordingRef.current = true; // Reset flag
-      return;
-    }
-    
-    try {
-      const filename = `voice-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
-      const file = new File([blob], filename, { type: mime || blob.type || 'audio/webm' });
-      const attachmentId = `voice_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      
-      // Send directly like WhatsApp (no preview)
-      setUploadingFiles(new Set([attachmentId]));
-      setUploadProgress({ [attachmentId]: 1 });
-      
-      try {
-        // Upload file with progress
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            setUploadProgress(prev => ({ ...prev, [attachmentId]: percentComplete }));
-          }
-        });
-
-        const uploadPromise = new Promise<{ _id: string; filename: string; size: number; type: string; url: string }>((resolve, reject) => {
-          xhr.addEventListener('load', () => {
-            if (xhr.status === 200) {
-              try {
-                const result = JSON.parse(xhr.responseText);
-                if (!result || !result.assetId || !result.url) {
-                  reject(new Error(`Invalid upload response`));
-                } else {
-                  resolve({
-                    _id: result.assetId,
-                    filename: file.name,
-                    size: file.size,
-                    type: file.type,
-                    url: result.url
-                  });
-                }
-              } catch {
-                reject(new Error(`Failed to parse response`));
-              }
-            } else {
-              reject(new Error(`Upload failed: ${xhr.statusText}`));
-            }
-          });
-
-          xhr.addEventListener('error', () => {
-            reject(new Error(`Network error while uploading`));
-          });
-
-          xhr.open('POST', '/api/upload/chat');
-          xhr.send(formData);
-        });
-
-        const result = await uploadPromise;
-        
-        setUploadingFiles(new Set());
-        setUploadProgress({});
-        
-        // Send voice message immediately
-        await sendMessage(
-          roomId,
-          '', // No text content
-          senderId,
-          actor === "customer",
-          undefined,
-          undefined,
-          [result]
-        );
-        
-        // Focus input after sending
-        setTimeout(() => {
-          const input = document.getElementById('message-input') as HTMLInputElement;
-          input?.focus();
-        }, 50);
-      } catch (error) {
-        console.error('Failed to send voice message:', error);
-        setUploadingFiles(new Set());
-        setUploadProgress({});
-      }
-    } catch (e) {
-      console.error('Failed to process audio file', e);
-    }
-  }, [roomId, senderId, actor, sendMessage]);
-
-  const stopRecording = useCallback(() => {
-    try {
-      // Clear timer
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      
-      const r = mediaRecorderRef.current;
-      if (r && r.state !== 'inactive') {
-        r.stop();
-      } else {
-        setIsRecording(false);
-        setRecordingDuration(0);
-      }
-    } catch {
-      setIsRecording(false);
-      setRecordingDuration(0);
-    }
+  const handleEdit = useCallback((message: ChatMessage) => {
+    setEditingId(message._id);
+    setReplyingTo(null);
+    setText(message.content as string);
+    setTimeout(() => {
+      const input = document.getElementById("message-input");
+      input?.focus();
+    }, 100);
   }, []);
 
-  const startRecording = useCallback(async () => {
-    setRecordingError(null);
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setRecordingError('Audio recording is not supported in this browser.');
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Set up audio analysis for waveform visualization
-      const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (AudioContextClass) {
-        const audioContext = new AudioContextClass();
-        const analyser = audioContext.createAnalyser();
-        const source = audioContext.createMediaStreamSource(stream);
-        source.connect(analyser);
-        analyser.fftSize = 64; // Small FFT for responsive visualization
-        audioContextRef.current = audioContext;
-        analyserRef.current = analyser;
-        
-        // Start visualization loop
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        const updateWaveform = () => {
-          if (!analyserRef.current) return;
-          analyserRef.current.getByteFrequencyData(dataArray);
-          
-          // Sample 30 points from the frequency data
-          const levels = Array.from({ length: 30 }, (_, i) => {
-            const index = Math.floor((i / 30) * dataArray.length);
-            return dataArray[index] / 255; // Normalize to 0-1
-          });
-          setAudioLevels(levels);
-          animationFrameRef.current = requestAnimationFrame(updateWaveform);
-        };
-        updateWaveform();
-      }
-      
-      const mimeCandidates = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/ogg'
-      ];
-      let mimeType = '';
-      const MR: typeof MediaRecorder | undefined = typeof MediaRecorder !== 'undefined' ? MediaRecorder : undefined;
-      for (const m of mimeCandidates) {
-        if (MR?.isTypeSupported && MR.isTypeSupported(m)) { mimeType = m; break; }
-      }
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      recordingChunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) recordingChunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        try {
-          const blob = new Blob(recordingChunksRef.current, { type: mimeType || 'audio/webm' });
-          attachAudioBlobAsFile(blob, mimeType || 'audio/webm');
-        } finally {
-          // Stop audio analysis
-          if (animationFrameRef.current) {
-            cancelAnimationFrame(animationFrameRef.current);
-            animationFrameRef.current = null;
-          }
-          if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-          }
-          analyserRef.current = null;
-          setAudioLevels(Array(30).fill(0));
-          // stop tracks
-          try { stream.getTracks().forEach(t => t.stop()); } catch {}
-          setIsRecording(false);
-        }
-      };
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setIsRecording(true);
-      setRecordingDuration(0);
-      
-      // Start timer (4 minute max = 240 seconds)
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => {
-          const newDuration = prev + 1;
-          // Auto-stop at 4 minutes (240 seconds)
-          if (newDuration >= 240) {
-            stopRecording();
-            return 240;
-          }
-          return newDuration;
-        });
-      }, 1000);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to start recording';
-      setRecordingError(message);
-      setIsRecording(false);
-    }
-  }, [attachAudioBlobAsFile, stopRecording]);
-
-  // Scroll to bottom function
-  const scrollToBottom = () => {
-    if (listRef.current) {
-      listRef.current.scrollTo({
-        top: listRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  // Fetch bills for this room's customer and keep a lightweight list
-  useEffect(() => {
-    let alive = true;
-    if (!customerId) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/bill-book/user/${encodeURIComponent(customerId)}/list`, { cache: 'no-store' });
-        const json = await res.json();
-        if (!alive) return;
-        if (json?.success && Array.isArray(json.data)) {
-          const list: LiteBill[] = (json.data as Array<Record<string, unknown>>).map((b) => {
-            const paymentStatusUnknown = (b as { paymentStatus?: unknown }).paymentStatus;
-            const statusUnknown = (b as { status?: unknown }).status;
-            return {
-              _id: String(b._id as string),
-              billNumber: b.billNumber as string | undefined,
-              totalAmount: Number((b.totalAmount as number | string | undefined) ?? 0),
-              createdAt: String(b.createdAt as string),
-              paymentStatus: typeof paymentStatusUnknown === 'string' ? paymentStatusUnknown : undefined,
-              status: typeof statusUnknown === 'string' ? statusUnknown : undefined,
-              paidAmount: typeof (b as { paidAmount?: unknown }).paidAmount === 'number' ? (b as { paidAmount?: unknown }).paidAmount as number : Number(((b as { paidAmount?: unknown }).paidAmount as string) || 0),
-              balanceAmount: typeof (b as { balanceAmount?: unknown }).balanceAmount === 'number' ? (b as { balanceAmount?: unknown }).balanceAmount as number : Number(((b as { balanceAmount?: unknown }).balanceAmount as string) || 0),
-            };
-          });
-          setBills(list);
-        } else {
-          setBills([]);
-        }
-      } catch { setBills([]); }
-    })();
-    return () => { alive = false; };
-  }, [customerId]);
-
-  // Realtime: listen to bill documents for this customer and update timeline immediately
-  useEffect(() => {
-    if (!customerId) return;
-    // TODO: Implement real-time bill updates when sanityClient is available
-    // For now, we'll rely on the initial fetch
-    return () => {};
-  }, [customerId]);
-
-  // Auto scroll to bottom on messages change
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length]);
-
-  // Group messages by date
-  const groupedMessages = useMemo(() => {
-    type MessageItem = { 
-      kind: 'msg'; 
-      createdAt: string; 
-      m: ChatMessage;
-    };
-
-    type BillItem = { 
-      kind: 'bill'; 
-      createdAt: string; 
-      b: LiteBill;
-    };
-
-    type GroupedItem = MessageItem | BillItem;
-    
-    const groups: Record<string, GroupedItem[]> = {};
-    
-    // Combine and sort all items (messages and bills)
-    const msgItems: MessageItem[] = messages.map(m => ({
-      kind: 'msg' as const,
-      createdAt: m.createdAt as string,
-      m
-    }));
-    
-    const billItems: BillItem[] = bills.map(b => ({
-      kind: 'bill' as const,
-      createdAt: b.createdAt,
-      b
-    }));
-    
-    // Combine and sort all items by date
-    const allItems = [...msgItems, ...billItems].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-
-    // Group by date
-    allItems.forEach(item => {
-      const dateKey = new Date(item.createdAt).toDateString();
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
-      groups[dateKey].push(item);
-    });
-
-    return Object.entries(groups).map(([date, items]) => ({
-      date,
-      formattedDate: getFormattedDate(date),
-      items: items.sort((a, b) => 
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      )
-    }));
-  }, [messages, bills]);
-
-  // Helper: compute normalized bill status
-  const getBillStatus = useCallback((b: LiteBill): string => {
-    const stored = (b.paymentStatus || b.status || '').toLowerCase();
-    if (stored) {
-      // Normalize 'draft' to 'pending' for display
-      if (stored === 'draft') return 'pending';
-      // Prefer stored value to avoid flip-flops when numbers momentarily look stale
-      return stored;
-    }
-    // Fallback to derived from numeric fields when no stored status
-    const total = Number(b.totalAmount || 0);
-    const paid = Number(b.paidAmount || 0);
-    const bal = b.balanceAmount != null ? Number(b.balanceAmount) : (total - paid);
-    if (Number.isFinite(bal)) {
-      if (bal <= 0) return 'paid';
-      if (bal > 0 && paid > 0) return 'partial';
-      return 'pending';
-    }
-    if (total > 0 && paid >= total) return 'paid';
-    if (paid > 0 && paid < total) return 'partial';
-    return 'pending';
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setText("");
+    const input = document.getElementById("message-input");
+    input?.focus();
   }, []);
 
-  // Helper: get Tailwind classes for bill status (pending=yellow, paid=green, partial=orange, due/overdue=red)
-  const getBillStatusClasses = useCallback((b: LiteBill) => {
-    const raw = getBillStatus(b);
-    if (raw === 'paid') {
-      return {
-        container: 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700',
-        textMuted: 'text-emerald-700 dark:text-emerald-300',
-        button: 'border-emerald-500 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white',
-        title: 'text-emerald-900 dark:text-emerald-200',
-        badge: 'bg-emerald-600 text-white',
-        badgeText: 'PAID',
-      } as const;
-    }
-    if (raw === 'partial') {
-      return {
-        container: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700',
-        textMuted: 'text-orange-700 dark:text-orange-300',
-        button: 'border-orange-500 text-orange-700 dark:text-orange-300 hover:bg-orange-600 hover:text-white',
-        title: 'text-orange-900 dark:text-orange-200',
-        badge: 'bg-orange-500 text-white',
-        badgeText: 'PARTIAL',
-      } as const;
-    }
-    if (raw === 'pending') {
-      return {
-        container: 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-700',
-        textMuted: 'text-yellow-700 dark:text-yellow-300',
-        button: 'border-yellow-500 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-600 hover:text-white',
-        title: 'text-yellow-900 dark:text-yellow-200',
-        badge: 'bg-yellow-500 text-black',
-        badgeText: 'PENDING',
-      } as const;
-    }
-    if (raw === 'due' || raw === 'overdue') {
-      return {
-        container: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700',
-        textMuted: 'text-red-700 dark:text-red-300',
-        button: 'border-red-500 text-red-700 dark:text-red-300 hover:bg-red-600 hover:text-white',
-        title: 'text-red-900 dark:text-red-200',
-        badge: 'bg-red-600 text-white',
-        badgeText: 'DUE',
-      } as const;
-    }
-    return {
-      container: 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700',
-      textMuted: 'text-zinc-500 dark:text-zinc-400',
-      button: 'border-zinc-400 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-700 hover:text-white',
-      title: 'text-zinc-900 dark:text-zinc-100',
-      badge: 'bg-zinc-600 text-white',
-      badgeText: 'BILL',
-    } as const;
-  }, [getBillStatus]);
-
-  // Queue mechanism for processing seen messages
-  const processSeenQueue = useCallback(async () => {
-    if (seenQueue.size === 0) return;
-    
-    const messagesToProcess = Array.from(seenQueue);
-    setSeenQueue(new Set());
-    
-    // Process in batches to avoid overwhelming the API
-    for (const messageId of messagesToProcess) {
-      try {
-        await markMessageSeen(roomId, messageId);
-      } catch (error) {
-        console.error('Failed to mark message as seen:', messageId, error);
-      }
-    }
-  }, [seenQueue, roomId, markMessageSeen]);
-
-  // Process queue every 2 seconds
-  useEffect(() => {
-    const interval = setInterval(processSeenQueue, 2000);
-    return () => clearInterval(interval);
-  }, [processSeenQueue]);
-
-  // Intersection Observer for message visibility
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-            const messageId = entry.target.getAttribute('data-message-id');
-            if (messageId) {
-              const message = messages.find(m => m._id === messageId);
-              if (message) {
-                const isSelf = getMsgSenderId(message) === senderId;
-                if (!isSelf && message.status !== 'seen') {
-                  setSeenQueue(prev => new Set([...prev, messageId]));
-                }
-              }
-            }
-          }
-        });
-      },
-      {
-        threshold: [0.6],
-        rootMargin: '0px 0px -20px 0px'
-      }
-    );
-
-    // Observe all message elements
-    messageRefs.current.forEach((element) => {
-      if (observerRef.current) {
-        observerRef.current.observe(element);
-      }
-    });
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [messages, senderId, markMessageSeen, roomId]);
-
-  // Register message element for observation
-  const registerMessageRef = useCallback((messageId: string, element: HTMLElement | null) => {
-    if (element) {
-      messageRefs.current.set(messageId, element);
-      if (observerRef.current) {
-        observerRef.current.observe(element);
-      }
-    } else {
-      messageRefs.current.delete(messageId);
-    }
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
   }, []);
 
-  const handleFileSelect = useCallback((files: FileList | null) => {
-    if (!files) return;
-    const newAttachments = Array.from(files).map(file => ({
-      file,
-      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
-      id: `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`
-    }));
-    setAttachments(prev => [...prev, ...newAttachments]);
+  const handleClearRecordingError = useCallback(() => {
+    // This will be handled by the voice recorder hook
   }, []);
-
-  const removeAttachment = useCallback((id: string) => {
-    setAttachments(prev => {
-      const attachment = prev.find(a => a.id === id);
-      if (attachment?.preview) {
-        URL.revokeObjectURL(attachment.preview);
-      }
-      return prev.filter(a => a.id !== id);
-    });
-  }, []);
-
-  const uploadFileWithProgress = (file: File, attachmentId: string): Promise<{ _id: string; filename: string; size: number; type: string; url: string }> => {
-    return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = (e.loaded / e.total) * 100;
-          setUploadProgress(prev => ({ ...prev, [attachmentId]: percentComplete }));
-        }
-      });
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          try {
-            const result = JSON.parse(xhr.responseText);
-            if (!result || !result.assetId || !result.url) {
-              reject(new Error(`Invalid upload response for ${file.name}`));
-            } else {
-              resolve({
-                _id: result.assetId,
-                filename: file.name,
-                size: file.size,
-                type: file.type,
-                url: result.url
-              });
-            }
-          } catch (_error) {
-            reject(new Error(`Failed to parse response for ${file.name}`));
-          }
-        } else {
-          reject(new Error(`Upload failed for ${file.name}: ${xhr.statusText}`));
-        }
-      });
-
-      xhr.addEventListener('error', () => {
-        reject(new Error(`Network error while uploading ${file.name}`));
-      });
-
-      xhr.open('POST', '/api/upload/chat');
-      xhr.send(formData);
-    });
-  };
 
   const onSend = async () => {
     const content = text.trim();
@@ -663,26 +92,38 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     const currentReply = replyingTo;
     const currentAttachments = [...attachments];
 
-    // --- Optimistic UI: Clear inputs immediately ---
+    // Optimistic UI: Clear inputs immediately
     setText("");
     setEditingId(null);
     setReplyingTo(null);
-    setAttachments([]);
-    setTimeout(() => document.getElementById('message-input')?.focus(), 0);
+    clearAttachments();
+
+    // Focus input immediately after clearing
+    const input = document.getElementById("message-input") as HTMLInputElement;
+    if (input) {
+      input.focus();
+    }
 
     if (currentEditing) {
       await editMessage(roomId, currentEditing, content);
+      // Re-focus after edit
+      setTimeout(() => {
+        const editInput = document.getElementById(
+          "message-input",
+        ) as HTMLInputElement;
+        if (editInput) editInput.focus();
+      }, 50);
       return;
     }
 
-    // --- Optimistic UI: Create and send a temporary message --- 
+    // Optimistic UI: Create and send a temporary message
     const tempId = `temp_${Date.now()}`;
-    const optimisticAttachments = currentAttachments.map(att => ({
-      _id: att.id, // This is the temporary attachment ID
+    const optimisticAttachments = currentAttachments.map((att) => ({
+      _id: att.id,
       filename: att.file.name,
       size: att.file.size,
       type: att.file.type,
-      url: '', // No URL yet
+      url: "",
     }));
 
     const optimisticMessage: ChatMessage = {
@@ -692,565 +133,134 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
       sender: { _ref: senderId },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      status: 'pending',
+      status: "pending",
       attachments: optimisticAttachments,
-      ...(currentReply && { parentMessage: { _id: currentReply._id, content: currentReply.content, sender: currentReply.sender } })
+      ...(currentReply && {
+        parentMessage: {
+          _id: currentReply._id,
+          content: currentReply.content,
+          sender: currentReply.sender,
+        },
+      }),
     };
 
-    // Add the optimistic message to the store so it appears instantly
     useChatStore.getState().addOptimisticMessage(roomId, optimisticMessage);
 
-    // Initialize upload progress for the UI
-    const initialProgress: Record<string, number> = {};
-    currentAttachments.forEach(att => { initialProgress[att.id] = 1; });
-    setUploadProgress(prev => ({ ...prev, ...initialProgress }));
-
-    // --- Background Upload --- 
     try {
-      const uploadPromises = currentAttachments.map(attachment =>
-        uploadFileWithProgress(attachment.file, attachment.id)
+      const uploadPromises = currentAttachments.map((attachment) =>
+        uploadFileWithProgress(attachment.file, attachment.id),
       );
 
-      const results = await Promise.all(uploadPromises.map(p => p.catch(e => e)));
-      
-      // Separate successful uploads from errors
-      const uploadedAttachments = results.filter(result => !(result instanceof Error));
-      const failedUploads = results.filter(result => result instanceof Error);
-      
-      // Log any upload errors
+      const results = await Promise.all(
+        uploadPromises.map((p) => p.catch((e) => e)),
+      );
+
+      const uploadedAttachments = results.filter(
+        (result) => !(result instanceof Error),
+      );
+      const failedUploads = results.filter((result) => result instanceof Error);
+
       if (failedUploads.length > 0) {
-        console.error('Some attachments failed to upload:', failedUploads);
-        failedUploads.forEach((error, index) => {
-          console.error(`Upload error ${index + 1}:`, error);
-        });
+        console.error("Some attachments failed to upload:", failedUploads);
       }
-      
-      // If we have attachments but all failed to upload, don't send the message
+
       if (currentAttachments.length > 0 && uploadedAttachments.length === 0) {
-        console.error('All attachments failed to upload. Message not sent.');
-        useChatStore.getState().updateMessageStatus(roomId, tempId, 'failed');
-        alert('Failed to upload attachments. Please try again.');
+        console.error("All attachments failed to upload. Message not sent.");
+        useChatStore.getState().updateMessageStatus(roomId, tempId, "failed");
+        alert("Failed to upload attachments. Please try again.");
         return;
       }
 
-      // Update the optimistic message with the real data from the server
       await useChatStore.getState().finalizeOptimisticMessage(tempId, {
         content,
         attachments: uploadedAttachments,
-        isCustomer: actor === 'customer',
+        isCustomer: actor === "customer",
         roomId,
         senderId,
-        ...(currentReply && { parentId: currentReply._id })
+        ...(currentReply && { parentId: currentReply._id }),
       });
 
+      // Ensure input is focused after successful send
+      setTimeout(() => {
+        const sentInput = document.getElementById(
+          "message-input",
+        ) as HTMLInputElement;
+        if (sentInput) sentInput.focus();
+      }, 100);
     } catch (error) {
-      console.error('Failed to send message:', error);
-      // Handle error: maybe mark the optimistic message as failed
-      useChatStore.getState().updateMessageStatus(roomId, tempId, 'failed');
+      console.error("Failed to send message:", error);
+      useChatStore.getState().updateMessageStatus(roomId, tempId, "failed");
     }
   };
-
-  const getMsgSenderId = (m: ChatMessage): string | undefined => {
-    if (!m?.sender) return undefined;
-    const s = m.sender as { _id?: string; _ref?: string };
-    return s._id ?? s._ref;
-  };
-
 
   return (
     <div className="flex flex-col h-full relative">
       <div ref={listRef} className="flex flex-col grow overflow-y-auto pr-1">
-        <div className="space-y-4">
-          {groupedMessages.map((group, groupIndex) => (
-            <div key={`group-${groupIndex}`}>
-              <div className="sticky top-0  flex justify-center z-30 mb-2">
-                <div className="bg-white dark:bg-zinc-800 px-3 py-1 rounded-full text-xs font-medium text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                  {group.formattedDate}
-                </div>
-              </div>
-              {group.items.map((item, idx) => {
-                // Helper to determine message grouping position
-                const getMessageGroupPosition = (currentIdx: number): 'single' | 'first' | 'middle' | 'last' => {
-                  const currentItem = group.items[currentIdx];
-                  if (currentItem.kind !== 'msg') return 'single';
-                  
-                  const currentMsg = currentItem.m;
-                  const currentSenderId = getMsgSenderId(currentMsg);
-                  
-                  // Check previous message
-                  const prevItem = currentIdx > 0 ? group.items[currentIdx - 1] : null;
-                  const prevMsg = prevItem?.kind === 'msg' ? prevItem.m : null;
-                  const prevSenderId = prevMsg ? getMsgSenderId(prevMsg) : null;
-                  const hasPrevSameSender = prevSenderId === currentSenderId;
-                  
-                  // Check next message
-                  const nextItem = currentIdx < group.items.length - 1 ? group.items[currentIdx + 1] : null;
-                  const nextMsg = nextItem?.kind === 'msg' ? nextItem.m : null;
-                  const nextSenderId = nextMsg ? getMsgSenderId(nextMsg) : null;
-                  const hasNextSameSender = nextSenderId === currentSenderId;
-                  
-                  if (!hasPrevSameSender && !hasNextSameSender) return 'single';
-                  if (!hasPrevSameSender && hasNextSameSender) return 'first';
-                  if (hasPrevSameSender && hasNextSameSender) return 'middle';
-                  if (hasPrevSameSender && !hasNextSameSender) return 'last';
-                  
-                  return 'single';
-                };
-                
-                if (item.kind === 'bill') {
-                  const b = item.b;
-                  const status = getBillStatus(b);
-                  const billCls = getBillStatusClasses(b);
-                  const total = Number(b.totalAmount ?? 0);
-                  const paid = Number(b.paidAmount ?? 0);
-                  const due = Number(
-                    b.balanceAmount != null ? b.balanceAmount : Math.max(0, total - paid)
-                  );
-                  // Button label based on actor and status
-                  const buttonLabel = actor === 'admin'
-                    ? (status === 'paid' ? 'View' : 'Update')
-                    : (status === 'paid' ? 'View' : 'Pay Now');
-                  return (
-                    <div key={`bill-${b._id}-${idx}`} className="flex justify-start w-full">
-                      <div className={`max-w-[90%] md:max-w-[80%] border rounded-md p-3 ${billCls.container}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <div className={`text-sm font-semibold ${billCls.title}`}>
-                              Bill Created of ₹{Number(b.totalAmount ?? 0).toLocaleString('en-IN')}
-                            </div>
-                            <div className={`text-xs ${billCls.textMuted}`}>
-                              {new Date(item.createdAt).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true
-                              })}
-                            </div>
-                            {/* Status-specific details */}
-                            {status === 'partial' && (
-                              <div className="mt-1 flex items-center gap-2 text-[11px]">
-                                <span className="font-medium text-emerald-600 dark:text-emerald-300">Paid ₹{paid.toLocaleString('en-IN')}</span>
-                                <span className="opacity-50">•</span>
-                                <span className="font-medium text-orange-600 dark:text-orange-300">Due ₹{due.toLocaleString('en-IN')}</span>
-                              </div>
-                            )}
-                            {status === 'pending' && due > 0 && (
-                              <div className="mt-1 text-[9px] md:text-[11px] font-medium text-yellow-700 dark:text-yellow-300">
-                                Pending ₹{due.toLocaleString('en-IN')}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {/* <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${billCls.badge}`}>{(status || '').toUpperCase()}</span> */}
-                            <BillDetailTrigger 
-                              bill={b}
-                              buttonLabel={buttonLabel}
-                              variant="outline"
-                              size="sm"
-                              className={`h-8 ${billCls.button}`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                
-                const m = item.m;
-                if (!m) return null;
-                
-                // Get message grouping position
-                const groupPosition = getMessageGroupPosition(idx);
-                
-                // In admin view: ALL admin messages appear on right, customer messages on left
-                // In customer view: only own messages appear on right
-                const msgSenderId = getMsgSenderId(m);
-                let isSelf: boolean;
-                
-                if (actor === "admin") {
-                  // For admin view: determine if message is from admin or customer
-                  // Check if the sender is the customer for this room
-                  const room = rooms.find(r => r._id === roomId);
-                  const customerId = room?.customer?._id;
-                  const isFromCustomer = msgSenderId === customerId;
-                  
-                  isSelf = !isFromCustomer; // All admin messages appear on right, customer messages on left
-                } else {
-                  // For customer view: only own messages appear on right
-                  isSelf = msgSenderId === senderId;
-                }
-                
-                // Determine if we should show sender names and get sender name
-                const room = rooms.find(r => r._id === roomId);
-                const customerId = room?.customer?._id;
-                const isFromCustomer = msgSenderId === customerId;
-                
-                // Get unique admin senders in this chat (excluding customer)
-                const adminSenders = messages
-                  .filter(msg => {
-                    const sId = getMsgSenderId(msg);
-                    return sId && sId !== customerId;
-                  })
-                  .map(msg => getMsgSenderId(msg))
-                  .filter((id, index, arr) => arr.indexOf(id) === index);
-                
-                const hasMultipleAdmins = adminSenders.length > 1;
-                const shouldShowSenderName = hasMultipleAdmins && !isFromCustomer;
-                
-                // Get sender name from message sender object
-                let senderName: string | undefined;
-                if (shouldShowSenderName && m.sender) {
-                  const sender = m.sender as { _id?: string; _ref?: string; name?: string };
-                  senderName = sender.name || `Admin ${msgSenderId?.slice(-4)}`;
-                }
-                const parent = m.parentId ? messages.find((x) => x._id === m.parentId) : undefined;
-
-                return (
-                  <motion.div
-                    key={`m-${m._id}-${idx}`}
-                    ref={(el) => registerMessageRef(m._id, el)}
-                    data-message-id={m._id}
-                    className={groupPosition === 'single' || groupPosition === 'first' ? 'mt-2' : 'mt-0.5'}
-                    initial={{ 
-                      opacity: 0, 
-                      x: isSelf ? 100 : -100, // Slide from right for sent, left for received
-                      scale: 0.95 
-                    }}
-                    animate={{ 
-                      opacity: 1, 
-                      x: 0, 
-                      scale: 1 
-                    }}
-                    transition={{ 
-                      duration: 0.4, 
-                      ease: "easeOut",
-                      delay: idx * 0.05,
-                      type: "spring",
-                      stiffness: 100,
-                      damping: 15
-                    }}
-                    whileInView={{ 
-                      opacity: 1, 
-                      x: 0,
-                      transition: { duration: 0.3, ease: "easeOut" }
-                    }}
-                    viewport={{ once: false, margin: "-50px" }}
-                  >
-                    <SwipeableMessage
-                      message={m}
-                      isSelf={isSelf}
-                      parentMessage={parent}
-                      showSenderName={shouldShowSenderName}
-                      senderName={senderName}
-                      actor={actor}
-                      uploadProgress={uploadProgress}
-                      groupPosition={groupPosition}
-                      onView={() => {}} // No longer needed, handled by observer
-                      onSwipeLeft={() => {
-                        // Allow replying to any message, including your own
-                        setReplyingTo(m);
-                        setEditingId(null);
-                        const input = document.getElementById('message-input');
-                        input?.focus();
-                      }}
-                      onSwipeRight={() => {
-                        // Swipe right to edit (only for own messages)
-                        if (isSelf) {
-                          setEditingId(m._id);
-                          setReplyingTo(null);
-                          setText(m.content as string);
-                          // Focus the input after a short delay to ensure it's rendered
-                          setTimeout(() => {
-                            const input = document.getElementById('message-input');
-                            input?.focus();
-                          }, 100);
-                        }
-                      }}
-                    />
-                  </motion.div>
-                );
-              })}
-            </div>
-          ))}
-          {messages.length === 0 && (
-            <div className="border rounded-md p-6 text-center opacity-70">No messages yet</div>
-          )}
-          <div ref={bottomRef} />
-        </div>
+        <MessageList
+          messages={messages}
+          bills={bills}
+          roomId={roomId}
+          senderId={senderId}
+          actor={actor}
+          rooms={rooms}
+          uploadProgress={uploadProgress}
+          registerMessageRef={registerMessageRef}
+          onReply={handleReply}
+          onEdit={handleEdit}
+        />
+        <div ref={bottomRef} />
       </div>
 
-      {/* Scroll to bottom button with animation */}
-      <div className={`absolute bottom-20 right-4 z-10 transition-all duration-300 ease-in-out transform ${
-        showScrollButton 
-          ? 'translate-y-0 opacity-100 scale-100' 
-          : 'translate-y-4 opacity-0 scale-95 pointer-events-none'
-      }`}>
-        <button
-          onClick={scrollToBottom}
-          className="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
-          aria-label="Scroll to latest message"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-        </button>
-      </div>
-
-      {replyingTo && (
-        <div className="px-4 pt-2 border-t dark:border-zinc-700">
-          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
-            <div className="truncate">
-              <span className="text-emerald-500">Replying to: </span>
-              <span className="text-zinc-400 truncate">
-                {typeof replyingTo?.content === 'string' ? 
-                  replyingTo.content.slice(0, 50) + 
-                  (replyingTo.content.length > 50 ? '...' : '') : ''}
-              </span>
-            </div>
-            <button 
-              onClick={() => setReplyingTo(null)}
-              className="text-zinc-400 hover:text-white"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-      {editingId && (
-        <div className="mt-1 border rounded-md p-2 bg-blue-50 dark:bg-zinc-800/60 text-xs">
-          <div className="flex items-center justify-between gap-2">
-            <div className="font-medium">Editing message</div>
-            <button 
-              className="opacity-70 hover:opacity-100" 
-              onClick={() => { 
-                setEditingId(null); 
-                setText("");
-                // Focus the input after clearing
-                const input = document.getElementById('message-input');
-                input?.focus();
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Upload progress removed - now shown in message bubbles */}
-      {/* Recording Error */}
-      {recordingError && (
-        <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-red-700 dark:text-red-300">{recordingError}</span>
-            <button
-              onClick={() => setRecordingError(null)}
-              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Attachment Preview */}
-      {(attachments?.length || 0) > 0 && (
-        <div className="px-4 py-2 border-t dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-          <div className="flex flex-wrap gap-2">
-            {attachments.map((attachment) => {
-              const isUploading = uploadingFiles.has(attachment.id);
-              const progress = uploadProgress[attachment.id] || 0;
-
-              return (
-                <div key={attachment.id} className="relative group border rounded-lg p-2 bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600">
-                  {attachment.preview ? (
-                    <Image
-                      src={attachment.preview}
-                      alt={attachment.file.name}
-                      width={48}
-                      height={48}
-                      quality={100} 
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 flex items-center justify-center bg-zinc-100 dark:bg-zinc-600 rounded">
-                      <PaperclipIcon className="w-6 h-6 text-zinc-400" />
-                    </div>
-                  )}
-
-                  {/* Upload Progress Overlay */}
-                  {isUploading && (
-                    <div className="absolute inset-0 bg-black/50 rounded flex flex-col items-center justify-center">
-                      <div className="w-full px-2 mb-2">
-                        <div className="w-full bg-white/20 rounded-full h-1">
-                          <div
-                            className="bg-blue-600 h-1 rounded-full transition-all duration-300"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-white text-xs font-medium">{Math.round(progress)}%</span>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => removeAttachment(attachment.id)}
-                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                    disabled={isUploading}
-                  >
-                    <XIcon className="w-3 h-3" />
-                  </button>
-                  <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 truncate w-16" title={attachment.file.name}>
-                    {attachment.file.name}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {replyingTo && (
-        <div className="bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
-          <div className="truncate max-w-[calc(100%-24px)]">
-            <span className="font-medium">Replying to:</span> {replyingTo?.content}
-          </div>
+      {/* Scroll to bottom button */}
+      {showScrollButton && (
+        <div className="absolute bottom-20 right-4 z-10">
           <button
-            type="button"
-            onClick={() => setReplyingTo(null)}
-            className="text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            onClick={scrollToBottom}
+            className="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+            aria-label="Scroll to latest message"
           >
-            ✕
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+              />
+            </svg>
           </button>
         </div>
       )}
-      {/* Input Area - Shows recording UI when recording, normal input otherwise */}
-      {isRecording ? (
-        /* Recording UI - WhatsApp Style with Neutral Theme */
-        <div className="flex items-center gap-2 p-3 border-t dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800">
-          {/* Recording Indicator */}
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <span className="text-red-500 font-medium text-sm">Recording</span>
-          </div>
 
-          {/* Timer */}
-          <div className="text-zinc-700 dark:text-zinc-300 font-mono text-sm">
-            {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
-          </div>
+      <VoiceRecorder
+        isRecording={isRecording}
+        recordingDuration={recordingDuration}
+        audioLevels={audioLevels}
+        recordingError={recordingError}
+        onStopRecording={stopRecording}
+        onCancelRecording={cancelRecording}
+        onClearError={handleClearRecordingError}
+      />
 
-          {/* Waveform - Fills entire width */}
-          <div className="flex-1 flex items-center gap-[3px] h-8 px-1">
-            {audioLevels.map((level, i) => {
-              // More dynamic height based on audio strength
-              const height = Math.max(8, level * 100); // Min 8%, max 100%
-              return (
-                <div
-                  key={i}
-                  className="flex-1 bg-emerald-500 dark:bg-emerald-400 rounded-full transition-all duration-100"
-                  style={{
-                    height: `${height}%`,
-                    minWidth: '2px'
-                  }}
-                />
-              );
-            })}
-          </div>
-
-          {/* Cancel Button - Right side */}
-          <button
-            onClick={() => {
-              // Set flag to prevent sending
-              shouldSendRecordingRef.current = false;
-              stopRecording();
-              // Clear any recorded data and reset states
-              recordingChunksRef.current = [];
-              setRecordingDuration(0);
-              setAudioLevels(Array(30).fill(0));
-            }}
-            className="flex-shrink-0 p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors"
-            title="Cancel recording"
-          >
-            <XIcon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-          </button>
-
-          {/* Send Button - Same as normal */}
-          <button
-            onClick={() => {
-              // Set flag to allow sending
-              shouldSendRecordingRef.current = true;
-              stopRecording();
-            }}
-            className="flex-shrink-0 p-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-            title="Send voice message"
-          >
-            <SendHorizontalIcon className="w-5 h-5" />
-          </button>
-        </div>
-      ) : (
-        /* Normal Input UI */
-        <div className="flex items-center gap-1 md:gap-2 p-2 sm:py-3 border-t rounded-lg dark:border-zinc-900 bg-white dark:bg-zinc-900">
-          {/* Attachment Button - Always visible on left */}
-          <input
-            type="file"
-            multiple
-            accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.txt"
-            onChange={(e) => handleFileSelect(e.target.files)}
-            className="hidden"
-            id="file-input"
-          />
-          <label 
-            htmlFor="file-input" 
-            className="flex-shrink-0 p-1 md:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full cursor-pointer transition-colors"
-            title="Attach file"
-          >
-            <PaperclipIcon className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />
-          </label>
-
-          {/* Message Input Container */}
-          <div className="flex-1 relative">
-            <textarea
-              id="message-input"
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                // Auto-resize textarea
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 96) + 'px';
-              }}
-              placeholder={replyingTo ? 'Type your reply...' : 'Type a message...'}
-              className="w-full rounded-3xl border border-zinc-300 dark:border-zinc-600 bg-zinc-50 hide-scroll dark:bg-zinc-800 px-4 py-2.5 pr-12 text-base resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all max-h-[96px] overflow-y-auto"
-              rows={1}
-              style={{ minHeight: '44px' }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  onSend();
-                  // Reset height after send
-                  e.currentTarget.style.height = 'auto';
-                }
-              }}
-            />
-          </div>
-
-          {/* Right Button - Mic (empty) or Send (has text) */}
-          {text.trim() === '' && (attachments?.length || 0) === 0 ? (
-            <button
-              type="button"
-              onClick={startRecording}
-              className="flex-shrink-0 p-1 md:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
-              title="Record voice message"
-            >
-              <MicIcon className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />
-            </button>
-          ) : (
-            <button
-              onClick={onSend}
-              className="flex-shrink-0 p-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-              title={editingId ? 'Update message' : 'Send message'}
-            >
-              <SendHorizontalIcon className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      )}
+      <MessageInput
+        text={text}
+        setText={setText}
+        attachments={attachments}
+        onFileSelect={handleFileSelect}
+        onRemoveAttachment={removeAttachment}
+        onSend={onSend}
+        onStartRecording={startRecording}
+        uploadProgress={uploadProgress}
+        uploadingFiles={uploadingFiles}
+        editingId={editingId}
+        replyingTo={replyingTo}
+        onCancelEdit={handleCancelEdit}
+        onCancelReply={handleCancelReply}
+      />
     </div>
   );
 }
