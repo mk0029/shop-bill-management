@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
 import { MessageCircle, Mail } from "lucide-react";
+import { locationOptions } from "@/app/admin/tools/fitting-items/constants";
 
 export default function RequestAccountSection({
   support,
@@ -82,12 +83,7 @@ export default function RequestAccountSection({
               <div>
                 <label className="block text-sm mb-1">Location / Village</label>
                 <Dropdown
-                  options={[
-                    { value: "Lilas", label: "Lilas" },
-                    { value: "Sainiwas", label: "Sainiwas" },
-                    { value: "Dhani Silawali", label: "Dhani Silawali" },
-                    { value: "Siwani", label: "Siwani" },
-                  ]}
+                  options={locationOptions}
                   value={form.location}
                   onValueChange={(v) => setForm((f) => ({ ...f, location: v }))}
                   placeholder="Select village"

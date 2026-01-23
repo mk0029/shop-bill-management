@@ -113,7 +113,7 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
     (typeof process !== "undefined" && (process as any).env?.NEXT_PUBLIC_SITE_URL) ||
     "";
 
-  const loginUrl = siteUrl || "https://jambh-ell.vercel.app/";
+  const loginUrl = siteUrl || "https://jambh-ell.vercel.app";
   const loginLink = passKey
     ? `${loginUrl}/login?phone=${phone}&passKey=${passKey}`
     : "";

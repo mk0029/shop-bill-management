@@ -16,14 +16,7 @@ import { createCustomer } from "@/lib/form-service";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
-
-const locationOptions = [
-  { value: "lilas", label: "Lilas" },
-  { value: "sainiwas", label: "Sainiwas" },
-  { value: "dhani-sila-wali", label: "Dhani Sila Wali" },
-  { value: "siwani", label: "Siwani" },
-  { value: "sainiwas", label: "Sainiwas" },
-];
+import { locationOptions } from "../../tools/fitting-items/constants";
 
 const serviceTypeOptions = [
   { value: "all", label: "All" },
@@ -143,7 +136,6 @@ export default function AddCustomerPage() {
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
             Add New Customer
           </h1>
-        
         </div>
       </div>
 
@@ -337,7 +329,8 @@ export default function AddCustomerPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2">
+                className="flex items-center gap-2"
+              >
                 <Save className="w-4 h-4" />
                 {isLoading ? "Creating Customer..." : "Create Customer"}
               </Button>
@@ -345,7 +338,8 @@ export default function AddCustomerPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                disabled={isLoading}>
+                disabled={isLoading}
+              >
                 Cancel
               </Button>
             </div>

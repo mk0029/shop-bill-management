@@ -296,9 +296,18 @@ export const useBillForm = () => {
     ) {
       const paidAmount = Math.min(formData.partialPaymentAmount, grandTotal);
       const balanceAmount = grandTotal - paidAmount;
+      
+      // Auto-mark as paid if partial payment covers 100% of the bill
+      if (balanceAmount === 0) {
+        return {
+          paymentStatus: "paid" as const,
+          paidAmount,
+          balanceAmount: 0,
+        };
+      }
+      
       return {
-        paymentStatus:
-          balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
+        paymentStatus: "partial" as const,
         paidAmount,
         balanceAmount,
       };
@@ -548,6 +557,25 @@ export const useBillForm = () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [formData, selectedItems, draftId]);
+
+  // Effect to automatically mark as paid if grand total is 0
+  useEffect(() => {
+    const grandTotal = calculateGrandTotal();
+    if (grandTotal === 0 && !formData.isMarkAsPaid) {
+      setFormData((prev) => ({
+        ...prev,
+        isMarkAsPaid: true,
+        enablePartialPayment: false,
+        partialPaymentAmount: 0,
+      }));
+    } else if (grandTotal > 0 && formData.isMarkAsPaid && !formData.enablePartialPayment) {
+      // If grandTotal becomes positive, and it was marked as paid automatically, revert
+      setFormData((prev) => ({
+        ...prev,
+        isMarkAsPaid: false,
+      }));
+    }
+  }, [selectedItems, formData.discount, formData.repairFee, formData.homeVisitFee]);
 
   // 30s inactivity autosave to local drafts (only if there is content)
   useEffect(() => {

@@ -102,6 +102,12 @@ export async function POST(req: Request) {
             type: 'shop_status',
             updatedAt: timestamp,
           }, Array.isArray(excludeTokens) ? excludeTokens : undefined);
+        } else if (newStatus === 'at_shop') {
+          await sendToAll('We are at Shop Now!', 'We are now available at the shop. Visit us for service!', {
+            status: 'at_shop',
+            type: 'shop_status',
+            updatedAt: timestamp,
+          }, Array.isArray(excludeTokens) ? excludeTokens : undefined);
         }
       } catch (e) {
         console.error('FCM broadcast error (/api/online):', e);

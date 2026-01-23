@@ -347,7 +347,15 @@ export const BillDetailModal = ({
 
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard
-        .writeText(message)
+        .writeText(
+          message.replace(
+            `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(
+              bill.customer?.phone || "",
+            )}&passKey=${encodeURIComponent(bill.customer?.secretKey || "")}`,
+            "https://jambh-ell.vercel.app/#request",
+          ),
+        )
+
         .then(() => {
           toast.success("Bill details copied to clipboard!");
           setShowShareModal(false);
@@ -473,7 +481,6 @@ export const BillDetailModal = ({
               router.push(`/admin/customers/${id}/bills`);
             }}
           />
-
           {/* Share Modal */}
           <ShareModal
             showShareModal={showShareModal}

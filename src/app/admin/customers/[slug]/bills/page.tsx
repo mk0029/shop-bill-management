@@ -227,7 +227,12 @@ export default function CustomerBillsPage() {
     const pendingData = getPendingBillsShareData();
     const message =
       shareMode === "pending"
-        ? generatePendingBillsMessage(pendingData)
+        ? generatePendingBillsMessage(pendingData).replace(
+            `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(
+              customer?.phone || "",
+            )}&passKey=${encodeURIComponent(customer?.secretKey || "")}`,
+            "https://jambh-ell.vercel.app/#request",
+          )
         : generateThankYouMessage({
             name: customer?.name || "Customer",
             phone: customer?.phone || "",
