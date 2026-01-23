@@ -3,20 +3,27 @@ import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { Card } from "@/components/ui/card";
-import { productApiService, brandApiService, categoryApiService, userApiService, billApiService } from "@/lib/sanity-api-service";
+import {
+  productApiService,
+  brandApiService,
+  categoryApiService,
+  userApiService,
+  billApiService,
+} from "@/lib/sanity-api-service";
 import QuickActions from "@/components/dashboard/quick-actions";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
   // Page-only SSR: fetch all required data on the server
-  const [productsRes, brandsRes, categoriesRes, customersRes, billsRes] = await Promise.all([
-    productApiService.getAllProducts(),
-    brandApiService.getAllBrands(),
-    categoryApiService.getAllCategories(),
-    userApiService.getCustomers(),
-    billApiService.getAllBills(),
-  ]);
+  const [productsRes, brandsRes, categoriesRes, customersRes, billsRes] =
+    await Promise.all([
+      productApiService.getAllProducts(),
+      brandApiService.getAllBrands(),
+      categoryApiService.getAllCategories(),
+      userApiService.getCustomers(),
+      billApiService.getAllBills(),
+    ]);
 
   const products = productsRes.success ? (productsRes.data as any[]) : [];
   const brands = brandsRes.success ? (brandsRes.data as any[]) : [];
@@ -66,7 +73,10 @@ export default async function AdminDashboard() {
 
   return (
     <RealtimeProvider enableNotifications={false}>
-      <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
+      <div
+        data-dashboard-loaded="true"
+        className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6"
+      >
         <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 max-md:space-y-4 md:space-y-8">
           {/* Header */}
           <div className="flex items-center justify-between">

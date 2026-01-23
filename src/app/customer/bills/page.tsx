@@ -349,7 +349,7 @@ export default function CustomerBillsPage() {
   console.log(customer, "custoemr");
 
   return (
-    <div className="space-y-6 max-md:space-y-4">
+    <div data-dashboard-loaded="true" className="space-y-6 max-md:space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
