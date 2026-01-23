@@ -25,7 +25,7 @@ export default function AskForNotifications() {
     toastIdRef.current = toast("Enable notifications in browser settings", {
       description:
         "Notifications are blocked by your browser. Click the padlock icon in the address bar → Site settings → Notifications: Allow, then reload.",
-      duration: 15000,
+      duration: 10000,
     });
   }
 

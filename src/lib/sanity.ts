@@ -12,8 +12,8 @@ const effectivePerspective = hasToken ? "drafts" : "published";
 
 // Sanity client configuration
 export const sanityClient = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "idji8ni7",
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "live-shop",
+  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID ,
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET ,
   useCdn: false, // Real-time updates require CDN to be false
   apiVersion: "2024-01-01",
   // Prefer secure server-side token; fallback to NEXT_PUBLIC for legacy setups
