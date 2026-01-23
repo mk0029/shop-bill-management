@@ -74,12 +74,9 @@ export function BillPaymentSection({ selectedBill }: BillPaymentSectionProps) {
         if (!b) return;
         if (typeof window === "undefined") return;
         const key =
-          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-          (window as any).NEXT_PUBLIC_RAZORPAY_KEY_ID;
+          process.env.RAZORPAY_KEY_ID || (window as any).RAZORPAY_KEY_ID;
         if (!key) {
-          toast.error(
-            "Payment key not configured. Set NEXT_PUBLIC_RAZORPAY_KEY_ID."
-          );
+          toast.error("Payment key not configured. Set RAZORPAY_KEY_ID.");
           return;
         }
         setPayLoading(true);
@@ -172,16 +169,22 @@ export function BillPaymentSection({ selectedBill }: BillPaymentSectionProps) {
         setPayLoading(false);
       }
     },
-    [loadRazorpay]
+    [loadRazorpay],
   );
-const hide = true
-  return (
-hide ?'':
+  const hide = true;
+  return hide ? (
+    ""
+  ) : (
     <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
       <style>{shineAnimation}</style>
       <div className="flex gap-x-3 mb-3 items-center">
         <h4 className="font-medium text-white border">Pay Online</h4>
-        <Badge variant='outline' className="shine-button border-white border-solid px-2! py-1! text-xs! font-medium ">New</Badge>
+        <Badge
+          variant="outline"
+          className="shine-button border-white border-solid px-2! py-1! text-xs! font-medium "
+        >
+          New
+        </Badge>
       </div>
       {(() => {
         const total = Number(selectedBill.totalAmount || 0) || 0;
@@ -189,17 +192,15 @@ hide ?'':
         const paid = Number(selectedBill.paidAmount || 0) || 0;
         const actualPayableAmount = Math.max(0, total - discount);
         const balance = Math.max(0, actualPayableAmount - paid);
-        if (selectedBill.paymentStatus === "paid" || balance <= 0)
-          return null;
+        if (selectedBill.paymentStatus === "paid" || balance <= 0) return null;
         return (
           <div className="relative w-full overflow-hidden">
             <Button
               onClick={() => handlePayOnline(selectedBill)}
               disabled={payLoading}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white w-full relative shine-button">
-              {payLoading
-                ? "Processing..."
-                : `Pay ${formatCurrency(balance)}`}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white w-full relative shine-button"
+            >
+              {payLoading ? "Processing..." : `Pay ${formatCurrency(balance)}`}
             </Button>
           </div>
         );

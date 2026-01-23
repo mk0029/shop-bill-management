@@ -7,11 +7,11 @@ import { sendToAll } from '@/lib/notification-service';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'idji8ni7';
+const projectId = process.env.SANITY_PROJECT_ID || 'idji8ni7';
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'live-shop';
 const apiVersion = '2024-01-01';
 // Prefer server token if provided; never expose this to browser
-const token = process.env.NEXT_PUBLIC_SANITY_API_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN || '';
+const token = process.env.SANITY_API_TOKEN || process.env.SANITY_API_TOKEN || '';
 
 const serverClient = createClient({
   projectId,

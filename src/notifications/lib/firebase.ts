@@ -59,9 +59,9 @@ export async function isMessagingAvailable(): Promise<boolean> {
 export async function getFcmToken(): Promise<string | null> {
   const messaging = await getMessagingIfSupported()
   if (!messaging) return null
-  const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
+  const vapidKey = process.env.FIREBASE_VAPID_KEY
   if (!vapidKey) {
-    console.warn('Missing NEXT_PUBLIC_FIREBASE_VAPID_KEY')
+    console.warn('Missing FIREBASE_VAPID_KEY')
     return null
   }
   try {

@@ -5,7 +5,7 @@ const { createClient } = require("@sanity/client");
 
 // Configure your Sanity client
 const client = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+  projectId: process.env.SANITY_PROJECT_ID,
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
   useCdn: false,
   apiVersion: "2024-01-01",
@@ -202,9 +202,6 @@ async function createCategoryFieldMappings() {
         isActive: mapping.isActive,
         description: mapping.description,
       };
-
-
-
     }
   } catch (error) {
     console.error("❌ Migration failed:", error);

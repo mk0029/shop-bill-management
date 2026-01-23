@@ -5,7 +5,7 @@ const { createClient } = require("@sanity/client");
 
 // Configure your Sanity client
 const client = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+  projectId: process.env.SANITY_PROJECT_ID,
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
   useCdn: false,
   apiVersion: "2024-01-01",
@@ -13,7 +13,6 @@ const client = createClient({
 });
 
 async function createMfdFieldDefinition() {
-
   try {
     // Create the MFD field definition
     const mfdFieldDefinition = {
@@ -35,9 +34,7 @@ async function createMfdFieldDefinition() {
       applicableCategories: ["capacitor", "motor", "pump", "fan"],
     };
 
-
     const result = await client.create(mfdFieldDefinition);
-   
   } catch (error) {
     console.error("❌ Failed to create MFD field definition:", error);
     process.exit(1);

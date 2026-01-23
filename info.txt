@@ -129,7 +129,7 @@ C) useSettingsStore (src/store/settings-store.ts)
 8) Notifications Architecture
 - Firebase Messaging client: src/notifications/lib/firebase.ts
   - getClientApp(), getMessagingIfSupported(), getFcmToken(), onForegroundMessage().
-  - Requires NEXT_PUBLIC_FIREBASE_VAPID_KEY.
+  - Requires FIREBASE_VAPID_KEY.
 - Global bridges in root layout (src/app/layout.tsx):
   - NotificationsBridge, SWNotificationBridge, AutoNotifications, ForegroundSystemNotifier, NotificationToaster.
   - Service Worker registered for '/firebase-messaging-sw.js' and delegates to '/sw.js'.
@@ -182,10 +182,10 @@ C) useSettingsStore (src/store/settings-store.ts)
 
 14) Environment Variables (selected)
 - NEXT_PUBLIC_SITE_URL: canonical site URL used across metadata and sitemap/robots.
-- NEXT_PUBLIC_SANITY_PROJECT_ID, NEXT_PUBLIC_SANITY_DATASET, NEXT_PUBLIC_SANITY_API_TOKEN: Sanity config.
+- SANITY_PROJECT_ID, NEXT_PUBLIC_SANITY_DATASET, SANITY_API_TOKEN: Sanity config.
 - NEXT_PUBLIC_GA_ID: Google Analytics 4.
-- NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: Search Console verification.
-- NEXT_PUBLIC_FIREBASE_VAPID_KEY: FCM web push key.
+- GOOGLE_SITE_VERIFICATION: Search Console verification.
+- FIREBASE_VAPID_KEY: FCM web push key.
 
 15) How to Trace a Flow (Examples)
 - Creating a Bill (online):

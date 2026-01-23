@@ -60,7 +60,7 @@ async function getSWRegistration(): Promise<ServiceWorkerRegistration | null> {
 
 async function getVapidKey(): Promise<string | undefined> {
   // Public VAPID key must be exposed as NEXT_PUBLIC_*
-  const key = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
+  const key = process.env.FIREBASE_VAPID_KEY
   return key || undefined
 }
 
