@@ -1,39 +1,48 @@
 // Firebase Messaging (compat) for background notifications
-importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
+importScripts(
+  "https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js",
+);
+importScripts(
+  "https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js",
+);
 
 /* Simple PWA service worker with offline fallback */
-const SW_VERSION = 'v1-' + (self && Date.now());
+const SW_VERSION = "v1-" + (self && Date.now());
 const STATIC_CACHE = `static-${SW_VERSION}`;
 const RUNTIME_CACHE = `runtime-${SW_VERSION}`;
 // const OFFLINE_URL = '/offline'; // reserved for future use
 
 // Core assets to pre-cache
-const PRECACHE_URLS = [
-  '/',
-  '/favicon.ico',
-  '/manifest.webmanifest',
-];
+const PRECACHE_URLS = ["/", "/favicon.ico", "/manifest.webmanifest"];
 
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting()),
   );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys
-      .filter((key) => ![STATIC_CACHE, RUNTIME_CACHE].includes(key))
-      .map((key) => caches.delete(key))
-    )).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => ![STATIC_CACHE, RUNTIME_CACHE].includes(key))
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
   );
 });
 
 // Broadcast channel to inform clients about notifications received/shown
 let bc = null;
 try {
-  bc = new BroadcastChannel('app-notifications');
+  bc = new BroadcastChannel("app-notifications");
 } catch {}
 
 // Global, short-lived dedupe memory to avoid double popups from overlapping handlers
@@ -42,7 +51,7 @@ const DEDUPE_WINDOW_MS = 4000;
 const recentlyShown = new Map(); // key -> timestamp
 
 function makeDedupeKey({ tag, title, body }) {
-  return `${tag || ''}|${title || ''}|${body || ''}`;
+  return `${tag || ""}|${title || ""}|${body || ""}`;
 }
 
 function markShown(key) {
@@ -59,23 +68,27 @@ function markShown(key) {
 
 function wasRecentlyShown(key) {
   const t = recentlyShown.get(key);
-  return typeof t === 'number' && (Date.now() - t) < DEDUPE_WINDOW_MS;
+  return typeof t === "number" && Date.now() - t < DEDUPE_WINDOW_MS;
 }
 
 // Helper: is a navigation request
 function isNavigationRequest(request) {
-  return request.mode === 'navigate' || (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'));
+  return (
+    request.mode === "navigate" ||
+    (request.method === "GET" &&
+      request.headers.get("accept")?.includes("text/html"))
+  );
 }
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   const { request } = event;
 
   // Bypass non-GET
-  if (request.method !== 'GET') return;
+  if (request.method !== "GET") return;
 
   // Ignore non-http(s) schemes and cross-origin requests (e.g., chrome-extension://)
   const reqUrl = new URL(request.url);
-  const isHttp = reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:';
+  const isHttp = reqUrl.protocol === "http:" || reqUrl.protocol === "https:";
   const isSameOrigin = reqUrl.origin === self.location.origin;
   if (!isHttp || !isSameOrigin) {
     return; // let the browser handle it
@@ -86,7 +99,9 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         // Race network against a short timeout to avoid long stalls
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('nav-timeout')), 3000));
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("nav-timeout")), 3000),
+        );
         try {
           const response = await Promise.race([fetch(request), timeout]);
           const copy = response.clone();
@@ -95,18 +110,24 @@ self.addEventListener('fetch', (event) => {
         } catch {
           const cached = await caches.match(request);
           if (cached) return cached;
-          const root = await caches.match('/');
+          const root = await caches.match("/");
           if (root) return root;
-          return new Response('<!doctype html><title>Offline</title><h1>Offline</h1><p>This page is not cached yet. Please reconnect.</p>', { headers: { 'Content-Type': 'text/html' } });
+          return new Response(
+            "<!doctype html><title>Offline</title><h1>Offline</h1><p>This page is not cached yet. Please reconnect.</p>",
+            { headers: { "Content-Type": "text/html" } },
+          );
         }
-      })()
+      })(),
     );
     return;
   }
 
   // Cache-first for static assets (images, styles, scripts)
   const url = new URL(request.url);
-  const isStatic = /\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff2?|ttf|otf)$/i.test(url.pathname);
+  const isStatic =
+    /\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff2?|ttf|otf)$/i.test(
+      url.pathname,
+    );
 
   if (isStatic) {
     event.respondWith(
@@ -114,25 +135,29 @@ self.addEventListener('fetch', (event) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
           // Only cache successful same-origin HTTP(S) responses
-          if (response && response.ok && (response.type === 'basic' || response.type === 'default')) {
+          if (
+            response &&
+            response.ok &&
+            (response.type === "basic" || response.type === "default")
+          ) {
             const copy = response.clone();
             caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
           }
           return response;
         });
-      })
+      }),
     );
     return;
   }
 
   // Default: try cache, then network
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+    caches.match(request).then((cached) => cached || fetch(request)),
   );
 });
 
-self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') {
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") {
     self.skipWaiting();
   }
 });
@@ -143,13 +168,13 @@ try {
   // Guard against double init
   if (!firebase.apps || !firebase.apps.length) {
     firebase.initializeApp({
-      apiKey: 'AIzaSyDBKDVUSmcf7qoUrDzQk1FuziGtEo_xuIc',
-      authDomain: 'web-push-shop.firebaseapp.com',
-      projectId: 'web-push-shop',
-      storageBucket: 'web-push-shop.firebasestorage.app',
-      messagingSenderId: '1042124125046',
-      appId: '1:1042124125046:web:07b684acf519982872c057',
-      measurementId: 'G-BZNQMF61R2',
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+      measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
     });
   }
 
@@ -161,19 +186,25 @@ try {
     return new Promise((resolve, reject) => {
       try {
         // v2 adds the 'recentNotifications' store used to replay notifications to the app
-        const request = indexedDB.open('pwa-notifications', 3);
+        const request = indexedDB.open("pwa-notifications", 3);
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
-          if (!db.objectStoreNames.contains('notifications')) {
-            db.createObjectStore('notifications', { keyPath: 'id', autoIncrement: true });
+          if (!db.objectStoreNames.contains("notifications")) {
+            db.createObjectStore("notifications", {
+              keyPath: "id",
+              autoIncrement: true,
+            });
           }
           // Store for recently shown notifications to replay to the app
-          if (!db.objectStoreNames.contains('recentNotifications')) {
-            db.createObjectStore('recentNotifications', { keyPath: 'id', autoIncrement: true });
+          if (!db.objectStoreNames.contains("recentNotifications")) {
+            db.createObjectStore("recentNotifications", {
+              keyPath: "id",
+              autoIncrement: true,
+            });
           }
           // Simple key-value store for preferences (e.g., paused flag)
-          if (!db.objectStoreNames.contains('prefs')) {
-            db.createObjectStore('prefs', { keyPath: 'key' });
+          if (!db.objectStoreNames.contains("prefs")) {
+            db.createObjectStore("prefs", { keyPath: "key" });
           }
         };
         request.onsuccess = (event) => resolve(event.target.result);
@@ -187,14 +218,21 @@ try {
   async function queueNotification(payload) {
     // In SW, navigator may not expose onLine reliably across all browsers.
     // We still honor the instruction: only queue when detected offline.
-    const isOnline = (self.navigator && 'onLine' in self.navigator) ? self.navigator.onLine : true;
+    const isOnline =
+      self.navigator && "onLine" in self.navigator
+        ? self.navigator.onLine
+        : true;
     if (isOnline) return false;
     try {
       const db = await openDB();
-      const tx = db.transaction('notifications', 'readwrite');
-      const store = tx.objectStore('notifications');
+      const tx = db.transaction("notifications", "readwrite");
+      const store = tx.objectStore("notifications");
       await new Promise((resolve, reject) => {
-        const req = store.add({ payload, timestamp: Date.now(), retryCount: 0 });
+        const req = store.add({
+          payload,
+          timestamp: Date.now(),
+          retryCount: 0,
+        });
         req.onsuccess = () => resolve(true);
         req.onerror = (e) => reject(e);
       });
@@ -207,8 +245,8 @@ try {
 
   async function getAllQueuedNotifications() {
     const db = await openDB();
-    const tx = db.transaction('notifications', 'readonly');
-    const store = tx.objectStore('notifications');
+    const tx = db.transaction("notifications", "readonly");
+    const store = tx.objectStore("notifications");
     return new Promise((resolve, reject) => {
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
@@ -218,8 +256,8 @@ try {
 
   async function deleteQueuedNotification(id) {
     const db = await openDB();
-    const tx = db.transaction('notifications', 'readwrite');
-    const store = tx.objectStore('notifications');
+    const tx = db.transaction("notifications", "readwrite");
+    const store = tx.objectStore("notifications");
     return new Promise((resolve, reject) => {
       const req = store.delete(id);
       req.onsuccess = () => resolve(true);
@@ -231,10 +269,13 @@ try {
   async function saveRecentNotification(appNotification) {
     try {
       const db = await openDB();
-      const tx = db.transaction('recentNotifications', 'readwrite');
-      const store = tx.objectStore('recentNotifications');
+      const tx = db.transaction("recentNotifications", "readwrite");
+      const store = tx.objectStore("recentNotifications");
       await new Promise((resolve, reject) => {
-        const req = store.add({ payload: appNotification, timestamp: Date.now() });
+        const req = store.add({
+          payload: appNotification,
+          timestamp: Date.now(),
+        });
         req.onsuccess = () => resolve(true);
         req.onerror = (e) => reject(e);
       });
@@ -246,8 +287,8 @@ try {
 
   async function getAllRecentNotifications() {
     const db = await openDB();
-    const tx = db.transaction('recentNotifications', 'readonly');
-    const store = tx.objectStore('recentNotifications');
+    const tx = db.transaction("recentNotifications", "readonly");
+    const store = tx.objectStore("recentNotifications");
     return new Promise((resolve, reject) => {
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
@@ -257,8 +298,8 @@ try {
 
   async function clearAllRecentNotifications() {
     const db = await openDB();
-    const tx = db.transaction('recentNotifications', 'readwrite');
-    const store = tx.objectStore('recentNotifications');
+    const tx = db.transaction("recentNotifications", "readwrite");
+    const store = tx.objectStore("recentNotifications");
     return new Promise((resolve, reject) => {
       const req = store.clear();
       req.onsuccess = () => resolve(true);
@@ -270,10 +311,10 @@ try {
   async function getPaused() {
     try {
       const db = await openDB();
-      const tx = db.transaction('prefs', 'readonly');
-      const store = tx.objectStore('prefs');
+      const tx = db.transaction("prefs", "readonly");
+      const store = tx.objectStore("prefs");
       return await new Promise((resolve) => {
-        const req = store.get('paused');
+        const req = store.get("paused");
         req.onsuccess = () => resolve(!!(req.result && req.result.value));
         req.onerror = () => resolve(false);
       });
@@ -285,10 +326,14 @@ try {
   async function setPaused(value) {
     try {
       const db = await openDB();
-      const tx = db.transaction('prefs', 'readwrite');
-      const store = tx.objectStore('prefs');
+      const tx = db.transaction("prefs", "readwrite");
+      const store = tx.objectStore("prefs");
       await new Promise((resolve, reject) => {
-        const req = store.put({ key: 'paused', value: !!value, ts: Date.now() });
+        const req = store.put({
+          key: "paused",
+          value: !!value,
+          ts: Date.now(),
+        });
         req.onsuccess = () => resolve(true);
         req.onerror = (e) => reject(e);
       });
@@ -300,10 +345,14 @@ try {
 
   async function incrementRetry(id, current) {
     const db = await openDB();
-    const tx = db.transaction('notifications', 'readwrite');
-    const store = tx.objectStore('notifications');
+    const tx = db.transaction("notifications", "readwrite");
+    const store = tx.objectStore("notifications");
     return new Promise((resolve, reject) => {
-      const req = store.put({ ...current, id: current.id, retryCount: (current.retryCount || 0) + 1 });
+      const req = store.put({
+        ...current,
+        id: current.id,
+        retryCount: (current.retryCount || 0) + 1,
+      });
       req.onsuccess = () => resolve(true);
       req.onerror = (e) => reject(e);
     });
@@ -314,12 +363,15 @@ try {
     try {
       // Device-local pause: block notifications if paused
       if (await getPaused()) return false;
-      const resp = await fetch('/api/notifications/preferences', { method: 'GET', credentials: 'include' });
+      const resp = await fetch("/api/notifications/preferences", {
+        method: "GET",
+        credentials: "include",
+      });
       if (!resp.ok) return true;
       const json = await resp.json();
       const enabled = !!json?.enabled;
       const types = Array.isArray(json?.types) ? json.types : [];
-      const pType = (payload && payload.data && payload.data.type) || 'default';
+      const pType = (payload && payload.data && payload.data.type) || "default";
       return enabled && (types.length === 0 || types.includes(pType));
     } catch {
       return true;
@@ -330,20 +382,20 @@ try {
     try {
       const u = new URL(url, self.location.origin);
       // Only allow same-origin navigations
-      if (u.origin !== self.location.origin) return '/';
+      if (u.origin !== self.location.origin) return "/";
       return u.pathname + u.search + u.hash;
     } catch {
-      return '/';
+      return "/";
     }
   }
 
   // --- Helpers to structure meta and route from payload.data ---
   function toStringQuery(obj) {
     const out = {};
-    if (!obj || typeof obj !== 'object') return out;
+    if (!obj || typeof obj !== "object") return out;
     for (const k of Object.keys(obj)) {
       const v = obj[k];
-      if (v === null || typeof v === 'undefined') continue;
+      if (v === null || typeof v === "undefined") continue;
       out[k] = String(v);
     }
     return out;
@@ -354,7 +406,9 @@ try {
       const pathname = data.route_path || data.pathname || null;
       let query = {};
       if (data.route_query) {
-        try { query = JSON.parse(data.route_query); } catch {}
+        try {
+          query = JSON.parse(data.route_query);
+        } catch {}
       }
       // If a link is provided, extract path and query as fallback
       if (!pathname && data.link) {
@@ -376,7 +430,7 @@ try {
   }
 
   function buildLinkFromRoute(route) {
-    if (!route || !route.pathname) return '/';
+    if (!route || !route.pathname) return "/";
     const usp = new URLSearchParams(toStringQuery(route.query));
     const qs = usp.toString();
     return qs ? `${route.pathname}?${qs}` : route.pathname;
@@ -405,24 +459,25 @@ try {
     try {
       const d = (payload && payload.data) || {};
       const n = (payload && payload.notification) || {};
-      const wp = (payload && payload.webpush && payload.webpush.notification) || {};
+      const wp =
+        (payload && payload.webpush && payload.webpush.notification) || {};
       // Explicit incoming tag wins
       const explicit = wp.tag || d.tag || undefined;
       if (explicit) return explicit;
       // Bill-specific
       if (d.billId) return `bill-${d.billId}`;
       // Inventory grouping by category/product if available
-      if (d.event === 'inventory-updated') {
+      if (d.event === "inventory-updated") {
         if (d.categoryId) return `inv-cat-${d.categoryId}`;
         if (d.productId) return `inv-prod-${d.productId}`;
-        return 'inv-bulk';
+        return "inv-bulk";
       }
       // Admin broadcast fallbacks by event
       if (d.event) return `evt-${d.event}`;
       // Fallback to title-based tag to prevent duplicates
-      return `title-${(n.title || d.title || 'app').slice(0, 32)}`;
+      return `title-${(n.title || d.title || "app").slice(0, 32)}`;
     } catch {
-      return 'app-notification';
+      return "app-notification";
     }
   }
 
@@ -430,12 +485,14 @@ try {
     const d = (payload && payload.data) || {};
     const key = computeTag(payload);
     // Only aggregate bursts for inventory updates; others replace immediately
-    const shouldAggregate = d && d.event === 'inventory-updated';
+    const shouldAggregate = d && d.event === "inventory-updated";
     if (!shouldAggregate) {
       // Replace existing with same tag (avoid duplicates) and show latest
       return (async () => {
         try {
-          const existing = await self.registration.getNotifications({ tag: key });
+          const existing = await self.registration.getNotifications({
+            tag: key,
+          });
           if (existing && existing.length) existing.forEach((n) => n.close());
         } catch {}
         // Ensure tag is set for replacement behavior
@@ -444,7 +501,11 @@ try {
         payload.webpush.notification.tag = key;
         // Extra guard: if an identical notification was just shown, skip
         const n = (payload && payload.notification) || {};
-        const dedupeKey = makeDedupeKey({ tag: key, title: n.title || d.title || 'Notification', body: n.body || d.body || '' });
+        const dedupeKey = makeDedupeKey({
+          tag: key,
+          title: n.title || d.title || "Notification",
+          body: n.body || d.body || "",
+        });
         if (wasRecentlyShown(dedupeKey)) return;
         await showNotificationWithRetry(payload, 3);
       })();
@@ -460,13 +521,28 @@ try {
         const last = next.lastPayload;
         const d2 = (last && last.data) || {};
         const consolidated = {
-          notification: { title: 'Inventory updated', body: `${next.count} change${next.count > 1 ? 's' : ''} just now` },
-          data: { ...d2, event: 'inventory-updated', count: String(next.count) },
-          webpush: { notification: { tag: key, renotify: true, requireInteraction: true } },
+          notification: {
+            title: "Inventory updated",
+            body: `${next.count} change${next.count > 1 ? "s" : ""} just now`,
+          },
+          data: {
+            ...d2,
+            event: "inventory-updated",
+            count: String(next.count),
+          },
+          webpush: {
+            notification: {
+              tag: key,
+              renotify: true,
+              requireInteraction: true,
+            },
+          },
         };
         // Close any existing with same tag, then show consolidated
         try {
-          const existing = await self.registration.getNotifications({ tag: key });
+          const existing = await self.registration.getNotifications({
+            tag: key,
+          });
           if (existing && existing.length) existing.forEach((n) => n.close());
         } catch {}
         await showNotificationWithRetry(consolidated, 3);
@@ -481,7 +557,13 @@ try {
       // Single event in window: just show with stable tag and replacement semantics
       const single = {
         ...first.lastPayload,
-        webpush: { notification: { ...(first.lastPayload.webpush && first.lastPayload.webpush.notification), tag: key } },
+        webpush: {
+          notification: {
+            ...(first.lastPayload.webpush &&
+              first.lastPayload.webpush.notification),
+            tag: key,
+          },
+        },
       };
       try {
         const existing = await self.registration.getNotifications({ tag: key });
@@ -495,28 +577,29 @@ try {
   async function showNotification(payload) {
     if (!(await shouldShowNotification(payload))) return;
     const n = (payload && payload.notification) || {};
-    const wp = (payload && payload.webpush && payload.webpush.notification) || {};
+    const wp =
+      (payload && payload.webpush && payload.webpush.notification) || {};
     const data = (payload && payload.data) || {};
-    const title = n.title || data.title || 'Notification';
+    const title = n.title || data.title || "Notification";
     const route = buildRouteFromPayload(data);
     const options = {
-      body: n.body || data.body || '',
-      icon: data.icon || wp.icon || '/je-192.ico',
-      badge: data.badge || wp.badge || '/je-192.ico',
+      body: n.body || data.body || "",
+      icon: data.icon || wp.icon || "/ic-notification.svg",
+      badge: data.badge || wp.badge || "/ic-notification.svg",
       image: data.image || wp.image,
       vibrate: wp.vibrate || [100, 50, 100],
       tag: wp.tag || data.tag || computeTag(payload),
-      renotify: (wp.renotify ?? true),
-      requireInteraction: (wp.requireInteraction ?? true),
+      renotify: wp.renotify ?? true,
+      requireInteraction: wp.requireInteraction ?? true,
       // Show context-specific actions
       actions: (() => {
         const billId = data.billId;
         if (billId) {
-          return [{ action: 'view-bill', title: 'View Bill' }];
+          return [{ action: "view-bill", title: "View Bill" }];
         }
         // Chat: provide a Reply action to jump straight into the chat room
-        if ((data.type || '').toString() === 'chat') {
-          return [{ action: 'reply-chat', title: 'Reply' }];
+        if ((data.type || "").toString() === "chat") {
+          return [{ action: "reply-chat", title: "Reply" }];
         }
         return [];
       })(),
@@ -526,44 +609,60 @@ try {
         // Structured meta for app usage
         meta: {
           userId: data.userId || undefined,
-          user: (data.user_name || data.user_email || data.user_phone || data.user_id) ? {
-            id: data.user_id || data.userId || undefined,
-            name: data.user_name || undefined,
-            email: data.user_email || undefined,
-            phone: data.user_phone || undefined,
-          } : undefined,
+          user:
+            data.user_name || data.user_email || data.user_phone || data.user_id
+              ? {
+                  id: data.user_id || data.userId || undefined,
+                  name: data.user_name || undefined,
+                  email: data.user_email || undefined,
+                  phone: data.user_phone || undefined,
+                }
+              : undefined,
           route: route || undefined,
           // Add priority and source so UI can decide persistence rules
-          priority: (data.priority === 'high' ? 'high' : 'normal'),
-          source: 'push',
+          priority: data.priority === "high" ? "high" : "normal",
+          source: "push",
         },
         // Compute link preference: use route if present, else explicit link, else sensible default
         link: (() => {
           if (route) return sanitizeRelativeUrl(buildLinkFromRoute(route));
-          const explicit = (payload && payload.webpush && payload.webpush.fcm_options && payload.webpush.fcm_options.link) || data.click_action;
+          const explicit =
+            (payload &&
+              payload.webpush &&
+              payload.webpush.fcm_options &&
+              payload.webpush.fcm_options.link) ||
+            data.click_action;
           if (explicit) return sanitizeRelativeUrl(explicit);
           const billId = data.billId;
-          const role = (data.role || '').toString();
+          const role = (data.role || "").toString();
           const customerId = data.customerId;
           if (billId) {
-            if (role === 'admin' && customerId) {
-              return sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${billId}`);
+            if (role === "admin" && customerId) {
+              return sanitizeRelativeUrl(
+                `/admin/customers/${customerId}/bills?open=${billId}`,
+              );
             }
             return sanitizeRelativeUrl(`/customers/bills?open=${billId}`);
           }
-          return '/';
+          return "/";
         })(),
       },
     };
     // Dedupe: if an identical notification was shown moments ago, skip
     try {
-      const dedupeKey = makeDedupeKey({ tag: options.tag, title, body: options.body || '' });
+      const dedupeKey = makeDedupeKey({
+        tag: options.tag,
+        title,
+        body: options.body || "",
+      });
       if (wasRecentlyShown(dedupeKey)) return;
       markShown(dedupeKey);
     } catch {}
     // Dedupe: close existing with same tag and replace with latest
     try {
-      const existing = await self.registration.getNotifications({ tag: options.tag });
+      const existing = await self.registration.getNotifications({
+        tag: options.tag,
+      });
       if (existing && existing.length) existing.forEach((n) => n.close());
     } catch {}
     await self.registration.showNotification(title, options);
@@ -572,44 +671,68 @@ try {
     try {
       const sendToClients = async (payload) => {
         try {
-          const clis = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+          const clis = await clients.matchAll({
+            type: "window",
+            includeUncontrolled: true,
+          });
           for (const c of clis) {
-            try { c.postMessage(payload); } catch {}
+            try {
+              c.postMessage(payload);
+            } catch {}
           }
         } catch {}
       };
       if (bc) {
         const appNotification = {
-          id: data.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: (data.type || 'system'),
+          id:
+            data.id ||
+            `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: data.type || "system",
           title,
-          body: options.body || '',
+          body: options.body || "",
           createdAt: new Date().toISOString(),
           read: false,
-          meta: options.data && options.data.meta ? options.data.meta : undefined,
+          meta:
+            options.data && options.data.meta ? options.data.meta : undefined,
         };
-        bc.postMessage({ type: 'notification:received', payload: appNotification });
+        bc.postMessage({
+          type: "notification:received",
+          payload: appNotification,
+        });
         // Persist so that if no client is listening, we can replay later
-        try { await saveRecentNotification(appNotification); } catch {}
+        try {
+          await saveRecentNotification(appNotification);
+        } catch {}
       } else {
         const appNotification = {
-          id: data.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: (data.type || 'system'),
+          id:
+            data.id ||
+            `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: data.type || "system",
           title,
-          body: options.body || '',
+          body: options.body || "",
           createdAt: new Date().toISOString(),
           read: false,
-          meta: options.data && options.data.meta ? options.data.meta : undefined,
+          meta:
+            options.data && options.data.meta ? options.data.meta : undefined,
         };
-        await sendToClients({ type: 'notification:received', payload: appNotification });
-        try { await saveRecentNotification(appNotification); } catch {}
+        await sendToClients({
+          type: "notification:received",
+          payload: appNotification,
+        });
+        try {
+          await saveRecentNotification(appNotification);
+        } catch {}
       }
     } catch {}
   }
 
   async function processQueuedNotifications() {
     // Only process when online (best effort)
-    const isOnline = (self.navigator && 'onLine' in self.navigator) ? self.navigator.onLine : true;
+    const isOnline =
+      self.navigator && "onLine" in self.navigator
+        ? self.navigator.onLine
+        : true;
     if (!isOnline) return;
     try {
       const queued = await getAllQueuedNotifications();
@@ -629,68 +752,85 @@ try {
   }
 
   // Best-effort: process any queued notifications when SW activates
-  self.addEventListener('activate', (ev) => {
+  self.addEventListener("activate", (ev) => {
     ev.waitUntil(processQueuedNotifications());
   });
 
   // Optional: listen for online events if the environment emits them in SW
   try {
-    self.addEventListener('online', () => {
+    self.addEventListener("online", () => {
       // Not guaranteed to fire in SW across browsers, but harmless if it does
       processQueuedNotifications();
     });
   } catch {}
 
   // Also allow pages to poke the SW to process queue
-  self.addEventListener('message', (event) => {
-    if (event && event.data === 'PROCESS_NOTIFICATION_QUEUE') {
+  self.addEventListener("message", (event) => {
+    if (event && event.data === "PROCESS_NOTIFICATION_QUEUE") {
       event.waitUntil(processQueuedNotifications());
       return;
     }
     // From page: request SW to show notification for a foreground message when page is hidden
     // Payload is expected to be a Firebase message payload-like object
-    if (event && event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    if (event && event.data && event.data.type === "SHOW_NOTIFICATION") {
       const payload = event.data.payload;
-      event.waitUntil((async () => {
-        const queued = await queueNotification(payload);
-        if (!queued) await maybeAggregateAndShow(payload);
-      })());
+      event.waitUntil(
+        (async () => {
+          const queued = await queueNotification(payload);
+          if (!queued) await maybeAggregateAndShow(payload);
+        })(),
+      );
       return;
     }
     // From page: ask SW to replay any recent shown notifications and then clear them
-    if (event && event.data && event.data === 'REQUEST_RECENT_NOTIFICATIONS') {
-      event.waitUntil((async () => {
-        try {
-          const items = await getAllRecentNotifications();
-          const sendToClients = async (payload) => {
-            try {
-              const clis = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-              for (const c of clis) {
-                try { c.postMessage(payload); } catch {}
-              }
-            } catch {}
-          };
-          if (items && items.length) {
-            if (bc) {
-              for (const item of items) {
-                if (item && item.payload) {
-                  try { bc.postMessage({ type: 'notification:received', payload: item.payload }); } catch {}
+    if (event && event.data && event.data === "REQUEST_RECENT_NOTIFICATIONS") {
+      event.waitUntil(
+        (async () => {
+          try {
+            const items = await getAllRecentNotifications();
+            const sendToClients = async (payload) => {
+              try {
+                const clis = await clients.matchAll({
+                  type: "window",
+                  includeUncontrolled: true,
+                });
+                for (const c of clis) {
+                  try {
+                    c.postMessage(payload);
+                  } catch {}
+                }
+              } catch {}
+            };
+            if (items && items.length) {
+              if (bc) {
+                for (const item of items) {
+                  if (item && item.payload) {
+                    try {
+                      bc.postMessage({
+                        type: "notification:received",
+                        payload: item.payload,
+                      });
+                    } catch {}
+                  }
+                }
+              } else {
+                for (const item of items) {
+                  if (item && item.payload) {
+                    await sendToClients({
+                      type: "notification:received",
+                      payload: item.payload,
+                    });
+                  }
                 }
               }
-            } else {
-              for (const item of items) {
-                if (item && item.payload) {
-                  await sendToClients({ type: 'notification:received', payload: item.payload });
-                }
-              }
+              await clearAllRecentNotifications();
             }
-            await clearAllRecentNotifications();
-          }
-        } catch {}
-      })());
+          } catch {}
+        })(),
+      );
     }
     // Update device-local paused state
-    if (event && event.data && event.data.type === 'NOTIFICATIONS_SET_PAUSED') {
+    if (event && event.data && event.data.type === "NOTIFICATIONS_SET_PAUSED") {
       const desired = !!event.data.value;
       event.waitUntil(setPaused(desired));
     }
@@ -707,7 +847,7 @@ try {
   });
 
   // Fallback for raw Web Push / non-FCM messages
-  self.addEventListener('push', (event) => {
+  self.addEventListener("push", (event) => {
     if (!event.data) return;
     let payload;
     try {
@@ -717,65 +857,88 @@ try {
     }
     // Detect FCM-generated push (firebase-messaging) and SKIP here because
     // firebase.messaging().onBackgroundMessage already handles it. This avoids double-display.
-    const isFcmMsg = !!(payload && (payload['from'] || (payload.data && (payload.data['firebase-messaging-msg-id'] || payload.data['google.c.a.c_id']))));
+    const isFcmMsg = !!(
+      payload &&
+      (payload["from"] ||
+        (payload.data &&
+          (payload.data["firebase-messaging-msg-id"] ||
+            payload.data["google.c.a.c_id"])))
+    );
     if (isFcmMsg) {
       return; // Let onBackgroundMessage path handle it
     }
 
     // Non-FCM web push: render via SW
-    event.waitUntil((async () => {
-      const queued = await queueNotification(payload);
-      if (!queued) await maybeAggregateAndShow(payload);
-    })());
+    event.waitUntil(
+      (async () => {
+        const queued = await queueNotification(payload);
+        if (!queued) await maybeAggregateAndShow(payload);
+      })(),
+    );
   });
 
   // Notification click behavior: handle actions and safe navigation
-  self.addEventListener('notificationclick', (event) => {
+  self.addEventListener("notificationclick", (event) => {
     event.notification.close();
     const notifData = (event.notification && event.notification.data) || {};
     const action = event.action;
-    if (action === 'dismiss') {
+    if (action === "dismiss") {
       return; // do nothing
     }
-    let url = '/';
-    if (action === 'view-bill' && notifData.billId) {
-      const role = (notifData.role || '').toString();
+    let url = "/";
+    if (action === "view-bill" && notifData.billId) {
+      const role = (notifData.role || "").toString();
       const customerId = notifData.customerId;
-      if (role === 'admin' && customerId) {
-        url = sanitizeRelativeUrl(`/admin/customers/${customerId}/bills?open=${notifData.billId}`);
+      if (role === "admin" && customerId) {
+        url = sanitizeRelativeUrl(
+          `/admin/customers/${customerId}/bills?open=${notifData.billId}`,
+        );
       } else {
         url = sanitizeRelativeUrl(`/customers/bills?open=${notifData.billId}`);
       }
-    } else if (action === 'reply-chat') {
+    } else if (action === "reply-chat") {
       // For chat, navigate to the provided route (admin/customer chat page) with roomId
       if (notifData.meta && notifData.meta.route) {
-        try { url = sanitizeRelativeUrl(buildLinkFromRoute(notifData.meta.route)); } catch { url = '/'; }
+        try {
+          url = sanitizeRelativeUrl(buildLinkFromRoute(notifData.meta.route));
+        } catch {
+          url = "/";
+        }
       } else if (notifData.link) {
         url = sanitizeRelativeUrl(notifData.link);
       } else {
         // Fallback to generic chat landing
-        url = '/admin/chats';
+        url = "/admin/chats";
       }
     } else if (notifData.meta && notifData.meta.route) {
       try {
         url = sanitizeRelativeUrl(buildLinkFromRoute(notifData.meta.route));
       } catch {
-        url = sanitizeRelativeUrl(notifData.link || '/');
+        url = sanitizeRelativeUrl(notifData.link || "/");
       }
     } else if (notifData.link) {
       url = sanitizeRelativeUrl(notifData.link);
     }
 
-    event.waitUntil((async () => {
-      const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const sameOrigin = allClients.find((c) => 'url' in c && c.url && c.url.startsWith(self.location.origin));
-      if (sameOrigin) {
-        await sameOrigin.focus();
-        try { await sameOrigin.navigate(url); } catch {}
-        return;
-      }
-      await clients.openWindow(url);
-    })());
+    event.waitUntil(
+      (async () => {
+        const allClients = await clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        const sameOrigin = allClients.find(
+          (c) => "url" in c && c.url && c.url.startsWith(self.location.origin),
+        );
+        if (sameOrigin) {
+          await sameOrigin.focus();
+          try {
+            await sameOrigin.navigate(url);
+          } catch {}
+          return;
+        }
+        await clients.openWindow(url);
+      })(),
+    );
   });
 } catch {
   // Swallow Firebase init errors to avoid breaking offline caching
