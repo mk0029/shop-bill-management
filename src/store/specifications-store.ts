@@ -82,6 +82,7 @@ interface SpecificationsStore {
 
   // Actions
   init: () => void;
+  setInitialData: (data: { specificationOptions: SpecificationOption[]; categoryFieldMappings: SanityCategoryFieldMapping[] }) => void;
   fetchSpecificationOptions: () => Promise<void>;
   fetchCategoryFieldMappings: () => Promise<void>;
 
@@ -140,11 +141,21 @@ export const useSpecificationsStore = create<SpecificationsStore>(
 
     // Initializer
     init: () => {
+      set({ isLoading: true });
       get().fetchSpecificationOptions();
       get().fetchCategoryFieldMappings();
+      set({ isLoading: false });
     },
 
-
+    setInitialData: (data) => {
+      set({
+        specificationOptions: data.specificationOptions || [],
+        categoryFieldMappings: data.categoryFieldMappings || [],
+        isLoading: false,
+        error: null,
+        lastFetched: new Date(),
+      });
+    },
 
     forceSyncSpecifications: async () => {
       set({ isLoading: true });
@@ -331,20 +342,20 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       // Simplified matching logic - prioritize Wire category
       const isWireCategory = categoryId === '54d20931-408c-4f0c-9c4b-e0c0d4e1726f';
       
-      let specificMapping = null;
+      let specificMapping: SanityCategoryFieldMapping | null = null;
       
       // If this is Wire category, find any wire mapping
       if (isWireCategory) {
         specificMapping = categoryFieldMappings.find(mapping => {
           return mapping.categoryType === 'wire' && mapping.isActive;
-        });
+        }) || null;
         
        
       } else {
         // For other categories, try exact ID match
         specificMapping = categoryFieldMappings.find(
           (mapping) => mapping.category?._id === categoryId && mapping.isActive
-        );
+        ) || null;
       }
 
       // If no specific mapping found, return empty

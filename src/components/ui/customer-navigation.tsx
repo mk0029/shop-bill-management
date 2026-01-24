@@ -95,9 +95,12 @@ export function CustomerNavigation() {
       } else {
         // Fallback: hit server to ensure creation
         try {
-          const res = await fetch('/api/online', { method: 'GET' });
+          const res = await fetch("/api/online", { method: "GET" });
           const json: unknown = await res.json();
-          const parsed = json as { success?: boolean; data?: { isOnline?: boolean; atShop?: boolean } };
+          const parsed = json as {
+            success?: boolean;
+            data?: { isOnline?: boolean; atShop?: boolean };
+          };
           if (parsed?.success && parsed?.data) {
             const d = parsed.data;
             setOnlineStep(mapStateToStep(!!d.isOnline, !!d.atShop));
@@ -106,9 +109,14 @@ export function CustomerNavigation() {
       }
     })();
     const sub = sanityClient
-      .listen('*[_type == "online" && _id == "onlineStatus"]', {}, { includeResult: true })
+      .listen(
+        '*[_type == "online" && _id == "onlineStatus"]',
+        {},
+        { includeResult: true },
+      )
       .subscribe((u) => {
-        const d = (u as { result?: { isOnline?: boolean; atShop?: boolean } })?.result;
+        const d = (u as { result?: { isOnline?: boolean; atShop?: boolean } })
+          ?.result;
         if (!d) return;
         setOnlineStep(mapStateToStep(!!d.isOnline, !!d.atShop));
       });
@@ -212,7 +220,8 @@ export function CustomerNavigation() {
         return (
           <div
             key={item.label}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default">
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default"
+          >
             <Icon className="w-5 h-5" />
             <span className="font-medium">{item.label}</span>
           </div>
@@ -228,7 +237,8 @@ export function CustomerNavigation() {
             active
               ? "bg-blue-600 text-white"
               : "text-gray-300 hover:bg-gray-800 hover:text-white"
-          }`}>
+          }`}
+        >
           <Icon className="w-5 h-5" />
           <span className="font-medium">{item.label}</span>
         </Link>
@@ -240,7 +250,8 @@ export function CustomerNavigation() {
       return (
         <div
           key={item.label}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default">
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 cursor-default"
+        >
           <Icon className="w-5 h-5" />
           <span className="font-medium">{item.label}</span>
         </div>
@@ -253,7 +264,8 @@ export function CustomerNavigation() {
         href={item.href!}
         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
           active ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-800"
-        }`}>
+        }`}
+      >
         <Icon className="w-5 h-5" />
         <span className="font-medium">{item.label}</span>
       </Link>
@@ -281,7 +293,8 @@ export function CustomerNavigation() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 xl:hidden">
+              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 xl:hidden"
+            >
               {/* Header */}
               <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-800">
                 <h2 className="text-xl font-bold text-white">Customer Menu</h2>
@@ -289,7 +302,8 @@ export function CustomerNavigation() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="hover:bg-gray-800">
+                  className="hover:bg-gray-800"
+                >
                   <X className="w-5 h-5" />
                 </Button>
               </div>
@@ -301,7 +315,9 @@ export function CustomerNavigation() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 mr-2">
                         <Wifi className="w-4 h-4 text-green-400" />
-                        <span className="text-sm text-gray-300">Availability</span>
+                        <span className="text-sm text-gray-300">
+                          Availability
+                        </span>
                       </div>
                       <div className="flex items-center pb-3 relative">
                         <div
@@ -314,11 +330,17 @@ export function CustomerNavigation() {
                           onKeyDown={(e) => {
                             if (e.key === "ArrowRight") {
                               e.preventDefault();
-                              const nextRight = Math.min(2, onlineStep + 1) as 0 | 1 | 2;
+                              const nextRight = Math.min(2, onlineStep + 1) as
+                                | 0
+                                | 1
+                                | 2;
                               setIndex(nextRight);
                             } else if (e.key === "ArrowLeft") {
                               e.preventDefault();
-                              const nextLeft = Math.max(0, onlineStep - 1) as 0 | 1 | 2;
+                              const nextLeft = Math.max(0, onlineStep - 1) as
+                                | 0
+                                | 1
+                                | 2;
                               setIndex(nextLeft);
                             }
                           }}
@@ -328,9 +350,24 @@ export function CustomerNavigation() {
                           className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
                         >
                           <div className="absolute inset-0 grid grid-cols-3">
-                            <button type="button" className="col-span-1" onClick={() => setIndex(0)} aria-label="Offline" />
-                            <button type="button" className="col-span-1" onClick={() => setIndex(1)} aria-label="Available" />
-                            <button type="button" className="col-span-1" onClick={() => setIndex(2)} aria-label="At shop" />
+                            <button
+                              type="button"
+                              className="col-span-1"
+                              onClick={() => setIndex(0)}
+                              aria-label="Offline"
+                            />
+                            <button
+                              type="button"
+                              className="col-span-1"
+                              onClick={() => setIndex(1)}
+                              aria-label="Available"
+                            />
+                            <button
+                              type="button"
+                              className="col-span-1"
+                              onClick={() => setIndex(2)}
+                              aria-label="At shop"
+                            />
                           </div>
                           <div
                             className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
@@ -342,13 +379,17 @@ export function CustomerNavigation() {
                             <span>At shop</span>
                           </div>
                         </div>
-                        {updating && <span className="ml-2 text-[10px] text-gray-400">Updating...</span>}
+                        {updating && (
+                          <span className="ml-2 text-[10px] text-gray-400">
+                            Updating...
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
                 {customerNavigation.map((item) =>
-                  renderNavigationItem(item, true)
+                  renderNavigationItem(item, true),
                 )}
               </div>
 
@@ -373,7 +414,8 @@ export function CustomerNavigation() {
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="w-full">
+                  className="w-full"
+                >
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
@@ -391,7 +433,14 @@ export function CustomerNavigation() {
           <div className="flex items-center gap-3">
             <Building2 className="w-6 h-6 hidden text-white" />
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Image src="/je-p-48.png" alt="Logo" width={40} height={40} sizes="100vw" quality={100}/>
+              <Image
+                src="/je-p-48.png"
+                alt="Logo"
+                width={40}
+                height={40}
+                sizes="100vw"
+                quality={100}
+              />
             </div>
             <div>
               <h1 className="text-lg font-bold text-white">Jambh Electrics</h1>
@@ -419,11 +468,17 @@ export function CustomerNavigation() {
                     onKeyDown={(e) => {
                       if (e.key === "ArrowRight") {
                         e.preventDefault();
-                        const nextRight = Math.min(2, onlineStep + 1) as 0 | 1 | 2;
+                        const nextRight = Math.min(2, onlineStep + 1) as
+                          | 0
+                          | 1
+                          | 2;
                         setIndex(nextRight);
                       } else if (e.key === "ArrowLeft") {
                         e.preventDefault();
-                        const nextLeft = Math.max(0, onlineStep - 1) as 0 | 1 | 2;
+                        const nextLeft = Math.max(0, onlineStep - 1) as
+                          | 0
+                          | 1
+                          | 2;
                         setIndex(nextLeft);
                       }
                     }}
@@ -433,9 +488,24 @@ export function CustomerNavigation() {
                     className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
                   >
                     <div className="absolute inset-0 grid grid-cols-3">
-                      <button type="button" className="col-span-1" onClick={() => setIndex(0)} aria-label="Offline" />
-                      <button type="button" className="col-span-1" onClick={() => setIndex(1)} aria-label="Available" />
-                      <button type="button" className="col-span-1" onClick={() => setIndex(2)} aria-label="At shop" />
+                      <button
+                        type="button"
+                        className="col-span-1"
+                        onClick={() => setIndex(0)}
+                        aria-label="Offline"
+                      />
+                      <button
+                        type="button"
+                        className="col-span-1"
+                        onClick={() => setIndex(1)}
+                        aria-label="Available"
+                      />
+                      <button
+                        type="button"
+                        className="col-span-1"
+                        onClick={() => setIndex(2)}
+                        aria-label="At shop"
+                      />
                     </div>
                     <div
                       className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
@@ -447,7 +517,11 @@ export function CustomerNavigation() {
                       <span>At shop</span>
                     </div>
                   </div>
-                  {updating && <span className="ml-2 text-[10px] text-gray-400">Updating...</span>}
+                  {updating && (
+                    <span className="ml-2 text-[10px] text-gray-400">
+                      Updating...
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -500,8 +574,8 @@ export function CustomerNavigation() {
                   </div>
                   <div className="flex items-center pb-3 relative">
                     <div
-                    role="slider"
-                    aria-label="Availability"
+                      role="slider"
+                      aria-label="Availability"
                       aria-valuemin={0}
                       aria-valuemax={2}
                       aria-valuenow={onlineStep}
@@ -509,11 +583,17 @@ export function CustomerNavigation() {
                       onKeyDown={(e) => {
                         if (e.key === "ArrowRight") {
                           e.preventDefault();
-                          const nextRight = Math.min(2, onlineStep + 1) as 0 | 1 | 2;
+                          const nextRight = Math.min(2, onlineStep + 1) as
+                            | 0
+                            | 1
+                            | 2;
                           setIndex(nextRight);
                         } else if (e.key === "ArrowLeft") {
                           e.preventDefault();
-                          const nextLeft = Math.max(0, onlineStep - 1) as 0 | 1 | 2;
+                          const nextLeft = Math.max(0, onlineStep - 1) as
+                            | 0
+                            | 1
+                            | 2;
                           setIndex(nextLeft);
                         }
                       }}
@@ -523,9 +603,24 @@ export function CustomerNavigation() {
                       className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
                     >
                       <div className="absolute inset-0 grid grid-cols-3">
-                        <button type="button" className="col-span-1" onClick={() => setIndex(0)} aria-label="Offline" />
-                        <button type="button" className="col-span-1" onClick={() => setIndex(1)} aria-label="Available" />
-                        <button type="button" className="col-span-1" onClick={() => setIndex(2)} aria-label="At shop" />
+                        <button
+                          type="button"
+                          className="col-span-1"
+                          onClick={() => setIndex(0)}
+                          aria-label="Offline"
+                        />
+                        <button
+                          type="button"
+                          className="col-span-1"
+                          onClick={() => setIndex(1)}
+                          aria-label="Available"
+                        />
+                        <button
+                          type="button"
+                          className="col-span-1"
+                          onClick={() => setIndex(2)}
+                          aria-label="At shop"
+                        />
                       </div>
                       <div
                         className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
@@ -537,19 +632,24 @@ export function CustomerNavigation() {
                         <span>At shop</span>
                       </div>
                     </div>
-                    {updating && <span className="ml-2 text-[10px] text-gray-400">Updating...</span>}
+                    {updating && (
+                      <span className="ml-2 text-[10px] text-gray-400">
+                        Updating...
+                      </span>
+                    )}
                   </div>
                 </div>
               ) : (
                 <OnlineStatusCustomerButton />
               )}
-              <CustomerNotifications/>
+              <CustomerNotifications />
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="xl:hidden ">
+              className="xl:hidden "
+            >
               <Menu className="w-5 h-5" />
             </Button>
           </div>

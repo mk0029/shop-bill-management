@@ -3,33 +3,20 @@ import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import { Card } from "@/components/ui/card";
-import {
-  productApiService,
-  brandApiService,
-  categoryApiService,
-  userApiService,
-  billApiService,
-} from "@/lib/sanity-api-service";
+import { getAdminDashboardData } from "@/lib/server-data";
+import { getServerAuth } from "@/lib/server-auth";
+import { redirect } from "next/navigation";
 import QuickActions from "@/components/dashboard/quick-actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  // Page-only SSR: fetch all required data on the server
-  const [productsRes, brandsRes, categoriesRes, customersRes, billsRes] =
-    await Promise.all([
-      productApiService.getAllProducts(),
-      brandApiService.getAllBrands(),
-      categoryApiService.getAllCategories(),
-      userApiService.getCustomers(),
-      billApiService.getAllBills(),
-    ]);
+  const auth = await getServerAuth();
+  if (!auth.isAuthenticated) redirect("/");
+  if (auth.role !== "admin") redirect("/customer/bills");
 
-  const products = productsRes.success ? (productsRes.data as any[]) : [];
-  const brands = brandsRes.success ? (brandsRes.data as any[]) : [];
-  const categories = categoriesRes.success ? (categoriesRes.data as any[]) : [];
-  const customers = customersRes.success ? (customersRes.data as any[]) : [];
-  const bills = billsRes.success ? (billsRes.data as any[]) : [];
+  const { products, brands, categories, customers, bills } =
+    await getAdminDashboardData();
 
   // Realtime is provided by RealtimeProvider below for live updates after SSR
   const quickActions = [

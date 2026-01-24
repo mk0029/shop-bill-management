@@ -1,16 +1,8 @@
-"use client";
+import { redirect } from "next/navigation";
 
 // Disable static generation for this page
-export const dynamic = 'force-dynamic';
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+export const dynamic = "force-dynamic";
 
 export default function CustomerProfileRedirect() {
-  const router = useRouter();
-  useEffect(() => {
-    router.replace("/customer/settings");
-  }, [router]);
-
-  return null;
+  redirect("/customer/settings");
 }

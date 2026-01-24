@@ -1,55 +1,16 @@
-"use client";
-
 import { Navigation } from "@/components/ui/navigation";
-import { useAuthStore } from "@/store/auth-store";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import NotificationSyncGate from "@/components/system/notification-sync-gate";
+import { getServerAuth } from "@/lib/server-auth";
+import { redirect } from "next/navigation";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Realtime is provided per-page via RealtimeProvider to avoid duplicate listeners
-
-  const { isAuthenticated, role, isLoading, hydrated } = useAuthStore();
-  const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient && !isLoading && hydrated) {
-      if (!isAuthenticated) {
-        router.push("/");
-      } else if (role !== "admin") {
-        router.push("/customer/bills");
-      }
-    }
-  }, [isAuthenticated, role, router, isClient, isLoading, hydrated]);
-
-  // Note: We no longer redirect to '/offline'. Offline mode is handled inline by components.
-
-  // Show loading only until we are on client and not actively loading
-  if (!isClient || isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
-      </div>
-    );
-  }
-
-  // Don't render anything if not authenticated or wrong role
-  if (!isAuthenticated || role !== "admin") {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-white">Redirecting...</div>
-      </div>
-    );
-  }
+  const auth = await getServerAuth();
+  if (!auth.isAuthenticated) redirect("/");
+  if (auth.role !== "admin") redirect("/customer/bills");
 
   return (
     <div className="min-h-screen bg-gray-950">

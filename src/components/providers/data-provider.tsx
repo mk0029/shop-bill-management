@@ -16,6 +16,12 @@ export function DataProvider({ children }: DataProviderProps) {
   const { user, role, isAuthenticated } = useAuthStore();
   const online = useOnline(isAuthenticated);
   useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      (window as any).__SSR_DATA_HYDRATED__
+    ) {
+      return;
+    }
     // Avoid triggering loads until role is determined
     if (!role) return;
     // Bootstrap only once per app session

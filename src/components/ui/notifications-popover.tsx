@@ -1,24 +1,31 @@
 "use client";
 
-import AdminNotificationsPage from "@/app/customer/notifications/page";
+import CustomerNotificationsClient from "@/components/customer/customer-notifications-client";
 import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSettingsStore } from "@/store/settings-store";
-import { initSoundOnUserGesture, playNotificationSound } from "@/lib/notification-sound";
+import {
+  initSoundOnUserGesture,
+  playNotificationSound,
+} from "@/lib/notification-sound";
 
 export default function NotificationsPopover() {
   const { items, unread, markAllRead } = useNotificationStore();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
-  const [composerOpen, setComposerOpen] = useState(false);
-  const showInAppNotifications = useSettingsStore((s) => s.showInAppNotifications);
-  const showNotificationPopover = useSettingsStore((s) => s.showNotificationPopover);
-  const playSoundOnNotification = useSettingsStore((s) => s.playSoundOnNotification);
-
+  const showInAppNotifications = useSettingsStore(
+    (s) => s.showInAppNotifications,
+  );
+  const showNotificationPopover = useSettingsStore(
+    (s) => s.showNotificationPopover,
+  );
+  const playSoundOnNotification = useSettingsStore(
+    (s) => s.playSoundOnNotification,
+  );
 
   // Close on outside click
   useEffect(() => {
@@ -91,42 +98,48 @@ export default function NotificationsPopover() {
 
       {/* If popover is disabled, do not render it */}
       {showNotificationPopover && (
-      <AnimatePresence>
-        {open && (
-          <>
-            {/* Backdrop overlay with blur for mobile and desktop */}
-            <motion.div
-              key="notif-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-50 bg-black/80 blur-md h-screen w-full"
-              onClick={() => setOpen(false)}
-              aria-hidden="true"
-            />
-          
-            <motion.div
-              key="notif-popover"
-              ref={popoverRef}
-              initial={{ opacity: 0, y: -6, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.98 }}
-              transition={{ duration: 0.15 }}
-              className={`fixed inset-0 backdrop-blur-2xl ${composerOpen ? "h-screen" : "h-fit"} w-full z-[60] xl:pl-64`}
-              role="dialog"
-              aria-label="Notifications popover"
-            >
-            <div className="relative w-full py-5">
-              <Button size="icon" variant="ghost" className="right-6 top-1/3 absolute px-3" aria-label="Close notifications" onClick={() => setOpen(false)}>
-              Close
-              </Button>
-            </div>
-            <AdminNotificationsPage composerOpen={composerOpen} setComposerOpen={setComposerOpen} onNavigate={() => setOpen(false)} />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {open && (
+            <>
+              {/* Backdrop overlay with blur for mobile and desktop */}
+              <motion.div
+                key="notif-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="fixed inset-0 z-50 bg-black/80 blur-md h-screen w-full"
+                onClick={() => setOpen(false)}
+                aria-hidden="true"
+              />
+
+              <motion.div
+                key="notif-popover"
+                ref={popoverRef}
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: 0.15 }}
+                className="fixed inset-0 backdrop-blur-2xl h-fit w-full z-[60] xl:pl-64"
+                role="dialog"
+                aria-label="Notifications popover"
+              >
+                <div className="relative w-full py-5">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="right-6 top-1/3 absolute px-3"
+                    aria-label="Close notifications"
+                    onClick={() => setOpen(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
+                <CustomerNotificationsClient />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       )}
     </div>
   );

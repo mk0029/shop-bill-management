@@ -1,12 +1,16 @@
-"use client";
+import CustomerFittingsClient from "@/components/customer/customer-fittings-client";
+import { getFittingRates } from "@/lib/server-data";
+import { getServerAuth } from "@/lib/server-auth";
+import { redirect } from "next/navigation";
 
-import React from "react";
-import { FittingCalculator } from "@/components/billing/fitting-calculator";
+export const dynamic = "force-dynamic";
 
-export default function CustomerFittingEstimatorPage() {
-  return (
-    <div className="space-y-4">
-      <FittingCalculator allowGenerate={false} showHeader={true} adminRatesEditor={false} />
-    </div>
-  );
+export default async function CustomerFittingEstimatorPage() {
+  const auth = await getServerAuth();
+  if (!auth.isAuthenticated) redirect("/");
+  if (auth.role !== "customer") redirect("/admin/dashboard");
+
+  const data = await getFittingRates();
+
+  return <CustomerFittingsClient initialRates={data?.rates ?? null} />;
 }
