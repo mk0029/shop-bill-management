@@ -168,6 +168,13 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         console.error("All attachments failed to upload. Message not sent.");
         useChatStore.getState().updateMessageStatus(roomId, tempId, "failed");
         alert("Failed to upload attachments. Please try again.");
+        // Re-focus input on failure
+        setTimeout(() => {
+          const failInput = document.getElementById(
+            "message-input",
+          ) as HTMLInputElement;
+          if (failInput) failInput.focus();
+        }, 100);
         return;
       }
 
@@ -190,6 +197,13 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
     } catch (error) {
       console.error("Failed to send message:", error);
       useChatStore.getState().updateMessageStatus(roomId, tempId, "failed");
+      // Re-focus input on error
+      setTimeout(() => {
+        const errorInput = document.getElementById(
+          "message-input",
+        ) as HTMLInputElement;
+        if (errorInput) errorInput.focus();
+      }, 100);
     }
   };
 

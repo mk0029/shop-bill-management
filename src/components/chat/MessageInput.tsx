@@ -64,7 +64,7 @@ export default function MessageInput({
   return (
     <>
       {replyingTo && (
-        <div className="px-4 pt-2 border-t dark:border-zinc-700">
+        <div className="px-0 pt-2 border-t dark:border-zinc-700 mb-1">
           <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
             <div className="truncate">
               <span className="text-emerald-500">Replying to: </span>
@@ -84,11 +84,15 @@ export default function MessageInput({
           </div>
         </div>
       )}
-
       {editingId && (
-        <div className="mt-1 border rounded-md p-2 bg-blue-50 dark:bg-zinc-800/60 text-xs">
-          <div className="flex items-center justify-between gap-2">
-            <div className="font-medium">Editing message</div>
+        <div className="px-0 pt-2 border-t dark:border-zinc-700 mb-1">
+          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
+            <div className="truncate">
+              <span className="text-emerald-500">Editing: </span>
+              <span className="text-zinc-400 truncate">
+                {text.slice(0, 50) + (text.length > 50 ? "..." : "")}
+              </span>
+            </div>
             <button
               className="opacity-70 hover:opacity-100"
               onClick={onCancelEdit}

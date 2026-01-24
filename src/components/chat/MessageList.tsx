@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { SwipeableMessage } from "./SwipeableMessage";
 import { BillDetailTrigger } from "../bills/bill-detail-trigger";
 import type { ChatMessage } from "@/lib/chat-api";
+import { Edit, Eye } from "lucide-react";
 
 type LiteBill = {
   _id: string;
@@ -257,13 +258,17 @@ export default function MessageList({
                   : Math.max(0, total - paid),
               );
               const buttonLabel =
-                actor === "admin"
-                  ? status === "paid"
-                    ? "View"
-                    : "Update"
-                  : status === "paid"
-                    ? "View"
-                    : "Pay Now";
+                actor === "admin" ? (
+                  status === "paid" ? (
+                    <Eye className="w-4 h-4" />
+                  ) : (
+                    <Edit className="w-4 h-4" />
+                  )
+                ) : status === "paid" ? (
+                  <Eye className="w-4 h-4" />
+                ) : (
+                  "Pay Now"
+                );
 
               return (
                 <div
@@ -271,7 +276,7 @@ export default function MessageList({
                   className="flex justify-start w-full"
                 >
                   <div
-                    className={`max-w-[90%] md:max-w-[80%] border rounded-md p-3 ${billCls.container}`}
+                    className={`max-w-[90%] md:max-w-[80%] border rounded-md p-1 sm:p-3 ${billCls.container}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div>
@@ -281,7 +286,7 @@ export default function MessageList({
                           Bill Created of ₹
                           {Number(b.totalAmount ?? 0).toLocaleString("en-IN")}
                         </div>
-                        <div className={`text-xs ${billCls.textMuted}`}>
+                        {/* <div className={`text-xs ${billCls.textMuted}`}>
                           {new Date(item.createdAt).toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -289,7 +294,7 @@ export default function MessageList({
                             minute: "2-digit",
                             hour12: true,
                           })}
-                        </div>
+                        </div> */}
                         {status === "partial" && (
                           <div className="mt-1 flex items-center gap-2 text-[11px]">
                             <span className="font-medium text-emerald-600 dark:text-emerald-300">
@@ -302,7 +307,7 @@ export default function MessageList({
                           </div>
                         )}
                         {status === "pending" && due > 0 && (
-                          <div className="mt-1 text-[9px] md:text-[11px] font-medium text-yellow-700 dark:text-yellow-300">
+                          <div className="mt-1 text-[11px] font-medium text-yellow-700 dark:text-yellow-300">
                             Pending ₹{due.toLocaleString("en-IN")}
                           </div>
                         )}

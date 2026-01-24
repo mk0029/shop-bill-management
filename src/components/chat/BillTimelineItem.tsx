@@ -124,7 +124,7 @@ export default function BillTimelineItem({ bill, actor }: Props) {
   return (
     <div className="flex justify-start w-full">
       <div
-        className={`max-w-[90%] md:max-w-[80%] border rounded-md p-3 ${billCls.container}`}
+        className={`max-w-[90%] md:max-w-[80%] border rounded-md p-1 sm:p-3 ${billCls.container}`}
       >
         <div className="flex items-center justify-between gap-2">
           <div>
