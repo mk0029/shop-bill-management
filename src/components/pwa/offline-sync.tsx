@@ -7,8 +7,8 @@ import { useAuthStore } from "../../store/auth-store";
 import { flushQueue } from "../../lib/offline-queue";
 
 export default function OfflineSync() {
-  const online = useOnline();
   const { isAuthenticated } = useAuthStore();
+  const online = useOnline(isAuthenticated);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -24,7 +24,9 @@ export default function OfflineSync() {
         // Silent fail; will retry automatically when online again
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [online, isAuthenticated, pathname]);
 
   return null;

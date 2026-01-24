@@ -11,9 +11,10 @@ interface DataProviderProps {
 }
 
 export function DataProvider({ children }: DataProviderProps) {
-  const { loadAdminData, loadCustomerData, isLoading, error, lastSyncTime } = useDataStore();
-  const { user, role } = useAuthStore();
-  const online = useOnline();
+  const { loadAdminData, loadCustomerData, isLoading, error, lastSyncTime } =
+    useDataStore();
+  const { user, role, isAuthenticated } = useAuthStore();
+  const online = useOnline(isAuthenticated);
   useEffect(() => {
     // Avoid triggering loads until role is determined
     if (!role) return;
@@ -34,14 +35,19 @@ export function DataProvider({ children }: DataProviderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, lastSyncTime]);
 
-
   // Offline-friendly handling: render page and show compact banners
   const retry = () => {
     if (!role) return;
     if (role === "customer") {
-      loadCustomerData({ userId: user?.id, customerId: (user as any)?.customerId });
+      loadCustomerData({
+        userId: user?.id,
+        customerId: (user as any)?.customerId,
+      });
     } else if (role === "admin") {
-      loadAdminData({ userId: user?.id, customerId: (user as any)?.customerId });
+      loadAdminData({
+        userId: user?.id,
+        customerId: (user as any)?.customerId,
+      });
     }
   };
 
@@ -61,7 +67,6 @@ export function DataProvider({ children }: DataProviderProps) {
         </div>
       )} */}
 
-
       {showSyncBanner && (
         <div className="fixed z-50 top-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-gray-200 text-sm shadow">
           Syncing latest data…
@@ -70,7 +75,10 @@ export function DataProvider({ children }: DataProviderProps) {
 
       {online && error && (
         <div className="fixed z-50 bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-md bg-red-900/70 backdrop-blur border border-red-700/60 text-red-100 text-sm shadow-lg">
-          Failed to load data. <button onClick={retry} className="underline ml-1">Retry</button>
+          Failed to load data.{" "}
+          <button onClick={retry} className="underline ml-1">
+            Retry
+          </button>
         </div>
       )}
 

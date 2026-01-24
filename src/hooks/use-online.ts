@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export function useOnline(): { online: boolean; setOnline: (online: boolean) => void } {
+export function useOnline(enabled = true): { online: boolean; setOnline: (online: boolean) => void } {
   const [online, setOnline] = useState<boolean>(
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
 
   useEffect(() => {
+    if (!enabled) return;
     let destroyed = false;
     let consecutiveFailures = 0;
     const FAILURE_THRESHOLD = 2; // require 2 failed checks before declaring offline

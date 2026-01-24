@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DataProvider } from "../components/providers/data-provider";
+import AuthBackgroundGate from "../components/providers/auth-background-gate";
 
 import { Toaster } from "sonner";
 import Script from "next/script";
@@ -36,9 +37,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jambh-ell.vercel.app";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://jambh-ell.vercel.app";
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-const GOOGLE_SITE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
+const GOOGLE_SITE_VERIFICATION =
+  process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -63,13 +66,15 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/je-32.ico", sizes: "32x32", type: "image/x-icon" },
-      { url: "/je-48.ico", sizes: "48x48 64x64 96x96 128x128 256x256", type: "image/x-icon" },
+      {
+        url: "/je-48.ico",
+        sizes: "48x48 64x64 96x96 128x128 256x256",
+        type: "image/x-icon",
+      },
       { url: "/je-192.ico", sizes: "192x192", type: "image/x-icon" },
       { url: "/je-512.ico", sizes: "512x512", type: "image/x-icon" },
     ],
-    apple: [
-      { url: "/je-p-192.png", sizes: "192x192", type: "image/png" }
-    ],
+    apple: [{ url: "/je-p-192.png", sizes: "192x192", type: "image/png" }],
     shortcut: ["/je-32.ico"],
   },
   openGraph: {
@@ -78,7 +83,7 @@ export const metadata: Metadata = {
     url: "https://jambh-ell.vercel.app/",
     siteName: "Jambh Electrics",
     images: [
-      { url: "/je-p-512.png", width: 512, height: 512, alt: "Jambh Electrics" }
+      { url: "/je-p-512.png", width: 512, height: 512, alt: "Jambh Electrics" },
     ],
     type: "website",
     locale: "en_US",
@@ -121,18 +126,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    
-      <html lang="en" className="dark">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}>
-          {/* Synchronous auth prehydration to speed up startup */}
-          <AuthPrehydrate />
-          {/* Global route progress bar */}
-          <Suspense fallback={null}>
-            <RouteProgress />
-          </Suspense>
-          <DataProvider>
-            {children}
+    <html lang="en" className="dark">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
+      >
+        {/* Synchronous auth prehydration to speed up startup */}
+        <AuthPrehydrate />
+        {/* Global route progress bar */}
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
+        <DataProvider>
+          {children}
+          <AuthBackgroundGate>
             {/* Global offline status overlay (shows when shop is offline) */}
             <OfflineStatusOverlay />
             {/* Global realtime notifications bridge */}
@@ -150,90 +156,74 @@ export default function RootLayout({
             {/* <PWAInstaller /> */}
             <OfflineSync />
             <OfflineWarning />
-          </DataProvider>
+          </AuthBackgroundGate>
+        </DataProvider>
 
-          <Toaster
-            theme="dark"
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: "#1f2937",
-                border: "1px solid #374151",
-                color: "#f9fafb",
-              },
-            }}
-          />
+        <Toaster
+          theme="dark"
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#1f2937",
+              border: "1px solid #374151",
+              color: "#f9fafb",
+            },
+          }}
+        />
 
-          {/* Register Service Worker (single entry: firebase-messaging-sw.js delegates to /sw.js) */}
-          <Script id="register-sw" strategy="afterInteractive">
-            {`
-              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  const swUrl = '/firebase-messaging-sw.js';
-                  navigator.serviceWorker.register(swUrl).then((reg) => {
-                    // Listen for updates
-                    reg.addEventListener('updatefound', () => {
-                      const newWorker = reg.installing;
-                      if (!newWorker) return;
-                      newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                          // new content available; could notify user
-                        }
-                      });
-                    });
-                  }).catch(() => {
-                    // registration failed; ignore
-                  });
-                });
-              }
-            `}
-          </Script>
-
-          {/* Google Analytics 4 (optional via NEXT_PUBLIC_GA_ID) */}
-          {GA_ID ? (
-            <>
-              <Script
-                id="ga4-src"
-                src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-                strategy="afterInteractive"
-              />
-              <Script id="ga4-init" strategy="afterInteractive">
-                {`
+        {/* Google Analytics 4 (optional via NEXT_PUBLIC_GA_ID) */}
+        {GA_ID ? (
+          <>
+            <Script
+              id="ga4-src"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`
                   window.dataLayer = window.dataLayer || [];
                   function gtag(){dataLayer.push(arguments);} 
                   gtag('js', new Date());
                   gtag('config', '${GA_ID}', { anonymize_ip: true });
                 `}
-              </Script>
-            </>
-          ) : null}
+            </Script>
+          </>
+        ) : null}
 
-          {/* Structured Data: Organization and WebSite */}
-          <Script id="ld-json-org" type="application/ld+json" strategy="afterInteractive">
-            {JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: 'Jambh Electrics',
-              url: SITE_URL,
-              logo: `${SITE_URL}/je-p-512.png`,
-            })}
-          </Script>
-          <Script id="ld-json-website" type="application/ld+json" strategy="afterInteractive">
-            {JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'WebSite',
-              name: 'Jambh Electrics',
-              url: SITE_URL,
-              potentialAction: {
-                '@type': 'SearchAction',
-                target: `${SITE_URL}/search?q={search_term_string}`,
-                'query-input': 'required name=search_term_string',
-              },
-            })}
-          </Script>
+        {/* Structured Data: Organization and WebSite */}
+        <Script
+          id="ld-json-org"
+          type="application/ld+json"
+          strategy="afterInteractive"
+        >
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "Jambh Electrics",
+            url: SITE_URL,
+            logo: `${SITE_URL}/je-p-512.png`,
+          })}
+        </Script>
+        <Script
+          id="ld-json-website"
+          type="application/ld+json"
+          strategy="afterInteractive"
+        >
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "Jambh Electrics",
+            url: SITE_URL,
+            potentialAction: {
+              "@type": "SearchAction",
+              target: `${SITE_URL}/search?q={search_term_string}`,
+              "query-input": "required name=search_term_string",
+            },
+          })}
+        </Script>
 
-          <Script id="disable-number-input-scroll" strategy="afterInteractive">
-            {`
+        <Script id="disable-number-input-scroll" strategy="afterInteractive">
+          {`
               function disableNumberInputScroll() {
                 const numberInputs = document.querySelectorAll('input[type="number"]');
                 
@@ -267,9 +257,8 @@ export default function RootLayout({
                 subtree: true
               });
             `}
-          </Script>
-        </body>
-      </html>
-    
+        </Script>
+      </body>
+    </html>
   );
 }

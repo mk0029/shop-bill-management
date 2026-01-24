@@ -126,11 +126,11 @@ export async function requestNotificationPermissionAndGetToken(userId: string): 
   }
 }
 
-export function listenForegroundMessages(): void {
+export function listenForegroundMessages(): () => void {
   ensureFirebase()
-  if (!messaging) return
+  if (!messaging) return () => {}
   try {
-    messaging.onMessage((payload: firebase.messaging.MessagePayload) => {
+    const unsubscribe = messaging.onMessage((payload: firebase.messaging.MessagePayload) => {
       // Device-local pause: suppress any foreground handling
       if (isDevicePaused()) return
       // Decide when to surface OS-level notifications for foreground messages.
@@ -213,9 +213,15 @@ export function listenForegroundMessages(): void {
         // ignore
       }
     })
+    return () => {
+      try {
+        unsubscribe()
+      } catch {}
+    }
   } catch (e) {
     console.error('[FCM] onMessage setup error', e)
   }
+  return () => {}
 }
 
 function showPageNotification(payload: firebase.messaging.MessagePayload) {
@@ -236,9 +242,9 @@ function showPageNotification(payload: firebase.messaging.MessagePayload) {
   }
 }
 
-export function listenTokenRefresh(userIdProvider: () => string | null | undefined): void {
+export function listenTokenRefresh(userIdProvider: () => string | null | undefined): () => void {
   ensureFirebase()
-  if (!messaging) return
+  if (!messaging) return () => {}
 
   // In compat, onTokenRefresh exists in v8; in newer browsers, token may rotate without event.
   // We guard the call and also add a visibility-based refresh attempt.
@@ -270,14 +276,23 @@ export function listenTokenRefresh(userIdProvider: () => string | null | undefin
   try {
     document.addEventListener('visibilitychange', onVis)
   } catch {}
+  return () => {
+    try {
+      document.removeEventListener('visibilitychange', onVis)
+    } catch {}
+  }
 }
 
 // Convenience initializer to be called after auth is ready
-export function initFCM(userIdProvider: () => string | null | undefined): void {
+export function initFCM(userIdProvider: () => string | null | undefined): () => void {
   ensureFirebase()
   // Install listeners and attempt token if permission already granted
-  listenForegroundMessages()
-  listenTokenRefresh(userIdProvider)
+  const cleanupForeground = listenForegroundMessages()
+  const cleanupRefresh = listenTokenRefresh(userIdProvider)
+  return () => {
+    cleanupForeground()
+    cleanupRefresh()
+  }
 }
 
 /*
