@@ -29,6 +29,7 @@ interface ChatState {
   activeRoomId: string | null;
   isLoading: boolean;
   error: string | null;
+  totalUnreadForAdmins: number;
 
   loadRooms: (opts?: { customerId?: string; adminId?: string }) => Promise<void>;
   openRoomByCustomer: (customerId: string) => Promise<string>; // returns roomId
@@ -67,6 +68,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   activeRoomId: null,
   isLoading: false,
   error: null,
+  totalUnreadForAdmins: 0,
   _subscription: null,
 
   loadRooms: async (opts) => {
@@ -77,6 +79,9 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
         const cached = await cacheGetRooms();
         if (cached && Array.isArray(cached) && cached.length >= 0) {
           set({ rooms: cached });
+          // Calculate total unread for admins
+          const totalUnread = cached.reduce((sum, room) => sum + (room.unreadForAdmins || 0), 0);
+          set({ totalUnreadForAdmins: totalUnread });
         }
       } catch (cacheErr) {
         console.error('Error loading cached rooms:', cacheErr);
@@ -100,6 +105,9 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       const rooms = await listRooms(fetchOpts);
       
       set({ rooms, isLoading: false });
+      // Calculate total unread for admins
+      const totalUnread = rooms.reduce((sum, room) => sum + (room.unreadForAdmins || 0), 0);
+      set({ totalUnreadForAdmins: totalUnread });
       
       // Persist to cache
       try { 
@@ -298,13 +306,18 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     try {
       await markRoomRead(roomId, actor);
       // reset local counters in rooms array
-      set((s) => ({
-        rooms: s.rooms.map((r) => r._id === roomId ? ({
+      set((s) => {
+        const updatedRooms = s.rooms.map((r) => r._id === roomId ? ({
           ...r,
           unreadForAdmins: actor === 'admin' ? 0 : r.unreadForAdmins,
           unreadForCustomer: actor === 'customer' ? 0 : r.unreadForCustomer,
-        }) : r),
-      }));
+        }) : r);
+        const totalUnread = updatedRooms.reduce((sum, room) => sum + (room.unreadForAdmins || 0), 0);
+        return {
+          rooms: updatedRooms,
+          totalUnreadForAdmins: totalUnread
+        };
+      });
       
       // Clear chat notifications for this room when marked as read
       const notificationStore = useNotificationStore.getState();
@@ -432,6 +445,25 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
             const deduped = Object.values(seen);
             return { messagesByRoomId: { ...s.messagesByRoomId, [roomRef]: deduped } };
           });
+          // Update unread counts for admin when new message arrives
+          const authStore = useAuthStore.getState();
+          const userRole = authStore.user?.role;
+          const senderRef = typeof msg.sender === 'string' ? msg.sender : (msg.sender as any)?._ref;
+          if (userRole === 'admin' && senderRef !== authStore.user?._id) {
+            // New message from customer to admin, increment unread
+            set((s) => {
+              const updatedRooms = s.rooms.map(room => 
+                room._id === roomRef 
+                  ? { ...room, unreadForAdmins: (room.unreadForAdmins || 0) + 1 }
+                  : room
+              );
+              const totalUnread = updatedRooms.reduce((sum, room) => sum + (room.unreadForAdmins || 0), 0);
+              return { 
+                rooms: updatedRooms,
+                totalUnreadForAdmins: totalUnread
+              };
+            });
+          }
           // persist updated list to cache
           try {
             const current = get().messagesByRoomId[roomRef] || [];

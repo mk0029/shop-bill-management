@@ -27,6 +27,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./button";
 import { Dropdown } from "./dropdown";
+import { useChatStore } from "@/store/chat-store";
 
 import NotificationsPopover from "@/components/ui/notifications-popover";
 import { canManageAdmins } from "@/lib/admin-utils";
@@ -36,17 +37,7 @@ import { OnlineStatusToggle } from "@/components/online-status-toggle";
 import RoomsTopBar from "@/components/chat/RoomsTopBar";
 import RoomsOverlayList from "@/components/chat/RoomsOverlayList";
 import NewChatLauncher from "@/components/chat/new-chat-launcher";
-import { useChatStore } from "@/store/chat-store";
 import { sanitizeUserText } from "@/constants/defaults";
-
-// Helper function to calculate total unread messages for admins
-const getUnreadMessagesCount = (rooms: any[]) => {
-  if (!rooms || rooms.length === 0) return 0;
-  return rooms.reduce((total, room) => {
-    const unreadCount = room.unreadForAdmins || 0;
-    return total + unreadCount;
-  }, 0);
-};
 
 interface NavigationItem {
   label: string;
@@ -174,7 +165,13 @@ export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, logout, user } = useAuthStore();
-  const { activeRoomId, setActiveRoom, rooms, loadRooms } = useChatStore();
+  const {
+    activeRoomId,
+    setActiveRoom,
+    rooms,
+    loadRooms,
+    totalUnreadForAdmins,
+  } = useChatStore();
 
   // Sanitize displayed text for non-admin users by removing content under specific characters
 
@@ -260,9 +257,7 @@ export function Navigation() {
   }, [role, activeRoomId, pathname]);
 
   // Calculate unread messages count for the orange dot indicator
-  const unreadMessagesCount = useMemo(() => {
-    return getUnreadMessagesCount(rooms || []);
-  }, [rooms]);
+  const unreadMessagesCount = totalUnreadForAdmins;
 
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
     const Icon = item.icon;
