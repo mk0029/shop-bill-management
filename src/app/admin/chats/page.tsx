@@ -1,5 +1,4 @@
 import AdminChatsClient from "@/components/admin/chats-client";
-import { getAdminChatRooms } from "@/lib/server-data";
 import { getServerAuth } from "@/lib/server-auth";
 import { redirect } from "next/navigation";
 
@@ -13,7 +12,5 @@ export default async function AdminChatsPage() {
   const adminId = auth.userId;
   if (!adminId) redirect("/");
 
-  const rooms = await getAdminChatRooms({ adminId });
-
-  return <AdminChatsClient rooms={rooms as any} adminId={adminId} />;
+  return <AdminChatsClient adminId={adminId} />;
 }

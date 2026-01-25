@@ -8,13 +8,11 @@ import type { ChatMessage, ChatRoom } from "@/lib/chat-api";
 import { ChatLoadingState } from "@/components/chat/ChatLoadingState";
 
 export type CustomerChatClientProps = {
-  rooms: ChatRoom[];
   customerId: string;
   customerName: string;
 };
 
 export default function CustomerChatClient({
-  rooms,
   customerId,
   customerName,
 }: CustomerChatClientProps) {
@@ -25,6 +23,7 @@ export default function CustomerChatClient({
     subscribeRealtime,
     messagesByRoomId,
     resetChatState,
+    rooms: storeRooms,
   } = useChatStore();
   const [initializing, setInitializing] = React.useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -36,15 +35,15 @@ export default function CustomerChatClient({
 
   useEffect(() => {
     resetChatState();
-    useChatStore.setState({ rooms: rooms || [], isLoading: false });
+    useChatStore.setState({ rooms: storeRooms || [], isLoading: false });
 
     subscribeRealtime();
 
     (async () => {
       try {
         if (!customerId) return;
-        if (rooms?.length) {
-          const firstRoom = rooms[0]?._id;
+        if (storeRooms?.length) {
+          const firstRoom = storeRooms[0]?._id;
           if (firstRoom) {
             await setActiveRoom(firstRoom);
             return;
@@ -63,7 +62,7 @@ export default function CustomerChatClient({
       }
     };
   }, [
-    rooms,
+    storeRooms,
     customerId,
     subscribeRealtime,
     openRoomByCustomer,

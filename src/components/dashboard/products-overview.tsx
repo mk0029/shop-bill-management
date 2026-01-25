@@ -12,20 +12,17 @@ import {
 import Link from "next/link";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 
-export function ProductsOverview(props: { initial?: { products: any[]; brands: any[]; categories: any[] } }) {
-  const { initial } = props || {};
+export function ProductsOverview() {
   const { products, activeProducts, isLoading } = useProducts();
   const { brands } = useBrands();
   const { categories } = useCategories();
 
-  // Prefer SSR-provided initial data when available
-  const productsData = initial?.products ?? products;
-  const brandsData = initial?.brands ?? brands;
-  const categoriesData = initial?.categories ?? categories;
-  const activeProductsData = initial?.products
-    ? (initial.products as any[]).filter((p: any) => p?.isActive)
-    : activeProducts;
-  const isLoadingEffective = initial ? false : isLoading;
+  // Use only client-side data
+  const productsData = products || [];
+  const brandsData = brands || [];
+  const categoriesData = categories || [];
+  const activeProductsData = activeProducts || [];
+  const isLoadingEffective = isLoading;
 
   if (isLoadingEffective) {
     return (
@@ -49,159 +46,177 @@ export function ProductsOverview(props: { initial?: { products: any[]; brands: a
 
   const lowStockProducts = productsData.filter(
     (product) =>
-      product.inventory.currentStock <= product.inventory.minimumStock
+      product.inventory.currentStock <= product.inventory.minimumStock,
   );
 
   return (
     <div className="space-y-6 max-md:space-y-4">
       {/* Stats Cards */}
-     
-     <ResponsiveAccordion title='Products Stats'>    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-4"><Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">
-                  Total Products
-                </p>
-                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {productsData.length}
-                </p>
-              </div>
-              <Package className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">
-                  Active Products
-                </p>
-                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {activeProductsData.length}
-                </p>
+      <ResponsiveAccordion title="Products Stats">
+        {" "}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">
+                    Total Products
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                    {productsData.length}
+                  </p>
+                </div>
+                <Package className="h-8 w-8 text-blue-500" />
               </div>
-              <Package className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">Brands</p>
-                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {brandsData.length}
-                </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">
+                    Active Products
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                    {activeProductsData.length}
+                  </p>
+                </div>
+                <Package className="h-8 w-8 text-green-500" />
               </div>
-              <Package className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-400">Categories</p>
-                <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                  {categoriesData.length}
-                </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">Brands</p>
+                  <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                    {brandsData.length}
+                  </p>
+                </div>
+                <Package className="h-8 w-8 text-purple-500" />
               </div>
-              <Package className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card> </div></ResponsiveAccordion>
-     
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-400">
+                    Categories
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
+                    {categoriesData.length}
+                  </p>
+                </div>
+                <Package className="h-8 w-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>{" "}
+        </div>
+      </ResponsiveAccordion>
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
         <Card className="border-yellow-500/50">
-          
-          <ResponsiveAccordion title={<CardHeader className="!p-0">
-            <CardTitle className="flex items-center gap-2 text-yellow-500">
-              <AlertTriangle className="h-5 w-5" />
-              Low Stock Alert ({lowStockProducts.length} items)
-            </CardTitle>
-          </CardHeader>}>
-          <CardContent>
-            <div className="space-y-2">
-              {lowStockProducts.slice(0, 5).map((product) => (
-                <div
-                  key={product._id}
-                  className="flex items-center justify-between gap-3 sm:gap-4 p-3 bg-gray-800 rounded min-h-12">
-                  <div>
-                    <p className="font-medium text-white">{product.name}</p>
-                    <p className="text-sm text-gray-400">
-                      {getProductBrandName(product)}
-                    </p>
+          <ResponsiveAccordion
+            title={
+              <CardHeader className="!p-0">
+                <CardTitle className="flex items-center gap-2 text-yellow-500">
+                  <AlertTriangle className="h-5 w-5" />
+                  Low Stock Alert ({lowStockProducts.length} items)
+                </CardTitle>
+              </CardHeader>
+            }
+          >
+            <CardContent>
+              <div className="space-y-2">
+                {lowStockProducts.slice(0, 5).map((product) => (
+                  <div
+                    key={product._id}
+                    className="flex items-center justify-between gap-3 sm:gap-4 p-3 bg-gray-800 rounded min-h-12"
+                  >
+                    <div>
+                      <p className="font-medium text-white">{product.name}</p>
+                      <p className="text-sm text-gray-400">
+                        {getProductBrandName(product)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-yellow-500">
+                        Stock: {product.inventory.currentStock}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Min: {product.inventory.minimumStock}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-yellow-500">
-                      Stock: {product.inventory.currentStock}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      Min: {product.inventory.minimumStock}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {lowStockProducts.length > 5 && (
-                <p className="text-sm text-gray-400 text-center">
-                  +{lowStockProducts.length - 5} more items need restocking
-                </p>
-              )}
-            </div>
-          </CardContent></ResponsiveAccordion>
+                ))}
+                {lowStockProducts.length > 5 && (
+                  <p className="text-sm text-gray-400 text-center">
+                    +{lowStockProducts.length - 5} more items need restocking
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </ResponsiveAccordion>
         </Card>
       )}
 
       {/* Recent Products */}
       <Card>
-        
-        <ResponsiveAccordion title={<CardHeader className="!p-0">
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Recent Products
-          </CardTitle></CardHeader>
-         }>
-        <CardContent>
-          <div className="space-y-4">
-            {productsData.slice(0, 5).map((product) => (
-              <div
-                key={product._id}
-                className="flex flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg">
-                <div className="flex-1 w-full">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <h3 className="font-medium text-white">{product.name}</h3>
-                      <p className="text-sm text-gray-400">
-                        {getProductBrandName(product)} •{" "}
-                        {getProductCategoryName(product)}
-                      </p>
+        <ResponsiveAccordion
+          title={
+            <CardHeader className="!p-0">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Recent Products
+              </CardTitle>
+            </CardHeader>
+          }
+        >
+          <CardContent>
+            <div className="space-y-4">
+              {productsData.slice(0, 5).map((product) => (
+                <div
+                  key={product._id}
+                  className="flex flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg"
+                >
+                  <div className="flex-1 w-full">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <h3 className="font-medium text-white">
+                          {product.name}
+                        </h3>
+                        <p className="text-sm text-gray-400">
+                          {getProductBrandName(product)} •{" "}
+                          {getProductCategoryName(product)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 sm:gap-4 w-auto sm:justify-end">
-                  <div className="text-right">
-                    <p className="font-medium text-white">
-                      ₹{product.pricing.sellingPrice.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Stock: {product.inventory.currentStock}
-                    </p>
+                  <div className="flex items-center gap-3 sm:gap-4 w-auto sm:justify-end">
+                    <div className="text-right">
+                      <p className="font-medium text-white">
+                        ₹{product.pricing.sellingPrice.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        Stock: {product.inventory.currentStock}
+                      </p>
+                    </div>
+                    <Badge
+                      className="max-sm:hidden"
+                      variant={product.isActive ? "default" : "secondary"}
+                    >
+                      {product.isActive ? "Active" : "Inactive"}
+                    </Badge>
                   </div>
-                  <Badge className="max-sm:hidden" variant={product.isActive ? "default" : "secondary"}>
-                    {product.isActive ? "Active" : "Inactive"}
-                  </Badge>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent></ResponsiveAccordion>
+              ))}
+            </div>
+          </CardContent>
+        </ResponsiveAccordion>
       </Card>
     </div>
   );

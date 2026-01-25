@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import AdminDataHydrator from "@/components/admin/admin-data-hydrator";
 import { useCustomerStats } from "@/hooks/use-customer-stats";
 import { useCustomerFilters } from "@/hooks/use-customer-filters";
 import { useCustomerActions } from "@/hooks/use-customer-actions";
@@ -12,15 +11,7 @@ import CustomerTable from "@/components/customers/customer-table";
 import CustomerDetailModal from "@/components/customers/customer-detail-modal";
 import type { CustomerWithStats } from "@/types/customer";
 
-export type AdminCustomersClientProps = {
-  customers: Array<Record<string, any>>;
-  bills: Array<Record<string, any>>;
-};
-
-export default function AdminCustomersClient({
-  customers,
-  bills,
-}: AdminCustomersClientProps) {
+export default function AdminCustomersClient() {
   const { customersWithStats, stats, isLoadingCustomers, isLoadingStats } =
     useCustomerStats();
   const { filters, filteredCustomers, updateSearchTerm, updateFilterActive } =
@@ -48,36 +39,33 @@ export default function AdminCustomersClient({
   };
 
   return (
-    <>
-      <AdminDataHydrator customers={customers} bills={bills} />
-      <div className="space-y-6 max-md:space-y-4 max-md:pb-3">
-        <CustomersPageHeader onAddCustomer={navigateToAddCustomer} />
+    <div className="space-y-6 max-md:space-y-4 max-md:pb-3">
+      <CustomersPageHeader onAddCustomer={navigateToAddCustomer} />
 
-        <CustomerStatsCards stats={stats} isLoading={isLoadingStats} />
+      <CustomerStatsCards stats={stats} isLoading={isLoadingStats} />
 
-        <CustomerSearchFilters
-          filters={filters}
-          onSearchChange={updateSearchTerm}
-          onFilterChange={updateFilterActive}
-        />
+      <CustomerSearchFilters
+        filters={filters}
+        onSearchChange={updateSearchTerm}
+        onFilterChange={updateFilterActive}
+      />
 
-        <CustomerTable
-          customers={filteredCustomers}
-          isLoading={isLoadingCustomers}
-          searchTerm={filters.searchTerm}
-          onViewCustomer={handleViewCustomer}
-          onEditCustomer={handleEditCustomer}
-          onDeleteCustomer={deleteCustomer}
-        />
+      <CustomerTable
+        customers={filteredCustomers}
+        isLoading={isLoadingCustomers}
+        searchTerm={filters.searchTerm}
+        onViewCustomer={handleViewCustomer}
+        onEditCustomer={handleEditCustomer}
+        onDeleteCustomer={deleteCustomer}
+      />
 
-        <CustomerDetailModal
-          customer={selectedCustomer}
-          isOpen={!!selectedCustomer}
-          onClose={() => setSelectedCustomer(null)}
-          onViewBills={handleViewBills}
-          onEditCustomer={handleEditCustomer}
-        />
-      </div>
-    </>
+      <CustomerDetailModal
+        customer={selectedCustomer}
+        isOpen={!!selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+        onViewBills={handleViewBills}
+        onEditCustomer={handleEditCustomer}
+      />
+    </div>
   );
 }

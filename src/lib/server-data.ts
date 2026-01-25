@@ -1,4 +1,4 @@
-import { unstable_cache } from "next/cache";
+import { unstable_cache, unstable_noStore as noStore } from "next/cache";
 import { sanityClient, queries } from "@/lib/sanity";
 
 export type AdminDashboardData = {
@@ -64,250 +64,222 @@ export type FittingRatesDoc = {
   updatedAt: string;
 };
 
-export const getAdminDashboardData = unstable_cache(
-  async (): Promise<AdminDashboardData> => {
-    const [products, brands, categories, customers, bills] = await Promise.all([
-      sanityClient.fetch(queries.activeProducts),
-      sanityClient.fetch(queries.brands),
-      sanityClient.fetch(queries.categories),
-      sanityClient.fetch(queries.customers),
-      sanityClient.fetch(queries.bills),
-    ]);
+export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+  noStore();
+  const [products, brands, categories, customers, bills] = await Promise.all([
+    sanityClient.fetch(queries.activeProducts),
+    sanityClient.fetch(queries.brands),
+    sanityClient.fetch(queries.categories),
+    sanityClient.fetch(queries.customers),
+    sanityClient.fetch(queries.bills),
+  ]);
 
-    return {
-      products: Array.isArray(products) ? products : [],
-      brands: Array.isArray(brands) ? brands : [],
-      categories: Array.isArray(categories) ? categories : [],
-      customers: Array.isArray(customers) ? customers : [],
-      bills: Array.isArray(bills) ? bills : [],
-    };
-  },
-  ["admin-dashboard-data"],
-  { revalidate: 300 }
-);
+  return {
+    products: Array.isArray(products) ? products : [],
+    brands: Array.isArray(brands) ? brands : [],
+    categories: Array.isArray(categories) ? categories : [],
+    customers: Array.isArray(customers) ? customers : [],
+    bills: Array.isArray(bills) ? bills : [],
+  };
+}
 
-export const getCustomerBillsData = unstable_cache(
-  async (opts: { userId?: string | null; customerId?: string | null }): Promise<CustomerBillsData> => {
-    const { userId, customerId } = opts;
-    const cid = customerId || userId || "";
-    if (!cid) {
-      return { customer: null, bills: [] };
-    }
+export async function getCustomerBillsData(opts: {
+  userId?: string | null;
+  customerId?: string | null;
+}): Promise<CustomerBillsData> {
+  noStore();
+  const { userId, customerId } = opts;
+  const cid = customerId || userId || "";
+  if (!cid) {
+    return { customer: null, bills: [] };
+  }
 
-    const customerQuery =
-      "*[_type == 'user' && (_id == $userId || customerId == $customerId)][0]";
+  const customerQuery =
+    "*[_type == 'user' && (_id == $userId || customerId == $customerId)][0]";
 
-    const [customer, bills] = await Promise.all([
-      sanityClient.fetch(customerQuery, { userId: userId || "", customerId: customerId || "" }),
-      sanityClient.fetch(queries.customerBills(String(cid))),
-    ]);
+  const [customer, bills] = await Promise.all([
+    sanityClient.fetch(customerQuery, { userId: userId || "", customerId: customerId || "" }),
+    sanityClient.fetch(queries.customerBills(String(cid))),
+  ]);
 
-    return {
-      customer: customer || null,
-      bills: Array.isArray(bills) ? bills : [],
-    };
-  },
-  ["customer-bills-data"],
-  { revalidate: 120 }
-);
+  return {
+    customer: customer || null,
+    bills: Array.isArray(bills) ? bills : [],
+  };
+}
 
-export const getAdminSpecificationsData = unstable_cache(
-  async (): Promise<AdminSpecificationsData> => {
-    const [specificationOptions, categoryFieldMappings] = await Promise.all([
-      sanityClient.fetch(
-        `*[_type == "specificationOption" && isActive == true] {
+export async function getAdminSpecificationsData(): Promise<AdminSpecificationsData> {
+  noStore();
+  const [specificationOptions, categoryFieldMappings] = await Promise.all([
+    sanityClient.fetch(
+      `*[_type == "specificationOption" && isActive == true] {
+        _id,
+        type,
+        value,
+        label,
+        sortOrder,
+        description,
+        categories,
+        isActive
+      } | order(type asc, sortOrder asc)`
+    ),
+    sanityClient.fetch(
+      `*[_type == "categoryFieldMapping" && isActive == true] {
+        _id,
+        category-> {
           _id,
-          type,
-          value,
-          label,
+          name,
+          slug
+        },
+        categoryType,
+        requiredFields[]-> {
+          _id,
+          fieldKey,
+          fieldLabel,
+          fieldType,
+          description,
+          placeholder,
+          validationRules,
+          defaultValue,
           sortOrder,
-          description,
-          categories,
-          isActive
-        } | order(type asc, sortOrder asc)`
-      ),
-      sanityClient.fetch(
-        `*[_type == "categoryFieldMapping" && isActive == true] {
+          isActive,
+          applicableCategories,
+          conditionalLogic
+        },
+        optionalFields[]-> {
           _id,
-          category-> {
-            _id,
-            name,
-            slug
-          },
-          categoryType,
-          requiredFields[]-> {
-            _id,
-            fieldKey,
-            fieldLabel,
-            fieldType,
-            description,
-            placeholder,
-            validationRules,
-            defaultValue,
-            sortOrder,
-            isActive,
-            applicableCategories,
-            conditionalLogic
-          },
-          optionalFields[]-> {
-            _id,
-            fieldKey,
-            fieldLabel,
-            fieldType,
-            description,
-            placeholder,
-            validationRules,
-            defaultValue,
-            sortOrder,
-            isActive,
-            applicableCategories,
-            conditionalLogic
-          },
+          fieldKey,
+          fieldLabel,
+          fieldType,
           description,
-          isActive
-        } | order(category->name asc)`
-      ),
-    ]);
+          placeholder,
+          validationRules,
+          defaultValue,
+          sortOrder,
+          isActive,
+          applicableCategories,
+          conditionalLogic
+        },
+        description,
+        isActive
+      } | order(category->name asc)`
+    ),
+  ]);
 
-    return {
-      specificationOptions: Array.isArray(specificationOptions) ? specificationOptions : [],
-      categoryFieldMappings: Array.isArray(categoryFieldMappings) ? categoryFieldMappings : [],
-    };
-  },
-  ["admin-specifications-data"],
-  { revalidate: 300 }
-);
+  return {
+    specificationOptions: Array.isArray(specificationOptions) ? specificationOptions : [],
+    categoryFieldMappings: Array.isArray(categoryFieldMappings) ? categoryFieldMappings : [],
+  };
+}
 
 export async function getAdminChatRooms(opts?: {
   customerId?: string | null;
   adminId?: string | null;
 }): Promise<AdminChatRoom[]> {
+  noStore();
   const customerId = opts?.customerId || "";
   const adminId = opts?.adminId || "";
 
-  const fetcher = unstable_cache(
-    async () => {
-      let filter = "_type == \"chatRoom\"";
-      const params: Record<string, unknown> = {};
+  let filter = "_type == \"chatRoom\"";
+  const params: Record<string, unknown> = {};
 
-      if (customerId) {
-        filter += " && customer._ref == $customerId";
-        params.customerId = customerId;
-      }
+  if (customerId) {
+    filter += " && customer._ref == $customerId";
+    params.customerId = customerId;
+  }
 
-      if (adminId) {
-        filter += " && $adminId in admins[]._ref";
-        params.adminId = adminId;
-      }
+  if (adminId) {
+    filter += " && $adminId in admins[]._ref";
+    params.adminId = adminId;
+  }
 
-      const where = filter === "_type == \"chatRoom\"" ? filter : `(${filter})`;
-      const query = `*[${where}] | order(coalesce(lastMessageAt, createdAt) desc) {
-        _id,
-        roomName,
-        customer-> { _id, name, phone },
-        admins[]-> { _id, name },
-        lastMessage,
-        lastMessageAt,
-        unreadForCustomer,
-        unreadForAdmins,
-        createdAt,
-        updatedAt
-      }`;
+  const where = filter === "_type == \"chatRoom\"" ? filter : `(${filter})`;
+  const query = `*[${where}] | order(coalesce(lastMessageAt, createdAt) desc) {
+    _id,
+    roomName,
+    customer-> { _id, name, phone },
+    admins[]-> { _id, name },
+    lastMessage,
+    lastMessageAt,
+    unreadForCustomer,
+    unreadForAdmins,
+    createdAt,
+    updatedAt
+  }`;
 
-      const data = await sanityClient.fetch(query, params);
-      return Array.isArray(data) ? (data as AdminChatRoom[]) : [];
-    },
-    ["admin-chat-rooms", customerId || "all", adminId || "all"],
-    { revalidate: 60 }
-  );
-
-  return fetcher();
+  const data = await sanityClient.fetch(query, params);
+  return Array.isArray(data) ? (data as AdminChatRoom[]) : [];
 }
 
-export const getCustomerChatRooms = unstable_cache(
-  async (customerId: string): Promise<CustomerChatRoom[]> => {
-    if (!customerId) return [];
-    const query = `*[_type == "chatRoom" && customer._ref == $customerId] | order(coalesce(lastMessageAt, createdAt) desc) {
-      _id,
-      roomName,
-      customer-> { _id, name, phone },
-      admins[]-> { _id, name },
-      lastMessage,
-      lastMessageAt,
-      unreadForCustomer,
-      unreadForAdmins,
-      createdAt,
-      updatedAt
-    }`;
-    const data = await sanityClient.fetch(query, { customerId });
-    return Array.isArray(data) ? (data as CustomerChatRoom[]) : [];
-  },
-  ["customer-chat-rooms"],
-  { revalidate: 30 }
-);
+export async function getCustomerChatRooms(customerId: string): Promise<CustomerChatRoom[]> {
+  noStore();
+  if (!customerId) return [];
+  const query = `*[_type == "chatRoom" && customer._ref == $customerId] | order(coalesce(lastMessageAt, createdAt) desc) {
+    _id,
+    roomName,
+    customer-> { _id, name, phone },
+    admins[]-> { _id, name },
+    lastMessage,
+    lastMessageAt,
+    unreadForCustomer,
+    unreadForAdmins,
+    createdAt,
+    updatedAt
+  }`;
+  const data = await sanityClient.fetch(query, { customerId });
+  return Array.isArray(data) ? (data as CustomerChatRoom[]) : [];
+}
 
-export const getAdminBillingData = unstable_cache(
-  async (): Promise<AdminBillingData> => {
-    const [bills, customers, products, brands, categories] = await Promise.all([
-      sanityClient.fetch(queries.bills),
-      sanityClient.fetch(queries.customers),
-      sanityClient.fetch(queries.activeProducts),
-      sanityClient.fetch(queries.brands),
-      sanityClient.fetch(queries.categories),
-    ]);
+export async function getAdminBillingData(): Promise<AdminBillingData> {
+  noStore();
+  const [bills, customers, products, brands, categories] = await Promise.all([
+    sanityClient.fetch(queries.bills),
+    sanityClient.fetch(queries.customers),
+    sanityClient.fetch(queries.activeProducts),
+    sanityClient.fetch(queries.brands),
+    sanityClient.fetch(queries.categories),
+  ]);
 
-    return {
-      bills: Array.isArray(bills) ? bills : [],
-      customers: Array.isArray(customers) ? customers : [],
-      products: Array.isArray(products) ? products : [],
-      brands: Array.isArray(brands) ? brands : [],
-      categories: Array.isArray(categories) ? categories : [],
-    };
-  },
-  ["admin-billing-data"],
-  { revalidate: 120 }
-);
+  return {
+    bills: Array.isArray(bills) ? bills : [],
+    customers: Array.isArray(customers) ? customers : [],
+    products: Array.isArray(products) ? products : [],
+    brands: Array.isArray(brands) ? brands : [],
+    categories: Array.isArray(categories) ? categories : [],
+  };
+}
 
-export const getAdminCustomersData = unstable_cache(
-  async (): Promise<AdminCustomersData> => {
-    const [customers, bills] = await Promise.all([
-      sanityClient.fetch(queries.customers),
-      sanityClient.fetch(queries.bills),
-    ]);
+export async function getAdminCustomersData(): Promise<AdminCustomersData> {
+  noStore();
+  const [customers, bills] = await Promise.all([
+    sanityClient.fetch(queries.customers),
+    sanityClient.fetch(queries.bills),
+  ]);
 
-    return {
-      customers: Array.isArray(customers) ? customers : [],
-      bills: Array.isArray(bills) ? bills : [],
-    };
-  },
-  ["admin-customers-data"],
-  { revalidate: 120 }
-);
+  return {
+    customers: Array.isArray(customers) ? customers : [],
+    bills: Array.isArray(bills) ? bills : [],
+  };
+}
 
-export const getAdminInventoryData = unstable_cache(
-  async (): Promise<AdminInventoryData> => {
-    const [products, brands, categories] = await Promise.all([
-      sanityClient.fetch(queries.activeProducts),
-      sanityClient.fetch(queries.brands),
-      sanityClient.fetch(queries.categories),
-    ]);
+export async function getAdminInventoryData(): Promise<AdminInventoryData> {
+  noStore();
+  const [products, brands, categories] = await Promise.all([
+    sanityClient.fetch(queries.activeProducts),
+    sanityClient.fetch(queries.brands),
+    sanityClient.fetch(queries.categories),
+  ]);
 
-    return {
-      products: Array.isArray(products) ? products : [],
-      brands: Array.isArray(brands) ? brands : [],
-      categories: Array.isArray(categories) ? categories : [],
-    };
-  },
-  ["admin-inventory-data"],
-  { revalidate: 120 }
-);
+  return {
+    products: Array.isArray(products) ? products : [],
+    brands: Array.isArray(brands) ? brands : [],
+    categories: Array.isArray(categories) ? categories : [],
+  };
+}
 
-export const getFittingRates = unstable_cache(
-  async (): Promise<FittingRatesDoc | null> => {
-    const query = `*[_type == "fitting_rates" && _id == "fittingRates"][0]`;
-    const data = await sanityClient.fetch(query);
-    return data || null;
-  },
-  ["fitting-rates"],
-  { revalidate: 60 }
-);
+export async function getFittingRates(): Promise<FittingRatesDoc | null> {
+  noStore();
+  const query = `*[_type == "fitting_rates" && _id == "fittingRates"][0]`;
+  const data = await sanityClient.fetch(query);
+  return data || null;
+}

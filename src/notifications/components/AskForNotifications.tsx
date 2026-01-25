@@ -18,6 +18,7 @@ export default function AskForNotifications() {
   const [ask, setAsk] = useState<boolean>(true);
   const [dashboardLoaded, setDashboardLoaded] = useState<boolean>(false);
   const toastIdRef = useRef<string | number | null>(null);
+  const noTokenToastIdRef = useRef<string | number | null>(null);
 
   // Helper to show guidance when notifications are hard-blocked by the browser
   function showBlockedInfo() {
@@ -100,7 +101,42 @@ export default function AskForNotifications() {
       setAsk(false);
       // Opportunistically register token on mount if user exists
       const userId = user?.id ?? null;
-      if (userId) registerFcmToken({ userId }).catch(() => {});
+      if (userId) {
+        registerFcmToken({ userId })
+          .then((res) => {
+            const reason = (res as { reason?: string } | null)?.reason;
+            if (reason !== "no-token") return;
+            const noTokenKey = `fcm-no-token-dismissed:${userId}`;
+            const dismissed =
+              typeof window !== "undefined" &&
+              window.localStorage.getItem(noTokenKey) === "1";
+            if (!dismissed && noTokenToastIdRef.current == null) {
+              noTokenToastIdRef.current = toast(
+                "Notifications enabled, but this device isn’t registered",
+                {
+                  description:
+                    "Please allow notifications and reload, or tap Retry to register this device.",
+                  action: {
+                    label: "Retry",
+                    onClick: async () => {
+                      const uid = user?.id ?? null;
+                      if (uid)
+                        await registerFcmToken({ userId: uid }).catch(() => {});
+                    },
+                  },
+                  duration: 12000,
+                  onDismiss: () => {
+                    try {
+                      window.localStorage.setItem(noTokenKey, "1");
+                    } catch {}
+                    noTokenToastIdRef.current = null;
+                  },
+                },
+              );
+            }
+          })
+          .catch(() => {});
+      }
       // Dismiss any existing toast (if any)
       if (toastIdRef.current != null) {
         toast.dismiss(toastIdRef.current);
@@ -121,7 +157,44 @@ export default function AskForNotifications() {
           if (result === "granted") {
             setAsk(false);
             const userId = user?.id ?? null;
-            if (userId) registerFcmToken({ userId }).catch(() => {});
+            if (userId) {
+              registerFcmToken({ userId })
+                .then((res) => {
+                  const reason = (res as { reason?: string } | null)?.reason;
+                  if (reason !== "no-token") return;
+                  const noTokenKey = `fcm-no-token-dismissed:${userId}`;
+                  const dismissed =
+                    typeof window !== "undefined" &&
+                    window.localStorage.getItem(noTokenKey) === "1";
+                  if (!dismissed && noTokenToastIdRef.current == null) {
+                    noTokenToastIdRef.current = toast(
+                      "Notifications enabled, but this device isn’t registered",
+                      {
+                        description:
+                          "Please allow notifications and reload, or tap Retry to register this device.",
+                        action: {
+                          label: "Retry",
+                          onClick: async () => {
+                            const uid = user?.id ?? null;
+                            if (uid)
+                              await registerFcmToken({ userId: uid }).catch(
+                                () => {},
+                              );
+                          },
+                        },
+                        duration: 12000,
+                        onDismiss: () => {
+                          try {
+                            window.localStorage.setItem(noTokenKey, "1");
+                          } catch {}
+                          noTokenToastIdRef.current = null;
+                        },
+                      },
+                    );
+                  }
+                })
+                .catch(() => {});
+            }
             if (toastIdRef.current != null) {
               toast.dismiss(toastIdRef.current);
               toastIdRef.current = null;

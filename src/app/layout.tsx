@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DataProvider } from "../components/providers/data-provider";
+import { SanityRealtimeProvider } from "../components/providers/SanityRealtimeProvider";
 import AuthBackgroundGate from "../components/providers/auth-background-gate";
 
 import { Toaster } from "sonner";
@@ -137,26 +138,28 @@ export default function RootLayout({
           <RouteProgress />
         </Suspense>
         <DataProvider>
-          {children}
-          <AuthBackgroundGate>
-            {/* Global offline status overlay (shows when shop is offline) */}
-            <OfflineStatusOverlay />
-            {/* Global realtime notifications bridge */}
-            <NotificationsBridge />
-            {/* Global Service Worker notifications bridge (saves push notifications) */}
-            <SWNotificationBridge />
-            {/* Trigger native permission prompt (no UI) until granted */}
-            <AskForNotifications />
-            {/* Headless FCM auto-setup (no UI) */}
-            <AutoNotifications />
-            {/* Foreground FCM -> system notifications */}
-            <ForegroundSystemNotifier />
-            {/* In-app toast + sound on new notifications */}
-            <NotificationToaster />
-            {/* <PWAInstaller /> */}
-            <OfflineSync />
-            <OfflineWarning />
-          </AuthBackgroundGate>
+          <SanityRealtimeProvider>
+            {children}
+            <AuthBackgroundGate>
+              {/* Global offline status overlay (shows when shop is offline) */}
+              <OfflineStatusOverlay />
+              {/* Global realtime notifications bridge */}
+              <NotificationsBridge />
+              {/* Global Service Worker notifications bridge (saves push notifications) */}
+              <SWNotificationBridge />
+              {/* Trigger native permission prompt (no UI) until granted */}
+              <AskForNotifications />
+              {/* Headless FCM auto-setup (no UI) */}
+              <AutoNotifications />
+              {/* Foreground FCM -> system notifications */}
+              <ForegroundSystemNotifier />
+              {/* In-app toast + sound on new notifications */}
+              <NotificationToaster />
+              {/* <PWAInstaller /> */}
+              <OfflineSync />
+              <OfflineWarning />
+            </AuthBackgroundGate>
+          </SanityRealtimeProvider>
         </DataProvider>
 
         <Toaster

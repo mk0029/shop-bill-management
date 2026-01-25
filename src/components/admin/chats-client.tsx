@@ -11,14 +11,10 @@ import { ChatLoadingState } from "@/components/chat/ChatLoadingState";
 import { useSearchParams } from "next/navigation";
 
 export type AdminChatsClientProps = {
-  rooms: AdminChatRoom[];
   adminId: string;
 };
 
-export default function AdminChatsClient({
-  rooms,
-  adminId,
-}: AdminChatsClientProps) {
+export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
   const {
     activeRoomId,
     subscribeRealtime,
@@ -41,11 +37,11 @@ export default function AdminChatsClient({
   );
 
   const normalizedRooms = useMemo<ChatRoom[]>(() => {
-    return (rooms || []).map((room) => ({
+    return (storeRooms || []).map((room) => ({
       ...room,
       roomName: room.roomName || "Chat",
     })) as ChatRoom[];
-  }, [rooms]);
+  }, [storeRooms]);
 
   useEffect(() => {
     resetChatState();

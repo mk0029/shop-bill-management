@@ -2,16 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useLocaleStore } from "@/store/locale-store";
+import { useCustomerBillsStore } from "@/store/customer-bills-store";
 import { BillsHeader } from "@/components/customer/bills-header";
 import { BillsFilters } from "@/components/customer/bills-filters";
 import { BillsList } from "@/components/customer/bills-list";
 
-export type CustomerBookClientProps = {
-  bills: Array<Record<string, any>>;
-};
-
-export default function CustomerBookClient({ bills }: CustomerBookClientProps) {
+export default function CustomerBookClient() {
   const { currency } = useLocaleStore();
+  const { bills } = useCustomerBillsStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
 

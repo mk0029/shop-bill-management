@@ -14,24 +14,20 @@ import {
 } from "@/components/customer/bill-utils";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { sanitizeUserText } from "@/constants/defaults";
+import { useCustomerBillsStore } from "@/store/customer-bills-store";
+import { useAuthStore } from "@/store/auth-store";
+import { useEffect } from "react";
 
-export type CustomerBillsClientProps = {
-  customer: { name?: string | null } | null;
-  bills: Array<Record<string, any>>;
-  error?: { message?: string } | null;
-};
-
-export default function CustomerBillsClient({
-  customer,
-  bills,
-  error,
-}: CustomerBillsClientProps) {
+export default function CustomerBillsClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [showBillModal, setShowBillModal] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Record<string, any> | null>(
     null,
   );
+
+  const { bills } = useCustomerBillsStore();
+  const { user } = useAuthStore();
 
   const customerBills = useMemo(() => bills || [], [bills]);
 
@@ -69,34 +65,14 @@ export default function CustomerBillsClient({
     setShowBillModal(true);
   }, []);
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-red-500">
-        <AlertCircle className="h-12 w-12 mb-4" />
-        <p className="text-lg font-medium">Error loading bills</p>
-        <p className="text-sm text-gray-500 mt-2">{error.message}</p>
-        <Button
-          onClick={() => window.location.reload()}
-          className="mt-4"
-          variant="outline"
-        >
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div data-dashboard-loaded="true" className="space-y-6 max-md:space-y-4">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-white">
-            {(() => {
-              const rawName = customer?.name;
-              const cleaned = rawName ? sanitizeUserText(rawName) : "";
-              return cleaned ? `${cleaned}'s Bills` : "Your Bills";
-            })()}
-          </h2>
+          <h2 className="text-2xl font-bold text-white">Your Bills</h2>
+          <p className="text-gray-400">
+            View and manage your bills and payments
+          </p>
         </div>
       </div>
 

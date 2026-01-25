@@ -155,6 +155,7 @@ interface DataStore {
   syncWithSanity: () => Promise<void>;
   // Lightweight, role-aware refresh that only updates bills (and indexes)
   refreshBillsOnly: (opts?: { role?: "admin" | "customer"; customerId?: string }) => Promise<void>;
+  refreshUsers: () => Promise<void>;
   // Lighter refreshes to avoid full-page like resets
   refreshActiveProducts: () => Promise<void>;
   refreshProductsByIds: (ids: string[]) => Promise<void>;
@@ -507,6 +508,27 @@ export const useDataStore = create<DataStore>((set, get) => ({
   },
 
   // Refresh only active products list (keeps other maps intact)
+  refreshUsers: async () => {
+    try {
+      const data = await sanityClient.fetch(queries.customers);
+      const users = new Map(get().users);
+      const usersByClerkId = new Map<string, string>();
+
+      (Array.isArray(data) ? data : []).forEach((u: any) => {
+        if (!u?._id) return;
+        users.set(u._id, u);
+        if (u.clerkId) {
+          usersByClerkId.set(String(u.clerkId), String(u._id));
+        }
+      });
+
+      set({ users, usersByClerkId, lastSyncTime: new Date() });
+    } catch (e) {
+      console.warn("refreshUsers failed", e);
+    }
+  },
+
+  // Refresh only active products list (keeps other maps intact)
   refreshActiveProducts: async () => {
     try {
       const data = await sanityClient.fetch(queries.activeProducts);
@@ -628,7 +650,9 @@ export const useDataStore = create<DataStore>((set, get) => ({
     if (realtimeSubscription) return; // Already connected
     const subscription = sanityClient
       .listen(
-        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage", "chatRoom", "chatMessage"]]'
+        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage", "chatRoom", "chatMessage"]]',
+        {},
+        { includeResult: true, visibility: "query" }
       )
       .subscribe({
         next: (update) => {

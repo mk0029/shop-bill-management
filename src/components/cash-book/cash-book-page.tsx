@@ -77,20 +77,14 @@ interface User {
   role?: string;
 }
 
-interface CashBookPageProps {
-  initialEntries: CashBookEntry[];
-  initialUsers: User[];
-  initialSummary: CashBookSummary;
-}
-
-export function CashBookPage({
-  initialEntries,
-  initialUsers,
-  initialSummary,
-}: CashBookPageProps) {
-  const [entries, setEntries] = useState<CashBookEntry[]>(initialEntries);
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [summary, setSummary] = useState<CashBookSummary>(initialSummary);
+export function CashBookPage() {
+  const [entries, setEntries] = useState<CashBookEntry[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [summary, setSummary] = useState<CashBookSummary>({
+    totalCredits: 0,
+    totalDebits: 0,
+    balance: 0,
+  });
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -134,10 +128,37 @@ export function CashBookPage({
         customNameRef.current?.focus();
       }, 100);
     }
-  }, [selectedUserId]);
+  }, [selectedUserId || ""]);
+
+  // Load initial data from client
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const [entriesRes, usersRes, summaryRes] = await Promise.all([
+          sanityApiService.cashBook.getAllEntries(),
+          sanityApiService.users.getAllUsers(),
+          sanityApiService.cashBook.getSummary(),
+        ]);
+
+        if (entriesRes.success) {
+          setEntries(entriesRes.data as CashBookEntry[]);
+        }
+        if (usersRes.success) {
+          setUsers(usersRes.data as User[]);
+        }
+        if (summaryRes.success) {
+          setSummary(summaryRes.data as CashBookSummary);
+        }
+      } catch (error) {
+        console.error("Failed to load initial cash book data:", error);
+      }
+    };
+
+    loadInitialData();
+  }, []);
 
   // Pagination - show only 20 entries
-  const displayedEntries = entries.slice(0, 20);
+  const displayedEntries = (entries || []).slice(0, 20);
 
   // Group entries by date for date separators
   const groupEntriesByDate = (entries: CashBookEntry[]) => {
@@ -332,7 +353,7 @@ export function CashBookPage({
       );
       // Recalculate summary
       setEntries((currentEntries) => {
-        const newSummary = currentEntries.reduce(
+        const newSummary = (currentEntries || []).reduce(
           (acc, entry) => {
             if (entry.type === "credit") {
               acc.totalCredits += entry.amount;
@@ -385,6 +406,11 @@ export function CashBookPage({
 
   // Handle bill detail view
   const handleViewBill = async (billId: string) => {
+    if (!billId) {
+      toast.error("Invalid bill ID");
+      return;
+    }
+
     try {
       // Fetch the bill details
       const bill = await sanityApiService.bills.getBillById(billId);
@@ -392,11 +418,11 @@ export function CashBookPage({
         setSelectedBill(bill.data);
         setShowBillModal(true);
       } else {
-        toast.error("Failed to fetch bill details");
+        toast.error("Failed to load bill details");
       }
     } catch (error) {
-      console.error("Error fetching bill:", error);
-      toast.error("Failed to fetch bill details");
+      console.error("Error viewing bill:", error);
+      toast.error("Error loading bill details");
     }
   };
 
@@ -1034,7 +1060,9 @@ export function CashBookPage({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleViewBill(entry.bill._id)}
+                              onClick={() =>
+                                handleViewBill(entry.bill?._id || "")
+                              }
                               className="h-5 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
                             >
                               <Receipt className="w-2 h-2 mr-1" />

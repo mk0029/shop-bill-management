@@ -17,15 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export type SpecificationsClientProps = {
-  initialSpecificationOptions: Array<Record<string, any>>;
-  initialCategoryFieldMappings: Array<Record<string, any>>;
-};
-
-export default function SpecificationsClient({
-  initialSpecificationOptions,
-  initialCategoryFieldMappings,
-}: SpecificationsClientProps) {
+export default function SpecificationsClient() {
   const router = useRouter();
   const store = useSpecificationsStore();
   const {
@@ -37,25 +29,12 @@ export default function SpecificationsClient({
     addSpecificationOption,
     deleteSpecificationOption,
     clearError,
-    setInitialData,
     forceSyncSpecifications,
-  } = store as typeof store & {
-    setInitialData: (data: {
-      specificationOptions: any[];
-      categoryFieldMappings: any[];
-    }) => void;
-  };
+  } = store;
 
   useEffect(() => {
-    setInitialData({
-      specificationOptions: initialSpecificationOptions || [],
-      categoryFieldMappings: initialCategoryFieldMappings || [],
-    });
-  }, [
-    initialSpecificationOptions,
-    initialCategoryFieldMappings,
-    setInitialData,
-  ]);
+    forceSyncSpecifications();
+  }, [forceSyncSpecifications]);
 
   const [selectedType, setSelectedType] = useState("amperage");
   const [newOption, setNewOption] = useState({

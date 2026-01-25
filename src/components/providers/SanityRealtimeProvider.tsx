@@ -48,20 +48,32 @@ export function SanityRealtimeProvider({
 
   useEffect(() => {
     const initializeAllStores = async () => {
-
       try {
         if (!role) return; // wait until role known
 
         if (role === "admin") {
           // Admin: full datasets + realtime for brands/categories
           await Promise.all([
-            loadAdminData({ userId: user?.id, customerId: (user as any)?.customerId }),
+            loadAdminData({
+              userId: user?.id,
+              customerId: (user as any)?.customerId,
+            }),
             fetchBrands(),
             fetchCategories(),
           ]);
         } else if (role === "customer") {
           // Customer: only own user + bills
-          await loadCustomerData({ userId: user?.id, customerId: (user as any)?.customerId });
+          await loadCustomerData({
+            userId: user?.id,
+            customerId: (user as any)?.customerId,
+          });
+        }
+
+        // Start realtime listeners after initial load
+        setupDataRealtime();
+        if (role === "admin") {
+          setupBrandRealtime();
+          setupCategoryRealtime();
         }
 
         // Initialize inventory realtime only for admin flows
@@ -73,7 +85,7 @@ export function SanityRealtimeProvider({
         const checkConnections = () => {
           const expectBrandsCats = role === "admin";
           const allReady = expectBrandsCats
-            ? (isDataConnected && isBrandConnected && isCategoryConnected)
+            ? isDataConnected && isBrandConnected && isCategoryConnected
             : isDataConnected;
           if (allReady) {
             toast({
@@ -129,8 +141,8 @@ export function SanityRealtimeStatus() {
           allConnected
             ? "bg-green-500"
             : someConnected
-            ? "bg-yellow-500"
-            : "bg-red-500"
+              ? "bg-yellow-500"
+              : "bg-red-500"
         }`}
       />
       <span
@@ -138,14 +150,15 @@ export function SanityRealtimeStatus() {
           allConnected
             ? "text-green-600"
             : someConnected
-            ? "text-yellow-600"
-            : "text-red-600"
-        }>
+              ? "text-yellow-600"
+              : "text-red-600"
+        }
+      >
         {allConnected
           ? "All Systems Live"
           : someConnected
-          ? "Partially Connected"
-          : "Connecting..."}
+            ? "Partially Connected"
+            : "Connecting..."}
       </span>
     </div>
   );
