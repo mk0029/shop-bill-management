@@ -10,6 +10,11 @@ import {
   getDeviceNotificationsPaused,
 } from "@/lib/fcm";
 import React from "react";
+import { FcmTokenButton } from "../fcm/fcm-token-button";
+import { NotificationDebug } from "../fcm/notification-debug";
+import { NotificationReset } from "../fcm/notification-reset";
+import { initForegroundNotifications } from "@/notifications/init-foreground";
+import { CustomerAccountDebug } from "../customer/customer-account-debug";
 
 export default function CustomerSettingsClient({
   userId,
@@ -33,6 +38,9 @@ export default function CustomerSettingsClient({
     try {
       setPaused(getDeviceNotificationsPaused());
     } catch {}
+
+    // Initialize foreground notifications
+    initForegroundNotifications();
   }, []);
 
   const onEnableNotifications = async () => {
@@ -102,6 +110,13 @@ export default function CustomerSettingsClient({
           <p className="text-gray-400">
             Control push notifications and foreground sound.
           </p>
+          <FcmTokenButton />
+
+          <NotificationDebug />
+
+          <NotificationReset />
+
+          <CustomerAccountDebug />
 
           <div className="flex items-center justify-between gap-3 rounded-md bg-gray-800 p-3">
             <div className="space-y-0.5">

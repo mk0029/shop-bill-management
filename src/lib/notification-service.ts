@@ -300,6 +300,8 @@ async function sendFcmV1ToTokens({ tokens, title, body, data }: { tokens: string
   let sent = 0
   let failed = 0
   const errors: string[] = []
+  const invalidTokens: string[] = []
+  
   settled.forEach((r, idx) => {
     if (r.status === 'fulfilled' && r.value) {
       sent += 1
@@ -307,7 +309,43 @@ async function sendFcmV1ToTokens({ tokens, title, body, data }: { tokens: string
       failed += 1
       const reason = r.status === 'rejected' ? (r.reason?.message || String(r.reason)) : 'send failed'
       errors.push(`${tokens[idx]}: ${reason}`)
+      
+      // Check if this is an invalid token error
+      if (reason.includes('UNREGISTERED') || reason.includes('NotRegistered') || reason.includes('NOT_FOUND')) {
+        invalidTokens.push(tokens[idx])
+      }
     }
   })
+  
+  // Clean up invalid tokens from database
+  if (invalidTokens.length > 0) {
+    try {
+      await cleanupInvalidTokens(invalidTokens)
+      console.log(`Cleaned up ${invalidTokens.length} invalid FCM tokens`)
+    } catch (error) {
+      console.error('Failed to cleanup invalid tokens:', error)
+    }
+  }
+  
   return { success: failed === 0, sent, failed, errors: errors.length ? errors : undefined }
+}
+
+async function cleanupInvalidTokens(invalidTokens: string[]): Promise<void> {
+  if (!invalidTokens.length) return
+  
+  // Remove invalid tokens from all users
+  const query = `*[_type=="user" && fcmTokens in $invalidTokens]{
+    _id,
+    fcmTokens
+  }`
+  
+  const users = await sanityClient.fetch(query, { invalidTokens })
+  
+  for (const user of users || []) {
+    const validTokens = (user.fcmTokens || []).filter(token => !invalidTokens.includes(token))
+    await sanityClient
+      .patch(user._id)
+      .set({ fcmTokens: validTokens.length > 0 ? validTokens : null })
+      .commit()
+  }
 }

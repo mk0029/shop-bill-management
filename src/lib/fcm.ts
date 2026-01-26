@@ -33,14 +33,14 @@ export async function setDeviceNotificationsPaused(paused: boolean): Promise<voi
     }
   } catch {}
 }
-export async function registerFcmToken(opts: { userId?: string | null } = {}) {
-  const { userId } = opts
+export async function registerFcmToken(opts: { userId?: string | null; token?: string | null } = {}) {
+  const { userId, token: providedToken } = opts
   try {
     // Do not attempt to retrieve/register token if notifications are not granted
     if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
       return { success: false, skipped: true, reason: "not-granted" }
     }
-    const token = await getFcmToken()
+    const token = providedToken || await getFcmToken()
     if (!token) {
       return { success: false, skipped: true, reason: "no-token" }
     }

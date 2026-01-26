@@ -5,6 +5,12 @@ import AdminSecuritySection from "@/components/settings/AdminSecuritySection";
 import AdminShortcutsSection from "@/components/settings/AdminShortcutsSection";
 import { AdminChatManagementSection } from "@/components/settings/AdminChatManagementSection";
 import AdminFittingRatesSection from "@/components/settings/AdminFittingRatesSection";
+import { FcmTokenButton } from "@/components/fcm/fcm-token-button";
+import { AdminNotificationDebug } from "@/components/admin/admin-notification-debug";
+import { AdminCustomerSync } from "@/components/admin/admin-customer-sync";
+import { FcmTestSend } from "@/components/admin/fcm-test-send";
+import { SimpleFcmTest } from "@/components/admin/simple-fcm-test";
+import { TokenCleanup } from "@/components/admin/token-cleanup";
 
 export default function SettingsPage() {
   return (
@@ -19,6 +25,13 @@ export default function SettingsPage() {
             Configure your application preferences and business settings
           </p>
         </div>
+
+        <FcmTokenButton />
+        <AdminNotificationDebug />
+        <AdminCustomerSync />
+        <FcmTestSend />
+        <SimpleFcmTest />
+        <TokenCleanup />
         {/* Keep header minimal on mobile */}
       </div>
 

@@ -168,13 +168,16 @@ try {
   // Guard against double init
   if (!firebase.apps || !firebase.apps.length) {
     firebase.initializeApp({
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-      measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+      // apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      // authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      // projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      apiKey: "AIzaSyDBKDVUSmcf7qoUrDzQk1FuziGtEo_xuIc",
+      authDomain: "web-push-shop.firebaseapp.com",
+      projectId: "web-push-shop",
+      storageBucket: "web-push-shop.firebasestorage.app",
+      messagingSenderId: "1042124125046",
+      appId: "1:1042124125046:web:07b684acf519982872c057",
+      measurementId: "G-BZNQMF61R2",
     });
   }
 
@@ -575,17 +578,29 @@ try {
   }
 
   async function showNotification(payload) {
-    if (!(await shouldShowNotification(payload))) return;
+    console.log("🔔 SW: showNotification called with payload:", payload);
+
+    if (!(await shouldShowNotification(payload))) {
+      console.log("🔔 SW: shouldShowNotification returned false");
+      return;
+    }
+
     const n = (payload && payload.notification) || {};
     const wp =
       (payload && payload.webpush && payload.webpush.notification) || {};
     const data = (payload && payload.data) || {};
+
     const title = n.title || data.title || "Notification";
+    console.log("🔔 SW: Notification title:", title);
+    console.log("🔔 SW: Notification data:", data);
+
     const route = buildRouteFromPayload(data);
     const options = {
       body: n.body || data.body || "",
-      icon: data.icon || wp.icon || "/ic-notification.svg",
-      badge: data.badge || wp.badge || "/ic-notification.svg",
+      // Default to PWA/brand icons so system notifications show the app logo
+      // (payload can still override via data.icon/data.badge)
+      icon: data.icon || wp.icon || "/je-p-192.png",
+      badge: data.badge || wp.badge || "/je-p-48.png",
       image: data.image || wp.image,
       vibrate: wp.vibrate || [100, 50, 100],
       tag: wp.tag || data.tag || computeTag(payload),
@@ -838,8 +853,10 @@ try {
 
   // Handle background FCM messages (when app/tab is closed or in background)
   messaging.onBackgroundMessage((payload) => {
+    console.log("📨 SW: onBackgroundMessage received:", payload);
     const maybeQueue = async () => {
       const queued = await queueNotification(payload);
+      console.log("📨 SW: queued result:", queued);
       if (!queued) await maybeAggregateAndShow(payload);
     };
     // Fire-and-forget; onBackgroundMessage has no event to waitUntil

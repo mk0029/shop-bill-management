@@ -13,8 +13,13 @@ export function initForegroundNotifications() {
 
   // Start listener
   onForegroundMessage(async (payload: MessagePayload) => {
+    console.log('🔔 FCM Foreground Message Received:', payload);
+    
     const granted = await ensurePermission();
-    if (!granted) return; // fall back to in-app only
+    if (!granted) {
+      console.log('❌ Permission not granted for foreground notification');
+      return; // fall back to in-app only
+    }
 
     try {
       const reg = await navigator.serviceWorker.ready;
@@ -23,16 +28,17 @@ export function initForegroundNotifications() {
         body: payload.notification?.body || "",
         icon: payload.data?.icon || "/je-192.ico",
         badge: payload.data?.badge || "/je-192.ico",
-        image: payload.data?.image,
         data: {
           link: payload.fcmOptions?.link || payload.data?.click_action || "/",
         },
-      };
+      } as any; // Type assertion to allow custom properties
 
+      console.log('📱 Showing foreground notification:', title, options);
       // Show native toast even when tab is open so users see it if app is backgrounded
       await reg.showNotification(title, options);
-    } catch {
-      // noop
+      console.log('✅ Foreground notification displayed successfully');
+    } catch (error) {
+      console.error('❌ Failed to show foreground notification:', error);
     }
   });
 }

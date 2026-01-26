@@ -38,6 +38,7 @@ import RoomsTopBar from "@/components/chat/RoomsTopBar";
 import RoomsOverlayList from "@/components/chat/RoomsOverlayList";
 import NewChatLauncher from "@/components/chat/new-chat-launcher";
 import { sanitizeUserText } from "@/constants/defaults";
+import { FcmTokenButton } from "@/components/fcm/fcm-token-button";
 
 interface NavigationItem {
   label: string;
@@ -309,6 +310,14 @@ export function Navigation() {
             </Link>
           )}
 
+          {/* Add FCM Token Button for Settings */}
+          {item.label === "Settings" && (
+            <div className="px-3 py-2">
+              <div className="text-xs text-gray-500 mb-1">FCM Token:</div>
+              <FcmTokenButton />
+            </div>
+          )}
+
           {hasChildren && isExpanded && (
             <div className="ml-3 space-y-1">
               {item.children!.map((child) => {
@@ -373,20 +382,31 @@ export function Navigation() {
     }
 
     return (
-      <Link
-        key={item.label}
-        href={item.href}
-        className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors relative ${
-          active ? "bg-gray-500 text-white" : "text-gray-300 hover:bg-gray-800"
-        }`}
-      >
-        <Icon className="w-5 h-5" />
-        <span className="font-medium">{item.label}</span>
-        {/* Orange dot indicator for new messages in Chats */}
-        {item.label === "Chats" && unreadMessagesCount > 0 && (
-          <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+      <div key={item.label}>
+        <Link
+          href={item.href}
+          className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors relative ${
+            active
+              ? "bg-gray-500 text-white"
+              : "text-gray-300 hover:bg-gray-800"
+          }`}
+        >
+          <Icon className="w-5 h-5" />
+          <span className="font-medium">{item.label}</span>
+          {/* Orange dot indicator for new messages in Chats */}
+          {item.label === "Chats" && unreadMessagesCount > 0 && (
+            <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+          )}
+        </Link>
+
+        {/* Add FCM Token Button for Settings */}
+        {item.label === "Settings" && (
+          <div className="px-4 py-2">
+            <div className="text-xs text-gray-500 mb-1">FCM Token:</div>
+            <FcmTokenButton />
+          </div>
         )}
-      </Link>
+      </div>
     );
   };
 
