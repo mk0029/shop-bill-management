@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendNotification, sendToAdmins, sendToAll } from '@/lib/notification-service'
+import { sanityClient } from '@/lib/sanity'
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,6 +40,25 @@ export async function POST(req: NextRequest) {
     const failed = Number(result?.failed || 0)
     // If at least one message was delivered, treat as success (partial if some failed)
     if (sent > 0) {
+      try {
+        const audience = body?.audience === 'admins' || body?.audience === 'all' ? body.audience : 'users'
+        const data = (body?.data && typeof body.data === 'object') ? body.data : undefined
+        const doc: Record<string, unknown> = {
+          _type: 'notification',
+          title: String(body.title),
+          body: String(body.body),
+          audience,
+          targetUserIds: Array.isArray(body.userIds) ? body.userIds.filter(Boolean) : [],
+          targetPhones: Array.isArray(body.phoneNumbers) ? body.phoneNumbers.filter(Boolean) : [],
+          data: data ? data : undefined,
+          billId: data?.billId ? String(data.billId) : undefined,
+          billNumber: data?.billNumber ? String(data.billNumber) : undefined,
+          event: data?.event ? String(data.event) : undefined,
+          customerId: data?.customerId ? String(data.customerId) : undefined,
+          createdAt: new Date().toISOString(),
+        }
+        void sanityClient.create(doc as any).catch(() => {})
+      } catch {}
       const partial = failed > 0
       return NextResponse.json({ ...result, partial }, { status: 200 })
     }

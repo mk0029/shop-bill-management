@@ -15,6 +15,7 @@ export interface InventoryFormData {
   brand: string;
   productName: string;
   purchasePrice: string;
+  purchaseTotalAmount?: string;
   sellingPrice: string;
   currentStock: string;
   minimumStock: string;
@@ -48,6 +49,7 @@ export const useMultipleInventoryForm = () => {
     brand: "",
     productName: "",
     purchasePrice: "",
+    purchaseTotalAmount: "",
     sellingPrice: "",
     currentStock: "",
     minimumStock: "10",
@@ -124,6 +126,7 @@ export const useMultipleInventoryForm = () => {
                 brand: selectedProduct.brand._id,
                 productName: selectedProduct.name || "",
                 purchasePrice: selectedProduct.pricing.purchasePrice.toString(),
+                purchaseTotalAmount: "",
                 sellingPrice: selectedProduct.pricing.sellingPrice.toString(),
                 currentStock: "",
                 minimumStock: String(selectedProduct.inventory?.minimumStock ?? "10"),

@@ -9,11 +9,76 @@ import { buildNotificationHref } from "@/store/notification-store";
 import SWNotificationBridge from "@/components/notifications/sw-bridge";
 import { CheckCheckIcon } from "lucide-react";
 import { useDataStore } from "@/store/data-store";
+import { useAuthStore } from "@/store/auth-store";
+import { listNotifications } from "@/lib/notifications-dataset";
+import { useEffect } from "react";
 
 export default function CustomerNotificationsClient() {
-  const { items, unread, markAllRead, clear, markAsRead, clearRead } =
+  const { items, unread, markAllRead, clear, markAsRead, clearRead, addMany } =
     useNotificationStore();
   const { bills, users } = useDataStore() as any;
+  const user = useAuthStore((s) => s.user) as {
+    id?: string;
+    _id?: string;
+    role?: string;
+    phone?: string;
+  } | null;
+  const userId = user?._id || user?.id;
+  const role = user?.role;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId && !user?.phone && role !== "admin") return;
+    void (async () => {
+      try {
+        const resp = await listNotifications({
+          userId: userId || undefined,
+          role: role || undefined,
+          phone: user?.phone || undefined,
+          limit: 50,
+        });
+        const serverItems = Array.isArray((resp as any)?.items)
+          ? (resp as any).items
+          : [];
+        const mapped = serverItems
+          .map((n: any) => {
+            const createdAt = String(n?.createdAt || new Date().toISOString());
+            const event =
+              typeof n?.event === "string"
+                ? n.event
+                : typeof n?.data?.event === "string"
+                  ? n.data.event
+                  : "";
+            const type = (() => {
+              if (event === "bill-created" || event === "bill-updated")
+                return "billing";
+              if (event && String(event).includes("payment")) return "payment";
+              return "system";
+            })();
+            return {
+              id: String(n?._id || ""),
+              type,
+              title: String(n?.title || ""),
+              body: String(n?.body || ""),
+              createdAt,
+              read: false,
+              meta: {
+                source: "push",
+                billId: n?.billId || n?.data?.billId,
+                userId: n?.customerId || n?.data?.customerId,
+              },
+            };
+          })
+          .filter((x: any) => x.id && x.title && x.body);
+        if (!cancelled && mapped.length) addMany(mapped as any);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, role, user?.phone, addMany]);
 
   return (
     <div className="p-4 sm:p-6">
