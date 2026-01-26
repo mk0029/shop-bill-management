@@ -297,7 +297,7 @@ export function CustomerNavigation() {
             >
               {/* Header */}
               <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-800">
-                <h2 className="text-xl font-bold text-white">Customer Menu</h2>
+                <h2 className="text-xl font-bold text-white">Jambh Electric</h2>
                 <Button
                   variant="ghost"
                   size="sm"

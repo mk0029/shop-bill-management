@@ -33,6 +33,47 @@ export async function setDeviceNotificationsPaused(paused: boolean): Promise<voi
     }
   } catch {}
 }
+
+export async function ensureFcmToken(opts: { userId?: string | null } = {}) {
+  const { userId } = opts
+  try {
+    if (typeof Notification === 'undefined') {
+      return { success: false as const, skipped: true as const, reason: 'unsupported' as const }
+    }
+    if (Notification.permission !== 'granted') {
+      return { success: false as const, skipped: true as const, reason: 'not-granted' as const }
+    }
+
+    // If token already exists, do nothing
+    const existing = await getFcmToken()
+    if (existing) {
+      return { success: true as const, created: false as const, token: existing }
+    }
+
+    // Ensure the dedicated Firebase Messaging SW is registered (best effort)
+    try {
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        await navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => {})
+      }
+    } catch {}
+
+    const token = await getFcmToken()
+    if (!token) {
+      return { success: false as const, skipped: true as const, reason: 'no-token' as const }
+    }
+
+    // Save/register token if we have a user (best effort)
+    if (userId) {
+      await registerFcmToken({ userId, token }).catch(() => {})
+    }
+
+    return { success: true as const, created: true as const, token }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { success: false as const, error: msg }
+  }
+}
+
 export async function registerFcmToken(opts: { userId?: string | null; token?: string | null } = {}) {
   const { userId, token: providedToken } = opts
   try {

@@ -3,12 +3,8 @@
 import { useEffect } from "react";
 import { useAuthStore } from "../../store/auth-store";
 import { useNotificationStore } from "../../store/notification-store";
-import {
-  getClientApp,
-  getFcmToken,
-  isMessagingAvailable,
-} from "../lib/firebase";
-import { registerFcmToken } from "../../lib/fcm";
+import { getClientApp, isMessagingAvailable } from "../lib/firebase";
+import { ensureFcmToken, registerFcmToken } from "../../lib/fcm";
 
 /**
  * AutoNotifications
@@ -70,29 +66,17 @@ export default function AutoNotifications() {
 
       if (cancelled) return;
 
-      // 5) Get FCM token and register to backend for this user (only if permission already granted)
-      const token =
+      // 5) Silently ensure this device has an FCM token (only if permission already granted)
+      if (
         typeof Notification !== "undefined" &&
         Notification.permission === "granted"
-          ? await getFcmToken()
-          : null;
-      if (token) {
-        // Attempt to register if we have a logged-in user
+      ) {
         const userId = user?.id ?? null;
         if (userId) {
-          try {
-            const res = await registerFcmToken({ userId });
-            if (!("success" in res) || !res.success) {
-              console.warn("[FCM] Registration failed/skipped", res);
-            }
-          } catch (e) {
-            console.warn("[FCM] Registration error", e);
-          }
+          await ensureFcmToken({ userId }).catch(() => {});
+          // Best-effort extra registration call (idempotent + handles transient failures)
+          await registerFcmToken({ userId }).catch(() => {});
         }
-      } else {
-        console.warn(
-          "[FCM] No token (permission denied, missing VAPID key, or SW not ready)",
-        );
       }
     }
 
@@ -105,6 +89,7 @@ export default function AutoNotifications() {
         typeof Notification !== "undefined" &&
         Notification.permission === "granted"
       ) {
+        ensureFcmToken({ userId: user.id }).catch(() => {});
         registerFcmToken({ userId: user.id }).catch(() => {});
       }
     }
@@ -116,6 +101,7 @@ export default function AutoNotifications() {
           typeof Notification !== "undefined" &&
           Notification.permission === "granted"
         ) {
+          ensureFcmToken({ userId: user.id }).catch(() => {});
           registerFcmToken({ userId: user.id }).catch(() => {});
         }
       }

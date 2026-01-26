@@ -310,14 +310,6 @@ export function Navigation() {
             </Link>
           )}
 
-          {/* Add FCM Token Button for Settings */}
-          {item.label === "Settings" && (
-            <div className="px-3 py-2">
-              <div className="text-xs text-gray-500 mb-1">FCM Token:</div>
-              <FcmTokenButton />
-            </div>
-          )}
-
           {hasChildren && isExpanded && (
             <div className="ml-3 space-y-1">
               {item.children!.map((child) => {
@@ -398,14 +390,6 @@ export function Navigation() {
             <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
           )}
         </Link>
-
-        {/* Add FCM Token Button for Settings */}
-        {item.label === "Settings" && (
-          <div className="px-4 py-2">
-            <div className="text-xs text-gray-500 mb-1">FCM Token:</div>
-            <FcmTokenButton />
-          </div>
-        )}
       </div>
     );
   };

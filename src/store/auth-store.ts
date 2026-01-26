@@ -4,6 +4,7 @@ import { User, LoginCredentials, ProfileData } from "@/types";
 import { userApiService } from "@/lib/sanity-api-service";
 import { sanityClient } from "@/lib/sanity";
 import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
+import { ensureFcmToken } from "@/lib/fcm";
 
 type PersistedState = {
   state?: {
@@ -55,6 +56,24 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
           });
+
+          // Best-effort: silently ensure FCM token exists for this device if permission is already granted.
+          // No prompts, no UI interaction.
+          try {
+            if (
+              typeof Notification !== "undefined" &&
+              Notification.permission === "granted"
+            ) {
+              const uid = (userNorm as any)?.id as string | undefined;
+              if (uid) {
+                Promise.resolve()
+                  .then(() => ensureFcmToken({ userId: uid }))
+                  .catch(() => {});
+              }
+            }
+          } catch {
+            // ignore
+          }
         } catch (error) {
           console.error("❌ Login error:", error);
           set({ isLoading: false });
@@ -90,14 +109,15 @@ export const useAuthStore = create<AuthState>()(
           // Update user in Sanity
           const updateData: {
             name: string;
-            phone: string;
-            location: string;
+            phone?: string;
+            location?: string;
             profileImage?: string;
           } = {
             name: data.name,
-            phone: data.phone,
-            location: data.location,
           };
+
+          if (data.phone) updateData.phone = data.phone;
+          if (data.location) updateData.location = data.location;
 
           // Add profile image if provided
           if (data.profileImage) {

@@ -5,10 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
+  ensureFcmToken,
   registerFcmToken,
   setDeviceNotificationsPaused,
   getDeviceNotificationsPaused,
 } from "@/lib/fcm";
+import { toast } from "sonner";
 import React from "react";
 import { FcmTokenButton } from "../fcm/fcm-token-button";
 import { NotificationDebug } from "../fcm/notification-debug";
@@ -58,6 +60,16 @@ export default function CustomerSettingsClient({
       }
       setPerm(Notification.permission);
       if (Notification.permission === "granted") {
+        const ensured = await ensureFcmToken({ userId });
+        if (
+          ensured &&
+          "success" in ensured &&
+          ensured.success &&
+          "created" in ensured &&
+          ensured.created
+        ) {
+          toast.success("Your Notifications are enabled now");
+        }
         if (userId) {
           try {
             await registerFcmToken({ userId });
@@ -110,14 +122,6 @@ export default function CustomerSettingsClient({
           <p className="text-gray-400">
             Control push notifications and foreground sound.
           </p>
-          <FcmTokenButton />
-
-          <NotificationDebug />
-
-          <NotificationReset />
-
-          <CustomerAccountDebug />
-
           <div className="flex items-center justify-between gap-3 rounded-md bg-gray-800 p-3">
             <div className="space-y-0.5">
               <div className="text-gray-200 font-medium">Permission</div>

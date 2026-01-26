@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "../../store/auth-store";
-import { registerFcmToken } from "../../lib/fcm";
+import { ensureFcmToken, registerFcmToken } from "../../lib/fcm";
 import { toast } from "sonner";
 
 /**
@@ -88,7 +88,14 @@ export default function AskForNotifications() {
     if (typeof window === "undefined") return;
     if (!hydrated) return;
     if (!isAuthenticated || !user) return;
-    if (!dashboardLoaded) return;
+
+    // This prompt should be shown on pages after login.
+    // If dashboardLoaded was used previously for gating, keep it best-effort but do not block prompting.
+    if (!dashboardLoaded) {
+      try {
+        setDashboardLoaded(true);
+      } catch {}
+    }
 
     if (!("Notification" in window)) {
       // Browser/environment does not support notifications
@@ -99,10 +106,11 @@ export default function AskForNotifications() {
     // If already granted, no need to ask again
     if (Notification.permission === "granted") {
       setAsk(false);
-      // Opportunistically register token on mount if user exists
+      // Opportunistically ensure + register token on mount if user exists
       const userId = user?.id ?? null;
       if (userId) {
-        registerFcmToken({ userId })
+        ensureFcmToken({ userId })
+          .then(() => registerFcmToken({ userId }))
           .then((res) => {
             const reason = (res as { reason?: string } | null)?.reason;
             if (reason !== "no-token") return;
@@ -151,94 +159,48 @@ export default function AskForNotifications() {
       (Notification.permission === "default" ||
         Notification.permission === "denied")
     ) {
-      // This triggers the native OS/browser permission popup
-      Promise.resolve(Notification.requestPermission())
-        .then((result) => {
-          if (result === "granted") {
-            setAsk(false);
-            const userId = user?.id ?? null;
-            if (userId) {
-              registerFcmToken({ userId })
-                .then((res) => {
-                  const reason = (res as { reason?: string } | null)?.reason;
-                  if (reason !== "no-token") return;
-                  const noTokenKey = `fcm-no-token-dismissed:${userId}`;
-                  const dismissed =
-                    typeof window !== "undefined" &&
-                    window.localStorage.getItem(noTokenKey) === "1";
-                  if (!dismissed && noTokenToastIdRef.current == null) {
-                    noTokenToastIdRef.current = toast(
-                      "Notifications enabled, but this device isn’t registered",
-                      {
-                        description:
-                          "Please allow notifications and reload, or tap Retry to register this device.",
-                        action: {
-                          label: "Retry",
-                          onClick: async () => {
-                            const uid = user?.id ?? null;
-                            if (uid)
-                              await registerFcmToken({ userId: uid }).catch(
-                                () => {},
-                              );
-                          },
-                        },
-                        duration: 12000,
-                        onDismiss: () => {
-                          try {
-                            window.localStorage.setItem(noTokenKey, "1");
-                          } catch {}
-                          noTokenToastIdRef.current = null;
-                        },
-                      },
-                    );
+      // Do not auto-trigger the native permission prompt from an effect.
+      // Instead, show a toast with an explicit user action that triggers the prompt.
+      if (toastIdRef.current == null) {
+        const title =
+          Notification.permission === "denied"
+            ? "Notifications are blocked"
+            : "Enable notifications";
+
+        toastIdRef.current = toast(title, {
+          description:
+            "Allow push notifications to receive bill and system updates.",
+          action: {
+            label: "Allow notifications",
+            onClick: async () => {
+              try {
+                if (Notification.permission === "denied") {
+                  showBlockedInfo();
+                  return;
+                }
+                const result = await Notification.requestPermission();
+                if (result === "granted") {
+                  setAsk(false);
+                  const userId = user?.id ?? null;
+                  if (userId) {
+                    await ensureFcmToken({ userId }).catch(() => {});
+                    await registerFcmToken({ userId }).catch(() => {});
                   }
-                })
-                .catch(() => {});
-            }
-            if (toastIdRef.current != null) {
-              toast.dismiss(toastIdRef.current);
-              toastIdRef.current = null;
-            }
-          } else if (result === "denied") {
-            // Show a toast prompting user to enable notifications with an action button
-            if (toastIdRef.current == null) {
-              toastIdRef.current = toast("Notifications are blocked", {
-                description:
-                  "Allow push notifications to receive bill and system updates.",
-                action: {
-                  label: "Allow notifications",
-                  onClick: async () => {
-                    try {
-                      // If browser state is default, we can still trigger the native prompt
-                      if (Notification.permission === "default") {
-                        const res = await Notification.requestPermission();
-                        if (res === "granted") {
-                          setAsk(false);
-                          const userId = user?.id ?? null;
-                          if (userId)
-                            registerFcmToken({ userId }).catch(() => {});
-                          if (toastIdRef.current != null) {
-                            toast.dismiss(toastIdRef.current);
-                            toastIdRef.current = null;
-                          }
-                          return;
-                        }
-                      }
-                      // If permission is denied (most browsers won’t re-prompt), show guidance
-                      showBlockedInfo();
-                    } catch {
-                      showBlockedInfo();
-                    }
-                  },
-                },
-                duration: 12000,
-              });
-            }
-          }
-        })
-        .catch(() => {
-          // Ignore errors (user closed prompt, etc.)
+                  if (toastIdRef.current != null) {
+                    toast.dismiss(toastIdRef.current);
+                    toastIdRef.current = null;
+                  }
+                } else if (result === "denied") {
+                  showBlockedInfo();
+                }
+              } catch {
+                // ignore
+              }
+            },
+          },
+          duration: 12000,
         });
+      }
     }
   }, [ask, user, hydrated, isAuthenticated, dashboardLoaded]);
 

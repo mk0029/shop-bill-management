@@ -25,13 +25,6 @@ export default function SettingsPage() {
             Configure your application preferences and business settings
           </p>
         </div>
-
-        <FcmTokenButton />
-        <AdminNotificationDebug />
-        <AdminCustomerSync />
-        <FcmTestSend />
-        <SimpleFcmTest />
-        <TokenCleanup />
         {/* Keep header minimal on mobile */}
       </div>
 
