@@ -168,9 +168,6 @@ try {
   // Guard against double init
   if (!firebase.apps || !firebase.apps.length) {
     firebase.initializeApp({
-      // apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-      // authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      // projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       apiKey: "AIzaSyDBKDVUSmcf7qoUrDzQk1FuziGtEo_xuIc",
       authDomain: "web-push-shop.firebaseapp.com",
       projectId: "web-push-shop",
