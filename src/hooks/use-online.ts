@@ -33,8 +33,12 @@ export function useOnline(enabled = true): { online: boolean; setOnline: (online
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        // Using HEAD to a local static file that exists to avoid CORS
-        const res = await fetch(url, { method: "HEAD", cache: "no-store", signal: controller.signal, ...opts });
+        const res = await fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+          ...opts,
+        });
         return { ok: true, res };
       } catch (e) {
         return { ok: false, error: e } as const;
@@ -43,8 +47,8 @@ export function useOnline(enabled = true): { online: boolean; setOnline: (online
       }
     };
 
-    // Use a local asset that we know exists in /public to avoid CORS and external dependency
-    const PING_URL = "/je-192.ico"; // present in public/
+    // Use a dedicated ping endpoint so the request is meaningful in the Network tab
+    const PING_URL = "/api/ping";
 
     const checkConnectivity = async () => {
       const navOnline = typeof navigator !== "undefined" ? navigator.onLine : true;

@@ -1,4 +1,7 @@
-import { CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle, Clock, AlertCircle, Receipt } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { getStatusColor } from "@/components/customer/bill-utils";
 
 type SanityBill = any;
 
@@ -10,117 +13,78 @@ interface BillItemProps {
 const getStatusIcon = (status: string) => {
   switch (status) {
     case "paid":
+    case "completed":
       return CheckCircle;
     case "pending":
+    case "partial":
       return Clock;
     case "overdue":
       return AlertCircle;
     default:
-      return Clock;
-  }
-};
-
-const getBillStatusColor = (status: string) => {
-  switch (status) {
-    case "paid":
-      return "bg-green-500/20 text-green-400";
-    case "partial":
-      return "bg-yellow-800/20 text-yellow-400";
-    case "overdue":
-      return "bg-red-500/20 text-red-400";
-    default:
-      return "bg-yellow-500 text-yellow-900";
+      return Receipt;
   }
 };
 
 export function BillItem({ bill, onClick }: BillItemProps) {
-  const statusColor = getBillStatusColor(bill.paymentStatus || bill.status);
   const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
 
+  const total = Number(bill.totalAmount || 0) || 0;
+  const paid = Number(bill.paidAmount || 0) || 0;
+  const balance = Number(bill.balanceAmount || 0) || Math.max(0, total - paid);
+
   return (
-    <div
-      className="p-4 border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
-      onClick={() => onClick(bill)}>
-      <div className="flex justify-between items-center">
-        <div>
-          <div className="flex items-center gap-2">
-            <StatusIcon />
-            <span className="font-medium text-white">#{bill.billNumber}</span>
-            <span
-              className={`text-xs px-2 py-1 rounded-full capitalize ${statusColor}`}>
-              {bill.paymentStatus || bill.status}
-            </span>
+    <Card
+      className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer"
+      onClick={() => onClick(bill)}
+      role="button"
+      aria-label={`View details for bill ${bill.billNumber}`}
+    >
+      <CardContent className="p-2 sm:p-4">
+        <div className="flex flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="max-md:hidden w-12 h-12 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <StatusIcon className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-white truncate capitalize">
+                {`Bill #${bill.billNumber}`}
+              </h3>
+              <p className="text-sm text-gray-400 truncate capitalize">
+                {(bill.serviceType || "Service").replace(/_/g, " ")}
+              </p>
+              <p className="text-sm text-gray-400">
+                {bill.serviceDate
+                  ? new Date(bill.serviceDate).toLocaleDateString()
+                  : new Date(bill.createdAt).toLocaleDateString()}
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-gray-400 mt-1">
-            {new Date(bill.serviceDate || bill.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-        <div className="text-right">
-          {(() => {
-            const total = Number(bill.totalAmount || 0) || 0;
-            const discount = Number(bill.discount || 0) || 0;
-            const paid = Number(bill.paidAmount || 0) || 0;
-            const actualPayableAmount = Math.max(0, total - discount);
-            const balance = Math.max(0, actualPayableAmount - paid);
-            const isFullyPaid = balance <= 0;
-            
-            return (
-              <>
-                <p
-                  className={` ${isFullyPaid ? "text-green-400 font-medium" : "text-white font-light text-sm"} `}>
-                {!isFullyPaid&&'Total '}  {new Intl.NumberFormat("en-IN", {
-                    style: "currency",
-                    currency: "INR",
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })
-                    .format(
-                      isFullyPaid
-                        ? total
-                        : total
-                    )
-                    .replace("₹", "₹")}
-                </p>
-{ !isFullyPaid&&                <p
-                  className={` ${isFullyPaid ? "text-green-400" : "text-yellow-300"} font-medium`}>
-                Pending  {new Intl.NumberFormat("en-IN", {
-                    style: "currency",
-                    currency: "INR",
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })
-                    .format(  (total-discount)-paid )
-                    .replace("₹", "₹")}
-                </p>}
-                {bill.paymentStatus === "paid" ? (
-                  <span className="inline-block bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
-                    Paid
-                  </span>
-                ) : (
-                  <p className="text-xs text-gray-400">
-                    {bill.paymentStatus === "partial"
-                      ? `Paid: ${new Intl.NumberFormat("en-IN", {
-                          style: "currency",
-                          currency: "INR",
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }).format(paid || 0)} of ${new Intl.NumberFormat(
-                          "en-IN",
-                          {
-                            style: "currency",
-                            currency: "INR",
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          }
-                        ).format(total || 0)}`
-                      : ""}
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6">
+            <div className="text-left sm:text-right">
+              <p className="font-semibold text-white text-lg">
+                ₹
+                {(bill.paymentStatus === "partial"
+                  ? balance
+                  : total
+                )?.toLocaleString() || 0}
+              </p>
+              <div className="flex flex-col sm:items-end gap-1 mt-1">
+                {bill.paymentStatus === "partial" && paid > 0 && (
+                  <p className="text-xs text-gray-300">
+                    ₹{paid.toLocaleString()} paid
                   </p>
                 )}
-              </>
-            );
-          })()}
+                <Badge
+                  className={getStatusColor(bill.paymentStatus || bill.status)}
+                >
+                  {bill.paymentStatus || bill.status}
+                </Badge>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
