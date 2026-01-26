@@ -38,18 +38,18 @@ export const PricingSection = ({
     }
   };
 
-  const recomputeTotalFromPerPiece = (qty: number, perPiece: number) => {
-    if (!(qty > 0) || !(perPiece >= 0)) return;
-    const total = qty * perPiece;
-    if (Number.isFinite(total)) {
-      onInputChange("purchaseTotalAmount", toMoney(total));
-      // Also update purchase price = total / qty
-      const purchasePer = total / qty;
-      if (Number.isFinite(purchasePer)) {
-        onInputChange("purchasePrice", toMoney(purchasePer));
-      }
-    }
-  };
+  // const recomputeTotalFromPerPiece = (qty: number, perPiece: number) => {
+  //   if (!(qty > 0) || !(perPiece >= 0)) return;
+  //   const total = qty * perPiece;
+  //   if (Number.isFinite(total)) {
+  //     onInputChange("purchaseTotalAmount", toMoney(total));
+  //     // Also update purchase price = total / qty
+  //     const purchasePer = total / qty;
+  //     if (Number.isFinite(purchasePer)) {
+  //       onInputChange("purchasePrice", toMoney(purchasePer));
+  //     }
+  //   }
+  // };
 
   const calculateMargin = () => {
     const purchase = parseFloat(formData.purchasePrice) || 0;
@@ -187,36 +187,32 @@ export const PricingSection = ({
         </div>
 
         {/* Profit Calculation Display */}
-        {formData.purchasePrice && formData.sellingPrice && (
-          <div className="bg-gray-800 rounded-lg p-4">
-            <h4 className="font-medium text-white mb-2">Profit Analysis</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="text-gray-400">Profit per unit:</span>
-                <p className="text-green-400 font-medium">
-                  {currency}
-                  {calculateProfit()}
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-400">Margin:</span>
-                <p className="text-blue-400 font-medium">
-                  {calculateMargin()}%
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-400">Total value:</span>
-                <p className="text-white font-medium">
-                  {currency}
-                  {(
-                    parseFloat(formData.sellingPrice) *
-                    parseFloat(formData.currentStock || "0")
-                  ).toFixed(2)}
-                </p>
-              </div>
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h4 className="font-medium text-white mb-2">Profit Analysis</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-gray-400">Profit per unit:</span>
+              <p className="text-green-400 font-medium">
+                {currency}
+                {calculateProfit()}
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-400">Margin:</span>
+              <p className="text-blue-400 font-medium">{calculateMargin()}%</p>
+            </div>
+            <div>
+              <span className="text-gray-400">Total value:</span>
+              <p className="text-white font-medium">
+                {currency}
+                {(
+                  parseFloat(formData.sellingPrice) *
+                  parseFloat(formData.currentStock || "0")
+                ).toFixed(2)}
+              </p>
             </div>
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

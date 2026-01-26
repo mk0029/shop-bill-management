@@ -4,9 +4,9 @@ import { sanityClient } from '@/lib/sanity'
 
 export async function POST(req: NextRequest) {
   try {
-    const { token, userId } = await req.json().catch(() => ({ token: null, userId: null }))
-    try {
-       console.log('[API] register-token request') } catch {}
+    const body = await req.json().catch(() => ({}))
+    const { token, userId } = body
+    try { console.log('[API] register-token request', { userId, hasToken: !!token }) } catch {}
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ success: false, error: 'Missing token' }, { status: 400 })
     }
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const isDevHost = /localhost|127\.0\.0\.1/i.test(host)
     const env: 'dev' | 'prod' = isDevHost ? 'dev' : 'prod'
 
-    // Fetch current tokens with revision for optimistic concurrency
+    // Fetch current user doc with revision for optimistic concurrency
     const doc = await sanityClient.fetch(
       `*[_type=="user" && (_id==$id || clerkId==$id)][0]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
       { id: userId }
@@ -28,12 +28,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
     }
 
-    const tokens: string[] = Array.isArray(doc.fcmTokens) ? doc.fcmTokens.filter(Boolean) : []
-    const tokensProd: string[] = Array.isArray((doc as any).fcmTokensProd) ? (doc as any).fcmTokensProd.filter(Boolean) : []
-    const tokensDev: string[] = Array.isArray((doc as any).fcmTokensDev) ? (doc as any).fcmTokensDev.filter(Boolean) : []
-    if (tokens.includes(token)) {
-      // Ensure env-specific arrays also contain it
-      const alreadyInEnv = env === 'prod' ? tokensProd.includes(token) : tokensDev.includes(token)
+    // Helper to extract tokens from arrays (legacy string-based)
+    const getTokens = (arr: any[]) => Array.isArray(arr) ? arr.filter(Boolean) : []
+    const tokens = getTokens(doc.fcmTokens)
+    const tokensProd = getTokens((doc as any).fcmTokensProd)
+    const tokensDev = getTokens((doc as any).fcmTokensDev)
+
+    // Check if this token is already registered (legacy string check)
+    const isAlreadyRegistered = (arr: any[]) => arr.includes(token)
+    if (isAlreadyRegistered(tokens)) {
+      const alreadyInEnv = env === 'prod' ? isAlreadyRegistered(tokensProd) : isAlreadyRegistered(tokensDev)
       if (alreadyInEnv) {
         return NextResponse.json({ success: true, data: { _id: doc._id, alreadyRegistered: true } })
       }
@@ -41,10 +45,10 @@ export async function POST(req: NextRequest) {
 
     // Ensure token uniqueness across ALL users: remove token from any other user docs first
     try {
-      const others = await sanityClient.fetch<{ _id: string; _rev: string; fcmTokens?: string[]; fcmTokensProd?: string[]; fcmTokensDev?: string[] }[]>(
+      const others = await sanityClient.fetch(
         `*[_type=="user" && $token in fcmTokens && _id != $id]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
         { token, id: doc._id }
-      )
+      ) as any[]
       if (Array.isArray(others) && others.length) {
         await Promise.allSettled(others.map(u =>
           sanityClient
@@ -52,9 +56,9 @@ export async function POST(req: NextRequest) {
             .ifRevisionId(u._rev)
             .setIfMissing({ fcmTokens: [], fcmTokensProd: [], fcmTokensDev: [] })
             .set({
-              fcmTokens: (Array.isArray(u.fcmTokens) ? u.fcmTokens : []).filter(t => t !== token),
-              fcmTokensProd: (Array.isArray(u.fcmTokensProd) ? u.fcmTokensProd : []).filter(t => t !== token),
-              fcmTokensDev: (Array.isArray(u.fcmTokensDev) ? u.fcmTokensDev : []).filter(t => t !== token),
+              fcmTokens: (Array.isArray(u.fcmTokens) ? u.fcmTokens : []).filter((t: any) => t !== token),
+              fcmTokensProd: (Array.isArray(u.fcmTokensProd) ? u.fcmTokensProd : []).filter((t: any) => t !== token),
+              fcmTokensDev: (Array.isArray(u.fcmTokensDev) ? u.fcmTokensDev : []).filter((t: any) => t !== token),
               updatedAt: new Date().toISOString(),
             })
             .commit({ autoGenerateArrayKeys: true })
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
       try { console.warn('[API] register-token: failed to evict token from other users', removeErr) } catch {}
     }
 
-    // Compute unique array and commit with optimistic concurrency control
+    // Helper to ensure uniqueness and move to end, cap at 4 (legacy string-based)
     const makeUnique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)))
     const moveToEnd = (arr: string[], value: string) => {
       const filtered = (arr || []).filter(t => t && t !== value)
@@ -81,9 +85,7 @@ export async function POST(req: NextRequest) {
         { id: doc._id }
       ))?.fcmTokens ?? []
 
-      // Keep latest 4, move current token to end
       const nextTokens = cap(makeUnique(moveToEnd(Array.isArray(current) ? current : [], token)))
-      // Prepare env-specific arrays
       const currentProd = attempt === 1 ? tokensProd : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0].fcmTokensProd`, { id: doc._id })) || []
       const currentDev = attempt === 1 ? tokensDev : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0].fcmTokensDev`, { id: doc._id })) || []
       const nextProd = env === 'prod'
@@ -108,7 +110,6 @@ export async function POST(req: NextRequest) {
         if (!isConflict) {
           throw err
         }
-        // Retry once on revision conflict
       }
     }
     // If still failing, fall back to success since another request most likely registered it
