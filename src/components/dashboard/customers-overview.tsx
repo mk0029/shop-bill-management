@@ -7,9 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Plus, Phone, MapPin } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
-import { useEffect } from "react";
-import { useCustomerBillRealtime } from "@/hooks/use-customer-bill-realtime";
-import { useCustomerBillsStore } from "@/store/customer-bills-store";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 
 export function CustomersOverview() {
@@ -21,31 +18,11 @@ export function CustomersOverview() {
   const billsData = bills || [];
   const isLoadingEffective = isLoading;
   const { user, role } = useAuthStore();
-  const { bills: customerBills, fetchBillsByCustomer } =
-    useCustomerBillsStore();
 
   // When viewing as a customer, scope data to only their records (no extra API calls)
   const isCustomer = role?.toLowerCase?.() === "customer";
   const currentUserId = user?.id as string | undefined;
   const currentCustomerId = (user as any)?.customerId as string | undefined;
-
-  // Start realtime subscription strictly scoped to this customer
-  useCustomerBillRealtime({
-    _id: currentUserId,
-    customerId: currentCustomerId,
-  });
-
-  // Fetch initial bills into the customer store (id-based targeting per recent fixes)
-  useEffect(() => {
-    if (!isCustomer) return;
-    if (!currentUserId && !currentCustomerId) return;
-    fetchBillsByCustomer({
-      _id: currentUserId,
-      customerId: currentCustomerId,
-    }).catch(() => {
-      /* silent */
-    });
-  }, [isCustomer, currentUserId, currentCustomerId, fetchBillsByCustomer]);
 
   const visibleCustomers = isCustomer
     ? customersData.filter(
@@ -54,8 +31,7 @@ export function CustomersOverview() {
       )
     : customers;
 
-  // Bills source: for customers, use their dedicated realtime store; for others, use global bills
-  const visibleBills = isCustomer ? customerBills : billsData;
+  const visibleBills = billsData;
 
   if (isLoadingEffective) {
     return (

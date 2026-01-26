@@ -10,11 +10,7 @@ import Script from "next/script";
 import OfflineSync from "../components/pwa/offline-sync";
 import OfflineWarning from "../components/pwa/offline-warning";
 import AuthPrehydrate from "../components/providers/auth-prehydrate";
-import NotificationsBridge from "../components/realtime/notifications-bridge";
-import SWNotificationBridge from "@/components/notifications/sw-bridge";
-import AutoNotifications from "../notifications/components/AutoNotifications";
-import OfflineStatusOverlay from "../components/online/offline-status-overlay";
-import AskForNotifications from "../notifications/components/AskForNotifications";
+import BackgroundFeaturesGate from "../components/providers/background-features-gate";
 
 import "./globals.css";
 import RouteProgress from "../components/ui/route-progress";
@@ -141,20 +137,7 @@ export default function RootLayout({
           <SanityRealtimeProvider>
             {children}
             <AuthBackgroundGate>
-              {/* Global offline status overlay (shows when shop is offline) */}
-              <OfflineStatusOverlay />
-              {/* Global realtime notifications bridge */}
-              <NotificationsBridge />
-              {/* Global Service Worker notifications bridge (saves push notifications) */}
-              <SWNotificationBridge />
-              {/* Trigger native permission prompt (no UI) until granted */}
-              <AskForNotifications />
-              {/* Headless FCM auto-setup (no UI) */}
-              <AutoNotifications />
-              {/* Foreground FCM -> system notifications */}
-              <ForegroundSystemNotifier />
-              {/* In-app toast + sound on new notifications */}
-              <NotificationToaster />
+              <BackgroundFeaturesGate />
               {/* <PWAInstaller /> */}
               <OfflineSync />
               <OfflineWarning />

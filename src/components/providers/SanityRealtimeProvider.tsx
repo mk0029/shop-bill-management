@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useDataStore } from "@/store/data-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useBrandStore } from "@/store/brand-store";
@@ -46,17 +46,26 @@ export function SanityRealtimeProvider({
 
   const { toast } = useToast();
 
+  const initKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     const initializeAllStores = async () => {
       try {
         if (!role) return; // wait until role known
 
+        const u = user as any;
+        const userId = u?.id || u?._id || "";
+        const customerId = u?.customerId || "";
+        const initKey = `${role}:${userId}:${customerId}`;
+        if (initKeyRef.current === initKey) return;
+        initKeyRef.current = initKey;
+
         if (role === "admin") {
           // Admin: full datasets + realtime for brands/categories
           await Promise.all([
             loadAdminData({
-              userId: user?.id,
-              customerId: (user as any)?.customerId,
+              userId,
+              customerId,
             }),
             fetchBrands(),
             fetchCategories(),
@@ -64,8 +73,8 @@ export function SanityRealtimeProvider({
         } else if (role === "customer") {
           // Customer: only own user + bills
           await loadCustomerData({
-            userId: user?.id,
-            customerId: (user as any)?.customerId,
+            userId,
+            customerId,
           });
         }
 
@@ -88,8 +97,7 @@ export function SanityRealtimeProvider({
             ? isDataConnected && isBrandConnected && isCategoryConnected
             : isDataConnected;
           if (allReady) {
-            toast({
-              title: "🟢 Sanity Real-time Connected",
+            toast("🟢 Sanity Real-time Connected", {
               description: "All data will sync automatically across devices",
               duration: 3000,
             });
@@ -100,10 +108,8 @@ export function SanityRealtimeProvider({
         setTimeout(checkConnections, 1000);
       } catch (error) {
         console.error("❌ Failed to initialize stores:", error);
-        toast({
-          title: "🔴 Connection Error",
+        toast("🔴 Connection Error", {
           description: "Some real-time features may not work properly",
-          variant: "destructive",
           duration: 5000,
         });
       }

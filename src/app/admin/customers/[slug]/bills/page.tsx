@@ -32,7 +32,7 @@ import { sanitizeUserText } from "@/constants/defaults";
 export default function CustomerBillsPage() {
   const params = useParams();
   const router = useRouter();
-  const customerId = (params as { slug?: string } | null)?.slug as string;
+  const slug = (params as { slug?: string } | null)?.slug as string;
   const { currency } = useLocaleStore();
 
   const { customers, isLoading: customersLoading } = useCustomers();
@@ -44,14 +44,26 @@ export default function CustomerBillsPage() {
   const [showBillModal, setShowBillModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareMode, setShareMode] = useState<"pending" | "thank">("pending");
-  const customer = customers.find((c) => c._id === customerId);
+  const customer = customers.find(
+    (c) => c._id === slug || c.customerId === slug,
+  );
+  const effectiveCustomerId = customer?._id || slug;
 
   const getCustomerId = (c: any) =>
     typeof c === "string" ? c : c?._id || c?._ref;
 
-  const customerBills = bills.filter(
-    (bill: any) => getCustomerId(bill.customer) === customerId,
-  );
+  const customerBills = bills.filter((bill: any) => {
+    const cust = bill?.customer;
+    const custId = getCustomerId(cust);
+    const custCustomerId =
+      typeof cust === "object" && cust !== null
+        ? ((cust as any).customerId as string | undefined)
+        : undefined;
+    return (
+      custId === effectiveCustomerId ||
+      (custCustomerId ? custCustomerId === slug : false)
+    );
+  });
 
   const stats = {
     totalBills: customerBills.length,
@@ -98,15 +110,17 @@ export default function CustomerBillsPage() {
     try {
       localStorage.setItem("bill_create_skip_restore", "1");
     } catch {}
-    router.push(`/admin/billing/create?customerId=${customerId}&fresh=1`);
+    router.push(
+      `/admin/billing/create?customerId=${effectiveCustomerId}&fresh=1`,
+    );
   };
 
   const handleOpenChat = async () => {
     try {
-      const roomId = await openRoomByCustomer(String(customerId));
+      const roomId = await openRoomByCustomer(String(effectiveCustomerId));
       await setActiveRoom(roomId);
       router.push(
-        `/admin/chats?customerId=${encodeURIComponent(String(customerId))}`,
+        `/admin/chats?customerId=${encodeURIComponent(String(effectiveCustomerId))}`,
       );
     } catch {
       toast.error("❌ Unable to open chat. Please try again.");
@@ -523,7 +537,7 @@ export default function CustomerBillsPage() {
         <CardContent>
           <RealtimeBillList
             initialBills={customerBills}
-            customerId={customerId}
+            customerId={effectiveCustomerId}
             searchTerm={searchTerm}
             onBillClick={handleViewBill}
             showNewBillAnimation

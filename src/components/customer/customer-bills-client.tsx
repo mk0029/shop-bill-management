@@ -14,9 +14,7 @@ import {
 } from "@/components/customer/bill-utils";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { sanitizeUserText } from "@/constants/defaults";
-import { useCustomerBillsStore } from "@/store/customer-bills-store";
-import { useAuthStore } from "@/store/auth-store";
-import { useEffect } from "react";
+import { useBills } from "@/hooks/use-sanity-data";
 
 export default function CustomerBillsClient() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,10 +24,7 @@ export default function CustomerBillsClient() {
     null,
   );
 
-  const { bills } = useCustomerBillsStore();
-  const { user } = useAuthStore();
-
-  const customerBills = useMemo(() => bills || [], [bills]);
+  const { bills: customerBills, isLoading } = useBills();
 
   const filteredBills = useMemo(() => {
     if (!customerBills.length) return [];
@@ -95,7 +90,11 @@ export default function CustomerBillsClient() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {filteredBills.length === 0 ? (
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-400">
+              Loading bills...
+            </div>
+          ) : filteredBills.length === 0 ? (
             <div className="p-8 text-center text-gray-400">
               {searchTerm || selectedStatuses.length > 0
                 ? "No bills match your filters"
