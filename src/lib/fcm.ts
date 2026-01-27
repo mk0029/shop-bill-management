@@ -7,15 +7,31 @@ import { getDeviceId, getPlatformInfo } from "./device-id"
 // Local keys
 const PENDING_TOKEN_KEY = (userId: string) => `fcm-pending-token:${userId}`
 const REGISTERED_KEY = (userId: string) => `fcm-registered:${userId}`
+const REGISTERING_KEY = (userId: string) => `fcm-registering:${userId}`
 
 /**
  * Background auto-registration: generates token, silently saves to backend.
  * If backend save fails, stores token locally as pending for retry UI.
+ * Prevents duplicate concurrent registrations using a transient flag.
  */
 export async function autoRegisterFcmToken(userId: string) {
   if (!userId || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
     return { success: false, skipped: true, reason: 'not-granted-or-no-user' };
   }
+  // Prevent duplicate concurrent registrations
+  const registeringKey = REGISTERING_KEY(userId);
+  try {
+    const registering = localStorage.getItem(registeringKey);
+    if (registering) {
+      const ts = parseInt(registering, 10);
+      // If another registration started within the last 10 seconds, skip
+      if (Date.now() - ts < 10000) {
+        return { success: false, skipped: true, reason: 'already-registering' };
+      }
+    }
+    localStorage.setItem(registeringKey, String(Date.now()));
+  } catch {}
+
   try {
     console.log('[FCM] Auto-register start for user', userId);
     const token = await getFcmToken();
@@ -51,6 +67,11 @@ export async function autoRegisterFcmToken(userId: string) {
   } catch (e) {
     console.error('[FCM] Auto-register exception', e);
     return { success: false, error: e instanceof Error ? e.message : String(e) };
+  } finally {
+    // Clear the registering flag
+    try {
+      localStorage.removeItem(registeringKey);
+    } catch {}
   }
 }
 

@@ -1,5 +1,4 @@
 "use client";
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -333,6 +332,7 @@ export default function CashbookComposer({
         } catch {}
       }
 
+      // Notify admins on cashbook item deletion
       toast.success("Item deleted");
       await loadItems();
     } catch {

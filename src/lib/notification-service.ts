@@ -2,6 +2,8 @@ import 'server-only'
 import { sanityClient } from './sanity'
 import { GoogleAuth } from 'google-auth-library'
 
+import { createHash } from 'node:crypto'
+
 export type SendPayload = {
   title: string
   body: string
@@ -13,6 +15,350 @@ export type SendPayload = {
   sound?: 'default' | string
   // New: allow client to explicitly exclude current device tokens
   excludeTokens?: string[]
+}
+
+export type NotificationEvent = {
+  eventId?: string
+  type:
+    | 'customer_created'
+    | 'bill_created'
+    | 'bill_status_updated'
+    | 'cashbook_entry'
+    | 'inventory_added'
+    | 'chat_message'
+    | 'shop_status'
+    | 'admin_broadcast'
+    | 'user_direct'
+
+  actorUserId: string
+  data: {
+    customerId?: string
+    billId?: string
+    chatId?: string
+    inventoryId?: string
+    status?: string
+    route?: string
+    message?: string
+    extra?: any
+  }
+}
+
+type NotificationDoc = {
+  _id: string
+  _type: 'notification'
+  title: string
+  body: string
+  audience: 'all' | 'admins' | 'users'
+  type: string
+  actorUserId: string
+  targetUserIds: string[]
+  data?: Record<string, unknown>
+  readBy: string[]
+  createdAt: string
+  expiresAt?: string
+  eventId: string
+}
+
+function deriveAudience(event: NotificationEvent): 'all' | 'admins' | 'users' {
+  if (event.type === 'admin_broadcast') {
+    const target = event.data?.extra?.target
+    if (target === 'all_users') return 'all'
+    return 'admins'
+  }
+  if (event.type === 'user_direct') return 'users'
+  if (event.type === 'chat_message') {
+    // Can be admin->customer (users) or customer->admins (admins); infer by presence of customerId
+    if (event.data?.customerId) return 'users'
+    return 'admins'
+  }
+  if (event.type === 'shop_status') return 'all'
+  if (event.type === 'bill_created' || event.type === 'bill_status_updated') {
+    // These often target both admins + customer; list API does not support mixed audience.
+    // Default to 'admins' unless explicitly a direct/customer notification.
+    return event.data?.customerId ? 'users' : 'admins'
+  }
+  return 'admins'
+}
+
+type EmitResult = {
+  ok: boolean
+  idempotent: boolean
+  notificationId?: string
+  persisted?: boolean
+  targets?: { userIds: string[]; tokenCount: number }
+  send?: { success: boolean; sent?: number; failed?: number; errors?: string[] }
+  error?: string
+}
+
+type UserRole = 'admin' | 'customer' | string
+
+function sha256(input: string): string {
+  return createHash('sha256').update(input).digest('hex')
+}
+
+function computeEventId(event: NotificationEvent): string {
+  if (event.eventId && typeof event.eventId === 'string' && event.eventId.trim()) {
+    return event.eventId.trim()
+  }
+  const entityId =
+    event.data?.billId ||
+    event.data?.customerId ||
+    event.data?.chatId ||
+    event.data?.inventoryId ||
+    ''
+  const bucket = Math.floor(Date.now() / (60 * 1000)) // 1 minute bucket
+  return sha256(`${event.type}|${event.actorUserId}|${entityId}|${bucket}`).slice(0, 32)
+}
+
+async function getUserRoleById(userId: string): Promise<UserRole | null> {
+  if (!userId) return null
+  const doc = await sanityClient.fetch<{ role?: UserRole } | null>(
+    `*[_type=="user" && _id==$id][0]{ role }`,
+    { id: userId }
+  )
+  return (doc?.role as UserRole | undefined) || null
+}
+
+async function getAllActiveAdminUserIds(): Promise<string[]> {
+  const ids = await sanityClient.fetch<string[]>(
+    `*[_type=="user" && role=="admin" && isActive != false]._id`
+  )
+  return Array.from(new Set((ids || []).filter(Boolean)))
+}
+
+async function getAllActiveCustomerUserIds(): Promise<string[]> {
+  const ids = await sanityClient.fetch<string[]>(
+    `*[_type=="user" && role=="customer" && isActive != false]._id`
+  )
+  return Array.from(new Set((ids || []).filter(Boolean)))
+}
+
+async function getActiveTokensForSanityUserIds(userIds: string[]): Promise<string[]> {
+  if (!userIds?.length) return []
+  const query = `*[_type=="user" && _id in $ids && isActive != false]{ fcmTokens }`
+  const users = await sanityClient.fetch<UserWithTokens[]>(query, { ids: userIds })
+  const tokens = (users || [])
+    .flatMap(u => Array.isArray(u?.fcmTokens) ? u.fcmTokens : [])
+    .filter(Boolean)
+  return Array.from(new Set(tokens))
+}
+
+function applySkipSelf(actorUserId: string, targetUserIds: string[]): string[] {
+  if (!actorUserId) return Array.from(new Set((targetUserIds || []).filter(Boolean)))
+  return Array.from(new Set((targetUserIds || []).filter(Boolean))).filter(id => id !== actorUserId)
+}
+
+function coerceStringRecord(input: unknown): Record<string, string> | undefined {
+  if (!input || typeof input !== 'object') return undefined
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof v === 'undefined') continue
+    out[String(k)] = String(v)
+  }
+  return out
+}
+
+function buildDefaultTitleBody(event: NotificationEvent): { title: string; body: string } {
+  const t = event.type
+  if (t === 'customer_created') {
+    return { title: 'New customer created', body: 'A new customer has been added.' }
+  }
+  if (t === 'bill_created') {
+    return { title: 'Bill created', body: 'A new bill has been created.' }
+  }
+  if (t === 'bill_status_updated') {
+    return { title: 'Bill status updated', body: `Bill status updated${event.data?.status ? `: ${event.data.status}` : ''}` }
+  }
+  if (t === 'cashbook_entry') {
+    return { title: 'Cashbook entry', body: 'A new cashbook entry was added.' }
+  }
+  if (t === 'inventory_added') {
+    return { title: 'Inventory updated', body: 'A new inventory item was added.' }
+  }
+  if (t === 'chat_message') {
+    return { title: 'New chat message', body: event.data?.message ? String(event.data.message) : 'You have a new message.' }
+  }
+  if (t === 'shop_status') {
+    return { title: 'Shop status updated', body: event.data?.status ? `Status: ${event.data.status}` : 'Shop status changed.' }
+  }
+  if (t === 'admin_broadcast') {
+    return { title: 'Announcement', body: event.data?.message ? String(event.data.message) : 'You have a new announcement.' }
+  }
+  if (t === 'user_direct') {
+    return { title: 'Message', body: event.data?.message ? String(event.data.message) : 'You have a new message.' }
+  }
+  return { title: 'Notification', body: '' }
+}
+
+async function resolveTargetUserIds(event: NotificationEvent): Promise<string[]> {
+  const type = event.type
+
+  if (type === 'customer_created') {
+    return await getAllActiveAdminUserIds()
+  }
+
+  if (type === 'bill_created' || type === 'bill_status_updated') {
+    const admins = await getAllActiveAdminUserIds()
+    const customerId = event.data?.customerId
+    return customerId ? Array.from(new Set([...admins, String(customerId)])) : admins
+  }
+
+  if (type === 'cashbook_entry' || type === 'inventory_added') {
+    return await getAllActiveAdminUserIds()
+  }
+
+  if (type === 'chat_message') {
+    const actorRole = await getUserRoleById(event.actorUserId)
+    if (actorRole === 'admin') {
+      const customerId = event.data?.customerId
+      return customerId ? [String(customerId)] : []
+    }
+    // customer -> all admins
+    return await getAllActiveAdminUserIds()
+  }
+
+  if (type === 'shop_status') {
+    const [admins, customers] = await Promise.all([
+      getAllActiveAdminUserIds(),
+      getAllActiveCustomerUserIds(),
+    ])
+    return Array.from(new Set([...admins, ...customers]))
+  }
+
+  if (type === 'admin_broadcast') {
+    const target = event.data?.extra?.target
+    if (target === 'all_admins') return await getAllActiveAdminUserIds()
+    if (target === 'all_users') {
+      const [admins, customers] = await Promise.all([
+        getAllActiveAdminUserIds(),
+        getAllActiveCustomerUserIds(),
+      ])
+      return Array.from(new Set([...admins, ...customers]))
+    }
+    if (target === 'specific_user') {
+      const uid = event.data?.extra?.targetUserId
+      return uid ? [String(uid)] : []
+    }
+    return []
+  }
+
+  if (type === 'user_direct') {
+    const uid = event.data?.extra?.targetUserId || event.data?.customerId
+    return uid ? [String(uid)] : []
+  }
+
+  return []
+}
+
+async function persistNotificationDoc(doc: NotificationDoc): Promise<{ created: boolean } | { created: false; conflict: true } | { created: false; error: string }> {
+  try {
+    await sanityClient.create(doc as any)
+    return { created: true }
+  } catch (e: any) {
+    const code = e?.statusCode || e?.status
+    if (code === 409) {
+      return { created: false, conflict: true }
+    }
+    const msg = e instanceof Error ? e.message : String(e)
+    return { created: false, error: msg }
+  }
+}
+
+export const notificationService = {
+  async emit(event: NotificationEvent): Promise<EmitResult> {
+    try {
+      if (!event?.type) return { ok: false, idempotent: false, error: 'Missing event.type' }
+      if (!event?.actorUserId) return { ok: false, idempotent: false, error: 'Missing actorUserId' }
+
+      const eventId = computeEventId(event)
+      const notificationId = `notification.${eventId}`
+
+      // Resolve targets (Sanity user._id only) then enforce skip-self
+      const rawTargets = await resolveTargetUserIds(event)
+      const targetUserIds = applySkipSelf(String(event.actorUserId), rawTargets)
+
+      // Persist FIRST (idempotency guard uses deterministic _id)
+      const defaults = buildDefaultTitleBody(event)
+      const title = String(event.data?.extra?.title || defaults.title)
+      const body = String(event.data?.extra?.body || defaults.body)
+      const createdAt = new Date().toISOString()
+      const expiresAt = (() => {
+        const raw = event.data?.extra?.expiresAt
+        if (!raw) return undefined
+        if (typeof raw === 'string') return raw
+        return undefined
+      })()
+
+      const persisted = await persistNotificationDoc({
+        _id: notificationId,
+        _type: 'notification',
+        title,
+        body,
+        audience: deriveAudience(event),
+        type: String(event.type),
+        actorUserId: String(event.actorUserId),
+        targetUserIds,
+        data: {
+          ...(event.data || {}),
+          route: event.data?.route || undefined,
+        },
+        readBy: [],
+        createdAt,
+        ...(expiresAt ? { expiresAt } : {}),
+        eventId,
+      })
+
+      if ('conflict' in persisted && persisted.conflict) {
+        // Already processed -> do not re-send
+        return { ok: true, idempotent: true, notificationId, persisted: false, targets: { userIds: targetUserIds, tokenCount: 0 } }
+      }
+      if ('error' in persisted) {
+        return { ok: false, idempotent: false, notificationId, error: persisted.error }
+      }
+
+      // If no targets after skip-self, stop after persistence
+      if (!targetUserIds.length) {
+        return { ok: true, idempotent: false, notificationId, persisted: true, targets: { userIds: [], tokenCount: 0 }, send: { success: true, sent: 0, failed: 0 } }
+      }
+
+      // Fetch tokens (active only)
+      const tokens = await getActiveTokensForSanityUserIds(targetUserIds)
+      if (!tokens.length) {
+        return { ok: true, idempotent: false, notificationId, persisted: true, targets: { userIds: targetUserIds, tokenCount: 0 }, send: { success: false, sent: 0, failed: 0, errors: ['No target tokens'] } }
+      }
+
+      // Include deep link + id for client-side dedupe / navigation
+      const dataForFcm = coerceStringRecord({
+        id: notificationId,
+        type: event.type,
+        route_path: event.data?.route || undefined,
+        billId: event.data?.billId,
+        customerId: event.data?.customerId,
+        chatId: event.data?.chatId,
+        inventoryId: event.data?.inventoryId,
+        status: event.data?.status,
+      })
+
+      const send = await sendNotification({
+        title,
+        body,
+        tokens,
+        data: dataForFcm,
+      })
+
+      return {
+        ok: true,
+        idempotent: false,
+        notificationId,
+        persisted: true,
+        targets: { userIds: targetUserIds, tokenCount: tokens.length },
+        send,
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return { ok: false, idempotent: false, error: msg }
+    }
+  },
 }
 
 export async function sendToAllEnv(title: string, body: string, data: Record<string, string> | undefined, env: 'prod' | 'dev', excludeTokens?: string[]): Promise<SendResult> {

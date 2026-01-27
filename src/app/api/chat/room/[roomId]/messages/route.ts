@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
-import { sendNotification, sendToAdmins } from "@/lib/notification-service";
+import { notificationService } from "@/lib/notification-service";
 
 // GET: list messages for a chat room
 export async function GET(req: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
@@ -158,61 +158,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
       const bodyText = isReply 
         ? `Replied: ${content?.slice(0, 100) || "You have a new reply"}`
         : content?.slice(0, 120) || "You have a new message";
-      const route_path_for_admin = '/admin/chats';
-      const route_path_for_customer = '/customer/chat';
-      const route_query = JSON.stringify({ roomId: String(roomId) });
+      const routeForTargets = isCustomer ? '/admin/chats' : '/customer/chat'
+      const customerId: string | undefined = room?.customer?._id || undefined
+      if (!isCustomer && !customerId) {
+        console.warn('[FCM] chat_message: missing room.customer._id', roomId)
+      }
 
-      if (isCustomer) {
-        // Customer sent: notify all admins
-        const result = await sendToAdmins(title, bodyText, {
-          type: 'chat',
-          event: 'chat-message',
-          tag: `chat-room-${String(roomId)}`,
-          roomId: String(roomId),
-          messageId: String(((doc as { _id?: string })?._id) ?? ''),
-          route_path: route_path_for_admin,
-          route_query,
-        }, [String(senderId)], senderToken ? [String(senderToken)] : undefined);
-        if (!result?.success) {
-          console.error('[FCM] sendToAdmins failed', result?.errors);
-        }
-      } else {
-        // Admin sent: notify the room's customer (fallback to participants with role customer)
-        const customerId: string | undefined = room?.customer?._id || undefined;
-        const userIds: string[] = [];
-        if (customerId) userIds.push(String(customerId));
-        if (!userIds.length) {
-          for (const p of (participants || [])) {
-            if (p.user?._id && p.role === 'customer' && !p.blocked && p.notify !== false) {
-              userIds.push(String(p.user._id));
-            }
-          }
-        }
-        if (userIds.length) {
-          const res = await sendNotification({
+      // Unified pipeline: target resolution + skip-self + persistence + send + idempotency
+      await notificationService.emit({
+        type: 'chat_message',
+        actorUserId: String(senderId),
+        data: {
+          chatId: String(roomId),
+          ...(customerId ? { customerId: String(customerId) } : {}),
+          route: routeForTargets,
+          message: bodyText,
+          extra: {
             title,
             body: bodyText,
-            userIds,
-            data: {
-              type: 'chat',
-              event: 'chat-message',
-              tag: `chat-room-${String(roomId)}`,
-              roomId: String(roomId),
-              messageId: String(((doc as { _id?: string })?._id) ?? ''),
-              route_path: route_path_for_customer,
-              route_query,
-            },
-            sound: 'default',
-            // Also exclude the sender's device token if provided (belt-and-suspenders)
-            excludeTokens: senderToken ? [String(senderToken)] : undefined,
-          });
-          if (!res?.success) {
-            console.error('[FCM] sendNotification to customer failed', res?.errors);
-          }
-        } else {
-          console.warn('[FCM] No customer userIds found for room', roomId);
-        }
-      }
+            messageId: String(((doc as { _id?: string })?._id) ?? ''),
+          },
+        },
+      })
     } catch (err) {
       console.error('[FCM] Error sending chat push', err);
     }

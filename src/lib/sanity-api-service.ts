@@ -588,6 +588,7 @@ export const brandApiService = {
 
 // Category API Service
 export const categoryApiService = {
+
   async getAllCategories(): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "category"]{ _id, _type, name, slug, description, icon, "isActive": select(defined(isActive)=>isActive, true) } | order(name asc)`;
@@ -650,9 +651,6 @@ export const categoryApiService = {
 
 // Bill API Service
 export const billApiService = {
-  /**
-   * Get all bills
-   */
   async getAllBills(): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "bill"] {
@@ -687,9 +685,6 @@ export const billApiService = {
     }
   },
 
-  /**
-   * Get bill by ID
-   */
   async getBillById(billId: string): Promise<ApiResponse<any>> {
     try {
       const query = `*[_type == "bill" && _id == $billId][0] {
@@ -740,9 +735,6 @@ export const billApiService = {
     }
   },
 
-  /**
-   * Get bills for specific customer
-   */
   async getCustomerBills(customerId: string): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "bill" && customer._ref == $customerId] {
@@ -777,9 +769,6 @@ export const billApiService = {
     }
   },
 
-  /**
-   * Create new bill
-   */
   async createBill(billData: any): Promise<ApiResponse<any>> {
     try {
       const newBill = {
@@ -811,27 +800,6 @@ export const billApiService = {
         }
       } catch {}
 
-      // Fire-and-forget push notification to the bill's customer (client-only)
-      try {
-        if (typeof window !== "undefined") {
-          const customerId = (createdBill?.customer?._ref) || (billData?.customer?._ref) || null;
-          if (customerId) {
-            // Do not block; best-effort notification
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: 'New bill created',
-                body: `Bill ${createdBill?.billNumber ?? ''} is created and pending payment`,
-                userIds: [customerId],
-                data: { billId: String(createdBill?._id ?? '') },
-                sound: 'default',
-              }),
-            }).catch(() => {});
-          }
-        }
-      } catch {}
-
       return { success: true, data: createdBill };
     } catch (error) {
       console.error('Error creating bill:', error);
@@ -839,30 +807,11 @@ export const billApiService = {
     }
   },
 
-  /**
-   * Update bill
-   */
   async updateBill(
     billId: string,
     billData: any
   ): Promise<ApiResponse<any>> {
     try {
-      // Fetch previous bill state for change detection
-      let prev: any = null;
-      try {
-        prev = await sanityClient.fetch(
-          `*[_type == "bill" && _id == $id][0]{
-            _id,
-            billNumber,
-            status,
-            paymentStatus,
-            customer->{ _id, name }
-          }`,
-          { id: billId }
-        );
-      } catch {}
-
-      // Apply patch
       const updatedBill = await sanityClient
         .patch(billId)
         .set({
@@ -881,88 +830,6 @@ export const billApiService = {
         }
       } catch {}
 
-      // Fire-and-forget push notification to the bill's customer when paymentStatus changes
-      try {
-        const prevStatus = prev?.paymentStatus;
-        const nextStatus = (updatedBill as any)?.paymentStatus ?? billData?.paymentStatus;
-        if (prevStatus !== nextStatus) {
-          const customerId = (updatedBill as any)?.customer?._ref || prev?.customer?._id || null;
-          if (customerId) {
-            if (typeof window !== "undefined") {
-              fetch('/api/notifications/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  title: 'Bill updated',
-                  body: `Status: ${String(nextStatus ?? 'updated')}`,
-                  userIds: [customerId],
-                  data: { billId: String((updatedBill as any)?._id ?? billId) },
-                  sound: 'default',
-                }),
-              }).catch(() => {});
-            }
-          }
-        }
-      } catch {}
-
-      // Always notify the bill's customer on any update (generic fallback)
-      try {
-        const customerId = (updatedBill as any)?.customer?._ref || prev?.customer?._id || null;
-        if (customerId) {
-          const title = 'Bill updated';
-          const body = (updatedBill as any)?.billNumber ? `Bill ${(updatedBill as any).billNumber} was updated` : 'Your bill was updated';
-          const data = { billId: String((updatedBill as any)?._id ?? billId), event: 'bill-updated' } as Record<string, string>;
-          if (typeof window !== 'undefined') {
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, body, userIds: [customerId], data, sound: 'default' }),
-            }).catch(() => {});
-          }
-        }
-      } catch {}
-
-      // Fire-and-forget: notify all admins (excluding the actor) about bill update
-      try {
-        if (typeof window !== 'undefined') {
-          const actorId = getActorUserIdFromPersistedAuth();
-          const billNo: string = (updatedBill as any)?.billNumber ?? prev?.billNumber ?? '';
-          const changeSummary = (() => {
-            const parts: string[] = [];
-            const keysToCheck = ['status', 'paymentStatus'];
-            for (const k of keysToCheck) {
-              const before = (prev as any)?.[k];
-              const after = (updatedBill as any)?.[k] ?? (billData as any)?.[k];
-              if (after != null && before !== after) parts.push(`${k}: ${before ?? 'n/a'} → ${after}`);
-            }
-            return parts.length ? parts.join(', ') : 'Details updated';
-          })();
-          void fetch('/api/notifications/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audience: 'admins',
-              title: 'Bill updated',
-              body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
-              data: { billId: String((updatedBill as any)?._id ?? billId), event: 'bill-updated', role: 'admin', customerId: String(prev?.customer?._id || '') },
-              excludeUserIds: actorId ? [actorId] : undefined,
-              // Exclude current device token too
-              excludeTokens: await (async () => {
-                try {
-                  if (typeof window === 'undefined') return undefined
-                  const mod = await import('@/lib/fcm-client')
-                  if (typeof mod.getTokenWithoutRegister === 'function') {
-                    const t = await mod.getTokenWithoutRegister()
-                    return t ? [t] : undefined
-                  }
-                } catch {}
-                return undefined
-              })(),
-            }),
-          }).catch(() => {});
-        }
-      } catch {}
-
       return { success: true, data: updatedBill };
     } catch (error) {
       console.error('Error updating bill:', error);
@@ -970,9 +837,6 @@ export const billApiService = {
     }
   },
 
-  /**
-   * Delete bill
-   */
   async deleteBill(billId: string): Promise<ApiResponse<void>> {
     try {
       // Client: call secure API route so server token is used
@@ -996,41 +860,6 @@ export const billApiService = {
     } catch (error) {
       console.error('Error deleting bill:', error);
       return { success: false, error: 'Failed to delete bill' };
-    }
-  },
-
-  /**
-   * Create the singleton online status document if it doesn't exist
-   */
-  async createOrInitOnlineStatus(initial: Partial<{ isOnline: boolean; atShop: boolean; note: string }> = {}): Promise<ApiResponse<any>> {
-    try {
-      // If in browser, hit server API (which will ensure the doc exists)
-      if (typeof window !== 'undefined') {
-        const url = '/api/online';
-        const res = await fetch(url, { method: 'GET' });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || json?.success === false) {
-          return { success: false, error: json?.error || `Failed to init online status (${res.status})` };
-        }
-        return { success: true, data: json.data };
-      }
-
-      const existing = await sanityClient.fetch(`*[_type == "online" && _id == "onlineStatus"][0]`);
-      if (existing) {
-        return { success: true, data: existing };
-      }
-      const doc = await sanityClient.create({
-        _id: "onlineStatus",
-        _type: "online",
-        isOnline: initial.isOnline ?? false,
-        atShop: initial.atShop ?? false,
-        note: initial.note ?? "",
-        updatedAt: new Date().toISOString(),
-      });
-      return { success: true, data: doc };
-    } catch (error) {
-      console.error('Error creating online status:', error);
-      return { success: false, error: 'Failed to create online status' };
     }
   },
 };

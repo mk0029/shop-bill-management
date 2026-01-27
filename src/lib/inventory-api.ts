@@ -341,86 +341,21 @@ export const inventoryApi = {
     createdBy?: { id?: string; name?: string };
   }): Promise<InventoryApiResponse> {
     try {
-      const productId = Buffer.from(
-        Date.now().toString() + Math.random().toString()
-      )
-        .toString("base64")
-        .substring(0, 12);
-
-      const newProduct = {
-        _type: "product",
-        productId,
-        name: productData.name+' - '+productData.brandName,
-        slug: {
-          _type: "slug",
-          current: productData.name
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9-]/g, ""),
-        },
-        description: productData.description,
-        brand: { _type: "reference", _ref: productData.brandId },
-        category: { _type: "reference", _ref: productData.categoryId },
-        specifications: productData.specifications,
-        pricing: {
-          ...productData.pricing,
-          taxRate: TAX_RATE, // Default GST rate
-        },
-        inventory: productData.inventory,
-        images: [],
-        isActive: true,
-        isFeatured: false,
-        tags: productData.tags,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Use transaction to create product and initial stock transaction atomically
-      if (productData.initialStockTransaction) {
-        const transaction = sanityClient.transaction();
-
-        // Create the product
-        const productResult = await transaction.create(newProduct).commit();
-
-        // Create initial stock transaction
-        const stockTransactionId = Buffer.from(
-          Date.now().toString() + Math.random().toString()
-        )
-          .toString("base64")
-          .substring(0, 12);
-
-        const stockTransaction = {
-          _type: "stockTransaction",
-          transactionId: stockTransactionId,
-          type: productData.initialStockTransaction.type,
-          product: { _type: "reference", _ref: productResult._id },
-          quantity: productData.initialStockTransaction.quantity,
-          unitPrice: productData.initialStockTransaction.unitPrice,
-          totalAmount:
-            productData.initialStockTransaction.quantity *
-            productData.initialStockTransaction.unitPrice,
-          // Mark as a new item if this transaction is created with the product
-          notes:
-            productData.initialStockTransaction.notes ||
-            `New item created: ${productData.name} - initial stock added`,
-          status: "completed",
-          transactionDate: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          // Store creator metadata when available
-          createdBy: productData.createdBy?.name,
-          createdByName: productData.createdBy?.name,
-          createdById: productData.createdBy?.id,
-        };
-
-        // Create stock transaction in a separate call (since we need the product ID)
-        await sanityClient.create(stockTransaction);
-
-        return { success: true, data: productResult };
-      } else {
-        // Just create the product without stock transaction
-        const result = await sanityClient.create(newProduct);
-        return { success: true, data: result };
+      const actorUserId = String(productData?.createdBy?.id || '').trim()
+      if (!actorUserId) {
+        return { success: false, error: 'Missing actorUserId' }
       }
+
+      const res = await fetch('/api/mutations/inventory/create-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorUserId, product: productData }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to create product' }
+      }
+      return { success: true, data: json?.data }
     } catch (error) {
       console.error("Error creating product:", error);
       return {
@@ -437,10 +372,13 @@ export const inventoryApi = {
     updateData: unknown
   ): Promise<InventoryApiResponse> {
     try {
+      const safeUpdate = (typeof updateData === 'object' && updateData !== null)
+        ? (updateData as Record<string, unknown>)
+        : {}
       const result = await sanityClient
         .patch(productId)
         .set({
-          ...updateData,
+          ...safeUpdate,
           updatedAt: new Date().toISOString(),
         })
         .commit();
@@ -589,7 +527,11 @@ export const inventoryApi = {
     };
   }>> {
     try {
-      const results = {
+      const results: {
+        successful: any[];
+        failed: Array<{ product: any; error: string }>;
+        summary: { total: number; successful: number; failed: number };
+      } = {
         successful: [],
         failed: [],
         summary: {
@@ -601,8 +543,8 @@ export const inventoryApi = {
 
       // Use Sanity transaction for better performance and atomicity
       const transaction = sanityClient.transaction();
-      const stockTransactions = [];
-      const createdProducts = [];
+      const stockTransactions: any[] = [];
+      const createdProducts: Array<{ data: any; originalData: any }> = [];
 
       for (const productData of productsData) {
         try {
@@ -662,11 +604,14 @@ export const inventoryApi = {
 
       // Commit all products in a single transaction
       if (createdProducts.length > 0) {
-        const transactionResult = await transaction.commit();
+        const transactionResult: unknown = await transaction.commit();
+        const createdDocs: any[] = Array.isArray(transactionResult)
+          ? transactionResult
+          : []
         
         // Create stock transactions separately for each created product
-        if (transactionResult && transactionResult.length > 0) {
-          const stockPromises = transactionResult.map(async (createdProduct, index) => {
+        if (createdDocs.length > 0) {
+          const stockPromises = createdDocs.map(async (createdProduct, index) => {
             const originalData = createdProducts[index]?.originalData;
             if (originalData?.initialStockTransaction) {
               try {

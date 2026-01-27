@@ -298,52 +298,26 @@ export async function createCustomer(customerData: {
   email?: string;
 }): Promise<FormSubmissionResult> {
   try {
-    // Check for existing user with same phone number
-    const userExists = await checkExistingUserByPhone(customerData.phone);
-    if (userExists) {
-      return {
-        success: false,
-        error: "Account already exists with this phone number",
-      };
+    const actorUserId = getActorUserId();
+    if (!actorUserId) {
+      return { success: false, error: "Missing actorUserId" };
     }
 
-    // Generate customer credentials
-    const customerId = Buffer.from(
-      Date.now().toString() + Math.random().toString()
-    )
-      .toString("base64")
-      .substring(0, 12);
-    const secretKey = Buffer.from(
-      Date.now().toString() + Math.random().toString()
-    )
-      .toString("base64")
-      .substring(0, 16);
+    const res = await fetch('/api/mutations/customers/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actorUserId, ...customerData }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok || !json?.success) {
+      return { success: false, error: json?.error || 'Failed to create customer' }
+    }
 
-    const newCustomer = {
-      _type: "user",
-      clerkId: `customer_${Date.now()}`,
-      customerId,
-      secretKey,
-      name: customerData.name,
-      email: customerData.email,
-      phone: customerData.phone,
-      location: customerData.location,
-      role: "customer",
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const result = await sanityClient.create(newCustomer);
     return {
       success: true,
-      data: {
-        ...result,
-        customerId,
-        secretKey,
-      },
+      data: json?.data,
       message: `Customer "${customerData.name}" has been created successfully!`,
-    };
+    }
   } catch (error) {
     console.error("❌ Failed to create customer:", error);
     return {
@@ -351,36 +325,6 @@ export async function createCustomer(customerData: {
       error:
         error instanceof Error ? error.message : "Failed to create customer",
     };
-  } finally {
-    // Fire-and-forget: notify all admins (excluding the actor) about new user creation
-    try {
-      if (typeof window !== 'undefined') {
-        const actorId = getActorUserId();
-        // Get current device token without registering
-        const currentToken: string | null = await (async () => {
-          try {
-            const mod = await import('@/lib/fcm-client')
-            if (typeof mod.getTokenWithoutRegister === 'function') return await mod.getTokenWithoutRegister()
-          } catch {}
-          return null
-        })()
-        void fetch('/api/notifications/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            audience: 'admins', // CRITICAL: Only send to admins
-            title: 'New customer added',
-            body: `${customerData.name} (${customerData.phone})`,
-            data: { 
-              type: 'system', // Add explicit type for filtering
-              event: 'user-created' 
-            },
-            excludeUserIds: actorId ? [actorId] : undefined,
-            excludeTokens: currentToken ? [currentToken] : undefined,
-          }),
-        }).catch(() => {})
-      }
-    } catch {}
   }
 }
 
@@ -845,45 +789,36 @@ export async function createBill(billData: {
           });
       }
 
-      // Step 10: Fire-and-forget: notify customer about bill creation via API (avoids importing server-only code)
+      // Step 10: Notify the customer (non-blocking)
       try {
-        const customerUserId = billData.customerId
-        void fetch('/api/notifications/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: `Bill created: ${billNumber}`,
-            body: `Your bill ${billNumber} has been created. Total: ₹${grossTotal}`,
-            userIds: [customerUserId],
-            data: {
-              billId: String(createdId),
-              billNumber: String(billNumber),
-              totalAmount: String(grossTotal),
-              event: 'bill-created',
-              role: 'customer',
-              customerId: String(customerUserId),
-            },
-          }),
-        }).catch(() => {})
-      } catch (notifyErr) {
-        console.warn('⚠️ Failed to send bill notification', notifyErr)
-      }
-
-      // Step 11: Fire-and-forget: notify all admins (excluding actor) about bill creation
-      try {
-        const actorId = getActorUserId();
         if (typeof window !== 'undefined') {
-          void fetch('/api/notifications/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audience: 'admins',
-              title: 'Bill created',
-              body: `Bill ${billNumber} created • Total ₹${grossTotal}`,
-              data: { billId: String(createdId), billNumber: String(billNumber), event: 'bill-created', role: 'admin', customerId: String(billData.customerId) },
-              excludeUserIds: actorId ? [actorId] : undefined,
-            }),
-          }).catch(() => {})
+          const customerId = String(billData.customerId || '').trim()
+          if (customerId) {
+            const currentToken: string | null = await (async () => {
+              try {
+                const mod = await import('@/lib/fcm-client')
+                if (typeof mod.getTokenWithoutRegister === 'function') return await mod.getTokenWithoutRegister()
+              } catch {}
+              return null
+            })()
+
+            void fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: 'Bill created',
+                body: billNumber ? `Your bill ${billNumber} was created` : 'Your bill was created',
+                userIds: [customerId],
+                data: {
+                  event: 'bill-created',
+                  billId: String(createdId),
+                  billNumber: String(billNumber),
+                  route: '/customer/bills',
+                },
+                excludeTokens: currentToken ? [currentToken] : undefined,
+              }),
+            }).catch(() => {})
+          }
         }
       } catch {}
 

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useNotificationStore } from "@/store/notification-store";
 import { useDataStore } from "@/store/data-store";
 import { Dropdown } from "@/components/ui/dropdown";
+import { useAuthStore } from "@/store/auth-store";
 
 export type Audience = "admins" | "all" | "users";
 
@@ -20,6 +21,8 @@ type Props = {
 
 export default function NotificationBroadcastModal({ open, onClose }: Props) {
   const addLocal = useNotificationStore((s) => s.add);
+  const { user: authUser } = useAuthStore();
+  const actorUserId = (authUser as any)?.id || (authUser as any)?._id || "";
   const [audience, setAudience] = useState<Audience>("admins");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -160,12 +163,14 @@ export default function NotificationBroadcastModal({ open, onClose }: Props) {
     try {
       setLoading(true);
       type AdminAudiencePayload = {
+        actorUserId: string;
         title: string;
         body: string;
         data?: Record<string, string>;
         audience: "admins" | "all";
       };
       type UsersPayload = {
+        actorUserId: string;
         title: string;
         body: string;
         data?: Record<string, string>;
@@ -175,6 +180,7 @@ export default function NotificationBroadcastModal({ open, onClose }: Props) {
       const data: Record<string, string> = { event: "broadcast" };
       if (link.trim()) data.link = link.trim();
       const base = {
+        actorUserId,
         title: title.trim(),
         body: body.trim(),
         data,

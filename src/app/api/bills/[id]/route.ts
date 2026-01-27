@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
+import { notificationService } from "@/lib/notification-service";
 
 export async function PATCH(
   req: Request,
@@ -68,6 +69,34 @@ export async function PATCH(
     const startTime = Date.now();
     const updated = await sanityClient.patch(id).set(updates).commit();
     console.log(`updateBill->commit: ${Date.now() - startTime} ms`);
+
+    // Unified notification: bill status update (only when status is provided)
+    try {
+      const actorUserId = (req.headers.get('x-user-id') || '').trim()
+      if (actorUserId && typeof updates.status !== 'undefined') {
+        const bill = await sanityClient.fetch(
+          `*[_type == "bill" && _id == $id][0]{ _id, customer->{_id}, status }`,
+          { id }
+        )
+        const customerId = bill?.customer?._id ? String(bill.customer._id) : undefined
+        await notificationService.emit({
+          type: 'bill_status_updated',
+          actorUserId,
+          data: {
+            billId: String(id),
+            ...(customerId ? { customerId } : {}),
+            status: String(updates.status),
+            route: `/admin/billing/history?open=${encodeURIComponent(String(id))}`,
+            extra: {
+              title: 'Bill status updated',
+              body: `Bill status updated${updates.status ? `: ${String(updates.status)}` : ''}`,
+            },
+          },
+        })
+      }
+    } catch (notifyErr) {
+      console.error('[Notify] bill_status_updated emit failed', notifyErr)
+    }
     
     // Create cash book entry asynchronously (don't wait for it)
     if (updates.paidAmount && Number(updates.paidAmount) > 0) {
@@ -90,6 +119,28 @@ export async function PATCH(
             
             if (result.success) {
               console.log('✅ Cash book entry created via bill API');
+
+              // Unified notification: cashbook entry (admins except actor)
+              try {
+                const actorUserId = (req.headers.get('x-user-id') || '').trim()
+                if (actorUserId) {
+                  await notificationService.emit({
+                    type: 'cashbook_entry',
+                    actorUserId,
+                    data: {
+                      billId: String(id),
+                      customerId: String(bill.customer._id),
+                      route: '/admin/cash-book/history',
+                      extra: {
+                        title: 'Cashbook entry',
+                        body: `Payment received • ₹${Number(updates.paidAmount)}`,
+                      },
+                    },
+                  })
+                }
+              } catch (notifyErr) {
+                console.error('[Notify] cashbook_entry emit failed', notifyErr)
+              }
             } else {
               console.error('❌ Failed to create cash book entry via bill API:', result.error);
             }

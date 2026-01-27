@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@sanity/client';
-import { sendToAll } from '@/lib/notification-service';
+import { notificationService } from '@/lib/notification-service';
 
 type ShopStatus = 'offline' | 'online' | 'at_shop';
 
@@ -116,21 +116,30 @@ export async function POST(req: Request) {
       const statusChanged = !prevStatus || prevStatus !== newStatus;
       if (statusChanged) {
         try {
-          if (newStatus === 'offline') {
-            await sendToAll('Shop is now Offline', 'We are temporarily unavailable. You can still browse and we\'ll notify you when we\'re back.', {
-              status: 'offline',
-              updatedAt: (updatedAt || new Date().toISOString()),
+          const actorUserId = (req.headers.get('x-user-id') || '').trim();
+          if (actorUserId) {
+            const title = newStatus === 'offline'
+              ? 'Shop is now Offline'
+              : newStatus === 'online'
+                ? 'Shop is Available'
+                : 'Shop status updated'
+            const bodyText = newStatus === 'offline'
+              ? "We are temporarily unavailable. You can still browse and we'll notify you when we're back."
+              : newStatus === 'online'
+                ? "We're back online and ready to serve you."
+                : 'Shop status changed.'
+            await notificationService.emit({
               type: 'shop_status',
-            });
-          } else if (newStatus === 'online') {
-            await sendToAll('Shop is Available', 'We\'re back online and ready to serve you.', {
-              status: 'online',
-              updatedAt: (updatedAt || new Date().toISOString()),
-              type: 'shop_status',
-            });
+              actorUserId,
+              data: {
+                status: newStatus,
+                route: '/admin/settings',
+                extra: { title, body: bodyText },
+              },
+            })
           }
         } catch (notifyErr) {
-          console.error('FCM broadcast error (shop-status):', notifyErr);
+          console.error('Unified notification error (shop-status):', notifyErr);
         }
       }
     } catch (error) {

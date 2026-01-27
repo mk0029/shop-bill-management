@@ -1,5 +1,20 @@
 import { sanityClient } from "./sanity";
 import type { ApiResponse } from "./sanity-api-service";
+import { getCookie } from "@/lib/cookies";
+
+function getActorUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = getCookie('auth-storage');
+    if (!raw) return null;
+    const parsedUnknown: unknown = JSON.parse(raw);
+    const parsed = typeof parsedUnknown === 'object' && parsedUnknown !== null ? (parsedUnknown as any) : null;
+    const user = parsed?.state?.user as any;
+    return (user?.id as string) || (user?._id as string) || null;
+  } catch {
+    return null;
+  }
+}
 
 export const customerCashbookService = {
   async createCashbook(data: { customerId: string; name: string; notes?: string }): Promise<ApiResponse<any>> {
@@ -65,28 +80,18 @@ export const customerCashbookService = {
     createdAt?: string;
   }): Promise<ApiResponse<any>> {
     try {
-      const totalPrice = Math.max(0, (item.quantity || 0) * (item.unitPrice || 0));
-      const doc: any = {
-        _type: 'cashbookItem',
-        cashbook: { _type: 'reference', _ref: item.cashbookId },
-        ...(item.customerId ? { customer: { _type: 'reference', _ref: item.customerId } } : {}),
-        ...(item.productId ? { product: { _type: 'reference', _ref: item.productId } } : {}),
-        itemName: item.itemName,
-        specifications: item.specifications || '',
-        category: item.category || '',
-        brand: item.brand || '',
-        unit: item.unit || '',
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice,
-        notes: item.notes || '',
-        createdAt: item.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        locked: false,
-      };
-      const created = await sanityClient.create(doc);
-      try { await sanityClient.patch(item.cashbookId).set({ updatedAt: new Date().toISOString() }).commit(); } catch {}
-      return { success: true, data: created };
+      const actorUserId = getActorUserId();
+      if (!actorUserId) return { success: false, error: 'Missing actorUserId' };
+      const res = await fetch('/api/mutations/cashbook/add-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorUserId, item }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to add cashbook item' }
+      }
+      return { success: true, data: json?.data }
     } catch (error) {
       console.error('Error adding cashbook item:', error);
       return { success: false, error: 'Failed to add cashbook item' };
@@ -138,71 +143,18 @@ export const customerCashbookService = {
     paidAmount?: number;
   }): Promise<ApiResponse<{ bill: any; count: number }>> {
     try {
-      const itemsQuery = `*[_type == "cashbookItem" && cashbook._ref == $cashbookId && !defined(bill)]`;
-      const pendingItems: any[] = await sanityClient.fetch(itemsQuery, { cashbookId: params.cashbookId });
-      if (!pendingItems || pendingItems.length === 0) {
-        return { success: false, error: 'No pending items to bill' };
+      const actorUserId = getActorUserId();
+      if (!actorUserId) return { success: false, error: 'Missing actorUserId' };
+      const res = await fetch('/api/mutations/cashbook/convert-to-bill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorUserId, params }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to convert items to bill' }
       }
-
-      const billItems = pendingItems.map((ci) => ({
-        _type: 'billItem',
-        product: ci.product ? { _type: 'reference', _ref: (ci.product as any)._ref || ci.product } : undefined,
-        productName: ci.itemName,
-        category: ci.category || undefined,
-        brand: ci.brand || undefined,
-        specifications: ci.specifications || undefined,
-        unit: ci.unit || '',
-        quantity: Number(ci.quantity) || 0,
-        unitPrice: Number(ci.unitPrice) || 0,
-        totalPrice: Math.max(
-          0,
-          Number((((ci as any).totalPrice ?? (ci.quantity * ci.unitPrice)) || 0))
-        ),
-      }));
-
-      const subtotal = billItems.reduce((sum: number, it: any) => sum + (Number(it.totalPrice) || 0), 0);
-      const homeVisitFee = Number(params.homeVisitFee || 0);
-      const repairFee = Number(params.repairFee || 0);
-      const totalAmount = Math.max(0, subtotal + homeVisitFee + repairFee);
-      const paidAmount = Number(params.paidAmount || 0);
-      const balanceAmount = Math.max(0, totalAmount - paidAmount);
-
-      const billDoc: any = {
-        _type: 'bill',
-        billNumber: `BILL_${Date.now()}`,
-        customer: { _type: 'reference', _ref: params.customerId },
-        serviceType: params.serviceType || '',
-        locationType: params.locationType || '',
-        items: billItems,
-        serviceDate: new Date().toISOString(),
-        homeVisitFee,
-        repairFee,
-        subtotal,
-        discount: 0,
-        totalAmount,
-        paymentStatus: params.paymentStatus || 'pending',
-        paidAmount,
-        balanceAmount,
-        status: 'draft',
-        priority: 'medium',
-        notes: params.notes || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const tx = sanityClient.transaction();
-      tx.create(billDoc);
-      const result = await tx.commit();
-      const createdBillId = (result as any)?.results?.[0]?.id || (result as any)?._id;
-
-      const patchTx = sanityClient.transaction();
-      for (const it of pendingItems) {
-        patchTx.patch(it._id, (p: any) => p.set({ bill: { _type: 'reference', _ref: createdBillId }, locked: true, updatedAt: new Date().toISOString() }));
-      }
-      patchTx.patch(params.cashbookId, (p: any) => p.set({ updatedAt: new Date().toISOString() }));
-      await patchTx.commit();
-
-      return { success: true, data: { bill: { _id: createdBillId }, count: pendingItems.length } };
+      return { success: true, data: json?.data }
     } catch (error) {
       console.error('Error converting cashbook items to bill:', error);
       return { success: false, error: 'Failed to convert items to bill' };

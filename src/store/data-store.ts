@@ -1060,6 +1060,34 @@ export const useDataStore = create<DataStore>((set, get) => ({
       // Don't add to local state here - let the realtime listener handle it
       // This prevents duplicates when the realtime "appear" event fires
 
+      // Notify admins on bill creation (client-side)
+      if (typeof window !== "undefined") {
+        try {
+          const actorId = (function getActorId(){
+            try {
+              const raw = getCookie('auth-storage');
+              if (!raw) return null;
+              const parsed = JSON.parse(decodeURIComponent(raw));
+              return parsed?.state?.user?.id ?? null;
+            } catch {
+              return null;
+            }
+          })();
+          const billNo = (bill as any)?.billNumber ?? '';
+          fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audience: 'admins',
+              title: 'Bill created',
+              body: billNo ? `Bill ${billNo} created` : 'A new bill was created',
+              data: { billId: (bill as any)?._id, event: 'bill-created', billNumber: String(billNo) },
+              excludeUserIds: actorId ? [actorId] : undefined,
+            }),
+          }).catch(() => {});
+        } catch {}
+      }
+
       return bill as unknown as Bill;
     } catch (error) {
       console.error("Failed to create bill:", error);
@@ -1187,34 +1215,21 @@ export const useDataStore = create<DataStore>((set, get) => ({
               try {
                 const raw = getCookie('auth-storage');
                 if (!raw) return null as string | null;
-                let parsedUnknown: unknown = null;
-                try { parsedUnknown = JSON.parse(raw); } catch { parsedUnknown = null; }
-                const parsed = typeof parsedUnknown === 'object' && parsedUnknown !== null ? parsedUnknown as { state?: { user?: any } } : undefined;
-                const user = parsed?.state?.user as any;
-                return (user?.id as string) || (user?._id as string) || null;
-              } catch { return null as string | null; }
-            })();
-
-            const billNo: string = (result as any)?.billNumber ?? prev?.billNumber ?? '';
-            const changeSummary = (() => {
-              const parts: string[] = [];
-              const keysToCheck = ['status', 'paymentStatus'] as const;
-              for (const k of keysToCheck) {
-                const before = (prev as any)?.[k];
-                const after = (result as any)?.[k] ?? (updates as any)?.[k];
-                if (after != null && before !== after) parts.push(`${k}: ${before ?? 'n/a'} → ${after}`);
+                const parsed = JSON.parse(decodeURIComponent(raw));
+                return parsed?.state?.user?.id ?? null;
+              } catch {
+                return null;
               }
-              return parts.length ? parts.join(', ') : 'Details updated';
             })();
-
+            const billNo = (result as any)?.billNumber ?? prev?.billNumber ?? '';
             fetch('/api/notifications/send', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 audience: 'admins',
                 title: 'Bill updated',
-                body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
-                data: { billId: String((result as any)?._id ?? _id), event: 'bill-updated', role: 'admin', customerId: String(prev?.customer?._id || '') },
+                body: billNo ? `Bill ${billNo} was updated` : 'A bill was updated',
+                data: { billId: String((result as any)?._id ?? _id), event: 'bill-updated', billNumber: String(billNo) },
                 excludeUserIds: actorId ? [actorId] : undefined,
               }),
             }).catch(() => {});
@@ -1228,7 +1243,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
       set({
         error: error instanceof Error ? error.message : "Failed to update bill",
       });
-      throw error;
+      return false;
     }
   },
 
