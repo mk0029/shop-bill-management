@@ -1,7 +1,7 @@
 {
-  "name": "Jambh Electrics",
-  "short_name": "Jambh",
-  "description": "Professional Jambh Electrics system",
+  "name": "Jambh Electic",
+  "short_name": "Jambh Electic",
+  "description": "Professional Jambh Electic system",
   "start_url": "/?utm_source=pwa",
   "scope": "/",
   "display": "standalone",

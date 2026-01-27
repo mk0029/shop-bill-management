@@ -43,13 +43,13 @@ const GOOGLE_SITE_VERIFICATION =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Jambh Electrics",
-    template: "%s | Jambh Electrics",
+    default: "Jambh Electic",
+    template: "%s | Jambh Electic",
   },
-  description: "Jambh Electrics Billing System For All Customers.",
-  applicationName: "Jambh Electrics",
+  description: "Jambh Electic Billing System For All Customers.",
+  applicationName: "Jambh Electic",
   keywords: [
-    "Jambh Electrics",
+    "Jambh Electic",
     "Electrician Shop",
     "Billing",
     "Invoices",
@@ -75,26 +75,26 @@ export const metadata: Metadata = {
     shortcut: ["/je-32.ico"],
   },
   openGraph: {
-    title: "Jambh Electrics",
-    description: "Jambh Electrics Billing System For All Customers.",
+    title: "Jambh Electic",
+    description: "Jambh Electic Billing System For All Customers.",
     url: "https://jambh-ell.vercel.app/",
-    siteName: "Jambh Electrics",
+    siteName: "Jambh Electic",
     images: [
-      { url: "/je-p-512.png", width: 512, height: 512, alt: "Jambh Electrics" },
+      { url: "/je-p-512.png", width: 512, height: 512, alt: "Jambh Electic" },
     ],
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Jambh Electrics",
-    description: "Jambh Electrics Billing System For All Customers.",
+    title: "Jambh Electic",
+    description: "Jambh Electic Billing System For All Customers.",
     images: ["/je-p-512.png"],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Jambh Electrics",
+    title: "Jambh Electic",
   },
   verification: GOOGLE_SITE_VERIFICATION
     ? { google: GOOGLE_SITE_VERIFICATION }
