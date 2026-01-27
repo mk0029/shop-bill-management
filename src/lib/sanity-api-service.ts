@@ -1614,10 +1614,31 @@ export const cashBookApiService = {
   /**
    * Create cash book entry
    */
-  async createEntry(entryData: any): Promise<ApiResponse<any>> {
+  async createEntry(entryData: any, options?: { actorUserId?: string }): Promise<ApiResponse<any>> {
     try {
       console.log('📝 Creating cash book entry with data:', entryData);
       console.log('⏰ Entry createdAt being used:', entryData.createdAt);
+
+      // If running in the browser, use server API so we can emit notifications.
+      if (typeof window !== 'undefined') {
+        try {
+          const res = await fetch('/api/mutations/cashbook/create-entry', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(options?.actorUserId ? { 'x-user-id': String(options.actorUserId) } : {}),
+            },
+            body: JSON.stringify({ entry: entryData, ...(options?.actorUserId ? { actorUserId: String(options.actorUserId) } : {}) }),
+          })
+          const j = await res.json().catch(() => ({}))
+          if (res.ok && j?.success) {
+            return { success: true, data: j.data }
+          }
+          return { success: false, error: j?.error || 'Failed to create cash book entry' }
+        } catch (e) {
+          // fall through to direct Sanity create
+        }
+      }
       
       const newEntry = {
         _type: "cashBookEntry",

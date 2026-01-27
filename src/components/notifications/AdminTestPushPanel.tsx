@@ -40,9 +40,9 @@ export default function AdminTestPushPanel({
           <p className="text-xs text-gray-400">Send notifications to users</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={addTestNotification}>
+          {/* <Button size="sm" variant="outline" onClick={addTestNotification}>
             Test popup
-          </Button>
+          </Button> */}
           <Button
             size="sm"
             variant="outline"
@@ -51,26 +51,7 @@ export default function AdminTestPushPanel({
               setComposerOpen(true);
             }}
           >
-            Admins
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setPresetAudience("all");
-              setComposerOpen(true);
-            }}
-          >
-            All users
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setPresetAudience("users");
-              setComposerOpen(true);
-            }}
-          >
-            Specific user
+            Send
           </Button>
         </div>
       </div>

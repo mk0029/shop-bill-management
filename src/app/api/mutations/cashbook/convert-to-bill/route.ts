@@ -85,19 +85,39 @@ export async function POST(req: NextRequest) {
     await patchTx.commit()
 
     try {
+      const billId = String(createdBillId)
+      const title = 'Bill created'
+      const bodyText = `${pendingItems.length} items converted to bill`
+
       await notificationService.emit({
         type: 'bill_created',
         actorUserId,
         data: {
-          billId: String(createdBillId),
-          customerId: String(customerId),
-          route: `/admin/billing/history?open=${encodeURIComponent(String(createdBillId))}`,
+          billId,
+          route: `/admin/billing/history?open=${encodeURIComponent(String(billId))}`,
           extra: {
-            title: 'Bill created',
-            body: `${pendingItems.length} items converted to bill`,
+            title,
+            body: bodyText,
           },
         },
       })
+
+      if (customerId) {
+        await notificationService.emit({
+          type: 'user_direct',
+          actorUserId,
+          data: {
+            customerId: String(customerId),
+            route: '/customer',
+            message: bodyText,
+            extra: {
+              targetUserId: String(customerId),
+              title,
+              body: bodyText,
+            },
+          },
+        })
+      }
     } catch (e) {
       console.error('[Notify] bill_created emit failed', e)
     }

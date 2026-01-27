@@ -31,19 +31,43 @@ export async function POST(req: NextRequest) {
     })()
 
     try {
+      // Split notifications:
+      // - Admins: store as audience=admins (admins list depends on audience)
+      // - Customer: store as audience=users (direct)
+      const billId = String((created as any)?._id || '')
+      const adminRoute = `/admin/billing/history?open=${encodeURIComponent(String(billId || ''))}`
+      const title = 'Bill created'
+      const bodyText = `Bill ${(created as any)?.billNumber || ''} created`
+
       await notificationService.emit({
         type: 'bill_created',
         actorUserId,
         data: {
-          billId: String((created as any)?._id || ''),
-          ...(customerId ? { customerId: String(customerId) } : {}),
-          route: `/admin/billing/history?open=${encodeURIComponent(String((created as any)?._id || ''))}`,
+          billId,
+          route: adminRoute,
           extra: {
-            title: 'Bill created',
-            body: `Bill ${(created as any)?.billNumber || ''} created`,
+            title,
+            body: bodyText,
           },
         },
       })
+
+      if (customerId) {
+        await notificationService.emit({
+          type: 'user_direct',
+          actorUserId,
+          data: {
+            customerId: String(customerId),
+            route: '/customer',
+            message: bodyText,
+            extra: {
+              targetUserId: String(customerId),
+              title,
+              body: bodyText,
+            },
+          },
+        })
+      }
     } catch (e) {
       console.error('[Notify] bill_created emit failed', e)
     }

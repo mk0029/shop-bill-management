@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { syncBillPaymentsToCashBook, syncSingleBillPayment } from "@/lib/bill-payment-sync";
+import { notificationService } from "@/lib/notification-service";
 
 export const runtime = "nodejs";
 
@@ -14,15 +15,21 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { type, documentId, document } = body;
 
+    const actorUserId = String(
+      (body?.actorUserId as string | undefined) ||
+        req.headers.get('x-user-id') ||
+        'system'
+    ).trim() || 'system'
+
     console.log('🔄 Cash book sync API called:', { type, documentId });
 
     switch (type) {
       case 'bill':
-        await handleBillSync(documentId, document);
+        await handleBillSync(documentId, document, actorUserId);
         break;
       
       case 'stockTransaction':
-        await handleInventorySync(documentId, document);
+        await handleInventorySync(documentId, document, actorUserId);
         break;
       
       default:
@@ -42,7 +49,7 @@ export async function POST(req: Request) {
 /**
  * Handle bill synchronization
  */
-async function handleBillSync(billId: string, bill: any) {
+async function handleBillSync(billId: string, bill: any, actorUserId: string) {
   if (!bill) return;
 
   // Only sync if bill is paid or partial and has a customer
@@ -53,6 +60,36 @@ async function handleBillSync(billId: string, bill: any) {
 
     if (result.success) {
       console.log('✅ Cash book entry created for bill payment');
+
+      // Notify admins (excluding sender when actorUserId is an admin)
+      try {
+        const billNumber = String(bill?.billNumber || '').trim()
+        const amount = Number(bill?.paidAmount || 0)
+        const customerId = (() => {
+          const c = bill?.customer
+          if (!c) return undefined
+          if (typeof c === 'string') return String(c)
+          if (typeof c === 'object' && typeof c._ref === 'string') return String(c._ref)
+          if (typeof c === 'object' && typeof c._id === 'string') return String(c._id)
+          return undefined
+        })()
+
+        await notificationService.emit({
+          type: 'cashbook_entry',
+          actorUserId,
+          data: {
+            billId: String(billId),
+            ...(customerId ? { customerId } : {}),
+            route: '/admin/cash-book/history',
+            extra: {
+              title: 'Cashbook entry',
+              body: `Bill payment${billNumber ? ` • ${billNumber}` : ''}${amount > 0 ? ` • ₹${amount}` : ''}`,
+            },
+          },
+        })
+      } catch (e) {
+        console.error('[Notify] cashbook_entry emit failed (bill sync)', e)
+      }
     } else {
       console.error('❌ Failed to sync bill payment:', result.message);
     }
@@ -62,7 +99,7 @@ async function handleBillSync(billId: string, bill: any) {
 /**
  * Handle inventory synchronization
  */
-async function handleInventorySync(transactionId: string, transaction: any) {
+async function handleInventorySync(transactionId: string, transaction: any, actorUserId: string) {
   if (!transaction) return;
 
   const { type, totalAmount, product } = transaction;
@@ -83,6 +120,23 @@ async function handleInventorySync(transactionId: string, transaction: any) {
 
     if (result.success) {
       console.log('✅ Cash book entry created for inventory transaction');
+
+      // Notify admins (excluding sender when actorUserId is an admin)
+      try {
+        await notificationService.emit({
+          type: 'cashbook_entry',
+          actorUserId,
+          data: {
+            route: '/admin/cash-book/history',
+            extra: {
+              title: 'Cashbook entry',
+              body: `Inventory ${String(type)} • ₹${Number(totalAmount)}`,
+            },
+          },
+        })
+      } catch (e) {
+        console.error('[Notify] cashbook_entry emit failed (inventory sync)', e)
+      }
     } else {
       console.error('❌ Failed to create cash book entry for inventory:', result.error);
     }
@@ -113,7 +167,7 @@ export async function GET(req: Request) {
 
     let syncedTransactions = 0;
     for (const transaction of transactions) {
-      await handleInventorySync(transaction._id, transaction);
+      await handleInventorySync(transaction._id, transaction, 'system');
       syncedTransactions++;
     }
 

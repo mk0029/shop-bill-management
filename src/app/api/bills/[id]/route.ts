@@ -79,20 +79,42 @@ export async function PATCH(
           { id }
         )
         const customerId = bill?.customer?._id ? String(bill.customer._id) : undefined
+
+        const title = 'Bill status updated'
+        const bodyText = `Bill status updated${updates.status ? `: ${String(updates.status)}` : ''}`
+
+        // Admins-only (audience=admins) so admins can see it in /api/notifications/list
         await notificationService.emit({
           type: 'bill_status_updated',
           actorUserId,
           data: {
             billId: String(id),
-            ...(customerId ? { customerId } : {}),
             status: String(updates.status),
             route: `/admin/billing/history?open=${encodeURIComponent(String(id))}`,
             extra: {
-              title: 'Bill status updated',
-              body: `Bill status updated${updates.status ? `: ${String(updates.status)}` : ''}`,
+              title,
+              body: bodyText,
             },
           },
         })
+
+        // Customer direct notification (audience=users)
+        if (customerId) {
+          await notificationService.emit({
+            type: 'user_direct',
+            actorUserId,
+            data: {
+              customerId: String(customerId),
+              route: '/customer',
+              message: bodyText,
+              extra: {
+                targetUserId: String(customerId),
+                title,
+                body: bodyText,
+              },
+            },
+          })
+        }
       }
     } catch (notifyErr) {
       console.error('[Notify] bill_status_updated emit failed', notifyErr)
