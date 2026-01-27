@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     const results = await Promise.all(
       userIds.map((uid) =>
         notificationService.emit({
-          eventId: baseEventId ? `${baseEventId}:${uid}` : undefined,
+          eventId: baseEventId ? `${baseEventId}.${uid}` : undefined,
           type: 'user_direct',
           actorUserId,
           data: {

@@ -87,7 +87,20 @@ export async function POST(req: NextRequest) {
     try {
       const billId = String(createdBillId)
       const title = 'Bill created'
-      const bodyText = `${pendingItems.length} items converted to bill`
+      const customerName = await (async () => {
+        try {
+          if (!customerId) return ''
+          const doc = await sanityClient.fetch<{ name?: string } | null>(
+            `*[_type=="user" && _id==$id][0]{name}`,
+            { id: String(customerId) }
+          )
+          return String(doc?.name || '').trim()
+        } catch {
+          return ''
+        }
+      })()
+      const payStatus = String((billDoc as any)?.paymentStatus || 'pending')
+      const bodyText = `${customerName || 'Customer'} | ₹${totalAmount} | ${payStatus}`
 
       await notificationService.emit({
         type: 'bill_created',

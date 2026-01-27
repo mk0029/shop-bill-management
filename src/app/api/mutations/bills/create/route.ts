@@ -37,7 +37,21 @@ export async function POST(req: NextRequest) {
       const billId = String((created as any)?._id || '')
       const adminRoute = `/admin/billing/history?open=${encodeURIComponent(String(billId || ''))}`
       const title = 'Bill created'
-      const bodyText = `Bill ${(created as any)?.billNumber || ''} created`
+      const customerName = await (async () => {
+        try {
+          if (!customerId) return ''
+          const doc = await sanityClient.fetch<{ name?: string } | null>(
+            `*[_type=="user" && _id==$id][0]{name}`,
+            { id: String(customerId) }
+          )
+          return String(doc?.name || '').trim()
+        } catch {
+          return ''
+        }
+      })()
+      const amount = Number((created as any)?.totalAmount || 0)
+      const payStatus = String((created as any)?.paymentStatus || (created as any)?.status || 'pending')
+      const bodyText = `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`
 
       await notificationService.emit({
         type: 'bill_created',

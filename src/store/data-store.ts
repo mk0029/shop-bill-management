@@ -1074,13 +1074,28 @@ export const useDataStore = create<DataStore>((set, get) => ({
             }
           })();
           const billNo = (bill as any)?.billNumber ?? '';
+          const customerId = (bill as any)?.customer?._ref ? String((bill as any).customer._ref) : ''
+          const customerName = await (async () => {
+            try {
+              if (!customerId) return ''
+              const doc = await sanityClient.fetch<{ name?: string } | null>(
+                `*[_type=="user" && _id==$id][0]{name}`,
+                { id: String(customerId) }
+              )
+              return String(doc?.name || '').trim()
+            } catch {
+              return ''
+            }
+          })()
+          const amount = Number((bill as any)?.totalAmount || 0)
+          const payStatus = String((bill as any)?.paymentStatus || (bill as any)?.status || 'pending')
           fetch('/api/notifications/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               audience: 'admins',
               title: 'Bill created',
-              body: billNo ? `Bill ${billNo} created` : 'A new bill was created',
+              body: `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`,
               data: { billId: (bill as any)?._id, event: 'bill-created', billNumber: String(billNo) },
               excludeUserIds: actorId ? [actorId] : undefined,
             }),

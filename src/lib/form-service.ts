@@ -794,6 +794,27 @@ export async function createBill(billData: {
         if (typeof window !== 'undefined') {
           const customerId = String(billData.customerId || '').trim()
           if (customerId) {
+            const actorUserId: string = (() => {
+              try {
+                const raw = document.cookie
+                  .split('; ')
+                  .find((c) => c.startsWith('auth-storage='))
+                  ?.split('=')[1]
+                if (!raw) return ''
+                const decoded = (() => {
+                  try {
+                    return decodeURIComponent(raw)
+                  } catch {
+                    return raw
+                  }
+                })()
+                const parsed = JSON.parse(decoded)
+                return String(parsed?.state?.user?.id || parsed?.state?.user?._id || '').trim()
+              } catch {
+                return ''
+              }
+            })()
+
             const currentToken: string | null = await (async () => {
               try {
                 const mod = await import('@/lib/fcm-client')
@@ -802,12 +823,48 @@ export async function createBill(billData: {
               return null
             })()
 
+            // Notify admins
+            try {
+              const customerName = await (async () => {
+                try {
+                  const doc = await sanityClient.fetch<{ name?: string } | null>(
+                    `*[_type=="user" && _id==$id][0]{name}`,
+                    { id: String(customerId) }
+                  )
+                  return String(doc?.name || '').trim()
+                } catch {
+                  return ''
+                }
+              })()
+              const amount = Number(grossTotal || 0)
+              const payStatus = String(billData.paymentStatus || 'pending')
+              const adminBody = `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`
+
+              void fetch('/api/notifications/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  audience: 'admins',
+                  actorUserId: actorUserId || undefined,
+                  title: 'Bill created',
+                  body: adminBody,
+                  data: {
+                    event: 'bill-created',
+                    billId: String(createdId),
+                    billNumber: String(billNumber),
+                    route: `/admin/billing/history?open=${encodeURIComponent(String(createdId))}`,
+                  },
+                }),
+              }).catch(() => {})
+            } catch {}
+
             void fetch('/api/notifications/send', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 title: 'Bill created',
                 body: billNumber ? `Your bill ${billNumber} was created` : 'Your bill was created',
+                actorUserId: actorUserId || undefined,
                 userIds: [customerId],
                 data: {
                   event: 'bill-created',
