@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import NotificationBroadcastModal from "./NotificationBroadcastModal";
 import { useNotificationStore } from "@/store/notification-store";
+import { useState } from "react";
 
 export default function AdminTestPushPanel({
   composerOpen,
@@ -13,6 +14,9 @@ export default function AdminTestPushPanel({
 }) {
   // Only composer state is needed now
   const add = useNotificationStore((s) => s.add);
+  const [presetAudience, setPresetAudience] = useState<
+    "admins" | "all" | "users"
+  >("admins");
 
   const addTestNotification = () => {
     add({
@@ -39,8 +43,34 @@ export default function AdminTestPushPanel({
           <Button size="sm" variant="outline" onClick={addTestNotification}>
             Test popup
           </Button>
-          <Button size="sm" onClick={() => setComposerOpen(true)}>
-            Send
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setPresetAudience("admins");
+              setComposerOpen(true);
+            }}
+          >
+            Admins
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setPresetAudience("all");
+              setComposerOpen(true);
+            }}
+          >
+            All users
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              setPresetAudience("users");
+              setComposerOpen(true);
+            }}
+          >
+            Specific user
           </Button>
         </div>
       </div>
@@ -48,6 +78,7 @@ export default function AdminTestPushPanel({
       <NotificationBroadcastModal
         open={composerOpen}
         onClose={() => setComposerOpen(false)}
+        initialAudience={presetAudience}
       />
     </div>
   );

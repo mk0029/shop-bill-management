@@ -17,9 +17,14 @@ export type Audience = "admins" | "all" | "users";
 type Props = {
   open: boolean;
   onClose: () => void;
+  initialAudience?: Audience;
 };
 
-export default function NotificationBroadcastModal({ open, onClose }: Props) {
+export default function NotificationBroadcastModal({
+  open,
+  onClose,
+  initialAudience,
+}: Props) {
   const addLocal = useNotificationStore((s) => s.add);
   const { user: authUser } = useAuthStore();
   const actorUserId = (authUser as any)?.id || (authUser as any)?._id || "";
@@ -35,6 +40,12 @@ export default function NotificationBroadcastModal({ open, onClose }: Props) {
   const [selected, setSelected] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(false);
   const titleRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!initialAudience) return;
+    setAudience(initialAudience);
+  }, [open, initialAudience]);
 
   type UserOption = {
     id: string;
