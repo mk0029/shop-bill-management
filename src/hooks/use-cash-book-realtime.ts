@@ -92,6 +92,8 @@ export function useCashBookRealtime({
             },
           });
 
+        setIsConnected(true);
+
       } catch (error) {
         console.error('Error setting up Cash Book realtime subscription:', error);
         setIsConnected(false);

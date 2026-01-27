@@ -483,6 +483,20 @@ export function CashBookPage() {
         toast.success(
           `Manual ${transactionType} entry of ${formatCurrency(parseFloat(amount))} added successfully`,
         );
+
+        // Refresh list & summary so UI updates even if realtime misses an event
+        try {
+          const [entriesRes, summaryRes] = await Promise.all([
+            sanityApiService.cashBook.getAllEntries(),
+            sanityApiService.cashBook.getSummary(),
+          ]);
+          if (entriesRes.success && entriesRes.data) {
+            setEntries(entriesRes.data as CashBookEntry[]);
+          }
+          if (summaryRes.success && summaryRes.data) {
+            setSummary(summaryRes.data as CashBookSummary);
+          }
+        } catch {}
       } else {
         toast.error(result.error || "Failed to add cash book entry");
       }

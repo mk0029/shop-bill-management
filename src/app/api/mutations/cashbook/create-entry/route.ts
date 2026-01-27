@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
 
     const created = await sanityClient.create(newEntry)
 
+    let notifyResult: any = null
     try {
       const userRef = (created as any)?.user
       const customerId = userRef && typeof userRef === 'object' && typeof userRef._ref === 'string' ? String(userRef._ref) : undefined
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
       if (notes) parts.push(notes)
       const bodyText = parts.join(' • ')
 
-      await notificationService.emit({
+      notifyResult = await notificationService.emit({
         eventId: createdId ? `cashbook_entry.${createdId}` : undefined,
         type: 'cashbook_entry',
         actorUserId,
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
       console.error('[Notify] cashbook_entry emit failed (create-entry)', e)
     }
 
-    return NextResponse.json({ success: true, data: created }, { status: 200 })
+    return NextResponse.json({ success: true, data: created, notify: notifyResult }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })
