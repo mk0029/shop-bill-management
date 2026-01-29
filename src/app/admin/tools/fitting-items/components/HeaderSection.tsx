@@ -20,13 +20,13 @@ export default function HeaderSection({
         Fitting Items List
       </h1>
       <div className="flex gap-2">
-        <Button
+        {/* <Button
           variant="outline"
           className="border-gray-700 text-gray-200"
           onClick={onPrint}
         >
           <Printer className="w-4 h-4 mr-2" /> Print
-        </Button>
+        </Button> */}
         <Button
           variant="outline"
           className="border-gray-700 text-gray-200"

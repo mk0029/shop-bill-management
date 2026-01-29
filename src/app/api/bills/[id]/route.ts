@@ -53,7 +53,19 @@ export async function PATCH(
     const prev = await (async () => {
       try {
         return await sanityClient.fetch(
-          `*[_type == "bill" && _id == $id][0]{ _id, billNumber, status, paymentStatus, totalAmount, customer->{_id, phone, name} }`,
+          `*[_type == "bill" && _id == $id][0]{
+            _id,
+            billNumber,
+            status,
+            paymentStatus,
+            totalAmount,
+            discount,
+            paidAmount,
+            balanceAmount,
+            serviceType,
+            technician->{_id, name},
+            customer->{_id, phone, name}
+          }`,
           { id }
         );
       } catch {
@@ -83,18 +95,41 @@ export async function PATCH(
     const updated = await sanityClient.patch(id).set(updates).commit();
     console.log(`updateBill->commit: ${Date.now() - startTime} ms`);
 
-    // WhatsApp via WA bot: status/paymentStatus updates (best-effort)
+    // WhatsApp via WA bot: payment updates (best-effort)
     try {
-      const prevStatus = prev?.status;
-      const prevPayStatus = prev?.paymentStatus;
-      const nextStatus = (updates as any)?.status;
       const nextPayStatus = (updates as any)?.paymentStatus;
+      const nextPaid = (updates as any)?.paidAmount;
+      const nextBal = (updates as any)?.balanceAmount;
 
-      const statusChanged = typeof nextStatus !== 'undefined' && String(prevStatus ?? '') !== String(nextStatus ?? '');
-      const payChanged = typeof nextPayStatus !== 'undefined' && String(prevPayStatus ?? '') !== String(nextPayStatus ?? '');
+      const payChanged = typeof nextPayStatus !== 'undefined' && String(prev?.paymentStatus ?? '') !== String(nextPayStatus ?? '');
+      const paidChanged = typeof nextPaid !== 'undefined' && Number(prev?.paidAmount ?? 0) !== Number(nextPaid ?? 0);
+      const balChanged = typeof nextBal !== 'undefined' && Number(prev?.balanceAmount ?? 0) !== Number(nextBal ?? 0);
 
-      if (statusChanged || payChanged) {
-        const rawPhone = String(prev?.customer?.phone || '').trim();
+      // Only send WA payment templates when payment related fields change
+      if (payChanged || paidChanged || balChanged) {
+        const bill = await (async () => {
+          try {
+            return await sanityClient.fetch(
+              `*[_type == "bill" && _id == $id][0]{
+                _id,
+                billNumber,
+                paymentStatus,
+                totalAmount,
+                discount,
+                paidAmount,
+                balanceAmount,
+                serviceType,
+                technician->{name},
+                customer->{phone}
+              }`,
+              { id },
+            )
+          } catch {
+            return null
+          }
+        })()
+
+        const rawPhone = String(bill?.customer?.phone || prev?.customer?.phone || '').trim();
         const phones = (() => {
           const p = rawPhone;
           if (!p) return [] as string[];
@@ -103,19 +138,50 @@ export async function PATCH(
           return [`+91${p}`];
         })();
 
-        const billNo = String(prev?.billNumber || id);
-        const total = Number(prev?.totalAmount || 0);
-        const parts: string[] = [];
-        if (statusChanged) parts.push(`status: ${String(nextStatus)}`);
-        if (payChanged) parts.push(`payment: ${String(nextPayStatus)}`);
-        const message = `Bill ${billNo} updated. Amount: ₹${total}. ${parts.join(' | ')}`;
+        const effectivePayStatus = String(bill?.paymentStatus || nextPayStatus || prev?.paymentStatus || '').trim();
+        const isPaid = effectivePayStatus === 'paid';
+        const isPartial = effectivePayStatus === 'partial';
 
-        if (phones.length) {
+        // Only send for partial/paid
+        if ((isPaid || isPartial) && phones.length) {
+          const gross = Number(bill?.totalAmount ?? prev?.totalAmount ?? 0);
+          const discount = Number(bill?.discount ?? prev?.discount ?? 0);
+          const total = Math.max(0, gross - discount);
+          const paid = Number(bill?.paidAmount ?? nextPaid ?? prev?.paidAmount ?? 0);
+          const balance = Number(bill?.balanceAmount ?? nextBal ?? prev?.balanceAmount ?? Math.max(0, total - paid));
+
+          const billNo = String(bill?.billNumber || prev?.billNumber || id);
+          const techName = String(bill?.technician?.name || prev?.technician?.name || '').trim();
+          const svc = String(bill?.serviceType || prev?.serviceType || '').replace(/_/g, ' ').trim();
+
+          const siteUrl =
+            (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
+          const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(id))}` : '';
+
+          const header = isPaid
+            ? '✅ Payment Successful — Bill Fully Paid'
+            : '✅ Payment Recived— Bill is Partial'
+
+          const message =
+            `${header}\n\n` +
+            `Bill ID: ${billNo}\n` +
+            (techName ? `Technician: ${techName}\n` : '') +
+            (svc ? `Service: ${svc}\n` : '') +
+            `\nPricing Summary:\n` +
+            `• Total: ₹${gross.toFixed(2)}\n` +
+            (discount > 0 ? `• Discount: ₹${discount.toFixed(2)}\n` : '') +
+            `• Paid: ₹${paid.toFixed(2)}\n` +
+            `• Balance: ₹${Math.max(0, balance).toFixed(2)}\n\n` +
+            `Payment Status: ${isPaid ? 'PAID' : 'PARTIAL'}\n\n` +
+            `Thank you for your payment! 🙏  \n` +
+            `Your bill has been successfully settled.\n\n` +
+            (billLink ? `View your receipt:\n${billLink}` : '')
+
           await sendViaWaBotServer({ phones, message });
         }
       }
     } catch (e) {
-      console.error('[WA] bill_updated send failed', e)
+      console.error('[WA] bill_payment_update send failed', e)
     }
 
     // Unified notification: bill status update (only when status is provided)

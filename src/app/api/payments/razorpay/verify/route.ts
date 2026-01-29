@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
+import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 
 export const runtime = "nodejs";
 
@@ -38,13 +39,28 @@ export async function POST(req: Request) {
     }
 
     // Fetch bill to compute amounts
-    const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, totalAmount, paidAmount, discount, customer->{_id, name, phone, email} }`, { id: billId });
+    const bill = await sanityClient.fetch(
+      `*[_type == "bill" && _id == $id][0]{
+        _id,
+        billNumber,
+        serviceType,
+        totalAmount,
+        discount,
+        paidAmount,
+        balanceAmount,
+        technician->{_id, name},
+        customer->{_id, name, phone, email}
+      }`,
+      { id: billId }
+    );
     if (!bill) {
       return NextResponse.json({ error: "Bill not found" }, { status: 404 });
     }
 
     const paidPrev = Number(bill.paidAmount || 0);
-    const total = Number(bill.totalAmount || 0);
+    const grossTotal = Number(bill.totalAmount || 0);
+    const discount = Number(bill.discount || 0);
+    const total = Math.max(0, grossTotal - discount);
     const add = Number(amount || 0);
     const paidNext = Math.min(total, paidPrev + (isFinite(add) && add > 0 ? add : 0));
     const balance = Math.max(0, total - paidNext);
@@ -65,9 +81,59 @@ export async function POST(req: Request) {
     } catch {}
 
     // Update bill
-    const updated = await sanityClient.patch(billId)
-      .set({ paidAmount: paidNext, balanceAmount: balance, paymentStatus, updatedAt: new Date().toISOString() })
+    const updated = await sanityClient
+      .patch(billId)
+      .set({
+        paidAmount: paidNext,
+        balanceAmount: balance,
+        paymentStatus,
+        updatedAt: new Date().toISOString(),
+      })
       .commit();
+
+    // WhatsApp via WA bot: payment update (best-effort)
+    try {
+      const rawPhone = String(bill.customer?.phone || '').trim();
+      const phones = (() => {
+        const p = rawPhone;
+        if (!p) return [] as string[];
+        if (p.startsWith('+')) return [p];
+        if (p.startsWith('0')) return [`+91${p.substring(1)}`];
+        return [`+91${p}`];
+      })();
+
+      const siteUrl =
+        (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
+      const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(billId))}` : '';
+
+      const billNo = String(bill.billNumber || billId);
+      const techName = String(bill.technician?.name || '').trim();
+      const svc = String(bill.serviceType || '').replace(/_/g, ' ').trim();
+
+      const header =
+        paymentStatus === 'paid'
+          ? '✅ Payment Successful — Bill Fully Paid'
+          : '✅ Payment Recived— Bill is Partial';
+
+      const message =
+        `${header}\n\n` +
+        `Bill ID: ${billNo}\n` +
+        (techName ? `Technician: ${techName}\n` : '') +
+        (svc ? `Service: ${svc}\n` : '') +
+        `\nPricing Summary:\n` +
+        `• Total: ₹${grossTotal.toFixed(2)}\n` +
+        (discount > 0 ? `• Discount: ₹${discount.toFixed(2)}\n` : '') +
+        `• Paid: ₹${paidNext.toFixed(2)}\n` +
+        `• Balance: ₹${balance.toFixed(2)}\n\n` +
+        `Payment Status: ${String(paymentStatus).toUpperCase()}\n\n` +
+        `Thank you for your payment! 🙏  \n` +
+        `Your bill has been successfully settled.\n\n` +
+        (billLink ? `View your receipt:\n${billLink}` : '');
+
+      if (phones.length) {
+        await sendViaWaBotServer({ phones, message });
+      }
+    } catch {}
 
     // Create cash book entry for this payment
     try {
