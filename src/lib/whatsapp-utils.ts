@@ -1,5 +1,7 @@
 // Enhanced WhatsApp Utilities with Multi-Device Support
 
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
+
 export interface WhatsAppDevice {
   deviceName: string;
   phoneNumber: string;
@@ -270,28 +272,23 @@ export async function sendWhatsAppMessage(
   const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    // Always use the wa.me link for sending messages
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${bill.customerPhone.replace(
-      /\D/g,
-      ""
-    )}?text=${encodedMessage}`;
-
-    window.open(whatsappUrl, "_blank");
+    await shareToWhatsAppApp({ text: message, phone: bill.customerPhone });
 
     // Update device usage
-    await updateDeviceUsage(device.deviceName, config);
+    if (device) {
+      await updateDeviceUsage(device.deviceName, config);
+    }
 
     return {
       messageId,
-      deviceUsed: device.deviceName,
+      deviceUsed: device?.deviceName || "unknown",
       status: "sent", // Status indicates the message is ready for manual sending
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
     return {
       messageId,
-      deviceUsed: device.deviceName,
+      deviceUsed: device?.deviceName || "unknown",
       status: "failed",
       timestamp: new Date().toISOString(),
       error: error instanceof Error ? error.message : "Unknown error",

@@ -11,9 +11,11 @@ import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { useCustomers } from "@/hooks/use-sanity-data";
 import { ShareModal } from "@/components/ui/bill-detail-modal/ShareModal";
+import { sendViaWaBot } from "@/lib/wa-bot-send";
 import { AnimatePresence, motion } from "framer-motion";
 import { sanitizeUserText } from "@/constants/defaults";
 import { Modal } from "@/components/ui/modal";
+import { toast } from "sonner";
 
 // Import sub-components
 import HeaderSection from "./components/HeaderSection";
@@ -266,23 +268,42 @@ export default function FittingItemsListPage() {
 
   const onShareOnWhatsApp = () => {
     const message = formatWhatsAppMessage();
-    const encodedMessage = encodeURIComponent(message);
     const selectedCustomer = customers.find(
       (c) => c._id === selectedCustomerId,
     );
     const phoneNumber = selectedCustomer?.phone || "";
 
-    if (phoneNumber) {
-      window.open(
-        `https://wa.me/${phoneNumber.replace(/[^0-9]/g, "")}?text=${encodedMessage}`,
-        "_blank",
-      );
-    } else {
-      window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
+    const rawPhone = String(phoneNumber || "");
+    const phones = (() => {
+      const p = rawPhone.trim();
+      if (!p) return [] as string[];
+      if (p.startsWith("+")) return [p];
+      if (p.startsWith("0")) return [`+91${p.substring(1)}`];
+      return [`+91${p}`];
+    })();
+
+    if (!phones.length) {
+      toast.error("Customer phone number not found");
+      return;
     }
 
-    setShowShareModal(false);
-    setShowSharePopup(false);
+    sendViaWaBot({ phones, message })
+      .then((r) => {
+        if (r.ok) {
+          toast.success(
+            `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
+          );
+        } else {
+          toast.error(r.error || "Failed to send WhatsApp");
+        }
+      })
+      .catch(() => {
+        toast.error("Failed to send WhatsApp");
+      })
+      .finally(() => {
+        setShowShareModal(false);
+        setShowSharePopup(false);
+      });
   };
 
   const onNativeShare = () => {

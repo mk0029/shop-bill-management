@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
 import { MessageCircle, Mail } from "lucide-react";
 import { locationOptions } from "@/app/admin/tools/fitting-items/constants";
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
 
 export default function RequestAccountSection({
   support,
@@ -27,9 +28,9 @@ export default function RequestAccountSection({
     const summary = `Customer Account Request\nName: ${form.name}\nMobile: ${form.phone}\nLocation: ${form.location}\nRequirement: ${form.requirement || "-"}`;
 
     if (form.channel === "whatsapp") {
-      const msg = encodeURIComponent(summary);
-      const wa = `https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}?text=${msg}`;
-      window.open(wa, "_blank");
+      shareToWhatsAppApp({ text: summary, phone: support.whatsapp }).catch(
+        () => {},
+      );
     } else {
       const subject = encodeURIComponent("Customer Account Request");
       const body = encodeURIComponent(summary);

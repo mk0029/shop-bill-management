@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, MessageCircle, Phone } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getSupportContact } from "@/lib/auth-service";
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -138,11 +139,11 @@ export default function Header() {
                   <Button
                     className="flex-1 justify-center"
                     onClick={() => {
-                      const msg = encodeURIComponent(
-                        "Hello! I need electrical service.",
-                      );
-                      const wa = `https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}?text=${msg}`;
-                      window.open(wa, "_blank");
+                      const msg = "Hello! I need electrical service.";
+                      shareToWhatsAppApp({
+                        text: msg,
+                        phone: support.whatsapp,
+                      }).catch(() => {});
                       setOpen(false);
                     }}
                   >

@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
+
 export interface PendingBillShareInput {
   customer: { name?: string; phone?: string };
   pendingBillsCount: number;
@@ -190,13 +192,8 @@ export async function sharePendingBills(input: PendingBillShareInput): Promise<s
 
   // WhatsApp fallback (prefer customer's number if available)
   const phone = normalizePhone(input.customer?.phone);
-  const base = phone ? `https://wa.me/91${phone}` : `https://wa.me/`;
-  const url = `${base}?text=${encodeURIComponent(message)}`;
-
   try {
-    if (typeof window !== "undefined") {
-      window.open(url, "_blank");
-    }
+    await shareToWhatsAppApp({ text: message, phone });
   } catch {
     // Swallow errors in share path to avoid UI disruption
   }

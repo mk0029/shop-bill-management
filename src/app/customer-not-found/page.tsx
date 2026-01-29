@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { getSupportContact, createCustomerAccount } from "@/lib/auth-service";
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
 import {
   UserX,
   Phone,
@@ -50,20 +51,19 @@ export default function CustomerNotFoundPage() {
   };
 
   const handleWhatsAppContact = () => {
-    const message = encodeURIComponent(
-      "Hello! I need help creating a customer account for Jambh Electrics. Please assist me with the registration process."
+    const message =
+      "Hello! I need help creating a customer account for Jambh Electrics. Please assist me with the registration process.";
+    shareToWhatsAppApp({ text: message, phone: supportContact.whatsapp }).catch(
+      () => {},
     );
-    const whatsappUrl = `https://wa.me/${supportContact.whatsapp.replace(
-      /[^0-9]/g,
-      ""
-    )}?text=${message}`;
-    window.open(whatsappUrl, "_blank");
   };
 
   const handleEmailContact = () => {
-    const subject = encodeURIComponent("Customer Account Request - Jambh Electrics");
+    const subject = encodeURIComponent(
+      "Customer Account Request - Jambh Electrics",
+    );
     const body = encodeURIComponent(
-      "Hello,\n\nI would like to request a customer account for Jambh Electrics.\n\nPlease provide me with my Customer ID and Secret Key.\n\nThank you!"
+      "Hello,\n\nI would like to request a customer account for Jambh Electrics.\n\nPlease provide me with my Customer ID and Secret Key.\n\nThank you!",
     );
     const emailUrl = `mailto:${supportContact.email}?subject=${subject}&body=${body}`;
     window.open(emailUrl, "_blank");
@@ -84,7 +84,7 @@ export default function CustomerNotFoundPage() {
         setRequestStatus("success");
         // Show success with credentials
         alert(
-          `Account created successfully!\n\nCustomer ID: ${result.user.customerId}\nSecret Key: ${result.user.secretKey}\n\nPlease save these credentials safely.`
+          `Account created successfully!\n\nCustomer ID: ${result.user.customerId}\nSecret Key: ${result.user.secretKey}\n\nPlease save these credentials safely.`,
         );
 
         // Redirect to login after a delay
@@ -108,14 +108,16 @@ export default function CustomerNotFoundPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-2xl">
+        className="w-full max-w-2xl"
+      >
         <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-800 shadow-2xl">
           <CardHeader className="text-center pb-6">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-full mb-6 mx-auto shadow-lg">
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-600 to-red-700 rounded-full mb-6 mx-auto shadow-lg"
+            >
               <UserX className="w-10 h-10 text-white" />
             </motion.div>
 
@@ -167,7 +169,8 @@ export default function CustomerNotFoundPage() {
                         <Button
                           onClick={handleWhatsAppContact}
                           className="w-full bg-green-600 hover:bg-green-700 text-white"
-                          size="sm">
+                          size="sm"
+                        >
                           <ExternalLink className="w-4 h-4 mr-2" />
                           Chat Now
                         </Button>
@@ -175,12 +178,13 @@ export default function CustomerNotFoundPage() {
                           onClick={() =>
                             handleCopyToClipboard(
                               supportContact.whatsapp,
-                              "whatsapp"
+                              "whatsapp",
                             )
                           }
                           variant="outline"
                           size="sm"
-                          className="w-full">
+                          className="w-full"
+                        >
                           {copiedText === "whatsapp" ? (
                             <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                           ) : (
@@ -208,7 +212,8 @@ export default function CustomerNotFoundPage() {
                         <Button
                           onClick={handlePhoneContact}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                          size="sm">
+                          size="sm"
+                        >
                           <Phone className="w-4 h-4 mr-2" />
                           Call Now
                         </Button>
@@ -218,7 +223,8 @@ export default function CustomerNotFoundPage() {
                           }
                           variant="outline"
                           size="sm"
-                          className="w-full">
+                          className="w-full"
+                        >
                           {copiedText === "phone" ? (
                             <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                           ) : (
@@ -246,7 +252,8 @@ export default function CustomerNotFoundPage() {
                         <Button
                           onClick={handleEmailContact}
                           className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                          size="sm">
+                          size="sm"
+                        >
                           <Mail className="w-4 h-4 mr-2" />
                           Send Email
                         </Button>
@@ -256,7 +263,8 @@ export default function CustomerNotFoundPage() {
                           }
                           variant="outline"
                           size="sm"
-                          className="w-full">
+                          className="w-full"
+                        >
                           {copiedText === "email" ? (
                             <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                           ) : (
@@ -284,7 +292,8 @@ export default function CustomerNotFoundPage() {
                 </div>
                 <Button
                   onClick={() => setIsRequestModalOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-700">
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
                   <UserPlus className="w-4 h-4 mr-2" />
                   Request Account
                 </Button>
@@ -296,7 +305,8 @@ export default function CustomerNotFoundPage() {
               <Button
                 onClick={() => router.push("/login")}
                 variant="outline"
-                className="flex items-center gap-2">
+                className="flex items-center gap-2"
+              >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Login
               </Button>
@@ -308,7 +318,8 @@ export default function CustomerNotFoundPage() {
         <Modal
           isOpen={isRequestModalOpen}
           onClose={() => setIsRequestModalOpen(false)}
-          title="Request Customer Account">
+          title="Request Customer Account"
+        >
           {requestStatus === "success" ? (
             <div className="text-center py-6">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -393,13 +404,15 @@ export default function CustomerNotFoundPage() {
                   variant="outline"
                   onClick={() => setIsRequestModalOpen(false)}
                   className="flex-1"
-                  disabled={isLoading}>
+                  disabled={isLoading}
+                >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700">
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
                   {isLoading ? "Creating..." : "Create Account"}
                 </Button>
               </div>

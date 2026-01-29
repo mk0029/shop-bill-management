@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { CustomerWithStats } from "@/types/customer";
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
 
 export function useCustomerActions() {
   const router = useRouter();
@@ -69,11 +70,7 @@ export function useCustomerActions() {
       // TODO: Implement WhatsApp integration
       const defaultMessage = `Hello ${customer.name}, this is a message from our shop.`;
       const finalMessage = message || defaultMessage;
-      const whatsappUrl = `https://wa.me/${customer.phone.replace(
-        /\D/g,
-        ""
-      )}?text=${encodeURIComponent(finalMessage)}`;
-      window.open(whatsappUrl, "_blank");
+      shareToWhatsAppApp({ text: finalMessage, phone: customer.phone }).catch(() => {});
     },
     []
   );

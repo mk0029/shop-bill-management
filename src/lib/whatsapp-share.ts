@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { toast } from "sonner";
 
 export interface BillDetails {
   _id: string;
@@ -206,6 +205,10 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = '�
 }
 
 export async function shareBillOnWhatsApp(bill: BillDetails): Promise<void> {
+  const [{ toast }, { shareToWhatsAppApp }] = await Promise.all([
+    import("sonner"),
+    import("@/lib/whatsapp-app-share"),
+  ]);
   let phone = bill.customer?.phone?.replace(/\D/g, "") || "";
 
   if (!phone) {
@@ -221,8 +224,7 @@ export async function shareBillOnWhatsApp(bill: BillDetails): Promise<void> {
   }
 
   const message = generateWhatsAppMessage(bill);
-  const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
-  window.open(whatsappUrl, "_blank");
+  await shareToWhatsAppApp({ text: message, phone });
 }
 
 export async function shareBillViaSMS(
@@ -230,6 +232,7 @@ export async function shareBillViaSMS(
   recipientPhone?: string
 ): Promise<void> {
   try {
+    const { toast } = await import("sonner");
     // Prefer explicit recipientPhone, fallback to bill.customer.phone
     let phone = (recipientPhone || bill.customer?.phone || "").replace(/\D/g, "");
 
@@ -248,6 +251,9 @@ export async function shareBillViaSMS(
     window.location.href = smsUrl;
   } catch (error) {
     console.error("Failed to open SMS composer:", error);
-    toast.error("❌ Unable to open SMS composer on this device.");
+    try {
+      const { toast } = await import("sonner");
+      toast.error("❌ Unable to open SMS composer on this device.");
+    } catch {}
   }
 }

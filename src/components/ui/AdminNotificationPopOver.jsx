@@ -16,7 +16,7 @@ export default function AdminNotificationsPage({
   composerOpen,
   setComposerOpen,
 }) {
-  const { items, unread, markAllRead, clear, markAsRead } =
+  const { items, unread, markAllRead, clear, clearRead, markAsRead } =
     useNotificationStore();
   const { bills, users } = useDataStore();
 
@@ -38,6 +38,11 @@ export default function AdminNotificationsPage({
           {unread > 0 && (
             <Button size="sm" variant="secondary" onClick={markAllRead}>
               Mark all read
+            </Button>
+          )}
+          {(items || []).some((n) => !!n.read) && (
+            <Button size="sm" variant="outline" onClick={clearRead}>
+              Delete Read
             </Button>
           )}
           {items.length > 0 && (

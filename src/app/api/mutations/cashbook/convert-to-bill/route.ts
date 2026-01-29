@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
 import { notificationService } from '@/lib/notification-service'
+import { sendViaWaBotServer } from '@/lib/wa-bot-server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -83,6 +84,31 @@ export async function POST(req: NextRequest) {
     }
     patchTx.patch(cashbookId, (p: any) => p.set({ updatedAt: new Date().toISOString() }))
     await patchTx.commit()
+
+    try {
+      const user = await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(
+        `*[_type=="user" && _id==$id][0]{ phone, name }`,
+        { id: String(customerId) }
+      )
+      const rawPhone = String(user?.phone || '').trim()
+      const phones = (() => {
+        const p = rawPhone
+        if (!p) return [] as string[]
+        if (p.startsWith('+')) return [p]
+        if (p.startsWith('0')) return [`+91${p.substring(1)}`]
+        return [`+91${p}`]
+      })()
+
+      const billNo = String((billDoc as any)?.billNumber || '').trim()
+      const payStatus = String((billDoc as any)?.paymentStatus || 'pending')
+      const message = `Bill ${billNo || String(createdBillId)} created. Amount: ₹${Number(totalAmount || 0)}. Status: ${payStatus}`
+
+      if (phones.length) {
+        await sendViaWaBotServer({ phones, message })
+      }
+    } catch (e) {
+      console.error('[WA] bill_created(convert) send failed', e)
+    }
 
     try {
       const billId = String(createdBillId)

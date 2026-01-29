@@ -4,6 +4,7 @@
 import { RealtimeBillList } from "@/components/realtime/realtime-bill-list";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { ShareModal } from "@/components/ui/bill-detail-modal/ShareModal";
+import { sendViaWaBot } from "@/lib/wa-bot-send";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -75,7 +76,7 @@ export default function CustomerBillsPage() {
     }, 0),
     pendingAmount: customerBills
       .filter((b) => b.paymentStatus !== "paid")
-      .reduce((s, b) => s + (b.balanceAmount || b.totalAmount || 0), 0),
+      .reduce((s, b) => s + (b.balanceAmount ?? b.totalAmount ?? 0), 0),
   };
 
   const pendingBillsCount = customerBills.filter(
@@ -202,18 +203,36 @@ export default function CustomerBillsPage() {
             secretKey: customer?.secretKey || "",
           });
 
-    const phone = (customer?.phone || "").replace(/\D/g, "");
-    const base = phone ? `https://wa.me/91${phone}` : `https://wa.me/`;
-    const url = `${base}?text=${encodeURIComponent(message)}`;
+    const rawPhone = String(customer?.phone || "");
+    const phones = (() => {
+      const p = rawPhone.trim();
+      if (!p) return [] as string[];
+      if (p.startsWith("+")) return [p];
+      if (p.startsWith("0")) return [`+91${p.substring(1)}`];
+      return [`+91${p}`];
+    })();
 
-    try {
-      if (typeof window !== "undefined") {
-        window.open(url, "_blank");
-      }
-    } catch {
-      // swallow
+    if (!phones.length) {
+      toast.error("Customer phone number not found");
+      return;
     }
-    setShowShareModal(false);
+
+    sendViaWaBot({ phones, message })
+      .then((r) => {
+        if (r.ok) {
+          toast.success(
+            `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
+          );
+        } else {
+          toast.error(r.error || "Failed to send WhatsApp");
+        }
+      })
+      .catch(() => {
+        toast.error("Failed to send WhatsApp");
+      })
+      .finally(() => {
+        setShowShareModal(false);
+      });
   };
 
   const handleNativeShare = () => {

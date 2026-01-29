@@ -30,7 +30,10 @@ export function BillItem({ bill, onClick }: BillItemProps) {
 
   const total = Number(bill.totalAmount || 0) || 0;
   const paid = Number(bill.paidAmount || 0) || 0;
-  const balance = Number(bill.balanceAmount || 0) || Math.max(0, total - paid);
+  const balance =
+    bill.balanceAmount != null
+      ? Number(bill.balanceAmount)
+      : Math.max(0, total - paid);
 
   return (
     <Card

@@ -71,7 +71,9 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   const [bills, setBills] = useState<Bill[]>([]);
   const [newBillIds, setNewBillIds] = useState<Set<string>>(new Set());
   const [isInitialized, setIsInitialized] = useState(false);
-  const [rowLoading, setRowLoading] = useState<Record<string, { completing?: boolean; deleting?: boolean }>>({});
+  const [rowLoading, setRowLoading] = useState<
+    Record<string, { completing?: boolean; deleting?: boolean }>
+  >({});
 
   // Update bills when initialBills changes
   useEffect(() => {
@@ -82,7 +84,7 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
         const dateB = new Date(b.createdAt || b.serviceDate || 0);
         return dateB.getTime() - dateA.getTime();
       });
-      
+
       setBills(sortedBills);
       setIsInitialized(true);
     }
@@ -95,7 +97,9 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
       return list.filter((result: any) => {
         const cust: any = result.customer;
         return (
-          cust === customerId || cust?._ref === customerId || cust?._id === customerId
+          cust === customerId ||
+          cust?._ref === customerId ||
+          cust?._id === customerId
         );
       });
     };
@@ -208,13 +212,15 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
               }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}>
+              className={`relative ${isNew ? "ring-2 ring-blue-500" : ""}`}
+            >
               {isNew && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0 }}
-                  className="absolute -top-2 -right-2 z-10">
+                  className="absolute -top-2 -right-2 z-10"
+                >
                   <Badge className="bg-blue-600 text-white flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     New
@@ -236,14 +242,17 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-medium text-white truncate capitalize">
-                          {bill.customer?.name ? bill.customer.name.replace(/\s*\([^)]*\)|\s*\[[^\]]*\]|\s*\{[^}]*\}/g, '') : `Bill #${bill.billNumber}`}
+                          {bill.customer?.name
+                            ? bill.customer.name.replace(
+                                /\s*\([^)]*\)|\s*\[[^\]]*\]|\s*\{[^}]*\}/g,
+                                "",
+                              )
+                            : `Bill #${bill.billNumber}`}
                         </h3>
                         <p className="text-sm text-gray-400 truncate capitalize">
                           {bill.serviceType.replace(/_/g, " ") || "Service"}
                           {bill.technician?.name ? (
-                            <>
-                              {" "}• Tech: {bill.technician?.name}
-                            </>
+                            <> • Tech: {bill.technician?.name}</>
                           ) : null}
                         </p>
                         <p className="text-sm text-gray-400">
@@ -259,8 +268,16 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         <p className="font-semibold text-white text-lg">
                           ₹
                           {(bill.paymentStatus === "partial"
-                            ? bill.balanceAmount ||
-                              bill.totalAmount - (bill.paidAmount || 0)
+                            ? (() => {
+                                const total = Number(bill.totalAmount ?? 0);
+                                const paid = Number(bill.paidAmount ?? 0);
+                                const fallback = Math.max(0, total - paid);
+                                const due =
+                                  bill.balanceAmount != null
+                                    ? Number(bill.balanceAmount)
+                                    : fallback;
+                                return due;
+                              })()
                             : bill.totalAmount
                           )?.toLocaleString() || 0}
                         </p>
@@ -274,8 +291,9 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                             )}
                           <Badge
                             className={getStatusColor(
-                              bill.paymentStatus || bill.status
-                            )}>
+                              bill.paymentStatus || bill.status,
+                            )}
+                          >
                             {bill.paymentStatus || bill.status}
                           </Badge>
                         </div>
@@ -332,7 +350,7 @@ export const RealtimeBillStats: React.FC<{
       (bill) =>
         bill.customer === customerId ||
         (bill.customer as any)?._ref === customerId ||
-        (bill.customer as any)?._id === customerId
+        (bill.customer as any)?._id === customerId,
     );
   }, [allBills, customerId]);
 
@@ -356,17 +374,25 @@ export const RealtimeBillStats: React.FC<{
           case "partial":
             acc.pending += 1;
             acc.paidAmount += bill.paidAmount || 0;
-            acc.pendingAmount +=
-              bill.balanceAmount ||
-              bill.totalAmount - (bill.paidAmount || 0) ||
-              0;
+            acc.pendingAmount += (() => {
+              const total = Number(bill.totalAmount ?? 0);
+              const paid = Number(bill.paidAmount ?? 0);
+              const fallback = Math.max(0, total - paid);
+              return bill.balanceAmount != null
+                ? Number(bill.balanceAmount)
+                : fallback;
+            })();
             break;
           case "overdue":
             acc.overdue += 1;
-            acc.pendingAmount +=
-              bill.balanceAmount ||
-              bill.totalAmount - (bill.paidAmount || 0) ||
-              0;
+            acc.pendingAmount += (() => {
+              const total = Number(bill.totalAmount ?? 0);
+              const paid = Number(bill.paidAmount ?? 0);
+              const fallback = Math.max(0, total - paid);
+              return bill.balanceAmount != null
+                ? Number(bill.balanceAmount)
+                : fallback;
+            })();
             break;
         }
 
@@ -380,7 +406,7 @@ export const RealtimeBillStats: React.FC<{
         totalAmount: 0,
         paidAmount: 0,
         pendingAmount: 0,
-      }
+      },
     );
 
     // Avoid unnecessary state updates to prevent extra renders
@@ -403,7 +429,8 @@ export const RealtimeBillStats: React.FC<{
         key="total-amount-card"
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}>
+        transition={{ duration: 0.3 }}
+      >
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="max-sm:p-2">
             <div className="flex items-center justify-between">
@@ -425,12 +452,15 @@ export const RealtimeBillStats: React.FC<{
         key="paid-amount-card"
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}>
+        transition={{ duration: 0.3 }}
+      >
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="max-sm:p-2">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-gray-400 text-xs sm:text-sm font-medium">Paid Amount</p>
+                <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                  Paid Amount
+                </p>
                 <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-green-400 sm:mt-1 truncate">
                   ₹{stats.paidAmount.toLocaleString()}
                 </p>
@@ -445,7 +475,8 @@ export const RealtimeBillStats: React.FC<{
         key="pending-amount-card"
         initial={{ scale: 1 }}
         animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 0.3 }}>
+        transition={{ duration: 0.3 }}
+      >
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="max-sm:p-2">
             <div className="flex items-center justify-between">
@@ -467,7 +498,9 @@ export const RealtimeBillStats: React.FC<{
         <CardContent className="max-sm:p-2">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-gray-400 text-xs sm:text-sm font-medium">Overdue</p>
+              <p className="text-gray-400 text-xs sm:text-sm font-medium">
+                Overdue
+              </p>
               <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-red-400 sm:mt-1">
                 {stats.overdue}
               </p>

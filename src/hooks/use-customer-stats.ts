@@ -32,7 +32,7 @@ export function useCustomerStats() {
       // Calculate partial amount (remaining balance for partially paid bills)
       const partialAmount = customerBills.reduce((sum, bill) => {
         if (bill.paymentStatus === "partial") {
-          return sum + (bill.balanceAmount || 0);
+          return sum + (bill.balanceAmount ?? 0);
         }
         return sum;
       }, 0);

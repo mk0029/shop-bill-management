@@ -43,7 +43,7 @@ export const useBillsHistory = () => {
   }, [user?.id, getBillsByCustomer, allBills]);
 
   // Calculate total amount for all bills
-  const totalAmount = bills.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+  const totalBilledAmount = bills.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
   
   // Calculate total paid amount
   const totalPaid = bills.reduce((sum, bill) => sum + (bill.paidAmount || 0), 0);
@@ -51,7 +51,7 @@ export const useBillsHistory = () => {
   // Calculate total pending amount
   const totalPending = bills.reduce((sum, bill) => {
     if (bill.paymentStatus === 'pending' || bill.paymentStatus === 'partial') {
-      return sum + (bill.balanceAmount || bill.totalAmount || 0);
+      return sum + (bill.balanceAmount ?? bill.totalAmount ?? 0);
     }
     return sum;
   }, 0);
@@ -209,7 +209,7 @@ export const useBillsHistory = () => {
     getServiceTypeLabel,
     getStats,
     // Additional calculated values
-    totalAmount,
+    totalBilledAmount,
     totalPaid,
     totalPending,
     paymentStatusCounts: {

@@ -75,7 +75,7 @@ export async function getBillsWithPayments(): Promise<BillPaymentData[]> {
       billDate: bill.createdAt, // Map createdAt to billDate
       totalAmount: bill.totalAmount || 0,
       paidAmount: bill.paidAmount || 0,
-      balanceAmount: bill.balanceAmount || 0,
+      balanceAmount: bill.balanceAmount ?? 0,
     }));
   } catch (error) {
     console.error('Error fetching bills with payments:', error);
@@ -307,7 +307,7 @@ export async function syncSingleBillPayment(billId: string): Promise<{ success: 
       billDate: bill.createdAt, // Add bill creation date
       totalAmount: bill.totalAmount || 0,
       paidAmount: bill.paidAmount || 0,
-      balanceAmount: bill.balanceAmount || 0,
+      balanceAmount: bill.balanceAmount ?? 0,
     };
 
     // Create cash book entry

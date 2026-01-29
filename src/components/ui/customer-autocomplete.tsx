@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -34,6 +34,22 @@ export default function CustomerAutocomplete({
     [customers, value],
   );
 
+  const selectedLabel = useMemo(() => {
+    if (!selected) return "";
+    return `${selected.name}${selected.phone ? ` • ${selected.phone}` : ""}`;
+  }, [selected]);
+
+  useEffect(() => {
+    if (!value) {
+      setQuery("");
+      return;
+    }
+
+    if (selected) {
+      setQuery(selectedLabel);
+    }
+  }, [value, selected, selectedLabel]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [] as Customer[];
@@ -49,14 +65,13 @@ export default function CustomerAutocomplete({
   return (
     <div className="relative">
       <Input
-        value={
-          query ||
-          (selected
-            ? `${selected.name}${selected.phone ? ` • ${selected.phone}` : ""}`
-            : "")
-        }
+        value={query}
         onChange={(e) => {
-          setQuery(e.target.value);
+          const next = e.target.value;
+          setQuery(next);
+          if (value && next !== selectedLabel) {
+            onChange("");
+          }
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}

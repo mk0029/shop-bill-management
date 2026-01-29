@@ -22,11 +22,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 // Switch not needed after redesign of payment UI
-import {
-  BillDetails,
-  shareBillOnWhatsApp,
-  generateWhatsAppMessage,
-} from "@/lib/whatsapp-share";
+import { BillDetails, generateWhatsAppMessage } from "@/lib/whatsapp-share";
+
+import { sendViaWaBot } from "@/lib/wa-bot-send";
 
 import { useLocaleStore } from "@/store/locale-store";
 
@@ -306,8 +304,38 @@ export const BillDetailModal = ({
         secretKey: bill.customer?.secretKey || undefined,
       },
     };
-    shareBillOnWhatsApp(billDetails);
-    setShowShareModal(false);
+
+    const rawPhone = String(bill.customer?.phone || "");
+    const phones = (() => {
+      const p = rawPhone.trim();
+      if (!p) return [] as string[];
+      if (p.startsWith("+")) return [p];
+      if (p.startsWith("0")) return [`+91${p.substring(1)}`];
+      return [`+91${p}`];
+    })();
+
+    if (!phones.length) {
+      toast.error("Customer phone number not found");
+      return;
+    }
+
+    const message = generateWhatsAppMessage(billDetails, currency);
+    sendViaWaBot({ phones, message })
+      .then((r) => {
+        if (r.ok) {
+          toast.success(
+            `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
+          );
+        } else {
+          toast.error(r.error || "Failed to send WhatsApp");
+        }
+      })
+      .catch(() => {
+        toast.error("Failed to send WhatsApp");
+      })
+      .finally(() => {
+        setShowShareModal(false);
+      });
   };
 
   const handleNativeShare = () => {

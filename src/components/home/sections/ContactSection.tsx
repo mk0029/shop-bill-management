@@ -47,7 +47,7 @@ export default function ContactSection({
           icon={MessageCircle}
           title="WhatsApp"
           value={support.whatsapp}
-          href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
+          href={`whatsapp://send?phone=${support.whatsapp.replace(/[^0-9]/g, "")}`}
         />
         <ContactCard
           icon={Mail}

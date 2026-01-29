@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { notificationService } from "@/lib/notification-service";
+import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 
 export async function PATCH(
   req: Request,
@@ -48,6 +49,18 @@ export async function PATCH(
       );
     }
 
+    // Fetch previous snapshot for change detection (best-effort)
+    const prev = await (async () => {
+      try {
+        return await sanityClient.fetch(
+          `*[_type == "bill" && _id == $id][0]{ _id, billNumber, status, paymentStatus, totalAmount, customer->{_id, phone, name} }`,
+          { id }
+        );
+      } catch {
+        return null;
+      }
+    })();
+
     const body = await req.json().catch(() => ({}));
     const allowedKeys = new Set([
       "paymentStatus",
@@ -69,6 +82,41 @@ export async function PATCH(
     const startTime = Date.now();
     const updated = await sanityClient.patch(id).set(updates).commit();
     console.log(`updateBill->commit: ${Date.now() - startTime} ms`);
+
+    // WhatsApp via WA bot: status/paymentStatus updates (best-effort)
+    try {
+      const prevStatus = prev?.status;
+      const prevPayStatus = prev?.paymentStatus;
+      const nextStatus = (updates as any)?.status;
+      const nextPayStatus = (updates as any)?.paymentStatus;
+
+      const statusChanged = typeof nextStatus !== 'undefined' && String(prevStatus ?? '') !== String(nextStatus ?? '');
+      const payChanged = typeof nextPayStatus !== 'undefined' && String(prevPayStatus ?? '') !== String(nextPayStatus ?? '');
+
+      if (statusChanged || payChanged) {
+        const rawPhone = String(prev?.customer?.phone || '').trim();
+        const phones = (() => {
+          const p = rawPhone;
+          if (!p) return [] as string[];
+          if (p.startsWith('+')) return [p];
+          if (p.startsWith('0')) return [`+91${p.substring(1)}`];
+          return [`+91${p}`];
+        })();
+
+        const billNo = String(prev?.billNumber || id);
+        const total = Number(prev?.totalAmount || 0);
+        const parts: string[] = [];
+        if (statusChanged) parts.push(`status: ${String(nextStatus)}`);
+        if (payChanged) parts.push(`payment: ${String(nextPayStatus)}`);
+        const message = `Bill ${billNo} updated. Amount: ₹${total}. ${parts.join(' | ')}`;
+
+        if (phones.length) {
+          await sendViaWaBotServer({ phones, message });
+        }
+      }
+    } catch (e) {
+      console.error('[WA] bill_updated send failed', e)
+    }
 
     // Unified notification: bill status update (only when status is provided)
     try {

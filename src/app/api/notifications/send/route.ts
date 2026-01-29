@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notificationService } from '@/lib/notification-service'
 
+function corsHeaders(req: NextRequest): Record<string, string> {
+  const origin = req.headers.get('origin') || '*'
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, x-user-id, x-notify-secret, Authorization',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  }
+}
+
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req) })
+}
+
 function getActorUserIdFromAuthCookie(req: NextRequest): string {
   try {
     const raw = req.cookies.get('auth-storage')?.value
@@ -38,14 +53,17 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null)
     if (!body?.title || !body?.body) {
-      return NextResponse.json({ success: false, error: 'Missing title/body' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Missing title/body' }, { status: 400, headers: corsHeaders(req) })
     }
 
     const actorUserId = (
       String(body?.actorUserId || req.headers.get('x-user-id') || getActorUserIdFromAuthCookie(req) || '')
     ).trim()
     if (!actorUserId) {
-      return NextResponse.json({ success: false, error: 'Missing actorUserId (x-user-id header)' }, { status: 400 })
+      return NextResponse.json(
+        { success: false, error: 'Missing actorUserId (x-user-id header)' },
+        { status: 400, headers: corsHeaders(req) }
+      )
     }
 
 
@@ -69,12 +87,15 @@ export async function POST(req: NextRequest) {
           },
         },
       })
-      return NextResponse.json({ success: result.ok, ...result }, { status: 200 })
+      return NextResponse.json({ success: result.ok, ...result }, { status: 200, headers: corsHeaders(req) })
     }
 
     const userIds: string[] = Array.isArray(body.userIds) ? body.userIds.map(String).filter(Boolean) : []
     if (!userIds.length) {
-      return NextResponse.json({ success: false, error: 'Provide userIds for direct notifications' }, { status: 400 })
+      return NextResponse.json(
+        { success: false, error: 'Provide userIds for direct notifications' },
+        { status: 400, headers: corsHeaders(req) }
+      )
     }
 
     const baseEventId = body?.eventId && typeof body.eventId === 'string' ? body.eventId : undefined
@@ -100,9 +121,9 @@ export async function POST(req: NextRequest) {
     )
 
     const ok = results.every(r => r.ok)
-    return NextResponse.json({ success: ok, results }, { status: 200 })
+    return NextResponse.json({ success: ok, results }, { status: 200, headers: corsHeaders(req) })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+    return NextResponse.json({ success: false, error: message }, { status: 500, headers: corsHeaders(req) })
   }
 }
