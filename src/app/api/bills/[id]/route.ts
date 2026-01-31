@@ -235,7 +235,14 @@ export async function PATCH(
     }
     
     // Create cash book entry asynchronously (don't wait for it)
-    if (updates.paidAmount && Number(updates.paidAmount) > 0) {
+    {
+      const prevPaid = Number(prev?.paidAmount ?? 0);
+      const nextPaid = typeof (updates as any).paidAmount !== "undefined" ? Number((updates as any).paidAmount) : undefined;
+      const paymentDelta = typeof nextPaid === "number" && Number.isFinite(nextPaid) ? nextPaid - prevPaid : 0;
+
+      // Only create a cashbook entry for the incremental payment amount (delta)
+      // paidAmount is cumulative, so using it directly would create duplicate/incorrect totals.
+      if (paymentDelta > 0) {
       // Fire and forget - don't await to avoid slowing down the bill update
       (async () => {
         try {
@@ -243,13 +250,13 @@ export async function PATCH(
           const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, billNumber, paidAmount, customer->{_id, name} }`, { id });
           
           if (bill && bill.customer) {
-            console.log('💰 Creating cash book entry for bill payment via API:', { billId: id, amount: updates.paidAmount });
+            console.log('💰 Creating cash book entry for bill payment via API:', { billId: id, amount: paymentDelta, prevPaid, nextPaid });
             
             const result = await sanityApiService.cashBook.createEntryFromBillPayment({
               billId: id,
               userId: bill.customer._id,
               userName: bill.customer.name,
-              amount: Number(updates.paidAmount),
+              amount: Number(paymentDelta),
               paymentType: 'credit'
             });
             
@@ -269,7 +276,7 @@ export async function PATCH(
                       route: '/admin/cash-book/history',
                       extra: {
                         title: 'Cashbook entry',
-                        body: `Payment received • ₹${Number(updates.paidAmount)}`,
+                        body: `Payment received • ₹${Number(paymentDelta)}`,
                       },
                     },
                   })
@@ -286,6 +293,7 @@ export async function PATCH(
           // Don't fail the bill update if cash book entry fails
         }
       })(); // Execute async function without awaiting
+      }
     }
     
     // Best-effort: also patch draft if it exists

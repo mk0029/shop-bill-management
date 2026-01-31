@@ -186,11 +186,16 @@ export default function FittingItemsListPage() {
         itemName.includes("bend") ||
         itemName.includes("fatti") ||
         itemName.includes("pvc") ||
+        itemName.includes("cpvc") ||
+        itemName.includes("upvc") ||
+        itemName.includes("hpvc") ||
         itemName.includes("gitti")
       ) {
         groupedItems["Pipes & Accessories"].push(formattedLine);
       } else if (
         itemName.includes("junction box") ||
+        itemName.includes("plastic box") ||
+        itemName.includes("sheet") ||
         itemName.includes("mcb box") ||
         itemName.includes("board") ||
         itemName.includes("fan box") ||
@@ -217,7 +222,11 @@ export default function FittingItemsListPage() {
         itemName.includes("changeover")
       ) {
         groupedItems["Protection Devices"].push(formattedLine);
-      } else if (itemName.includes("wire")) {
+      } else if (
+        itemName.includes("wire") ||
+        itemName.includes("cable") ||
+        itemName.includes("cord")
+      ) {
         groupedItems["Wires & Cables"].push(formattedLine);
       } else {
         groupedItems["Tools & Others"].push(formattedLine);
