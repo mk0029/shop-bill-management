@@ -554,7 +554,10 @@ export const inventoryApi = {
             .toString("base64")
             .substring(0, 12);
 
+          const docId = `product_${productId}_${Math.random().toString(36).slice(2, 8)}`;
+
           const newProduct = {
+            _id: docId,
             _type: "product",
             productId,
             name: productData.name + ' - ' + productData.brandName,
@@ -604,78 +607,71 @@ export const inventoryApi = {
 
       // Commit all products in a single transaction
       if (createdProducts.length > 0) {
-        const transactionResult: unknown = await transaction.commit();
-        const createdDocs: any[] = Array.isArray(transactionResult)
-          ? transactionResult
-          : []
-        
-        // Create stock transactions separately for each created product
-        if (createdDocs.length > 0) {
-          const stockPromises = createdDocs.map(async (createdProduct, index) => {
-            const originalData = createdProducts[index]?.originalData;
-            if (originalData?.initialStockTransaction) {
+        await transaction.commit();
+
+        const stockPromises = createdProducts.map(async ({ data: createdProduct, originalData }) => {
+          if (originalData?.initialStockTransaction) {
+            try {
+              const stockTransactionId = Buffer.from(
+                Date.now().toString() + Math.random().toString()
+              )
+                .toString("base64")
+                .substring(0, 12);
+
+              const createdTxn = await sanityClient.create({
+                _type: "stockTransaction",
+                transactionId: stockTransactionId,
+                type: originalData.initialStockTransaction.type,
+                product: { _type: "reference", _ref: createdProduct._id },
+                quantity: originalData.initialStockTransaction.quantity,
+                unitPrice: originalData.initialStockTransaction.unitPrice,
+                totalAmount:
+                  originalData.initialStockTransaction.quantity *
+                  originalData.initialStockTransaction.unitPrice,
+                notes:
+                  originalData.initialStockTransaction.notes ||
+                  `Bulk creation: ${originalData.name} - initial stock added`,
+                status: "completed",
+                transactionDate: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                createdBy: originalData.createdBy?.name,
+                createdByName: originalData.createdBy?.name,
+                createdById: originalData.createdBy?.id,
+              });
+
+              // Create corresponding cash book debit entry for the initial stock
               try {
-                const stockTransactionId = Buffer.from(
-                  Date.now().toString() + Math.random().toString()
-                )
-                  .toString("base64")
-                  .substring(0, 12);
-
-                const createdTxn = await sanityClient.create({
-                  _type: "stockTransaction",
-                  transactionId: stockTransactionId,
-                  type: originalData.initialStockTransaction.type,
-                  product: { _type: "reference", _ref: createdProduct._id },
-                  quantity: originalData.initialStockTransaction.quantity,
-                  unitPrice: originalData.initialStockTransaction.unitPrice,
-                  totalAmount:
-                    originalData.initialStockTransaction.quantity *
-                    originalData.initialStockTransaction.unitPrice,
-                  notes:
-                    originalData.initialStockTransaction.notes ||
-                    `Bulk creation: ${originalData.name} - initial stock added`,
-                  status: "completed",
-                  transactionDate: new Date().toISOString(),
-                  createdAt: new Date().toISOString(),
-                  createdBy: originalData.createdBy?.name,
-                  createdByName: originalData.createdBy?.name,
-                  createdById: originalData.createdBy?.id,
-                });
-
-                // Create corresponding cash book debit entry for the initial stock
-                try {
-                  const isInventoryAddition = ["purchase", "adjustment"].includes(
-                    originalData.initialStockTransaction.type
-                  );
-                  const totalAmount =
-                    originalData.initialStockTransaction.quantity *
-                    originalData.initialStockTransaction.unitPrice;
-                  if (isInventoryAddition && totalAmount > 0) {
-                    const { sanityApiService } = await import("@/lib/sanity-api-service");
-                    await sanityApiService.cashBook.createEntry({
-                      userName: (createdProduct as any)?.name || originalData.name || "Inventory Item",
-                      amount: totalAmount,
-                      type: "debit",
-                      source: "Inventory",
-                      category: "inventory",
-                      notes: `Inventory ${originalData.initialStockTransaction.type}: ${originalData.initialStockTransaction.quantity} units at ₹${originalData.initialStockTransaction.unitPrice} each (Transaction ID: ${stockTransactionId})`,
-                    });
-                  }
-                } catch (cashErr) {
-                  console.warn("Failed to create cash book entry for initial stock:", cashErr);
+                const isInventoryAddition = ["purchase", "adjustment"].includes(
+                  originalData.initialStockTransaction.type
+                );
+                const totalAmount =
+                  originalData.initialStockTransaction.quantity *
+                  originalData.initialStockTransaction.unitPrice;
+                if (isInventoryAddition && totalAmount > 0) {
+                  const { sanityApiService } = await import("@/lib/sanity-api-service");
+                  await sanityApiService.cashBook.createEntry({
+                    userName: (createdProduct as any)?.name || originalData.name || "Inventory Item",
+                    amount: totalAmount,
+                    type: "debit",
+                    source: "Inventory",
+                    category: "inventory",
+                    notes: `Inventory ${originalData.initialStockTransaction.type}: ${originalData.initialStockTransaction.quantity} units at ₹${originalData.initialStockTransaction.unitPrice} each (Transaction ID: ${stockTransactionId})`,
+                  });
                 }
-
-                return createdTxn;
-              } catch (error) {
-                console.warn(`Failed to create stock transaction for product ${createdProduct._id}:`, error);
-                return null;
+              } catch (cashErr) {
+                console.warn("Failed to create cash book entry for initial stock:", cashErr);
               }
+
+              return createdTxn;
+            } catch (error) {
+              console.warn(`Failed to create stock transaction for product ${createdProduct._id}:`, error);
+              return null;
             }
-            return null;
-          });
-          
-          await Promise.allSettled(stockPromises);
-        }
+          }
+          return null;
+        });
+
+        await Promise.allSettled(stockPromises);
       }
 
       return {
@@ -899,7 +895,11 @@ export const stockApi = {
     };
   }>> {
     try {
-      const results = {
+      const results: {
+        successful: any[];
+        failed: Array<{ product: any; error: string }>;
+        summary: { total: number; successful: number; failed: number };
+      } = {
         successful: [],
         failed: [],
         summary: {
@@ -911,8 +911,7 @@ export const stockApi = {
 
       // Use Sanity transaction for better performance and atomicity
       const transaction = sanityClient.transaction();
-      const stockTransactions = [];
-      const createdProducts = [];
+      const createdProducts: Array<{ data: any; originalData: any }> = [];
 
       for (const productData of productsData) {
         try {
@@ -922,7 +921,10 @@ export const stockApi = {
             .toString("base64")
             .substring(0, 12);
 
+          const docId = `product_${productId}_${Math.random().toString(36).slice(2, 8)}`;
+
           const newProduct = {
+            _id: docId,
             _type: "product",
             productId,
             name: productData.name + ' - ' + productData.brandName,
@@ -972,50 +974,79 @@ export const stockApi = {
 
       // Commit all products in a single transaction
       if (createdProducts.length > 0) {
-        const transactionResult = await transaction.commit();
-        
-        // Create stock transactions separately for each created product
-        if (transactionResult && transactionResult.length > 0) {
-          const stockPromises = transactionResult.map(async (createdProduct, index) => {
-            const originalData = createdProducts[index]?.originalData;
-            if (originalData?.initialStockTransaction) {
-              try {
-                const stockTransactionId = Buffer.from(
-                  Date.now().toString() + Math.random().toString()
-                )
-                  .toString("base64")
-                  .substring(0, 12);
+        await transaction.commit();
 
-                return await sanityClient.create({
-                  _type: "stockTransaction",
-                  transactionId: stockTransactionId,
-                  type: originalData.initialStockTransaction.type,
-                  product: { _type: "reference", _ref: createdProduct._id },
-                  quantity: originalData.initialStockTransaction.quantity,
-                  unitPrice: originalData.initialStockTransaction.unitPrice,
-                  totalAmount:
-                    originalData.initialStockTransaction.quantity *
-                    originalData.initialStockTransaction.unitPrice,
-                  notes:
-                    originalData.initialStockTransaction.notes ||
-                    `Bulk creation: ${originalData.name} - initial stock added`,
-                  status: "completed",
-                  transactionDate: new Date().toISOString(),
-                  createdAt: new Date().toISOString(),
-                  createdBy: originalData.createdBy?.name,
-                  createdByName: originalData.createdBy?.name,
-                  createdById: originalData.createdBy?.id,
-                });
-              } catch (error) {
-                console.warn(`Failed to create stock transaction for product ${createdProduct._id}:`, error);
-                return null;
+        const stockPromises = createdProducts.map(async ({ data: createdProduct, originalData }) => {
+          if (originalData?.initialStockTransaction) {
+            try {
+              const stockTransactionId = Buffer.from(
+                Date.now().toString() + Math.random().toString()
+              )
+                .toString("base64")
+                .substring(0, 12);
+
+              const createdTxn = await sanityClient.create({
+                _type: "stockTransaction",
+                transactionId: stockTransactionId,
+                type: originalData.initialStockTransaction.type,
+                product: { _type: "reference", _ref: createdProduct._id },
+                quantity: originalData.initialStockTransaction.quantity,
+                unitPrice: originalData.initialStockTransaction.unitPrice,
+                totalAmount:
+                  originalData.initialStockTransaction.quantity *
+                  originalData.initialStockTransaction.unitPrice,
+                notes:
+                  originalData.initialStockTransaction.notes ||
+                  `Bulk creation: ${originalData.name} - initial stock added`,
+                status: "completed",
+                transactionDate: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                createdBy: originalData.createdBy?.name,
+                createdByName: originalData.createdBy?.name,
+                createdById: originalData.createdBy?.id,
+              });
+
+              try {
+                const isInventoryAddition = ["purchase", "adjustment"].includes(
+                  originalData.initialStockTransaction.type
+                );
+                const totalAmount =
+                  originalData.initialStockTransaction.quantity *
+                  originalData.initialStockTransaction.unitPrice;
+                if (isInventoryAddition && totalAmount > 0) {
+                  const { sanityApiService } = await import("@/lib/sanity-api-service");
+                  await sanityApiService.cashBook.createEntry({
+                    userName:
+                      (createdProduct as any)?.name ||
+                      originalData.name ||
+                      "Inventory Item",
+                    amount: totalAmount,
+                    type: "debit",
+                    source: "Inventory",
+                    category: "inventory",
+                    notes: `Inventory ${originalData.initialStockTransaction.type}: ${originalData.initialStockTransaction.quantity} units at ₹${originalData.initialStockTransaction.unitPrice} each (Transaction ID: ${stockTransactionId})`,
+                  });
+                }
+              } catch (cashErr) {
+                console.warn(
+                  "Failed to create cash book entry for initial stock:",
+                  cashErr,
+                );
               }
+
+              return createdTxn;
+            } catch (error) {
+              console.warn(
+                `Failed to create stock transaction for product ${createdProduct._id}:`,
+                error,
+              );
+              return null;
             }
-            return null;
-          });
-          
-          await Promise.allSettled(stockPromises);
-        }
+          }
+          return null;
+        });
+
+        await Promise.allSettled(stockPromises);
       }
 
       return {
