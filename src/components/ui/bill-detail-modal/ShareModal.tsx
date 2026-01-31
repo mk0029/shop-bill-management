@@ -10,6 +10,7 @@ interface ShareModalProps {
   onShareOnWhatsApp: () => void;
   onNativeShare: () => void;
   onCopyToClipboard: () => void;
+  isSending?: boolean;
 }
 
 export const ShareModal = ({
@@ -18,6 +19,7 @@ export const ShareModal = ({
   onShareOnWhatsApp,
   onNativeShare,
   onCopyToClipboard,
+  isSending,
 }: ShareModalProps) => {
   return (
     <AnimatePresence>
@@ -27,7 +29,10 @@ export const ShareModal = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowShareModal(false)}
+          onClick={() => {
+            if (isSending) return;
+            setShowShareModal(false);
+          }}
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
@@ -41,14 +46,23 @@ export const ShareModal = ({
             <div className="space-y-3">
               <Button
                 onClick={onShareOnWhatsApp}
+                disabled={!!isSending}
                 className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-3"
               >
-                <MessageSquare className="w-5 h-5" />
-                WhatsApp
+                {isSending ? (
+                  <span
+                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <MessageSquare className="w-5 h-5" />
+                )}
+                {isSending ? "Sending..." : "WhatsApp"}
               </Button>
 
               <Button
                 onClick={onNativeShare}
+                disabled={!!isSending}
                 variant="outline"
                 className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
               >
@@ -58,6 +72,7 @@ export const ShareModal = ({
 
               <Button
                 onClick={onCopyToClipboard}
+                disabled={!!isSending}
                 variant="outline"
                 className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
               >
@@ -66,7 +81,11 @@ export const ShareModal = ({
               </Button>
 
               <Button
-                onClick={() => setShowShareModal(false)}
+                onClick={() => {
+                  if (isSending) return;
+                  setShowShareModal(false);
+                }}
+                disabled={!!isSending}
                 variant="outline"
                 className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
               >

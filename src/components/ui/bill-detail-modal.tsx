@@ -81,9 +81,10 @@ export const BillDetailModal = ({
 
   // Payment state management (redesigned)
   const [isEditingPayment, setIsEditingPayment] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<"paid" | "partial">("partial");
+  const [paymentMode, setPaymentMode] = useState<"partial" | "paid">("partial");
   const [partialAmount, setPartialAmount] = useState("");
   const [discountAmount, setDiscountAmount] = useState("");
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -320,12 +321,14 @@ export const BillDetailModal = ({
     }
 
     const message = generateWhatsAppMessage(billDetails, currency);
+    setIsSendingWhatsApp(true);
     sendViaWaBot({ phones, message })
       .then((r) => {
         if (r.ok) {
           toast.success(
             `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
           );
+          setShowShareModal(false);
         } else {
           toast.error(r.error || "Failed to send WhatsApp");
         }
@@ -334,7 +337,7 @@ export const BillDetailModal = ({
         toast.error("Failed to send WhatsApp");
       })
       .finally(() => {
-        setShowShareModal(false);
+        setIsSendingWhatsApp(false);
       });
   };
 
@@ -516,6 +519,7 @@ export const BillDetailModal = ({
             onShareOnWhatsApp={handleShareOnWhatsApp}
             onNativeShare={handleNativeShare}
             onCopyToClipboard={handleCopyToClipboard}
+            isSending={isSendingWhatsApp}
           />
         </div>
       </div>

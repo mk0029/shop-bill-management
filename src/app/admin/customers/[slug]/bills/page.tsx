@@ -45,6 +45,7 @@ export default function CustomerBillsPage() {
   const [showBillModal, setShowBillModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareMode, setShareMode] = useState<"pending" | "thank">("pending");
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const customer = customers.find(
     (c) => c._id === slug || c.customerId === slug,
   );
@@ -217,12 +218,14 @@ export default function CustomerBillsPage() {
       return;
     }
 
+    setIsSendingWhatsApp(true);
     sendViaWaBot({ phones, message })
       .then((r) => {
         if (r.ok) {
           toast.success(
             `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
           );
+          setShowShareModal(false);
         } else {
           toast.error(r.error || "Failed to send WhatsApp");
         }
@@ -231,7 +234,7 @@ export default function CustomerBillsPage() {
         toast.error("Failed to send WhatsApp");
       })
       .finally(() => {
-        setShowShareModal(false);
+        setIsSendingWhatsApp(false);
       });
   };
 
@@ -582,6 +585,7 @@ export default function CustomerBillsPage() {
         onShareOnWhatsApp={handleShareOnWhatsApp}
         onNativeShare={handleNativeShare}
         onCopyToClipboard={handleCopyToClipboard}
+        isSending={isSendingWhatsApp}
       />
     </div>
   );

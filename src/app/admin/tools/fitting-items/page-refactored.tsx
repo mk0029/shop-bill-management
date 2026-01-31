@@ -58,6 +58,7 @@ export default function FittingItemsListPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [showSharePopup, setShowSharePopup] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [wireUnitMode, setWireUnitMode] = useState<"roll" | "mtr">("roll");
 
   const addItem = (name: string, q: number, u: string) => {
@@ -287,12 +288,15 @@ export default function FittingItemsListPage() {
       return;
     }
 
+    setIsSendingWhatsApp(true);
     sendViaWaBot({ phones, message })
       .then((r) => {
         if (r.ok) {
           toast.success(
             `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
           );
+          setShowShareModal(false);
+          setShowSharePopup(false);
         } else {
           toast.error(r.error || "Failed to send WhatsApp");
         }
@@ -301,8 +305,7 @@ export default function FittingItemsListPage() {
         toast.error("Failed to send WhatsApp");
       })
       .finally(() => {
-        setShowShareModal(false);
-        setShowSharePopup(false);
+        setIsSendingWhatsApp(false);
       });
   };
 
@@ -414,6 +417,7 @@ export default function FittingItemsListPage() {
         onShareOnWhatsApp={onShareOnWhatsApp}
         onNativeShare={onNativeShare}
         onCopyToClipboard={onCopyToClipboard}
+        isSending={isSendingWhatsApp}
       />
     </div>
   );
