@@ -11,7 +11,13 @@ type ShareResult = {
 function normalizeWhatsAppPhone(phone?: string | null): string {
   const digits = String(phone || '').replace(/\D/g, '')
   if (!digits) return ''
+  
+  // If already has country code (11+ digits), use as-is
+  if (digits.length >= 11) return digits
+  
+  // For 10-digit numbers, assume India (+91)
   if (digits.length === 10) return `91${digits}`
+  
   return digits
 }
 
