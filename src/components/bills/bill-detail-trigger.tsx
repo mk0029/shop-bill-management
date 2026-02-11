@@ -15,7 +15,13 @@ interface Bill {
 interface BillDetailTriggerProps {
   bill: Bill | null;
   buttonLabel?: string;
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  variant?:
+    | "default"
+    | "destructive"
+    | "outline"
+    | "secondary"
+    | "ghost"
+    | "link";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
 }
@@ -33,15 +39,18 @@ export const BillDetailTrigger = ({
   if (!bill) return null;
 
   const handleClick = () => {
-    const basePath = role?.toLowerCase() === 'admin' ? '/admin/billing' : '/customer/bills';
-    router.push(`${basePath}?open=${bill._id}`);
+    const basePath =
+      role?.toLowerCase() === "admin" ? "/admin/billing" : "/customer/bills";
+    // Use billNumber if available, fallback to _id
+    const billId = bill.billNumber || bill._id;
+    router.push(`${basePath}?open=${billId}`);
   };
 
   return (
-    <Button 
-      variant={variant} 
-      size={size} 
-      onClick={handleClick} 
+    <Button
+      variant={variant}
+      size={size}
+      onClick={handleClick}
       className={className}
     >
       {buttonLabel}

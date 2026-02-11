@@ -9,6 +9,7 @@ import AdminFCMInitializer from "@/components/notifications/AdminFCMInitializer"
 import AdminTestPushPanel from "@/components/notifications/AdminTestPushPanel";
 import SWNotificationBridge from "@/components/notifications/sw-bridge";
 import { buildNotificationHref } from "@/store/notification-store";
+import { buildEventHref, shouldOpenAsModal } from "@/lib/event-navigation";
 import Link from "next/link";
 import { useDataStore } from "@/store/data-store";
 
@@ -19,7 +20,6 @@ export default function AdminNotificationsPage({
   const { items, unread, markAllRead, clear, clearRead, markAsRead } =
     useNotificationStore();
   const { bills, users } = useDataStore();
-
   return (
     <div className="p-4 sm:p-6">
       <SWNotificationBridge />
@@ -53,7 +53,7 @@ export default function AdminNotificationsPage({
         </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800">
+      <div className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800 max-h-[80vh] overflow-auto">
         {items.length === 0 ? (
           <div className="p-3 sm:p-4 md:p-6 text-gray-400">
             No notifications yet.
@@ -61,6 +61,9 @@ export default function AdminNotificationsPage({
         ) : (
           items.map((n) => {
             const href = buildNotificationHref(n);
+            const eventHref = buildEventHref(n);
+            const finalHref = eventHref || href;
+            const shouldUseModal = shouldOpenAsModal(n);
 
             // Resolve customer from billId for billing notifications and build friendly text
             const billId = n?.meta?.billId;
@@ -94,6 +97,32 @@ export default function AdminNotificationsPage({
               .replace(/\s{2,}/g, " ")
               .trim();
 
+            const notificationContent = (
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium">{displayTitle}</p>
+                <p className="text-gray-400 text-sm whitespace-pre-line">
+                  {displayBody}
+                </p>
+
+                {(derivedUser || n.meta?.userId) && (
+                  <p className="text-gray-400 text-xs mt-1">
+                    {derivedUser?.name && (
+                      <span className="mr-2">{derivedUser.name}</span>
+                    )}
+                    {derivedUser?.email && (
+                      <span className="mr-2">({derivedUser.email})</span>
+                    )}
+                    {/* If you want to show the ID, uncomment below:
+                      <span className="text-gray-500">ID: {derivedUser?._id || derivedUser?.id || n.meta?.userId}</span>
+                      */}
+                  </p>
+                )}
+                <p className="text-gray-500 text-[9px] md:text-[11px] mt-1">
+                  {new Date(n.createdAt).toLocaleString()}
+                </p>
+              </div>
+            );
+
             return (
               <div key={n.id} className="p-4 flex items-start gap-3">
                 <div className="mt-0.5">
@@ -101,33 +130,49 @@ export default function AdminNotificationsPage({
                     {n.type}
                   </Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{displayTitle}</p>
-                  <p className="text-gray-400 text-sm whitespace-pre-line">
-                    {displayBody}
-                  </p>
 
-                  {(derivedUser || n.meta?.userId) && (
-                    <p className="text-gray-400 text-xs mt-1">
-                      {derivedUser?.name && (
-                        <span className="mr-2">{derivedUser.name}</span>
-                      )}
-                      {derivedUser?.email && (
-                        <span className="mr-2">({derivedUser.email})</span>
-                      )}
-                      {/* If you want to show the ID, uncomment below:
-                      <span className="text-gray-500">ID: {derivedUser?._id || derivedUser?.id || n.meta?.userId}</span>
-                      */}
-                    </p>
-                  )}
-                  <p className="text-gray-500 text-[9px] md:text-[11px] mt-1">
-                    {new Date(n.createdAt).toLocaleString()}
-                  </p>
-                </div>
+                {finalHref ? (
+                  <Link
+                    href={finalHref}
+                    className="flex-1 hover:bg-gray-800 rounded-md p-2 -m-2 transition-colors"
+                    onClick={() => {
+                      // Mark as read when clicked
+                      if (!n.read) {
+                        markAsRead(n.id);
+                      }
+                    }}
+                  >
+                    {notificationContent}
+                  </Link>
+                ) : (
+                  notificationContent
+                )}
+
                 <div className="flex items-center gap-1">
-                  {href && (
+                  {finalHref && (
                     <Button size="sm" variant="outline" asChild>
-                      <Link href={href}>Open</Link>
+                      <Link
+                        href={finalHref}
+                        onClick={() => {
+                          // Close notification window if it's a modal/overlay
+                          try {
+                            const notificationElement = document.querySelector(
+                              '[role="dialog"], .modal, .popover, .overlay',
+                            );
+                            if (notificationElement) {
+                              notificationElement.style.display = "none";
+                            }
+                            const parentModal = document.querySelector(
+                              '.modal.show, [data-state="open"]',
+                            );
+                            if (parentModal) {
+                              parentModal.style.display = "none";
+                            }
+                          } catch {}
+                        }}
+                      >
+                        Open
+                      </Link>
                     </Button>
                   )}
                   {!n.read && (

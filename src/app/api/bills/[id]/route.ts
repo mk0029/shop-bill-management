@@ -204,7 +204,7 @@ export async function PATCH(
           data: {
             billId: String(id),
             status: String(updates.status),
-            route: `/admin/billing/history?open=${encodeURIComponent(String(id))}`,
+            route: `/admin/billing?open=${encodeURIComponent(String(id))}`,
             extra: {
               title,
               body: bodyText,

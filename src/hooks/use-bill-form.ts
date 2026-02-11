@@ -322,6 +322,17 @@ export const useBillForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate due date for pending/partial payment status
+    const paymentDetails = getPaymentDetails();
+    if (paymentDetails.paymentStatus === 'pending' || paymentDetails.paymentStatus === 'partial') {
+      if (!formData.dueDate || formData.dueDate.trim() === '') {
+        setAlertMessage("Due date is mandatory for bills with pending or partial payment status");
+        setShowAlertModal(true);
+        return;
+      }
+    }
+    
     // Allow service-only bills: if there are no items, require at least one service charge
     // Exception: if service type is 'custom' or 'fitting_wiring', allow submitting without forcing charges
     if (selectedItems.length === 0 && !["custom", "fitting_wiring"].includes(formData.serviceType)) {

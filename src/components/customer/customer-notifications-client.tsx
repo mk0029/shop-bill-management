@@ -6,6 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { buildNotificationHref } from "@/store/notification-store";
+import { buildEventHref, shouldOpenAsModal } from "@/lib/event-navigation";
 import SWNotificationBridge from "@/components/notifications/sw-bridge";
 import { CheckCheckIcon } from "lucide-react";
 import { useDataStore } from "@/store/data-store";
@@ -71,9 +72,7 @@ export default function CustomerNotificationsClient() {
           })
           .filter((x: any) => x.id && x.title && x.body);
         if (!cancelled && mapped.length) addMany(mapped as any);
-      } catch {
-        // ignore
-      }
+      } catch {}
     })();
     return () => {
       cancelled = true;
@@ -116,6 +115,10 @@ export default function CustomerNotificationsClient() {
         ) : (
           items.map((n) => {
             const href = buildNotificationHref(n);
+            const eventHref = buildEventHref(n);
+            const finalHref = eventHref || href;
+            const shouldUseModal = shouldOpenAsModal(n);
+
             const billId = (n as any)?.meta?.billId as string | undefined;
             const bill = billId
               ? (bills as Map<string, any>)?.get?.(billId)
@@ -145,6 +148,19 @@ export default function CustomerNotificationsClient() {
               .replace(/#?BILL[-\d]+/gi, "")
               .replace(/\s{2,}/g, " ")
               .trim();
+
+            const notificationContent = (
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium">{displayTitle}</p>
+                <p className="text-gray-400 text-xs sm:text-sm whitespace-pre-line capitalize">
+                  {displayBody}
+                </p>
+                <p className="text-gray-500 text-[11px] sm:text-sm mt-0.5">
+                  {new Date(n.createdAt).toLocaleString()}
+                </p>
+              </div>
+            );
+
             return (
               <div key={n.id} className="p-4 flex items-start gap-3">
                 <div className="mt-0.5">
@@ -155,19 +171,29 @@ export default function CustomerNotificationsClient() {
                     {n.type}
                   </Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{displayTitle}</p>
-                  <p className="text-gray-400 text-xs sm:text-sm whitespace-pre-line capitalize">
-                    {displayBody}
-                  </p>
-                  <p className="text-gray-500 text-[11px] sm:text-sm mt-0.5">
-                    {new Date(n.createdAt).toLocaleString()}
-                  </p>
-                </div>
+
+                {finalHref ? (
+                  <Link
+                    href={finalHref}
+                    className="flex-1 hover:bg-gray-800 rounded-md p-2 -m-2 transition-colors"
+                    onClick={() => {
+                      try {
+                        if (!n.read) {
+                          markAsRead(n.id);
+                        }
+                      } catch {}
+                    }}
+                  >
+                    {notificationContent}
+                  </Link>
+                ) : (
+                  notificationContent
+                )}
+
                 <div className="flex items-center gap-1">
-                  {href && (
+                  {finalHref && (
                     <Link
-                      href={href}
+                      href={finalHref}
                       className={buttonVariants({
                         variant: "outline",
                         size: "sm",
@@ -175,24 +201,46 @@ export default function CustomerNotificationsClient() {
                       onClick={() => {
                         try {
                           markAsRead(n.id);
+                          // Close notification window if it's a modal/overlay
+                          const notificationElement = (
+                            document.activeElement as HTMLElement
+                          )?.closest(
+                            '[role="dialog"], .modal, .popover, .overlay',
+                          );
+                          if (notificationElement) {
+                            (notificationElement as HTMLElement).style.display =
+                              "none";
+                          }
+                          // Also try to close any parent modal
+                          const parentModal = document.querySelector(
+                            '.modal.show, [data-state="open"]',
+                          );
+                          if (parentModal) {
+                            (parentModal as HTMLElement).style.display = "none";
+                          }
                         } catch {}
                       }}
                     >
                       Open
                     </Link>
                   )}
-                  {!n.read && (
+                  {!n.read ? (
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={() => markAsRead(n.id)}
+                      title="Mark as read"
                     >
                       <CheckCheckIcon className="w-4 h-4" />
                     </Button>
-                  )}
-                  {n.read && (
-                    <Button disabled size="sm" onClick={() => markAsRead(n.id)}>
-                      <CheckCheckIcon className="w-4 h-4 text-white" />
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled
+                      title="Already read"
+                    >
+                      <CheckCheckIcon className="w-4 h-4" />
                     </Button>
                   )}
                 </div>

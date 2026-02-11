@@ -63,9 +63,9 @@ export async function POST(req: NextRequest) {
       // Split notifications:
       // - Admins: store as audience=admins (admins list depends on audience)
       // - Customer: store as audience=users (direct)
-      const billId = String((created as any)?._id || '')
-      const adminRoute = `/admin/billing/history?open=${encodeURIComponent(String(billId || ''))}`
-      const title = 'Bill created'
+      const billId = String((created as any)?.billNumber || (created as any)?._id || '')
+      const adminRoute = `/admin/billing?open=${encodeURIComponent(String(billId || ''))}`
+      const title = 'Bill Created'
       const customerName = await (async () => {
         try {
           if (!customerId) return ''

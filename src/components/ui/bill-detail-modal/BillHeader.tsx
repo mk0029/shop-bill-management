@@ -15,6 +15,7 @@ export const BillHeader = ({
   getStatusColor,
   formatDate,
 }: BillHeaderProps) => {
+  console.log(bill, "detail modal");
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
       <div className="flex-1">
@@ -25,7 +26,10 @@ export const BillHeader = ({
         <div className="flex flex-wrap gap-3 text-sm text-gray-400">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            <span>Date: {formatDate(bill.serviceDate || bill.createdAt)}</span>
+            <span>
+              Date:
+              {formatDate(bill.serviceDate || bill.createdAt || bill.date)}
+            </span>
           </div>
 
           {bill.serviceType && (

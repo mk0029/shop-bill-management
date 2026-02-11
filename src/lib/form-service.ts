@@ -852,7 +852,7 @@ export async function createBill(billData: {
                     event: 'bill-created',
                     billId: String(createdId),
                     billNumber: String(billNumber),
-                    route: `/admin/billing/history?open=${encodeURIComponent(String(createdId))}`,
+                    route: `/admin/billing?open=${encodeURIComponent(String(createdId))}`,
                   },
                 }),
               }).catch(() => {})

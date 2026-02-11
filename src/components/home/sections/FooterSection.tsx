@@ -58,11 +58,23 @@ export default function FooterSection({
         <div>
           <div className="font-semibold">Contact</div>
           <ul className="mt-3 space-y-2 text-muted-foreground">
-            <li className="text-base font-normal">Phone: {support.phone}</li>
             <li className="text-base font-normal">
-              WhatsApp: {support.whatsapp}
+              Phone: <Link href={"tel:" + support.phone}>{support.phone}</Link>
             </li>
-            <li className="text-base font-normal">Email: {support.email}</li>
+            <li className="text-base font-normal">
+              WhatsApp:{" "}
+              <Link
+                href={
+                  "https://wa.me/917012345678?text=Hello%20we%20want%20service"
+                }
+              >
+                {support.whatsapp}
+              </Link>
+            </li>
+            <li className="text-base font-normal">
+              Email:{" "}
+              <Link href={"mailto:" + support.email}>{support.email}</Link>{" "}
+            </li>
           </ul>
         </div>
       </div>

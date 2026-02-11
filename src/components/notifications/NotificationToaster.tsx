@@ -2,14 +2,20 @@
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { useNotificationStore, AppNotification } from "@/store/notification-store";
+import {
+  useNotificationStore,
+  AppNotification,
+} from "@/store/notification-store";
 import { buildNotificationHref } from "@/store/notification-store";
+import { buildEventHref } from "@/lib/event-navigation";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "@/store/chat-store";
 
 function playChime() {
   try {
-    const w = window as unknown as Window & { webkitAudioContext?: typeof AudioContext };
+    const w = window as unknown as Window & {
+      webkitAudioContext?: typeof AudioContext;
+    };
     const Ctx = window.AudioContext || w.webkitAudioContext;
     if (!Ctx) return;
     const ctx = new Ctx();
@@ -49,17 +55,33 @@ export default function NotificationToaster() {
       // Suppress: if this notification targets the SAME open chat room, don't toast
       try {
         const hrefMaybe = buildNotificationHref(latest);
-        const loc = typeof window !== 'undefined' ? window.location : null;
-        const activeRoomId = (() => { try { return useChatStore.getState().activeRoomId; } catch { return null; } })();
-        if (hrefMaybe && loc) {
-          const t = new URL(hrefMaybe, loc.origin);
+        const eventHrefMaybe = buildEventHref(latest);
+        const finalHrefMaybe = eventHrefMaybe || hrefMaybe;
+        const loc = typeof window !== "undefined" ? window.location : null;
+        const activeRoomId = (() => {
+          try {
+            return useChatStore.getState().activeRoomId;
+          } catch {
+            return null;
+          }
+        })();
+        if (finalHrefMaybe && loc) {
+          const t = new URL(finalHrefMaybe, loc.origin);
           const here = new URL(loc.href);
-          const tRoom = t.searchParams.get('roomId');
-          const hereRoom = here.searchParams.get('roomId');
-          const isChatPath = t.pathname.startsWith('/admin/chats') || t.pathname.startsWith('/customer/chat');
+          const tRoom = t.searchParams.get("roomId");
+          const hereRoom = here.searchParams.get("roomId");
+          const isChatPath =
+            t.pathname.startsWith("/admin/chats") ||
+            t.pathname.startsWith("/customer/chat");
           const samePath = t.pathname === here.pathname;
           if (isChatPath) {
-            if ((samePath && tRoom && hereRoom && tRoom === hereRoom) || (activeRoomId && tRoom && activeRoomId === tRoom && here.pathname.startsWith('/admin/chats'))) {
+            if (
+              (samePath && tRoom && hereRoom && tRoom === hereRoom) ||
+              (activeRoomId &&
+                tRoom &&
+                activeRoomId === tRoom &&
+                here.pathname.startsWith("/admin/chats"))
+            ) {
               return; // suppress toast for same chat room
             }
           }
@@ -68,19 +90,26 @@ export default function NotificationToaster() {
 
       const description = latest.body || "You have a new notification";
       const href = buildNotificationHref(latest);
+      const eventHref = buildEventHref(latest);
+      const finalHref = eventHref || href;
+
       const billId =
-        latest.meta && typeof (latest.meta as Record<string, unknown>).billId === "string"
+        latest.meta &&
+        typeof (latest.meta as Record<string, unknown>).billId === "string"
           ? ((latest.meta as Record<string, unknown>).billId as string)
           : undefined;
 
       toast(latest.title, {
         description,
         duration: 6000,
-        action: href
-          ? { label: "View", onClick: () => router.push(href) }
+        action: finalHref
+          ? { label: "View", onClick: () => router.push(finalHref) }
           : billId
-          ? { label: "View bill", onClick: () => router.push(`/admin/billing?open=${billId}`) }
-          : undefined,
+            ? {
+                label: "View bill",
+                onClick: () => router.push(`/admin/billing?open=${billId}`),
+              }
+            : undefined,
       });
 
       // Mark as toasted so we don't show this again on next renders/reloads
@@ -90,6 +119,5 @@ export default function NotificationToaster() {
       if (typeof window !== "undefined") playChime();
     }
   }, [items, router, isToasted, markToasted]);
-
   return null;
 }

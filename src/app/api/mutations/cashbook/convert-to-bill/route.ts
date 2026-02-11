@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
         actorUserId,
         data: {
           billId,
-          route: `/admin/billing/history?open=${encodeURIComponent(String(billId))}`,
+          route: `/admin/billing?open=${encodeURIComponent(String(billId))}`,
           extra: {
             title,
             body: bodyText,

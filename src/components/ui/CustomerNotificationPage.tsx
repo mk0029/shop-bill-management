@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useMemo } from "react";
+import { buildEventHref, shouldOpenAsModal } from "@/lib/event-navigation";
+import Link from "next/link";
 
 export default function CustomerNotificationsPage() {
   const { items, markAllRead, clear, clearRead, markAsRead } =
@@ -100,22 +102,17 @@ export default function CustomerNotificationsPage() {
         </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800">
+      <div className="bg-gray-900 border border-gray-800 rounded-lg divide-y divide-gray-800 max-h-[80vh] overflow-auto">
         {filteredItems.length === 0 ? (
           <div className="p-3 sm:p-4 md:p-6 text-gray-400">
             No notifications yet.
           </div>
         ) : (
-          filteredItems.map((n) => (
-            <div key={n.id} className="p-4 flex items-start gap-3">
-              <div className="mt-0.5">
-                <Badge
-                  variant={n.read ? "outline" : "secondary"}
-                  className="capitalize"
-                >
-                  {n.type}
-                </Badge>
-              </div>
+          filteredItems.map((n) => {
+            const eventHref = buildEventHref(n);
+            const shouldUseModal = shouldOpenAsModal(n);
+
+            const notificationContent = (
               <div className="flex-1 min-w-0">
                 <p className="text-white font-medium">{n.title}</p>
                 <p className="text-gray-400 text-sm whitespace-pre-line">
@@ -125,19 +122,81 @@ export default function CustomerNotificationsPage() {
                   {new Date(n.createdAt).toLocaleString()}
                 </p>
               </div>
-              <div className="flex gap-2">
-                {!n.read && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => markAsRead(n.id)}
+            );
+
+            return (
+              <div key={n.id} className="p-4 flex items-start gap-3">
+                <div className="mt-0.5">
+                  <Badge
+                    variant={n.read ? "outline" : "secondary"}
+                    className="capitalize"
                   >
-                    Mark read
-                  </Button>
+                    {n.type}
+                  </Badge>
+                </div>
+
+                {eventHref ? (
+                  <Link
+                    href={eventHref}
+                    className="flex-1 hover:bg-gray-800 rounded-md p-2 -m-2 transition-colors"
+                    onClick={() => {
+                      // Mark as read when clicked
+                      if (!n.read) {
+                        markAsRead(n.id);
+                      }
+                    }}
+                  >
+                    {notificationContent}
+                  </Link>
+                ) : (
+                  notificationContent
                 )}
+
+                <div className="flex gap-2">
+                  {eventHref && (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={eventHref}>Open</Link>
+                    </Button>
+                  )}
+                  {eventHref && (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link
+                        href={eventHref}
+                        onClick={() => {
+                          // Close notification window if it's a modal/overlay
+                          try {
+                            const notificationElement = document.querySelector(
+                              '[role="dialog"], .modal, .popover, .overlay',
+                            ) as HTMLElement;
+                            if (notificationElement) {
+                              notificationElement.style.display = "none";
+                            }
+                            const parentModal = document.querySelector(
+                              '.modal.show, [data-state="open"]',
+                            ) as HTMLElement;
+                            if (parentModal) {
+                              parentModal.style.display = "none";
+                            }
+                          } catch {}
+                        }}
+                      >
+                        Open
+                      </Link>
+                    </Button>
+                  )}
+                  {!n.read && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => markAsRead(n.id)}
+                    >
+                      Mark read
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

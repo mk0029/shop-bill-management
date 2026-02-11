@@ -35,11 +35,13 @@ export default function HeroSection({
                 className="max-sm:!px-2 max-sm:w-full"
                 size="lg"
                 onClick={() => {
-                  const msg = "Hello! I need electrical service.";
-                  shareToWhatsAppApp({
-                    text: msg,
-                    phone: support.whatsapp,
-                  }).catch(() => {});
+                  const msg = encodeURIComponent(
+                    "Hello! I need electrical service.",
+                  );
+
+                  const wa = `https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}?text=${msg}`;
+
+                  window.open(wa, "_blank");
                 }}
               >
                 <MessageCircle className="mr-2 h-5 w-5" /> Get Service

@@ -7,6 +7,7 @@ import { Menu, X, MessageCircle, Phone } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getSupportContact } from "@/lib/auth-service";
 import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
+import Image from "next/image";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -39,8 +40,17 @@ export default function Header() {
     <header className="sticky top-0 z-40 w-full border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between py-1">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          {/* <span className="inline-block h-6 w-6 rounded bg-primary" /> */}
-          <span>Jambh Electrics</span>
+          <div className="">
+            {" "}
+            <Image
+              quality="120"
+              src="/je-p-48.png"
+              width={48}
+              height={48}
+              className="h-auto w-12 sm:w-12 "
+              alt="Logo"
+            />
+          </div>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm">
