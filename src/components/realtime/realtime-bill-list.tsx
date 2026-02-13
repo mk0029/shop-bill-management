@@ -32,6 +32,7 @@ interface Bill {
     phone?: string;
     email?: string;
   };
+  discount?: number;
   totalAmount: number;
   paidAmount?: number;
   balanceAmount?: number;
@@ -198,6 +199,8 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
         {displayBills.map((bill) => {
           const StatusIcon = getStatusIcon(bill.paymentStatus || bill.status);
           const isNew = newBillIds.has(bill._id);
+          const discount = Number(bill.discount ?? 0);
+          const total = Number(bill.totalAmount ?? 0);
 
           return (
             <motion.div
@@ -265,20 +268,36 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6">
                       <div className="text-left sm:text-right">
+                        {discount && bill.paymentStatus !== "paid" ? (
+                          <span className="font-normal text-green-400 text-xs">
+                            Discount :{" "}
+                            <span className="text-base font-semibold ">
+                              {discount}₹
+                            </span>
+                          </span>
+                        ) : (
+                          ""
+                        )}
                         <p className="font-semibold text-white text-lg">
                           ₹
                           {(bill.paymentStatus === "partial"
                             ? (() => {
-                                const total = Number(bill.totalAmount ?? 0);
+                                const netTotal = Math.max(0, total - discount);
                                 const paid = Number(bill.paidAmount ?? 0);
-                                const fallback = Math.max(0, total - paid);
+                                const fallback = Math.max(0, netTotal - paid);
                                 const due =
                                   bill.balanceAmount != null
                                     ? Number(bill.balanceAmount)
                                     : fallback;
                                 return due;
                               })()
-                            : bill.totalAmount
+                            : bill.paymentStatus === "paid"
+                              ? Math.max(0, Number(bill.totalAmount ?? 0))
+                              : Math.max(
+                                  0,
+                                  Number(bill.totalAmount ?? 0) -
+                                    Number(bill.discount ?? 0),
+                                )
                           )?.toLocaleString() || 0}
                         </p>
                         <div className="flex flex-col sm:items-end gap-1 mt-1">

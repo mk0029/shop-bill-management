@@ -355,6 +355,8 @@ export const useBillForm = () => {
 
       const billData = {
         customerId: formData.customerId,
+        billDate: formData.billDate,
+        dueDate: formData.dueDate,
         items: selectedItems.map((item) => ({
           productId: item.itemType === "standard" ? item.id : undefined,
           productName: item.name,

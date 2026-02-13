@@ -574,6 +574,8 @@ export async function createCategory(categoryData: {
  */
 export async function createBill(billData: {
   customerId: string;
+  billDate?: string;
+  dueDate?: string;
   items: Array<{
     productId?: string;
     productName: string;
@@ -729,6 +731,8 @@ export async function createBill(billData: {
       serviceType: billData.serviceType,
       locationType: billData.locationType,
       items: finalItems,
+      billDate: billData.billDate,
+      dueDate: billData.dueDate,
       serviceDate: new Date().toISOString(),
       homeVisitFee,
       // Persist only repairFee in DB
