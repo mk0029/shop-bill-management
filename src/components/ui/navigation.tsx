@@ -180,9 +180,9 @@ export function Navigation() {
   const rawDisplayName =
     user?.name ||
     user?.email?.split("@")[0] ||
-    (role === "admin" ? "Admin" : "User");
+    (role === "admin" || role === "super_admin" ? "Admin" : "User");
   const displayName =
-    role === "admin"
+    role === "admin" || role === "super_admin"
       ? rawDisplayName
       : sanitizeUserText(rawDisplayName) || "User";
   // Filter admin navigation based on permissions
@@ -199,7 +199,9 @@ export function Navigation() {
   };
 
   const navigation =
-    role === "admin" ? getFilteredAdminNavigation() : customerNavigation;
+    role === "admin" || role === "super_admin"
+      ? getFilteredAdminNavigation()
+      : customerNavigation;
 
   const toggleExpanded = (label: string) => {
     setExpandedItems((prev) => (prev === label ? null : label));
@@ -214,6 +216,7 @@ export function Navigation() {
 
   const handleLogout = () => {
     logout();
+    router.replace("/");
   };
 
   // Lock body scroll when mobile sidebar is open
@@ -232,7 +235,7 @@ export function Navigation() {
 
   // Load chat rooms for admin users to show unread message indicator on all pages
   useEffect(() => {
-    if (role === "admin" && user) {
+    if ((role === "admin" || role === "super_admin") && user) {
       // Load rooms in background for unread message indicator
       loadRooms().catch(() => {
         // Silently fail - rooms will be loaded when user visits chat page
@@ -250,7 +253,7 @@ export function Navigation() {
     // basic mobile check
     const isMobile =
       typeof window !== "undefined" ? window.innerWidth < 768 : false;
-    if (role === "admin" && onChats && isMobile) {
+    if ((role === "admin" || role === "super_admin") && onChats && isMobile) {
       if (!activeRoomId) {
         setIsRoomsOverlayOpen(true);
       }
@@ -450,7 +453,11 @@ export function Navigation() {
                   <div>
                     <p className="text-white font-medium">{displayName}</p>
                     <p className="text-gray-400 text-sm">
-                      {role === "admin" ? "Administrator" : "User"}
+                      {role === "super_admin"
+                        ? "Super Admin"
+                        : role === "admin"
+                          ? "Administrator"
+                          : "User"}
                     </p>
                   </div>
                 </div>
@@ -486,7 +493,9 @@ export function Navigation() {
             <div>
               <h1 className="text-lg font-bold text-white">Jambh Electrics</h1>
               <p className="text-gray-400 text-sm">
-                {role === "admin" ? "Admin Panel" : "Customer Portal"}
+                {role === "admin" || role === "super_admin"
+                  ? "Admin Panel"
+                  : "Customer Portal"}
               </p>
             </div>
           </div>
@@ -510,7 +519,11 @@ export function Navigation() {
             <div>
               <p className="text-white font-medium">{displayName}</p>
               <p className="text-gray-400 text-sm">
-                {role === "admin" ? "Administrator" : "User"}
+                {role === "super_admin"
+                  ? "Super Admin"
+                  : role === "admin"
+                    ? "Administrator"
+                    : "User"}
               </p>
             </div>
           </div>
@@ -535,34 +548,36 @@ export function Navigation() {
               {navigation.find((item) => isActive(item.href))?.label ||
                 "Dashboard"}
             </h1>
-            {role === "admin" && isActive("/admin/chats") && (
-              <div className="mt-3 -mx-2 sm:mx-0 hidden md:block">
-                <RoomsTopBar
-                  activeRoomId={activeRoomId || undefined}
-                  onSelect={(rid) => {
-                    void setActiveRoom(rid);
-                    // No URL navigation needed - WhatsApp style state-based routing
-                  }}
-                  adminId={
-                    (user as { id?: string; _id?: string } | null)?.id ||
-                    (user as { id?: string; _id?: string } | null)?._id
-                  }
-                />
-              </div>
-            )}
+            {(role === "admin" || role === "super_admin") &&
+              isActive("/admin/chats") && (
+                <div className="mt-3 -mx-2 sm:mx-0 hidden md:block">
+                  <RoomsTopBar
+                    activeRoomId={activeRoomId || undefined}
+                    onSelect={(rid) => {
+                      void setActiveRoom(rid);
+                      // No URL navigation needed - WhatsApp style state-based routing
+                    }}
+                    adminId={
+                      (user as { id?: string; _id?: string } | null)?.id ||
+                      (user as { id?: string; _id?: string } | null)?._id
+                    }
+                  />
+                </div>
+              )}
             <div className="flex items-center gap-x-3">
               <NotificationsPopover />
               {/* Mobile: open Rooms overlay when on Chats */}
-              {role === "admin" && isActive("/admin/chats") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsRoomsOverlayOpen(true)}
-                  className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2"
-                >
-                  <MessageSquare className="w-5 h-5" />
-                </Button>
-              )}
+              {(role === "admin" || role === "super_admin") &&
+                isActive("/admin/chats") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsRoomsOverlayOpen(true)}
+                    className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                  </Button>
+                )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -571,9 +586,10 @@ export function Navigation() {
               >
                 <Menu className="w-5 h-5" />
                 {/* Orange dot indicator for new messages on hamburger menu */}
-                {role === "admin" && unreadMessagesCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
-                )}
+                {(role === "admin" || role === "super_admin") &&
+                  unreadMessagesCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                  )}
               </Button>
             </div>
           </div>

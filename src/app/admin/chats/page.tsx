@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminChatsPage() {
   const auth = await getServerAuth();
   if (!auth.isAuthenticated) redirect("/");
-  if (auth.role !== "admin") redirect("/customer/bills");
+  if (auth.role !== "admin" && auth.role !== "super_admin")
+    redirect("/customer/bills");
 
   const adminId = auth.userId;
   if (!adminId) redirect("/");

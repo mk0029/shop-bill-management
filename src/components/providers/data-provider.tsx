@@ -40,7 +40,7 @@ export function DataProvider({ children }: DataProviderProps) {
         userId: user?.id,
         customerId: (user as any)?.customerId,
       });
-    } else if (role === "admin") {
+    } else if (role === "admin" || role === "super_admin") {
       loadAdminData({
         userId: user?.id,
         customerId: (user as any)?.customerId,
@@ -54,7 +54,7 @@ export function DataProvider({ children }: DataProviderProps) {
 
     const intervalMs = 15_000;
     const tick = () => {
-      if (role === "admin") {
+      if (role === "admin" || role === "super_admin") {
         refreshUsers();
         refreshBillsOnly({ role: "admin" });
         refreshActiveProducts();
@@ -79,7 +79,7 @@ export function DataProvider({ children }: DataProviderProps) {
         userId: user?.id,
         customerId: (user as any)?.customerId,
       });
-    } else if (role === "admin") {
+    } else if (role === "admin" || role === "super_admin") {
       loadAdminData({
         userId: user?.id,
         customerId: (user as any)?.customerId,

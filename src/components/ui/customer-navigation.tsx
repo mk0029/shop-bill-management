@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 // removed Bell route link; notifications are accessed via header popover
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SanityImage } from "./sanity-image";
 import Image from "next/image";
@@ -65,6 +65,7 @@ const customerNavigation: NavigationItem[] = [
 export function CustomerNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname() || "";
+  const router = useRouter();
   const { logout, user } = useAuthStore();
   const isAdmin = user?.role === "admin";
 
@@ -208,6 +209,7 @@ export function CustomerNavigation() {
 
   const handleLogout = () => {
     logout();
+    router.replace("/");
   };
 
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {

@@ -10,7 +10,11 @@ interface BillActionsProps {
   onCheckAllBills: () => void;
 }
 
-export const BillActions = ({ showShareButton, onShare, onCheckAllBills }: BillActionsProps) => {
+export const BillActions = ({
+  showShareButton,
+  onShare,
+  onCheckAllBills,
+}: BillActionsProps) => {
   return (
     <div className="flex flex-col sm:flex-row gap-3">
       {showShareButton && (

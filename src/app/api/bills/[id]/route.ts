@@ -4,12 +4,21 @@ import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { notificationService } from "@/lib/notification-service";
 import { sendViaWaBotServer } from "@/lib/wa-bot-server";
+import { getServerAuth } from "@/lib/server-auth";
 
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await getServerAuth();
+    if (!auth.isAuthenticated) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     if (!process.env.NEXT_PUBLIC_SANITY_API_TOKEN) {
       return NextResponse.json(
         { success: false, error: "Server is missing SANITY_API_TOKEN (write token)" },
@@ -74,6 +83,27 @@ export async function PATCH(
     })();
 
     const body = await req.json().catch(() => ({}));
+
+    // Super Admin can send broader updates, but this endpoint is also used by normal admins.
+    // For safety, block any attempts by non-super-admin to mutate fields outside the admin-safe list.
+    const adminSafeKeys = new Set([
+      "paymentStatus",
+      "paidAmount",
+      "balanceAmount",
+      "status",
+      "notes",
+      "internalNotes",
+      "discount",
+    ]);
+    const requestedKeys = Object.keys(body || {});
+    const hasUnsafeKeys = requestedKeys.some((k) => !adminSafeKeys.has(k));
+    if (auth.role !== "super_admin" && hasUnsafeKeys) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const allowedKeys = new Set([
       "paymentStatus",
       "paidAmount",
@@ -315,6 +345,20 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await getServerAuth();
+    if (!auth.isAuthenticated) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    if (auth.role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const { id } = params;
     if (!id) {
       return NextResponse.json(

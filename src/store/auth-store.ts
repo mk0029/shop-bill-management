@@ -8,16 +8,18 @@ import { ensureFcmToken } from "@/lib/fcm";
 
 type PersistedState = {
   state?: {
-    user?: User | null;
-    role?: "admin" | "customer" | null;
+    user?: Partial<User> | null;
+    role?: "admin" | "super_admin" | "customer" | null;
     isAuthenticated?: boolean;
   };
   version?: number;
 };
 
+type AuthUser = Partial<User>;
+
 interface AuthState {
-  user: User | null;
-  role: "admin" | "customer" | null;
+  user: AuthUser | null;
+  role: "admin" | "super_admin" | "customer" | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   hydrated: boolean;
@@ -197,11 +199,27 @@ export const useAuthStore = create<AuthState>()(
         } as Storage;
         return cookieStorage;
       }),
-      partialize: (state) => ({
-        user: state.user,
-        role: state.role,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      partialize: (state) => {
+        const u: any = state.user as any;
+        const minimalUser = u
+          ? {
+              id: u.id || u._id,
+              _id: u._id || u.id,
+              customerId: u.customerId,
+              role: u.role,
+              name: u.name,
+              email: u.email,
+              phone: u.phone,
+              location: u.location,
+            }
+          : null;
+
+        return {
+          user: minimalUser,
+          role: state.role,
+          isAuthenticated: state.isAuthenticated,
+        };
+      },
       onRehydrateStorage: () => (state, error) => {
         // mark store as hydrated whether successful or not
         useAuthStore.setState({ hydrated: true });
@@ -236,7 +254,7 @@ export function prehydrateAuth() {
     const st = parsed?.state;
     if (st && (st.user || st.isAuthenticated !== undefined)) {
       useAuthStore.setState({
-        user: st.user ?? null,
+        user: (st.user as AuthUser) ?? null,
         role: st.role ?? null,
         isAuthenticated: !!st.isAuthenticated,
         hydrated: true,

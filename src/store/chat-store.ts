@@ -91,7 +91,7 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       const authStore = useAuthStore.getState();
       const user = authStore.user as { id?: string; _id?: string; role?: string } | null;
       const userId = user?._id || user?.id;
-      const userRole = user?.role;
+      const userRole = user?.role || (authStore as { role?: string }).role;
 
       // Prepare fetch options with authentication
       const fetchOpts: { customerId?: string; adminId?: string; userRole?: string; userId?: string } = {};

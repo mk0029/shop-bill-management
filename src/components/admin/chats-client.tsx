@@ -44,30 +44,30 @@ export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
   }, [storeRooms]);
 
   useEffect(() => {
+    // IMPORTANT: do not set rooms from normalizedRooms here.
+    // That creates a feedback loop: rooms -> normalizedRooms -> setState(rooms) -> rooms...
     resetChatState();
-    useChatStore.setState({ rooms: normalizedRooms || [], isLoading: false });
+    subscribeRealtime();
+    setInitializing(false);
+  }, [resetChatState, subscribeRealtime]);
 
-    const init = async () => {
-      subscribeRealtime();
+  useEffect(() => {
+    let alive = true;
+    if (!targetCustomerId) return;
+    (async () => {
       try {
-        if (targetCustomerId) {
-          const roomId = await openRoomByCustomer(String(targetCustomerId));
-          await setActiveRoom(roomId);
-        }
-      } finally {
-        setInitializing(false);
+        const roomId = await openRoomByCustomer(String(targetCustomerId));
+        if (!alive) return;
+        await setActiveRoom(roomId);
+      } catch {
+        // ignore
       }
-    };
+    })();
 
-    init();
-  }, [
-    resetChatState,
-    normalizedRooms,
-    subscribeRealtime,
-    targetCustomerId,
-    openRoomByCustomer,
-    setActiveRoom,
-  ]);
+    return () => {
+      alive = false;
+    };
+  }, [targetCustomerId, openRoomByCustomer, setActiveRoom]);
 
   const activeCustomer = useMemo(() => {
     const sourceRooms = storeRooms?.length ? storeRooms : normalizedRooms;

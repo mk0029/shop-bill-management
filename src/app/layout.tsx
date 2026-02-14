@@ -10,6 +10,7 @@ import Script from "next/script";
 import OfflineSync from "../components/pwa/offline-sync";
 import OfflineWarning from "../components/pwa/offline-warning";
 import AuthPrehydrate from "../components/providers/auth-prehydrate";
+import AuthRoleSync from "../components/providers/auth-role-sync";
 import BackgroundFeaturesGate from "../components/providers/background-features-gate";
 
 import "./globals.css";
@@ -129,6 +130,8 @@ export default function RootLayout({
       >
         {/* Synchronous auth prehydration to speed up startup */}
         <AuthPrehydrate />
+        {/* Role revalidation to handle server-side role changes without re-login */}
+        <AuthRoleSync />
         {/* Global route progress bar */}
         <Suspense fallback={null}>
           <RouteProgress />

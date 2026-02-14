@@ -18,10 +18,10 @@ export default function LoginPage() {
   const { login, isLoading, isAuthenticated, role, hydrated } = useAuthStore();
   const { t } = useLocaleStore();
   const [error, setError] = useState<string | null>(null);
-  
+
   // Get phone and passKey from URL query parameters
-  const phone = searchParams?.get('phone') || '';
-  const passKey = searchParams?.get('passKey') || '';
+  const phone = searchParams?.get("phone") || "";
+  const passKey = searchParams?.get("passKey") || "";
 
   const handleLogin = async (credentials: {
     phone: string;
@@ -41,7 +41,7 @@ export default function LoginPage() {
 
       // Redirect based on role
       const { role } = useAuthStore.getState();
-      if (role === "admin") {
+      if (role === "admin" || role === "super_admin") {
         router.push("/admin/dashboard");
       } else {
         router.push("/customer/bills");
@@ -67,7 +67,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (!hydrated) return;
     if (isAuthenticated) {
-      if (role === "admin") router.replace("/admin/dashboard");
+      if (role === "admin" || role === "super_admin")
+        router.replace("/admin/dashboard");
       else router.replace("/customer/bills");
     }
   }, [hydrated, isAuthenticated, role, router]);
@@ -79,7 +80,8 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-md">
+          className="w-full max-w-md"
+        >
           {/* Language Selector
           <div className="flex justify-end mb-6">
             <div className="flex items-center gap-2">
@@ -102,7 +104,8 @@ export default function LoginPage() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-lg overflow-hidden bg-gray-800">
+                className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-lg overflow-hidden bg-gray-800"
+              >
                 <Image
                   src="/je-p-512.png"
                   alt="Jambh Electrics"
@@ -125,7 +128,8 @@ export default function LoginPage() {
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg mb-6">
+                className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg mb-6"
+              >
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4" />
                   <span className="text-sm">{error}</span>
@@ -148,9 +152,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="text-center mt-8 text-gray-500 text-sm">
             <p> 2025 Jambh Electrics</p>
-            <p className="mt-1 text-xs">
-              Professional Jambh Electrics system
-            </p>
+            <p className="mt-1 text-xs">Professional Jambh Electrics system</p>
           </div>
         </motion.div>
       </ClientOnly>
