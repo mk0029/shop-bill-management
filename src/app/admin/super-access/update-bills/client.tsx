@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import SuperBillUpdateModal from "@/components/super-access/SuperBillUpdateModal";
 import { Dropdown } from "@/components/ui/dropdown";
 import { sanityApiService } from "@/lib/sanity-api-service";
@@ -13,9 +14,13 @@ export default function SuperAccessUpdateBillsClient() {
   const [billsLoading, setBillsLoading] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bill, setBill] = useState<any | null>(null);
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -54,20 +59,76 @@ export default function SuperAccessUpdateBillsClient() {
     setLoading(true);
     setError(null);
     try {
+      console.log("Fetching bill with ID:", selectedBillId.trim());
       const res = await fetch(
         `/api/super/bills/${encodeURIComponent(selectedBillId.trim())}`,
         { cache: "no-store" },
       );
+      console.log("Response status:", res.status);
       const json = await res.json().catch(() => ({}));
+      console.log("Response data:", json);
       if (!res.ok || json?.success === false) {
         throw new Error(json?.error || `Failed (${res.status})`);
       }
       setBill(json?.data);
       setOpen(true);
     } catch (e: any) {
+      console.error("Fetch bill error:", e);
       setError(e?.message || "Failed to load bill");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteBill = async () => {
+    if (!canOpen) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      console.log("Deleting bill with ID:", selectedBillId.trim());
+      const res = await fetch(
+        `/api/super/bills/${encodeURIComponent(selectedBillId.trim())}`,
+        {
+          method: "DELETE",
+          cache: "no-store",
+        },
+      );
+      console.log("Delete response status:", res.status);
+      const json = await res.json().catch(() => ({}));
+      console.log("Delete response data:", json);
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error || `Failed to delete (${res.status})`);
+      }
+
+      // Success: reset form and refresh bills list
+      setSelectedBillId("");
+      setBill(null);
+      setError(null);
+
+      // Refresh bills list
+      const load = async () => {
+        setBillsLoading(true);
+        try {
+          const res = await sanityApiService.bills.getAllBills();
+          if (res.success && Array.isArray(res.data)) {
+            setBills(res.data);
+          }
+        } finally {
+          setBillsLoading(false);
+        }
+      };
+      load();
+
+      // Show success modal instead of alert
+      setSuccessMessage("Bill deleted successfully!");
+      setShowSuccessModal(true);
+    } catch (e: any) {
+      console.error("Delete bill error:", e);
+      setError(e?.message || "Failed to delete bill");
+    } finally {
+      setDeleting(false);
+      setConfirmOpen(false);
     }
   };
 
@@ -100,13 +161,22 @@ export default function SuperAccessUpdateBillsClient() {
             searchable
             searchPlaceholder="Type bill number / customer / phone"
           />
-          <Button
-            onClick={fetchBill}
-            disabled={!canOpen || loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {loading ? "Loading..." : "Open Editor"}
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={fetchBill}
+              disabled={!canOpen || loading || deleting}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+            >
+              {loading ? "Loading..." : "Open Editor"}
+            </Button>
+            <Button
+              onClick={() => setConfirmOpen(true)}
+              disabled={!canOpen || loading || deleting}
+              className="bg-red-600 hover:bg-red-700 text-white flex-1"
+            >
+              {deleting ? "Deleting..." : "Delete Bill"}
+            </Button>
+          </div>
           {error ? <div className="text-red-400 text-sm">{error}</div> : null}
         </CardContent>
       </Card>
@@ -122,6 +192,32 @@ export default function SuperAccessUpdateBillsClient() {
           }}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={async () => {
+          await deleteBill();
+        }}
+        title="Delete bill?"
+        message="This action cannot be undone and will remove all references to this bill."
+        type="confirm"
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      <ConfirmationModal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+        }}
+        onConfirm={() => {
+          setShowSuccessModal(false);
+        }}
+        title="Success"
+        message={successMessage}
+        type="success"
+      />
     </div>
   );
 }

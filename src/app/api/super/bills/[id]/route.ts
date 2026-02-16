@@ -54,17 +54,37 @@ function calcTotals(input: {
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
+    // Derive bill id from params or fallback to URL path as a safety net (handles trailing slashes)
+    const fromParams = (params as any)?.id as string | undefined;
+    const fromUrl = (() => {
+      try {
+        const u = new URL(_req.url);
+        const parts = u.pathname.split('/').filter(Boolean); // remove empty segments
+        // Find the segment after 'bills'
+        const billsIndex = parts.lastIndexOf('bills');
+        if (billsIndex >= 0 && parts[billsIndex + 1]) return parts[billsIndex + 1];
+        // Otherwise, use the last non-empty segment as a fallback
+        return parts[parts.length - 1] || undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const raw = String(fromParams || fromUrl || '').trim();
+    
+    console.log("ID derivation:", { fromParams, fromUrl, raw });
+    
+    if (!raw) {
+      return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });
+    }
+    
     const auth = await getServerAuth();
+    console.log("Auth check:", { isAuthenticated: auth.isAuthenticated, role: auth.role, userId: auth.userId });
+    
     if (!auth.isAuthenticated) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
     if (auth.role !== "super_admin") {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
-    }
-
-    const raw = String(params?.id || "").trim();
-    if (!raw) {
-      return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "Forbidden - requires super_admin role" }, { status: 403 });
     }
 
     const id = await resolveBillDocumentId(raw);
@@ -119,17 +139,35 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
+    // Derive bill id from params or fallback to URL path as a safety net (handles trailing slashes)
+    const fromParams = (params as any)?.id as string | undefined;
+    const fromUrl = (() => {
+      try {
+        const u = new URL(req.url);
+        const parts = u.pathname.split('/').filter(Boolean); // remove empty segments
+        // Find the segment after 'bills'
+        const billsIndex = parts.lastIndexOf('bills');
+        if (billsIndex >= 0 && parts[billsIndex + 1]) return parts[billsIndex + 1];
+        // Otherwise, use the last non-empty segment as a fallback
+        return parts[parts.length - 1] || undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const raw = String(fromParams || fromUrl || '').trim();
+    
+    console.log("PATCH ID derivation:", { fromParams, fromUrl, raw });
+    
+    if (!raw) {
+      return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });
+    }
+    
     const auth = await getServerAuth();
     if (!auth.isAuthenticated) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
     if (auth.role !== "super_admin") {
       return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
-    }
-
-    const raw = String(params?.id || "").trim();
-    if (!raw) {
-      return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });
     }
 
     const id = await resolveBillDocumentId(raw);
@@ -291,5 +329,102 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ success: true, data: updated }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || "Server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    // Derive bill id from params or fallback to URL path as a safety net (handles trailing slashes)
+    const fromParams = (params as any)?.id as string | undefined;
+    const fromUrl = (() => {
+      try {
+        const u = new URL(_req.url);
+        const parts = u.pathname.split('/').filter(Boolean); // remove empty segments
+        // Find the segment after 'bills'
+        const billsIndex = parts.lastIndexOf('bills');
+        if (billsIndex >= 0 && parts[billsIndex + 1]) return parts[billsIndex + 1];
+        // Otherwise, use the last non-empty segment as a fallback
+        return parts[parts.length - 1] || undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const raw = String(fromParams || fromUrl || '').trim();
+    
+    console.log("DELETE ID derivation:", { fromParams, fromUrl, raw });
+    
+    if (!raw) {
+      return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });
+    }
+    
+    const auth = await getServerAuth();
+    if (!auth.isAuthenticated) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+    if (auth.role !== "super_admin") {
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    const id = await resolveBillDocumentId(raw);
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Bill not found" }, { status: 404 });
+    }
+
+    // Fetch bill items snapshot so we can restore inventory before deleting the bill.
+    const bill = await sanityClient.fetch(
+      `*[_type == "bill" && _id == $id][0]{
+        _id,
+        billNumber,
+        items[]{
+          quantity,
+          unitPrice,
+          product->{_id}
+        }
+      }`,
+      { id }
+    );
+
+    const itemsForRestore = Array.isArray(bill?.items)
+      ? (bill.items as any[])
+          .filter((it) => it?.product?._id && Number(it?.quantity || 0) > 0)
+          .map((it) => ({
+            productId: String(it.product._id),
+            quantity: Number(it.quantity || 0),
+            unitPrice:
+              typeof it.unitPrice === "number" ? Number(it.unitPrice) : undefined,
+          }))
+      : [];
+
+    // Delete related cashbook entry (bill payment) if present.
+    // The schema only links bill when source == "Bill Payment".
+    const cashbookIds: string[] = await sanityClient.fetch(
+      `*[_type == "cashBookEntry" && bill._ref == $billId]._id`,
+      { billId: id }
+    );
+
+    // Restore inventory + delete cashbook + delete bill as one best-effort transaction.
+    const tx = sanityClient.transaction();
+    for (const entryId of cashbookIds || []) {
+      tx.delete(String(entryId));
+    }
+    tx.delete(id);
+
+    // Restore inventory stock (uses its own commits internally). Best-effort.
+    try {
+      if (itemsForRestore.length) {
+        await updateStockForBill(itemsForRestore, id, "restore");
+      }
+    } catch (invErr) {
+      console.warn("[API] DELETE /api/super/bills: inventory restore failed", invErr);
+    }
+
+    await tx.commit();
+    return NextResponse.json({ success: true, message: "Bill deleted" });
+  } catch (error: any) {
+    console.error("API: Failed to delete bill", error);
+    return NextResponse.json(
+      { success: false, error: error?.message || "Failed to delete bill" },
+      { status: 500 }
+    );
   }
 }

@@ -95,12 +95,26 @@ export default function CustomerNotificationsClient() {
             </Button>
           )}
           {(items || []).some((n) => !!n.read) && (
-            <Button size="sm" variant="outline" onClick={clearRead}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                console.log("Clear Read clicked");
+                clearRead();
+              }}
+            >
               Clear Read
             </Button>
           )}
           {items.length > 0 && (
-            <Button size="sm" variant="outline" onClick={clear}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                console.log("Clear All clicked");
+                clear();
+              }}
+            >
               Clear
             </Button>
           )}

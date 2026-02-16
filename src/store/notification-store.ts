@@ -140,12 +140,24 @@ export const useNotificationStore = create<NotificationState>()(
 
       clearRead: () =>
         set((state) => {
+          console.log('clearRead called, current items:', state.items.length);
           const items = state.items.filter((x) => !x.read);
           const unread = items.filter((x) => !x.read).length;
+          console.log('after clearRead, items:', items.length);
           return { items, unread };
         }),
 
-      clear: () => set({ items: [], unread: 0, toasted: {} }),
+      clear: () =>
+        set(() => {
+          console.log('clear called, removing all notifications');
+          // Also clear localStorage directly to ensure persistence
+          try {
+            localStorage.removeItem('app_notifications');
+          } catch (e) {
+            console.error('Failed to clear localStorage:', e);
+          }
+          return { items: [], unread: 0, toasted: {} };
+        }),
 
       markToasted: (id) =>
         set((state) => {
