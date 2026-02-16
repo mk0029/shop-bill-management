@@ -35,7 +35,7 @@ export default function AddCustomerPage() {
     phone: "",
     email: "",
     location: "",
-    serviceType: "",
+    serviceType: "All",
     address: "",
     notes: "",
     customerId: "",
@@ -239,7 +239,7 @@ export default function AddCustomerPage() {
                 />
               </div>
 
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label htmlFor="address" className="text-gray-300">
                   Address
                 </Label>
@@ -257,11 +257,11 @@ export default function AddCustomerPage() {
                     disabled={isLoading}
                   />
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Login Credentials */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
               <div className="space-y-2">
                 <Label htmlFor="customerId" className="text-gray-300">
                   Customer ID
@@ -307,10 +307,10 @@ export default function AddCustomerPage() {
                   Leave empty to auto-generate
                 </p>
               </div>
-            </div>
+            </div> */}
 
             {/* Additional Information */}
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="notes" className="text-gray-300">
                 Notes
               </Label>
@@ -322,7 +322,7 @@ export default function AddCustomerPage() {
                 placeholder="Add any additional notes about the customer..."
                 disabled={isLoading}
               />
-            </div>
+            </div> */}
 
             {/* Submit Button */}
             <div className="flex gap-4 pt-2 md:pt-4">

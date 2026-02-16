@@ -14,11 +14,10 @@ export default function CustomersPageHeader({
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white pl-2 sm:pl-0">
           Customer Management
         </h1>
-       
       </div>
       <Button size="sm" onClick={onAddCustomer}>
         <Plus className="w-4 h-4 mr-1 sm:mr-2" />
-        Add <span className="max-sm:hidden">Customer</span>
+        Add <span className="max-sm:hidden">&nbsp;Customer</span>
       </Button>
     </div>
   );

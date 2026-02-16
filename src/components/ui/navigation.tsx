@@ -127,6 +127,28 @@ const adminNavigation: NavigationItem[] = [
     href: "/admin/chats",
     icon: Receipt,
   },
+  {
+    label: "Super Access",
+    href: "/admin/super-access",
+    icon: Shield,
+    children: [
+      {
+        label: "Update Bills",
+        href: "/admin/super-access/update-bills",
+        icon: FileText,
+      },
+      {
+        label: "Blacklist Customer",
+        href: "/admin/super-access/blacklist-customer",
+        icon: User,
+      },
+      {
+        label: "Delete Cashbook Entry",
+        href: "/admin/super-access/delete-cashbook-entry",
+        icon: DollarSign,
+      },
+    ],
+  },
 ];
 
 const customerNavigation: NavigationItem[] = [
@@ -190,9 +212,14 @@ export function Navigation() {
     const userEmail = (user as any)?.email;
     const showAdminManagement = canManageAdmins(userEmail);
 
+    const isSuperAdmin = role === "super_admin";
+
     return adminNavigation.filter((item) => {
       if (item.href === "/admin/manage-admins") {
         return showAdminManagement;
+      }
+      if (item.href === "/admin/super-access") {
+        return isSuperAdmin;
       }
       return true;
     });

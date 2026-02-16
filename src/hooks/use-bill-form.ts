@@ -690,6 +690,7 @@ export const useBillForm = () => {
     handleSuccessClose,
     handleCreateAnotherBill,
     setShowAlertModal,
+    setAlertMessage,
     setSelectedItems,
     addCustomItemToBill,
   };
