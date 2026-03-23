@@ -9,17 +9,22 @@ export function useCustomerFilters(customers: CustomerWithStats[]) {
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {
+      const normalizedSearchTerm = (filters.searchTerm ?? "")
+        .trim()
+        .toLowerCase();
+
       const matchesSearch =
-        customer.name
+        normalizedSearchTerm === "" ||
+        (customer.name ?? "")
           .toLowerCase()
-          .includes(filters.searchTerm.toLowerCase()) ||
-        customer.phone.includes(filters.searchTerm) ||
-        customer.location
+          .includes(normalizedSearchTerm) ||
+        (customer.phone ?? "").includes(filters.searchTerm ?? "") ||
+        (customer.location ?? "")
           .toLowerCase()
-          .includes(filters.searchTerm.toLowerCase()) ||
-        customer.email
-          ?.toLowerCase()
-          .includes(filters.searchTerm.toLowerCase());
+          .includes(normalizedSearchTerm) ||
+        (customer.email ?? "")
+          .toLowerCase()
+          .includes(normalizedSearchTerm);
 
       const matchesFilter =
         filters.filterActive === "all" ||
