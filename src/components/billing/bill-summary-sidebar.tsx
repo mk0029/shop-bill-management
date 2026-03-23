@@ -136,34 +136,6 @@ export const BillSummarySidebar = ({
           )}
 
           {/* Discount input */}
-          <div className="space-y-2">
-            <Label htmlFor="bill-discount" className="text-xs text-gray-400">
-              Discount
-            </Label>
-            <Input
-              id="bill-discount"
-              type="number"
-              min="0"
-              step="1"
-              value={formData.discount}
-              onChange={(e) =>
-                onInputChange("discount", (e.target as HTMLInputElement).value)
-              }
-              placeholder="0"
-              className="bg-gray-900 border-gray-600 text-white focus-visible:ring-1 focus-visible:ring-blue-500"
-            />
-          </div>
-
-          {/* Discount summary line */}
-          {Number(formData.discount) > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Discount</span>
-              <span className="text-red-400">
-                -{currency}
-                {Number(formData.discount).toFixed(2)}
-              </span>
-            </div>
-          )}
 
           <div className="border-t border-gray-700 pt-3">
             <div className="flex justify-between font-semibold">
@@ -340,15 +312,19 @@ export const BillSummarySidebar = ({
                 id="partial-amount"
                 type="number"
                 max={grandTotal}
+                placeholder="0"
                 step="1"
-                value={formData.partialPaymentAmount ?? ""}
+                value={
+                  formData.partialPaymentAmount > 0
+                    ? formData.partialPaymentAmount
+                    : ""
+                }
                 onChange={(e) =>
                   onInputChange(
                     "partialPaymentAmount",
                     (e.target as HTMLInputElement).value,
                   )
                 }
-                placeholder=""
                 className="bg-gray-900 border-gray-600 text-white focus-visible:ring-1 focus-visible:ring-blue-500"
               />
               {Number(formData.partialPaymentAmount) > 0 && (
@@ -372,6 +348,33 @@ export const BillSummarySidebar = ({
             </div>
           )}
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="bill-discount" className="text-xs text-gray-400">
+            Discount
+          </Label>
+          <Input
+            id="bill-discount"
+            type="number"
+            step="1"
+            value={formData.discount > 0 ? formData.discount : ""}
+            onChange={(e) =>
+              onInputChange("discount", (e.target as HTMLInputElement).value)
+            }
+            placeholder="0"
+            className="bg-gray-900 border-gray-600 text-white focus-visible:ring-1 focus-visible:ring-blue-500"
+          />
+        </div>
+
+        {/* Discount summary line */}
+        {Number(formData.discount) > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Discount</span>
+            <span className="text-red-400">
+              -{currency}
+              {Number(formData.discount).toFixed(2)}
+            </span>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Button
@@ -413,11 +416,11 @@ export const BillSummarySidebar = ({
           </Button>
         </div>
 
-        {selectedItems.length === 0 && (
+        {/* {selectedItems.length === 0 && (
           <p className="text-xs text-gray-400 text-center">
             Add items to create bill
           </p>
-        )}
+        )} */}
       </CardContent>
     </Card>
   );

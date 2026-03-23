@@ -308,16 +308,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     try {
       const phones = toPhones(prev?.customer?.phone);
       if (phones.length) {
-        const siteUrl = (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
+        const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
         const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(id))}` : "";
         const billNo = String(prev?.billNumber || id);
 
         const message =
-          `🧾 Your bill has been updated. Please review the changes.\n\n` +
-          `Bill: ${billNo}\n` +
-          `Total: ₹${Number(totals.grossTotal).toFixed(2)}\n` +
-          `Discount: ₹${Number(totals.discount).toFixed(2)}\n` +
-          `Net Payable: ₹${Number(totals.netPayable).toFixed(2)}\n\n` +
+          `Your bill has been updated. View the changes on our web page using the link below. \n\n` +
+          `Bill Id: ${billNo}\n` +
+          // `Total: ₹${Number(totals.grossTotal).toFixed(2)}\n` +
+          // `Discount: ₹${Number(totals.discount).toFixed(2)}\n` +
+          // `Paid: ₹${Number(paidAmount).toFixed(2)}\n` +
+          // `Balance: ₹${Number(nextBalance).toFixed(2)}\n\n` +
           (billLink ? `View bill:\n${billLink}` : "");
 
         await sendViaWaBotServer({ phones, message });

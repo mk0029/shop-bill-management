@@ -27,6 +27,11 @@ function mapBillToFormData(bill: any): {
   formData: Partial<BillFormData>;
   items: any[];
 } {
+  const existingPaid = Number(bill?.paidAmount || 0);
+  const existingPayStatus = String(bill?.paymentStatus || "").toLowerCase();
+  const isPaid = existingPayStatus === "paid";
+  const isPartial =
+    existingPayStatus === "partial" || (!isPaid && existingPaid > 0);
   const formData: Partial<BillFormData> = {
     customerId: bill?.customer?._id || bill?.customer?._ref || "",
     serviceType: String(bill?.serviceType || "sale"),
@@ -39,10 +44,9 @@ function mapBillToFormData(bill: any): {
     repairFee: Number(bill?.repairFee || 0),
     homeVisitFee: Number(bill?.homeVisitFee || 0),
     discount: Number(bill?.discount || 0),
-    isMarkAsPaid: String(bill?.paymentStatus || "").toLowerCase() === "paid",
-    enablePartialPayment:
-      String(bill?.paymentStatus || "").toLowerCase() === "partial",
-    partialPaymentAmount: 0,
+    isMarkAsPaid: isPaid,
+    enablePartialPayment: isPartial,
+    partialPaymentAmount: isPartial ? existingPaid : 0,
   };
 
   const selectedItems = Array.isArray(bill?.items)
