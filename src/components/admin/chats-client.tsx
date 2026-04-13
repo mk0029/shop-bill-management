@@ -49,7 +49,7 @@ export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
     resetChatState();
     subscribeRealtime();
     setInitializing(false);
-  }, [resetChatState, subscribeRealtime]);
+  }, [resetChatState]); // Remove subscribeRealtime from dependencies to prevent infinite loop
 
   useEffect(() => {
     let alive = true;
@@ -58,7 +58,7 @@ export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
       try {
         const roomId = await openRoomByCustomer(String(targetCustomerId));
         if (!alive) return;
-        await setActiveRoom(roomId);
+        await setActiveRoom(roomId, "admin");
       } catch {
         // ignore
       }
@@ -97,11 +97,22 @@ export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
         return;
       }
       try {
+        console.log("Fetching bills for customer:", activeCustomer.id);
         const res = await fetch(
           `/api/bill-book/user/${encodeURIComponent(activeCustomer.id)}/list`,
           { cache: "no-store" },
         );
+
+        if (!res.ok) {
+          console.error("Failed to fetch bills:", res.status, res.statusText);
+          if (!alive) return;
+          setBillStats({ count: 0, total: 0 });
+          return;
+        }
+
         const json = await res.json();
+        console.log("Bills response:", json);
+
         if (!alive) return;
         if (json.success && Array.isArray(json.data)) {
           const items = json.data as Array<{
@@ -121,11 +132,18 @@ export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
             return sum + Number(bill.balanceAmount ?? bill.totalAmount ?? 0);
           }, 0);
 
+          console.log("Calculated bill stats:", {
+            count: unpaidBills.length,
+            total: totalUnpaid,
+          });
           setBillStats({ count: unpaidBills.length, total: totalUnpaid });
         } else {
+          console.log("No bills data found:", json);
           setBillStats({ count: 0, total: 0 });
         }
-      } catch {
+      } catch (error) {
+        console.error("Error fetching bills:", error);
+        if (!alive) return;
         setBillStats({ count: 0, total: 0 });
       }
     })();
@@ -171,9 +189,27 @@ export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
                       {activeCustomer.name}
                     </div>
                     {billStats && (
-                      <div className="text-xs text-gray-400">
-                        {billStats.count} bills • ₹
+                      <button
+                        onClick={() => {
+                          // Open customer bills in new tab
+                          window.open(
+                            `/admin/customers/${activeCustomer.id}/bills`,
+                            "_blank",
+                          );
+                        }}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors text-left"
+                        title="Click to view all bills and receipts"
+                      >
+                        {billStats.count} unpaid bills • ₹
                         {Number(billStats.total).toLocaleString("en-IN")}
+                        <span className="ml-1 text-xs">
+                          (Click to view receipts)
+                        </span>
+                      </button>
+                    )}
+                    {!billStats && activeCustomer?.id && (
+                      <div className="text-xs text-gray-500">
+                        Loading bills...
                       </div>
                     )}
                   </div>
@@ -206,6 +242,30 @@ export default function AdminChatsClient({ adminId }: AdminChatsClientProps) {
             </div>
             {activeCustomer && (
               <div className="flex items-center gap-2">
+                <button
+                  className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+                  onClick={() => {
+                    // Refresh bill stats by forcing re-fetch
+                    setBillStats(null);
+                    // This will trigger the useEffect to re-run
+                  }}
+                  aria-label="Refresh bill stats"
+                  title="Refresh bill information"
+                >
+                  <svg
+                    className="w-5 h-5 text-gray-300"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
                 <button
                   className="p-2 hover:bg-gray-800 rounded-full transition-colors"
                   onClick={() => setInfoOpen(true)}

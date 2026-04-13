@@ -206,7 +206,7 @@ export default function MessageList({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       {groupedMessages.map((group, groupIndex) => (
         <div key={`group-${groupIndex}`}>
           <div className="sticky top-0 flex justify-center z-30 mb-2">

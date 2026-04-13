@@ -268,7 +268,7 @@ export function Navigation() {
         // Silently fail - rooms will be loaded when user visits chat page
       });
     }
-  }, [role, user, loadRooms]);
+  }, [role, user]); // Remove loadRooms from dependencies to prevent infinite loop
 
   // Auto-open Rooms overlay on mobile when on Chats and no room selected
   useEffect(() => {
@@ -581,7 +581,7 @@ export function Navigation() {
                   <RoomsTopBar
                     activeRoomId={activeRoomId || undefined}
                     onSelect={(rid) => {
-                      void setActiveRoom(rid);
+                      void setActiveRoom(rid, "admin");
                       // No URL navigation needed - WhatsApp style state-based routing
                     }}
                     adminId={
@@ -593,18 +593,20 @@ export function Navigation() {
               )}
             <div className="flex items-center gap-x-3">
               <NotificationsPopover />
-              {/* Mobile: open Rooms overlay when on Chats */}
-              {(role === "admin" || role === "super_admin") &&
-                isActive("/admin/chats") && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsRoomsOverlayOpen(true)}
-                    className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2"
-                  >
-                    <MessageSquare className="w-5 h-5" />
-                  </Button>
-                )}
+              {/* Mobile: open Rooms overlay when on any page for admin users */}
+              {(role === "admin" || role === "super_admin") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsRoomsOverlayOpen(true)}
+                  className=" xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2 relative"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  {unreadMessagesCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-orange-500 rounded-full"></span>
+                  )}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -625,17 +627,15 @@ export function Navigation() {
       </div>
       {/* Mobile Rooms Overlay (slides in from left) */}
       <AnimatePresence>
-        {isRoomsOverlayOpen && role === "admin" && isActive("/admin/chats") && (
+        {isRoomsOverlayOpen && (role === "admin" || role === "super_admin") && (
           <>
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 md:hidden"
-              onClick={() => {
-                if (activeRoomId) setIsRoomsOverlayOpen(false);
-              }}
+              className="fixed inset-0 bg-black/50 z-[9999] md:hidden"
+              onClick={() => setIsRoomsOverlayOpen(false)}
             />
             {/* Sliding panel from left */}
             <motion.div
@@ -643,7 +643,7 @@ export function Navigation() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 left-0 h-full w-[85vw] max-w-sm bg-gray-900 border-r border-gray-800 z-[60] md:hidden flex flex-col"
+              className="fixed top-0 left-0 h-full w-[85vw] max-w-sm bg-gray-900 border-r border-gray-800 z-[99999] md:hidden flex flex-col"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-800">
@@ -678,7 +678,7 @@ export function Navigation() {
                 <RoomsOverlayList
                   activeRoomId={activeRoomId || undefined}
                   onSelect={(rid) => {
-                    void setActiveRoom(rid);
+                    void setActiveRoom(rid, "admin");
                     setIsRoomsOverlayOpen(false);
                     // No URL navigation needed - WhatsApp style state-based routing
                   }}
@@ -699,7 +699,7 @@ export function Navigation() {
           onClose={() => setShowNewChatMobile(false)}
           onRoomOpen={(roomId) => {
             setShowNewChatMobile(false);
-            void setActiveRoom(roomId);
+            void setActiveRoom(roomId, "admin");
             setIsRoomsOverlayOpen(false);
             // No URL navigation needed - WhatsApp style state-based routing
           }}

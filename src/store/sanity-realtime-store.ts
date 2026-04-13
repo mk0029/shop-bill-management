@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
 import { handleRealtimeError } from "@/lib/handle-realtime-error";
-
+import { useAuthStore } from "@/store/auth-store";
 
 interface RealtimeState {
   subscription: any | null;
@@ -24,11 +24,44 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
     const { subscription } = get();
     if (subscription) return;
 
-    // Listen to all document types we care about
+    // Get current user role to determine what to listen to
+    const authState = useAuthStore.getState();
+    const { role, user } = authState;
+    const userId = (user as any)?.id || (user as any)?._id;
+    const customerId = (user as any)?.customerId;
+    
+    // Don't connect if role is not set or if customer but no IDs
+    if (!role || (role === "customer" && (!userId && !customerId))) {
+      console.warn("[SanityRealtimeStore] Cannot connect: insufficient auth info");
+      return;
+    }
+    
+    let query: string;
+    let params: any = {};
+    
+    if (role === "customer") {
+      // Customers only listen to their own bills and user updates
+      query = `*[_type in ["bill", "user"] && (
+        _type == "bill" && (
+          customer._ref == $userId || 
+          customer == $userId || 
+          customer._id == $userId ||
+          customer->customerId == $customerId ||
+          customerId == $customerId
+        ) ||
+        _type == "user" && _id == $userId
+      )]`;
+      params = { userId: userId || customerId, customerId };
+    } else {
+      // Admins listen to all document types
+      query = '*[_type in ["bill", "product", "stockTransaction", "user", "brand", "category", "payment", "supplier", "address", "branch", "specificationOption", "fieldDefinition"]]';
+    }
+
+    console.log("[SanityRealtimeStore] Connecting with role:", role, "query:", query);
+
+    // Listen to document types based on role
     const newSubscription = sanityClient
-      .listen(
-        '*[_type in ["bill", "product", "stockTransaction", "user", "brand", "category", "payment", "supplier", "address", "branch", "specificationOption", "fieldDefinition"]]'
-      )
+      .listen(query, params)
       .subscribe({
         next: (update) => {
           const { listeners } = get();

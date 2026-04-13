@@ -37,7 +37,7 @@ export default function BackgroundFeaturesGate() {
 
     return (
       <>
-        <NotificationsBridge />
+        {/* NotificationsBridge removed for customers - they don't need admin notifications */}
         <SWNotificationBridge />
         <AskForNotifications />
         <AutoNotifications />

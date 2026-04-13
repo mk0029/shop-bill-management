@@ -7,6 +7,19 @@ importScripts(
 );
 
 /* Simple PWA service worker with offline fallback */
+
+// Global error handler to catch unhandled promise rejections
+self.addEventListener("unhandledrejection", (event) => {
+  console.warn("Service Worker: Unhandled promise rejection:", event.reason);
+  event.preventDefault(); // Prevent the error from propagating
+});
+
+// Global error handler for other errors
+self.addEventListener("error", (event) => {
+  console.warn("Service Worker: Error:", event.error);
+  event.preventDefault(); // Prevent the error from propagating
+});
+
 const SW_VERSION = "v1-" + (self && Date.now());
 const STATIC_CACHE = `static-${SW_VERSION}`;
 const RUNTIME_CACHE = `runtime-${SW_VERSION}`;
@@ -133,26 +146,58 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
-        return fetch(request).then((response) => {
-          // Only cache successful same-origin HTTP(S) responses
-          if (
-            response &&
-            response.ok &&
-            (response.type === "basic" || response.type === "default")
-          ) {
-            const copy = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        });
+        return fetch(request)
+          .then((response) => {
+            // Only cache successful same-origin HTTP(S) responses
+            if (
+              response &&
+              response.ok &&
+              (response.type === "basic" || response.type === "default")
+            ) {
+              const copy = response.clone();
+              caches
+                .open(STATIC_CACHE)
+                .then((cache) => cache.put(request, copy));
+            }
+            return response;
+          })
+          .catch((error) => {
+            console.warn("Static asset fetch failed:", request.url, error);
+            // Return a basic error response for static assets
+            return new Response("Asset not available offline", {
+              status: 503,
+              statusText: "Service Unavailable",
+            });
+          });
       }),
     );
     return;
   }
 
-  // Default: try cache, then network
+  // Default: try cache, then network with proper error handling
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request)),
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+
+      // If not in cache, try network with error handling
+      return fetch(request).catch((error) => {
+        console.warn("Network request failed:", request.url, error);
+
+        // For navigation requests, return offline page or basic response
+        if (request.mode === "navigate") {
+          return new Response("Offline - Please check your connection", {
+            status: 503,
+            statusText: "Service Unavailable",
+          });
+        }
+
+        // For other requests, return appropriate error response
+        return new Response("Network request failed", {
+          status: 503,
+          statusText: "Service Unavailable",
+        });
+      });
+    }),
   );
 });
 

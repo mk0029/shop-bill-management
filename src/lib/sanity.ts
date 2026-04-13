@@ -37,15 +37,32 @@ export const urlFor = (source: SanityImageSource) => builder.image(source);
 
 // Real-time listener setup
 export const setupRealtimeListeners = (callback: (update: unknown) => void) => {
+  // Get current user role to determine what to listen to
+  const { role, user } = typeof window !== 'undefined' ? 
+    (window as any).__AUTH_STORE__?.getState() || { role: 'admin', user: null } : 
+    { role: 'admin', user: null };
+  
+  const userId = (user as any)?.id || (user as any)?._id;
+  const customerId = (user as any)?.customerId;
+  
+  let query: string;
+  let params: any = {};
+  
+  if (role === "customer") {
+    // Customers only listen to their own bills and user updates
+    query = '*[_type in ["bill", "user"]]';
+    // Note: We can't filter by customer here since this is a generic listener
+    // The filtering should be done in the callback
+  } else {
+    // Admins listen to all document types
+    query = '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category", "chatRoom", "chatMessage"]]';
+  }
+  
   const subscription = sanityClient
-    .listen(
-      '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category", "chatRoom", "chatMessage"]]',
-      {},
-      {
-        includeResult: true,
-        visibility: 'query'
-      }
-    )
+    .listen(query, params, {
+      includeResult: true,
+      visibility: 'query'
+    })
     .subscribe((update) => {
       // For chatMessage updates, ensure we have the sender name populated
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

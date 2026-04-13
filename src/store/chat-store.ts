@@ -30,10 +30,11 @@ interface ChatState {
   isLoading: boolean;
   error: string | null;
   totalUnreadForAdmins: number;
+  _roomRefreshTimeout: NodeJS.Timeout | null;
 
   loadRooms: (opts?: { customerId?: string; adminId?: string }) => Promise<void>;
   openRoomByCustomer: (customerId: string) => Promise<string>; // returns roomId
-  setActiveRoom: (roomId: string) => Promise<void>;
+  setActiveRoom: (roomId: string, actor?: "admin" | "customer") => Promise<void>;
   clearActiveRoom: () => void;
   resetChatState: () => void;
   fetchMessages: (roomId: string) => Promise<void>;
@@ -70,8 +71,12 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   error: null,
   totalUnreadForAdmins: 0,
   _subscription: null,
+  _roomRefreshTimeout: null,
 
   loadRooms: async (opts) => {
+    const state = get();
+    if (state.isLoading) return; // Guard against repeated calls
+    
     set({ isLoading: true, error: null });
     try {
       // Load cached rooms first for instant UI
@@ -223,10 +228,10 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
     return room._id;
   },
 
-  setActiveRoom: async (roomId) => {
+  setActiveRoom: async (roomId, actor = "admin") => {
     set({ activeRoomId: roomId });
-    // mark read for admin by default when viewing
-    try { await get().markRead(roomId, "admin"); } catch {}
+    // mark read for the appropriate actor
+    try { await get().markRead(roomId, actor); } catch {}
     await get().fetchMessages(roomId);
   },
 
@@ -235,9 +240,15 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
   },
 
   resetChatState: () => {
+    const state = get();
+    // Clear any pending room refresh timeout
+    if (state._roomRefreshTimeout) {
+      clearTimeout(state._roomRefreshTimeout);
+    }
     set({ 
       activeRoomId: null,
-      error: null
+      error: null,
+      _roomRefreshTimeout: null
     });
   },
 
@@ -412,8 +423,19 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       const docType = u?.result?._type || u?.documentId?.split(".")[0];
       if (!docType) return;
       if (docType === 'chatRoom') {
-        // refresh rooms list on changes
-        get().loadRooms().catch(() => {});
+        // Only refresh rooms if it's a major update (not just message updates)
+        const update = u?.result as any;
+        if (update && (update.customer || update.lastMessageAt || update.updatedAt)) {
+          // Debounce room refreshes to avoid flickering
+          const state = get();
+          if (!state._roomRefreshTimeout) {
+            const timeoutId = setTimeout(() => {
+              get().loadRooms().catch(() => {});
+              set({ _roomRefreshTimeout: null });
+            }, 500);
+            set({ _roomRefreshTimeout: timeoutId });
+          }
+        }
       } else if (docType === 'chatMessage') {
         const msg = u?.result as ChatMessage | undefined;
         const roomRef = (msg?.room as { _ref?: string } | string | undefined && (typeof msg?.room === 'string' ? msg?.room : (msg?.room as { _ref?: string })?._ref));

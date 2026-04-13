@@ -29,8 +29,10 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
   // Use custom hooks
   const { messages, bills, rooms } = useChatData(roomId, senderId, actor);
-  const { showScrollButton, scrollToBottom, bottomRef } =
-    useScrollToBottom(listRef);
+  const { showScrollButton, scrollToBottom, bottomRef } = useScrollToBottom(
+    listRef,
+    messages,
+  );
   const { registerMessageRef } = useMessageSeen(roomId, senderId, messages);
   const {
     attachments,
@@ -106,6 +108,12 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
     if (currentEditing) {
       await editMessage(roomId, currentEditing, content);
+
+      // Auto-scroll to bottom after edit
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+
       // Re-focus after edit
       setTimeout(() => {
         const editInput = document.getElementById(
@@ -186,6 +194,11 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
         senderId,
         ...(currentReply && { parentId: currentReply._id }),
       });
+
+      // Auto-scroll to bottom after successful send
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
 
       // Ensure input is focused after successful send
       setTimeout(() => {

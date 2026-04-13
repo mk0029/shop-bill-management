@@ -648,12 +648,34 @@ export const useDataStore = create<DataStore>((set, get) => ({
   setupRealtimeListeners: () => {
     const { realtimeSubscription } = get();
     if (realtimeSubscription) return; // Already connected
+    
+    // Get current user role to determine what to listen to
+    const { role, user } = useAuthStore.getState();
+    const userId = (user as any)?.id || (user as any)?._id;
+    const customerId = (user as any)?.customerId;
+    
+    let query: string;
+    if (role === "customer") {
+      // Customers only need to listen to their own bills and user updates
+      query = `*[_type in ["bill", "user"] && (
+        _type == "bill" && (
+          customer._ref == $userId || 
+          customer == $userId || 
+          customer._id == $userId ||
+          customer->customerId == $customerId ||
+          customerId == $customerId
+        ) ||
+        _type == "user" && _id == $userId
+      )]`;
+    } else {
+      // Admins listen to all relevant document types
+      query = '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage", "chatRoom", "chatMessage"]]';
+    }
+    
+    const params = role === "customer" ? { userId, customerId } : {};
+    
     const subscription = sanityClient
-      .listen(
-        '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage", "chatRoom", "chatMessage"]]',
-        {},
-        { includeResult: true, visibility: "query" }
-      )
+      .listen(query, params, { includeResult: true, visibility: "query" })
       .subscribe({
         next: (update) => {
           set({ isRealtimeConnected: true });

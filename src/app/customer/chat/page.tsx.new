@@ -43,7 +43,7 @@ export default function CustomerChatPage() {
         setActiveRoom(activeRoomId).catch(() => {});
       }
     };
-  }, [hydrated, role, customerId, subscribeRealtime, openRoomByCustomer, setActiveRoom, activeRoomId]);
+  }, [hydrated, role, customerId, openRoomByCustomer, setActiveRoom, activeRoomId]); // Remove subscribeRealtime from dependencies to prevent infinite loop
 
   if (!hydrated || initializing) {
     return <div className="p-6">Loading chat…</div>;

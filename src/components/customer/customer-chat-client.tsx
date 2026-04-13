@@ -45,12 +45,12 @@ export default function CustomerChatClient({
         if (storeRooms?.length) {
           const firstRoom = storeRooms[0]?._id;
           if (firstRoom) {
-            await setActiveRoom(firstRoom);
+            await setActiveRoom(firstRoom, "customer");
             return;
           }
         }
         const roomId = await openRoomByCustomer(String(customerId));
-        await setActiveRoom(roomId);
+        await setActiveRoom(roomId, "customer");
       } finally {
         setInitializing(false);
       }
@@ -58,18 +58,17 @@ export default function CustomerChatClient({
 
     return () => {
       if (activeRoomId) {
-        setActiveRoom(activeRoomId).catch(() => {});
+        setActiveRoom(activeRoomId, "customer").catch(() => {});
       }
     };
   }, [
     storeRooms,
     customerId,
-    subscribeRealtime,
     openRoomByCustomer,
     setActiveRoom,
     resetChatState,
     activeRoomId,
-  ]);
+  ]); // Remove subscribeRealtime from dependencies to prevent infinite loop
 
   if (initializing) {
     return (

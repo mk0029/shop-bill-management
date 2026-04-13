@@ -12,6 +12,16 @@ export default function NotificationsBridge() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+
+    // Only connect for admins - customers don't need these notifications
+    const auth = useAuthStore.getState();
+    if (auth.role !== "admin") {
+      console.log(
+        "[NotificationsBridge] Skipping connection for non-admin user",
+      );
+      return;
+    }
+
     connect();
 
     // Helper function to check if user should receive notification

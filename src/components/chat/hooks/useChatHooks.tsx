@@ -39,7 +39,7 @@ export function useChatData(
         markRead(roomId, actor);
       })
       .catch(() => {});
-  }, [roomId, fetchMessages, markRead, actor]);
+  }, [roomId, actor]); // Remove fetchMessages and markRead from dependencies
 
   useEffect(() => {
     let alive = true;
@@ -105,9 +105,13 @@ export function useChatData(
   return { messages, bills, customerId, rooms };
 }
 
-export function useScrollToBottom(listRef: React.RefObject<HTMLDivElement>) {
+export function useScrollToBottom(
+  listRef: React.RefObject<HTMLDivElement>,
+  messages?: ChatMessage[],
+) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const prevMessagesLength = useRef(0);
 
   useEffect(() => {
     const scrollContainer = listRef.current;
@@ -132,6 +136,33 @@ export function useScrollToBottom(listRef: React.RefObject<HTMLDivElement>) {
     }
   }, [listRef]);
 
+  // Auto-scroll to bottom when messages change (new message received)
+  useEffect(() => {
+    if (!messages) return;
+
+    const currentLength = messages.length;
+    const previousLength = prevMessagesLength.current;
+
+    // Only auto-scroll if new messages were added (not removed)
+    if (currentLength > previousLength) {
+      // Check if user is near bottom before auto-scrolling
+      if (listRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = listRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+
+        if (isNearBottom) {
+          // User is near bottom, auto-scroll to new message
+          setTimeout(() => {
+            scrollToBottom();
+          }, 100);
+        }
+      }
+    }
+
+    prevMessagesLength.current = currentLength;
+  }, [messages, scrollToBottom]);
+
+  // Initial scroll to bottom when component mounts
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;

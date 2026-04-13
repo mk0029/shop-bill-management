@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   distDir: ".next",
   turbopack: {},
   images: {
+    qualities: [75, 100],
+
     remotePatterns: [
       {
         protocol: 'http',

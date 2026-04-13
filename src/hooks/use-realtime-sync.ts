@@ -55,6 +55,12 @@ const DEFAULT_DOCUMENT_TYPES: ReadonlyArray<string> = [
   "category",
 ] as const;
 
+// Customer-specific document types - only what they need access to
+const CUSTOMER_DOCUMENT_TYPES: ReadonlyArray<string> = [
+  "bill",
+  "user",
+] as const;
+
 export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
   const {
     enableNotifications = true,
@@ -73,10 +79,15 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
     if (Array.isArray(documentTypes) && documentTypes.length > 0) {
       return documentTypes;
     }
-    return DEFAULT_DOCUMENT_TYPES;
+    
+    // Use role-based document types
+    const { role } = useAuthStore.getState();
+    return role === "customer" ? CUSTOMER_DOCUMENT_TYPES : DEFAULT_DOCUMENT_TYPES;
   }, [
     // Depend on a stable signature of the provided array (if any)
     Array.isArray(documentTypes) ? documentTypes.join("|") : "__default__",
+    // Also depend on role to switch between customer and admin types
+    useAuthStore.getState().role,
   ]);
 
   // Handle real-time updates
@@ -336,33 +347,71 @@ export const useRealtimeSync = (options: UseRealtimeSyncOptions = {}) => {
       return;
     } catch {
       // Fallback: create a local listener (should be rare). This keeps previous behavior.
-      const query = `*[_type in [${effectiveDocumentTypes
-        .map((type) => `"${type}"`)
-        .join(", ")}]] {
-        ...,
-        _type == "product" => {
+      const { role: currentRole, user: currentUser } = useAuthStore.getState();
+      const currentUserId = (currentUser as any)?.id || (currentUser as any)?._id;
+      const currentCustomerId = (currentUser as any)?.customerId;
+      
+      let query: string;
+      let params: any = {};
+      
+      if (currentRole === "customer") {
+        // Customer-specific query with filters
+        query = `*[_type in [${effectiveDocumentTypes
+          .map((type) => `"${type}"`)
+          .join(", ")}] && (
+          _type == "bill" && (
+            customer._ref == $userId || 
+            customer == $userId || 
+            customer._id == $userId ||
+            customer->customerId == $customerId ||
+            customerId == $customerId
+          ) ||
+          _type == "user" && _id == $userId
+        )] {
           ...,
-          brand->{
-            _id,
-            name,
-            slug,
-            logo,
-            description,
-            isActive
-          },
-          category->{
-            _id,
-            name,
-            slug,
-            description,
-            icon,
-            isActive
+          _type == "bill" => {
+            ...,
+            customer->{
+              _id,
+              name,
+              phone,
+              email,
+              customerId,
+              role
+            }
           }
-        }
-      }`;
+        }`;
+        params = { userId: currentUserId, customerId: currentCustomerId };
+      } else {
+        // Admin query with all data
+        query = `*[_type in [${effectiveDocumentTypes
+          .map((type) => `"${type}"`)
+          .join(", ")}]] {
+          ...,
+          _type == "product" => {
+            ...,
+            brand->{
+              _id,
+              name,
+              slug,
+              logo,
+              description,
+              isActive
+            },
+            category->{
+              _id,
+              name,
+              slug,
+              description,
+              icon,
+              isActive
+            }
+          }
+        }`;
+      }
 
       subscriptionRef.current = sanityClient
-        .listen(query, {}, { includeResult: true })
+        .listen(query, params, { includeResult: true })
         .subscribe({
           next: (update) => {
             handleRealtimeUpdate(update as unknown as RealtimeUpdate);

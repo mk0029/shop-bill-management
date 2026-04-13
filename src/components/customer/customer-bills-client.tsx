@@ -61,8 +61,11 @@ export default function CustomerBillsClient() {
   }, []);
 
   return (
-    <div data-dashboard-loaded="true" className="space-y-6 max-md:space-y-4">
-      <div className="flex items-center justify-between mb-6">
+    <div
+      data-dashboard-loaded="true"
+      className="space-y-6 max-sm:space-y-3 max-md:space-y-4"
+    >
+      <div className="flex items-center justify-between mb-6 max-sm:hidden">
         <div>
           <h2 className="text-2xl font-bold text-white">Your Bills</h2>
           <p className="text-gray-400">
@@ -101,7 +104,7 @@ export default function CustomerBillsClient() {
                 : "No bills found"}
             </div>
           ) : (
-            <div className="divide-y divide-gray-800">
+            <div className="divide-y divide-gray-800 space-y-1 sm:space-y-2 px-1">
               {filteredBills.map((bill) => (
                 <BillItem
                   key={bill._id}
