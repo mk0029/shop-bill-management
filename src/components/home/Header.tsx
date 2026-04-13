@@ -43,7 +43,7 @@ export default function Header() {
           <div className="">
             {" "}
             <Image
-              quality="120"
+              quality="100"
               src="/je-p-48.png"
               width={48}
               height={48}

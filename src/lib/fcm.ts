@@ -33,7 +33,6 @@ export async function autoRegisterFcmToken(userId: string) {
   } catch {}
 
   try {
-    console.log('[FCM] Auto-register start for user', userId);
     const token = await getFcmToken();
     if (!token) {
       console.warn('[FCM] No token from Firebase');
@@ -62,10 +61,8 @@ export async function autoRegisterFcmToken(userId: string) {
       localStorage.removeItem(PENDING_TOKEN_KEY(userId));
       localStorage.setItem(REGISTERED_KEY(userId), JSON.stringify({ token, deviceId, ts: Date.now() }));
     } catch {}
-    console.log('[FCM] Auto-register success', { token, deviceId });
     return { success: true, token, deviceId };
   } catch (e) {
-    console.error('[FCM] Auto-register exception', e);
     return { success: false, error: e instanceof Error ? e.message : String(e) };
   } finally {
     // Clear the registering flag
@@ -101,7 +98,6 @@ export async function retryPendingFcmToken(userId: string) {
       localStorage.removeItem(PENDING_TOKEN_KEY(userId));
       localStorage.setItem(REGISTERED_KEY(userId), JSON.stringify({ token: pending.token, deviceId: pending.deviceId, ts: Date.now() }));
     } catch {}
-    console.log('[FCM] Retry success', { token: pending.token, deviceId: pending.deviceId });
     return { success: true, token: pending.token, deviceId: pending.deviceId };
   } catch (e) {
     console.error('[FCM] Retry exception', e);
