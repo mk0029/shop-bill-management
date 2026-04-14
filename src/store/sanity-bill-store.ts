@@ -28,6 +28,7 @@ export interface Bill {
   completionDate?: string;
   technician?: string;
   homeVisitFee: number;
+  dueDate: any;
   // Primary field in DB
   repairFee: number;
   // Optional legacy alias for older documents

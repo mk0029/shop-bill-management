@@ -98,6 +98,7 @@ interface Bill {
   serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom";
   locationType: "shop" | "home" | "office";
   serviceDate: string;
+  dueDate: string;
   homeVisitFee: number;
   transportationFee?: number;
   repairFee?: number;

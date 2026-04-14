@@ -23,6 +23,7 @@ export default function CustomerBillsClient() {
   const [selectedBill, setSelectedBill] = useState<Record<string, any> | null>(
     null,
   );
+  const [filterOverdue, setFilterOverdue] = useState(false);
 
   const { bills: customerBills, isLoading } = useBills();
 
@@ -43,11 +44,22 @@ export default function CustomerBillsClient() {
         : false;
       const matchesSearch = numberMatch || itemsMatch;
 
-      const statusValue = (
+      let statusValue = (
         (bill.paymentStatus as string) ||
         (bill.status as string) ||
         ""
       ).toLowerCase();
+
+      // Calculate overdue status based on due date and payment status
+      const isOverdue =
+        bill.dueDate &&
+        new Date(bill.dueDate) < new Date() &&
+        statusValue !== "paid";
+
+      if (isOverdue) {
+        statusValue = "overdue";
+      }
+
       const matchesStatus =
         selectedStatuses.length === 0 || selectedStatuses.includes(statusValue);
 
@@ -74,7 +86,7 @@ export default function CustomerBillsClient() {
         </div>
       </div>
 
-      <ResponsiveAccordion title="Bill Stats">
+      <ResponsiveAccordion title="Bill's Info">
         <CustomerBillStats bills={customerBills} />
       </ResponsiveAccordion>
 
