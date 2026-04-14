@@ -236,11 +236,25 @@ export function BillingBrowser({
       : bills;
   const initialForList =
     selectedStatuses.length > 0
-      ? baseBills.filter(
-          (b: any) =>
-            selectedStatuses.includes(b.paymentStatus) ||
-            selectedStatuses.includes(b.status),
-        )
+      ? baseBills.filter((b: any) => {
+          let statusValue = (
+            (b.paymentStatus as string) ||
+            (b.status as string) ||
+            ""
+          ).toLowerCase();
+
+          // Calculate overdue status based on due date and payment status
+          const isOverdue =
+            b.dueDate &&
+            new Date(b.dueDate) < new Date() &&
+            statusValue !== "paid";
+
+          if (isOverdue) {
+            statusValue = "overdue";
+          }
+
+          return selectedStatuses.includes(statusValue);
+        })
       : baseBills;
   const filterOptionsAll = [
     { value: "all", label: "All Bills" },
