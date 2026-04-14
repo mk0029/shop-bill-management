@@ -25,15 +25,23 @@ export async function autoRegisterFcmToken(userId: string) {
     if (registering) {
       const ts = parseInt(registering, 10);
       // If another registration started within the last 10 seconds, skip
-      if (Date.now() - ts < 10000) {
-        return { success: false, skipped: true, reason: 'already-registering' };
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const delay = Math.pow(2, attempt) * 100; // Exponential backoff
+        await timeout(delay);
+        if (Date.now() - ts < 10000) {
+          return { success: false, skipped: true, reason: 'already-registering' };
+        }
       }
     }
     localStorage.setItem(registeringKey, String(Date.now()));
   } catch {}
 
   try {
-    const token = await getFcmToken();
+    const token = await getCachedRegisteredToken(userId) || await getFcmToken().catch((e) => { console.error('[FCM] Token retrieval failed', e); return null; });
+if (!token) {
+    console.warn('[FCM] No token from Firebase');
+    return { success: false, skipped: true, reason: 'no-token' };
+}
     if (!token) {
       console.warn('[FCM] No token from Firebase');
       return { success: false, skipped: true, reason: 'no-token' };
@@ -215,3 +223,7 @@ export async function setDeviceNotificationsPaused(paused: boolean): Promise<voi
 export async function listenForegroundMessages(handler: (payload: MessagePayload) => void) {
   return onForegroundMessage(handler);
 }
+function timeout(delay: number) {
+  throw new Error("Function not implemented.")
+}
+

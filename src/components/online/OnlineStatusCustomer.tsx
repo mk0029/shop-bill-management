@@ -4,6 +4,7 @@ import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, DoorOpen, Power } from "lucide-react";
+import { formatDate } from "@/constants/defaults";
 
 interface OnlineStatusDoc {
   _id: string;
@@ -152,11 +153,11 @@ export default function OnlineStatusCustomerButton() {
                     Note: <span className="text-gray-200">{state.note}</span>
                   </div>
                 )}
-                {state.updatedAt && (
-                  <div className="text-xs text-gray-400">
-                    Updated: {new Date(state.updatedAt).toLocaleString()}
-                  </div>
-                )}
+               {state.updatedAt && (
+  <div className="text-xs text-white">
+    Updated: {formatDate(new Date(state.updatedAt))}
+  </div>
+)}
               </div>
             )}
            

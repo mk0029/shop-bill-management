@@ -1,5 +1,10 @@
 export const TAX_RATE = 0;
-  export const sanitizeUserText = (text: string): string => {
+  export const formatDate = (date: Date): string => {
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+};
+
+export const sanitizeUserText = (text: string): string => {
     try {
       let s = text ?? "";
       // Remove content within (), {}, []
