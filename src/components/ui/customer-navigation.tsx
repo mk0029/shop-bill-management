@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  PackageCheck,
   Settings as SettingsIcon,
   User,
   Wrench,
@@ -49,6 +50,11 @@ const customerNavigation: NavigationItem[] = [
     label: "Chat",
     icon: MessageSquare,
     href: "/customer/chat",
+  },
+  {
+    label: "Rented Items",
+    href: "/customer/rented-items",
+    icon: PackageCheck,
   },
   {
     label: "Estimate fitting cos",

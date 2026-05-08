@@ -22,6 +22,7 @@ import {
   Users,
   X,
   DollarSign,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -99,6 +100,11 @@ const adminNavigation: NavigationItem[] = [
     // ],
   },
   {
+    label: "Rent Tools",
+    href: "/admin/rent-tools",
+    icon: Wrench,
+  },
+  {
     label: "Other",
     href: "/admin/inventory",
     icon: Package,
@@ -113,6 +119,11 @@ const adminNavigation: NavigationItem[] = [
         label: "Fitting Items List",
         href: "/admin/tools/fitting-items",
         icon: Settings,
+      },
+      {
+        label: "Tools List Settings",
+        href: "/admin/settings/toolslist",
+        icon: Wrench,
       },
       { label: "Settings", href: "/admin/settings", icon: Settings },
       {

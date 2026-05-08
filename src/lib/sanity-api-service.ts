@@ -1,5 +1,6 @@
 import { sanityClient } from "./sanity";
 import { strapiService } from "./strapi-service";
+import { toolRentalService } from "./tool-rental-service";
 // Note: Do NOT statically import server-only modules here, this file is used by client code too.
 import { getCookie } from "@/lib/cookies";
 
@@ -1814,4 +1815,5 @@ export const sanityApiService = {
   suppliers: supplierApiService,
   online: onlineApiService,
   cashBook: cashBookApiService,
+  toolRentals: toolRentalService,
 };

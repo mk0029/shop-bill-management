@@ -28,6 +28,23 @@ export default function SettingsPage() {
         {/* Keep header minimal on mobile */}
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a
+          href="/admin/settings/toolslist"
+          className="rounded-lg border border-gray-800 bg-gray-900/70 p-4 text-white hover:bg-gray-800/70 transition-colors"
+        >
+          <p className="font-semibold">Tool List Settings</p>
+          <p className="text-sm text-gray-400 mt-1">Manage rentable tools, prices, and availability</p>
+        </a>
+        <a
+          href="/admin/rent-tools"
+          className="rounded-lg border border-gray-800 bg-gray-900/70 p-4 text-white hover:bg-gray-800/70 transition-colors"
+        >
+          <p className="font-semibold">Rent Tools</p>
+          <p className="text-sm text-gray-400 mt-1">Create rentals, track overdue, returns, and payments</p>
+        </a>
+      </div>
+
       {/* Sections: mobile-first stacked, enhance to two columns on large screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Left column */}
