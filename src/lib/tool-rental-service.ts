@@ -384,6 +384,58 @@ export const toolRentalService = {
     return sanityClient.patch(rentalId).set({ ...patch, updatedAt: new Date().toISOString() }).commit();
   },
 
+  async updateRentalDuration(rentalId: string, input: { durationType: DurationType; durationValue: number }) {
+    if (!input.durationType || !["hour", "day"].includes(input.durationType)) {
+      throw new Error("Invalid duration type");
+    }
+    if (!Number.isFinite(input.durationValue) || input.durationValue <= 0) {
+      throw new Error("Duration must be greater than 0");
+    }
+
+    const rental = await sanityClient.fetch<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
+    if (!rental) throw new Error("Rental not found");
+    if (rental.rentalStatus === "returned") throw new Error("Returned rental cannot be edited");
+
+    const tool = await sanityClient.fetch<ToolItem>(`*[_type == "tool" && _id == $id][0]`, { id: rental.toolId });
+    if (!tool) throw new Error("Tool not found");
+
+    const rentAmount = calculateRentAmount(tool, input.durationType, input.durationValue);
+    const expectedReturnTime = calculateExpectedReturnTime(rental.rentStartTime, input.durationType, input.durationValue);
+    const depositAmount = Number(rental.depositAmount || 0);
+    const totalAmount = rentAmount + depositAmount;
+    const paidAmount = Number(rental.paidAmount || 0);
+    if (paidAmount > totalAmount) throw new Error("Paid amount exceeds updated total amount");
+    const paymentStatus: PaymentStatus = paidAmount <= 0 ? "unpaid" : paidAmount >= totalAmount ? "paid" : "partial";
+
+    const updated = await sanityClient
+      .patch(rentalId)
+      .set({
+        durationType: input.durationType,
+        durationValue: input.durationValue,
+        expectedReturnTime,
+        rentAmount,
+        totalAmount,
+        currentTotalAmount: totalAmount,
+        extraChargeAmount: 0,
+        rentalStatus: "active",
+        paymentStatus,
+        isPaid: paymentStatus === "paid",
+        overdueReminderCount: 0,
+        lastReminderSentAt: null,
+        lastOverdueUnitNotified: 0,
+        updatedAt: new Date().toISOString(),
+      })
+      .commit();
+
+    notifyAdmins({
+      title: "Rental duration updated",
+      body: `${rental.customerName} rental for ${rental.toolName} updated to ${input.durationValue} ${input.durationType}`,
+      data: { route_path: "/admin/rent-tools" },
+    });
+
+    return updated;
+  },
+
   async markToolReturned(rental: ToolRental, tool: ToolItem, paidAmount?: number) {
     if (rental.rentalStatus === "returned") throw new Error("Tool already returned");
 
@@ -522,6 +574,33 @@ export const toolRentalService = {
     }
     return updated;
   },
+
+  async deleteToolRental(rentalId: string) {
+    const rental = await sanityClient.fetch<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
+    if (!rental) throw new Error("Rental not found");
+
+    const tool = await sanityClient.fetch<ToolItem>(`*[_type == "tool" && _id == $id][0]`, { id: rental.toolId });
+
+    const tx = sanityClient.transaction();
+    if (tool && rental.rentalStatus !== "returned" && rental.rentalStatus !== "cancelled") {
+      tx.patch(tool._id, {
+        set: {
+          availableQuantity: Math.min(Number(tool.totalQuantity || 0), Number(tool.availableQuantity || 0) + 1),
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    }
+    tx.delete(rentalId);
+    await tx.commit();
+
+    notifyAdmins({
+      title: "Rental deleted",
+      body: `${rental.customerName} - ${rental.toolName} rental was deleted`,
+      data: { route_path: "/admin/rent-tools" },
+    });
+
+    return { success: true };
+  },
 };
 
 export function listenTools(onUpdate: () => void) {
@@ -543,3 +622,6 @@ export const markToolReturned = (rental: ToolRental, tool: ToolItem, paidAmount?
 export const markRentalPaid = (rentalId: string, currentTotalAmount: number, paidAmount: number) => toolRentalService.markRentalPaid(rentalId, currentTotalAmount, paidAmount);
 export const getActiveRentals = () => toolRentalService.getActiveRentals();
 export const getOverdueRentals = () => toolRentalService.getOverdueRentals();
+export const updateRentalDuration = (rentalId: string, input: { durationType: DurationType; durationValue: number }) =>
+  toolRentalService.updateRentalDuration(rentalId, input);
+export const deleteToolRental = (rentalId: string) => toolRentalService.deleteToolRental(rentalId);

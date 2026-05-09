@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   calculateOverdueExtraCharge,
+  type DurationType,
   listenToolRentals,
   listenTools,
   toolRentalService,
@@ -22,6 +24,7 @@ import {
   AlertCircle,
   XCircle,
   MessageSquare,
+  Trash2,
 } from "lucide-react";
 
 function formatINR(value: number) {
@@ -117,6 +120,11 @@ export default function AdminRentToolsClient() {
   const [returnTarget, setReturnTarget] = useState<ToolRental | null>(null);
   const [payTarget, setPayTarget] = useState<ToolRental | null>(null);
   const [payInput, setPayInput] = useState(0);
+  const [editTarget, setEditTarget] = useState<ToolRental | null>(null);
+  const [editDurationType, setEditDurationType] = useState<DurationType>("hour");
+  const [editDurationValue, setEditDurationValue] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<ToolRental | null>(null);
+  const [deletingRentalId, setDeletingRentalId] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -190,6 +198,40 @@ export default function AdminRentToolsClient() {
     }
   };
 
+  const confirmEditDuration = async () => {
+    if (!editTarget) return;
+    try {
+      await toolRentalService.updateRentalDuration(editTarget._id, {
+        durationType: editDurationType,
+        durationValue: editDurationValue,
+      });
+      toast.success("Rental duration updated");
+      setEditTarget(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update rental duration");
+    }
+  };
+
+  const confirmDeleteRental = async () => {
+    if (!deleteTarget) return;
+    const targetId = deleteTarget._id;
+    const previousRentals = rentals;
+    try {
+      setDeletingRentalId(targetId);
+      setRentals((prev) => prev.filter((r) => r._id !== targetId));
+      await toolRentalService.deleteToolRental(targetId);
+      toast.success("Rental deleted successfully");
+      setDeleteTarget(null);
+      setEditTarget(null);
+    } catch (e) {
+      setRentals(previousRentals);
+      toast.error(e instanceof Error ? e.message : "Failed to delete rental");
+    } finally {
+      setDeletingRentalId(null);
+    }
+  };
+
   const onReminder = async (r: ToolRental) => {
     try {
       if (!r.customerPhone) return toast.error("Customer phone missing");
@@ -235,6 +277,7 @@ export default function AdminRentToolsClient() {
           <p className="text-gray-400">No rentals found.</p>
         ) : (
           <div className="space-y-2">
+            <AnimatePresence initial={false}>
             {filteredRentals.map((r) => {
               const baseTotal = Number(r.totalAmount || 0);
               const overdue =
@@ -263,8 +306,13 @@ export default function AdminRentToolsClient() {
                     : "bg-gray-800 text-gray-300";
 
               return (
-                <div
+                <motion.div
                   key={r._id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: deletingRentalId === r._id ? 0.4 : 1, y: 0 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0, scale: 0.98 }}
+                  transition={{ duration: 0.22 }}
                   className="border border-gray-800 rounded-lg p-3 sm:p-4 bg-gray-950/60 space-y-3 sm:space-y-4 hover:border-gray-700 transition-colors"
                 >
                   {/* Status Bar */}
@@ -355,6 +403,18 @@ export default function AdminRentToolsClient() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => {
+                          setEditTarget(r);
+                          setEditDurationType(r.durationType);
+                          setEditDurationValue(r.durationValue);
+                        }}
+                        className="flex items-center gap-1 bg-violet-700 hover:bg-violet-600 text-white rounded px-2 py-1 text-xs transition-colors"
+                      >
+                        <Calendar className="w-3 h-3" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
                         disabled={alreadyPaid}
                         onClick={() => {
                           if (alreadyPaid) return;
@@ -387,9 +447,21 @@ export default function AdminRentToolsClient() {
                       </button>
                     </div>
                   )}
-                </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      disabled={deletingRentalId === r._id}
+                      onClick={() => setDeleteTarget(r)}
+                      className={`flex items-center gap-1 text-white rounded px-2 py-1 text-xs transition-colors ${deletingRentalId === r._id ? "bg-red-900/50 cursor-not-allowed opacity-60" : "bg-red-800/80 hover:bg-red-700"}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete
+                    </button>
+                  </div>
+                </motion.div>
               );
             })}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -436,6 +508,65 @@ export default function AdminRentToolsClient() {
             />
           </div>
         }
+      />
+
+      <ConfirmationModal
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onConfirm={confirmEditDuration}
+        type="confirm"
+        title="Edit Rental Duration"
+        message={editTarget ? `Update rental duration for ${editTarget.toolName}` : ""}
+        confirmText="Update Duration"
+        content={
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-gray-400">Duration Type</label>
+              <select
+                className="mt-1 w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white"
+                value={editDurationType}
+                onChange={(e) => setEditDurationType(e.target.value as DurationType)}
+              >
+                <option value="hour">Hour</option>
+                <option value="day">Day</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400">Duration Value</label>
+              <input
+                type="number"
+                min={1}
+                value={editDurationValue}
+                onChange={(e) => setEditDurationValue(Number(e.target.value || 1))}
+                className="mt-1 w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white"
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              This will reset overdue reminders and update expected return time from original rent start.
+            </p>
+            <button
+              type="button"
+              onClick={() => editTarget && setDeleteTarget(editTarget)}
+              className="w-full mt-1 bg-red-800/80 hover:bg-red-700 text-white rounded px-3 py-2 text-sm"
+            >
+              Delete This Rental
+            </button>
+          </div>
+        }
+      />
+
+      <ConfirmationModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteRental}
+        type="confirm"
+        title="Delete Rental"
+        message={
+          deleteTarget
+            ? `Delete rental for ${deleteTarget.customerName} - ${deleteTarget.toolName}? This action cannot be undone.`
+            : ""
+        }
+        confirmText="Delete Rental"
       />
     </div>
   );
