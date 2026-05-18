@@ -4,6 +4,9 @@
     "paths": {
       "@/*": [
         "src/*"
+      ],
+      "@landing/*": [
+        "landing-page/*"
       ]
     },
     "target": "ES2017",

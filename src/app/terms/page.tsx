@@ -1,130 +1,23 @@
-export const metadata = {
-  title: "Terms & Conditions",
-  description: "Terms and Policies for Jambh Electrics",
-};
+﻿import { Metadata } from "next";
+import { LandingShell } from "@landing/components/layout/landing-shell";
+
+export const metadata: Metadata = { title: "Terms & Conditions", description: "Terms and conditions for Jambh Electrics services and website." };
+
+const sections = [
+  { title: "1. General Service Terms", points: ["All electrical work is done based on customer request, site condition, safety requirements, and material availability.", "Final charges may vary depending on work type, location, urgency, material used, and extra work found during inspection.", "We explain charges before starting work whenever possible.", "Customer must provide correct contact details, address, and service requirements.", "Jambh Electrics is not responsible for issues caused by old wiring, damaged fittings, low-quality existing materials, voltage issues, or third-party work."] },
+  { title: "2. Standard Working Hours", points: ["Standard working hours are 8:00 AM to 8:00 PM.", "Requests after 8:00 PM may be treated as late-night or emergency service.", "After 8:00 PM, charges may be 2x or 3x based on work type, risk, distance, urgency, and availability.", "Emergency work is accepted only if technician availability and safety conditions allow it.", "Night work may be refused if the work area is unsafe."] },
+  { title: "3. Payment Policy", points: ["Payment must be made after service completion or as agreed in advance.", "Some services may require advance payment.", "Product, material, tool rental, urgent work, or inspection may require advance payment.", "Delays in payment may result in service hold, account restriction, or refusal of future service.", "Pending bills must be cleared before new work unless approved."] },
+  { title: "4. Refund Policy", points: ["Inspection, visit, or completed work payments are non-refundable.", "Advance-paid but not started service may be considered for refund after review.", "No refund once work starts or materials are used.", "Product-related refunds depend on manufacturer/supplier policy.", "Approved refunds are processed via original payment method where possible."] },
+  { title: "5. Product & Material Policy", points: ["Product warranty depends on manufacturer/supplier policy.", "Used, fitted, damaged, or opened products may not be returnable.", "Material once installed or used is not refundable.", "Customer should confirm model, brand, and quantity before billing."] },
+  { title: "6. Work Quality & Safety Policy", points: ["Safety is priority during electrical work.", "Work may be stopped or refused if site is unsafe.", "Keep children, pets, and unnecessary people away from work area.", "Hidden faults/old wiring/water leakage/unsafe previous installations can impact results.", "Extra work found during service is discussed before continuation."] },
+  { title: "7. Equipment Borrowing / Tool Rental Policy", points: ["Tool rental is chargeable and fixed unless updated by Jambh Electrics.", "Standard rental: ₹100 per hour, ₹500 per day.", "Time starts from handover and full charge is deposited in advance.", "Delay in return may add hourly/daily charges.", "Damage/loss/theft during borrowing is recoverable from borrower.", "Borrower agrees to all rental terms by taking equipment."] },
+  { title: "8. Inspection & Visit Charges", points: ["A fixed visit charge of ₹200 applies to all standard service visits (within regular service area).", "Visit charge applies even if customer decides not to continue the work.", "Visit charge covers technician time, travel, and inspection effort.", "Visit/inspection charges are non-refundable."] },
+  { title: "9. Cancellation Policy", points: ["Cancel/reschedule as early as possible.", "If technician has started travel or reached location, visit charge may apply.", "Repeated cancellations may affect future availability."] },
+  { title: "10. Customer Account Policy", points: ["Accounts are for service history, billing, communication, and support.", "Provide correct name, phone, location, and service details.", "Access or service may be restricted for pending payment or misuse."] },
+  { title: "11. Support Policy", points: ["For service/product/payment/account issues, contact immediately.", "We review concerns and provide the best possible solution.", "Support channels: phone, WhatsApp, email, website form.", "We prioritize honest communication and quick support."] },
+  { title: "12. Changes to Terms", points: ["Jambh Electrics may update these terms at any time.", "Updated terms apply once published on the website."] },
+];
 
 export default function TermsPage() {
-  const support = require("@/lib/auth-service").getSupportContact();
-  const Header = require("@/components/home/Header").default;
-  const FooterSection =
-    require("@/components/home/sections/FooterSection").default;
-
-  return (
-    <>
-      <Header />
-      <main className="min-h-screen bg-background text-foreground">
-        <section className="container mx-auto px-4 py-12">
-          <div className="max-w-3xl mx-auto">
-            <h1 className="text-3xl md:text-4xl font-bold">
-              Terms & Conditions
-            </h1>
-            <p className="mt-2 text-muted-foreground">
-              By using our services or website, you agree to the following
-              policies and terms.
-            </p>
-            <div className="mt-8 prose prose-slate dark:prose-invert">
-              <h2 className="font-medium text-2xl sm:text-lg mb-1 sm:mb-2">
-                Refund Policy
-              </h2>
-              <p className="text-base font-normal leading-normal mb-1 text-white/90">
-                Our goal is fair service and customer satisfaction.
-              </p>
-              <ul className="list-disc mb-2 sm:mb-3 list-inside space-y-1">
-                <li>
-                  Payments made for inspection, service visit, or completed work
-                  are non-refundable.
-                </li>
-                <li>
-                  If a service is paid in advance but not started, a refund may
-                  be considered after review.
-                </li>
-                <li>
-                  Refunds are not applicable once work has started or materials
-                  are used.
-                </li>
-                <li>
-                  Product-related refunds depend on manufacturer or supplier
-                  policy.
-                </li>
-                <li>
-                  Any approved refund will be processed through the original
-                  payment method.
-                </li>
-                <li>
-                  We always try to resolve issues through proper support before
-                  considering refunds.
-                </li>
-              </ul>
-
-              <h2 className="font-medium text-2xl sm:text-lg mb-1 sm:mb-2">
-                Help & Payment Policy
-              </h2>
-              <h3>Payments</h3>
-              <ul className="list-disc mb-2 sm:mb-3 list-inside space-y-1">
-                <li>
-                  Payment must be made after service completion or as agreed in
-                  advance.
-                </li>
-                <li>Some services may require advance payment.</li>
-                <li>All charges are explained before starting work.</li>
-              </ul>
-              <h3>Help & Support</h3>
-              <ul className="list-disc mb-2 sm:mb-3 list-inside space-y-1">
-                <li>
-                  If you face any issue with service or payment, contact us
-                  immediately.
-                </li>
-                <li>
-                  We will review your concern and provide the best possible
-                  solution.
-                </li>
-                <li>
-                  Delays in payment may result in service hold or account
-                  restriction.
-                </li>
-                <li>
-                  We believe in honest communication and quick support for all
-                  customers.
-                </li>
-              </ul>
-
-              <h2 className="font-medium text-2xl sm:text-lg mb-1 sm:mb-2">
-                Equipment Borrowing Policy – Jambh Electrics
-              </h2>
-              <p className="text-base font-normal leading-normal mb-1 text-white/90">
-                To avoid misuse, loss, or damage, borrowing of tools and
-                equipment is strictly chargeable.
-              </p>
-              <ul className="list-disc mb-2 sm:mb-3 list-inside space-y-1">
-                <li>
-                  All equipment is provided entirely at the borrower’s own risk.
-                </li>
-                <li>Charges are fixed and non-negotiable.</li>
-              </ul>
-              <ul className="list-disc mb-2 sm:mb-3 list-inside space-y-1">
-                <li>₹100 per hour</li>
-                <li>₹500 per day</li>
-              </ul>
-              <ul className="list-disc mb-2 sm:mb-3 list-inside space-y-1">
-                <li>Time starts from the moment equipment is handed over.</li>
-                <li>Full charge amount must be deposited in advance.</li>
-                <li>
-                  Any damage, loss, or malfunction during the borrowing period
-                  will be fully recoverable from the borrower.
-                </li>
-                <li>
-                  Equipment will not be handed over without advance payment.
-                </li>
-              </ul>
-              <p className="text-base font-normal leading-normal mb-1 text-white/90">
-                By borrowing any equipment from Jambh Electrics, the borrower
-                automatically agrees to all the above terms.
-              </p>
-            </div>
-          </div>
-        </section>
-        <FooterSection support={support} />
-      </main>
-    </>
-  );
+  return <LandingShell title="Terms & Conditions" copy="By using our services, website, account request form, tool rental, product purchase, or support service, you agree to these terms."><section className="container mx-auto px-4 py-12"><div className="space-y-6">{sections.map((section) => <article key={section.title} className="rounded-xl border border-slate-700 bg-slate-900/70 p-5"><h2 className="text-lg font-semibold">{section.title}</h2><ul className="mt-3 space-y-2 text-sm text-slate-300">{section.points.map((point) => <li key={point}>• {point}</li>)}</ul></article>)}</div></section></LandingShell>;
 }
