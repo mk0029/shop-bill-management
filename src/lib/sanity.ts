@@ -229,6 +229,11 @@ export const queries = {
     email,
     phone,
     location,
+    reminderLimit,
+    dueReminderRepeatDays,
+    allowDueReminder,
+    lastDueReminderSentAt,
+    lastDueReminderAmount,
     role,
     "isActive": select(
       defined(isActive) => isActive,
@@ -255,6 +260,11 @@ export const queries = {
     email,
     phone,
     location,
+    reminderLimit,
+    dueReminderRepeatDays,
+    allowDueReminder,
+    lastDueReminderSentAt,
+    lastDueReminderAmount,
     role,
     "isActive": select(
       defined(isActive) => isActive,

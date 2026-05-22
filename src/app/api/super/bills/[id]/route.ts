@@ -26,6 +26,23 @@ async function resolveBillDocumentId(identifier: string): Promise<string | null>
   return null;
 }
 
+async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
+  return await sanityClient.fetch(
+    `*[_type in ["cashBookEntry","cashbookItem","billMessage","billItem"] && bill._ref == $billId]._id`,
+    { billId }
+  );
+}
+
+async function getRemainingBillReferences(billId: string): Promise<Array<{ _id: string; _type: string }>> {
+  return await sanityClient.fetch(
+    `*[
+      references($billId)
+      && !(_type in ["bill","cashBookEntry","cashbookItem","billMessage","billItem"])
+    ]{_id,_type}`,
+    { billId }
+  );
+}
+
 function toPhones(rawPhone?: string | null): string[] {
   const p = String(rawPhone || "").trim();
   if (!p) return [];
@@ -396,17 +413,32 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
           }))
       : [];
 
-    // Delete related cashbook entry (bill payment) if present.
-    // The schema only links bill when source == "Bill Payment".
-    const cashbookIds: string[] = await sanityClient.fetch(
-      `*[_type == "cashBookEntry" && bill._ref == $billId]._id`,
-      { billId: id }
-    );
+    // Delete related documents that directly reference this bill.
+    const dependentDocumentIds = await getBillDependentDocumentIds(id);
 
-    // Restore inventory + delete cashbook + delete bill as one best-effort transaction.
+    // Ensure there are no other remaining references before deleting.
+    const remainingReferences = await getRemainingBillReferences(id);
+    if (remainingReferences.length) {
+      const grouped = remainingReferences.reduce<Record<string, number>>((acc, ref) => {
+        acc[ref._type] = (acc[ref._type] || 0) + 1;
+        return acc;
+      }, {});
+      const reasons = Object.entries(grouped)
+        .map(([type, count]) => `${count} ${type}${count !== 1 ? "s" : ""}`)
+        .join(", ");
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Cannot delete bill because other documents still reference it: ${reasons}`,
+        },
+        { status: 409 }
+      );
+    }
+
     const tx = sanityClient.transaction();
-    for (const entryId of cashbookIds || []) {
-      tx.delete(String(entryId));
+    for (const referenceId of Array.from(new Set(dependentDocumentIds || []).values())) {
+      tx.delete(String(referenceId));
     }
     tx.delete(id);
 
