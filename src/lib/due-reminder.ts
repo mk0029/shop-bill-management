@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const DEFAULT_REMINDER_LIMIT = 100;
+export const DEFAULT_REMINDER_LIMIT = 200;
 export const DUE_REMINDER_COOLDOWN_HOURS = 6;
 
 export type PendingBillItem = {
@@ -51,7 +51,7 @@ export type ReminderEligibilityResult = {
 
 export function getEffectiveReminderLimit(reminderLimit?: number | null) {
   const n = Number(reminderLimit);
-  if (!Number.isFinite(n) || n < 0) return DEFAULT_REMINDER_LIMIT;
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_REMINDER_LIMIT;
   return n;
 }
 
