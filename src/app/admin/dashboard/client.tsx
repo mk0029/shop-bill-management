@@ -9,11 +9,11 @@ import { useDataStore } from "@/store/data-store";
 import { useEffect } from "react";
 import QuickActions from "@/components/dashboard/quick-actions";
 import AdminNotificationPanel from "@/components/dashboard/admin-notification-panel";
+import WorkListClient from "@/components/work-list/work-list-client";
 
 export default function DashboardClient() {
   const { user, role } = useAuthStore();
-  const { products, brands, categories, users, bills, loadAdminData } =
-    useDataStore();
+  const { loadAdminData } = useDataStore();
 
   useEffect(() => {
     if (user?.id && role === "admin") {
@@ -67,7 +67,6 @@ export default function DashboardClient() {
         className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6"
       >
         <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 max-md:space-y-4 md:space-y-8">
-          {/* Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
@@ -76,18 +75,16 @@ export default function DashboardClient() {
             </div>
           </div>
 
-          {/* Quick Actions */}
           <Card>
             <QuickActions actions={quickActions} />
           </Card>
 
-          {/* Admin Notifications */}
+          <WorkListClient embedded />
+
           <AdminNotificationPanel />
 
-          {/* Products Overview (client-side data) */}
           <ProductsOverview />
 
-          {/* Customers Overview (client-side data) */}
           <CustomersOverview />
         </div>
       </div>

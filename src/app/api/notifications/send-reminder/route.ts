@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatDayDate } from "@/lib/date-time";
 
 export const runtime = "nodejs";
 
@@ -32,9 +33,7 @@ export async function POST(req: Request) {
     if ((notificationType === "sms" || notificationType === "both") && phone) {
       try {
         const dueDateObj = dueDate ? new Date(dueDate) : null;
-        const formattedDate = dueDateObj
-          ? dueDateObj.toLocaleDateString("en-IN")
-          : "upcoming";
+        const formattedDate = dueDateObj ? formatDayDate(dueDateObj) : "upcoming";
         const daysUntilDue = dueDateObj
           ? Math.ceil(
               (dueDateObj.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
@@ -78,9 +77,7 @@ export async function POST(req: Request) {
     if ((notificationType === "email" || notificationType === "both") && email) {
       try {
         const dueDateObj = dueDate ? new Date(dueDate) : null;
-        const formattedDate = dueDateObj
-          ? dueDateObj.toLocaleDateString("en-IN")
-          : "upcoming";
+        const formattedDate = dueDateObj ? formatDayDate(dueDateObj) : "upcoming";
 
         const emailRes = await fetch(
           process.env.EMAIL_SERVICE_URL || `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/emails/send`,

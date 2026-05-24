@@ -359,15 +359,17 @@ export const toolRentalService = {
     });
 
     if (rental) {
-      await sendToolRentMessage(rental);
       const actorUserId = getActorUserIdFromAuthCookie() || String(rental.createdBy || "");
-      await createCashBookCreditEntry({
-        customerRefId: rental.customerRefId || rental.customerId,
-        customerName: rental.customerName,
-        amount: paidAmount,
-        notes: `Tool rent received: ${rental.toolName}`,
-        actorUserId,
-      });
+      Promise.allSettled([
+        sendToolRentMessage(rental),
+        createCashBookCreditEntry({
+          customerRefId: rental.customerRefId || rental.customerId,
+          customerName: rental.customerName,
+          amount: paidAmount,
+          notes: `Tool rent received: ${rental.toolName}`,
+          actorUserId,
+        }),
+      ]).catch(() => {});
       if (paymentStatus !== "paid") {
         notifyAdmins({
           title: "Tool rental payment pending",
@@ -559,7 +561,7 @@ export const toolRentalService = {
         actorUserId,
       });
       if (deltaReceived > 0 && rental.customerPhone) {
-        await sendViaWaBot({
+        sendViaWaBot({
           phones: [rental.customerPhone],
           message: buildPaymentReceivedMessage(
             {
@@ -569,7 +571,7 @@ export const toolRentalService = {
             deltaReceived,
             currentTotalAmount
           ),
-        });
+        }).catch(() => {});
       }
     }
     return updated;

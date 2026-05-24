@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { formatDayDate } from "@/lib/date-time";
 
 export interface BillDetails {
   _id: string;
@@ -169,7 +170,7 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
 
   const serviceDateValue = bill.serviceDate ?? bill.createdAt;
   if (serviceDateValue) {
-    message += `*Service Date:* ${new Date(serviceDateValue).toLocaleDateString("en-IN")}\n`;
+    message += `*Service Date:* ${formatDayDate(serviceDateValue)}\n`;
   }
 
   if (bill.priority) {

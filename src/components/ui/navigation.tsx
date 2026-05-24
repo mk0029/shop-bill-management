@@ -105,6 +105,11 @@ const adminNavigation: NavigationItem[] = [
     icon: Wrench,
   },
   {
+    label: "Work List",
+    href: "/dashboard/work-list",
+    icon: FileText,
+  },
+  {
     label: "Other",
     href: "/admin/inventory",
     icon: Package,
@@ -189,6 +194,13 @@ const customerNavigation: NavigationItem[] = [
     icon: FileText,
   },
 ];
+const technicianNavigation: NavigationItem[] = [
+  {
+    label: "Work List",
+    href: "/dashboard/work-list",
+    icon: FileText,
+  },
+];
 export function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoomsOverlayOpen, setIsRoomsOverlayOpen] = useState(false);
@@ -239,7 +251,9 @@ export function Navigation() {
   const navigation =
     role === "admin" || role === "super_admin"
       ? getFilteredAdminNavigation()
-      : customerNavigation;
+      : role === "technician"
+        ? technicianNavigation
+        : customerNavigation;
 
   const toggleExpanded = (label: string) => {
     setExpandedItems((prev) => (prev === label ? null : label));

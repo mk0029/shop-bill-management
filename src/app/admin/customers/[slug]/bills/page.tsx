@@ -38,6 +38,7 @@ import {
   getEffectiveReminderLimit,
 } from "@/lib/due-reminder";
 import { sanityClient } from "@/lib/sanity";
+import { formatDayDateTime } from "@/lib/date-time";
 
 export default function CustomerBillsPage() {
   const params = useParams();
@@ -879,7 +880,7 @@ export default function CustomerBillsPage() {
               <p className="text-xs text-gray-500 mt-1">
                 Last reminder:{" "}
                 {lastDueReminderSentAt
-                  ? `${new Date(lastDueReminderSentAt).toLocaleString("en-IN")} (Rs ${Number(lastDueReminderAmount || 0).toFixed(2)})`
+                  ? `${formatDayDateTime(lastDueReminderSentAt)} (Rs ${Number(lastDueReminderAmount || 0).toFixed(2)})`
                   : "Never"}
               </p>
             </div>

@@ -13,6 +13,7 @@ import {
 } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
 import { sendViaWaBot } from "@/lib/wa-bot-send";
+import { formatDayDateTime } from "@/lib/date-time";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import {
   Clock,
@@ -87,12 +88,7 @@ function formatDateTime(dateStr: string) {
     return `Yesterday at ${date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`;
   }
 
-  return date.toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDayDateTime(date);
 }
 
 function getRemainingText(r: ToolRental) {
@@ -107,7 +103,7 @@ function getRemainingText(r: ToolRental) {
 }
 
 function overdueReminderMessage(r: ToolRental) {
-  return `Tool Return Reminder\n\nHello ${r.customerName},\n\nTool: ${r.toolName}\nExpected Return: ${new Date(r.expectedReturnTime).toLocaleString("en-IN")}\nStatus: Overdue\n\nExtra charges may apply for next ${r.durationType}.\nPlease return as soon as possible.\n\nJambh Electrical Services`;
+  return `Tool Return Reminder\n\nHello ${r.customerName},\n\nTool: ${r.toolName}\nExpected Return: ${formatDayDateTime(r.expectedReturnTime)}\nStatus: Overdue\n\nExtra charges may apply for next ${r.durationType}.\nPlease return as soon as possible.\n\nJambh Electrical Services`;
 }
 
 export default function AdminRentToolsClient() {
@@ -134,7 +130,10 @@ export default function AdminRentToolsClient() {
         toolRentalService.getToolRentals(),
       ]);
       setTools(toolsData || []);
-      setRentals(rentalsData || []);
+      const deduped = Array.from(
+        new Map((rentalsData || []).map((r) => [r._id, r])).values(),
+      );
+      setRentals(deduped);
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Failed to load rent tools data",
@@ -169,46 +168,52 @@ export default function AdminRentToolsClient() {
 
   const confirmReturn = async () => {
     if (!returnTarget) return;
+    const target = returnTarget;
+    setReturnTarget(null);
     try {
-      const tool = tools.find((t) => t._id === returnTarget.toolId);
+      const tool = tools.find((t) => t._id === target.toolId);
       if (!tool) return toast.error("Tool not found");
-      await toolRentalService.markToolReturned(returnTarget, tool);
+      await toolRentalService.markToolReturned(target, tool);
       toast.success("Tool returned and customer notified");
-      setReturnTarget(null);
       await load();
     } catch (e) {
+      setReturnTarget(target);
       toast.error(e instanceof Error ? e.message : "Failed to return tool");
     }
   };
 
   const confirmMarkPaid = async () => {
     if (!payTarget) return;
+    const target = payTarget;
     const total = Number(
-      payTarget.currentTotalAmount || payTarget.totalAmount || 0,
+      target.currentTotalAmount || target.totalAmount || 0,
     );
     if (payInput > total)
       return toast.error("Paid amount cannot be greater than total amount");
     try {
-      await toolRentalService.markRentalPaid(payTarget._id, total, payInput);
-      toast.success("Payment updated, cashbook updated, customer notified");
       setPayTarget(null);
+      await toolRentalService.markRentalPaid(target._id, total, payInput);
+      toast.success("Payment updated, cashbook updated, customer notified");
       await load();
     } catch (e) {
+      setPayTarget(target);
       toast.error(e instanceof Error ? e.message : "Failed to update payment");
     }
   };
 
   const confirmEditDuration = async () => {
     if (!editTarget) return;
+    const target = editTarget;
     try {
-      await toolRentalService.updateRentalDuration(editTarget._id, {
+      setEditTarget(null);
+      await toolRentalService.updateRentalDuration(target._id, {
         durationType: editDurationType,
         durationValue: editDurationValue,
       });
       toast.success("Rental duration updated");
-      setEditTarget(null);
       await load();
     } catch (e) {
+      setEditTarget(target);
       toast.error(e instanceof Error ? e.message : "Failed to update rental duration");
     }
   };

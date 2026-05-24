@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 export type ServerAuth = {
   isAuthenticated: boolean;
-  role: "admin" | "super_admin" | "customer" | null;
+  role: "admin" | "super_admin" | "technician" | "customer" | null;
   userId: string | null;
   customerId: string | null;
   user: Record<string, unknown> | null;
@@ -40,7 +40,7 @@ export async function getServerAuth(): Promise<ServerAuth> {
 
     const st = parsed?.state;
     const user = (st?.user ?? null) as Record<string, unknown> | null;
-    const role = (st?.role as "admin" | "super_admin" | "customer" | null) ?? null;
+    const role = (st?.role as "admin" | "super_admin" | "technician" | "customer" | null) ?? null;
     const userId = (user?.id as string) || (user?._id as string) || null;
     const customerId = (user?.customerId as string) || null;
     const isAuthenticated = Boolean(st?.isAuthenticated);

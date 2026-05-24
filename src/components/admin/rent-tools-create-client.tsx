@@ -104,7 +104,6 @@ export default function AdminRentToolsCreateClient() {
       toast.success("Tool given on rent successfully");
       clearForm();
       router.push("/admin/rent-tools");
-      router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create rental");
     } finally {

@@ -9,7 +9,7 @@ import { ensureFcmToken } from "@/lib/fcm";
 type PersistedState = {
   state?: {
     user?: Partial<User> | null;
-    role?: "admin" | "super_admin" | "customer" | null;
+    role?: "admin" | "super_admin" | "technician" | "customer" | null;
     isAuthenticated?: boolean;
   };
   version?: number;
@@ -19,7 +19,7 @@ type AuthUser = Partial<User>;
 
 interface AuthState {
   user: AuthUser | null;
-  role: "admin" | "super_admin" | "customer" | null;
+  role: "admin" | "super_admin" | "technician" | "customer" | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   hydrated: boolean;

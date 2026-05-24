@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { listenToolRentals, toolRentalService, type ToolRental } from "@/lib/tool-rental-service";
+import { formatDayDateTime } from "@/lib/date-time";
 
 function formatINR(value: number) {
   return `Rs ${Number(value || 0).toFixed(2)}`;
@@ -10,7 +11,7 @@ function formatINR(value: number) {
 
 function formatDateTime(iso?: string) {
   if (!iso) return "-";
-  return new Date(iso).toLocaleString("en-IN");
+  return formatDayDateTime(iso);
 }
 
 function getRemainingText(r: ToolRental) {

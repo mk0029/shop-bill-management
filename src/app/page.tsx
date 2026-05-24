@@ -11,6 +11,9 @@ export default async function Home() {
     if (auth.role === "admin" || auth.role === "super_admin") {
       redirect("/admin/dashboard");
     }
+    if (auth.role === "technician") {
+      redirect("/dashboard/work-list");
+    }
   }
 
   return <HomeLanding />;

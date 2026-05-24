@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
+import { formatDayDate } from "@/lib/date-time";
 
 export interface PendingBillShareInput {
   customer: { name?: string; phone?: string };
@@ -65,11 +66,7 @@ function formatBillDate(d?: string): string {
   if (!d) return "";
   const date = new Date(d);
   if (isNaN(date.getTime())) return d;
-  return date.toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDayDate(date);
 }
 
 export function generatePendingBillsMessage({
