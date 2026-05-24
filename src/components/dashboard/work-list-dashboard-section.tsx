@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { toast } from "sonner";
-import { workTaskService, listenWorkTasks, type WorkTask } from "@/lib/work-task-service";
+import { workTaskService, listenWorkTasks, type WorkTask, type WorkTaskRealtimeEvent } from "@/lib/work-task-service";
 import { formatDayDateTime } from "@/lib/date-time";
 
 type UserLite = { _id: string; name: string; role?: string; phone?: string; location?: string };
@@ -70,7 +70,7 @@ export default function WorkListDashboardSection({ users }: { users: UserLite[] 
     [users],
   );
 
-  const load = async (opts?: { silent?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     try {
       if (!opts?.silent) setLoading(true);
       const data = await workTaskService.getWorkTasks();
@@ -81,40 +81,48 @@ export default function WorkListDashboardSection({ users }: { users: UserLite[] 
     } finally {
       if (!opts?.silent) setLoading(false);
     }
-  };
+  }, []);
+
+  const applyRealtimeEvent = useCallback((event?: WorkTaskRealtimeEvent) => {
+    const id = String(event?.documentId || event?.result?._id || "");
+    if (!id) return;
+    if (event?.mutation?.transition === "disappear") {
+      setTasks((prev) => prev.filter((t) => t._id !== id));
+      return;
+    }
+    if (!event?.result) return;
+    setTasks((prev) => {
+      const without = prev.filter((t) => t._id !== id);
+      return [event.result as WorkTask, ...without];
+    });
+  }, []);
 
   useEffect(() => {
     load();
-    const sub = listenWorkTasks(() => load({ silent: true }));
+    const sub = listenWorkTasks((event) => {
+      applyRealtimeEvent(event);
+      load({ silent: true });
+    });
     return () => sub.unsubscribe();
-  }, []);
+  }, [load, applyRealtimeEvent]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayPending = useMemo(
+  const pendingTasks = useMemo(
     () =>
       tasks
         .filter(
           (t) =>
             t.status !== "completed" &&
             t.status !== "cancelled" &&
-            String(t.dueAt || "").slice(0, 10) === today,
+            t.status !== "hold",
         )
         .filter((t) => {
           const hay =
             `${t.title || ""} ${t.assignedTechnicianName || t.assignedTechnician?.name || ""} ${t.customerRef?.name || ""}`.toLowerCase();
           return !q.trim() || hay.includes(q.toLowerCase());
         }),
-    [tasks, today, q],
+    [tasks, q],
   );
-  const completedCount = useMemo(
-    () =>
-      tasks.filter(
-        (t) =>
-          t.status === "completed" &&
-          String(t.completedAt || t.updatedAt || "").slice(0, 10) === today,
-      ).length,
-    [tasks, today],
-  );
+  const completedCount = useMemo(() => tasks.filter((t) => t.status === "completed").length, [tasks]);
 
   const createTask = async () => {
     if (!createState.title.trim()) return toast.error("Title is required");
@@ -215,16 +223,16 @@ export default function WorkListDashboardSection({ users }: { users: UserLite[] 
               <Button onClick={() => setShowCreate(true)}>Create Work</Button>
             </div>
             <p className="text-xs text-gray-400">
-              Today Pending: <span className="text-orange-400 font-semibold">{todayPending.length}</span> • Completed:{" "}
+              Pending: <span className="text-orange-400 font-semibold">{pendingTasks.length}</span> • Completed:{" "}
               <span className="text-green-400 font-semibold">{completedCount}</span>
             </p>
             {loading ? (
               <p className="text-sm text-gray-400">Loading work list...</p>
-            ) : todayPending.length === 0 ? (
-              <p className="text-sm text-gray-400">No work pending today.</p>
+            ) : pendingTasks.length === 0 ? (
+              <p className="text-sm text-gray-400">No pending work.</p>
             ) : (
               <div className="space-y-2">
-                {todayPending.slice(0, 8).map((task) => (
+                {pendingTasks.slice(0, 8).map((task) => (
                   <button
                     key={task._id}
                     type="button"

@@ -53,3 +53,18 @@ export function formatApproachTime(
   if (isSameCalendarDate(due, now)) return formatTime(due, locale);
   return `${formatDayDate(due, locale)} at ${formatTime(due, locale)}`;
 }
+
+export function formatRelativeDayDateTime(
+  input?: string | Date | null,
+  now: string | Date = new Date(),
+  locale = "en-IN",
+): string {
+  const d = toDate(input);
+  const n = toDate(now);
+  if (!d || !n) return "-";
+  if (isSameCalendarDate(d, n)) return `Today at ${formatTime(d, locale)}`;
+  const tomorrow = new Date(n);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (isSameCalendarDate(d, tomorrow)) return `Tomorrow at ${formatTime(d, locale)}`;
+  return `${formatDayDate(d, locale)} at ${formatTime(d, locale)}`;
+}

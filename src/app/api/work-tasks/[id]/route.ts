@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { notificationService } from "@/lib/notification-service";
-import { formatDayDateTime } from "@/lib/date-time";
+import { formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -84,6 +84,35 @@ async function sendCustomerWorkUpdate(args: {
   await sendViaWaBotServer(String(customer.phone), message);
 }
 
+async function sendTechnicianTaskAssigned(args: {
+  technicianId?: string;
+  taskTitle: string;
+  dueAt?: string;
+  priority?: string;
+}) {
+  const technicianId = String(args.technicianId || "").trim();
+  if (!technicianId) return;
+  const tech = await sanityClient.fetch<any>(
+    `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
+    { id: technicianId },
+  );
+  if (!tech?.phone) return;
+  const msg = `✅ Task Assignment Updated
+
+Hello ${tech?.name || "Technician"},
+
+A task has been assigned to you.
+
+Task: ${args.taskTitle}
+Priority: ${String(args.priority || "medium").toUpperCase()}
+Due: ${args.dueAt ? formatRelativeDayDateTime(args.dueAt) : "-"}
+
+Please check Work List in app and continue updates.
+
+Jambh Electrical Services`;
+  await sendViaWaBotServer(String(tech.phone), msg);
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await getServerAuth();
   if (!auth.isAuthenticated || !canAccess(auth.role)) {
@@ -129,6 +158,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const updated = await sanityClient.patch(id).set(patch).commit();
+
+  if (
+    body?.assignedTechnicianId &&
+    String(existing?.assignedTechnician?._ref || existing?.assignedTechnician?._id || "") !==
+      String(body.assignedTechnicianId)
+  ) {
+    try {
+      await sendTechnicianTaskAssigned({
+        technicianId: String(body.assignedTechnicianId),
+        taskTitle: updated?.title || existing?.title || "Work",
+        dueAt: String(updated?.dueAt || existing?.dueAt || ""),
+        priority: String(updated?.priority || existing?.priority || "medium"),
+      });
+    } catch {}
+  }
 
   if (patch.status === "completed") {
     try {

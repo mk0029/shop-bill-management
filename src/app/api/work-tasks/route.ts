@@ -2,7 +2,7 @@
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { notificationService } from "@/lib/notification-service";
-import { formatApproachTime, formatDayDate, formatDayDateTime } from "@/lib/date-time";
+import { formatApproachTime, formatDayDate, formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -92,6 +92,31 @@ async function notifyWorkTaskEvent(args: {
   }
 }
 
+async function sendTechnicianTaskAssigned(args: {
+  technicianPhone?: string;
+  technicianName?: string;
+  taskTitle: string;
+  dueAt: string;
+  priority?: string;
+}) {
+  const phone = String(args.technicianPhone || "").trim();
+  if (!phone) return;
+  const msg = `✅ New Work Assigned
+
+Hello ${args.technicianName || "Technician"},
+
+You have a new task assigned.
+
+Task: ${args.taskTitle}
+Priority: ${String(args.priority || "medium").toUpperCase()}
+Due: ${formatRelativeDayDateTime(args.dueAt)}
+
+Please check Work List in app and update status on time.
+
+Jambh Electrical Services`;
+  await sendViaWaBotServer(phone, msg);
+}
+
 export async function GET(req: NextRequest) {
   const auth = await getServerAuth();
   if (!auth.isAuthenticated || !canAccess(auth.role)) {
@@ -155,7 +180,7 @@ export async function POST(req: NextRequest) {
   if (!dueAt) return NextResponse.json({ success: false, error: "Due date/time is required" }, { status: 400 });
 
   const [tech, actor] = await Promise.all([
-    sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,role}`, { id: assignedTechnicianId }),
+    sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,role,phone}`, { id: assignedTechnicianId }),
     sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name}`, { id: actorUserId }),
   ]);
   if (!tech || !["technician", "admin", "super_admin"].includes(String(tech.role || ""))) {
@@ -222,6 +247,15 @@ Thank you for trusting Jambh Electrical Services ⚡`;
       body: `New work assigned: ${title}. Technician: ${tech.name || "Technician"}. Due: ${formatDayDateTime(dueAt)}.`,
       assignedTechnicianId,
       notifyAllTechnicians: true,
+    }),
+  );
+  postCreateJobs.push(
+    sendTechnicianTaskAssigned({
+      technicianPhone: tech?.phone,
+      technicianName: tech?.name,
+      taskTitle: title,
+      dueAt,
+      priority: String(body?.priority || "medium"),
     }),
   );
 

@@ -39,6 +39,14 @@ export type WorkTaskInput = {
   holdReason?: string;
 };
 
+export type WorkTaskRealtimeEvent = {
+  documentId?: string;
+  result?: WorkTask | null;
+  mutation?: {
+    transition?: "appear" | "update" | "disappear";
+  };
+};
+
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
@@ -95,8 +103,8 @@ export const workTaskService = {
   },
 };
 
-export function listenWorkTasks(onUpdate: () => void) {
+export function listenWorkTasks(onUpdate: (event?: WorkTaskRealtimeEvent) => void) {
   return sanityClient
     .listen('*[_type == "workTask"]', {}, { includeResult: true, visibility: "query" })
-    .subscribe(() => onUpdate());
+    .subscribe((event) => onUpdate(event as WorkTaskRealtimeEvent));
 }

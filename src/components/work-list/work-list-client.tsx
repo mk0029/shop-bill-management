@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   workTaskService,
   listenWorkTasks,
   type WorkTask,
+  type WorkTaskRealtimeEvent,
 } from "@/lib/work-task-service";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,7 +149,7 @@ export default function WorkListClient({
     [users],
   );
 
-  const load = async (opts?: { silent?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     try {
       if (!opts?.silent) setLoading(true);
       const data = await workTaskService.getWorkTasks({
@@ -168,7 +169,31 @@ export default function WorkListClient({
       if (!opts?.silent) setLoading(false);
       if (!isInitialized) setIsInitialized(true);
     }
-  };
+  }, [
+    statusFilter,
+    priorityFilter,
+    technicianFilter,
+    dateFilter,
+    search,
+    deletedIds,
+    isInitialized,
+  ]);
+
+  const applyRealtimeEvent = useCallback((event?: WorkTaskRealtimeEvent) => {
+    const id = String(event?.documentId || event?.result?._id || "");
+    if (!id) return;
+    const transition = event?.mutation?.transition;
+    if (transition === "disappear") {
+      setTasks((prev) => prev.filter((t) => t._id !== id));
+      return;
+    }
+    const nextTask = event?.result;
+    if (!nextTask) return;
+    setTasks((prev) => {
+      const without = prev.filter((t) => t._id !== id);
+      return [nextTask, ...without];
+    });
+  }, []);
 
   useEffect(() => {
     sanityApiService.users
@@ -176,37 +201,29 @@ export default function WorkListClient({
       .then((res) => setUsers(res.data || []))
       .catch(() => setUsers([]));
     load({ silent: isInitialized });
-    const sub = listenWorkTasks(() => load({ silent: true }));
+    const sub = listenWorkTasks((event) => {
+      applyRealtimeEvent(event);
+      load({ silent: true });
+    });
     return () => sub.unsubscribe();
-  }, [
-    statusFilter,
-    priorityFilter,
-    technicianFilter,
-    dateFilter,
-    search,
-    isInitialized,
-    deletedIds,
-  ]);
+  }, [isInitialized, load, applyRealtimeEvent]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayPending = useMemo(
+  const pendingCount = useMemo(
     () =>
       tasks.filter(
         (t) =>
           t.status !== "completed" &&
           t.status !== "cancelled" &&
-          String(t.dueAt || "").slice(0, 10) === today,
+          t.status !== "hold",
       ),
-    [tasks, today],
+    [tasks],
   );
-  const todayCompleted = useMemo(
+  const completedCount = useMemo(
     () =>
       tasks.filter(
-        (t) =>
-          t.status === "completed" &&
-          String(t.completedAt || t.updatedAt || "").slice(0, 10) === today,
+        (t) => t.status === "completed",
       ),
-    [tasks, today],
+    [tasks],
   );
 
   const openCreate = () => {
@@ -608,13 +625,13 @@ export default function WorkListClient({
               <div className="px-3 py-1.5 rounded-md border border-orange-500/30 bg-orange-500/10 text-orange-200">
                 Pending:{" "}
                 <span className="font-semibold text-orange-300">
-                  {todayPending.length}
+                  {pendingCount.length}
                 </span>
               </div>
               <div className="px-3 py-1.5 rounded-md border border-green-500/30 bg-green-500/10 text-green-200">
                 Completed:{" "}
                 <span className="font-semibold text-green-300">
-                  {todayCompleted.length}
+                  {completedCount.length}
                 </span>
               </div>
               <Button
