@@ -4,6 +4,7 @@ import { initializeApp, type FirebaseApp, getApps } from 'firebase/app'
 import {
   getMessaging,
   getToken,
+  deleteToken,
   isSupported,
   onMessage,
   type Messaging,
@@ -56,7 +57,7 @@ export async function isMessagingAvailable(): Promise<boolean> {
   }
 }
 
-export async function getFcmToken(): Promise<string | null> {
+export async function getFcmToken(opts?: { forceRefresh?: boolean }): Promise<string | null> {
   const messaging = await getMessagingIfSupported()
   if (!messaging) return null
   const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
@@ -70,6 +71,11 @@ export async function getFcmToken(): Promise<string | null> {
     if ('serviceWorker' in navigator) {
       try {
         swReg = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js') || undefined
+      } catch {}
+    }
+    if (opts?.forceRefresh) {
+      try {
+        await deleteToken(messaging)
       } catch {}
     }
     const token = await getToken(messaging, {

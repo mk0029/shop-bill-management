@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const env: 'dev' | 'prod' = isDevHost ? 'dev' : 'prod'
 
     const doc = await sanityClient.fetch(
-      `*[_type=="user" && (_id==$id || clerkId==$id)][0]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
+      `*[_type=="user" && (_id==$id || clerkId==$id || customerId==$id)][0]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
       { id: userId }
     )
     if (!doc?._id) {

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch current user doc with revision for optimistic concurrency
     const doc = await sanityClient.fetch(
-      `*[_type=="user" && (_id==$id || clerkId==$id)][0]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
+      `*[_type=="user" && (_id==$id || clerkId==$id || customerId==$id)][0]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
       { id: userId }
     )
     if (!doc?._id) {
@@ -68,14 +68,14 @@ export async function POST(req: NextRequest) {
       try { console.warn('[API] register-token: failed to evict token from other users', removeErr) } catch {}
     }
 
-    // Helper to ensure uniqueness and move to end, cap at 4 (legacy string-based)
+    // Helper to ensure uniqueness and move to end, cap at latest 3 tokens.
     const makeUnique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)))
     const moveToEnd = (arr: string[], value: string) => {
       const filtered = (arr || []).filter(t => t && t !== value)
       filtered.push(value)
       return filtered
     }
-    const cap = (arr: string[], max = 4) => (arr || []).slice(-max)
+    const cap = (arr: string[], max = 3) => (arr || []).slice(-max)
 
     let attempt = 0
     while (attempt < 2) {

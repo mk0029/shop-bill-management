@@ -98,7 +98,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const baseEventId = body?.eventId && typeof body.eventId === 'string' ? body.eventId : undefined
+    const baseEventId =
+      body?.eventId && typeof body.eventId === 'string'
+        ? body.eventId
+        : `manual.${Date.now()}`
     const results = await Promise.all(
       userIds.map((uid) =>
         notificationService.emit({

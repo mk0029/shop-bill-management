@@ -66,10 +66,10 @@ export const useAuthStore = create<AuthState>()(
               typeof Notification !== "undefined" &&
               Notification.permission === "granted"
             ) {
-              const uid = (userNorm as any)?.id as string | undefined;
-              if (uid) {
-                Promise.resolve()
-                  .then(() => ensureFcmToken({ userId: uid }))
+                const uid = (userNorm as any)?.id as string | undefined;
+                if (uid) {
+                  Promise.resolve()
+                  .then(() => ensureFcmToken({ userId: uid, forceRefresh: true }))
                   .catch(() => {});
               }
             }

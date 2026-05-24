@@ -135,7 +135,7 @@ async function getAllActiveCustomerUserIds(): Promise<string[]> {
 
 async function getActiveTokensForSanityUserIds(userIds: string[]): Promise<string[]> {
   if (!userIds?.length) return []
-  const query = `*[_type=="user" && _id in $ids && isActive != false]{ fcmTokens }`
+  const query = `*[_type=="user" && ( _id in $ids || customerId in $ids || clerkId in $ids ) && isActive != false]{ fcmTokens }`
   const users = await sanityClient.fetch<UserWithTokens[]>(query, { ids: userIds })
   const tokens = (users || [])
     .flatMap(u => Array.isArray(u?.fcmTokens) ? u.fcmTokens : [])
@@ -680,7 +680,7 @@ async function cleanupInvalidTokens(invalidTokens: string[]): Promise<void> {
   if (!invalidTokens.length) return
   
   // Remove invalid tokens from all users
-  const query = `*[_type=="user" && fcmTokens in $invalidTokens]{
+  const query = `*[_type=="user" && defined(fcmTokens) && count(fcmTokens[@ in $invalidTokens]) > 0]{
     _id,
     fcmTokens
   }`

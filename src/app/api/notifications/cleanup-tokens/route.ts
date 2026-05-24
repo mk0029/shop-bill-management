@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Remove invalid tokens from all users
-    const query = `*[_type=="user" && fcmTokens in $invalidTokens]{
+    const query = `*[_type=="user" && defined(fcmTokens) && count(fcmTokens[@ in $invalidTokens]) > 0]{
       _id,
       fcmTokens
     }`

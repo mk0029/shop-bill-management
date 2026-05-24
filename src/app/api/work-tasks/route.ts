@@ -225,8 +225,12 @@ Thank you for trusting Jambh Electrical Services ⚡`;
     }),
   );
 
-  // Return immediately for fast UX; side effects continue in background.
-  void Promise.allSettled(postCreateJobs).catch(() => {});
+  // Ensure side-effects are actually dispatched in runtime, without making
+  // create flow too slow. We wait briefly, then return regardless.
+  await Promise.race([
+    Promise.allSettled(postCreateJobs),
+    new Promise((resolve) => setTimeout(resolve, 1500)),
+  ]);
   return NextResponse.json({ success: true, data: created });
 }
 
