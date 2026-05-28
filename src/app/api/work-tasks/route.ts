@@ -3,9 +3,16 @@ import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { notificationService } from "@/lib/notification-service";
 import { formatApproachTime, formatDayDate, formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
+import { sanitizeUserText } from "@/constants/defaults";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
+}
+
+function isAllowedDueTime(input: string) {
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getHours() >= 7;
 }
 
 async function sendViaWaBotServer(phone: string, message: string) {
@@ -101,9 +108,11 @@ async function sendTechnicianTaskAssigned(args: {
 }) {
   const phone = String(args.technicianPhone || "").trim();
   if (!phone) return;
+  const safeTechnicianName =
+    sanitizeUserText(String(args.technicianName || "")).trim() || "Technician";
   const msg = `✅ New Work Assigned
 
-Hello ${args.technicianName || "Technician"},
+Hello ${safeTechnicianName},
 
 You have a new task assigned.
 
@@ -178,6 +187,12 @@ export async function POST(req: NextRequest) {
   if (!assignedTechnicianId)
     return NextResponse.json({ success: false, error: "Technician is required" }, { status: 400 });
   if (!dueAt) return NextResponse.json({ success: false, error: "Due date/time is required" }, { status: 400 });
+  if (!isAllowedDueTime(dueAt)) {
+    return NextResponse.json(
+      { success: false, error: "Due time must be between 7:00 AM and 11:59 PM" },
+      { status: 400 },
+    );
+  }
 
   const [tech, actor] = await Promise.all([
     sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,role,phone}`, { id: assignedTechnicianId }),
@@ -223,13 +238,17 @@ export async function POST(req: NextRequest) {
         if (!customer?.phone) return;
         const requestDate = formatDayDate(now);
         const approachTime = formatApproachTime(dueAt, now);
+        const safeCustomerName =
+          sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
+        const safeTechnicianName =
+          sanitizeUserText(String(tech?.name || "")).trim() || "Technician";
         const msg = `✅ Service Request Registered
 
-Dear ${customer.name || "Customer"},
+Dear ${safeCustomerName},
 
 Your request for *${title}* has been registered successfully.
 
-🛠️ Assigned Technician: ${tech.name || "Technician"}
+🛠️ Assigned Technician: ${safeTechnicianName}
 📅 Request Date: ${requestDate}
 
 We will approach approximately by *${approachTime}* for inspection/service.

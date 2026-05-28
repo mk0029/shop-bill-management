@@ -18,15 +18,21 @@ export interface QuickAction {
   url: string;
 }
 
-export default function QuickActions({ actions = [] }: { actions: QuickAction[] }) {
-  const iconMap: Record<QuickActionIcon, (props: { className?: string }) => ReactElement> = {
+export default function QuickActions({
+  actions = [],
+}: {
+  actions: QuickAction[];
+}) {
+  const iconMap: Record<
+    QuickActionIcon,
+    (props: { className?: string }) => ReactElement
+  > = {
     file: (p) => <FileText {...p} />,
     users: (p) => <Users {...p} />,
     package: (p) => <Package {...p} />,
   };
   return (
     <ResponsiveAccordion
-      defaultOpenMobile={true}
       removePX
       title={
         <CardHeader className="!p-0">
@@ -40,7 +46,9 @@ export default function QuickActions({ actions = [] }: { actions: QuickAction[] 
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {actions.map((action, index) => {
-            const Icon = iconMap[action.iconName] || ((p: { className?: string }) => <FileText {...p} />);
+            const Icon =
+              iconMap[action.iconName] ||
+              ((p: { className?: string }) => <FileText {...p} />);
             return (
               <Link
                 href={action.url}
@@ -58,7 +66,9 @@ export default function QuickActions({ actions = [] }: { actions: QuickAction[] 
                 <Icon className="h-6 w-6 text-white mb-0.5 sm:mb-1 md:mb-2 flex-shrink-0" />
                 <div>
                   <h3 className="font-medium text-white">{action.title}</h3>
-                  <p className={`text-sm ${action.text}`}>{action.description}</p>
+                  <p className={`text-sm ${action.text}`}>
+                    {action.description}
+                  </p>
                 </div>
               </Link>
             );

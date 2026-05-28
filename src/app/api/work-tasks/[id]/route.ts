@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { notificationService } from "@/lib/notification-service";
-import { formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
+import { formatDayDateTime, formatRelativeDayDateTime, formatApproachTime } from "@/lib/date-time";
+import { sanitizeUserText } from "@/constants/defaults";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
+}
+
+function isAllowedDueTime(input: string) {
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getHours() >= 7;
 }
 
 async function sendViaWaBotServer(phone: string, message: string) {
@@ -69,18 +76,65 @@ async function sendCustomerWorkUpdate(args: {
   if (!customer?.phone) return;
 
   let message = "";
-  const customerName = customer?.name || "Customer";
+  const customerName =
+    sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
+  const safeTechnicianName =
+    sanitizeUserText(String(args.technicianName || "")).trim() || "Technician";
   if (args.type === "completed") {
-    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been completed successfully.\n\nAssigned Technician: ${args.technicianName}\n\nThank you for trusting Jambh Electrical Services.`;
+    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been completed successfully.\n\nAssigned Technician: ${safeTechnicianName}\n\nThank you for trusting Jambh Electrical Services.`;
   } else if (args.type === "cancelled") {
-    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been marked as cancelled.\n\nAssigned Technician: ${args.technicianName}\n\nFor help, please contact Jambh Electrical Services.`;
+    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been marked as cancelled.\n\nAssigned Technician: ${safeTechnicianName}\n\nFor help, please contact Jambh Electrical Services.`;
   } else if (args.type === "back_in_progress") {
-    message = `⚡ Service Status Updated\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been moved back to *In Progress* status.\n\n🛠️ Technician: ${args.technicianName}\n\nOur team is continuing the work/checking process and will update you once the service is completed.\n\nThank you for your patience and support.\n\n📞 Jambh Electrical Services`;
+    message = `⚡ Service Status Updated\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been moved back to *In Progress* status.\n\n🛠️ Technician: ${safeTechnicianName}\n\nOur team is continuing the work/checking process and will update you once the service is completed.\n\nThank you for your patience and support.\n\n📞 Jambh Electrical Services`;
   } else if (args.type === "hold") {
-    message = `⏸️ Service Temporarily On Hold\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* is currently placed on *Hold* status.\n\nReason: ${args.holdReason || "Temporarily paused"}\n\n🛠️ Technician: ${args.technicianName}\n\nOur team will resume the work as soon as possible and keep you updated.\n\nThank you for your understanding.\n\n📞 Jambh Electrical Services`;
+    message = `⏸️ Service Temporarily On Hold\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* is currently placed on *Hold* status.\n\nReason: ${args.holdReason || "Temporarily paused"}\n\n🛠️ Technician: ${safeTechnicianName}\n\nOur team will resume the work as soon as possible and keep you updated.\n\nThank you for your understanding.\n\n📞 Jambh Electrical Services`;
   } else {
-    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been closed by admin.\n\nAssigned Technician: ${args.technicianName}\n\nFor help, please contact Jambh Electrical Services.`;
+    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been closed by admin.\n\nAssigned Technician: ${safeTechnicianName}\n\nFor help, please contact Jambh Electrical Services.`;
   }
+  await sendViaWaBotServer(String(customer.phone), message);
+}
+
+async function sendCustomerDueTimeUpdate(args: {
+  customerRefId?: string;
+  previousDueAt?: string;
+  nextDueAt?: string;
+}) {
+  if (!args.customerRefId || !args.previousDueAt || !args.nextDueAt) return;
+  const customer = await sanityClient.fetch<any>(
+    `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
+    { id: args.customerRefId },
+  );
+  if (!customer?.phone) return;
+
+  const customerName =
+    sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
+  const prevTs = new Date(args.previousDueAt).getTime();
+  const nextTs = new Date(args.nextDueAt).getTime();
+  if (!Number.isFinite(prevTs) || !Number.isFinite(nextTs) || prevTs === nextTs)
+    return;
+
+  const formattedDue = formatApproachTime(args.nextDueAt);
+  const isDelayed = nextTs > prevTs;
+  const message = isDelayed
+    ? `✅ Service Time Update
+
+Dear ${customerName}
+
+We sincerely apologize for the delay in schedule.
+
+We will now approach approximately by ${formattedDue} for inspection/service.
+
+Thank you for your patience and for trusting Jambh Electrical Services ⚡`
+    : `✅ Service Request Update
+
+Dear ${customerName}
+
+Good news — our team may reach earlier than the expected time.
+
+We will try to approach before ${formattedDue} for inspection/service.
+
+Thank you for trusting Jambh Electrical Services ⚡`;
+
   await sendViaWaBotServer(String(customer.phone), message);
 }
 
@@ -97,9 +151,11 @@ async function sendTechnicianTaskAssigned(args: {
     { id: technicianId },
   );
   if (!tech?.phone) return;
+  const safeTechnicianName =
+    sanitizeUserText(String(tech?.name || "")).trim() || "Technician";
   const msg = `✅ Task Assignment Updated
 
-Hello ${tech?.name || "Technician"},
+Hello ${safeTechnicianName},
 
 A task has been assigned to you.
 
@@ -131,7 +187,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body?.priority && ["low", "medium", "high", "urgent"].includes(String(body.priority))) patch.priority = String(body.priority);
   if (body?.status && ["pending", "in-progress", "completed", "cancelled", "hold"].includes(String(body.status))) patch.status = String(body.status);
   if (body?.issueCategory && ["repair", "fitting", "wiring", "delivery", "payment", "other"].includes(String(body.issueCategory))) patch.issueCategory = String(body.issueCategory);
-  if (body?.dueAt) patch.dueAt = String(body.dueAt);
+  if (body?.dueAt) {
+    const nextDueAt = String(body.dueAt);
+    if (!isAllowedDueTime(nextDueAt)) {
+      return NextResponse.json(
+        { success: false, error: "Due time must be between 7:00 AM and 11:59 PM" },
+        { status: 400 },
+      );
+    }
+    patch.dueAt = nextDueAt;
+  }
   if (body?.completionNotes != null) patch.completionNotes = String(body.completionNotes || "").trim();
   if (body?.cancellationReason != null) patch.cancellationReason = String(body.cancellationReason || "").trim();
   if (body?.holdReason != null) patch.holdReason = String(body.holdReason || "").trim();
@@ -170,6 +235,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         taskTitle: updated?.title || existing?.title || "Work",
         dueAt: String(updated?.dueAt || existing?.dueAt || ""),
         priority: String(updated?.priority || existing?.priority || "medium"),
+      });
+    } catch {}
+  }
+
+  const previousDueAt = String(existing?.dueAt || "");
+  const nextDueAt = String(updated?.dueAt || patch?.dueAt || "");
+  const dueChanged = !!(previousDueAt && nextDueAt && previousDueAt !== nextDueAt);
+  if (
+    dueChanged &&
+    !["completed", "cancelled"].includes(String(updated?.status || existing?.status || ""))
+  ) {
+    try {
+      await sendCustomerDueTimeUpdate({
+        customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
+        previousDueAt,
+        nextDueAt,
       });
     } catch {}
   }

@@ -31,7 +31,12 @@ export async function GET(req: NextRequest) {
         (defined(targetUserIds) && count(targetUserIds[@ in $ids]) > 0) ||
         (defined(targetPhones) && count(targetPhones[@ in $phones]) > 0)
       ))
-    )] | order(coalesce(createdAt, _createdAt) desc)[0...$limit]{
+    ) &&
+    !($includeCleared != true && (
+      (defined(clearedByUserIds) && count(clearedByUserIds[@ in $ids]) > 0) ||
+      (defined(clearedByPhones) && count(clearedByPhones[@ in $phones]) > 0)
+    ))
+    ] | order(coalesce(createdAt, _createdAt) desc)[0...$limit]{
       _id,
       title,
       body,
@@ -44,7 +49,8 @@ export async function GET(req: NextRequest) {
       customerId
     }`
 
-    const items = await sanityClient.fetch<any[]>(query, { ids, phones, isAdmin, limit })
+    const includeCleared = url.searchParams.get('includeCleared') === 'true'
+    const items = await sanityClient.fetch<any[]>(query, { ids, phones, isAdmin, limit, includeCleared })
     return NextResponse.json({ items: items || [] }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'

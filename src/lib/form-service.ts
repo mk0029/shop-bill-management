@@ -760,177 +760,176 @@ export async function createBill(billData: {
       // Create the bill
       const result = await transaction.create(newBill).commit();
       const createdId = (result as any)?.results?.[0]?.id || (result as any)?._id;
-      // Step 8: Create cash book entry for paid/partial bills (non-blocking)
-      if (['paid', 'partial'].includes(billData.paymentStatus || 'pending')) {
-        syncSingleBillPayment(String(createdId))
-          .then((syncResult) => {
-            if (syncResult.success) {
-              console.log('✅ Cash book entry created for bill payment:', billNumber);
-            } else {
-              console.warn('⚠️ Failed to create cash book entry:', syncResult.message);
-            }
-          })
-          .catch((error) => {
-            console.error('❌ Cash book sync error:', error);
-          });
-      }
+      // Step 8/9/10: Fire-and-forget side effects, never block bill creation response
+      void (async () => {
+        // Cash book sync
+        if (["paid", "partial"].includes(billData.paymentStatus || "pending")) {
+          syncSingleBillPayment(String(createdId))
+            .then((syncResult) => {
+              if (!syncResult.success) {
+                console.warn("⚠️ Failed to create cash book entry:", syncResult.message);
+              }
+            })
+            .catch((error) => {
+              console.error("❌ Cash book sync error:", error);
+            });
+        }
 
-      // Step 9: Update stock levels in background (non-blocking)
-      if (standardItems.length > 0) {
-        // Run stock updates asynchronously to not block the response
-        updateStockForBill(standardItems, createdId, "reduce")
-          .then((stockUpdateResult) => {
-            if (stockUpdateResult.success) {
-            } else {
-              console.warn(
-                "⚠️ Background stock update failed:",
-                stockUpdateResult.errors
-              );
-            }
-          })
-          .catch((error) => {
-            console.error("❌ Background stock update error:", error);
-          });
-      }
+        // Stock update
+        if (standardItems.length > 0) {
+          updateStockForBill(standardItems, createdId, "reduce")
+            .then((stockUpdateResult) => {
+              if (!stockUpdateResult.success) {
+                console.warn(
+                  "⚠️ Background stock update failed:",
+                  stockUpdateResult.errors,
+                );
+              }
+            })
+            .catch((error) => {
+              console.error("❌ Background stock update error:", error);
+            });
+        }
 
-      // Step 10: Notify the customer (non-blocking)
-      try {
-        if (typeof window !== 'undefined') {
-          const customerId = String(billData.customerId || '').trim()
-          if (customerId) {
+        // Notifications + WhatsApp
+        try {
+          if (typeof window !== "undefined") {
+            const customerId = String(billData.customerId || "").trim();
+            if (!customerId) return;
             const actorUserId: string = (() => {
               try {
                 const raw = document.cookie
-                  .split('; ')
-                  .find((c) => c.startsWith('auth-storage='))
-                  ?.split('=')[1]
-                if (!raw) return ''
+                  .split("; ")
+                  .find((c) => c.startsWith("auth-storage="))
+                  ?.split("=")[1];
+                if (!raw) return "";
                 const decoded = (() => {
                   try {
-                    return decodeURIComponent(raw)
+                    return decodeURIComponent(raw);
                   } catch {
-                    return raw
+                    return raw;
                   }
-                })()
-                const parsed = JSON.parse(decoded)
-                return String(parsed?.state?.user?.id || parsed?.state?.user?._id || '').trim()
+                })();
+                const parsed = JSON.parse(decoded);
+                return String(parsed?.state?.user?.id || parsed?.state?.user?._id || "").trim();
               } catch {
-                return ''
+                return "";
               }
-            })()
+            })();
 
             const currentToken: string | null = await (async () => {
               try {
-                const mod = await import('@/lib/fcm-client')
-                if (typeof mod.getTokenWithoutRegister === 'function') return await mod.getTokenWithoutRegister()
+                const mod = await import("@/lib/fcm-client");
+                if (typeof mod.getTokenWithoutRegister === "function")
+                  return await mod.getTokenWithoutRegister();
               } catch {}
-              return null
-            })()
+              return null;
+            })();
 
-            // Notify admins
             try {
               const customerName = await (async () => {
                 try {
                   const doc = await sanityClient.fetch<{ name?: string } | null>(
                     `*[_type=="user" && _id==$id][0]{name}`,
-                    { id: String(customerId) }
-                  )
-                  return String(doc?.name || '').trim()
+                    { id: String(customerId) },
+                  );
+                  return String(doc?.name || "").trim();
                 } catch {
-                  return ''
+                  return "";
                 }
-              })()
-              const amount = Number(grossTotal || 0)
-              const payStatus = String(billData.paymentStatus || 'pending')
-              const adminBody = `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`
+              })();
+              const amount = Number(grossTotal || 0);
+              const payStatus = String(billData.paymentStatus || "pending");
+              const adminBody = `${customerName || "Customer"} | ₹${amount} | ${payStatus}`;
 
-              void fetch('/api/notifications/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+              void fetch("/api/notifications/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  audience: 'admins',
+                  audience: "admins",
                   actorUserId: actorUserId || undefined,
-                  title: 'Bill created',
+                  title: "Bill created",
                   body: adminBody,
                   data: {
-                    event: 'bill-created',
+                    event: "bill-created",
                     billId: String(createdId),
                     billNumber: String(billNumber),
                     route: `/admin/billing?open=${encodeURIComponent(String(createdId))}`,
                   },
                 }),
-              }).catch(() => {})
+              }).catch(() => {});
             } catch {}
 
-            void fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+            void fetch("/api/notifications/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                title: 'Bill created',
-                body: billNumber ? `Your bill ${billNumber} was created` : 'Your bill was created',
+                title: "Bill created",
+                body: billNumber ? `Your bill ${billNumber} was created` : "Your bill was created",
                 actorUserId: actorUserId || undefined,
                 userIds: [customerId],
                 data: {
-                  event: 'bill-created',
+                  event: "bill-created",
                   billId: String(createdId),
                   billNumber: String(billNumber),
-                  route: '/customer/bills',
+                  route: "/customer/bills",
                 },
                 excludeTokens: currentToken ? [currentToken] : undefined,
               }),
-            }).catch(() => {})
+            }).catch(() => {});
 
-            // WhatsApp via WA bot (best-effort). Keep server token secret.
             try {
-              const { generateWhatsAppMessage } = await import('@/lib/whatsapp-share')
+              const { generateWhatsAppMessage } = await import("@/lib/whatsapp-share");
               const customer = await (async () => {
                 try {
                   return await sanityClient.fetch<{ name?: string; phone?: string; secretKey?: string; customerId?: string } | null>(
                     `*[_type=="user" && _id==$id][0]{name, phone, secretKey, customerId}`,
                     { id: String(customerId) },
-                  )
+                  );
                 } catch {
-                  return null
+                  return null;
                 }
-              })()
+              })();
 
               const technician = await (async () => {
                 try {
-                  if (!actorId) return null
+                  if (!actorId) return null;
                   return await sanityClient.fetch<{ name?: string } | null>(
                     `*[_type=="user" && _id==$id][0]{name}`,
                     { id: String(actorId) },
-                  )
+                  );
                 } catch {
-                  return null
+                  return null;
                 }
-              })()
+              })();
 
-              const rawPhone = String(customer?.phone || '').trim()
+              const rawPhone = String(customer?.phone || "").trim();
               const phones = (() => {
-                const digits = rawPhone.replace(/[^0-9+]/g, '')
-                if (!digits) return [] as string[]
-                if (digits.startsWith('+')) return [digits]
-                if (digits.startsWith('0')) return [`+91${digits.substring(1)}`]
-                return [`+91${digits}`]
-              })()
+                const digits = rawPhone.replace(/[^0-9+]/g, "");
+                if (!digits) return [] as string[];
+                if (digits.startsWith("+")) return [digits];
+                if (digits.startsWith("0")) return [`+91${digits.substring(1)}`];
+                return [`+91${digits}`];
+              })();
 
-              const customerName = String(customer?.name || '').trim()
-              const secretKey = String((customer as any)?.secretKey || '').trim()
-              const customerCode = String((customer as any)?.customerId || '').trim()
+              const customerName = String(customer?.name || "").trim();
+              const secretKey = String((customer as any)?.secretKey || "").trim();
+              const customerCode = String((customer as any)?.customerId || "").trim();
               const message = generateWhatsAppMessage({
                 _id: String(createdId),
                 billNumber: String(billNumber),
                 customer: {
-                  name: customerName || 'Customer',
+                  name: customerName || "Customer",
                   phone: rawPhone,
                 },
-                technician: technician?.name ? { _id: actorId ? String(actorId) : undefined, name: String(technician.name) } : undefined,
+                technician: technician?.name
+                  ? { _id: actorId ? String(actorId) : undefined, name: String(technician.name) }
+                  : undefined,
                 customerAuth:
                   secretKey || customerCode
                     ? { customerId: customerCode || undefined, secretKey: secretKey || undefined }
                     : undefined,
-                serviceType: String(billData.serviceType || ''),
+                serviceType: String(billData.serviceType || ""),
                 createdAt: new Date().toISOString(),
                 items: (finalItems || []).map((it: any) => ({
                   productName: it.productName,
@@ -946,21 +945,21 @@ export async function createBill(billData: {
                 grandTotal: Number(grossTotal || 0),
                 paidAmount: Number(billData.paidAmount || 0),
                 balanceAmount: Number(billData.balanceAmount ?? netPayable),
-                paymentStatus: String(billData.paymentStatus || 'pending'),
-                notes: String(billData.notes || ''),
-              })
+                paymentStatus: String(billData.paymentStatus || "pending"),
+                notes: String(billData.notes || ""),
+              });
 
               if (phones.length) {
-                void fetch('/api/whatsapp/send-bulk', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                void fetch("/api/whatsapp/send-bulk", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ phones, message }),
-                }).catch(() => {})
+                }).catch(() => {});
               }
             } catch {}
           }
-        }
-      } catch {}
+        } catch {}
+      })();
 
       return {
         success: true,

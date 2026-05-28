@@ -42,7 +42,7 @@ export async function listNotifications(params: { userId?: string; clerkId?: str
   return res.json() as Promise<{ items: any[] }>
 }
 
-export async function clearNotifications(input: { userId: string; notificationId?: string; notificationIds?: string[] }) {
+export async function clearNotifications(input: { userId?: string; phone?: string; notificationId?: string; notificationIds?: string[] }) {
   const res = await fetch('/api/notifications/clear', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

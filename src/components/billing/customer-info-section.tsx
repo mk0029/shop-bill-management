@@ -16,6 +16,7 @@ interface CustomerInfoSectionProps {
   customers: any[];
   customersLoading: boolean;
   onInputChange: (field: string, value: string) => void;
+  autocompleteResetKey?: number;
 }
 
 const serviceTypeOptions = [
@@ -30,6 +31,7 @@ export const CustomerInfoSection = ({
   customers,
   customersLoading,
   onInputChange,
+  autocompleteResetKey = 0,
 }: CustomerInfoSectionProps) => {
   const router = useRouter();
   const { currency } = useLocaleStore();
@@ -43,6 +45,7 @@ export const CustomerInfoSection = ({
               Select Customer *
             </Label>
             <CustomerAutocomplete
+              key={`bill-customer-autocomplete-${autocompleteResetKey}`}
               customers={customers}
               value={formData.customerId}
               onChange={(value) => onInputChange("customerId", value)}

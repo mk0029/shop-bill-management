@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { sanitizeUserText } from "@/constants/defaults";
 
 export const DEFAULT_REMINDER_LIMIT = 200;
 export const DUE_REMINDER_COOLDOWN_HOURS = 6;
@@ -95,7 +96,8 @@ export function buildDueReminderMessage(input: {
   shopName?: string;
   helpNote?: string;
 }) {
-  const customerName = String(input.customerName || "Customer").trim();
+  const customerName =
+    sanitizeUserText(String(input.customerName || "")).trim() || "Customer";
   const shopName = String(input.shopName || "Jambh Electrical Services").trim();
   const helpNote =
     String(input.helpNote || "Agar payment already ho chuki hai, to hume reply karke update kar dein.").trim();

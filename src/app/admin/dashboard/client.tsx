@@ -64,10 +64,10 @@ export default function DashboardClient() {
     <RealtimeProvider enableNotifications={false}>
       <div
         data-dashboard-loaded="true"
-        className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6"
+        className="min-h-screen bg-gray-900 p-1 sm:p-4 md:p-6"
       >
         <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 max-md:space-y-4 md:space-y-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between max-sm:px-2">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
                 Admin Dashboard

@@ -453,6 +453,7 @@ export const useBillForm = () => {
         try {
           localStorage.removeItem(LOCAL_KEY);
         } catch {}
+        setIsLoading(false);
         setShowSuccessModal(true);
       } else {
         setAlertMessage(result.error || "Failed to create bill");
@@ -643,6 +644,7 @@ export const useBillForm = () => {
   };
 
   const handleSuccessClose = () => {
+    setIsLoading(false);
     setShowSuccessModal(false);
     router.push("/admin/billing");
   };
@@ -667,8 +669,13 @@ export const useBillForm = () => {
     setSelectedItems([]);
     setDraftId(null);
     setIsDirty(false);
+    setIsLoading(false);
     setShowSuccessModal(false);
   };
+
+  useEffect(() => {
+    if (showSuccessModal) setIsLoading(false);
+  }, [showSuccessModal]);
   return {
     formData,
     selectedItems,

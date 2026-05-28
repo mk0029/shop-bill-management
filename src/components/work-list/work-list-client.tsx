@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import {
   workTaskService,
   listenWorkTasks,
@@ -64,7 +65,7 @@ const initialForm: FormState = {
   assignedTechnicianId: "",
   priority: "medium",
   status: "pending",
-  issueCategory: "other",
+  issueCategory: "repair",
   dueAt: "",
   completionNotes: "",
   cancellationReason: "",
@@ -101,6 +102,85 @@ function getTimePart(value?: string) {
   return (parts[1] || "").slice(0, 5);
 }
 
+function getNowInputDateTimeLocal() {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function getCurrentLocalTimeHHMM() {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function isAllowedWorkTime(dateTimeLocal?: string) {
+  if (!dateTimeLocal) return false;
+  const d = new Date(dateTimeLocal);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getHours() >= 7;
+}
+
+function getTaskNotes(task: WorkTask) {
+  return (
+    task.completionNotes ||
+    (task as any).holdReason ||
+    task.cancellationReason ||
+    task.description ||
+    (task as any).notes ||
+    ""
+  );
+}
+
+function getStatusCardClass(status?: string) {
+  switch (String(status || "").toLowerCase()) {
+    case "pending":
+      return "border-red-500/35 bg-red-500/10";
+    case "in-progress":
+      return "border-yellow-500/40 bg-yellow-400/12 backdrop-blur-sm";
+    case "completed":
+      return "border-green-500/35 bg-green-500/10";
+    case "hold":
+      return "border-amber-500/35 bg-amber-500/10";
+    case "cancelled":
+      return "border-slate-500/30 bg-slate-500/10";
+    default:
+      return "border-gray-800 bg-gray-950/60";
+  }
+}
+
+function getStatusBadgeClass(status?: string) {
+  switch (String(status || "").toLowerCase()) {
+    case "pending":
+      return "border-red-400/45 bg-red-500/10 text-red-100";
+    case "in-progress":
+      return "border-yellow-400/45 bg-yellow-500/10 text-yellow-100";
+    case "completed":
+      return "border-green-400/45 bg-green-500/10 text-green-100";
+    case "hold":
+      return "border-amber-400/45 bg-amber-500/10 text-amber-100";
+    case "cancelled":
+      return "border-slate-400/45 bg-slate-500/10 text-slate-200";
+    default:
+      return "border-gray-700 text-gray-200";
+  }
+}
+
+function getPriorityBadgeClass(priority?: string) {
+  switch (String(priority || "").toLowerCase()) {
+    case "urgent":
+      return "border-rose-400/50 bg-rose-500/10 text-rose-100";
+    case "high":
+      return "border-orange-400/50 bg-orange-500/10 text-orange-100";
+    case "medium":
+      return "border-blue-400/50 bg-blue-500/10 text-blue-100";
+    case "low":
+      return "border-emerald-400/50 bg-emerald-500/10 text-emerald-100";
+    default:
+      return "border-gray-700 text-gray-200";
+  }
+}
+
 type WorkListClientProps = {
   embedded?: boolean;
   mode?: "active" | "history";
@@ -130,7 +210,13 @@ export default function WorkListClient({
   const [form, setForm] = useState<FormState>(initialForm);
   const [isInitialized, setIsInitialized] = useState(false);
   const [actionTask, setActionTask] = useState<WorkTask | null>(null);
+  const [actionLoading, setActionLoading] = useState<
+    null | "in-progress" | "done" | "hold" | "cancel" | "edit" | "delete"
+  >(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [expandedMobileTaskId, setExpandedMobileTaskId] = useState<
+    string | null
+  >(null);
 
   const technicians = useMemo(
     () =>
@@ -149,35 +235,40 @@ export default function WorkListClient({
     [users],
   );
 
-  const load = useCallback(async (opts?: { silent?: boolean }) => {
-    try {
-      if (!opts?.silent) setLoading(true);
-      const data = await workTaskService.getWorkTasks({
-        status: statusFilter || undefined,
-        priority: priorityFilter || undefined,
-        technicianId: technicianFilter || undefined,
-        date: dateFilter || undefined,
-        q: search || undefined,
-      });
-      const deduped = Array.from(
-        new Map((data || []).map((t) => [t._id, t])).values(),
-      ).filter((t) => !deletedIds.has(t._id));
-      setTasks(deduped);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load work list");
-    } finally {
-      if (!opts?.silent) setLoading(false);
-      if (!isInitialized) setIsInitialized(true);
-    }
-  }, [
-    statusFilter,
-    priorityFilter,
-    technicianFilter,
-    dateFilter,
-    search,
-    deletedIds,
-    isInitialized,
-  ]);
+  const load = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      try {
+        if (!opts?.silent) setLoading(true);
+        const data = await workTaskService.getWorkTasks({
+          status: statusFilter || undefined,
+          priority: priorityFilter || undefined,
+          technicianId: technicianFilter || undefined,
+          date: dateFilter || undefined,
+          q: search || undefined,
+        });
+        const deduped = Array.from(
+          new Map((data || []).map((t) => [t._id, t])).values(),
+        ).filter((t) => !deletedIds.has(t._id));
+        setTasks(deduped);
+      } catch (e) {
+        toast.error(
+          e instanceof Error ? e.message : "Failed to load work list",
+        );
+      } finally {
+        if (!opts?.silent) setLoading(false);
+        if (!isInitialized) setIsInitialized(true);
+      }
+    },
+    [
+      statusFilter,
+      priorityFilter,
+      technicianFilter,
+      dateFilter,
+      search,
+      deletedIds,
+      isInitialized,
+    ],
+  );
 
   const applyRealtimeEvent = useCallback((event?: WorkTaskRealtimeEvent) => {
     const id = String(event?.documentId || event?.result?._id || "");
@@ -219,16 +310,13 @@ export default function WorkListClient({
     [tasks],
   );
   const completedCount = useMemo(
-    () =>
-      tasks.filter(
-        (t) => t.status === "completed",
-      ),
+    () => tasks.filter((t) => t.status === "completed"),
     [tasks],
   );
 
   const openCreate = () => {
     setEditingTask(null);
-    setForm(initialForm);
+    setForm({ ...initialForm, dueAt: getNowInputDateTimeLocal() });
     setShowForm(true);
   };
 
@@ -255,6 +343,8 @@ export default function WorkListClient({
     if (!form.title.trim()) return "Title is required";
     if (!form.assignedTechnicianId) return "Technician must be selected";
     if (!form.dueAt) return "Due date/time is required";
+    if (!isAllowedWorkTime(form.dueAt))
+      return "Due time must be between 7:00 AM and 11:59 PM";
     if (form.status === "cancelled" && !form.cancellationReason.trim())
       return "Cancellation reason is required";
     if (form.status === "hold" && !form.holdReason.trim())
@@ -317,15 +407,20 @@ export default function WorkListClient({
         setEditingTask(null);
         setForm(initialForm);
 
-        const created = await workTaskService.createWorkTask(payload as any);
-        setTasks((prev) => {
-          const next = prev.filter((t) => t._id !== tempId);
-          return Array.from(
-            new Map([created, ...next].map((t) => [t._id, t])).values(),
-          );
-        });
-        toast.success("Work task created");
-        return;
+        try {
+          const created = await workTaskService.createWorkTask(payload as any);
+          setTasks((prev) => {
+            const next = prev.filter((t) => t._id !== tempId);
+            return Array.from(
+              new Map([created, ...next].map((t) => [t._id, t])).values(),
+            );
+          });
+          toast.success("Work task created");
+          return;
+        } catch (e) {
+          setTasks((prev) => prev.filter((t) => t._id !== tempId));
+          throw e;
+        }
       }
       setShowForm(false);
       setEditingTask(null);
@@ -532,344 +627,413 @@ export default function WorkListClient({
 
   const wrapperClass = embedded
     ? "space-y-3"
-    : "min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6 space-y-4";
+    : "min-h-screen bg-gray-900 sm:p-4 md:p-6 space-y-4";
 
   const runAction = async (
     action: "in-progress" | "done" | "hold" | "cancel" | "edit" | "delete",
   ) => {
-    if (!actionTask) return;
-    if (action === "in-progress")
-      await updateTaskStatus(actionTask, "in-progress");
-    if (action === "done") await updateTaskStatus(actionTask, "completed");
-    if (action === "hold") {
-      setHoldTarget(actionTask);
-      setHoldReason((actionTask as any).holdReason || "");
+    if (!actionTask || actionLoading) return;
+    setActionLoading(action);
+    try {
+      if (action === "in-progress")
+        await updateTaskStatus(actionTask, "in-progress");
+      if (action === "done") await updateTaskStatus(actionTask, "completed");
+      if (action === "hold") {
+        setHoldTarget(actionTask);
+        setHoldReason((actionTask as any).holdReason || "");
+        setActionTask(null);
+        return;
+      }
+      if (action === "cancel")
+        await updateTaskStatus(actionTask, "cancelled", "Cancelled by admin");
+      if (action === "edit") openEdit(actionTask);
+      if (action === "delete") setDeleteTask(actionTask);
       setActionTask(null);
-      return;
+    } finally {
+      setActionLoading(null);
     }
-    if (action === "cancel")
-      await updateTaskStatus(actionTask, "cancelled", "Cancelled by admin");
-    if (action === "edit") openEdit(actionTask);
-    if (action === "delete") setDeleteTask(actionTask);
-    setActionTask(null);
   };
 
   return (
     <div className={wrapperClass}>
       <div className={`${embedded ? "" : "max-w-7xl mx-auto"} space-y-4`}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CardTitle className="text-white">Work List Manager</CardTitle>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* <Button
+        {mode !== "history" ? (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between ">
+              <div className="flex items-center gap-3 max-sm:pt-2">
+                <CardTitle className="text-white">Work List Manager</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* <Button
                 variant="outline"
                 onClick={() => router.push("/dashboard/work-list")}
               >
                 Active Tasks
               </Button> */}
 
-              <Button onClick={openCreate}>Create Work</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ResponsiveAccordion
-              title="Filters"
-              defaultOpenMobile={false}
-              className="border-gray-800 bg-gray-950/50"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by title, customer, technician"
-                  className="bg-gray-800 border-gray-700 text-white xl:col-span-4"
-                />
-                <div className="xl:col-span-2">
-                  <SelectField
-                    label="Status"
-                    value={statusFilter}
-                    onChange={setStatusFilter}
-                    options={statusDropdown}
-                  />
-                </div>
-                <div className="xl:col-span-2">
-                  <SelectField
-                    label="Priority"
-                    value={priorityFilter}
-                    onChange={setPriorityFilter}
-                    options={priorityDropdown}
-                  />
-                </div>
-                <div className="space-y-2 xl:col-span-2">
-                  <p className="text-sm text-gray-200">Due Date</p>
-                  <Input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white"
-                  />
-                </div>
-                <div className="xl:col-span-2">
-                  <SelectField
-                    label="Assigned To"
-                    value={technicianFilter}
-                    onChange={setTechnicianFilter}
-                    options={technicianDropdown}
-                  />
-                </div>
+                <Button onClick={openCreate}>Create Work</Button>
               </div>
-            </ResponsiveAccordion>
-            <div className="flex flex-wrap items-center gap-2 text-sm pt-1">
-              <div className="px-3 py-1.5 rounded-md border border-orange-500/30 bg-orange-500/10 text-orange-200">
-                Pending:{" "}
-                <span className="font-semibold text-orange-300">
-                  {pendingCount.length}
-                </span>
-              </div>
-              <div className="px-3 py-1.5 rounded-md border border-green-500/30 bg-green-500/10 text-green-200">
-                Completed:{" "}
-                <span className="font-semibold text-green-300">
-                  {completedCount.length}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => router.push("/dashboard/work-list/history")}
-              >
-                History
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {mode === "active" ? (
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-white">Pending Jobs</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              {loading ? (
-                <p className="text-gray-400">Loading work tasks...</p>
-              ) : pendingTasksForView.length === 0 ? (
-                <p className="text-gray-400">No work pending today.</p>
-              ) : (
-                <div>
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-gray-400 border-b border-gray-800">
-                          <th className="py-2 pr-2">Title</th>
-                          <th className="py-2 pr-2">Technician</th>
-                          <th className="py-2 pr-2">Priority</th>
-                          <th className="py-2 pr-2">Status</th>
-                          <th className="py-2 pr-2">Due</th>
-                          <th className="py-2">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pendingTasksForView.map((task) => (
-                          <tr
-                            key={task._id}
-                            className={`border-b border-gray-900 ${task.status === "in-progress" ? "bg-yellow-400/10 backdrop-blur-sm" : ""}`}
-                          >
-                            <td className="py-2 pr-2 text-white">
+            <CardContent className="space-y-3">
+              <ResponsiveAccordion
+                title="Filters"
+                defaultOpenMobile={false}
+                className="border-gray-800 bg-gray-950/50"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3">
+                  {/* <div className="xl:col-span-2">
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by title, customer, technician"
+                    className="bg-gray-800 border-gray-700 text-white xl:col-span-4"
+                  />
+                </div> */}
+                  <div className="xl:col-span-2">
+                    <SelectField
+                      label="Status"
+                      value={statusFilter}
+                      onChange={setStatusFilter}
+                      options={statusDropdown}
+                    />
+                  </div>
+                  <div className="xl:col-span-2">
+                    <SelectField
+                      label="Priority"
+                      value={priorityFilter}
+                      onChange={setPriorityFilter}
+                      options={priorityDropdown}
+                    />
+                  </div>
+                  <div className="space-y-2 xl:col-span-2">
+                    <p className="text-sm text-gray-200">Due Date</p>
+                    <Input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+                  <div className="xl:col-span-2">
+                    <SelectField
+                      label="Assigned To"
+                      value={technicianFilter}
+                      onChange={setTechnicianFilter}
+                      options={technicianDropdown}
+                    />
+                  </div>
+                </div>
+              </ResponsiveAccordion>
+              <div className="flex flex-wrap items-center gap-2 text-sm pt-1">
+                <div className="px-3 py-1.5 rounded-md border border-orange-500/30 bg-orange-500/10 text-orange-200">
+                  Pending:{" "}
+                  <span className="font-semibold text-orange-300">
+                    {pendingCount.length}
+                  </span>
+                </div>
+                <div className="px-3 py-1.5 rounded-md border border-green-500/30 bg-green-500/10 text-green-200">
+                  Completed:{" "}
+                  <span className="font-semibold text-green-300">
+                    {completedCount.length}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/dashboard/work-list/history")}
+                >
+                  History
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <div className="max-h-[85vh] overflow-auto max-sm:pr-1">
+          {" "}
+          {mode === "active" ? (
+            <Card className="h-full">
+              <CardHeader className="p-4">
+                <CardTitle className="text-white">Pending Jobs</CardTitle>
+              </CardHeader>
+
+              <CardContent className="pt-0 ">
+                {loading ? (
+                  <p className="text-gray-400">Loading work tasks...</p>
+                ) : pendingTasksForView.length === 0 ? (
+                  <p className="text-gray-400">No work pending today.</p>
+                ) : (
+                  <div>
+                    <div className="hidden md:block overflow-x-auto px-2">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-gray-400 border-b border-gray-800">
+                            <th className="py-2 pr-2">Title</th>
+                            <th className="py-2 pr-2">Technician</th>
+                            <th className="py-2 pr-2">Priority</th>
+                            <th className="py-2 pr-2">Status</th>
+                            <th className="py-2 pr-2">Due</th>
+                            <th className="py-2">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingTasksForView.map((task) => (
+                            <tr
+                              key={task._id}
+                              className={`border-b border-gray-900 ${getStatusCardClass(task.status)}`}
+                            >
+                              <td className="py-2 pr-2 text-white pl-2">
+                                <button
+                                  className="text-left hover:text-blue-300"
+                                  onClick={() => setActiveTask(task)}
+                                >
+                                  {task.title}
+                                </button>
+                                {task.customerRef?.name ? (
+                                  <p className="text-xs text-blue-300 mt-1">
+                                    Customer: {task.customerRef.name}
+                                    {task.customerRef?.phone
+                                      ? ` (${task.customerRef.phone})`
+                                      : ""}
+                                  </p>
+                                ) : null}
+                                {task.description ? (
+                                  <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                                    {task.description}
+                                  </p>
+                                ) : null}
+                              </td>
+                              <td className="py-2 pr-2 text-gray-300">
+                                {task.assignedTechnicianName ||
+                                  task.assignedTechnician?.name ||
+                                  "-"}
+                              </td>
+                              <td className="py-2 pr-2 text-gray-300">
+                                {toLabel(task.priority)}
+                              </td>
+                              <td className="py-2 pr-2 text-gray-300">
+                                {toLabel(task.status)}
+                              </td>
+                              <td className="py-2 pr-2 text-gray-400">
+                                {formatDayDateTime(task.dueAt)}
+                              </td>
+                              <td className="py-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setActionTask(task)}
+                                >
+                                  Actions
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="md:hidden space-y-3">
+                      {pendingTasksForView.map((task) => (
+                        <div
+                          key={task._id}
+                          className={`border rounded-lg p-3.5 ${getStatusCardClass(task.status)}`}
+                        >
+                          <div className="flex flex-col gap-2.5">
+                            <div>
                               <button
-                                className="text-left hover:text-blue-300"
-                                onClick={() => setActiveTask(task)}
+                                className="w-full flex items-center justify-between gap-2"
+                                onClick={() =>
+                                  embedded
+                                    ? setExpandedMobileTaskId((prev) =>
+                                        prev === task._id ? null : task._id,
+                                      )
+                                    : setActiveTask(task)
+                                }
                               >
-                                {task.title}
+                                <span className="text-white font-semibold text-[17px] leading-5 text-left hover:text-blue-300">
+                                  {task.title}
+                                </span>
+                                {embedded ? (
+                                  <ChevronDown
+                                    className={`h-4 w-4 text-gray-300 transition-transform ${expandedMobileTaskId === task._id ? "rotate-180" : ""}`}
+                                  />
+                                ) : null}
                               </button>
+                              <p className="mt-1 text-xs text-gray-400 leading-5">
+                                {task.assignedTechnicianName ||
+                                  task.assignedTechnician?.name ||
+                                  "-"}{" "}
+                                • {toLabel(task.issueCategory)}
+                              </p>
+                              {task.customerRef?.name ? (
+                                <p className="text-xs text-blue-300 leading-5">
+                                  Customer: {task.customerRef.name}
+                                  {task.customerRef?.phone
+                                    ? ` (${task.customerRef.phone})`
+                                    : ""}
+                                </p>
+                              ) : null}
+                              <p className="text-xs text-gray-400 leading-5">
+                                Due: {formatDayDateTime(task.dueAt)}
+                              </p>
                               {task.description ? (
-                                <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                                <p className="text-sm text-gray-300 mt-2 leading-5">
                                   {task.description}
                                 </p>
                               ) : null}
-                            </td>
-                            <td className="py-2 pr-2 text-gray-300">
-                              {task.assignedTechnicianName ||
-                                task.assignedTechnician?.name ||
-                                "-"}
-                            </td>
-                            <td className="py-2 pr-2 text-gray-300">
-                              {toLabel(task.priority)}
-                            </td>
-                            <td className="py-2 pr-2 text-gray-300">
-                              {toLabel(task.status)}
-                            </td>
-                            <td className="py-2 pr-2 text-gray-400">
-                              {formatDayDateTime(task.dueAt)}
-                            </td>
-                            <td className="py-2">
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 text-xs rounded-md border border-gray-700 text-gray-200">
+                                {toLabel(task.status)}
+                              </span>
+                              <span className="px-2.5 py-1 text-xs rounded-md border border-gray-700 text-gray-200">
+                                {toLabel(task.priority)}
+                              </span>
+                            </div>
+                            <div className="pt-1">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setActionTask(task)}
+                                className="w-full justify-center font-medium"
                               >
                                 Actions
                               </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+                          </div>
+                          {task.status === "completed" &&
+                          task.completionNotes ? (
+                            <p className="text-xs text-green-300 mt-2">
+                              Completion: {task.completionNotes}
+                            </p>
+                          ) : null}
+                          {task.status === "cancelled" &&
+                          task.cancellationReason ? (
+                            <p className="text-xs text-red-300 mt-2">
+                              Cancelled: {task.cancellationReason}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="md:hidden space-y-3">
-                    {pendingTasksForView.map((task) => (
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+          {mode === "history" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-white">Work History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {historyTasks.length === 0 ? (
+                  <p className="text-gray-400">No history items found.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {historyTasks.map((task) => (
                       <div
                         key={task._id}
-                        className={`border rounded-lg p-3.5 ${task.status === "in-progress" ? "border-yellow-500/40 bg-yellow-400/10 backdrop-blur-sm" : "border-gray-800 bg-gray-950/60"}`}
+                        className={`rounded-lg p-3 border ${
+                          task.status === "completed"
+                            ? "border-green-700/30 bg-green-950/10"
+                            : task.status === "hold"
+                              ? "border-yellow-700/30 bg-yellow-950/10"
+                              : "border-red-700/30 bg-red-950/10"
+                        }`}
                       >
-                        <div className="flex flex-col gap-2.5">
-                          <div>
-                            <button
-                              className="text-white font-semibold text-[17px] leading-5 text-left hover:text-blue-300"
-                              onClick={() => setActiveTask(task)}
-                            >
-                              {task.title}
-                            </button>
-                            <p className="mt-1 text-xs text-gray-400 leading-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-white font-semibold">
+                            {task.title}
+                          </p>
+                          <span className="text-xs px-2 py-1 rounded-full border border-gray-600/40 bg-gray-700/30 text-gray-200">
+                            {toLabel(task.status)}
+                          </span>
+                        </div>
+                        <div className="mt-2 space-y-1 text-xs text-gray-300">
+                          {task.customerRef?.name ? (
+                            <p>
+                              Customer:{" "}
+                              <span className="text-gray-100">
+                                {task.customerRef.name}
+                                {task.customerRef?.phone
+                                  ? ` (${task.customerRef.phone})`
+                                  : ""}
+                              </span>
+                            </p>
+                          ) : null}
+                          <p>
+                            Technician:{" "}
+                            <span className="text-gray-100">
                               {task.assignedTechnicianName ||
                                 task.assignedTechnician?.name ||
-                                "-"}{" "}
-                              • {toLabel(task.issueCategory)}
-                            </p>
-                            <p className="text-xs text-gray-400 leading-5">
-                              Due:{" "}
-                              {formatDayDateTime(task.dueAt)}
-                            </p>
-                            {task.description ? (
-                              <p className="text-sm text-gray-300 mt-2 leading-5">
-                                {task.description}
+                                "-"}
+                            </span>
+                          </p>
+                          <p>
+                            Updated At:{" "}
+                            <span className="text-gray-100">
+                              {formatDayDateTime(
+                                task.updatedAt ||
+                                  task.completedAt ||
+                                  task.createdAt ||
+                                  "",
+                              )}
+                            </span>
+                          </p>
+                          <p>
+                            Priority:{" "}
+                            <span className="text-gray-100 capitalize">
+                              {task.priority}
+                            </span>
+                          </p>
+                        </div>
+                        {getTaskNotes(task) ? (
+                          <div className="mt-2 text-sm text-gray-200 border-t border-green-800/40 pt-2">
+                            {task.completionNotes ? (
+                              <p>Completion Notes: {task.completionNotes}</p>
+                            ) : null}
+                            {(task as any).holdReason ? (
+                              <p>Hold Reason: {(task as any).holdReason}</p>
+                            ) : null}
+                            {task.cancellationReason ? (
+                              <p>
+                                Cancellation Reason: {task.cancellationReason}
                               </p>
                             ) : null}
+                            {task.description ? (
+                              <p>Task Notes: {task.description}</p>
+                            ) : null}
+                            {(task as any).notes &&
+                            (task as any).notes !== task.description ? (
+                              <p>Notes: {(task as any).notes}</p>
+                            ) : null}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-1 text-xs rounded-md border border-gray-700 text-gray-200">
-                              {toLabel(task.status)}
-                            </span>
-                            <span className="px-2.5 py-1 text-xs rounded-md border border-gray-700 text-gray-200">
-                              {toLabel(task.priority)}
-                            </span>
-                          </div>
-                          <div className="pt-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setActionTask(task)}
-                              className="w-full justify-center font-medium"
-                            >
-                              Actions
-                            </Button>
-                          </div>
+                        ) : null}
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              updateTaskStatus(task, "in-progress")
+                            }
+                          >
+                            Back To In Progress
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateTaskStatus(task, "pending")}
+                          >
+                            Mark Pending
+                          </Button>
                         </div>
-                        {task.status === "completed" && task.completionNotes ? (
-                          <p className="text-xs text-green-300 mt-2">
-                            Completion: {task.completionNotes}
-                          </p>
-                        ) : null}
-                        {task.status === "cancelled" &&
-                        task.cancellationReason ? (
-                          <p className="text-xs text-red-300 mt-2">
-                            Cancelled: {task.cancellationReason}
-                          </p>
-                        ) : null}
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {mode === "history" ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-white">Work History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {historyTasks.length === 0 ? (
-                <p className="text-gray-400">No history items found.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {historyTasks.map((task) => (
-                    <div
-                      key={task._id}
-                      className={`rounded-lg p-3 border ${
-                        task.status === "completed"
-                          ? "border-green-700/30 bg-green-950/10"
-                          : task.status === "hold"
-                            ? "border-yellow-700/30 bg-yellow-950/10"
-                            : "border-red-700/30 bg-red-950/10"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-white font-semibold">{task.title}</p>
-                        <span className="text-xs px-2 py-1 rounded-full border border-gray-600/40 bg-gray-700/30 text-gray-200">
-                          {toLabel(task.status)}
-                        </span>
-                      </div>
-                      <div className="mt-2 space-y-1 text-xs text-gray-300">
-                        <p>
-                          Technician:{" "}
-                          <span className="text-gray-100">
-                            {task.assignedTechnicianName ||
-                              task.assignedTechnician?.name ||
-                              "-"}
-                          </span>
-                        </p>
-                        <p>
-                          Updated At:{" "}
-                          <span className="text-gray-100">
-                            {formatDayDateTime(
-                              task.updatedAt ||
-                                task.completedAt ||
-                                task.createdAt ||
-                                "",
-                            )}
-                          </span>
-                        </p>
-                        <p>
-                          Priority:{" "}
-                          <span className="text-gray-100 capitalize">
-                            {task.priority}
-                          </span>
-                        </p>
-                      </div>
-                      {task.completionNotes ||
-                      (task as any).holdReason ||
-                      task.cancellationReason ? (
-                        <div className="mt-2 text-sm text-gray-200 border-t border-green-800/40 pt-2">
-                          {task.completionNotes ||
-                            (task as any).holdReason ||
-                            task.cancellationReason}
-                        </div>
-                      ) : null}
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => updateTaskStatus(task, "in-progress")}
-                        >
-                          Back To In Progress
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateTaskStatus(task, "pending")}
-                        >
-                          Mark Pending
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
       </div>
 
       <Modal
@@ -961,7 +1125,7 @@ export default function WorkListClient({
                 onChange={(e) =>
                   setForm((p) => ({
                     ...p,
-                    dueAt: `${e.target.value}T${getTimePart(p.dueAt) || "09:00"}`,
+                    dueAt: `${e.target.value}T${getTimePart(p.dueAt) || getCurrentLocalTimeHHMM()}`,
                   }))
                 }
                 className="w-full bg-gray-800 border-gray-700 text-white [color-scheme:dark]"
@@ -969,6 +1133,7 @@ export default function WorkListClient({
               <Input
                 type="time"
                 value={getTimePart(form.dueAt)}
+                min="07:00"
                 onChange={(e) =>
                   setForm((p) => ({
                     ...p,
@@ -1038,6 +1203,17 @@ export default function WorkListClient({
       >
         {activeTask ? (
           <div className="space-y-3">
+            {activeTask.customerRef?.name ? (
+              <p className="text-sm text-gray-300">
+                Customer:{" "}
+                <span className="text-gray-100">
+                  {activeTask.customerRef.name}
+                  {activeTask.customerRef?.phone
+                    ? ` (${activeTask.customerRef.phone})`
+                    : ""}
+                </span>
+              </p>
+            ) : null}
             <p className="text-sm text-gray-300">
               Assigned:{" "}
               {activeTask.assignedTechnicianName ||
@@ -1117,21 +1293,49 @@ export default function WorkListClient({
               <Button
                 variant="secondary"
                 onClick={() => runAction("in-progress")}
+                disabled={!!actionLoading}
+                className="border border-yellow-500/35 bg-yellow-500/10 text-yellow-100 hover:bg-yellow-500/20"
               >
-                In Progress
+                {actionLoading === "in-progress" ? "Processing..." : "In Progress"}
               </Button>
-              <Button onClick={() => runAction("done")}>Done</Button>
-              <Button variant="outline" onClick={() => runAction("hold")}>
-                Hold
+              <Button
+                variant="outline"
+                onClick={() => runAction("done")}
+                disabled={!!actionLoading}
+                className="border border-green-500/35 bg-green-500/10 text-green-100 hover:bg-green-500/20"
+              >
+                {actionLoading === "done" ? "Processing..." : "Done"}
               </Button>
-              <Button variant="outline" onClick={() => runAction("cancel")}>
-                Cancel
+              <Button
+                variant="outline"
+                onClick={() => runAction("hold")}
+                disabled={!!actionLoading}
+                className="border border-amber-500/35 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
+              >
+                {actionLoading === "hold" ? "Processing..." : "Hold"}
               </Button>
-              <Button variant="outline" onClick={() => runAction("edit")}>
-                Edit
+              <Button
+                variant="outline"
+                onClick={() => runAction("cancel")}
+                disabled={!!actionLoading}
+                className="border border-slate-500/35 bg-slate-500/10 text-slate-100 hover:bg-slate-500/20"
+              >
+                {actionLoading === "cancel" ? "Processing..." : "Cancel"}
               </Button>
-              <Button variant="destructive" onClick={() => runAction("delete")}>
-                Delete
+              <Button
+                variant="outline"
+                onClick={() => runAction("edit")}
+                disabled={!!actionLoading}
+                className="border border-blue-500/35 bg-blue-500/10 text-blue-100 hover:bg-blue-500/20"
+              >
+                {actionLoading === "edit" ? "Processing..." : "Edit"}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => runAction("delete")}
+                disabled={!!actionLoading}
+              >
+                {actionLoading === "delete" ? "Processing..." : "Delete"}
               </Button>
             </div>
           </div>

@@ -30,6 +30,8 @@ export default function CreateBillPage() {
 
   // Exit confirmation state and handlers
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [customerAutocompleteResetKey, setCustomerAutocompleteResetKey] =
+    useState(0);
   const [activeSection, setActiveSection] = useState<
     "customer" | "rewinding" | "fitting" | "items"
   >("customer");
@@ -119,7 +121,7 @@ export default function CreateBillPage() {
     handleSubmit,
     saveDraft,
     handleSuccessClose,
-    handleCreateAnotherBill,
+    handleCreateAnotherBill: handleCreateAnotherBillBase,
     setShowAlertModal,
     setSelectedItems,
     clearLocalDraft,
@@ -140,6 +142,11 @@ export default function CreateBillPage() {
 
   const handleBack = () => {
     router.push("/admin/billing");
+  };
+
+  const handleCreateAnotherBill = () => {
+    handleCreateAnotherBillBase();
+    setCustomerAutocompleteResetKey((prev) => prev + 1);
   };
 
   const {
@@ -262,6 +269,7 @@ export default function CreateBillPage() {
             >
               <div className="sm:px-0 sm:pb-1">
                 <CustomerInfoSection
+                  autocompleteResetKey={customerAutocompleteResetKey}
                   formData={formData}
                   customers={customers}
                   customersLoading={customersLoading}

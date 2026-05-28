@@ -8,11 +8,13 @@ import { updateStockForBill } from "@/lib/inventory-management";
 async function resolveBillDocumentId(identifier: string): Promise<string | null> {
   const key = String(identifier || "").trim();
   if (!key) return null;
+  const publishedKey = key.startsWith("drafts.") ? key.replace(/^drafts\./, "") : key;
+  const draftKey = publishedKey.startsWith("drafts.") ? publishedKey : `drafts.${publishedKey}`;
 
   // First try as document _id
   const byId = await sanityClient.fetch(
-    `*[_type == "bill" && _id == $key][0]{ _id }`,
-    { key }
+    `*[_type == "bill" && _id in [$key, $publishedKey, $draftKey]][0]{ _id }`,
+    { key, publishedKey, draftKey }
   );
   if (byId?._id) return String(byId._id);
 
@@ -27,9 +29,17 @@ async function resolveBillDocumentId(identifier: string): Promise<string | null>
 }
 
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
+  const publishedBillId = String(billId || "").replace(/^drafts\./, "");
+  const draftBillId = publishedBillId.startsWith("drafts.") ? publishedBillId : `drafts.${publishedBillId}`;
   return await sanityClient.fetch(
-    `*[_type in ["cashBookEntry","cashbookItem","billMessage","billItem"] && bill._ref == $billId]._id`,
-    { billId }
+    `*[
+      _type in ["cashBookEntry","cashbookItem","billMessage","billItem"]
+      && (
+        bill._ref in [$billId, $publishedBillId, $draftBillId]
+        || billId in [$billId, $publishedBillId, $draftBillId]
+      )
+    ]._id`,
+    { billId, publishedBillId, draftBillId }
   );
 }
 
@@ -416,23 +426,17 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     // Delete related documents that directly reference this bill.
     const dependentDocumentIds = await getBillDependentDocumentIds(id);
 
-    // Ensure there are no other remaining references before deleting.
+    // For Super Admin delete flow, do not hard-block on remaining references.
+    // Sanity allows dangling refs; we prefer deletion to proceed and log context.
     const remainingReferences = await getRemainingBillReferences(id);
     if (remainingReferences.length) {
       const grouped = remainingReferences.reduce<Record<string, number>>((acc, ref) => {
         acc[ref._type] = (acc[ref._type] || 0) + 1;
         return acc;
       }, {});
-      const reasons = Object.entries(grouped)
-        .map(([type, count]) => `${count} ${type}${count !== 1 ? "s" : ""}`)
-        .join(", ");
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Cannot delete bill because other documents still reference it: ${reasons}`,
-        },
-        { status: 409 }
+      console.warn(
+        "[API] DELETE /api/super/bills continuing with dangling refs:",
+        grouped,
       );
     }
 

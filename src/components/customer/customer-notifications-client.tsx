@@ -12,7 +12,9 @@ import { CheckCheckIcon } from "lucide-react";
 import { useDataStore } from "@/store/data-store";
 import { useAuthStore } from "@/store/auth-store";
 import { listNotifications } from "@/lib/notifications-dataset";
+import { clearNotifications } from "@/lib/notifications-dataset";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 export default function CustomerNotificationsClient() {
   const { items, unread, markAllRead, clear, markAsRead, clearRead, addMany } =
@@ -98,8 +100,17 @@ export default function CustomerNotificationsClient() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                console.log("Clear Read clicked");
+              onClick={async () => {
+                try {
+                  const ids = (items || [])
+                    .filter((n) => !!n.read)
+                    .map((n) => n.id);
+                  await clearNotifications({
+                    userId: userId || undefined,
+                    phone: user?.phone || undefined,
+                    notificationIds: ids,
+                  });
+                } catch {}
                 clearRead();
               }}
             >
@@ -110,9 +121,21 @@ export default function CustomerNotificationsClient() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                console.log("Clear All clicked");
-                clear();
+              onClick={async () => {
+                try {
+                  await clearNotifications({
+                    userId: userId || undefined,
+                    phone: user?.phone || undefined,
+                  });
+                  clear();
+                  toast.success("Notifications cleared");
+                } catch (e) {
+                  toast.error(
+                    e instanceof Error
+                      ? e.message
+                      : "Failed to clear notifications",
+                  );
+                }
               }}
             >
               Clear

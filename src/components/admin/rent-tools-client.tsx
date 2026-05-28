@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { sendViaWaBot } from "@/lib/wa-bot-send";
 import { formatDayDateTime } from "@/lib/date-time";
+import { sanitizeUserText } from "@/constants/defaults";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import {
   Clock,
@@ -103,7 +104,9 @@ function getRemainingText(r: ToolRental) {
 }
 
 function overdueReminderMessage(r: ToolRental) {
-  return `Tool Return Reminder\n\nHello ${r.customerName},\n\nTool: ${r.toolName}\nExpected Return: ${formatDayDateTime(r.expectedReturnTime)}\nStatus: Overdue\n\nExtra charges may apply for next ${r.durationType}.\nPlease return as soon as possible.\n\nJambh Electrical Services`;
+  const safeCustomerName =
+    sanitizeUserText(String(r.customerName || "")).trim() || "Customer";
+  return `Tool Return Reminder\n\nHello ${safeCustomerName},\n\nTool: ${r.toolName}\nExpected Return: ${formatDayDateTime(r.expectedReturnTime)}\nStatus: Overdue\n\nExtra charges may apply for next ${r.durationType}.\nPlease return as soon as possible.\n\nJambh Electrical Services`;
 }
 
 export default function AdminRentToolsClient() {
