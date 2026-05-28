@@ -8,6 +8,28 @@ import { fallbackData } from "./fallback-data";
 import { type SanityClient } from "@sanity/client";
 import type { Subscription } from "rxjs";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitizeProductForTechnician(product: any) {
+  if (!product || typeof product !== "object") return product;
+  const pricing = product.pricing || {};
+  return {
+    ...product,
+    pricing: {
+      sellingPrice: Number(pricing.sellingPrice || 0),
+      mrp:
+        typeof pricing.mrp !== "undefined"
+          ? Number(pricing.mrp || 0)
+          : undefined,
+      discount:
+        typeof pricing.discount !== "undefined"
+          ? Number(pricing.discount || 0)
+          : undefined,
+      taxRate: Number(pricing.taxRate || 0),
+      unit: pricing.unit || "pcs",
+    },
+  };
+}
+
 // Types for our data entities
 interface Brand {
   _id: string;
@@ -70,7 +92,7 @@ interface User {
   email?: string;
   phone: string;
   location: string;
-  role: "admin" | "customer";
+  role: "admin" | "super_admin" | "technician" | "customer";
   isActive: boolean;
   createdAt: string;
 }
@@ -151,7 +173,7 @@ interface DataStore {
     customerId?: string;
   }) => Promise<void>;
   // Convenience wrappers
-  loadAdminData: (opts?: { userId?: string; customerId?: string }) => Promise<void>;
+  loadAdminData: (opts?: { userId?: string; customerId?: string; role?: "admin" | "super_admin" | "technician" }) => Promise<void>;
   loadCustomerData: (opts: { userId?: string; customerId?: string }) => Promise<void>;
   syncWithSanity: () => Promise<void>;
   // Lightweight, role-aware refresh that only updates bills (and indexes)
@@ -222,6 +244,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
       // Determine scope based on role
       const role = opts?.role;
       const isCustomer = role === "customer";
+      const isTechnician = role === "technician";
 
       // Build loading steps conditionally
       const loadingSteps: Array<{ name: string; query: string; progress: number; params?: Record<string, any> }> = [];
@@ -279,7 +302,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
         }
 
         validData.forEach((item: any) => {
-          newMap.set(item._id, item);
+          const safeItem =
+            step.name === "products" && isTechnician
+              ? sanitizeProductForTechnician(item)
+              : item;
+          newMap.set(safeItem._id, safeItem);
         });
 
         set({
@@ -292,7 +319,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
           const productsByCategory = new Map<string, string[]>();
           const productsByBrand = new Map<string, string[]>();
 
-          validData.forEach((product: Product) => {
+          validData.forEach((rawProduct: Product) => {
+            const product = (isTechnician
+              ? sanitizeProductForTechnician(rawProduct)
+              : rawProduct) as Product;
             // Group by category (with null checks)
             if (product.category && product.category._id) {
               const categoryId = product.category._id;
@@ -433,7 +463,11 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   // Convenience: explicit admin bootstrap
   loadAdminData: async (opts) => {
-    await get().loadInitialData({ role: "admin", userId: opts?.userId, customerId: opts?.customerId });
+    await get().loadInitialData({
+      role: opts?.role || "admin",
+      userId: opts?.userId,
+      customerId: opts?.customerId,
+    });
   },
 
   // Convenience: explicit customer bootstrap
@@ -532,12 +566,15 @@ export const useDataStore = create<DataStore>((set, get) => ({
   // Refresh only active products list (keeps other maps intact)
   refreshActiveProducts: async () => {
     try {
+      const { role } = useAuthStore.getState();
+      const isTechnician = role === "technician";
       const data = await sanityClient.fetch(queries.activeProducts);
       const products = new Map(get().products);
       const productsByCategory = new Map<string, string[]>();
       const productsByBrand = new Map<string, string[]>();
 
-      (Array.isArray(data) ? data : []).forEach((p: any) => {
+      (Array.isArray(data) ? data : []).forEach((raw: any) => {
+        const p = isTechnician ? sanitizeProductForTechnician(raw) : raw;
         if (!p?._id) return;
         products.set(p._id, p);
         if (p.category?._id) {
@@ -561,6 +598,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
   // Targeted: fetch and update only specific products
   refreshProductsByIds: async (ids: string[]) => {
     try {
+      const { role } = useAuthStore.getState();
+      const isTechnician = role === "technician";
       const uniq = Array.from(new Set(ids.filter(Boolean)));
       if (uniq.length === 0) return;
 
@@ -603,7 +642,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
       const productsByCategory = new Map(get().productsByCategory);
       const productsByBrand = new Map(get().productsByBrand);
 
-      (Array.isArray(updated) ? updated : []).forEach((p: any) => {
+      (Array.isArray(updated) ? updated : []).forEach((raw: any) => {
+        const p = isTechnician ? sanitizeProductForTechnician(raw) : raw;
         if (!p?._id) return;
         products.set(p._id, p);
         if (p.category?._id) {
@@ -719,6 +759,8 @@ export const useDataStore = create<DataStore>((set, get) => ({
     switch (documentType) {
       case "product":
         {
+          const { role } = useAuthStore.getState();
+          const isTechnician = role === "technician";
           const products = new Map(currentState.products);
           if (update.transition === "disappear") {
             products.delete(documentId);
@@ -730,7 +772,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
             const categoryId = document?.category?._id || document?.category?._ref || undefined;
             const resolvedBrand = brandId ? brandsMap.get(String(brandId)) || document.brand : document.brand;
             const resolvedCategory = categoryId ? categoriesMap.get(String(categoryId)) || document.category : document.category;
-            const normalizedProduct = { ...document, brand: resolvedBrand, category: resolvedCategory };
+            const normalizedProductRaw = { ...document, brand: resolvedBrand, category: resolvedCategory };
+            const normalizedProduct = isTechnician
+              ? sanitizeProductForTechnician(normalizedProductRaw)
+              : normalizedProductRaw;
 
             products.set(documentId, normalizedProduct as any);
 

@@ -20,6 +20,7 @@ interface InventoryHeaderProps {
   totalValue: number;
   lowStockCount: number;
   outOfStockCount: number;
+  isTechnician?: boolean;
 }
 
 const StatCard = ({
@@ -67,6 +68,7 @@ export const RealtimeInventoryHeader = ({
   totalValue,
   lowStockCount,
   outOfStockCount,
+  isTechnician = false,
 }: InventoryHeaderProps) => {
   const prevValues = useRef({
     totalProducts,
@@ -93,15 +95,17 @@ export const RealtimeInventoryHeader = ({
       bg: "bg-blue-600/20",
       valueClass: "text-white",
     },
-    {
-      label: "Total Value",
-      value: formatCurrency(totalValue),
-      prevValue: formatCurrency(prevValues.current.totalValue),
-      subText: "(at purchase price)",
-      icon: <TrendingUp className="w-5 h-5 text-purple-400" />,
-      bg: "bg-green-600/20",
-      valueClass: "text-purple-400",
-    },
+    ...(!isTechnician
+      ? [{
+          label: "Total Value",
+          value: formatCurrency(totalValue),
+          prevValue: formatCurrency(prevValues.current.totalValue),
+          subText: "(at purchase price)",
+          icon: <TrendingUp className="w-5 h-5 text-purple-400" />,
+          bg: "bg-green-600/20",
+          valueClass: "text-purple-400",
+        }]
+      : []),
     {
       label: "Low Stock",
       value: lowStockCount,
@@ -128,25 +132,27 @@ export const RealtimeInventoryHeader = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-            Inventory Management
+            {isTechnician ? "Inventory" : "Inventory Management"}
           </h1>
         </div>
-        <div className="flex items-center gap-2 justify-end">
-          <Button
-            onClick={() => {
-              router.push("/admin/inventory/history");
-            }}
-            className=" w-full"
-            variant="outline"
-          >
-            <History className="w-4 h-4 mr-2" />
-            Stoke History
-          </Button>
-          <Button onClick={onAddProduct} className=" w-full">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Products
-          </Button>
-        </div>
+        {!isTechnician && (
+          <div className="flex items-center gap-2 justify-end">
+            <Button
+              onClick={() => {
+                router.push("/admin/inventory/history");
+              }}
+              className=" w-full"
+              variant="outline"
+            >
+              <History className="w-4 h-4 mr-2" />
+              Stoke History
+            </Button>
+            <Button onClick={onAddProduct} className=" w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Products
+            </Button>
+          </div>
+        )}
       </div>
       <ResponsiveAccordion title="Inventory">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

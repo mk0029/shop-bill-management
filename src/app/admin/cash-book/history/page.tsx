@@ -15,6 +15,8 @@ import { ArrowLeft, Calendar, Search, Filter } from "lucide-react";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
+import { useAuthStore } from "@/store/auth-store";
+import { useRouter } from "next/navigation";
 
 interface CashBookEntry {
   _id: string;
@@ -50,6 +52,8 @@ interface User {
 }
 
 export default function CashBookHistoryPage() {
+  const { role } = useAuthStore();
+  const router = useRouter();
   const [entries, setEntries] = useState<CashBookEntry[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedBill, setSelectedBill] = useState<any>(null);
@@ -77,8 +81,12 @@ export default function CashBookHistoryPage() {
   });
 
   useEffect(() => {
+    if (role === "technician") {
+      router.replace("/admin/cash-book");
+      return;
+    }
     loadData();
-  }, []);
+  }, [role]);
 
   const loadData = async () => {
     try {

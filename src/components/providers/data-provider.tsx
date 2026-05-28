@@ -40,10 +40,11 @@ export function DataProvider({ children }: DataProviderProps) {
         userId: user?.id,
         customerId: (user as any)?.customerId,
       });
-    } else if (role === "admin" || role === "super_admin") {
+    } else if (role === "admin" || role === "super_admin" || role === "technician") {
       loadAdminData({
         userId: user?.id,
         customerId: (user as any)?.customerId,
+        role: role as "admin" | "super_admin" | "technician",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,7 +55,7 @@ export function DataProvider({ children }: DataProviderProps) {
 
     const intervalMs = 15_000;
     const tick = () => {
-      if (role === "admin" || role === "super_admin") {
+      if (role === "admin" || role === "super_admin" || role === "technician") {
         refreshUsers();
         refreshBillsOnly({ role: "admin" });
         refreshActiveProducts();
@@ -79,10 +80,11 @@ export function DataProvider({ children }: DataProviderProps) {
         userId: user?.id,
         customerId: (user as any)?.customerId,
       });
-    } else if (role === "admin" || role === "super_admin") {
+    } else if (role === "admin" || role === "super_admin" || role === "technician") {
       loadAdminData({
         userId: user?.id,
         customerId: (user as any)?.customerId,
+        role: role as "admin" | "super_admin" | "technician",
       });
     }
   };

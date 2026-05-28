@@ -196,9 +196,39 @@ const customerNavigation: NavigationItem[] = [
 ];
 const technicianNavigation: NavigationItem[] = [
   {
+    label: "Create Bill",
+    href: "/admin/billing/create?fresh=1",
+    icon: Plus,
+  },
+  {
+    label: "Update Bills",
+    href: "/admin/billing",
+    icon: FileText,
+  },
+  {
+    label: "Create Customer",
+    href: "/admin/customers/add",
+    icon: Users,
+  },
+  {
+    label: "Cash Book",
+    href: "/admin/cash-book",
+    icon: DollarSign,
+  },
+  {
+    label: "Inventory",
+    href: "/admin/inventory",
+    icon: Package,
+  },
+  {
+    label: "Chats",
+    href: "/admin/chats",
+    icon: MessageSquare,
+  },
+  {
     label: "Work List",
     href: "/dashboard/work-list",
-    icon: FileText,
+    icon: Wrench,
   },
 ];
 export function Navigation() {
@@ -287,7 +317,7 @@ export function Navigation() {
 
   // Load chat rooms for admin users to show unread message indicator on all pages
   useEffect(() => {
-    if ((role === "admin" || role === "super_admin") && user) {
+    if ((role === "admin" || role === "super_admin" || role === "technician") && user) {
       // Load rooms in background for unread message indicator
       loadRooms().catch(() => {
         // Silently fail - rooms will be loaded when user visits chat page
@@ -305,7 +335,7 @@ export function Navigation() {
     // basic mobile check
     const isMobile =
       typeof window !== "undefined" ? window.innerWidth < 768 : false;
-    if ((role === "admin" || role === "super_admin") && onChats && isMobile) {
+    if ((role === "admin" || role === "super_admin" || role === "technician") && onChats && isMobile) {
       if (!activeRoomId) {
         setIsRoomsOverlayOpen(true);
       }
@@ -504,13 +534,15 @@ export function Navigation() {
                   </div>
                   <div>
                     <p className="text-white font-medium">{displayName}</p>
-                    <p className="text-gray-400 text-sm">
-                      {role === "super_admin"
-                        ? "Super Admin"
-                        : role === "admin"
-                          ? "Administrator"
-                          : "User"}
-                    </p>
+                <p className="text-gray-400 text-sm">
+                  {role === "super_admin"
+                    ? "Super Admin"
+                    : role === "admin"
+                      ? "Administrator"
+                      : role === "technician"
+                        ? "Technician"
+                        : "User"}
+                </p>
                   </div>
                 </div>
                 <Button
@@ -575,7 +607,9 @@ export function Navigation() {
                   ? "Super Admin"
                   : role === "admin"
                     ? "Administrator"
-                    : "User"}
+                    : role === "technician"
+                      ? "Technician"
+                      : "User"}
               </p>
             </div>
           </div>
@@ -600,7 +634,7 @@ export function Navigation() {
               {navigation.find((item) => isActive(item.href))?.label ||
                 "Dashboard"}
             </h1>
-            {(role === "admin" || role === "super_admin") &&
+            {(role === "admin" || role === "super_admin" || role === "technician") &&
               isActive("/admin/chats") && (
                 <div className="mt-3 -mx-2 sm:mx-0 hidden md:block">
                   <RoomsTopBar
@@ -619,7 +653,7 @@ export function Navigation() {
             <div className="flex items-center gap-x-3">
               <NotificationsPopover />
               {/* Mobile: open Rooms overlay when on any page for admin users */}
-              {(role === "admin" || role === "super_admin") && (
+              {(role === "admin" || role === "super_admin" || role === "technician") && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -640,7 +674,7 @@ export function Navigation() {
               >
                 <Menu className="w-5 h-5" />
                 {/* Orange dot indicator for new messages on hamburger menu */}
-                {(role === "admin" || role === "super_admin") &&
+                {(role === "admin" || role === "super_admin" || role === "technician") &&
                   unreadMessagesCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
                   )}
@@ -652,7 +686,7 @@ export function Navigation() {
       </div>
       {/* Mobile Rooms Overlay (slides in from left) */}
       <AnimatePresence>
-        {isRoomsOverlayOpen && (role === "admin" || role === "super_admin") && (
+        {isRoomsOverlayOpen && (role === "admin" || role === "super_admin" || role === "technician") && (
           <>
             {/* Backdrop */}
             <motion.div

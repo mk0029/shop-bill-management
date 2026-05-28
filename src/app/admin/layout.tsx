@@ -10,7 +10,11 @@ export default async function AdminLayout({
 }) {
   const auth = await getServerAuth();
   if (!auth.isAuthenticated) redirect("/");
-  if (auth.role !== "admin" && auth.role !== "super_admin")
+  if (
+    auth.role !== "admin" &&
+    auth.role !== "super_admin" &&
+    auth.role !== "technician"
+  )
     redirect("/customer/bills");
 
   return (

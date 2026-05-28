@@ -1,4 +1,4 @@
-export type Role = "customer" | "admin" | "super_admin";
+export type Role = "customer" | "admin" | "super_admin" | "technician";
 
 export type Permission =
   | "VIEW_BILL"
@@ -12,6 +12,7 @@ export type Permission =
 const rolePermissions: Record<Role, readonly Permission[]> = {
   customer: [],
   admin: ["VIEW_BILL", "CREATE_BILL", "UPDATE_BILL_STATUS"],
+  technician: ["VIEW_BILL", "CREATE_BILL", "UPDATE_BILL_STATUS"],
   super_admin: [
     "VIEW_BILL",
     "CREATE_BILL",
@@ -30,7 +31,7 @@ export function hasPermission(role: Role | null | undefined, permission: Permiss
 }
 
 export function isAdminLike(role: Role | null | undefined): boolean {
-  return role === "admin" || role === "super_admin";
+  return role === "admin" || role === "super_admin" || role === "technician";
 }
 
 export function isSuperAdmin(role: Role | null | undefined): boolean {

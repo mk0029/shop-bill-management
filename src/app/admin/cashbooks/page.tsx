@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { sanityClient } from "@/lib/sanity";
+import { getServerAuth } from "@/lib/server-auth";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import CreateBookButton from "@/components/cash-book/create-book-button";
 import CashbooksRealtimeList from "@/components/cash-book/cashbooks-realtime-list";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,10 @@ async function getAllCashbooks() {
 }
 
 export default async function CashbooksIndexPage() {
+  const auth = await getServerAuth();
+  if (!auth.isAuthenticated) redirect("/");
+  if (auth.role === "technician") redirect("/admin/cash-book");
+
   const books = await getAllCashbooks();
 
   return (

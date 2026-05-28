@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
 import { BillDetailTrigger } from "@/components/bills/bill-detail-trigger";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth-store";
 import { useLocaleStore } from "@/store/locale-store";
 import { useBills } from "@/hooks/use-sanity-data";
 import {
@@ -43,10 +44,17 @@ const getStatusColor = (status: string) => {
 
 export default function BillHistoryPage() {
   const router = useRouter();
+  const { role } = useAuthStore();
   const { currency } = useLocaleStore();
   const { bills, updateBill } = useBills();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    if (role === "technician") {
+      router.replace("/admin/billing");
+    }
+  }, [role, router]);
 
   interface Bill {
     id: string;

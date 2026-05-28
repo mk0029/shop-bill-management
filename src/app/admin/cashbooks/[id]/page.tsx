@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { sanityClient } from "@/lib/sanity";
 import CashbookComposer from "@/components/cash-book/cashbook-composer";
+import { getServerAuth } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,10 @@ interface PageProps {
 }
 
 export default async function CashbookDetailPage({ params }: PageProps) {
+  const auth = await getServerAuth();
+  if (!auth.isAuthenticated) redirect("/");
+  if (auth.role === "technician") redirect("/admin/cash-book");
+
   const { id } = await params; // Await the params Promise
 
   const rawId = typeof id === "string" ? id : "";

@@ -26,6 +26,7 @@ interface BillingBrowserProps {
   rightAction?: ReactNode; // Optional custom action in header (e.g., Back button)
   defaultFilterStatus?: string; // e.g., "all" | "pending" | "paid" | "draft"
   defaultFilterStatuses?: string[]; // Multiple statuses
+  isTechnician?: boolean;
 }
 
 export function BillingBrowser({
@@ -35,6 +36,7 @@ export function BillingBrowser({
   rightAction,
   defaultFilterStatus = variant === "pending" ? "pending" : "all",
   defaultFilterStatuses,
+  isTechnician = false,
 }: BillingBrowserProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -275,17 +277,18 @@ export function BillingBrowser({
         </div>
         {rightAction ?? (
           <div className="flex items-center gap-2">
-            {" "}
-            <Button
-              onClick={() => {
-                router.push("/admin/billing/drafts");
-              }}
-              className="w-full sm:w-auto"
-              variant="outline"
-            >
-              <FileTextIcon className="w-4 h-4 mr-2" />
-              Drafts
-            </Button>{" "}
+            {!isTechnician && (
+              <Button
+                onClick={() => {
+                  router.push("/admin/billing/drafts");
+                }}
+                className="w-full sm:w-auto"
+                variant="outline"
+              >
+                <FileTextIcon className="w-4 h-4 mr-2" />
+                Drafts
+              </Button>
+            )}
             <Button
               onClick={() => {
                 router.push("/admin/billing/create?fresh=1");
@@ -300,22 +303,24 @@ export function BillingBrowser({
       </div>
 
       {/* Bill Statistics */}
-      <div>
-        <ResponsiveAccordion
-          className="mb-4"
-          title={
-            <h2 className="text-lg font-semibold text-white  flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-blue-400" />
-              Bill Statistics
-            </h2>
-          }
-        >
-          <RealtimeBillStats
-            key={`billing-stats-${variant}`}
-            initialBills={bills}
-          />
-        </ResponsiveAccordion>
-      </div>
+      {!isTechnician && (
+        <div>
+          <ResponsiveAccordion
+            className="mb-4"
+            title={
+              <h2 className="text-lg font-semibold text-white  flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-blue-400" />
+                Bill Statistics
+              </h2>
+            }
+          >
+            <RealtimeBillStats
+              key={`billing-stats-${variant}`}
+              initialBills={bills}
+            />
+          </ResponsiveAccordion>
+        </div>
+      )}
 
       {/* Search and Filter */}
       <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">

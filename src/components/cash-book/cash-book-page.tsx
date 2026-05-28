@@ -37,6 +37,7 @@ import { SelectedItemsList } from "@/components/billing/selected-items-list";
 import { Badge } from "../ui/badge";
 import { sanityClient } from "@/lib/sanity";
 import { Modal } from "@/components/ui/modal";
+import { useAuthStore } from "@/store/auth-store";
 
 interface CashBookEntry {
   _id: string;
@@ -78,6 +79,8 @@ interface User {
 }
 
 export function CashBookPage() {
+  const { role } = useAuthStore();
+  const isTechnician = role === "technician";
   const [entries, setEntries] = useState<CashBookEntry[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [summary, setSummary] = useState<CashBookSummary>({
@@ -537,7 +540,8 @@ export function CashBookPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"></div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {!isTechnician && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="bg-gray-800 border-gray-700 p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -591,7 +595,8 @@ export function CashBookPage() {
                 </div>
               </div>
             </Card>
-          </div>
+            </div>
+          )}
         </div>
       </ResponsiveAccordion>
       <div className=" mx-auto space-y-4 sm:space-y-6 pt-6 md:px-3">
@@ -605,13 +610,15 @@ export function CashBookPage() {
               <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
               {isSyncing ? 'Syncing...' : 'Sync Payments'}
             </Button> */}
-          <Button
-            onClick={() => (window.location.href = "/admin/cash-book/history")}
-            className="bg-gray-600 hover:bg-gray-700 text-white flex w-full items-center gap-2"
-          >
-            <Calendar className="w-4 h-4" />
-            <span className="max-sm:hidden">View</span> History
-          </Button>
+          {!isTechnician && (
+            <Button
+              onClick={() => (window.location.href = "/admin/cash-book/history")}
+              className="bg-gray-600 hover:bg-gray-700 text-white flex w-full items-center gap-2"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="max-sm:hidden">View</span> History
+            </Button>
+          )}
           <Button
             onClick={() => setShowInventorySale(true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white flex w-full items-center gap-2"
@@ -873,7 +880,7 @@ export function CashBookPage() {
         </Modal>
 
         {/* Records Table - Desktop View */}
-        <div className="hidden lg:block">
+        {!isTechnician && <div className="hidden lg:block">
           <Card className="bg-gray-800 border-gray-700">
             <div className="p-4 border-b border-gray-700">
               <h3 className="text-lg font-semibold text-white">
@@ -999,10 +1006,10 @@ export function CashBookPage() {
               )}
             </div>
           </Card>
-        </div>
+        </div>}
 
         {/* Records Cards - Mobile View */}
-        <div className="lg:hidden">
+        {!isTechnician && <div className="lg:hidden">
           {Object.keys(groupedEntries).length === 0 ? (
             <Card className="bg-gray-800 border-gray-700 p-8 text-center">
               <p className="text-gray-400">No cash book entries found</p>
@@ -1094,7 +1101,7 @@ export function CashBookPage() {
               </div>
             ))
           )}
-        </div>
+        </div>}
 
         {/* Bill Detail Modal */}
         <BillDetailModal

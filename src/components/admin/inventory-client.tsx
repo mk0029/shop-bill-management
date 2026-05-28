@@ -5,8 +5,11 @@ import { InventoryFilters } from "@/components/inventory/inventory-filters";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { InventoryDialogs } from "@/components/inventory/inventory-dialogs";
 import { RealtimeInventoryHeader } from "@/components/inventory/realtime-inventory-header";
+import { useAuthStore } from "@/store/auth-store";
 
 export default function AdminInventoryClient() {
+  const { role } = useAuthStore();
+  const isTechnician = role === "technician";
   const {
     products: storeProducts,
     brands: storeBrands,
@@ -55,6 +58,7 @@ export default function AdminInventoryClient() {
         totalValue={getTotalValue()}
         lowStockCount={getLowStockCount()}
         outOfStockCount={getOutOfStockCount()}
+        isTechnician={isTechnician}
       />
 
       <InventoryFilters
@@ -86,6 +90,7 @@ export default function AdminInventoryClient() {
         onEditProduct={handleEditProduct}
         onDeleteProduct={handleDeleteProduct}
         getStockStatus={getStockStatus}
+        isTechnician={isTechnician}
       />
 
       <InventoryDialogs

@@ -8,6 +8,7 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth-store";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { useCustomers } from "@/hooks/use-sanity-data";
 
 export default function DraftBillsPage() {
   const router = useRouter();
+  const { role } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
@@ -43,8 +45,12 @@ export default function DraftBillsPage() {
 
   // Prefetch create route to reduce navigation latency
   useEffect(() => {
+    if (role === "technician") {
+      router.replace("/admin/billing");
+      return;
+    }
     router.prefetch?.("/admin/billing/create");
-  }, [router]);
+  }, [router, role]);
 
   // Load local drafts on mount and when storage changes
   const loadDrafts = useCallback(() => {

@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, data });
     } 
     
-    if (userRole === "admin" || userRole === "super_admin") {
+    if (userRole === "admin" || userRole === "super_admin" || userRole === "technician") {
       // Admins can access all rooms or filter by specific criteria
       let filter = "_type == \"chatRoom\"";
       const params: Record<string, unknown> = {};
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
         params.customerId = customerId;
       }
 
-      if (adminId) {
+      if (adminId && userRole !== "technician") {
         filter += " && $adminId in admins[]._ref";
         params.adminId = adminId;
       }

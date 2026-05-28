@@ -2,6 +2,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,7 @@ import {
   Loader2,
 } from "lucide-react";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
+import { useAuthStore } from "@/store/auth-store";
 
 const StatCard = ({
   title,
@@ -79,6 +82,8 @@ const StatCard = ({
 );
 
 export default function SalesReportPage() {
+  const router = useRouter();
+  const { role } = useAuthStore();
   const { currency } = useLocaleStore();
   const [dateRange, setDateRange] = useState("month");
   const [from, setFrom] = useState<string | undefined>(undefined);
@@ -106,6 +111,12 @@ export default function SalesReportPage() {
     serviceTypes,
     mode,
   });
+
+  useEffect(() => {
+    if (role === "technician") {
+      router.replace("/admin/billing");
+    }
+  }, [role, router]);
 
   if (isLoading) {
     return (

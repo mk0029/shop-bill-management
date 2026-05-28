@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ custome
 
     // Get all admin users so they can be pre-added to admins[]
     const adminIds: string[] = await sanityClient.fetch(
-      `*[_type == "user" && role in ["admin", "super_admin"]]._id`
+      `*[_type == "user" && role in ["admin", "super_admin", "technician"]]._id`
     );
 
     const now = new Date().toISOString();
