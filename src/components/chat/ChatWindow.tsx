@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import { useChatStore } from "@/store/chat-store";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import VoiceRecorder from "./VoiceRecorder";
 import {
   useChatData,
-  useScrollToBottom,
   useMessageSeen,
   useFileUpload,
   useVoiceRecorder,
@@ -23,15 +22,14 @@ type Props = {
 export default function ChatWindow({ roomId, senderId, actor }: Props) {
   const { sendMessage, editMessage } = useChatStore();
   const [text, setText] = useState("");
-  const listRef = useRef<HTMLDivElement | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
   // Use custom hooks
-  const { messages, bills, rooms } = useChatData(roomId, senderId, actor);
-  const { showScrollButton, scrollToBottom, bottomRef } = useScrollToBottom(
-    listRef,
-    messages,
+  const { messages, bills, rooms, chatReady } = useChatData(
+    roomId,
+    senderId,
+    actor,
   );
   const { registerMessageRef } = useMessageSeen(roomId, senderId, messages);
   const {
@@ -84,6 +82,12 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
 
   const handleClearRecordingError = useCallback(() => {
     // This will be handled by the voice recorder hook
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = document.getElementById("messages-scroll");
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, []);
 
   const onSend = async () => {
@@ -221,47 +225,20 @@ export default function ChatWindow({ roomId, senderId, actor }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
-      <div ref={listRef} className="flex flex-col grow overflow-y-auto pr-1">
-        <MessageList
-          messages={messages}
-          bills={bills}
-          roomId={roomId}
-          senderId={senderId}
-          actor={actor}
-          rooms={rooms}
-          uploadProgress={uploadProgress}
-          registerMessageRef={registerMessageRef}
-          onReply={handleReply}
-          onEdit={handleEdit}
-        />
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Scroll to bottom button */}
-      {showScrollButton && (
-        <div className="absolute bottom-20 right-4 z-10">
-          <button
-            onClick={scrollToBottom}
-            className="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
-            aria-label="Scroll to latest message"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-              />
-            </svg>
-          </button>
-        </div>
-      )}
+    <div className="relative flex h-full flex-col">
+      <MessageList
+        messages={messages}
+        bills={bills}
+        roomId={roomId}
+        senderId={senderId}
+        actor={actor}
+        rooms={rooms}
+        uploadProgress={uploadProgress}
+        registerMessageRef={registerMessageRef}
+        onReply={handleReply}
+        onEdit={handleEdit}
+        initialLoading={!chatReady}
+      />
 
       <VoiceRecorder
         isRecording={isRecording}

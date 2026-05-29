@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
+  ChevronLeft,
   ChevronDown,
   FileText,
   History,
@@ -15,6 +16,8 @@ import {
   Plus,
   Receipt,
   MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   Shield,
   User,
@@ -35,7 +38,6 @@ import { canManageAdmins } from "@/lib/admin-utils";
 import { useAuthStore } from "@/store/auth-store";
 import Image from "next/image";
 import { OnlineStatusToggle } from "@/components/online-status-toggle";
-import RoomsTopBar from "@/components/chat/RoomsTopBar";
 import RoomsOverlayList from "@/components/chat/RoomsOverlayList";
 import NewChatLauncher from "@/components/chat/new-chat-launcher";
 import { sanitizeUserText } from "@/constants/defaults";
@@ -180,7 +182,7 @@ const customerNavigation: NavigationItem[] = [
   },
   {
     label: "Chats",
-    href: "/chats",
+    href: "/customer/chat",
     icon: Receipt,
   },
   {
@@ -232,11 +234,13 @@ const technicianNavigation: NavigationItem[] = [
   },
 ];
 export function Navigation() {
+  const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRoomsOverlayOpen, setIsRoomsOverlayOpen] = useState(false);
   const [showNewChatMobile, setShowNewChatMobile] = useState(false);
   // Allow only one expanded section at a time on mobile
   const [expandedItems, setExpandedItems] = useState<string | null>(null);
+  const [isDesktopNavMinimized, setIsDesktopNavMinimized] = useState(false);
   const prevOverflowRef = useRef<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -244,6 +248,7 @@ export function Navigation() {
   const {
     activeRoomId,
     setActiveRoom,
+    clearActiveRoom,
     rooms,
     loadRooms,
     totalUnreadForAdmins,
@@ -295,6 +300,31 @@ export function Navigation() {
     const hrefPath = href.split("?")[0];
     return pathname === hrefPath || pathname.startsWith(hrefPath + "/");
   };
+  const isChatScreen =
+    isActive("/admin/chats") || isActive("/customer/chat") || isActive("/chat");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("admin_nav_minimized");
+    const minimized = saved === "1";
+    setIsDesktopNavMinimized(minimized);
+    document.documentElement.style.setProperty(
+      "--admin-nav-w",
+      minimized ? "5rem" : "16rem",
+    );
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "admin_nav_minimized",
+      isDesktopNavMinimized ? "1" : "0",
+    );
+    document.documentElement.style.setProperty(
+      "--admin-nav-w",
+      isDesktopNavMinimized ? "5rem" : "16rem",
+    );
+  }, [isDesktopNavMinimized]);
 
   const handleLogout = () => {
     logout();
@@ -344,6 +374,15 @@ export function Navigation() {
 
   // Calculate unread messages count for the orange dot indicator
   const unreadMessagesCount = totalUnreadForAdmins;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Prevent SSR/client HTML mismatch from persisted auth/nav state.
+  if (!mounted) {
+    return null;
+  }
 
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
     const Icon = item.icon;
@@ -424,6 +463,21 @@ export function Navigation() {
 
     // Desktop rendering
     if (hasChildren) {
+      if (isDesktopNavMinimized) {
+        return (
+          <div key={item.label}>
+            <Link
+              href={item.href}
+              title={item.label}
+              className={`flex items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                active ? "bg-gray-500 text-white" : "text-gray-300 hover:bg-gray-800"
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+            </Link>
+          </div>
+        );
+      }
       // Determine active child so only the selected item is highlighted
       const activeChild = item.children!.find((child) => isActive(child.href));
       return (
@@ -462,6 +516,7 @@ export function Navigation() {
       <div key={item.label}>
         <Link
           href={item.href}
+          title={isDesktopNavMinimized ? item.label : undefined}
           className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors relative ${
             active
               ? "bg-gray-500 text-white"
@@ -469,7 +524,9 @@ export function Navigation() {
           }`}
         >
           <Icon className="w-5 h-5" />
-          <span className="font-medium">{item.label}</span>
+          {!isDesktopNavMinimized && (
+            <span className="font-medium">{item.label}</span>
+          )}
           {/* Orange dot indicator for new messages in Chats */}
           {item.label === "Chats" && unreadMessagesCount > 0 && (
             <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
@@ -481,7 +538,48 @@ export function Navigation() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Fixed Mobile Menu Launcher */}
+      {!isMobileMenuOpen && !isRoomsOverlayOpen && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const onAdminChats =
+              typeof pathname === "string"
+                ? pathname.split("?")[0].startsWith("/admin/chats")
+                : false;
+            const isMobile =
+              typeof window !== "undefined" ? window.innerWidth < 768 : false;
+
+            if (onAdminChats && isMobile && activeRoomId) {
+              clearActiveRoom();
+              return;
+            }
+            setIsMobileMenuOpen(true);
+          }}
+          className="xl:hidden fixed left-2 z-[70] rounded-xl bg-gray-900/95 border border-gray-700 text-gray-200 shadow-lg backdrop-blur px-2.5 py-2"
+          style={{ top: "max(0.65rem, env(safe-area-inset-top))" }}
+          title={
+            typeof pathname === "string" &&
+            pathname.split("?")[0].startsWith("/admin/chats") &&
+            !!activeRoomId
+              ? "Back to chat list"
+              : "Open menu"
+          }
+        >
+          {typeof pathname === "string" &&
+          pathname.split("?")[0].startsWith("/admin/chats") &&
+          !!activeRoomId ? (
+            <ChevronLeft className="w-5 h-5" />
+          ) : (
+            <Menu className="w-5 h-5" />
+          )}
+          {(role === "admin" || role === "super_admin" || role === "technician") &&
+            unreadMessagesCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+            )}
+        </Button>
+      )}
 
       {/* Mobile Navigation Overlay */}
       <AnimatePresence>
@@ -560,38 +658,67 @@ export function Navigation() {
       </AnimatePresence>
 
       {/* Desktop Navigation */}
-      <nav className="hidden xl:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed z-50 left-0 top-0 overflow-y-auto">
+      <nav
+        className={`hidden xl:block bg-gray-900 border-r border-gray-800 h-screen fixed z-50 left-0 top-0 overflow-y-auto transition-all duration-200 ${
+          isDesktopNavMinimized ? "w-20" : "w-64"
+        }`}
+      >
         {/* Header */}
-        <div className="p-6 border-b border-gray-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+        <div className="p-4 border-b border-gray-800">
+          <div className={`flex items-center ${isDesktopNavMinimized ? "justify-center" : "gap-3"}`}>
+            <div className="h-10 w-10 shrink-0 rounded-lg bg-blue-600 p-1.5">
               <Image
                 src="/je-p-48.png"
                 alt="Logo"
                 width={40}
                 height={40}
-                sizes="100vw"
+                sizes="40px"
                 quality={100}
+                className="h-full w-full object-contain"
               />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">Jambh Electrics</h1>
-              <p className="text-gray-400 text-sm">
-                {role === "admin" || role === "super_admin"
-                  ? "Admin Panel"
-                  : "Customer Portal"}
-              </p>
-            </div>
+            {!isDesktopNavMinimized && (
+              <>
+                <div>
+                  <h1 className="text-lg font-bold text-white">Jambh Electrics</h1>
+                  <p className="text-gray-400 text-sm">
+                    {role === "admin" || role === "super_admin"
+                      ? "Admin Panel"
+                      : "Customer Portal"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDesktopNavMinimized((v) => !v)}
+                  className="ml-auto rounded-md p-1.5 text-gray-300 hover:bg-gray-800"
+                  title="Minimize sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </button>
+              </>
+            )}
           </div>
-        </div>
+          {isDesktopNavMinimized && (
+            <div className="mt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setIsDesktopNavMinimized(false)}
+                className="rounded-md p-1.5 text-gray-300 hover:bg-gray-800"
+                title="Expand sidebar"
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          </div>
 
         {/* Navigation Items */}
         <div className="sm:p-4 p-3 space-y-2 pb-28">
           {navigation.map((item) => renderNavigationItem(item))}
           {/* Online Status Toggle for Desktop */}
-          <div className="pt-2">
+          {!isDesktopNavMinimized && <div className="pt-2">
             <OnlineStatusToggle />
-          </div>
+          </div>}
         </div>
 
         {/* User Section */}
@@ -600,7 +727,7 @@ export function Navigation() {
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
               <User className="w-5 h-5 text-white" />
             </div>
-            <div>
+            {!isDesktopNavMinimized && <div>
               <p className="text-white font-medium">{displayName}</p>
               <p className="text-gray-400 text-sm">
                 {role === "super_admin"
@@ -611,18 +738,19 @@ export function Navigation() {
                       ? "Technician"
                       : "User"}
               </p>
-            </div>
+            </div>}
           </div>
-          <Button variant="outline" onClick={handleLogout} className="w-full">
+          <Button variant="outline" onClick={handleLogout} className="w-full" title="Logout">
             <LogOut className="w-4 h-4 mr-2" />
-            Logout
+            {!isDesktopNavMinimized && "Logout"}
           </Button>
         </div>
       </nav>
 
       {/* Main Content Wrapper */}
-      <div className="h-[62px]"></div>
-      <div className="xl:!pl-64 min-h-fit backdrop-blur-lg fixed z-40 top-0 w-full left-0">
+      {!isChatScreen && <div className="h-[62px]"></div>}
+      {!isChatScreen && (
+      <div className="min-h-fit backdrop-blur-lg fixed z-40 top-0 w-full left-0" style={{ paddingLeft: "var(--admin-nav-w, 16rem)" }}>
         {/* Top Bar */}
         <div
           className={`border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6 ${isActive("/admin/chats") && "md:!py-0"}`}
@@ -634,22 +762,6 @@ export function Navigation() {
               {navigation.find((item) => isActive(item.href))?.label ||
                 "Dashboard"}
             </h1>
-            {(role === "admin" || role === "super_admin" || role === "technician") &&
-              isActive("/admin/chats") && (
-                <div className="mt-3 -mx-2 sm:mx-0 hidden md:block">
-                  <RoomsTopBar
-                    activeRoomId={activeRoomId || undefined}
-                    onSelect={(rid) => {
-                      void setActiveRoom(rid, "admin");
-                      // No URL navigation needed - WhatsApp style state-based routing
-                    }}
-                    adminId={
-                      (user as { id?: string; _id?: string } | null)?.id ||
-                      (user as { id?: string; _id?: string } | null)?._id
-                    }
-                  />
-                </div>
-              )}
             <div className="flex items-center gap-x-3">
               <NotificationsPopover />
               {/* Mobile: open Rooms overlay when on any page for admin users */}
@@ -684,25 +796,18 @@ export function Navigation() {
           {/* Chats quick room selector in top bar when on Chats page (admin) */}
         </div>
       </div>
+      )}
       {/* Mobile Rooms Overlay (slides in from left) */}
       <AnimatePresence>
         {isRoomsOverlayOpen && (role === "admin" || role === "super_admin" || role === "technician") && (
           <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-[9999] md:hidden"
-              onClick={() => setIsRoomsOverlayOpen(false)}
-            />
-            {/* Sliding panel from left */}
+            {/* Full-screen chats screen on mobile (WhatsApp-style) */}
             <motion.div
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 left-0 h-full w-[85vw] max-w-sm bg-gray-900 border-r border-gray-800 z-[99999] md:hidden flex flex-col"
+              className="fixed inset-0 h-full w-full max-w-none bg-gray-900 z-[50] md:hidden flex flex-col"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-800">
@@ -724,11 +829,12 @@ export function Navigation() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setIsRoomsOverlayOpen(false);
+                      setIsMobileMenuOpen(true);
                     }}
-                    className={`hover:bg-gray-800 ${"opacity-50 cursor-not-allowed"}`}
+                    className="hover:bg-gray-800 text-white"
+                    title="Open menu"
                   >
-                    <X className="w-5 h-5" />
+                    <Menu className="w-5 h-5" />
                   </Button>
                 </div>
               </div>

@@ -24,6 +24,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    --admin-nav-w: 16rem;
   }
 
   .dark {
@@ -148,4 +149,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
   -webkit-transform: rotate(3deg) translate(0px, -4px);
   transform: rotate(3deg) translate(0px, -4px);
+}
+
+@media (min-width: 1280px) {
+  .admin-main {
+    margin-left: var(--admin-nav-w, 16rem);
+  }
 }

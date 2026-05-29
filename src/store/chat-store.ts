@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { ChatRoom, ChatMessage } from "@/lib/chat-api";
-import { getOrCreateRoomByCustomer, listRooms, listRoomMessages, sendRoomMessage, markRoomRead, markMessageSeen, updateMessage } from "@/lib/chat-api";
+import { getOrCreateRoomByCustomer, listRooms, listRoomMessages, sendRoomMessage, markRoomRead, markMessageSeen, updateMessage, reactToMessage } from "@/lib/chat-api";
 import { getTokenWithoutRegister } from "@/lib/fcm-client";
 import { setupRealtimeListeners } from "@/lib/sanity";
 import { cacheGetRooms, cacheSetRooms, cacheGetMessages, cacheSetMessages, cacheMergeAndSetMessages } from "@/lib/chat-cache";
@@ -50,6 +50,7 @@ interface ChatState {
   markRead: (roomId: string, actor: "admin" | "customer") => Promise<void>;
   markMessageSeen: (roomId: string, messageId: string) => Promise<void>;
   editMessage: (roomId: string, messageId: string, content: string) => Promise<void>;
+  reactMessage: (roomId: string, messageId: string, emoji: string, userId: string, userName?: string) => Promise<void>;
   addOptimisticMessage: (roomId: string, message: ChatMessage) => void;
   finalizeOptimisticMessage: (tempId: string, finalMessage: { content: string; attachments: ChatMessage['attachments']; isCustomer?: boolean; roomId: string; senderId: string; parentId?: string }) => Promise<void>;
   updateMessageStatus: (roomId: string, messageId: string, status: "pending" | "sent" | "delivered" | "seen" | "failed") => void;
@@ -364,6 +365,48 @@ export const useChatStore = create<ChatState>()(devtools((set, get) => ({
       try { await get().fetchMessages(roomId); } catch {}
       const msg = e instanceof Error ? e.message : "Failed to update message";
       set({ error: msg });
+    }
+  },
+
+  reactMessage: async (roomId, messageId, emoji, userId, userName) => {
+    const now = new Date().toISOString();
+    set((s) => {
+      const list = s.messagesByRoomId[roomId] || [];
+      const next = list.map((m) => {
+        if (m._id !== messageId) return m;
+        const reactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
+        const idx = reactions.findIndex((r) => String(r.userId) === String(userId));
+        if (idx >= 0) {
+          if (reactions[idx].emoji === emoji) {
+            reactions.splice(idx, 1);
+          } else {
+            reactions[idx] = { ...reactions[idx], emoji, timestamp: now };
+          }
+        } else {
+          reactions.push({ userId: String(userId), userName, emoji, timestamp: now });
+        }
+        return { ...m, reactions, updatedAt: now };
+      });
+      return { messagesByRoomId: { ...s.messagesByRoomId, [roomId]: next } };
+    });
+    try {
+      const saved = await reactToMessage({ messageId, userId, userName, emoji });
+      set((s) => ({
+        messagesByRoomId: {
+          ...s.messagesByRoomId,
+          [roomId]: (s.messagesByRoomId[roomId] || []).map((m) =>
+            m._id === messageId ? saved : m,
+          ),
+        },
+      }));
+      try {
+        const current = get().messagesByRoomId[roomId] || [];
+        await cacheSetMessages(roomId, current);
+      } catch {}
+    } catch {
+      try {
+        await get().fetchMessages(roomId);
+      } catch {}
     }
   },
 

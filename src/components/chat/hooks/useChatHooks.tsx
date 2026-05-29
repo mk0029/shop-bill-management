@@ -22,6 +22,8 @@ export function useChatData(
 ) {
   const { messagesByRoomId, fetchMessages, markRead, rooms } = useChatStore();
   const [bills, setBills] = useState<LiteBill[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(true);
+  const [billsLoading, setBillsLoading] = useState(true);
 
   const messages = useMemo(
     () => messagesByRoomId[roomId] || [],
@@ -34,16 +36,23 @@ export function useChatData(
   }, [rooms, roomId]);
 
   useEffect(() => {
+    setMessagesLoading(true);
     fetchMessages(roomId)
       .then(() => {
         markRead(roomId, actor);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setMessagesLoading(false));
   }, [roomId, actor]); // Remove fetchMessages and markRead from dependencies
 
   useEffect(() => {
     let alive = true;
-    if (!customerId) return;
+    if (!customerId) {
+      setBills([]);
+      setBillsLoading(false);
+      return;
+    }
+    setBillsLoading(true);
     (async () => {
       try {
         const res = await fetch(
@@ -94,7 +103,9 @@ export function useChatData(
           setBills([]);
         }
       } catch {
-        setBills([]);
+        if (alive) setBills([]);
+      } finally {
+        if (alive) setBillsLoading(false);
       }
     })();
     return () => {
@@ -102,7 +113,15 @@ export function useChatData(
     };
   }, [customerId]);
 
-  return { messages, bills, customerId, rooms };
+  return {
+    messages,
+    bills,
+    customerId,
+    rooms,
+    chatReady: !messagesLoading && !billsLoading,
+    messagesLoading,
+    billsLoading,
+  };
 }
 
 export function useScrollToBottom(

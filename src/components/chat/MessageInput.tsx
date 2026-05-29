@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   SendHorizontalIcon,
   PaperclipIcon,
@@ -47,10 +47,22 @@ export default function MessageInput({
   onCancelEdit,
   onCancelReply,
 }: Props) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    const maxHeight = 118;
+    const nextHeight = Math.min(textareaRef.current.scrollHeight + 2, maxHeight);
+    textareaRef.current.style.height = `${nextHeight}px`;
+    textareaRef.current.style.overflowY =
+      textareaRef.current.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [text]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
     e.target.style.height = "auto";
-    e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
+    e.target.style.height = `${Math.min(e.target.scrollHeight + 2, 118)}px`;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -64,11 +76,11 @@ export default function MessageInput({
   return (
     <>
       {replyingTo && (
-        <div className="px-0 pt-2 border-t dark:border-zinc-700 mb-1">
-          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
+        <div className="mx-auto w-full max-w-4xl px-2.5 pt-2 md:px-4">
+          <div className="mb-2 rounded-2xl border border-slate-700/70 bg-slate-800/55 px-3 py-2 backdrop-blur-md text-sm flex justify-between items-center">
             <div className="truncate">
-              <span className="text-emerald-500">Replying to: </span>
-              <span className="text-zinc-400 truncate">
+              <span className="text-emerald-300">Replying to: </span>
+              <span className="text-slate-200 truncate">
                 {typeof replyingTo?.content === "string"
                   ? replyingTo.content.slice(0, 50) +
                     (replyingTo.content.length > 50 ? "..." : "")
@@ -77,34 +89,35 @@ export default function MessageInput({
             </div>
             <button
               onClick={onCancelReply}
-              className="text-zinc-400 hover:text-white"
+              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
             >
-              ✕
+              <XIcon className="h-4 w-4" />
             </button>
           </div>
         </div>
       )}
+
       {editingId && (
-        <div className="px-0 pt-2 border-t dark:border-zinc-700 mb-1">
-          <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-2 text-sm flex justify-between items-center">
+        <div className="mx-auto w-full max-w-4xl px-2.5 pt-2 md:px-4">
+          <div className="mb-2 rounded-2xl border border-slate-700/70 bg-slate-800/55 px-3 py-2 backdrop-blur-md text-sm flex justify-between items-center">
             <div className="truncate">
-              <span className="text-emerald-500">Editing: </span>
-              <span className="text-zinc-400 truncate">
+              <span className="text-emerald-300">Editing: </span>
+              <span className="text-slate-200 truncate">
                 {text.slice(0, 50) + (text.length > 50 ? "..." : "")}
               </span>
             </div>
             <button
-              className="opacity-70 hover:opacity-100"
+              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
               onClick={onCancelEdit}
             >
-              Cancel
+              <XIcon className="h-4 w-4" />
             </button>
           </div>
         </div>
       )}
 
       {(attachments?.length || 0) > 0 && (
-        <div className="px-4 py-2 border-t dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+        <div className="mx-auto w-full max-w-[1400px] border-t border-slate-800 bg-slate-900/80 px-4 py-2">
           <div className="flex flex-wrap gap-2">
             {attachments.map((attachment) => {
               const isUploading = uploadingFiles.has(attachment.id);
@@ -113,7 +126,7 @@ export default function MessageInput({
               return (
                 <div
                   key={attachment.id}
-                  className="relative group border rounded-lg p-2 bg-white dark:bg-zinc-700 border-zinc-200 dark:border-zinc-600"
+                  className="relative group border rounded-lg p-2 bg-slate-800 border-slate-700"
                 >
                   {attachment.preview ? (
                     <Image
@@ -125,8 +138,8 @@ export default function MessageInput({
                       className="w-16 h-16 object-cover rounded"
                     />
                   ) : (
-                    <div className="w-16 h-16 flex items-center justify-center bg-zinc-100 dark:bg-zinc-600 rounded">
-                      <PaperclipIcon className="w-6 h-6 text-zinc-400" />
+                    <div className="w-16 h-16 flex items-center justify-center bg-slate-700 rounded">
+                      <PaperclipIcon className="w-6 h-6 text-slate-300" />
                     </div>
                   )}
 
@@ -135,7 +148,7 @@ export default function MessageInput({
                       <div className="w-full px-2 mb-2">
                         <div className="w-full bg-white/20 rounded-full h-1">
                           <div
-                            className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                            className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -154,7 +167,7 @@ export default function MessageInput({
                     <XIcon className="w-3 h-3" />
                   </button>
                   <div
-                    className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 truncate w-16"
+                    className="text-xs text-slate-300 mt-1 truncate w-16"
                     title={attachment.file.name}
                   >
                     {attachment.file.name}
@@ -166,56 +179,57 @@ export default function MessageInput({
         </div>
       )}
 
-      <div className="flex items-center gap-1 md:gap-2 p-2 sm:py-3 border-t rounded-lg dark:border-zinc-900 bg-white dark:bg-zinc-900">
-        <input
-          type="file"
-          multiple
-          accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.txt"
-          onChange={(e) => onFileSelect(e.target.files)}
-          className="hidden"
-          id="file-input"
-        />
-        <label
-          htmlFor="file-input"
-          className="flex-shrink-0 p-1 md:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full cursor-pointer transition-colors"
-          title="Attach file"
-        >
-          <PaperclipIcon className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />
-        </label>
-
-        <div className="flex-1 relative">
-          <textarea
-            id="message-input"
-            value={text}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              replyingTo ? "Type your reply..." : "Type a message..."
-            }
-            className="w-full rounded-3xl border border-zinc-300 dark:border-zinc-600 bg-zinc-50 hide-scroll dark:bg-zinc-800 px-4 py-2.5 pr-12 text-base resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all max-h-[96px] overflow-y-auto"
-            rows={1}
-            style={{ minHeight: "44px" }}
+      <div className="chat-composer-root border-t border-slate-800/90 bg-slate-900/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="mx-auto flex w-full max-w-[1400px] items-end gap-2 px-2.5 md:px-4">
+          <input
+            type="file"
+            multiple
+            accept="image/*,audio/*,video/*,application/pdf,.doc,.docx,.txt"
+            onChange={(e) => onFileSelect(e.target.files)}
+            className="hidden"
+            id="file-input"
           />
-        </div>
+          <label
+            htmlFor="file-input"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-slate-800 cursor-pointer"
+            title="Attach file"
+          >
+            <PaperclipIcon className="h-5 w-5" />
+          </label>
 
-        {text.trim() === "" && (attachments?.length || 0) === 0 ? (
-          <button
-            type="button"
-            onClick={onStartRecording}
-            className="flex-shrink-0 p-1 md:p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
-            title="Record voice message"
-          >
-            <MicIcon className="w-6 h-6 text-zinc-500 dark:text-zinc-400" />
-          </button>
-        ) : (
-          <button
-            onClick={onSend}
-            className="flex-shrink-0 p-2.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-            title={editingId ? "Update message" : "Send message"}
-          >
-            <SendHorizontalIcon className="w-5 h-5" />
-          </button>
-        )}
+          <div className="relative flex-1">
+            <textarea
+              ref={textareaRef}
+              id="message-input"
+              value={text}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
+              className="w-full resize-none rounded-[1.65rem] border border-slate-700/80 bg-slate-800/85 px-4 py-2.5 pr-12 text-[15px] text-slate-100 outline-none transition focus:border-emerald-500/70 focus:ring-1 focus:ring-emerald-500/60 max-h-[118px]"
+              rows={1}
+              style={{ minHeight: "44px" }}
+            />
+          </div>
+
+          {text.trim() === "" && (attachments?.length || 0) === 0 ? (
+            <button
+              type="button"
+              onClick={onStartRecording}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-slate-800"
+              title="Record voice message"
+            >
+              <MicIcon className="h-5 w-5" />
+            </button>
+          ) : (
+            <button
+              onClick={onSend}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition-colors hover:bg-emerald-600"
+              title={editingId ? "Update message" : "Send message"}
+            >
+              <SendHorizontalIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
     </>
   );

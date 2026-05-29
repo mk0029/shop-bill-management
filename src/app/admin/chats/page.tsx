@@ -17,5 +17,9 @@ export default async function AdminChatsPage() {
   const adminId = auth.userId;
   if (!adminId) redirect("/");
 
-  return <AdminChatsClient adminId={adminId} />;
+  return (
+    <div className="fixed inset-0 top-0 left-0 h-[100dvh] xl:left-[var(--admin-nav-w)] xl:w-[calc(100%-var(--admin-nav-w))]">
+      <AdminChatsClient adminId={adminId} />
+    </div>
+  );
 }

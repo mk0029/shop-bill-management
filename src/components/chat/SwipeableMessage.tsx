@@ -9,6 +9,11 @@ import {
   Play,
   ZoomIn,
   MoreVertical,
+  Reply,
+  Copy,
+  SmilePlus,
+  Pencil,
+  Paperclip,
 } from "lucide-react";
 import Image from "next/image";
 import { useRef, useState } from "react";
@@ -37,6 +42,11 @@ type SwipeableMessageProps = {
   actor?: "admin" | "customer";
   uploadProgress?: Record<string, number>; // Upload progress for attachments
   groupPosition?: "single" | "first" | "middle" | "last"; // Position in message group
+  reactions?: string[];
+  onReact?: (emoji: string) => void;
+  onCopy?: () => void;
+  onReplyAction?: () => void;
+  onEditAction?: () => void;
 };
 
 export function SwipeableMessage({
@@ -53,6 +63,11 @@ export function SwipeableMessage({
   actor,
   uploadProgress = {},
   groupPosition = "single",
+  reactions = [],
+  onReact,
+  onCopy,
+  onReplyAction,
+  onEditAction,
 }: SwipeableMessageProps) {
   const controls = useAnimation();
   const constraintsRef = useRef(null);
@@ -62,6 +77,8 @@ export function SwipeableMessage({
   const [previewAttachment, setPreviewAttachment] =
     useState<ChatAttachment | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const lastTapRef = useRef<number>(0);
 
   const handleDownload = async (attachment: ChatAttachment) => {
     if (!attachment || !attachment.url) return;
@@ -148,6 +165,18 @@ export function SwipeableMessage({
           className={`relative z-10 w-fit ${isSelf ? "ml-auto" : "mr-auto"}`}
           style={{ x: dragX.current, touchAction: "pan-y" }}
           onClick={onView}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setQuickActionsOpen(true);
+          }}
+          onDoubleClick={() => setQuickActionsOpen((v) => !v)}
+          onTouchEnd={() => {
+            const now = Date.now();
+            if (now - lastTapRef.current < 300) {
+              setQuickActionsOpen((v) => !v);
+            }
+            lastTapRef.current = now;
+          }}
         >
           <div
             className={`text-sm px-2.5 py-1.5 border shadow-md leading-[120%] ${
@@ -182,6 +211,16 @@ export function SwipeableMessage({
                         "rounded-2xl rounded-tl-md rounded-bl-2xl"
             }`}
           >
+            {groupPosition !== "middle" && groupPosition !== "first" && (
+              <span
+                className={`pointer-events-none absolute bottom-[9px] ${isSelf ? "-right-[5px] bg-emerald-900" : "-left-[5px] bg-zinc-700"} h-[9px] w-[6px]`}
+                style={{
+                  clipPath: isSelf
+                    ? "polygon(0 0, 100% 50%, 0 100%)"
+                    : "polygon(100% 0, 0 50%, 100% 100%)",
+                }}
+              />
+            )}
             {(message.parentMessage || parentMessage) && (
               <div
                 className={`mb-1 border-l-2 pl-2 mt-1 text-xs ${isSelf ? "border-white/40 text-white/85" : "border-zinc-400 text-zinc-200"}`}
@@ -611,6 +650,90 @@ export function SwipeableMessage({
               )}
             </div>
           </div>
+          {reactions.length > 0 && (
+            <div className={`mt-1 flex ${isSelf ? "justify-end" : "justify-start"} gap-1`}>
+              {reactions.map((reaction, idx) => (
+                <span
+                  key={`${message._id}-reaction-${reaction}-${idx}`}
+                  className="rounded-full border border-gray-700 bg-gray-900/90 px-1.5 py-0.5 text-[11px]"
+                >
+                  {reaction}
+                </span>
+              ))}
+            </div>
+          )}
+          {quickActionsOpen && (
+            <div
+              className={`mt-1 flex items-center gap-1 rounded-[10px] border border-[#4b5563] bg-[#0f172a] px-2 py-1.5 shadow-lg ${isSelf ? "justify-end" : "justify-start"}`}
+            >
+              {["??", "??", "??", "??"].map((emoji) => (
+                <button
+                  key={`${message._id}-${emoji}`}
+                  type="button"
+                  onClick={() => {
+                    onReact?.(emoji);
+                    setQuickActionsOpen(false);
+                  }}
+                  className="rounded-md px-1.5 py-0.5 text-sm hover:bg-slate-800"
+                  title="React"
+                >
+                  {emoji}
+                </button>
+              ))}
+              <span className="mx-1 h-4 w-px bg-slate-600" />
+              <button
+                type="button"
+                onClick={() => {
+                  onReplyAction?.();
+                  setQuickActionsOpen(false);
+                }}
+                className="rounded-md p-1 text-slate-300 hover:bg-slate-800"
+                title="Reply"
+              >
+                <Reply className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onView?.()}
+                className="rounded-md p-1 text-slate-300 hover:bg-slate-800"
+                title="Attachment actions"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+              </button>
+              {isSelf && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onEditAction?.();
+                    setQuickActionsOpen(false);
+                  }}
+                  className="rounded-md p-1 text-slate-300 hover:bg-slate-800"
+                  title="Edit"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  onCopy?.();
+                  setQuickActionsOpen(false);
+                }}
+                className="rounded-md p-1 text-slate-300 hover:bg-slate-800"
+                title="Copy"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickActionsOpen(false)}
+                className="rounded-md p-1 text-slate-300 hover:bg-slate-800"
+                title="Close actions"
+              >
+                <SmilePlus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
@@ -623,3 +746,4 @@ export function SwipeableMessage({
     </>
   );
 }
+

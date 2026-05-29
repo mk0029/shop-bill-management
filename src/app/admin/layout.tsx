@@ -1,4 +1,4 @@
-import { Navigation } from "@/components/ui/navigation";
+import AdminNavigationShell from "@/components/ui/admin-navigation-shell";
 import NotificationSyncGate from "@/components/system/notification-sync-gate";
 import { getServerAuth } from "@/lib/server-auth";
 import { redirect } from "next/navigation";
@@ -18,10 +18,10 @@ export default async function AdminLayout({
     redirect("/customer/bills");
 
   return (
-    <div className="min-h-screen bg-gray-950">
+      <div className="min-h-screen bg-gray-950">
       <NotificationSyncGate />
-      <Navigation />
-      <main className="pt-3 xl:pt-10 xl:ml-64 max-md:px-3 max-sm:px-1.5">
+      <AdminNavigationShell />
+      <main className="admin-main pt-3 xl:pt-10 max-md:px-3 max-sm:px-1.5">
         <div className="py-1 sm:p-2 xl:p-6">{children}</div>
       </main>
     </div>

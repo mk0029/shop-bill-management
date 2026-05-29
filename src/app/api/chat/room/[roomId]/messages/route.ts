@@ -24,6 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ room
       seenAt,
       editedAt,
       parentId,
+      reactions,
       createdAt,
       updatedAt
     }`;

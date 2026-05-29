@@ -33,11 +33,30 @@ export type ChatMessage = {
     content: string;
     sender?: { _id: string; name?: string } | { _ref: string };
   };
+  reactions?: Array<{
+    userId: string;
+    userName?: string;
+    emoji: string;
+    timestamp?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
 
-const base = (path: string) => `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}${path}`;
+const normalizeBase = (raw?: string) => {
+  const value = String(raw || "").trim().replace(/\/+$/, "");
+  return value;
+};
+
+const internalBase = normalizeBase(process.env.NEXT_PUBLIC_BASE_URL);
+const externalChatBase = normalizeBase(process.env.NEXT_PUBLIC_CHAT_BACKEND_URL);
+
+const base = (path: string) => {
+  if (externalChatBase) {
+    return `${externalChatBase}${path}`;
+  }
+  return `${internalBase}${path}`;
+};
 
 export async function getOrCreateRoomByCustomer(customerId: string) {
   const res = await fetch(base(`/api/chat/room/by-customer/${customerId}`), {
@@ -151,5 +170,22 @@ export async function updateMessage(params: { messageId: string; content: string
   });
   const json = await res.json();
   if (!json?.success) throw new Error(json?.error || "Failed to update message");
+  return json.data as ChatMessage;
+}
+
+export async function reactToMessage(params: {
+  messageId: string;
+  userId: string;
+  userName?: string;
+  emoji: string;
+}) {
+  const { messageId, userId, userName, emoji } = params;
+  const res = await fetch(base(`/api/chat/message/${messageId}/react`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, userName, emoji }),
+  });
+  const json = await res.json();
+  if (!json?.success) throw new Error(json?.error || "Failed to react");
   return json.data as ChatMessage;
 }
