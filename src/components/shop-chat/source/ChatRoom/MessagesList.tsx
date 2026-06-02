@@ -5,6 +5,7 @@ import MediaCollageBubble from "../MessageBubble/MediaCollageBubble";
 import { Message } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuthStore } from "@/store/auth-store";
+import { useRouter } from "next/navigation";
 
 interface MessagesListProps {
   messages: Message[];
@@ -49,8 +50,10 @@ const MessagesList: React.FC<MessagesListProps> = ({
   onViewportChange,
   onOpenImage,
 }) => {
+  const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const me = String(useAuthStore((s) => (s.user as any)?.id || (s.user as any)?._id || ""));
+  const user = useAuthStore((s) => s.user as any);
+  const me = String(user?.id || user?._id || "");
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [autoScrollNext, setAutoScrollNext] = useState(true);
   const loadingRef = useRef(false);
@@ -136,6 +139,65 @@ const MessagesList: React.FC<MessagesListProps> = ({
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+  };
+
+  const dayKey = (value?: string) => {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return "";
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  };
+
+  const dayLabel = (value?: string) => {
+    const date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) return "";
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (dayKey(value) === dayKey(today.toISOString())) return "Today";
+    if (dayKey(value) === dayKey(yesterday.toISOString())) return "Yesterday";
+    return date.toLocaleDateString([], {
+      day: "numeric",
+      month: "short",
+      year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+    });
+  };
+
+  const getBillEventData = (message: Message) => {
+    const tempId = String(message.tempId || "");
+    const inferredBillId = tempId.startsWith("event:bill_created:")
+      ? tempId.replace("event:bill_created:", "")
+      : "";
+    if (
+      message.systemEventType === "bill_created" ||
+      message.systemEventData?.eventType === "bill_created"
+    ) {
+      return message.systemEventData || { billId: inferredBillId };
+    }
+    if (inferredBillId || /bill is created|bill created/i.test(String(message.content || ""))) {
+      return { billId: inferredBillId };
+    }
+    return null;
+  };
+
+  const openBillEvent = (message: Message) => {
+    const billEventData = getBillEventData(message);
+    if (!billEventData) return;
+    const rawBillId = String(billEventData?.billId || "").trim();
+    if (String(user?.role || "") === "customer") {
+      router.push(rawBillId ? `/customer/bills?open=${encodeURIComponent(rawBillId)}` : "/customer/bills");
+      return;
+    }
+    const customerId = encodeURIComponent(String(billEventData?.customerId || ""));
+    if (customerId) {
+      router.push(rawBillId ? `/admin/customers/${customerId}/bills?open=${encodeURIComponent(rawBillId)}` : `/admin/customers/${customerId}/bills`);
+      return;
+    }
+    router.push(rawBillId ? `/admin/billing?open=${encodeURIComponent(rawBillId)}` : "/admin/billing");
+  };
+
+  const isClickableSystemEvent = (message: Message) => {
+    if (message.messageKind !== "system") return false;
+    return Boolean(getBillEventData(message));
   };
 
   const COLLAGE_WINDOW_MS = 2 * 60 * 1000;
@@ -234,24 +296,34 @@ const MessagesList: React.FC<MessagesListProps> = ({
               item.kind === "single" ? item.message : item.messages[0];
             const isSelected = selectedMessages.has(firstMessage.id);
 
+            const showDateSeparator = dayKey(firstMessage.timestamp) !== dayKey(item.prev?.timestamp);
+
             return (
-              <motion.div
-                key={key}
-                id={`msg-${firstMessage.id}`}
-                layout
-                initial={{
-                  opacity: 0,
-                  y: 6,
-                  x: String(firstMessage.senderId) === me ? 6 : -6,
-                  scale: 0.995,
-                }}
-                animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.995 }}
-                transition={{
-                  duration: 0.18,
-                  ease: [0.22, 0.61, 0.36, 1],
-                }}
-              >
+              <React.Fragment key={`wrap-${key}`}>
+                {showDateSeparator && (
+                  <div className="sticky top-2 z-10 flex justify-center py-2">
+                    <div className="rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-1 text-[11px] font-medium text-slate-300 shadow-sm backdrop-blur">
+                      {dayLabel(firstMessage.timestamp)}
+                    </div>
+                  </div>
+                )}
+                <motion.div
+                  key={key}
+                  id={`msg-${firstMessage.id}`}
+                  layout
+                  initial={{
+                    opacity: 0,
+                    y: 6,
+                    x: String(firstMessage.senderId) === me ? 6 : -6,
+                    scale: 0.995,
+                  }}
+                  animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.995 }}
+                  transition={{
+                    duration: 0.18,
+                    ease: [0.22, 0.61, 0.36, 1],
+                  }}
+                >
                 {firstUnreadId &&
                   (item.kind === "single"
                     ? firstUnreadId === item.message.id
@@ -273,9 +345,20 @@ const MessagesList: React.FC<MessagesListProps> = ({
                 {item.kind === "single" ? (
                   item.message.messageKind === "system" ? (
                     <div className="flex justify-center py-1.5">
-                      <div className="max-w-[86%] rounded-full border border-slate-600/40 bg-slate-800/70 px-3 py-1 text-center text-[11px] text-slate-300">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (getBillEventData(item.message)) openBillEvent(item.message);
+                        }}
+                        disabled={!isClickableSystemEvent(item.message)}
+                        className={`max-w-[86%] rounded-full border border-slate-600/40 bg-slate-800/70 px-3 py-1 text-center text-[11px] text-slate-300 ${
+                          isClickableSystemEvent(item.message)
+                            ? "cursor-pointer transition hover:border-emerald-400/50 hover:bg-slate-700/80 hover:text-emerald-100"
+                            : "cursor-default"
+                        }`}
+                      >
                         {String(item.message.content || "").trim() || "Group activity"}
-                      </div>
+                      </button>
                     </div>
                   ) : (
                     <MessageBubble
@@ -309,7 +392,8 @@ const MessagesList: React.FC<MessagesListProps> = ({
                     />
                   </>
                 )}
-              </motion.div>
+                </motion.div>
+              </React.Fragment>
             );
           })}
         </AnimatePresence>

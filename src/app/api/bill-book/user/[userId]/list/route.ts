@@ -8,6 +8,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ userId:
       _id,
       billId,
       billNumber,
+      billDate,
+      serviceDate,
       createdAt,
       status,
       paymentStatus,
@@ -26,6 +28,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ userId:
       _id: string;
       billId?: string;
       billNumber?: string;
+      billDate?: string;
+      serviceDate?: string;
       createdAt?: string;
       status?: string;
       paymentStatus?: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, MessageCircle, Plus, UserPlus } from "lucide-react";
+import { Loader2, MessageCircle, Plus, Search, UserPlus, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import MediaGalleryViewer from "@/components/shop-chat/source/ChatRoom/MediaGall
 import MessageInput from "@/components/shop-chat/source/ChatRoom/MessageInput";
 import MessagesList from "@/components/shop-chat/source/ChatRoom/MessagesList";
 import ChatItem from "@/components/shop-chat/source/ChatSidebar/ChatItem";
-import SearchBar from "@/components/shop-chat/source/ChatSidebar/SearchBar";
 import {
   deleteShopChatMessage,
   editShopChatMessage,
@@ -123,6 +122,38 @@ function readFileAsDataUrl(file: File) {
   });
 }
 
+function validIsoDate(value: unknown) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function effectiveMessageTimestamp(message: ShopChatMessage) {
+  const eventType = String(message.systemEventType || message.systemEventData?.eventType || "");
+  if (eventType === "bill_created") {
+    return (
+      validIsoDate(message.systemEventData?.createdAt) ||
+      validIsoDate(message.systemEventData?.billDate) ||
+      validIsoDate(message.createdAt) ||
+      message.createdAt
+    );
+  }
+  return message.createdAt;
+}
+
+function billEventIdFromMessage(message: ShopChatMessage) {
+  if (
+    String(message.systemEventType || message.systemEventData?.eventType || "") !== "bill_created" &&
+    !String(message.clientMessageId || "").startsWith("event:bill_created:")
+  ) {
+    return "";
+  }
+  const dataId = String(message.systemEventData?.billId || "").trim();
+  if (dataId) return dataId;
+  return String(message.clientMessageId || "").replace("event:bill_created:", "").trim();
+}
+
 function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
   return {
     id: message.messageId,
@@ -131,7 +162,7 @@ function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
     senderId: message.senderId,
     receiverId: undefined,
     groupId: message.roomId,
-    timestamp: message.createdAt,
+    timestamp: effectiveMessageTimestamp(message),
     status: message.status,
     type: message.type === "file" ? "document" : message.type,
     replyTo: message.replyTo
@@ -175,31 +206,104 @@ function RoomSidebar({
   lastSeenByUser?: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rooms;
     return rooms.filter((room) => `${room.customerName} ${room.customerKey || ""}`.toLowerCase().includes(q));
   }, [query, rooms]);
 
+  useEffect(() => {
+    if (!searchOpen) return;
+    const timer = window.setTimeout(() => searchInputRef.current?.focus(), 40);
+    return () => window.clearTimeout(timer);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && searchContainerRef.current?.contains(target)) return;
+      setSearchOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [searchOpen]);
+
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-r border-gray-800 bg-gray-900/80 md:w-80">
-      <div className="border-b border-gray-800 px-4 pb-3 pt-4">
+      <div ref={searchContainerRef} className="border-b border-gray-800 px-4 pb-3 pt-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
             <MessageCircle className="h-5 w-5 text-blue-400" />
             Customer Chats
           </h2>
-          <button
-            type="button"
-            onClick={onAddClick}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
-            title="Add customer to chat"
-            aria-label="Add customer to chat"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen((open) => !open)}
+              className={`grid h-9 w-9 place-items-center rounded-full border transition ${
+                query.trim()
+                  ? "border-blue-400/60 bg-blue-500/15 text-blue-100"
+                  : "border-slate-700 bg-slate-800/80 text-slate-200 hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
+              }`}
+              title="Search chats"
+              aria-label="Search chats"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen(false);
+                onAddClick();
+              }}
+              className="grid h-9 w-9 place-items-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
+              title="Add customer to chat"
+              aria-label="Add customer to chat"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        <SearchBar value={query} onChange={setQuery} placeholder="Search customers..." />
+        {searchOpen && (
+          <div
+            ref={searchContainerRef}
+            className="mt-3 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-lg"
+          >
+            <div className="space-y-2">
+            <div className="relative">
+              <Search
+                size={17}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search customers..."
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 py-2.5 pl-10 pr-10 text-sm text-slate-100 outline-none placeholder:text-slate-400 focus:border-blue-400/70"
+              />
+              {query.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-slate-400 transition hover:bg-slate-700 hover:text-slate-100"
+                  aria-label="Clear chat search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+            <div className="px-1 text-xs text-slate-400">
+              {query.trim() ? `${filtered.length} chat${filtered.length === 1 ? "" : "s"} found` : "Search customer chats"}
+            </div>
+          </div>
+          </div>
+        )}
       </div>
       <ul className="min-h-0 flex-1 divide-y divide-slate-800/80 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {filtered.map((room) => {
@@ -317,7 +421,10 @@ function ChatPanel({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const sourceMessages = useMemo(
-    () => messages.map(mapShopMessageToSourceMessage),
+    () =>
+      messages
+        .map(mapShopMessageToSourceMessage)
+        .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)),
     [messages],
   );
   const headerName = mode === "customer" ? "Chat Support" : room?.customerName || "";
@@ -661,6 +768,34 @@ export default function ShopChatClient({
       const response = await fetch(`/api/bill-book/user/${encodeURIComponent(room.customerId)}/list`);
       const body = await response.json().catch(() => ({}));
       const bills = Array.isArray(body?.data) ? body.data : [];
+      const billDateById = new Map<string, string>();
+      for (const bill of bills) {
+        const displayDate = validIsoDate(bill.billDate || bill.serviceDate || bill.createdAt);
+        if (!displayDate) continue;
+        [bill._id, bill.id, bill.billId, bill.billNumber]
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+          .forEach((key) => billDateById.set(key, displayDate));
+      }
+      if (billDateById.size) {
+        setMessagesByRoom((prev) => ({
+          ...prev,
+          [room.roomId]: (prev[room.roomId] || []).map((message) => {
+            const billId = billEventIdFromMessage(message);
+            const displayDate = billId ? billDateById.get(billId) : "";
+            if (!displayDate) return message;
+            return {
+              ...message,
+              systemEventData: {
+                ...(message.systemEventData || {}),
+                eventType: "bill_created",
+                billId,
+                createdAt: displayDate,
+              },
+            };
+          }),
+        }));
+      }
       const results = await Promise.allSettled(
         bills.map((bill: Record<string, any>) =>
           createBillCreatedShopChatEvent({
@@ -670,15 +805,29 @@ export default function ShopChatClient({
             customerName: room.customerName,
             totalAmount: Number(bill.totalAmount || 0),
             paymentStatus: String(bill.paymentStatus || bill.status || "pending"),
-            createdAt: bill.createdAt ? String(bill.createdAt) : undefined,
+            createdAt: String(bill.billDate || bill.serviceDate || bill.createdAt || "") || undefined,
           }),
         ),
       );
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
+        const message = result.value.message;
+        const billId = billEventIdFromMessage(message);
+        const displayDate = billId ? billDateById.get(billId) : "";
+        const nextMessage = displayDate
+          ? {
+              ...message,
+              systemEventData: {
+                ...(message.systemEventData || {}),
+                eventType: "bill_created",
+                billId,
+                createdAt: displayDate,
+              },
+            }
+          : message;
         setMessagesByRoom((prev) => ({
           ...prev,
-          [room.roomId]: mergeMessage(prev[room.roomId] || [], result.value.message),
+          [room.roomId]: mergeMessage(prev[room.roomId] || [], nextMessage),
         }));
         upsertRoom(result.value.room);
       }

@@ -297,10 +297,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     .toLowerCase();
   const isDeletedForEveryone =
     !!message.deletedForEveryone || deletedText === "this message was deleted";
+  const inferredBillId = String(message.tempId || "").startsWith("event:bill_created:")
+    ? String(message.tempId || "").replace("event:bill_created:", "")
+    : "";
+  const inferredBillAmount = (() => {
+    const match = contentText.match(/of\s*₹?\s*([\d,.]+)/i);
+    if (!match?.[1]) return 0;
+    return Number(match[1].replace(/,/g, "")) || 0;
+  })();
   const billEventData =
     message.systemEventType === "bill_created" || message.systemEventData?.eventType === "bill_created"
       ? message.systemEventData
-      : null;
+      : inferredBillId || /bill is created|bill created/i.test(contentText)
+        ? {
+            eventType: "bill_created",
+            billId: inferredBillId,
+            totalAmount: inferredBillAmount,
+          }
+        : null;
   const workTaskEventData =
     message.systemEventType === "work_task" || message.systemEventData?.eventType === "work_task"
       ? message.systemEventData
@@ -309,14 +323,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const billOwnerName = String(billEventData?.customerName || "").trim();
   const billSubject = isCustomerViewer ? "Your bill" : `${billOwnerName || "Customer"}'s bill`;
   const openBillEvent = () => {
-    if (!billEventData?.billId) return;
-    const billId = encodeURIComponent(String(billEventData.billId));
+    const rawBillId = String(billEventData?.billId || "").trim();
     if (String(user?.role || "") === "customer") {
-      router.push(`/customer/bills?open=${billId}`);
+      router.push(rawBillId ? `/customer/bills?open=${encodeURIComponent(rawBillId)}` : "/customer/bills");
       return;
     }
     const customerId = encodeURIComponent(String(billEventData.customerId || ""));
-    router.push(customerId ? `/admin/customers/${customerId}/bills?open=${billId}` : `/admin/billing?open=${billId}`);
+    if (customerId) {
+      router.push(rawBillId ? `/admin/customers/${customerId}/bills?open=${encodeURIComponent(rawBillId)}` : `/admin/customers/${customerId}/bills`);
+      return;
+    }
+    router.push(rawBillId ? `/admin/billing?open=${encodeURIComponent(rawBillId)}` : "/admin/billing");
   };
   const workTaskTitle = String(workTaskEventData?.title || "Service task").trim();
   const workTaskAction = String(workTaskEventData?.action || "updated").replace(/_/g, " ");
