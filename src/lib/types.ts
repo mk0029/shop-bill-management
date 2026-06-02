@@ -26,7 +26,6 @@ export interface Message {
   uploadProgress?: number;
   receiverId?: string;
   groupId?: string;
-  chatType?: "dm" | "group";
   messageKind?: "user" | "system";
   systemEventType?: string;
   systemEventData?: Record<string, any>;

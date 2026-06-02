@@ -13,11 +13,11 @@ type Props = {
 export default function BillBookCustomerSidebar({ selectedUserId, onSelect }: Props) {
   const { customersWithStats, isLoadingCustomers } = useCustomerStats();
   const [q, setQ] = useState("");
-  const [sortMode, setSortMode] = useState<"chat" | "bill">(() => {
+  const [sortMode, setSortMode] = useState<"recent" | "bill">(() => {
     if (typeof window !== "undefined") {
-      return (localStorage.getItem("bb_sidebar_sort") as "chat" | "bill") || "chat";
+      return (localStorage.getItem("bb_sidebar_sort") as "recent" | "bill") || "recent";
     }
-    return "chat";
+    return "recent";
   });
   const [activity, setActivity] = useState<Record<string, string | null>>({});
   const router = useRouter();
@@ -30,7 +30,7 @@ export default function BillBookCustomerSidebar({ selectedUserId, onSelect }: Pr
   }, [sortMode]);
 
   useEffect(() => {
-    if (sortMode !== "chat") return;
+    if (sortMode !== "recent") return;
     let alive = true;
     (async () => {
       try {
@@ -59,7 +59,7 @@ export default function BillBookCustomerSidebar({ selectedUserId, onSelect }: Pr
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      if (sortMode === "chat") {
+      if (sortMode === "recent") {
         const ad = activity[a._id] ? new Date(activity[a._id] as string).getTime() : 0;
         const bd = activity[b._id] ? new Date(activity[b._id] as string).getTime() : 0;
         return bd - ad;
@@ -94,9 +94,9 @@ export default function BillBookCustomerSidebar({ selectedUserId, onSelect }: Pr
           <span className="opacity-70">Sort:</span>
           <button
             type="button"
-            onClick={() => setSortMode("chat")}
-            className={`px-2 py-1 rounded border ${sortMode === 'chat' ? 'bg-black text-white dark:bg-white dark:text-black' : ''}`}
-          >Chat</button>
+            onClick={() => setSortMode("recent")}
+            className={`px-2 py-1 rounded border ${sortMode === 'recent' ? 'bg-black text-white dark:bg-white dark:text-black' : ''}`}
+          >Recent</button>
           <button
             type="button"
             onClick={() => setSortMode("bill")}
@@ -139,8 +139,8 @@ export default function BillBookCustomerSidebar({ selectedUserId, onSelect }: Pr
                         )}
                       </div>
                       <p className="text-xs opacity-70 truncate">
-                        {sortMode === 'chat' ? (
-                          activity[c._id] ? `Last chat: ${new Date(activity[c._id] as string).toLocaleDateString()}` : 'No chat yet'
+                        {sortMode === 'recent' ? (
+                          activity[c._id] ? `Last message: ${new Date(activity[c._id] as string).toLocaleDateString()}` : 'No messages yet'
                         ) : (
                           `${c.totalBills} bill${c.totalBills === 1 ? '' : 's'} • ₹${Math.round(c.totalSpent).toLocaleString()}`
                         )}

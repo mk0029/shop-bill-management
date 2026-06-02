@@ -17,7 +17,7 @@ export default async function AdminLayout({
   )
     redirect("/customer/bills");
 
-  return (
+    return (
       <div className="min-h-screen bg-gray-950">
       <NotificationSyncGate />
       <AdminNavigationShell />

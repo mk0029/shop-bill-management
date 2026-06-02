@@ -25,7 +25,6 @@ export type NotificationEvent = {
     | 'bill_status_updated'
     | 'cashbook_entry'
     | 'inventory_added'
-    | 'chat_message'
     | 'shop_status'
     | 'admin_broadcast'
     | 'user_direct'
@@ -34,7 +33,6 @@ export type NotificationEvent = {
   data: {
     customerId?: string
     billId?: string
-    chatId?: string
     inventoryId?: string
     status?: string
     route?: string
@@ -66,11 +64,6 @@ function deriveAudience(event: NotificationEvent): 'all' | 'admins' | 'users' {
     return 'admins'
   }
   if (event.type === 'user_direct') return 'users'
-  if (event.type === 'chat_message') {
-    // Can be admin->customer (users) or customer->admins (admins); infer by presence of customerId
-    if (event.data?.customerId) return 'users'
-    return 'admins'
-  }
   if (event.type === 'shop_status') return 'all'
   if (event.type === 'bill_created' || event.type === 'bill_status_updated') {
     // These often target both admins + customer; list API does not support mixed audience.
@@ -90,8 +83,6 @@ type EmitResult = {
   error?: string
 }
 
-type UserRole = 'admin' | 'customer' | string
-
 function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex')
 }
@@ -103,20 +94,10 @@ function computeEventId(event: NotificationEvent): string {
   const entityId =
     event.data?.billId ||
     event.data?.customerId ||
-    event.data?.chatId ||
     event.data?.inventoryId ||
     ''
   const bucket = Math.floor(Date.now() / (60 * 1000)) // 1 minute bucket
   return sha256(`${event.type}|${event.actorUserId}|${entityId}|${bucket}`).slice(0, 32)
-}
-
-async function getUserRoleById(userId: string): Promise<UserRole | null> {
-  if (!userId) return null
-  const doc = await sanityClient.fetch<{ role?: UserRole } | null>(
-    `*[_type=="user" && _id==$id][0]{ role }`,
-    { id: userId }
-  )
-  return (doc?.role as UserRole | undefined) || null
 }
 
 async function getAllActiveAdminUserIds(): Promise<string[]> {
@@ -175,9 +156,6 @@ function buildDefaultTitleBody(event: NotificationEvent): { title: string; body:
   if (t === 'inventory_added') {
     return { title: 'Inventory updated', body: 'A new inventory item was added.' }
   }
-  if (t === 'chat_message') {
-    return { title: 'New chat message', body: event.data?.message ? String(event.data.message) : 'You have a new message.' }
-  }
   if (t === 'shop_status') {
     return { title: 'Shop status updated', body: event.data?.status ? `Status: ${event.data.status}` : 'Shop status changed.' }
   }
@@ -204,16 +182,6 @@ async function resolveTargetUserIds(event: NotificationEvent): Promise<string[]>
   }
 
   if (type === 'cashbook_entry' || type === 'inventory_added') {
-    return await getAllActiveAdminUserIds()
-  }
-
-  if (type === 'chat_message') {
-    const actorRole = await getUserRoleById(event.actorUserId)
-    if (actorRole === 'admin') {
-      const customerId = event.data?.customerId
-      return customerId ? [String(customerId)] : []
-    }
-    // customer -> all admins
     return await getAllActiveAdminUserIds()
   }
 
@@ -334,7 +302,6 @@ export const notificationService = {
         route_path: event.data?.route || undefined,
         billId: event.data?.billId,
         customerId: event.data?.customerId,
-        chatId: event.data?.chatId,
         inventoryId: event.data?.inventoryId,
         status: event.data?.status,
       })

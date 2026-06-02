@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
 // PATCH: update message delivery/read status
-export async function PATCH(req: Request, { params }: { params: { billId: string; messageId: string } }) {
-  const { billId, messageId } = params;
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ billId: string; messageId: string }> },
+) {
+  const { billId, messageId } = await params;
   try {
     const body = await req.json().catch(() => ({}));
     const { status } = body as { status?: "delivered" | "seen" };
@@ -13,7 +16,7 @@ export async function PATCH(req: Request, { params }: { params: { billId: string
 
     // Ensure message belongs to bill (best-effort check)
     const check = await sanityClient.fetch(
-      `*[_type == "billMessage" && _id == $id && bill._ref == $billId][0]{ _id, status }`,
+      `*[_type == "billMessage" && _id == $id && bill._ref == $billId][0]{ _id, status, deliveredAt }`,
       { id: messageId, billId }
     );
     if (!check) {

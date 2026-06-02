@@ -4,10 +4,11 @@ import { useAuthStore } from "@/store/auth-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Building2,
+  ClipboardList,
   FileText,
   LogOut,
   Menu,
-  MessageSquare,
+  MessageCircle,
   PackageCheck,
   Settings as SettingsIcon,
   User,
@@ -27,6 +28,7 @@ import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { Wifi } from "lucide-react";
 import CustomerNotifications from "./CustomerNotification";
+import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
 
 interface NavigationItem {
   label: string;
@@ -42,14 +44,19 @@ const customerNavigation: NavigationItem[] = [
     icon: FileText,
   },
   {
+    label: "Chat",
+    href: "/customer/chat",
+    icon: MessageCircle,
+  },
+  {
+    label: "Service Tasks",
+    href: "/customer/work-tasks",
+    icon: ClipboardList,
+  },
+  {
     label: "Settings",
     href: "/customer/settings",
     icon: SettingsIcon,
-  },
-  {
-    label: "Chat",
-    icon: MessageSquare,
-    href: "/customer/chat",
   },
   {
     label: "Rented Items",
@@ -73,7 +80,9 @@ export function CustomerNavigation() {
   const pathname = usePathname() || "";
   const router = useRouter();
   const { logout, user } = useAuthStore();
+  const { hasUnread: hasChatUnread } = useGlobalShopChat(user as any);
   const isAdmin = user?.role === "admin";
+  const isChatRoute = pathname === "/customer/chat";
 
   // Admin-only: Online Status quick slider
   const [onlineStep, setOnlineStep] = useState(0); // 0 offline, 1 online(not at shop), 2 online(at shop)
@@ -222,6 +231,7 @@ export function CustomerNavigation() {
     const Icon = item.icon;
     const active = isActive(item.href);
     const isDisabled = item.isDisabled;
+    const showChatDot = hasChatUnread && item.href === "/customer/chat";
 
     if (isMobile) {
       if (isDisabled) {
@@ -241,7 +251,7 @@ export function CustomerNavigation() {
           key={item.label}
           href={item.href!}
           onClick={() => setIsMobileMenuOpen(false)}
-          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+          className={`relative flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
             active
               ? "bg-blue-600 text-white"
               : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -249,6 +259,9 @@ export function CustomerNavigation() {
         >
           <Icon className="w-5 h-5" />
           <span className="font-medium">{item.label}</span>
+          {showChatDot && (
+            <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
+          )}
         </Link>
       );
     }
@@ -270,12 +283,15 @@ export function CustomerNavigation() {
       <Link
         key={item.label}
         href={item.href!}
-        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        className={`relative flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
           active ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-800"
         }`}
       >
         <Icon className="w-5 h-5" />
         <span className="font-medium">{item.label}</span>
+        {showChatDot && (
+          <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
+        )}
       </Link>
     );
   };
@@ -563,7 +579,7 @@ export function CustomerNavigation() {
       </nav>
 
       {/* Main Content Wrapper */}
-      <div className="lg:ml-64 min-h-fit bg-gray-950">
+      {!isChatRoute && <div className="lg:ml-64 min-h-fit bg-gray-950">
         {/* Top Bar */}
         <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 xl:px-6 xl:py-6">
           <div className="flex items-center justify-between">
@@ -656,13 +672,16 @@ export function CustomerNavigation() {
               variant="ghost"
               size="sm"
               onClick={() => setIsMobileMenuOpen(true)}
-              className="xl:hidden "
+              className="xl:hidden relative"
             >
               <Menu className="w-5 h-5" />
+              {hasChatUnread && (
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
+              )}
             </Button>
           </div>
         </div>
-      </div>
+      </div>}
     </>
   );
 }

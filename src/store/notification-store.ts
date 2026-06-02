@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type AppNotificationType = "billing" | "inventory" | "system" | "payment" | "chat";
+export type AppNotificationType = "billing" | "inventory" | "system" | "payment";
 
 // Optional structured metadata we can attach to a notification
 export type AppNotificationRoute = {
@@ -49,8 +49,13 @@ interface NotificationState {
   isToasted: (id: string) => boolean;
 }
 
+type PersistedNotificationState = Pick<
+  NotificationState,
+  "items" | "unread" | "toasted"
+>;
+
 export const useNotificationStore = create<NotificationState>()(
-  persist(
+  persist<NotificationState, [], [], PersistedNotificationState>(
     (set) => ({
       items: [],
       unread: 0,
@@ -76,19 +81,6 @@ export const useNotificationStore = create<NotificationState>()(
           );
           if (hasRecentSameContent) {
             return state;
-          }
-
-          // 3) For chat notifications, also de-dup by roomId to prevent multiple notifications for same room
-          if (n.type === 'chat' && n.meta?.roomId) {
-            const roomId = n.meta.roomId;
-            const hasRecentSameRoom = state.items.some((x) =>
-              x.type === 'chat' &&
-              x.meta?.roomId === roomId &&
-              Math.abs((Date.parse(x.createdAt) || nowTs) - incomingTs) < windowMs
-            );
-            if (hasRecentSameRoom) {
-              return state;
-            }
           }
 
           const item: AppNotification = {
@@ -173,9 +165,9 @@ export const useNotificationStore = create<NotificationState>()(
             const compact: Record<string, true> = {} as Record<string, true>;
             for (const [k] of filtered) compact[k] = true as const;
             compact[id] = true as const;
-            return { toasted: compact } as Partial<NotificationState>;
+            return { toasted: compact };
           }
-          return { toasted: next } as Partial<NotificationState>;
+          return { toasted: next };
         }),
 
       isToasted: (id) => !!(typeof id === "string" && (id in (useNotificationStore.getState().toasted || {}))),
@@ -190,9 +182,9 @@ export const useNotificationStore = create<NotificationState>()(
         if (s && Array.isArray(s.items)) {
           const unread = s.items.filter((x) => !x.read).length;
           const toasted = s.toasted && typeof s.toasted === "object" ? s.toasted : {};
-          return { ...s, unread, toasted } as unknown;
+          return { items: s.items, unread, toasted };
         }
-        return state;
+        return { items: [], unread: 0, toasted: {} };
       },
       partialize: (s) => ({ items: s.items, unread: s.unread, toasted: s.toasted }),
     }

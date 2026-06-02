@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import {
   workTaskService,
@@ -191,6 +191,8 @@ export default function WorkListClient({
   mode = "active",
 }: WorkListClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
   const [tasks, setTasks] = useState<WorkTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,6 +219,15 @@ export default function WorkListClient({
   const [expandedMobileTaskId, setExpandedMobileTaskId] = useState<
     string | null
   >(null);
+
+  const closeActiveTask = useCallback(() => {
+    setActiveTask(null);
+    if (!searchParams.has("open")) return;
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("open");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const technicians = useMemo(
     () =>
@@ -298,6 +309,13 @@ export default function WorkListClient({
     });
     return () => sub.unsubscribe();
   }, [isInitialized, load, applyRealtimeEvent]);
+
+  useEffect(() => {
+    const openTaskId = searchParams.get("open");
+    if (!openTaskId || loading) return;
+    const task = tasks.find((item) => String(item._id) === openTaskId);
+    if (task && activeTask?._id !== task._id) setActiveTask(task);
+  }, [activeTask?._id, loading, searchParams, tasks]);
 
   const pendingCount = useMemo(
     () =>
@@ -478,7 +496,7 @@ export default function WorkListClient({
         status: "completed",
       });
       toast.success("Work marked as completed");
-      setActiveTask(null);
+      closeActiveTask();
     } catch (e) {
       setTasks(snapshot);
       toast.error(e instanceof Error ? e.message : "Failed to complete task");
@@ -1197,7 +1215,7 @@ export default function WorkListClient({
 
       <Modal
         isOpen={!!activeTask}
-        onClose={() => setActiveTask(null)}
+        onClose={closeActiveTask}
         title={activeTask?.title || "Work Task"}
         size="sm"
       >

@@ -4,6 +4,7 @@ import { getServerAuth } from "@/lib/server-auth";
 import { notificationService } from "@/lib/notification-service";
 import { formatApproachTime, formatDayDate, formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
+import { publishWorkTaskShopChatEvent } from "@/lib/shop-chat/server-events";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -128,7 +129,7 @@ Jambh Electrical Services`;
 
 export async function GET(req: NextRequest) {
   const auth = await getServerAuth();
-  if (!auth.isAuthenticated || !canAccess(auth.role)) {
+  if (!auth.isAuthenticated || (!canAccess(auth.role) && auth.role !== "customer")) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
   }
 
@@ -139,14 +140,25 @@ export async function GET(req: NextRequest) {
   const date = url.searchParams.get("date");
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
-  const query = `*[_type == "workTask"]{
+  const query = auth.role === "customer"
+    ? `*[_type == "workTask" && (customerRef._ref == $customerUserId || customerRef->customerId == $customerCode)]{
+    _id, title, description, priority, status, issueCategory, dueAt,
+    completionNotes, cancellationReason, holdReason, completedAt, createdAt, updatedAt, createdByName, assignedTechnicianName,
+    customerRef->{_id, name, phone},
+    assignedTechnician->{_id, name, phone},
+    createdBy->{_id, name}
+  } | order(dueAt asc)`
+    : `*[_type == "workTask"]{
     _id, title, description, priority, status, issueCategory, dueAt,
     completionNotes, cancellationReason, holdReason, completedAt, createdAt, updatedAt, createdByName, assignedTechnicianName,
     customerRef->{_id, name, phone},
     assignedTechnician->{_id, name, phone},
     createdBy->{_id, name}
   } | order(dueAt asc)`;
-  let tasks = await sanityClient.fetch<any[]>(query);
+  let tasks = await sanityClient.fetch<any[]>(query, {
+    customerUserId: auth.userId,
+    customerCode: auth.customerId,
+  });
 
   if (status) tasks = tasks.filter((t) => String(t.status) === status);
   if (technicianId) tasks = tasks.filter((t) => t?.assignedTechnician?._id === technicianId);
@@ -235,6 +247,21 @@ export async function POST(req: NextRequest) {
           `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
           { id: String(body.customerRefId) },
         );
+        await publishWorkTaskShopChatEvent(req, {
+          customerId: String(body.customerRefId),
+          customerName: customer?.name || "",
+          taskId: String(created?._id || ""),
+          title,
+          description: String(body?.description || "").trim(),
+          status: String(doc.status || "pending"),
+          priority: String(doc.priority || "medium"),
+          issueCategory: String(doc.issueCategory || "other"),
+          dueAt,
+          assignedTechnicianName: tech?.name || "",
+          action: "created",
+          createdAt: now,
+          updatedAt: now,
+        });
         if (!customer?.phone) return;
         const requestDate = formatDayDate(now);
         const approachTime = formatApproachTime(dueAt, now);

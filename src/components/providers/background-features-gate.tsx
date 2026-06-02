@@ -16,7 +16,7 @@ export default function BackgroundFeaturesGate() {
 
   const isCustomerBills = pathname?.startsWith("/customer/bills");
 
-  if (role === "admin") {
+  if (role === "admin" || role === "super_admin" || role === "technician") {
     return (
       <>
         <OfflineStatusOverlay />

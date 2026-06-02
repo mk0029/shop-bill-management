@@ -26,8 +26,7 @@ export default function CustomerNotificationsPage() {
 
     // Customers should only see:
     // 1. Their own bill/payment notifications
-    // 2. Their own chat notifications
-    // 3. Shop status notifications
+    // 2. Shop status notifications
     if (userRole === "customer") {
       return items.filter((n) => {
         const meta = n.meta;
@@ -45,11 +44,6 @@ export default function CustomerNotificationsPage() {
 
         // Bill and payment notifications - only if it's for this customer
         if ((n.type === "billing" || n.type === "payment") && meta?.userId) {
-          return meta.userId === userId;
-        }
-
-        // Chat notifications - only if it's for this customer
-        if (n.type === "chat" && meta?.userId) {
           return meta.userId === userId;
         }
 

@@ -1,20 +1,16 @@
-import CustomerChatClient from "@/components/customer/customer-chat-client";
+import ShopChatClient from "@/components/shop-chat/ShopChatClient";
+import ShopChatRouteFrame from "@/components/shop-chat/ShopChatRouteFrame";
 import { getServerAuth } from "@/lib/server-auth";
 import { redirect } from "next/navigation";
-
-export const dynamic = "force-dynamic";
 
 export default async function CustomerChatPage() {
   const auth = await getServerAuth();
   if (!auth.isAuthenticated) redirect("/");
   if (auth.role !== "customer") redirect("/admin/dashboard");
 
-  const customerId = auth.userId;
-  if (!customerId) redirect("/");
-
-  const customerName = (auth.user?.name as string) || "Customer";
-
   return (
-    <CustomerChatClient customerId={customerId} customerName={customerName} />
+    <ShopChatRouteFrame mode="customer">
+      <ShopChatClient mode="customer" />
+    </ShopChatRouteFrame>
   );
 }

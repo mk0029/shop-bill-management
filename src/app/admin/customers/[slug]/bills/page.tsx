@@ -16,14 +16,13 @@ import { useLocaleStore } from "@/store/locale-store";
 import {
   ArrowLeft,
   FileText,
+  MessageCircle,
   Search,
-  MessageSquare,
   Share2,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useChatStore } from "@/store/chat-store";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import {
   sharePendingBills,
@@ -43,12 +42,13 @@ import { formatDayDateTime } from "@/lib/date-time";
 export default function CustomerBillsPage() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const slug = (params as { slug?: string } | null)?.slug as string;
   const { currency } = useLocaleStore();
 
   const { customers, isLoading: customersLoading } = useCustomers();
   const { bills, isLoading: billsLoading, updateBill } = useBills();
-  const { openRoomByCustomer, setActiveRoom } = useChatStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<any>(null);
@@ -166,6 +166,22 @@ export default function CustomerBillsPage() {
     setSelectedBill(bill);
     setShowBillModal(true);
   };
+
+  const closeBillModal = () => {
+    setShowBillModal(false);
+    if (!searchParams.has("open")) return;
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("open");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  };
+
+  useEffect(() => {
+    const openBillId = searchParams.get("open");
+    if (!openBillId || billsLoading || !customerBills.length) return;
+    const bill = customerBills.find((item: any) => String(item._id || item.id || item.billId) === openBillId);
+    if (bill) handleViewBill(bill);
+  }, [billsLoading, customerBills, searchParams]);
 
   const syncReminderSettingsFromCustomer = () => {
     setReminderLimit(getEffectiveReminderLimit((customer as any)?.reminderLimit));
@@ -287,16 +303,8 @@ export default function CustomerBillsPage() {
     );
   };
 
-  const handleOpenChat = async () => {
-    try {
-      const roomId = await openRoomByCustomer(String(effectiveCustomerId));
-      await setActiveRoom(roomId);
-      router.push(
-        `/admin/chats?customerId=${encodeURIComponent(String(effectiveCustomerId))}`,
-      );
-    } catch {
-      toast.error("❌ Unable to open chat. Please try again.");
-    }
+  const handleOpenCustomerChat = () => {
+    router.push(`/admin/chat?customerId=${encodeURIComponent(effectiveCustomerId)}`);
   };
 
   const handleSharePendingBills = () => {
@@ -656,6 +664,10 @@ export default function CustomerBillsPage() {
           </div>
         </div>
         <div className="flex gap-2 max-md:justify-end">
+          <Button variant="outline" onClick={handleOpenCustomerChat}>
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Chat
+          </Button>
           {pendingBillsCount > 0 ? (
             <Button variant="secondary" onClick={handleSharePendingBills}>
               <Share2 className="w-4 h-4 mr-2" />
@@ -667,10 +679,6 @@ export default function CustomerBillsPage() {
               Share Thank Note
             </Button>
           )}
-          <Button variant="outline" onClick={handleOpenChat}>
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Chat
-          </Button>
           <Button
             onClick={handleCreateBill}
             className="bg-blue-600 hover:bg-blue-700"
@@ -774,7 +782,7 @@ export default function CustomerBillsPage() {
       {/* Bill Modal */}
       <BillDetailModal
         isOpen={showBillModal}
-        onClose={() => setShowBillModal(false)}
+        onClose={closeBillModal}
         bill={selectedBill}
         onDownloadPDF={() => {}}
         onUpdatePayment={handleUpdatePayment}
@@ -904,3 +912,5 @@ export default function CustomerBillsPage() {
     </div>
   );
 }
+
+

@@ -3,6 +3,7 @@ import { CustomerNavigation } from "@/components/ui/customer-navigation";
 import { getServerAuth } from "@/lib/server-auth";
 import { redirect } from "next/navigation";
 import LayoutCall from "@/components/customer/LayoutCall";
+import CustomerMainShell from "@/components/customer/CustomerMainShell";
 
 export default async function CustomerLayout({
   children,
@@ -16,11 +17,9 @@ export default async function CustomerLayout({
   return (
     <div className="min-h-screen bg-gray-950">
       <CustomerNavigation />
-      <main className="pt-3 xl:ml-64 max-md:px-3 max-sm:px-1">
-        <div className="py-1 sm:p-2 ">
-          <LayoutCall>{children}</LayoutCall>
-        </div>
-      </main>
+      <CustomerMainShell>
+        <LayoutCall>{children}</LayoutCall>
+      </CustomerMainShell>
     </div>
   );
 }

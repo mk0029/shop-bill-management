@@ -19,19 +19,6 @@ export type AdminSpecificationsData = {
   categoryFieldMappings: unknown[];
 };
 
-export type AdminChatRoom = {
-  _id: string;
-  roomName?: string;
-  customer?: { _id?: string; name?: string; phone?: string };
-  admins?: Array<{ _id?: string; name?: string }>;
-  lastMessage?: string;
-  lastMessageAt?: string;
-  unreadForCustomer?: number;
-  unreadForAdmins?: number;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
 export type AdminBillingData = {
   bills: unknown[];
   customers: unknown[];
@@ -50,8 +37,6 @@ export type AdminInventoryData = {
   brands: unknown[];
   categories: unknown[];
 };
-
-export type CustomerChatRoom = AdminChatRoom;
 
 export type FittingRatesDoc = {
   _id: "fittingRates";
@@ -172,64 +157,6 @@ export async function getAdminSpecificationsData(): Promise<AdminSpecificationsD
   };
 }
 
-export async function getAdminChatRooms(opts?: {
-  customerId?: string | null;
-  adminId?: string | null;
-}): Promise<AdminChatRoom[]> {
-  noStore();
-  const customerId = opts?.customerId || "";
-  const adminId = opts?.adminId || "";
-
-  let filter = "_type == \"chatRoom\"";
-  const params: Record<string, unknown> = {};
-
-  if (customerId) {
-    filter += " && customer._ref == $customerId";
-    params.customerId = customerId;
-  }
-
-  if (adminId) {
-    filter += " && $adminId in admins[]._ref";
-    params.adminId = adminId;
-  }
-
-  const where = filter === "_type == \"chatRoom\"" ? filter : `(${filter})`;
-  const query = `*[${where}] | order(coalesce(lastMessageAt, createdAt) desc) {
-    _id,
-    roomName,
-    customer-> { _id, name, phone },
-    admins[]-> { _id, name },
-    lastMessage,
-    lastMessageAt,
-    unreadForCustomer,
-    unreadForAdmins,
-    createdAt,
-    updatedAt
-  }`;
-
-  const data = await sanityClient.fetch(query, params);
-  return Array.isArray(data) ? (data as AdminChatRoom[]) : [];
-}
-
-export async function getCustomerChatRooms(customerId: string): Promise<CustomerChatRoom[]> {
-  noStore();
-  if (!customerId) return [];
-  const query = `*[_type == "chatRoom" && customer._ref == $customerId] | order(coalesce(lastMessageAt, createdAt) desc) {
-    _id,
-    roomName,
-    customer-> { _id, name, phone },
-    admins[]-> { _id, name },
-    lastMessage,
-    lastMessageAt,
-    unreadForCustomer,
-    unreadForAdmins,
-    createdAt,
-    updatedAt
-  }`;
-  const data = await sanityClient.fetch(query, { customerId });
-  return Array.isArray(data) ? (data as CustomerChatRoom[]) : [];
-}
-
 export async function getAdminBillingData(): Promise<AdminBillingData> {
   noStore();
   const [bills, customers, products, brands, categories] = await Promise.all([
@@ -283,3 +210,4 @@ export async function getFittingRates(): Promise<FittingRatesDoc | null> {
   const data = await sanityClient.fetch(query);
   return data || null;
 }
+

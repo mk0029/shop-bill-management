@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, Receipt } from "lucide-react";
@@ -17,6 +18,9 @@ import { sanitizeUserText } from "@/constants/defaults";
 import { useBills } from "@/hooks/use-sanity-data";
 
 export default function CustomerBillsClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [showBillModal, setShowBillModal] = useState(false);
@@ -71,6 +75,22 @@ export default function CustomerBillsClient() {
     setSelectedBill(bill);
     setShowBillModal(true);
   }, []);
+
+  const closeBillModal = useCallback(() => {
+    setShowBillModal(false);
+    if (!searchParams.has("open")) return;
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("open");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    const openBillId = searchParams.get("open");
+    if (!openBillId || isLoading || !customerBills.length) return;
+    const bill = customerBills.find((item: any) => String(item._id || item.id || item.billId) === openBillId);
+    if (bill) viewBillDetails(bill);
+  }, [customerBills, isLoading, searchParams, viewBillDetails]);
 
   return (
     <div
@@ -131,7 +151,7 @@ export default function CustomerBillsClient() {
 
       <BillDetailsModal
         isOpen={showBillModal}
-        onClose={() => setShowBillModal(false)}
+        onClose={closeBillModal}
         selectedBill={selectedBill}
         formatCurrency={formatCurrency}
         getStatusColor={getStatusColor}

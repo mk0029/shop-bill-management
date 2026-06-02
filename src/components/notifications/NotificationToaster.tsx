@@ -9,7 +9,6 @@ import {
 import { buildNotificationHref } from "@/store/notification-store";
 import { buildEventHref } from "@/lib/event-navigation";
 import { useRouter } from "next/navigation";
-import { useChatStore } from "@/store/chat-store";
 
 function playChime() {
   try {
@@ -51,42 +50,6 @@ export default function NotificationToaster() {
         return;
       }
       lastIdRef.current = latest.id;
-
-      // Suppress: if this notification targets the SAME open chat room, don't toast
-      try {
-        const hrefMaybe = buildNotificationHref(latest);
-        const eventHrefMaybe = buildEventHref(latest);
-        const finalHrefMaybe = eventHrefMaybe || hrefMaybe;
-        const loc = typeof window !== "undefined" ? window.location : null;
-        const activeRoomId = (() => {
-          try {
-            return useChatStore.getState().activeRoomId;
-          } catch {
-            return null;
-          }
-        })();
-        if (finalHrefMaybe && loc) {
-          const t = new URL(finalHrefMaybe, loc.origin);
-          const here = new URL(loc.href);
-          const tRoom = t.searchParams.get("roomId");
-          const hereRoom = here.searchParams.get("roomId");
-          const isChatPath =
-            t.pathname.startsWith("/admin/chats") ||
-            t.pathname.startsWith("/customer/chat");
-          const samePath = t.pathname === here.pathname;
-          if (isChatPath) {
-            if (
-              (samePath && tRoom && hereRoom && tRoom === hereRoom) ||
-              (activeRoomId &&
-                tRoom &&
-                activeRoomId === tRoom &&
-                here.pathname.startsWith("/admin/chats"))
-            ) {
-              return; // suppress toast for same chat room
-            }
-          }
-        }
-      } catch {}
 
       const description = latest.body || "You have a new notification";
       const href = buildNotificationHref(latest);

@@ -55,7 +55,7 @@ export const setupRealtimeListeners = (callback: (update: unknown) => void) => {
     // The filtering should be done in the callback
   } else {
     // Admins listen to all document types
-    query = '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category", "chatRoom", "chatMessage"]]';
+    query = '*[_type in ["user", "product", "bill", "stockTransaction", "brand", "category", "billMessage"]]';
   }
   
   const subscription = sanityClient
@@ -63,28 +63,7 @@ export const setupRealtimeListeners = (callback: (update: unknown) => void) => {
       includeResult: true,
       visibility: 'query'
     })
-    .subscribe((update) => {
-      // For chatMessage updates, ensure we have the sender name populated
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const updateData = update as any;
-      if (updateData.result?._type === 'chatMessage') {
-        // Fetch the complete message with sender details
-        sanityClient
-          .fetch('*[_type == "chatMessage" && _id == $id][0]{ ..., sender->{ _id, name } }', { id: updateData.result._id })
-          .then((completeMessage) => {
-            if (completeMessage) {
-              callback({ ...updateData, result: completeMessage });
-            } else {
-              callback(updateData);
-            }
-          })
-          .catch(() => {
-            callback(updateData);
-          });
-      } else {
-        callback(updateData);
-      }
-    });
+    .subscribe((update) => callback(update as unknown));
 
   return subscription;
 };

@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
 // PATCH: update a message content
-export async function PATCH(req: Request, { params }: { params: { billId: string; messageId: string } }) {
-  const { billId, messageId } = params;
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ billId: string; messageId: string }> },
+) {
+  const { billId, messageId } = await params;
   try {
     const body = await req.json().catch(() => ({}));
     const { content } = body || {};
@@ -27,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { billId: string
       .commit();
     return NextResponse.json({ success: true, data: patched });
   } catch (error) {
-    console.error(`/api/bill-book/bill/${billId}/messages/${params.messageId} PATCH failed:`, error);
+    console.error(`/api/bill-book/bill/${billId}/messages/${messageId} PATCH failed:`, error);
     return NextResponse.json({ success: false, error: "Failed to update message" }, { status: 500 });
   }
 }

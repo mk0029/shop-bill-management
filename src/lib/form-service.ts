@@ -9,6 +9,7 @@ import {
 import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 import { TAX_RATE } from "../constants/defaults";
 import { syncSingleBillPayment } from "./bill-payment-sync";
+import { createBillCreatedShopChatEvent } from "@/lib/shop-chat/api";
 
 export interface FormSubmissionResult {
   success: boolean;
@@ -825,6 +826,18 @@ export async function createBill(billData: {
               } catch {}
               return null;
             })();
+
+            void createBillCreatedShopChatEvent({
+              customerId,
+              billId: String(createdId),
+              billNumber: String(billNumber),
+              customerName: customerName || undefined,
+              totalAmount: Number(grossTotal || 0),
+              paymentStatus: String(billData.paymentStatus || "pending"),
+              createdAt: new Date().toISOString(),
+            }).catch((error) => {
+              console.warn("[ShopChat] bill_created event failed", error);
+            });
 
             try {
               const customerName = await (async () => {

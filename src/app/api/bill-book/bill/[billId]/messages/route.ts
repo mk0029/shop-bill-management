@@ -1,47 +1,18 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
-interface Participant {
-  role: 'admin' | 'customer';
-  user?: { _id?: string };
-  blocked?: boolean;
-  notify?: boolean;
-  isActive?: boolean;
-}
-
-interface RoomDoc {
-  _id: string;
-  roomName?: string;
-  participants?: Participant[];
-}
-
-// GET: list messages for a bill (compat layer) -> reads from the customer's chat room
-export async function GET(_req: Request, { params }: { params: Promise<{ billId: string }> }) {
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ billId: string }> },
+) {
   const { billId } = await params;
   try {
-    // Resolve bill -> customer -> room
-    const bill = await sanityClient.fetch(
-      `*[_type == "bill" && _id == $billId][0]{ _id, customer->{ _id, name } }`,
-      { billId }
-    );
-    if (!bill?.customer?._id) {
-      return NextResponse.json({ success: true, data: [] });
-    }
-
-    const room = await sanityClient.fetch(
-      `*[_type == "chatRoom" && customer._ref == $customerId][0]{ _id }`,
-      { customerId: bill.customer._id }
-    );
-
-    if (!room?._id) {
-      return NextResponse.json({ success: true, data: [] });
-    }
-
-    const msgs = await sanityClient.fetch(
-      `*[_type == "chatMessage" && room._ref == $roomId] | order(createdAt asc) {
+    const messages = await sanityClient.fetch(
+      `*[_type == "billMessage" && bill._ref == $billId] | order(createdAt asc) {
         _id,
-        room,
+        bill,
         sender,
+        recipient,
         content,
         attachments,
         status,
@@ -50,122 +21,68 @@ export async function GET(_req: Request, { params }: { params: Promise<{ billId:
         editedAt,
         parentId,
         createdAt,
-        updatedAt
+        updatedAt,
+        isEncrypted
       }`,
-      { roomId: room._id }
+      { billId },
     );
-    return NextResponse.json({ success: true, data: msgs });
+
+    return NextResponse.json({ success: true, data: messages || [] });
   } catch (error) {
     console.error("/api/bill-book/bill/[billId]/messages GET failed:", error);
-    return NextResponse.json({ success: false, error: "Failed to fetch messages" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch messages" },
+      { status: 500 },
+    );
   }
 }
 
-// POST: create a new message for a bill (compat layer) -> writes to chat room
-export async function POST(req: Request, { params }: { params: Promise<{ billId: string }> }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ billId: string }> },
+) {
   const { billId } = await params;
   try {
     const body = await req.json().catch(() => ({}));
-    const { content, senderId, parentId } = body || {};
-    if (!content) {
-      return NextResponse.json({ success: false, error: "Missing content" }, { status: 400 });
-    }
+    const { content, senderId, recipientId, parentId } = body || {};
 
-    // Resolve bill -> customer
-    const bill = await sanityClient.fetch(
-      `*[_type == "bill" && _id == $billId][0]{ _id, customer->{ _id, name } }`,
-      { billId }
-    );
-    const customerId: string | undefined = bill?.customer?._id;
-    if (!customerId) {
-      return NextResponse.json({ success: false, error: "Bill has no customer" }, { status: 400 });
+    if (!content || typeof content !== "string") {
+      return NextResponse.json(
+        { success: false, error: "Missing content" },
+        { status: 400 },
+      );
     }
-
-    // Find or create room for this customer
-    let room = await sanityClient.fetch<RoomDoc | null>(
-      `*[_type == "chatRoom" && customer._ref == $customerId][0]{ _id, roomName, participants[]{ role, user->{_id}, blocked, notify, isActive } }`,
-      { customerId }
-    );
-    if (!room?._id) {
-      // Get all admins
-      const adminIds: string[] = await sanityClient.fetch(`*[_type == "user" && role in ["admin", "super_admin"]]._id`);
-      const now = new Date().toISOString();
-      const created = await sanityClient.create({
-        _type: "chatRoom",
-        roomName: `admin-(${bill?.customer?.name || 'customer'})`,
-        customer: { _type: 'reference', _ref: customerId },
-        admins: adminIds.map((_id) => ({ _type: 'reference', _ref: _id })),
-        participants: [
-          { _type: 'object', role: 'customer', user: { _type: 'reference', _ref: customerId }, muted: false, blocked: false, notify: true, isActive: true },
-          ...adminIds.map((_id) => ({ _type: 'object', role: 'admin', user: { _type: 'reference', _ref: _id }, muted: false, blocked: false, notify: true, isActive: true }))
-        ],
-        lastMessage: '',
-        lastMessageAt: now,
-        unreadForCustomer: 0,
-        unreadForAdmins: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
-      room = await sanityClient.fetch<RoomDoc | null>(`*[_type == "chatRoom" && _id == $id][0]`, { id: (created as { _id: string })._id });
-    }
-
-    // Ensure sender is participant; infer isCustomer if not provided
-    const isCustomer = Boolean(senderId && String(senderId) === String(customerId));
 
     const now = new Date().toISOString();
-    const chatDoc = await sanityClient.create({
-      _type: "chatMessage",
-      room: { _type: "reference", _ref: String((room as RoomDoc)._id) },
-      sender: senderId ? { _type: "reference", _ref: String(senderId) } : { _type: 'reference', _ref: String(customerId) },
-      content,
+    const doc = await sanityClient.create({
+      _type: "billMessage",
+      bill: { _type: "reference", _ref: String(billId) },
+      sender: senderId
+        ? { _type: "reference", _ref: String(senderId) }
+        : undefined,
+      recipient: recipientId
+        ? { _type: "reference", _ref: String(recipientId) }
+        : undefined,
+      content: String(content),
       attachments: [],
       status: "sent",
-      parentId: parentId ? String(parentId) : undefined,
+      deliveredAt: null,
+      seenAt: null,
+      editedAt: null,
+      parentId: parentId ? String(parentId) : null,
+      isEncrypted: false,
       createdAt: now,
       updatedAt: now,
     });
 
-    // Update room counters/preview
-    try {
-      const patch = sanityClient.patch(String((room as RoomDoc)._id)).set({ lastMessage: content.slice(0, 120), lastMessageAt: now, updatedAt: now });
-      if (isCustomer) patch.inc({ unreadForAdmins: 1 }); else patch.inc({ unreadForCustomer: 1 });
-      await patch.commit();
-    } catch {}
-
-    // Targeted notification: if sender is customer, notify admins; else notify customer
-    try {
-      const oppositeIds: string[] = [];
-      const participants: Participant[] = (room?.participants ?? []);
-      const targetRole = isCustomer ? 'admin' : 'customer';
-      participants.forEach((p: Participant) => {
-        const uid = p.user?._id;
-        if (uid && p.role === targetRole && !p.blocked && p.notify !== false) {
-          oppositeIds.push(String(uid));
-        }
-      });
-      const title = 'New chat message';
-      const bodyText = content?.slice(0, 120) || 'You have a new message';
-      if (oppositeIds.length > 0) {
-        fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/api/notifications/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title,
-            body: bodyText,
-            userIds: oppositeIds,
-            data: { event: 'chat-message', roomId: String((room as RoomDoc)._id), messageId: String(((chatDoc as { _id?: string })?._id) ?? '') },
-            sound: 'default',
-          }),
-        }).catch(() => {});
-      }
-    } catch {}
-
-    return NextResponse.json({ success: true, data: chatDoc, roomId: String((room as RoomDoc)._id) });
+    return NextResponse.json({ success: true, data: doc });
   } catch (error) {
     console.error("/api/bill-book/bill/[billId]/messages POST failed:", error);
-    return NextResponse.json({ success: false, error: "Failed to send message" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Failed to send message" },
+      { status: 500 },
+    );
   }
 }
 
 export const dynamic = "force-dynamic";
-

@@ -14,7 +14,7 @@ It also includes recommended schema fields, indexes, and migration notes for exi
 ## 1) Schemas
 
 ### 1.1 Bill Message (`billMessage`)
-Bill-level chat between Admin and Customer.
+Bill-level message notes between Admin and Customer.
 
 ```ts
 // sanity/schemas/billMessage.ts
@@ -268,7 +268,7 @@ On POST `/api/bill-book/[billId]/messages`:
 3. Deploy the Next.js API routes.
 4. Verify realtime listeners include `billMessage`.
 5. QA end-to-end:
-   - Admin ↔ Customer messaging
+   - Admin/customer bill message notes
    - Offline queue recovery
    - Notifications
 

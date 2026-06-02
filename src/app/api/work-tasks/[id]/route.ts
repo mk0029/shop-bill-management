@@ -4,6 +4,7 @@ import { getServerAuth } from "@/lib/server-auth";
 import { notificationService } from "@/lib/notification-service";
 import { formatDayDateTime, formatRelativeDayDateTime, formatApproachTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
+import { publishWorkTaskShopChatEvent, type WorkTaskShopChatEventInput } from "@/lib/shop-chat/server-events";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -242,6 +243,40 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const previousDueAt = String(existing?.dueAt || "");
   const nextDueAt = String(updated?.dueAt || patch?.dueAt || "");
   const dueChanged = !!(previousDueAt && nextDueAt && previousDueAt !== nextDueAt);
+  const customerRefId = String(existing?.customerRef?._ref || existing?.customerRef?._id || "");
+  if (customerRefId) {
+    const statusForChat = String(updated?.status || existing?.status || "pending");
+    const changedStatus = String(patch.status || "");
+    const actionForChat: WorkTaskShopChatEventInput["action"] =
+      changedStatus === "completed"
+        ? "completed"
+        : changedStatus === "cancelled"
+          ? "cancelled"
+          : changedStatus === "hold"
+            ? "hold"
+            : changedStatus === "in-progress"
+              ? "in-progress"
+              : dueChanged
+                ? "due_changed"
+                : "updated";
+    await publishWorkTaskShopChatEvent(req, {
+      customerId: customerRefId,
+      taskId: id,
+      title: String(updated?.title || existing?.title || "Work"),
+      description: String(updated?.description || existing?.description || ""),
+      status: statusForChat,
+      priority: String(updated?.priority || existing?.priority || "medium"),
+      issueCategory: String(updated?.issueCategory || existing?.issueCategory || "other"),
+      dueAt: String(updated?.dueAt || existing?.dueAt || ""),
+      assignedTechnicianName: String(updated?.assignedTechnicianName || existing?.assignedTechnicianName || ""),
+      action: actionForChat,
+      createdAt: String(updated?.createdAt || existing?.createdAt || ""),
+      updatedAt: String(updated?.updatedAt || patch.updatedAt || new Date().toISOString()),
+      completionNotes: String(updated?.completionNotes || patch.completionNotes || ""),
+      cancellationReason: String(updated?.cancellationReason || patch.cancellationReason || ""),
+      holdReason: String(updated?.holdReason || patch.holdReason || ""),
+    });
+  }
   if (
     dueChanged &&
     !["completed", "cancelled"].includes(String(updated?.status || existing?.status || ""))
@@ -325,10 +360,37 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
   const actorUserId = String(auth.userId || "").trim();
   const { id } = await params;
-  const existing = await sanityClient.fetch<any>(`*[_type=="workTask" && _id==$id][0]{title,assignedTechnician->{_id,name},assignedTechnicianName,customerRef}`, { id });
+  const existing = await sanityClient.fetch<any>(
+    `*[_type=="workTask" && _id==$id][0]{
+      title, description, priority, status, issueCategory, dueAt,
+      completionNotes, cancellationReason, holdReason, createdAt, updatedAt,
+      assignedTechnician->{_id,name}, assignedTechnicianName, customerRef
+    }`,
+    { id },
+  );
   if (!existing) return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
 
   await sanityClient.delete(id);
+  const customerRefId = String(existing?.customerRef?._ref || existing?.customerRef?._id || "");
+  if (customerRefId) {
+    await publishWorkTaskShopChatEvent(req, {
+      customerId: customerRefId,
+      taskId: id,
+      title: String(existing?.title || "Work"),
+      description: String(existing?.description || ""),
+      status: String(existing?.status || "deleted"),
+      priority: String(existing?.priority || "medium"),
+      issueCategory: String(existing?.issueCategory || "other"),
+      dueAt: String(existing?.dueAt || ""),
+      assignedTechnicianName: String(existing?.assignedTechnicianName || existing?.assignedTechnician?.name || ""),
+      action: "deleted",
+      createdAt: String(existing?.createdAt || ""),
+      updatedAt: new Date().toISOString(),
+      completionNotes: String(existing?.completionNotes || ""),
+      cancellationReason: String(existing?.cancellationReason || ""),
+      holdReason: String(existing?.holdReason || ""),
+    });
+  }
   try {
     await sendCustomerWorkUpdate({
       customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,

@@ -1,0 +1,1295 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, MessageCircle, Plus, UserPlus } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuthStore } from "@/store/auth-store";
+import { Button } from "@/components/ui/button";
+import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
+import { Modal } from "@/components/ui/modal";
+import ChatHeader from "@/components/shop-chat/source/ChatRoom/ChatHeader";
+import MediaGalleryViewer from "@/components/shop-chat/source/ChatRoom/MediaGalleryViewer";
+import MessageInput from "@/components/shop-chat/source/ChatRoom/MessageInput";
+import MessagesList from "@/components/shop-chat/source/ChatRoom/MessagesList";
+import ChatItem from "@/components/shop-chat/source/ChatSidebar/ChatItem";
+import SearchBar from "@/components/shop-chat/source/ChatSidebar/SearchBar";
+import {
+  deleteShopChatMessage,
+  editShopChatMessage,
+  forwardShopChatMessage,
+  createBillCreatedShopChatEvent,
+  getOrCreateCustomerShopChatRoom,
+  getMyShopChatRoom,
+  listShopChatMessages,
+  listShopChatRooms,
+  sendShopChatMessage,
+} from "@/lib/shop-chat/api";
+import { useShopChatSocket } from "@/lib/shop-chat/socket";
+import type { ShopChatMessage, ShopChatRoom } from "@/lib/shop-chat/types";
+import type { Message } from "@/lib/types";
+import { useDynamicViewportHeight } from "@/hooks/use-dynamic-viewport-height";
+
+type Mode = "admin" | "customer";
+
+type ChatCustomer = {
+  _id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+};
+
+function supportRoleLabel(role?: string | null) {
+  return role === "technician" ? "Technician" : "Admin";
+}
+
+function isSupportAdminRole(role?: string | null) {
+  return role === "admin" || role === "super_admin";
+}
+
+function buildTempId() {
+  return `tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function mergeMessage(list: ShopChatMessage[], message: ShopChatMessage) {
+  const id = message.messageId;
+  const clientId = message.clientMessageId;
+  const exists = list.some((item) => item.messageId === id || (clientId && item.clientMessageId === clientId));
+  if (exists) {
+    return list.map((item) =>
+      item.messageId === id || (clientId && item.clientMessageId === clientId)
+        ? { ...item, ...message }
+        : item,
+    );
+  }
+  return [...list, message].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+}
+
+function formatTime(value?: string | null) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+function formatLastSeen(value?: string | null) {
+  if (!value) return "Last seen recently";
+  const then = Date.parse(value);
+  if (!Number.isFinite(then)) return "Last seen recently";
+  const diff = Date.now() - then;
+  if (diff < 60_000) return "Last seen just now";
+  if (diff < 60 * 60_000) return `Last seen ${Math.max(1, Math.floor(diff / 60_000))}m ago`;
+  if (diff < 24 * 60 * 60_000) return `Last seen ${Math.max(1, Math.floor(diff / (60 * 60_000)))}h ago`;
+  return `Last seen ${new Date(value).toLocaleDateString([], { day: "numeric", month: "short" })}`;
+}
+
+function customerStatusText(customerId: string, onlineUserIds?: Set<string>, lastSeenByUser?: Record<string, string>) {
+  return onlineUserIds?.has(customerId) ? "Online" : formatLastSeen(lastSeenByUser?.[customerId]);
+}
+
+function supportStatusText(supportMembers: ShopChatRoom["admins"] = [], onlineUserIds?: Set<string>, lastSeenByUser?: Record<string, string>) {
+  const onlineMembers = supportMembers.filter((member) => onlineUserIds?.has(member.userId));
+  const onlineAdmins = onlineMembers.filter((member) => member.role !== "technician").length;
+  const onlineTechnicians = onlineMembers.filter((member) => member.role === "technician").length;
+  if (onlineMembers.length) {
+    const parts = [
+      onlineAdmins ? `${onlineAdmins} admin${onlineAdmins === 1 ? "" : "s"}` : "",
+      onlineTechnicians ? `${onlineTechnicians} technician${onlineTechnicians === 1 ? "" : "s"}` : "",
+    ].filter(Boolean);
+    return `${parts.join(", ")} online`;
+  }
+  const latestSeen = supportMembers
+    .map((member) => lastSeenByUser?.[member.userId])
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+  return latestSeen ? formatLastSeen(latestSeen) : "Support team will reply soon";
+}
+
+function inferMediaType(file: File): ShopChatMessage["type"] {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type.startsWith("audio/")) return "audio";
+  return "file";
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Unable to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
+  return {
+    id: message.messageId,
+    tempId: message.clientMessageId || undefined,
+    content: message.text,
+    senderId: message.senderId,
+    receiverId: undefined,
+    groupId: message.roomId,
+    timestamp: message.createdAt,
+    status: message.status,
+    type: message.type === "file" ? "document" : message.type,
+    replyTo: message.replyTo
+      ? {
+          messageId: message.replyTo.messageId,
+          text: message.replyTo.text,
+          senderId: message.replyTo.senderId,
+          senderName: message.replyTo.senderName,
+        }
+      : null,
+    editedAt: message.editedAt || undefined,
+    edited: Boolean(message.editedAt),
+    deletedAt: message.deletedAt || undefined,
+    deletedForEveryone: Boolean(message.deletedAt),
+    forwarded: Boolean(message.forwarded),
+    forwardedFrom: message.forwardedFrom || null,
+    messageKind: message.messageKind,
+    systemEventType: message.systemEventType || undefined,
+    systemEventData: message.systemEventData || undefined,
+    reactions: message.reactions || [],
+  };
+}
+
+function RoomSidebar({
+  rooms,
+  activeRoomId,
+  myUserId,
+  onSelect,
+  onAddClick,
+  typingByRoom = {},
+  onlineUserIds = new Set<string>(),
+  lastSeenByUser = {},
+}: {
+  rooms: ShopChatRoom[];
+  activeRoomId?: string | null;
+  myUserId?: string;
+  onSelect: (room: ShopChatRoom) => void;
+  onAddClick: () => void;
+  typingByRoom?: Record<string, string>;
+  onlineUserIds?: Set<string>;
+  lastSeenByUser?: Record<string, string>;
+}) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rooms;
+    return rooms.filter((room) => `${room.customerName} ${room.customerKey || ""}`.toLowerCase().includes(q));
+  }, [query, rooms]);
+
+  return (
+    <aside className="flex h-full min-h-0 w-full flex-col border-r border-gray-800 bg-gray-900/80 md:w-80">
+      <div className="border-b border-gray-800 px-4 pb-3 pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+            <MessageCircle className="h-5 w-5 text-blue-400" />
+            Customer Chats
+          </h2>
+          <button
+            type="button"
+            onClick={onAddClick}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
+            title="Add customer to chat"
+            aria-label="Add customer to chat"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+        <SearchBar value={query} onChange={setQuery} placeholder="Search customers..." />
+      </div>
+      <ul className="min-h-0 flex-1 divide-y divide-slate-800/80 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {filtered.map((room) => {
+          const unread = myUserId ? room.unreadBy?.[myUserId] || 0 : 0;
+          const presenceText = customerStatusText(room.customerId, onlineUserIds, lastSeenByUser);
+          const last = room.lastMessage
+            ? {
+                content:
+                  room.lastMessage.type === "text"
+                    ? room.lastMessage.text
+                    : `[${room.lastMessage.type}]`,
+                timestamp: room.lastMessage.createdAt,
+                senderId: room.lastMessage.senderId,
+                kind: room.lastMessage.type === "text" ? ("text" as const) : ("media" as const),
+              }
+            : undefined;
+          return (
+            <div
+              key={room.roomId}
+              className={room.roomId === activeRoomId ? "bg-blue-600/15" : "bg-transparent"}
+            >
+              <ChatItem
+                friend={{
+                  _id: room.roomId,
+                  name: room.customerName,
+                  online: onlineUserIds.has(room.customerId),
+                  lastSeen: lastSeenByUser[room.customerId],
+                  statusText: presenceText,
+                  isGroup: true,
+                  memberCount: room.participants.length,
+                  rawGroupId: room.roomId,
+                }}
+                lastMessage={last}
+                unreadCount={unread}
+                isTyping={Boolean(typingByRoom[room.roomId])}
+                isBlocked={false}
+                isPinned={false}
+                isStarred={false}
+                isMuted={false}
+                isArchived={false}
+                currentUserId={myUserId || ""}
+                onSelect={() => onSelect(room)}
+                onPin={() => {}}
+                onToggleStar={() => {}}
+                onMute={() => {}}
+                onArchive={() => {}}
+                onMarkUnread={() => {}}
+                onDeleteChat={() => {}}
+                onApproveUnblock={() => {}}
+                onDeclineUnblock={() => {}}
+              />
+              {!last && (
+                <div className="-mt-5 mb-2 ml-[4.4rem] text-xs text-gray-500">
+                  {presenceText}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {!filtered.length && <div className="p-6 text-center text-sm text-gray-500">No customer rooms yet.</div>}
+      </ul>
+    </aside>
+  );
+}
+
+function ChatPanel({
+  mode,
+  room,
+  messages,
+  connected,
+  typingText,
+  statusLabel,
+  peerOnline,
+  peerLastSeen,
+  customerDetails,
+  canGoBack,
+  onBack,
+  onOpenBills,
+  onSend,
+  onSendFiles,
+  onSendVoiceNote,
+  onTyping,
+  onEditMessage,
+  onDeleteMessage,
+  onForwardMessage,
+  onResendMessage,
+  onClearChat,
+}: {
+  mode: Mode;
+  room: ShopChatRoom | null;
+  messages: ShopChatMessage[];
+  connected: boolean;
+  typingText: string;
+  statusLabel: string;
+  peerOnline: boolean;
+  peerLastSeen?: string | null;
+  customerDetails?: ChatCustomer | null;
+  canGoBack?: boolean;
+  onBack?: () => void;
+  onOpenBills?: () => void;
+  onSend: (text: string, options?: { replyTo?: ShopChatMessage["replyTo"]; type?: ShopChatMessage["type"]; attachments?: unknown[] }) => Promise<void>;
+  onSendFiles: (files: File[], kind: "image" | "video" | "audio" | "document" | "contact") => Promise<void>;
+  onSendVoiceNote: (audioBlob: Blob) => Promise<void>;
+  onTyping: (typing: boolean) => void;
+  onEditMessage: (messageId: string, text: string) => Promise<void>;
+  onDeleteMessage: (message: Message) => Promise<void>;
+  onForwardMessage?: (message: Message) => void;
+  onResendMessage: (message: Message) => Promise<void>;
+  onClearChat?: () => void;
+}) {
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryActiveId, setGalleryActiveId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const sourceMessages = useMemo(
+    () => messages.map(mapShopMessageToSourceMessage),
+    [messages],
+  );
+  const headerName = mode === "customer" ? "Chat Support" : room?.customerName || "";
+  const detailItems = useMemo(() => {
+    if (!room) return [];
+    if (mode === "customer") {
+      const adminDetails = (room.admins || []).map((admin, index) => ({
+        label: admin.name || `${supportRoleLabel(admin.role)} ${index + 1}`,
+        value: supportRoleLabel(admin.role),
+        tone: admin.role === "technician" ? "technician" as const : "admin" as const,
+        fields: [
+          { label: "Role", value: supportRoleLabel(admin.role) },
+          { label: "Email", value: admin.email || "Not available", href: admin.email ? `mailto:${admin.email}` : undefined },
+          { label: "Phone", value: admin.phone || "Not available", href: admin.phone ? `tel:${admin.phone}` : undefined },
+        ],
+      }));
+      return adminDetails.length ? adminDetails : [{ label: "Support", value: "Admins and technicians are available in this room" }];
+    }
+    return [
+      { label: "Customer ID", value: room.customerKey || room.customerId },
+      { label: "Email", value: customerDetails?.email, href: customerDetails?.email ? `mailto:${customerDetails.email}` : undefined },
+      { label: "Phone", value: customerDetails?.phone, href: customerDetails?.phone ? `tel:${customerDetails.phone}` : undefined },
+      { label: "Location", value: customerDetails?.location },
+      { label: "Participants", value: `${room.participants.length} member(s)` },
+    ];
+  }, [customerDetails?.email, customerDetails?.location, customerDetails?.phone, mode, room]);
+
+  const galleryItems = useMemo(
+    () =>
+      sourceMessages
+        .filter((message) => message.type === "image" && !message.deletedForEveryone)
+        .map((message) => ({
+          id: message.id,
+          src: message.content,
+          senderName: message.senderId === room?.customerId ? room.customerName : "Admin",
+          timestamp: message.timestamp,
+        })),
+    [room?.customerId, room?.customerName, sourceMessages],
+  );
+
+  const submitMessage = async (text: string) => {
+    if (editingMessage) {
+      await onEditMessage(editingMessage.id, text);
+      setEditingMessage(null);
+      return;
+    }
+    await onSend(text, {
+      replyTo: replyTo
+        ? {
+            messageId: replyTo.id,
+            text: replyTo.content,
+            senderId: replyTo.senderId,
+            senderName: replyTo.senderId === room?.customerId ? room.customerName : "Admin",
+          }
+        : null,
+    });
+    setReplyTo(null);
+  };
+
+  if (!room) {
+    return (
+      <div className="flex min-h-[70vh] flex-1 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/60 text-gray-400">
+        Select a customer room to start chatting.
+      </div>
+    );
+  }
+
+  return (
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#0b1220]">
+      <ChatHeader
+        peer={{ id: room.customerId, name: headerName, online: peerOnline, lastSeen: peerLastSeen || undefined }}
+        typingLabel={typingText}
+        statusLabel={statusLabel}
+        connected={connected}
+        onBack={canGoBack ? onBack : undefined}
+        onSearch={() => setSearchOpen(true)}
+        onOpenMedia={() => setGalleryOpen(true)}
+        onOpenBills={onOpenBills}
+        onClearChat={mode === "admin" ? onClearChat : undefined}
+        profileDetails={detailItems}
+        isGroup
+        groupInfo={{
+          memberCount: room.participants.length,
+          activeMemberCount: room.participants.filter((participant) => participant.role === "customer" ? peerOnline : true).length,
+          members: room.participants.map((participant) => ({
+            userId: participant.userId,
+            userName: participant.name,
+            role: participant.role,
+            status: participant.role === "customer" ? (peerOnline ? "online" : formatLastSeen(peerLastSeen)) : "support",
+          })),
+        }}
+      />
+      <MessagesList
+        messages={sourceMessages}
+        initialLoading={false}
+        isLoading={false}
+        typingText={typingText}
+        onMessageReply={setReplyTo}
+        onMessageEdit={setEditingMessage}
+        onMessageDelete={onDeleteMessage}
+        onMessageForward={onForwardMessage}
+        onMessageResend={onResendMessage}
+        onOpenImage={(payload) => {
+          setGalleryActiveId(payload.messageId);
+          setGalleryOpen(true);
+        }}
+      />
+      <div className="border-t border-gray-800 bg-[#111c2a]">
+        <MessageInput
+          onSendMessage={submitMessage}
+          onTyping={(state) => onTyping(state.active)}
+          onSendFiles={onSendFiles}
+          onSendVoiceNote={onSendVoiceNote}
+          replyTo={
+            replyTo
+              ? {
+                  messageId: replyTo.id,
+                  text: replyTo.content,
+                  senderName: replyTo.senderId === room.customerId ? room.customerName : "Admin",
+                }
+              : undefined
+          }
+          onCancelReply={() => setReplyTo(null)}
+          editingMessage={editingMessage ? { id: editingMessage.id, content: editingMessage.content } : null}
+          onCancelEdit={() => setEditingMessage(null)}
+          placeholder="Type a message..."
+          focusKey={room.roomId}
+        />
+      </div>
+      <MediaGalleryViewer
+        open={galleryOpen}
+        items={galleryItems}
+        activeId={galleryActiveId}
+        onClose={() => setGalleryOpen(false)}
+      />
+      {searchOpen && (
+        <div className="fixed inset-0 z-[2600] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm" onClick={() => setSearchOpen(false)}>
+          <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-3 text-slate-100 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search messages"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            />
+            <div className="mt-3 max-h-80 overflow-y-auto divide-y divide-slate-800">
+              {sourceMessages
+                .filter((message) => !searchQuery || message.content.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((message) => (
+                  <button
+                    key={message.id}
+                    type="button"
+                    onClick={() => {
+                      document.getElementById(`msg-${message.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      setSearchOpen(false);
+                    }}
+                    className="block w-full px-2 py-2 text-left text-sm hover:bg-slate-800"
+                  >
+                    <div className="text-xs text-slate-500">{new Date(message.timestamp).toLocaleString()}</div>
+                    <div className="truncate">{message.content || "Media message"}</div>
+                  </button>
+                ))}
+              {searchQuery && !sourceMessages.some((message) => message.content.toLowerCase().includes(searchQuery.toLowerCase())) && (
+                <div className="px-2 py-4 text-center text-sm text-slate-400">No matches</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-lg bg-slate-700/35 ${className}`} />;
+}
+
+function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
+  return (
+    <div
+      className="min-h-0 overflow-hidden bg-gray-950"
+      style={{ height: "var(--app-vh, 100dvh)" }}
+    >
+      <div className="flex h-full min-h-0">
+        {mode === "admin" && (
+          <aside className="hidden h-full w-80 shrink-0 flex-col border-r border-gray-800 bg-gray-900/80 md:flex">
+            <div className="border-b border-gray-800 p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <SkeletonBlock className="h-5 w-5 rounded-full bg-blue-500/25" />
+                  <SkeletonBlock className="h-5 w-36" />
+                </div>
+                <SkeletonBlock className="h-9 w-9 rounded-xl bg-blue-500/20" />
+              </div>
+              <SkeletonBlock className="h-11 w-full rounded-xl" />
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-hidden p-3">
+              {[0, 1, 2, 3, 4].map((item) => (
+                <div key={item} className="flex items-center gap-3 rounded-xl px-2 py-3">
+                  <SkeletonBlock className="h-11 w-11 rounded-full bg-emerald-500/20" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <SkeletonBlock className="h-4 w-28" />
+                      <SkeletonBlock className="h-3 w-9" />
+                    </div>
+                    <SkeletonBlock className="h-3 w-40" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
+
+        <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#0b1220]">
+          <div className="border-b border-gray-800 bg-[#111c2a] px-3 py-3">
+            <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-2xl border border-gray-700 bg-slate-800/70 px-4 py-3">
+              <SkeletonBlock className="h-11 w-11 rounded-full bg-emerald-500/20" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <SkeletonBlock className="h-4 w-36" />
+                <SkeletonBlock className="h-3 w-24 bg-emerald-500/20" />
+              </div>
+              <SkeletonBlock className="h-7 w-7 rounded-full" />
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-4 overflow-hidden bg-[#0b1220] p-4">
+            <div className="flex items-end gap-2">
+              <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20" />
+              <SkeletonBlock className="h-14 w-44 rounded-2xl rounded-bl-sm" />
+            </div>
+            <div className="flex justify-end">
+              <SkeletonBlock className="h-12 w-36 rounded-2xl rounded-br-sm bg-slate-500/35" />
+            </div>
+            <div className="flex items-end gap-2">
+              <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20" />
+              <SkeletonBlock className="h-20 w-56 rounded-2xl rounded-bl-sm" />
+            </div>
+            <div className="flex justify-end">
+              <SkeletonBlock className="h-16 w-48 rounded-2xl rounded-br-sm bg-slate-500/35" />
+            </div>
+            <div className="flex items-end gap-2">
+              <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20" />
+              <SkeletonBlock className="h-12 w-40 rounded-2xl rounded-bl-sm" />
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 bg-[#111c2a] p-3">
+            <div className="flex items-center gap-3">
+              <SkeletonBlock className="h-11 flex-1 rounded-full" />
+              <SkeletonBlock className="h-11 w-11 rounded-full bg-emerald-500/25" />
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+export default function ShopChatClient({
+  mode,
+  initialCustomers = [],
+}: {
+  mode: Mode;
+  initialCustomers?: ChatCustomer[];
+}) {
+  useDynamicViewportHeight();
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuthStore();
+  const myUserId = String((user as any)?.id || (user as any)?._id || "");
+  const myRole = String((user as any)?.role || "");
+  const canClearActiveChat = mode === "admin" && isSupportAdminRole(myRole);
+  const [rooms, setRooms] = useState<ShopChatRoom[]>([]);
+  const [activeRoom, setActiveRoom] = useState<ShopChatRoom | null>(null);
+  const [messagesByRoom, setMessagesByRoom] = useState<Record<string, ShopChatMessage[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [addingCustomer, setAddingCustomer] = useState(false);
+  const [typingByRoom, setTypingByRoom] = useState<Record<string, string>>({});
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [lastSeenByUser, setLastSeenByUser] = useState<Record<string, string>>({});
+  const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
+  const [forwardingRoomId, setForwardingRoomId] = useState("");
+  const [forwarding, setForwarding] = useState(false);
+  const [billsOpen, setBillsOpen] = useState(false);
+  const [billFilter, setBillFilter] = useState<"all" | "pending" | "paid">("all");
+  const [chatBills, setChatBills] = useState<Array<Record<string, any>>>([]);
+  const [chatBillsLoading, setChatBillsLoading] = useState(false);
+  const deliveredRef = useRef<Set<string>>(new Set());
+  const readAtRef = useRef<Record<string, number>>({});
+  const autoOpenCustomerRef = useRef("");
+  const syncedBillEventsRef = useRef<Set<string>>(new Set());
+  const { socket, connected, sendMessage: sendSocketMessage } = useShopChatSocket(activeRoom?.roomId);
+
+  const activeMessages = activeRoom ? messagesByRoom[activeRoom.roomId] || [] : [];
+  const activeCustomer = useMemo(
+    () => initialCustomers.find((customer) => customer._id === activeRoom?.customerId) || null,
+    [activeRoom?.customerId, initialCustomers],
+  );
+  const selectedCustomer = useMemo(
+    () => initialCustomers.find((customer) => customer._id === selectedCustomerId) || null,
+    [initialCustomers, selectedCustomerId],
+  );
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("shop-chat:room-state", {
+        detail: { mode, roomOpen: Boolean(activeRoom) },
+      }),
+    );
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent("shop-chat:room-state", {
+          detail: { mode, roomOpen: false },
+        }),
+      );
+    };
+  }, [activeRoom, mode]);
+
+  const upsertRoom = useCallback((room: ShopChatRoom) => {
+    setRooms((prev) => {
+      const exists = prev.some((item) => item.roomId === room.roomId);
+      const next = exists ? prev.map((item) => (item.roomId === room.roomId ? room : item)) : [room, ...prev];
+      return next.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+    });
+    setActiveRoom((prev) => (prev?.roomId === room.roomId ? room : prev));
+  }, []);
+
+  const loadMessages = useCallback(async (room: ShopChatRoom) => {
+    const response = await listShopChatMessages(room.roomId, { limit: 80 });
+    setMessagesByRoom((prev) => ({ ...prev, [room.roomId]: response.messages }));
+  }, []);
+
+  const syncBillEventsForRoom = useCallback(async (room: ShopChatRoom) => {
+    if (mode !== "admin" || syncedBillEventsRef.current.has(room.roomId)) return;
+    syncedBillEventsRef.current.add(room.roomId);
+    try {
+      const response = await fetch(`/api/bill-book/user/${encodeURIComponent(room.customerId)}/list`);
+      const body = await response.json().catch(() => ({}));
+      const bills = Array.isArray(body?.data) ? body.data : [];
+      const results = await Promise.allSettled(
+        bills.map((bill: Record<string, any>) =>
+          createBillCreatedShopChatEvent({
+            customerId: room.customerId,
+            billId: String(bill._id || bill.id || bill.billId || ""),
+            billNumber: bill.billNumber ? String(bill.billNumber) : undefined,
+            customerName: room.customerName,
+            totalAmount: Number(bill.totalAmount || 0),
+            paymentStatus: String(bill.paymentStatus || bill.status || "pending"),
+            createdAt: bill.createdAt ? String(bill.createdAt) : undefined,
+          }),
+        ),
+      );
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        setMessagesByRoom((prev) => ({
+          ...prev,
+          [room.roomId]: mergeMessage(prev[room.roomId] || [], result.value.message),
+        }));
+        upsertRoom(result.value.room);
+      }
+    } catch {}
+  }, [mode, upsertRoom]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadInitial() {
+      setLoading(true);
+      setError("");
+      try {
+        if (mode === "admin") {
+          const response = await listShopChatRooms();
+          if (cancelled) return;
+          setRooms(response.rooms);
+          setActiveRoom(null);
+        } else {
+          const response = await getMyShopChatRoom();
+          if (cancelled) return;
+          setRooms([response.room]);
+          setActiveRoom(response.room);
+          await loadMessages(response.room);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load chat");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void loadInitial();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadMessages, mode, syncBillEventsForRoom]);
+
+  useEffect(() => {
+    const customerId = searchParams.get("customerId") || "";
+    if (mode !== "admin" || loading || !customerId || autoOpenCustomerRef.current === customerId) return;
+    autoOpenCustomerRef.current = customerId;
+    void (async () => {
+      try {
+        const existing = rooms.find((room) => room.customerId === customerId || room.customerKey === customerId);
+        if (existing) {
+          await selectRoom(existing);
+          return;
+        }
+        const response = await getOrCreateCustomerShopChatRoom(customerId);
+        upsertRoom(response.room);
+        await selectRoom(response.room);
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Failed to open customer chat");
+      }
+    })();
+  }, [loading, mode, rooms, searchParams, upsertRoom]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onRoomUpdated = (room: ShopChatRoom) => upsertRoom(room);
+    const onMessageNew = (message: ShopChatMessage) => {
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [message.roomId]: mergeMessage(prev[message.roomId] || [], message),
+      }));
+      if (message.senderId !== myUserId && !deliveredRef.current.has(message.messageId)) {
+        deliveredRef.current.add(message.messageId);
+        socket.emit("message:delivered", { messageIds: [message.messageId] });
+      }
+    };
+    const onStatus = ({ messages }: { messages: ShopChatMessage[] }) => {
+      setMessagesByRoom((prev) => {
+        const next = { ...prev };
+        for (const message of messages) {
+          next[message.roomId] = mergeMessage(next[message.roomId] || [], message);
+        }
+        return next;
+      });
+    };
+    const onTyping = (payload: { roomId: string; userId: string; name: string; typing: boolean }) => {
+      if (payload.userId === myUserId) return;
+      setTypingByRoom((prev) => ({ ...prev, [payload.roomId]: payload.typing ? `${payload.name} is typing...` : "" }));
+    };
+    const onPresence = (payload: {
+      users: Array<{ userId: string; lastSeen?: string }>;
+      lastSeen?: Array<{ userId: string; lastSeen?: string }>;
+    }) => {
+      const onlineIds = new Set((payload.users || []).map((item) => String(item.userId)));
+      setOnlineUserIds(onlineIds);
+      setLastSeenByUser((prev) => {
+        const next = { ...prev };
+        for (const item of payload.users || []) {
+          if (item.lastSeen) next[String(item.userId)] = item.lastSeen;
+        }
+        for (const item of payload.lastSeen || []) {
+          if (item.lastSeen) next[String(item.userId)] = item.lastSeen;
+        }
+        for (const userId of Object.keys(prev)) {
+          if (!onlineIds.has(userId) && !next[userId]) next[userId] = new Date().toISOString();
+        }
+        return next;
+      });
+    };
+    socket.on("room:updated", onRoomUpdated);
+    socket.on("message:new", onMessageNew);
+    socket.on("message:status", onStatus);
+    socket.on("typing:update", onTyping);
+    socket.on("presence:snapshot", onPresence);
+    return () => {
+      socket.off("room:updated", onRoomUpdated);
+      socket.off("message:new", onMessageNew);
+      socket.off("message:status", onStatus);
+      socket.off("typing:update", onTyping);
+      socket.off("presence:snapshot", onPresence);
+    };
+  }, [myUserId, socket, upsertRoom]);
+
+  useEffect(() => {
+    if (!activeRoom || !socket) return;
+    const unread = activeMessages.filter((message) => message.senderId !== myUserId && !message.readBy.some((receipt) => receipt.userId === myUserId));
+    if (!unread.length) return;
+    const now = Date.now();
+    if (now - (readAtRef.current[activeRoom.roomId] || 0) < 1200) return;
+    readAtRef.current[activeRoom.roomId] = now;
+    socket.emit("message:read", { roomId: activeRoom.roomId, messageIds: unread.map((message) => message.messageId) });
+  }, [activeMessages, activeRoom, myUserId, socket]);
+
+  const selectRoom = async (room: ShopChatRoom) => {
+    setActiveRoom(room);
+    if (!messagesByRoom[room.roomId]) {
+      await loadMessages(room);
+    }
+    void syncBillEventsForRoom(room);
+  };
+
+  const addCustomerRoom = async () => {
+    if (!selectedCustomerId || addingCustomer) return;
+    setAddingCustomer(true);
+    setError("");
+    try {
+      const response = await getOrCreateCustomerShopChatRoom(selectedCustomerId);
+      upsertRoom(response.room);
+      setAddOpen(false);
+      setSelectedCustomerId("");
+      await selectRoom(response.room);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add customer chat");
+    } finally {
+      setAddingCustomer(false);
+    }
+  };
+
+  const sendText = async (
+    text: string,
+    options?: {
+      replyTo?: ShopChatMessage["replyTo"];
+      type?: ShopChatMessage["type"];
+      attachments?: unknown[];
+    },
+  ) => {
+    if (!activeRoom || !myUserId) return;
+    const tempId = buildTempId();
+    const type = options?.type || "text";
+    const optimistic: ShopChatMessage = {
+      messageId: tempId,
+      clientMessageId: tempId,
+      roomId: activeRoom.roomId,
+      type,
+      text,
+      attachments: options?.attachments || [],
+      senderId: myUserId,
+      senderRole: mode === "admin" ? (myRole === "technician" ? "technician" : "admin") : "customer",
+      senderName: String((user as any)?.name || (mode === "admin" ? "Admin" : "Customer")),
+      status: "sending",
+      deliveredTo: [],
+      readBy: [],
+      replyTo: options?.replyTo || null,
+      forwarded: false,
+      forwardedFrom: null,
+      reactions: [],
+      editedAt: null,
+      deletedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], optimistic) }));
+    try {
+      const response = socket?.connected
+        ? await sendSocketMessage({
+            roomId: activeRoom.roomId,
+            text,
+            type,
+            attachments: options?.attachments || [],
+            replyTo: options?.replyTo || null,
+            clientMessageId: tempId,
+          })
+        : await sendShopChatMessage({
+            roomId: activeRoom.roomId,
+            text,
+            type,
+            attachments: options?.attachments || [],
+            replyTo: options?.replyTo || null,
+            clientMessageId: tempId,
+          });
+      setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], response.message) }));
+      if (response.room) upsertRoom(response.room);
+    } catch {
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [activeRoom.roomId]: (prev[activeRoom.roomId] || []).map((message) =>
+          message.clientMessageId === tempId ? { ...message, status: "failed" } : message,
+        ),
+      }));
+    }
+  };
+
+  const editMessage = async (messageId: string, text: string) => {
+    if (!activeRoom) return;
+    const response = await editShopChatMessage(messageId, text);
+    setMessagesByRoom((prev) => ({
+      ...prev,
+      [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], response.message),
+    }));
+    if (response.room) upsertRoom(response.room);
+  };
+
+  const deleteMessage = async (message: Message) => {
+    if (!activeRoom) return;
+    const scope = message.senderId === myUserId ? "everyone" : "me";
+    const label = scope === "everyone" ? "delete this message for everyone" : "delete this message for you";
+    if (!window.confirm(`Are you sure you want to ${label}?`)) return;
+    const response = await deleteShopChatMessage(message.id, scope);
+    if (response.localOnly) {
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [activeRoom.roomId]: (prev[activeRoom.roomId] || []).filter((item) => item.messageId !== message.id),
+      }));
+      return;
+    }
+    if (response.message) {
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], response.message!),
+      }));
+    }
+    if (response.room) upsertRoom(response.room);
+  };
+
+  const resendMessage = async (message: Message) => {
+    await sendText(message.content, { type: (message.type as ShopChatMessage["type"]) || "text" });
+  };
+
+  const sendFiles = async (files: File[], kind: "image" | "video" | "audio" | "document" | "contact") => {
+    for (const file of files) {
+      const dataUrl = await readFileAsDataUrl(file);
+      const type: ShopChatMessage["type"] = kind === "document" || kind === "contact" ? "file" : inferMediaType(file);
+      await sendText(dataUrl, {
+        type,
+        attachments: [{ name: file.name, type: file.type, size: file.size }],
+      });
+    }
+  };
+
+  const sendVoiceNote = async (audioBlob: Blob) => {
+    const file = new File([audioBlob], `voice-${Date.now()}.webm`, { type: audioBlob.type || "audio/webm" });
+    await sendFiles([file], "audio");
+  };
+
+  const forwardSelectedMessage = async () => {
+    if (!forwardMessage || !forwardingRoomId || forwarding) return;
+    setForwarding(true);
+    try {
+      const response = await forwardShopChatMessage(forwardMessage.id, forwardingRoomId);
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [response.message.roomId]: mergeMessage(prev[response.message.roomId] || [], response.message),
+      }));
+      upsertRoom(response.room);
+      setForwardMessage(null);
+      setForwardingRoomId("");
+    } finally {
+      setForwarding(false);
+    }
+  };
+
+  const clearActiveChat = () => {
+    if (!activeRoom) return;
+    if (!window.confirm("Clear this chat on this screen?")) return;
+    setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: [] }));
+  };
+
+  const sendTyping = (typing: boolean) => {
+    if (!socket || !activeRoom) return;
+    socket.emit("typing:update", { roomId: activeRoom.roomId, typing });
+  };
+
+  const openBillsPanel = async () => {
+    if (!activeRoom?.customerId) return;
+    setBillsOpen(true);
+    setChatBillsLoading(true);
+    try {
+      const response = await fetch(`/api/bill-book/user/${encodeURIComponent(activeRoom.customerId)}/list`);
+      const body = await response.json().catch(() => ({}));
+      setChatBills(Array.isArray(body?.data) ? body.data : []);
+    } catch {
+      setChatBills([]);
+    } finally {
+      setChatBillsLoading(false);
+    }
+  };
+
+  const openBillRoute = (bill: Record<string, any>) => {
+    const billId = encodeURIComponent(String(bill?._id || bill?.id || bill?.billId || ""));
+    if (!billId) return;
+    if (mode === "customer") {
+      router.push(`/customer/bills?open=${billId}`);
+      return;
+    }
+    router.push(`/admin/customers/${encodeURIComponent(String(activeRoom?.customerId || ""))}/bills?open=${billId}`);
+  };
+
+  const visibleChatBills = chatBills.filter((bill) => {
+    if (billFilter === "all") return true;
+    const status = String(bill.paymentStatus || bill.status || "pending").toLowerCase();
+    return billFilter === "paid" ? status === "paid" : status !== "paid";
+  });
+
+  if (loading) {
+    return <ChatLoadingSkeleton mode={mode} />;
+  }
+
+  if (error) {
+    return <div className="rounded-2xl border border-red-900/60 bg-red-950/40 p-6 text-red-200">{error}</div>;
+  }
+
+  return (
+    <div
+      className="min-h-0 overflow-hidden bg-gray-950"
+      style={{ height: "var(--app-vh, 100dvh)" }}
+    >
+      <div className="relative flex h-full min-h-0 overflow-hidden">
+        {mode === "admin" && (
+          <div
+            className={`absolute inset-y-0 left-0 z-20 h-full w-full shrink-0 transition-transform duration-300 ease-out md:static md:w-80 md:translate-x-0 ${
+              activeRoom ? "-translate-x-full pointer-events-none md:pointer-events-auto" : "translate-x-0"
+            }`}
+          >
+            <RoomSidebar
+              rooms={rooms}
+              activeRoomId={activeRoom?.roomId}
+              myUserId={myUserId}
+              onSelect={selectRoom}
+              onAddClick={() => setAddOpen(true)}
+              typingByRoom={typingByRoom}
+              onlineUserIds={onlineUserIds}
+              lastSeenByUser={lastSeenByUser}
+            />
+          </div>
+        )}
+        <div
+          className={`absolute inset-0 z-10 flex min-w-0 flex-1 transition-transform duration-300 ease-out md:static md:z-auto md:translate-x-0 ${
+            mode === "admin" && !activeRoom
+              ? "translate-x-full pointer-events-none md:pointer-events-auto"
+              : "translate-x-0 pointer-events-auto"
+          }`}
+        >
+          <ChatPanel
+            mode={mode}
+            room={activeRoom}
+            messages={activeMessages}
+            connected={connected}
+            typingText={activeRoom ? typingByRoom[activeRoom.roomId] || "" : ""}
+            statusLabel={
+              activeRoom
+                ? mode === "admin"
+                    ? customerStatusText(activeRoom.customerId, onlineUserIds, lastSeenByUser)
+                    : supportStatusText(activeRoom.admins, onlineUserIds, lastSeenByUser)
+                : ""
+            }
+            peerOnline={
+              activeRoom
+                ? mode === "admin"
+                  ? onlineUserIds?.has(activeRoom.customerId)
+                  : activeRoom.admins.some((admin) => onlineUserIds?.has(admin.userId))
+                : false
+            }
+            peerLastSeen={
+              activeRoom
+                ? mode === "admin"
+                  ? lastSeenByUser[activeRoom.customerId]
+                  : activeRoom.admins
+                      .map((admin) => lastSeenByUser[admin.userId])
+                      .filter(Boolean)
+                      .sort((a, b) => Date.parse(b) - Date.parse(a))[0]
+                : undefined
+            }
+            customerDetails={activeCustomer}
+            canGoBack
+            onOpenBills={openBillsPanel}
+            onBack={() => {
+              if (mode === "customer") {
+                router.push("/customer/bills");
+                return;
+              }
+              setActiveRoom(null);
+            }}
+            onSend={sendText}
+            onSendFiles={sendFiles}
+            onSendVoiceNote={sendVoiceNote}
+            onTyping={sendTyping}
+            onEditMessage={editMessage}
+            onDeleteMessage={deleteMessage}
+            onForwardMessage={
+              mode === "admin"
+                ? (message) => {
+                    setForwardMessage(message);
+                    setForwardingRoomId(activeRoom?.roomId || "");
+                  }
+                : undefined
+            }
+            onResendMessage={resendMessage}
+            onClearChat={canClearActiveChat ? clearActiveChat : undefined}
+          />
+        </div>
+      </div>
+      {mode === "admin" && (
+        <Modal
+          isOpen={addOpen}
+          onClose={() => {
+            if (!addingCustomer) {
+              setAddOpen(false);
+              setSelectedCustomerId("");
+            }
+          }}
+          title="Add Customer Chat"
+          size="md"
+        >
+          <div className="space-y-5">
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3 text-sm text-blue-100">
+              Pick an existing customer. The system will create one room per customer, or open the existing room if it already exists.
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-200">Customer</label>
+              <CustomerAutocomplete
+                customers={initialCustomers}
+                value={selectedCustomerId}
+                onChange={setSelectedCustomerId}
+                placeholder="Search by customer name, phone, or location"
+              />
+            </div>
+            {selectedCustomer && (
+              <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-950 p-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+                  {selectedCustomer.name.slice(0, 1).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-white">{selectedCustomer.name}</p>
+                  <p className="truncate text-xs text-gray-400">
+                    {[selectedCustomer.phone, selectedCustomer.location].filter(Boolean).join(" • ") || "Existing customer"}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setAddOpen(false);
+                  setSelectedCustomerId("");
+                }}
+                disabled={addingCustomer}
+              >
+                Cancel
+              </Button>
+              <Button type="button" onClick={addCustomerRoom} disabled={!selectedCustomerId || addingCustomer}>
+                {addingCustomer ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Add to Chat
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      <Modal
+        isOpen={Boolean(forwardMessage)}
+        onClose={() => {
+          if (!forwarding) {
+            setForwardMessage(null);
+            setForwardingRoomId("");
+          }
+        }}
+        title="Forward Message"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200">
+            <div className="mb-1 text-xs uppercase tracking-wide text-slate-500">Message</div>
+            <div className="line-clamp-3 break-words">{forwardMessage?.content || "Media message"}</div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-200">Forward to room</label>
+            <select
+              value={forwardingRoomId}
+              onChange={(event) => setForwardingRoomId(event.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500"
+            >
+              <option value="">Select room</option>
+              {rooms.map((room) => (
+                <option key={room.roomId} value={room.roomId}>
+                  {room.customerName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setForwardMessage(null);
+                setForwardingRoomId("");
+              }}
+              disabled={forwarding}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={forwardSelectedMessage} disabled={!forwardingRoomId || forwarding}>
+              {forwarding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Forwarding...
+                </>
+              ) : (
+                "Forward"
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={billsOpen}
+        onClose={() => setBillsOpen(false)}
+        title={mode === "customer" ? "Your Bills" : `${activeRoom?.customerName || "Customer"} Bills`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {(["all", "pending", "paid"] as const).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setBillFilter(filter)}
+                className={`rounded-full border px-3 py-1.5 text-sm capitalize transition ${
+                  billFilter === filter
+                    ? "border-blue-400 bg-blue-500/20 text-blue-100"
+                    : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+          <div className="max-h-[58dvh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/70">
+            {chatBillsLoading ? (
+              <div className="p-6 text-center text-sm text-slate-400">Loading bills...</div>
+            ) : visibleChatBills.length ? (
+              <div className="divide-y divide-slate-800">
+                {visibleChatBills.map((bill) => {
+                  const status = String(bill.paymentStatus || bill.status || "pending").toLowerCase();
+                  const amount = Number(bill.balanceAmount ?? bill.totalAmount ?? 0);
+                  return (
+                    <button
+                      key={String(bill._id || bill.billId)}
+                      type="button"
+                      onClick={() => openBillRoute(bill)}
+                      className="block w-full px-4 py-3 text-left transition hover:bg-slate-900"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-white">{bill.billNumber || bill.billId || "Bill"}</div>
+                          <div className="mt-1 text-xs text-slate-400">
+                            {[bill.serviceType, bill.locationType].filter(Boolean).join(" • ") || "Service bill"}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-sm font-semibold text-slate-100">₹{amount.toLocaleString()}</div>
+                          <div className={`mt-1 rounded-full px-2 py-0.5 text-[10px] uppercase ${
+                            status === "paid" ? "bg-emerald-500/15 text-emerald-200" : "bg-amber-500/15 text-amber-200"
+                          }`}>
+                            {status}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-6 text-center text-sm text-slate-400">No bills found for this filter.</div>
+            )}
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}

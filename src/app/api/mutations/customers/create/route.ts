@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
     }
 
     const created = await sanityClient.create(newCustomer as any)
-
     try {
       await notificationService.emit({
         type: 'customer_created',

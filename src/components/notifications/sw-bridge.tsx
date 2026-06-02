@@ -22,8 +22,7 @@ export default function SWNotificationBridge() {
 
       // Customers should only receive:
       // 1. Their own bill/payment notifications (filtered by userId in meta)
-      // 2. Their own chat notifications (filtered by userId in meta)
-      // 3. Shop status notifications (type: 'system' with shop_status data)
+      // 2. Shop status notifications (type: 'system' with shop_status data)
       if (userRole === 'customer') {
         const notifType = notification.type;
         const meta = notification.meta;
@@ -39,11 +38,6 @@ export default function SWNotificationBridge() {
 
         // Bill and payment notifications - only if it's for this customer
         if ((notifType === 'billing' || notifType === 'payment') && meta?.userId) {
-          return meta.userId === userId;
-        }
-
-        // Chat notifications - only if it's for this customer
-        if (notifType === 'chat' && meta?.userId) {
           return meta.userId === userId;
         }
 
@@ -85,12 +79,6 @@ export default function SWNotificationBridge() {
           if (msg.type === "notification:received" && msg.payload) {
             const p = msg.payload as AppNotification;
             
-            // For in-app notifications, ignore chat from SW to avoid duplicates
-            // and rely on realtime chat listeners for context-aware suppression.
-            if ((p as AppNotification).type === 'chat') {
-              return;
-            }
-
             // Filter notifications based on user role and ownership
             if (!shouldReceiveNotification(p)) {
               return;

@@ -3,14 +3,7 @@ import AdminBillingDefaultsSection from "@/components/settings/AdminBillingDefau
 import AdminNotificationsSection from "@/components/settings/AdminNotificationsSection";
 import AdminSecuritySection from "@/components/settings/AdminSecuritySection";
 import AdminShortcutsSection from "@/components/settings/AdminShortcutsSection";
-import { AdminChatManagementSection } from "@/components/settings/AdminChatManagementSection";
 import AdminFittingRatesSection from "@/components/settings/AdminFittingRatesSection";
-import { FcmTokenButton } from "@/components/fcm/fcm-token-button";
-import { AdminNotificationDebug } from "@/components/admin/admin-notification-debug";
-import { AdminCustomerSync } from "@/components/admin/admin-customer-sync";
-import { FcmTestSend } from "@/components/admin/fcm-test-send";
-import { SimpleFcmTest } from "@/components/admin/simple-fcm-test";
-import { TokenCleanup } from "@/components/admin/token-cleanup";
 
 export default function SettingsPage() {
   return (
@@ -58,7 +51,6 @@ export default function SettingsPage() {
           <AdminBillingDefaultsSection />
           <AdminFittingRatesSection />
           <AdminShortcutsSection />
-          <AdminChatManagementSection />
         </div>
       </div>
     </div>

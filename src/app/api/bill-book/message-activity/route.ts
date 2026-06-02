@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 
-// Returns latest message timestamp per customer (user) to support chat-based sorting in sidebar
+// Returns latest bill-message timestamp per customer to support recent activity sorting.
 export async function GET() {
   try {
-    // For each customer, get the latest billMessage.createdAt where message.bill->customer._ref == customer._id
+    // For each customer, get the latest billMessage.createdAt where message.bill->customer._ref == customer._id.
     const query = `
       *[_type == "user" && (role == "customer" || defined(customerId))]{
         _id,

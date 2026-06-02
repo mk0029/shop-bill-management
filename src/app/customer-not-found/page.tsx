@@ -172,7 +172,7 @@ export default function CustomerNotFoundPage() {
                           size="sm"
                         >
                           <ExternalLink className="w-4 h-4 mr-2" />
-                          Chat Now
+                          Open WhatsApp
                         </Button>
                         <Button
                           onClick={() =>

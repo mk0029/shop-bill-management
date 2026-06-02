@@ -710,7 +710,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
       )]`;
     } else {
       // Admins listen to all relevant document types
-      query = '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage", "chatRoom", "chatMessage"]]';
+      query = '*[_type in ["bill", "product", "user", "brand", "category", "stockTransaction", "billMessage"]]';
     }
     
     const params = role === "customer" ? { userId, customerId } : {};
