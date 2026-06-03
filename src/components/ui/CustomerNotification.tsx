@@ -29,6 +29,7 @@ export default function CustomerNotifications() {
             n.title?.includes('Shop is') || 
             n.title?.includes('Available') ||
             n.title?.includes('Offline')) return true;
+        if (n.type === 'chat' || meta?.type === 'shop_chat') return meta?.userId === userId;
         // Bill and payment notifications - only if it's for this customer
         if ((n.type === 'billing' || n.type === 'payment') && meta?.userId) return meta.userId === userId;
         // Inventory notifications - customers should NOT see these

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ export function BillingBrowser({
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const consumedOpenRef = useRef("");
   const { bills, updateBill } = useBills();
   const { customers } = useCustomers();
   const { products } = useProducts();
@@ -148,18 +149,32 @@ export function BillingBrowser({
   useEffect(() => {
     const openId = searchParams?.get("open");
     if (!openId) return;
-    // If a bill is already selected for the same id, skip
+    const cleanOpenQuery = () => {
+      const sp = new URLSearchParams(searchParams?.toString());
+      if (!sp.has("open")) return;
+      sp.delete("open");
+      const q = sp.toString();
+      router.replace(q ? `${pathname}?${q}` : `${pathname}`, {
+        scroll: false,
+      });
+    };
+    // If a bill is already selected for the same id, only clean the URL.
     if (
       selectedBill &&
       (selectedBill._id === openId || selectedBill.id === openId)
     ) {
+      cleanOpenQuery();
       return;
     }
-    const match = bills.find((b: any) => b._id === openId);
+    const match = bills.find((b: any) => b._id === openId || b.id === openId || b.billId === openId);
     if (match) {
-      setSelectedBill(buildSelectedBill(match));
+      if (consumedOpenRef.current !== openId) {
+        consumedOpenRef.current = openId;
+        setSelectedBill(buildSelectedBill(match));
+      }
+      cleanOpenQuery();
     }
-  }, [searchParams, bills]);
+  }, [bills, pathname, router, searchParams, selectedBill]);
 
   const handleViewBill = (bill: any) => {
     setSelectedBill(bill);

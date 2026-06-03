@@ -21,7 +21,7 @@ import {
   Share2,
 } from "lucide-react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import {
@@ -44,6 +44,7 @@ export default function CustomerBillsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const consumedOpenRef = useRef("");
   const slug = (params as { slug?: string } | null)?.slug as string;
   const { currency } = useLocaleStore();
 
@@ -176,11 +177,25 @@ export default function CustomerBillsPage() {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
   };
 
+  const cleanOpenQuery = () => {
+    if (!searchParams.has("open")) return;
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("open");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  };
+
   useEffect(() => {
     const openBillId = searchParams.get("open");
     if (!openBillId || billsLoading || !customerBills.length) return;
     const bill = customerBills.find((item: any) => String(item._id || item.id || item.billId) === openBillId);
-    if (bill) handleViewBill(bill);
+    if (bill) {
+      if (consumedOpenRef.current !== openBillId) {
+        consumedOpenRef.current = openBillId;
+        handleViewBill(bill);
+      }
+      cleanOpenQuery();
+    }
   }, [billsLoading, customerBills, searchParams]);
 
   const syncReminderSettingsFromCustomer = () => {

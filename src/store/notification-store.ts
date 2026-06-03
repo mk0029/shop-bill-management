@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type AppNotificationType = "billing" | "inventory" | "system" | "payment";
+export type AppNotificationType =
+  | "billing"
+  | "inventory"
+  | "system"
+  | "payment"
+  | "chat";
 
 // Optional structured metadata we can attach to a notification
 export type AppNotificationRoute = {
@@ -40,6 +45,7 @@ interface NotificationState {
   addMany: (list: AppNotification[]) => void;
   markAsRead: (id: string) => void;
   markAllRead: () => void;
+  removeWhere: (predicate: (notification: AppNotification) => boolean) => void;
   clear: () => void;
   // Remove all notifications that are already read (keep unread only)
   clearRead: () => void;
@@ -128,6 +134,13 @@ export const useNotificationStore = create<NotificationState>()(
         set((state) => {
           const items = state.items.map((x) => ({ ...x, read: true }));
           return { items, unread: 0 };
+        }),
+
+      removeWhere: (predicate) =>
+        set((state) => {
+          const items = state.items.filter((item) => !predicate(item));
+          const unread = items.filter((x) => !x.read).length;
+          return { items, unread };
         }),
 
       clearRead: () =>

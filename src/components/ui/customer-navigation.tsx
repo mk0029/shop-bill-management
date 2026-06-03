@@ -590,6 +590,18 @@ export function CustomerNavigation() {
               </h1>
             </div>
             <div className="flex items-center gap-4 justify-end w-full">
+              <Link
+                href="/customer/chat"
+                className="relative inline-flex h-10 items-center justify-center gap-2 rounded-md border border-orange-400/30 bg-orange-500 px-3 text-sm font-semibold text-gray-950 shadow-sm transition hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-300 max-sm:w-10 max-sm:px-0"
+                title="Open chat"
+                aria-label="Open chat"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span className="max-sm:hidden">Chat</span>
+                {hasChatUnread && (
+                  <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-gray-900 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.95)] animate-pulse" />
+                )}
+              </Link>
               {isAdmin ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 mr-2">

@@ -16,7 +16,6 @@ import {
   deleteShopChatMessage,
   editShopChatMessage,
   forwardShopChatMessage,
-  createBillCreatedShopChatEvent,
   getOrCreateCustomerShopChatRoom,
   getMyShopChatRoom,
   listShopChatMessages,
@@ -27,6 +26,7 @@ import { useShopChatSocket } from "@/lib/shop-chat/socket";
 import type { ShopChatMessage, ShopChatRoom } from "@/lib/shop-chat/types";
 import type { Message } from "@/lib/types";
 import { useDynamicViewportHeight } from "@/hooks/use-dynamic-viewport-height";
+import { useNotificationStore } from "@/store/notification-store";
 
 type Mode = "admin" | "customer";
 
@@ -53,10 +53,18 @@ function buildTempId() {
 function mergeMessage(list: ShopChatMessage[], message: ShopChatMessage) {
   const id = message.messageId;
   const clientId = message.clientMessageId;
-  const exists = list.some((item) => item.messageId === id || (clientId && item.clientMessageId === clientId));
+  const billEventId = billEventIdFromMessage(message);
+  const exists = list.some(
+    (item) =>
+      item.messageId === id ||
+      (clientId && item.clientMessageId === clientId) ||
+      (billEventId && billEventIdFromMessage(item) === billEventId),
+  );
   if (exists) {
     return list.map((item) =>
-      item.messageId === id || (clientId && item.clientMessageId === clientId)
+      item.messageId === id ||
+      (clientId && item.clientMessageId === clientId) ||
+      (billEventId && billEventIdFromMessage(item) === billEventId)
         ? { ...item, ...message }
         : item,
     );
@@ -152,6 +160,17 @@ function billEventIdFromMessage(message: ShopChatMessage) {
   const dataId = String(message.systemEventData?.billId || "").trim();
   if (dataId) return dataId;
   return String(message.clientMessageId || "").replace("event:bill_created:", "").trim();
+}
+
+function dedupeBillCreatedMessages(messages: ShopChatMessage[]) {
+  const seenBillEvents = new Set<string>();
+  return messages.filter((message) => {
+    const billEventId = billEventIdFromMessage(message);
+    if (!billEventId) return true;
+    if (seenBillEvents.has(billEventId)) return false;
+    seenBillEvents.add(billEventId);
+    return true;
+  });
 }
 
 function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
@@ -722,7 +741,9 @@ export default function ShopChatClient({
   const syncedBillEventsRef = useRef<Set<string>>(new Set());
   const { socket, connected, sendMessage: sendSocketMessage } = useShopChatSocket(activeRoom?.roomId);
 
-  const activeMessages = activeRoom ? messagesByRoom[activeRoom.roomId] || [] : [];
+  const activeMessages = activeRoom
+    ? dedupeBillCreatedMessages(messagesByRoom[activeRoom.roomId] || [])
+    : [];
   const activeCustomer = useMemo(
     () => initialCustomers.find((customer) => customer._id === activeRoom?.customerId) || null,
     [activeRoom?.customerId, initialCustomers],
@@ -758,7 +779,10 @@ export default function ShopChatClient({
 
   const loadMessages = useCallback(async (room: ShopChatRoom) => {
     const response = await listShopChatMessages(room.roomId, { limit: 80 });
-    setMessagesByRoom((prev) => ({ ...prev, [room.roomId]: response.messages }));
+    setMessagesByRoom((prev) => ({
+      ...prev,
+      [room.roomId]: dedupeBillCreatedMessages(response.messages),
+    }));
   }, []);
 
   const syncBillEventsForRoom = useCallback(async (room: ShopChatRoom) => {
@@ -796,43 +820,8 @@ export default function ShopChatClient({
           }),
         }));
       }
-      const results = await Promise.allSettled(
-        bills.map((bill: Record<string, any>) =>
-          createBillCreatedShopChatEvent({
-            customerId: room.customerId,
-            billId: String(bill._id || bill.id || bill.billId || ""),
-            billNumber: bill.billNumber ? String(bill.billNumber) : undefined,
-            customerName: room.customerName,
-            totalAmount: Number(bill.totalAmount || 0),
-            paymentStatus: String(bill.paymentStatus || bill.status || "pending"),
-            createdAt: String(bill.billDate || bill.serviceDate || bill.createdAt || "") || undefined,
-          }),
-        ),
-      );
-      for (const result of results) {
-        if (result.status !== "fulfilled") continue;
-        const message = result.value.message;
-        const billId = billEventIdFromMessage(message);
-        const displayDate = billId ? billDateById.get(billId) : "";
-        const nextMessage = displayDate
-          ? {
-              ...message,
-              systemEventData: {
-                ...(message.systemEventData || {}),
-                eventType: "bill_created",
-                billId,
-                createdAt: displayDate,
-              },
-            }
-          : message;
-        setMessagesByRoom((prev) => ({
-          ...prev,
-          [room.roomId]: mergeMessage(prev[room.roomId] || [], nextMessage),
-        }));
-        upsertRoom(result.value.room);
-      }
     } catch {}
-  }, [mode, upsertRoom]);
+  }, [mode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -951,6 +940,10 @@ export default function ShopChatClient({
     const now = Date.now();
     if (now - (readAtRef.current[activeRoom.roomId] || 0) < 1200) return;
     readAtRef.current[activeRoom.roomId] = now;
+    useNotificationStore.getState().removeWhere((notification) => {
+      const meta = notification.meta;
+      return meta?.type === "shop_chat" && meta?.roomId === activeRoom.roomId;
+    });
     socket.emit("message:read", { roomId: activeRoom.roomId, messageIds: unread.map((message) => message.messageId) });
   }, [activeMessages, activeRoom, myUserId, socket]);
 
@@ -1141,6 +1134,7 @@ export default function ShopChatClient({
   const openBillRoute = (bill: Record<string, any>) => {
     const billId = encodeURIComponent(String(bill?._id || bill?.id || bill?.billId || ""));
     if (!billId) return;
+    setBillsOpen(false);
     if (mode === "customer") {
       router.push(`/customer/bills?open=${billId}`);
       return;

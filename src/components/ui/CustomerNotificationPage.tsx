@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useMemo } from "react";
 import { buildEventHref, shouldOpenAsModal } from "@/lib/event-navigation";
 import Link from "next/link";
+import { buildNotificationHref } from "@/store/notification-store";
 
 export default function CustomerNotificationsPage() {
   const { items, markAllRead, clear, clearRead, markAsRead } =
@@ -40,6 +41,10 @@ export default function CustomerNotificationsPage() {
           n.title?.includes("Offline")
         ) {
           return true;
+        }
+
+        if (n.type === "chat" || meta?.type === "shop_chat") {
+          return meta?.userId === userId;
         }
 
         // Bill and payment notifications - only if it's for this customer
@@ -104,6 +109,8 @@ export default function CustomerNotificationsPage() {
         ) : (
           filteredItems.map((n) => {
             const eventHref = buildEventHref(n);
+            const href = buildNotificationHref(n);
+            const finalHref = eventHref || href;
             const shouldUseModal = shouldOpenAsModal(n);
 
             const notificationContent = (
@@ -129,9 +136,9 @@ export default function CustomerNotificationsPage() {
                   </Badge>
                 </div>
 
-                {eventHref ? (
+                {finalHref ? (
                   <Link
-                    href={eventHref}
+                    href={finalHref}
                     className="flex-1 hover:bg-gray-800 rounded-md p-2 -m-2 transition-colors"
                     onClick={() => {
                       // Mark as read when clicked
@@ -147,31 +154,29 @@ export default function CustomerNotificationsPage() {
                 )}
 
                 <div className="flex gap-2">
-                  {eventHref && (
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={eventHref}>Open</Link>
-                    </Button>
-                  )}
-                  {eventHref && (
+                  {finalHref && (
                     <Button size="sm" variant="outline" asChild>
                       <Link
-                        href={eventHref}
+                        href={finalHref}
                         onClick={() => {
-                          // Close notification window if it's a modal/overlay
-                          try {
-                            const notificationElement = document.querySelector(
-                              '[role="dialog"], .modal, .popover, .overlay',
-                            ) as HTMLElement;
-                            if (notificationElement) {
-                              notificationElement.style.display = "none";
-                            }
-                            const parentModal = document.querySelector(
-                              '.modal.show, [data-state="open"]',
-                            ) as HTMLElement;
-                            if (parentModal) {
-                              parentModal.style.display = "none";
-                            }
-                          } catch {}
+                          if (!n.read) markAsRead(n.id);
+                          if (shouldUseModal) {
+                            try {
+                              const notificationElement =
+                                document.querySelector(
+                                  '[role="dialog"], .modal, .popover, .overlay',
+                                ) as HTMLElement;
+                              if (notificationElement) {
+                                notificationElement.style.display = "none";
+                              }
+                              const parentModal = document.querySelector(
+                                '.modal.show, [data-state="open"]',
+                              ) as HTMLElement;
+                              if (parentModal) {
+                                parentModal.style.display = "none";
+                              }
+                            } catch {}
+                          }
                         }}
                       >
                         Open
