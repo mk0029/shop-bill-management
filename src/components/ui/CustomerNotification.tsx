@@ -4,13 +4,17 @@ import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CustomerNotificationsPage from "./CustomerNotificationPage";
 
 export default function CustomerNotifications() {
-  const { items, markAllRead } = useNotificationStore();
-  const user = useAuthStore((s) => s.user) as { id?: string; _id?: string; role?: string } | null;
+  const { items } = useNotificationStore();
+  const user = useAuthStore((s) => s.user) as {
+    id?: string;
+    _id?: string;
+    role?: string;
+  } | null;
   const userId = user?._id || user?.id;
   const userRole = user?.role;
   const [open, setOpen] = useState(false);
@@ -19,32 +23,40 @@ export default function CustomerNotifications() {
 
   // Filter notifications for customers to get accurate unread count
   const filteredItems = useMemo(() => {
-    if (userRole === 'admin') return items;
-    
-    if (userRole === 'customer') {
-      return items.filter(n => {
+    if (userRole === "admin") return items;
+
+    if (userRole === "customer") {
+      return items.filter((n) => {
         const meta = n.meta;
         // Shop status notifications - all customers should see these
-        if (meta?.type === 'shop_status' || 
-            n.title?.includes('Shop is') || 
-            n.title?.includes('Available') ||
-            n.title?.includes('Offline')) return true;
-        if (n.type === 'chat' || meta?.type === 'shop_chat') return meta?.userId === userId;
+        if (
+          meta?.type === "shop_status" ||
+          n.title?.includes("Shop is") ||
+          n.title?.includes("Available") ||
+          n.title?.includes("Offline")
+        ) {
+          return true;
+        }
+        if (n.type === "chat" || meta?.type === "shop_chat") {
+          return meta?.userId === userId;
+        }
         // Bill and payment notifications - only if it's for this customer
-        if ((n.type === 'billing' || n.type === 'payment') && meta?.userId) return meta.userId === userId;
+        if ((n.type === "billing" || n.type === "payment") && meta?.userId) {
+          return meta.userId === userId;
+        }
         // Inventory notifications - customers should NOT see these
-        if (n.type === 'inventory') return false;
+        if (n.type === "inventory") return false;
         // System notifications without shop_status type - filter out
-        if (n.type === 'system' && meta?.type !== 'shop_status') return false;
+        if (n.type === "system" && meta?.type !== "shop_status") return false;
         return false;
       });
     }
-    
+
     return items;
   }, [items, userRole, userId]);
 
   const filteredUnread = useMemo(() => {
-    return filteredItems.filter(n => !n.read).length;
+    return filteredItems.filter((n) => !n.read).length;
   }, [filteredItems]);
 
   // Close on outside click
@@ -63,13 +75,18 @@ export default function CustomerNotifications() {
   }, [open]);
 
   useEffect(() => {
-    if (open && filteredUnread > 0) {
-      // Auto mark all as read on open for simplicity
-      markAllRead();
-    }
-  }, [open, filteredUnread, markAllRead]);
+    if (!open) return;
 
-  // Note: Avoid locking body scroll to prevent interference when multiple bells exist
+    const bodyOverflow = document.body.style.overflow;
+    const htmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = htmlOverflow;
+    };
+  }, [open]);
 
   return (
     <div className="relative">
@@ -105,24 +122,30 @@ export default function CustomerNotifications() {
               onClick={() => setOpen(false)}
               aria-hidden="true"
             />
-          
+
             <motion.div
               key="notif-popover"
               ref={popoverRef}
-              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              initial={{ opacity: 0, y: -12, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.98 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 backdrop-blur-2xl h-fit w-full z-[60] xl:pl-64"
+              exit={{ opacity: 0, y: -12, scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              className="fixed inset-x-2 top-2 z-[60] max-h-[calc(100dvh-1rem)] overflow-y-auto backdrop-blur-xl sm:inset-x-0 sm:top-0 sm:w-full sm:backdrop-blur-2xl xl:pl-64"
               role="dialog"
               aria-label="Notifications popover"
             >
-            <div className="relative w-full py-5">
-              <Button size="icon" variant="ghost" className="right-6 top-1/3 absolute px-3" aria-label="Close notifications" onClick={() => setOpen(false)}>
-              Close
-              </Button>
-            </div>
-            <CustomerNotificationsPage />
+              <div className="pointer-events-none absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="pointer-events-auto h-9 w-9 rounded-full border border-slate-700/80 bg-slate-950/90 text-slate-300 shadow-lg shadow-black/20 hover:bg-slate-800 hover:text-white sm:h-10 sm:w-10"
+                  aria-label="Close notifications"
+                  onClick={() => setOpen(false)}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <CustomerNotificationsPage />
             </motion.div>
           </>
         )}

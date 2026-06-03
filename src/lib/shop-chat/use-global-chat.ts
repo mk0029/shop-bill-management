@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { usePathname } from "next/navigation";
 import { getMyShopChatRoom, listShopChatRooms } from "./api";
 import { useShopChatSocket } from "./socket";
 import type { ShopChatMessage, ShopChatRoom } from "./types";
@@ -19,8 +18,27 @@ function messageTypeLabel(
 ) {
   if (type === "audio") return "audio";
   if (type === "video") return "video";
+  if (type === "image") return "image";
+  if (type === "file") return "file";
   if (type && type !== "text") return "media";
   return "message";
+}
+
+function messageTypePhrase(
+  type?: ShopChatMessage["type"] | LastMessageType | null,
+) {
+  const label = messageTypeLabel(type);
+  return label === "audio" || label === "image"
+    ? `an ${label}`
+    : `a ${label}`;
+}
+
+function messagePreview(last: NonNullable<ShopChatRoom["lastMessage"]>) {
+  const text = String(last.text || "").trim();
+  if (last.type === "text") return text || "Open chat to reply";
+
+  const prefix = `Sent ${messageTypePhrase(last.type)}`;
+  return text ? `${prefix}: ${text}` : prefix;
 }
 
 function chatNotificationId(messageId: string) {
@@ -31,7 +49,6 @@ export function useGlobalShopChat(
   user?: { id?: string; _id?: string; role?: string | null } | null,
 ) {
   const pathname = usePathname() || "";
-  const router = useRouter();
   const userId = String(user?.id || user?._id || "");
   const role = String(user?.role || "");
   const enabled = Boolean(
@@ -52,37 +69,6 @@ export function useGlobalShopChat(
     roomsRef.current = rooms;
   }, [rooms]);
 
-  const showIncomingToast = useCallback(
-    ({
-      messageId,
-      senderId,
-      senderName,
-      type,
-    }: {
-      messageId?: string | null;
-      senderId?: string | null;
-      senderName?: string | null;
-      type?: ShopChatMessage["type"] | LastMessageType | null;
-    }) => {
-      if (!enabled || !loadedRef.current || isChatRoute) return;
-      if (!messageId || !senderId || senderId === userId) return;
-      if (notifiedMessageIdsRef.current.has(messageId)) return;
-
-      notifiedMessageIdsRef.current.add(messageId);
-      const name = String(senderName || "Someone").trim() || "Someone";
-      const label = messageTypeLabel(type);
-
-      toast(`${name} sent a ${label}`, {
-        description: "Open chat to reply",
-        action: {
-          label: "Open",
-          onClick: () => router.push(chatPath),
-        },
-      });
-    },
-    [chatPath, enabled, isChatRoute, router, userId],
-  );
-
   const maybeNotifyFromRoom = useCallback(
     (room: ShopChatRoom) => {
       const last = room.lastMessage;
@@ -101,16 +87,21 @@ export function useGlobalShopChat(
       if (previous?.lastMessage?.messageId === last.messageId) return;
 
       if (!isChatRoute && last.senderId !== userId) {
+        if (notifiedMessageIdsRef.current.has(last.messageId)) return;
+        notifiedMessageIdsRef.current.add(last.messageId);
+
         useNotificationStore.getState().add({
           id: chatNotificationId(last.messageId),
           type: "chat",
-          title: `${last.senderName || "Someone"} sent a ${messageTypeLabel(last.type)}`,
-          body: "Open chat to reply",
+          title: `${last.senderName || "Someone"} sent ${messageTypePhrase(last.type)}`,
+          body: messagePreview(last),
           createdAt: last.createdAt,
           meta: {
             type: "shop_chat",
             roomId: room.roomId,
             messageId: last.messageId,
+            messageType: last.type,
+            senderName: last.senderName,
             userId: role === "customer" ? userId : room.customerId,
             route: {
               pathname: chatPath,
@@ -123,26 +114,8 @@ export function useGlobalShopChat(
         });
       }
 
-      showIncomingToast({
-        messageId: last.messageId,
-        senderId: last.senderId,
-        senderName: last.senderName,
-        type: last.type,
-      });
     },
-    [chatPath, isChatRoute, role, showIncomingToast, userId],
-  );
-
-  const maybeNotifyFromMessage = useCallback(
-    (message: ShopChatMessage) => {
-      showIncomingToast({
-        messageId: message.messageId,
-        senderId: message.senderId,
-        senderName: message.senderName,
-        type: message.type,
-      });
-    },
-    [showIncomingToast],
+    [chatPath, isChatRoute, role, userId],
   );
 
   const upsertRoom = useCallback((room: ShopChatRoom) => {
@@ -207,19 +180,14 @@ export function useGlobalShopChat(
     };
     const onRoomJoined = ({ room }: { room: ShopChatRoom }) =>
       upsertRoom(room);
-    const onMessageNew = (message: ShopChatMessage) =>
-      maybeNotifyFromMessage(message);
     socket.on("room:updated", onRoomUpdated);
     socket.on("room:joined", onRoomJoined);
-    socket.on("message:new", onMessageNew);
     return () => {
       socket.off("room:updated", onRoomUpdated);
       socket.off("room:joined", onRoomJoined);
-      socket.off("message:new", onMessageNew);
     };
   }, [
     enabled,
-    maybeNotifyFromMessage,
     maybeNotifyFromRoom,
     socket,
     upsertRoom,

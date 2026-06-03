@@ -169,3 +169,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     margin-left: var(--admin-nav-w, 16rem);
   }
 }
+
+@keyframes notification-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

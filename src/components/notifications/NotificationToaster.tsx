@@ -9,6 +9,7 @@ import {
 import { buildNotificationHref } from "@/store/notification-store";
 import { buildEventHref } from "@/lib/event-navigation";
 import { useRouter } from "next/navigation";
+import { Bell, MessageCircle, X } from "lucide-react";
 
 function playChime() {
   try {
@@ -62,18 +63,56 @@ export default function NotificationToaster() {
           ? ((latest.meta as Record<string, unknown>).billId as string)
           : undefined;
 
-      toast(latest.title, {
-        description,
-        duration: 6000,
-        action: finalHref
-          ? { label: "View", onClick: () => router.push(finalHref) }
-          : billId
-            ? {
-                label: "View bill",
-                onClick: () => router.push(`/admin/billing?open=${billId}`),
-              }
-            : undefined,
-      });
+      const openHref =
+        finalHref || (billId ? `/admin/billing?open=${billId}` : "");
+
+      toast.custom(
+        (toastId) => (
+          <div className="pointer-events-auto w-[min(88vw,23rem)] overflow-hidden rounded-[1.15rem] border border-slate-700/80 bg-slate-900/95 text-slate-100 shadow-2xl shadow-black/35 backdrop-blur sm:w-[min(92vw,24rem)] sm:rounded-xl">
+            <div className="flex items-start gap-2.5 p-3 sm:gap-3 sm:p-4">
+              <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-orange-500/15 text-orange-300 sm:h-9 sm:w-9">
+                {latest.type === "chat" ? (
+                  <MessageCircle className="h-4 w-4" />
+                ) : (
+                  <Bell className="h-4 w-4" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="line-clamp-2 text-[13px] font-semibold leading-5 sm:text-sm">
+                  {latest.title}
+                </div>
+                <div className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-300 sm:text-sm">
+                  {description}
+                </div>
+              </div>
+              {openHref && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.dismiss(toastId);
+                    router.push(openHref);
+                  }}
+                  className="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-orange-200 sm:px-3 sm:text-sm"
+                >
+                  Open
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => toast.dismiss(toastId)}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                aria-label="Dismiss notification"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="h-1 w-full overflow-hidden bg-slate-800">
+              <div className="h-full w-full origin-left animate-[notification-shrink_5s_linear_forwards] bg-orange-400" />
+            </div>
+          </div>
+        ),
+        { duration: 5000 },
+      );
 
       // Mark as toasted so we don't show this again on next renders/reloads
       if (latest.id) markToasted(latest.id);

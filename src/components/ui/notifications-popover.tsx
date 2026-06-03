@@ -4,7 +4,7 @@ import CustomerNotificationsClient from "@/components/customer/customer-notifica
 import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSettingsStore } from "@/store/settings-store";
 import {
@@ -17,9 +17,6 @@ export default function NotificationsPopover() {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
-  const showInAppNotifications = useSettingsStore(
-    (s) => s.showInAppNotifications,
-  );
   const showNotificationPopover = useSettingsStore(
     (s) => s.showNotificationPopover,
   );
@@ -43,11 +40,18 @@ export default function NotificationsPopover() {
   }, [open]);
 
   useEffect(() => {
-    if (open && unread > 0) {
-      // Note: Do NOT auto mark all as read on open.
-      // Users will mark notifications as read explicitly from the list.
-    }
-  }, [open, unread, markAllRead]);
+    if (!open) return;
+
+    const bodyOverflow = document.body.style.overflow;
+    const htmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = htmlOverflow;
+    };
+  }, [open]);
 
   // Play a short sound when new notifications arrive (if enabled)
   const prevCountRef = useRef<number>(items.length);
@@ -116,23 +120,23 @@ export default function NotificationsPopover() {
               <motion.div
                 key="notif-popover"
                 ref={popoverRef}
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                initial={{ opacity: 0, y: -12, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                transition={{ duration: 0.15 }}
-                className="fixed inset-0 backdrop-blur-2xl h-fit w-full z-[60] xl:pl-64"
+                exit={{ opacity: 0, y: -12, scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                className="fixed inset-x-2 top-2 z-[60] max-h-[calc(100dvh-1rem)] overflow-y-auto backdrop-blur-xl sm:inset-x-0 sm:top-0 sm:w-full sm:backdrop-blur-2xl xl:pl-64"
                 role="dialog"
                 aria-label="Notifications popover"
               >
-                <div className="relative w-full py-5">
+                <div className="pointer-events-none absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="right-6 top-1/3 absolute px-3"
+                    className="pointer-events-auto h-9 w-9 rounded-full border border-slate-700/80 bg-slate-950/90 text-slate-300 shadow-lg shadow-black/20 hover:bg-slate-800 hover:text-white sm:h-10 sm:w-10"
                     aria-label="Close notifications"
                     onClick={() => setOpen(false)}
                   >
-                    Close
+                    <X className="h-5 w-5" />
                   </Button>
                 </div>
                 <CustomerNotificationsClient />
