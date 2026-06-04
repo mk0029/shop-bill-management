@@ -827,6 +827,18 @@ export async function createBill(billData: {
               return null;
             })();
 
+            const customerName = await (async () => {
+              try {
+                const doc = await sanityClient.fetch<{ name?: string } | null>(
+                  `*[_type=="user" && _id==$id][0]{name}`,
+                  { id: String(customerId) },
+                );
+                return String(doc?.name || "").trim();
+              } catch {
+                return "";
+              }
+            })();
+
             void createBillCreatedShopChatEvent({
               customerId,
               billId: String(createdId),
@@ -840,17 +852,6 @@ export async function createBill(billData: {
             });
 
             try {
-              const customerName = await (async () => {
-                try {
-                  const doc = await sanityClient.fetch<{ name?: string } | null>(
-                    `*[_type=="user" && _id==$id][0]{name}`,
-                    { id: String(customerId) },
-                  );
-                  return String(doc?.name || "").trim();
-                } catch {
-                  return "";
-                }
-              })();
               const amount = Number(grossTotal || 0);
               const payStatus = String(billData.paymentStatus || "pending");
               const adminBody = `${customerName || "Customer"} | ₹${amount} | ${payStatus}`;
@@ -860,6 +861,8 @@ export async function createBill(billData: {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   audience: "admins",
+                  eventId: `billing.created.${String(createdId)}.admins`,
+                  eventType: "billing.created",
                   actorUserId: actorUserId || undefined,
                   title: "Bill created",
                   body: adminBody,
@@ -877,6 +880,8 @@ export async function createBill(billData: {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
+                eventId: `billing.created.${String(createdId)}.customer`,
+                eventType: "billing.created",
                 title: "Bill created",
                 body: billNumber ? `Your bill ${billNumber} was created` : "Your bill was created",
                 actorUserId: actorUserId || undefined,

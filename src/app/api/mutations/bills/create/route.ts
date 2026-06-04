@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
-import { notificationService } from '@/lib/notification-service'
 import { sendViaWaBotServer } from '@/lib/wa-bot-server'
+import { getActiveAdminUserIds, sendNotificationEvent } from '@/services/notifications/notification-events.server'
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,33 +82,41 @@ export async function POST(req: NextRequest) {
       const payStatus = String((created as any)?.paymentStatus || (created as any)?.status || 'pending')
       const bodyText = `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`
 
-      await notificationService.emit({
-        type: 'bill_created',
+      const adminIds = await getActiveAdminUserIds()
+      await sendNotificationEvent({
+        eventId: `billing.created.${String((created as any)?._id || billId)}.admins`,
+        type: 'billing.created',
         actorUserId,
+        userIds: adminIds,
+        title,
+        body: bodyText,
         data: {
           billId,
+          billNumber: String((created as any)?.billNumber || ''),
+          customerId,
           route: adminRoute,
-          extra: {
-            title,
-            body: bodyText,
-          },
+          route_path: adminRoute,
         },
+        skipActor: true,
       })
 
       if (customerId) {
-        await notificationService.emit({
-          type: 'user_direct',
+        const customerRoute = `/customer/bills?open=${encodeURIComponent(String((created as any)?._id || billId))}`
+        await sendNotificationEvent({
+          eventId: `billing.created.${String((created as any)?._id || billId)}.customer.${String(customerId)}`,
+          type: 'billing.created',
           actorUserId,
+          userId: String(customerId),
+          title,
+          body: `Your bill ${String((created as any)?.billNumber || billId)} has been created. Amount: Rs ${amount}.`,
           data: {
+            billId: String((created as any)?._id || billId),
+            billNumber: String((created as any)?.billNumber || ''),
             customerId: String(customerId),
-            route: '/customer',
-            message: bodyText,
-            extra: {
-              targetUserId: String(customerId),
-              title,
-              body: bodyText,
-            },
+            route: customerRoute,
+            route_path: customerRoute,
           },
+          skipActor: true,
         })
       }
     } catch (e) {

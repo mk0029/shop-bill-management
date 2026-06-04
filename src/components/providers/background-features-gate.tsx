@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import OfflineStatusOverlay from "@/components/online/offline-status-overlay";
 import NotificationsBridge from "@/components/realtime/notifications-bridge";
@@ -9,43 +8,41 @@ import AskForNotifications from "@/notifications/components/AskForNotifications"
 import AutoNotifications from "@/notifications/components/AutoNotifications";
 import ForegroundSystemNotifier from "@/notifications/components/ForegroundSystemNotifier";
 import NotificationToaster from "@/components/notifications/NotificationToaster";
+import DeviceSessionWatcher from "@/components/providers/device-session-watcher";
+import SessionRealtimeBridge from "@/components/providers/session-realtime-bridge";
 
 export default function BackgroundFeaturesGate() {
-  const pathname = usePathname();
   const role = useAuthStore((s) => s.role);
 
-  const isCustomerBills = pathname?.startsWith("/customer/bills");
+  const commonFeatures = (
+    <>
+      <SessionRealtimeBridge />
+      <DeviceSessionWatcher />
+      <SWNotificationBridge />
+      <AskForNotifications />
+      <AutoNotifications />
+      <ForegroundSystemNotifier />
+      <NotificationToaster />
+    </>
+  );
 
   if (role === "admin" || role === "super_admin" || role === "technician") {
     return (
       <>
         <OfflineStatusOverlay />
         <NotificationsBridge />
-        <SWNotificationBridge />
-        <AskForNotifications />
-        <AutoNotifications />
-        <ForegroundSystemNotifier />
-        <NotificationToaster />
+        {commonFeatures}
       </>
     );
   }
 
   if (role === "customer") {
-    if (isCustomerBills) {
-      return null;
-    }
-
     return (
       <>
-        {/* NotificationsBridge removed for customers - they don't need admin notifications */}
-        <SWNotificationBridge />
-        <AskForNotifications />
-        <AutoNotifications />
-        <ForegroundSystemNotifier />
-        <NotificationToaster />
+        {commonFeatures}
       </>
     );
   }
 
-  return null;
+  return <DeviceSessionWatcher />;
 }

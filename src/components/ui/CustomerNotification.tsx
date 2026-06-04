@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Bell, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CustomerNotificationsPage from "./CustomerNotificationPage";
+import { isCustomerNotificationVisible } from "@/lib/notifications/customer";
 
 export default function CustomerNotifications() {
   const { items } = useNotificationStore();
@@ -14,6 +15,7 @@ export default function CustomerNotifications() {
     id?: string;
     _id?: string;
     role?: string;
+    customerId?: string;
   } | null;
   const userId = user?._id || user?.id;
   const userRole = user?.role;
@@ -23,37 +25,14 @@ export default function CustomerNotifications() {
 
   // Filter notifications for customers to get accurate unread count
   const filteredItems = useMemo(() => {
-    if (userRole === "admin") return items;
-
-    if (userRole === "customer") {
-      return items.filter((n) => {
-        const meta = n.meta;
-        // Shop status notifications - all customers should see these
-        if (
-          meta?.type === "shop_status" ||
-          n.title?.includes("Shop is") ||
-          n.title?.includes("Available") ||
-          n.title?.includes("Offline")
-        ) {
-          return true;
-        }
-        if (n.type === "chat" || meta?.type === "shop_chat") {
-          return meta?.userId === userId;
-        }
-        // Bill and payment notifications - only if it's for this customer
-        if ((n.type === "billing" || n.type === "payment") && meta?.userId) {
-          return meta.userId === userId;
-        }
-        // Inventory notifications - customers should NOT see these
-        if (n.type === "inventory") return false;
-        // System notifications without shop_status type - filter out
-        if (n.type === "system" && meta?.type !== "shop_status") return false;
-        return false;
-      });
-    }
-
-    return items;
-  }, [items, userRole, userId]);
+    return items.filter((notification) =>
+      isCustomerNotificationVisible(notification, {
+        userId: userId || undefined,
+        customerId: user?.customerId,
+        role: userRole || undefined,
+      }),
+    );
+  }, [items, userRole, userId, user?.customerId]);
 
   const filteredUnread = useMemo(() => {
     return filteredItems.filter((n) => !n.read).length;

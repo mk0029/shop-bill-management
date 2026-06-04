@@ -363,7 +363,9 @@ export const toolRentalService = {
     notifyAdmins({
       title: "New tool rental created",
       body: `${input.customer.name} rented ${input.tool.toolName} (${input.durationValue} ${input.durationType})`,
-      data: { route_path: "/admin/rent-tools" },
+      data: { route_path: "/admin/rent-tools", rentalId },
+      eventType: "toolRent.created",
+      eventId: `toolRent.created.${rentalId}.admins`,
     });
 
     if (rental) {
@@ -382,7 +384,9 @@ export const toolRentalService = {
         notifyAdmins({
           title: "Tool rental payment pending",
           body: `${input.customer.name} has ${paymentStatus} payment for ${input.tool.toolName}`,
-          data: { route_path: "/admin/rent-tools" },
+          data: { route_path: "/admin/rent-tools", rentalId },
+          eventType: "toolRent.updated",
+          eventId: `toolRent.updated.${rentalId}.payment-pending`,
         });
       }
     }
@@ -440,7 +444,9 @@ export const toolRentalService = {
     notifyAdmins({
       title: "Rental duration updated",
       body: `${rental.customerName} rental for ${rental.toolName} updated to ${input.durationValue} ${input.durationType}`,
-      data: { route_path: "/admin/rent-tools" },
+      data: { route_path: "/admin/rent-tools", rentalId },
+      eventType: "toolRent.updated",
+      eventId: `toolRent.updated.${rentalId}.duration`,
     });
 
     return updated;
@@ -535,7 +541,9 @@ export const toolRentalService = {
     notifyAdmins({
       title: "Tool returned",
       body: `${rental.customerName} returned ${rental.toolName}${overdueUnits > 0 ? ` with Rs ${extraChargeAmount.toFixed(2)} extra charges` : ""}`,
-      data: { route_path: "/admin/rent-tools" },
+      data: { route_path: "/admin/rent-tools", rentalId: rental._id },
+      eventType: "toolRent.updated",
+      eventId: `toolRent.updated.${rental._id}.returned`,
     });
 
     return { overdueUnits, extraChargeAmount, finalTotal, paymentStatus };
@@ -581,6 +589,13 @@ export const toolRentalService = {
           ),
         }).catch(() => {});
       }
+      notifyAdmins({
+        title: "Tool rental payment updated",
+        body: `${rental.customerName} paid Rs ${normalizedPaid} for ${rental.toolName}. Status: ${paymentStatus}`,
+        data: { route_path: "/admin/rent-tools", rentalId },
+        eventType: "toolRent.updated",
+        eventId: `toolRent.updated.${rentalId}.payment.${normalizedPaid}`,
+      });
     }
     return updated;
   },
@@ -606,7 +621,9 @@ export const toolRentalService = {
     notifyAdmins({
       title: "Rental deleted",
       body: `${rental.customerName} - ${rental.toolName} rental was deleted`,
-      data: { route_path: "/admin/rent-tools" },
+      data: { route_path: "/admin/rent-tools", rentalId },
+      eventType: "toolRent.updated",
+      eventId: `toolRent.updated.${rentalId}.deleted`,
     });
 
     return { success: true };

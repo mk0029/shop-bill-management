@@ -1162,12 +1162,42 @@ export const useDataStore = create<DataStore>((set, get) => ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               audience: 'admins',
+              eventId: `billing.created.${String((bill as any)?._id || Date.now())}.admins`,
+              eventType: 'billing.created',
+              actorUserId: actorId || undefined,
               title: 'Bill created',
               body: `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`,
-              data: { billId: (bill as any)?._id, event: 'bill-created', billNumber: String(billNo) },
+              data: {
+                billId: (bill as any)?._id,
+                event: 'bill-created',
+                billNumber: String(billNo),
+                route: `/admin/billing?open=${encodeURIComponent(String((bill as any)?._id || ''))}`,
+              },
               excludeUserIds: actorId ? [actorId] : undefined,
             }),
           }).catch(() => {});
+          if (customerId) {
+            fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                eventId: `billing.created.${String((bill as any)?._id || Date.now())}.customer`,
+                eventType: 'billing.created',
+                actorUserId: actorId || undefined,
+                title: 'Bill created',
+                body: billNo ? `Your bill ${String(billNo)} was created` : 'Your bill was created',
+                userIds: [customerId],
+                data: {
+                  billId: (bill as any)?._id,
+                  event: 'bill-created',
+                  billNumber: String(billNo),
+                  customerId,
+                  route: `/customer/bills?open=${encodeURIComponent(String((bill as any)?._id || ''))}`,
+                  route_path: '/customer/bills',
+                },
+              }),
+            }).catch(() => {});
+          }
         } catch {}
       }
 
@@ -1267,10 +1297,18 @@ export const useDataStore = create<DataStore>((set, get) => ({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                eventId: `billing.updated.${String((result as any)?._id ?? _id)}.status.${String(nextStatus ?? 'updated')}`,
+                eventType: 'billing.updated',
                 title: 'Bill updated',
                 body: `Status: ${String(nextStatus ?? 'updated')}`,
                 userIds: [customerId],
-                data: { billId: String((result as any)?._id ?? _id), role: 'customer', customerId: String(customerId) },
+                data: {
+                  billId: String((result as any)?._id ?? _id),
+                  role: 'customer',
+                  customerId: String(customerId),
+                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? _id))}`,
+                  route_path: '/customer/bills',
+                },
                 sound: 'default',
               }),
             }).catch(() => {});
@@ -1283,10 +1321,19 @@ export const useDataStore = create<DataStore>((set, get) => ({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                eventId: `billing.updated.${String((result as any)?._id ?? _id)}.customer`,
+                eventType: 'billing.updated',
                 title: 'Bill updated',
                 body: billNo ? `Bill ${billNo} was updated` : 'Your bill was updated',
                 userIds: [customerId],
-                data: { billId: String((result as any)?._id ?? _id), event: 'bill-updated', role: 'customer', customerId: String(customerId) },
+                data: {
+                  billId: String((result as any)?._id ?? _id),
+                  event: 'bill-updated',
+                  role: 'customer',
+                  customerId: String(customerId),
+                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? _id))}`,
+                  route_path: '/customer/bills',
+                },
                 sound: 'default',
               }),
             }).catch(() => {});
@@ -1310,9 +1357,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 audience: 'admins',
+                eventId: `billing.updated.${String((result as any)?._id ?? _id)}.admins`,
+                eventType: 'billing.updated',
+                actorUserId: actorId || undefined,
                 title: 'Bill updated',
                 body: billNo ? `Bill ${billNo} was updated` : 'A bill was updated',
-                data: { billId: String((result as any)?._id ?? _id), event: 'bill-updated', billNumber: String(billNo) },
+                data: {
+                  billId: String((result as any)?._id ?? _id),
+                  event: 'bill-updated',
+                  billNumber: String(billNo),
+                  route: `/admin/billing?open=${encodeURIComponent(String((result as any)?._id ?? _id))}`,
+                },
                 excludeUserIds: actorId ? [actorId] : undefined,
               }),
             }).catch(() => {});

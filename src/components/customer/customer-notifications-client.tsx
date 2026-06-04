@@ -9,6 +9,10 @@ import { clearNotifications } from "@/lib/notifications-dataset";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import NotificationCenterPanel from "@/components/notifications/NotificationCenterPanel";
+import {
+  isCustomerNotificationVisible,
+  mapServerNotificationToAppNotification,
+} from "@/lib/notifications/customer";
 
 export default function CustomerNotificationsClient() {
   const { items, unread, markAllRead, clear, markAsRead, clearRead, addMany } =
@@ -18,6 +22,7 @@ export default function CustomerNotificationsClient() {
     _id?: string;
     role?: string;
     phone?: string;
+    customerId?: string;
   } | null;
   const userId = user?._id || user?.id;
   const role = user?.role;
@@ -29,6 +34,7 @@ export default function CustomerNotificationsClient() {
       try {
         const resp = await listNotifications({
           userId: userId || undefined,
+          customerId: user?.customerId || undefined,
           role: role || undefined,
           phone: user?.phone || undefined,
           limit: 50,
@@ -37,42 +43,23 @@ export default function CustomerNotificationsClient() {
           ? (resp as any).items
           : [];
         const mapped = serverItems
-          .map((n: any) => {
-            const createdAt = String(n?.createdAt || new Date().toISOString());
-            const event =
-              typeof n?.event === "string"
-                ? n.event
-                : typeof n?.data?.event === "string"
-                  ? n.data.event
-                  : "";
-            const type = (() => {
-              if (event === "bill-created" || event === "bill-updated")
-                return "billing";
-              if (event && String(event).includes("payment")) return "payment";
-              return "system";
-            })();
-            return {
-              id: String(n?._id || ""),
-              type,
-              title: String(n?.title || ""),
-              body: String(n?.body || ""),
-              createdAt,
-              read: false,
-              meta: {
-                source: "push",
-                billId: n?.billId || n?.data?.billId,
-                userId: n?.customerId || n?.data?.customerId,
-              },
-            };
-          })
-          .filter((x: any) => x.id && x.title && x.body);
+          .map((n: any) => mapServerNotificationToAppNotification(n))
+          .filter(Boolean)
+          .filter((n: any) =>
+            isCustomerNotificationVisible(n, {
+              userId: userId || undefined,
+              customerId: user?.customerId,
+              phone: user?.phone,
+              role: role || undefined,
+            }),
+          );
         if (!cancelled && mapped.length) addMany(mapped as any);
       } catch {}
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId, role, user?.phone, addMany]);
+  }, [userId, role, user?.phone, user?.customerId, addMany]);
 
   const handleClearRead = async () => {
     try {

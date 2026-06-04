@@ -4,7 +4,8 @@ import { User, LoginCredentials, ProfileData } from "@/types";
 import { userApiService } from "@/lib/sanity-api-service";
 import { sanityClient } from "@/lib/sanity";
 import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
-import { ensureFcmToken } from "@/lib/fcm";
+import { ensureFcmToken, registerDeviceSession } from "@/lib/fcm";
+import { clearAutoLogoutInfo } from "@/lib/auto-logout";
 
 type PersistedState = {
   state?: {
@@ -51,6 +52,18 @@ export const useAuthStore = create<AuthState>()(
           // Normalize: ensure user.id is present (map from Sanity _id)
           const userResp: any = response.data as any;
           const userNorm: any = { ...(userResp as any), id: userResp?.id || userResp?._id };
+          const uid = (userNorm as any)?.id as string | undefined;
+
+          if (uid) {
+            const deviceResult = await registerDeviceSession(uid);
+            if (!deviceResult.success) {
+              throw new Error(deviceResult.error || "Unable to activate this device session");
+            }
+          }
+
+          try {
+            clearAutoLogoutInfo();
+          } catch {}
 
           set({
             user: userNorm as User,
@@ -62,13 +75,12 @@ export const useAuthStore = create<AuthState>()(
           // Best-effort: silently ensure FCM token exists for this device if permission is already granted.
           // No prompts, no UI interaction.
           try {
-            if (
-              typeof Notification !== "undefined" &&
-              Notification.permission === "granted"
-            ) {
-                const uid = (userNorm as any)?.id as string | undefined;
-                if (uid) {
-                  Promise.resolve()
+            if (uid) {
+              if (
+                typeof Notification !== "undefined" &&
+                Notification.permission === "granted"
+              ) {
+                Promise.resolve()
                   .then(() => ensureFcmToken({ userId: uid, forceRefresh: true }))
                   .catch(() => {});
               }

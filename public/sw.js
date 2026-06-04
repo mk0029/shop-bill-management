@@ -695,7 +695,7 @@ try {
                 `/admin/customers/${customerId}/bills?open=${billId}`,
               );
             }
-            return sanitizeRelativeUrl(`/customers/bills?open=${billId}`);
+            return sanitizeRelativeUrl(`/customer/bills?open=${billId}`);
           }
           return "/";
         })(),
@@ -745,8 +745,15 @@ try {
           body: options.body || "",
           createdAt: new Date().toISOString(),
           read: false,
-          meta:
-            options.data && options.data.meta ? options.data.meta : undefined,
+          meta: {
+            ...data,
+            eventType: data.type || "system.general",
+            type: data.type || "system.general",
+            route:
+              data.route || data.route_path || data.link
+                ? { pathname: data.route || data.route_path || data.link }
+                : undefined,
+          },
         };
         bc.postMessage({
           type: "notification:received",
@@ -766,8 +773,15 @@ try {
           body: options.body || "",
           createdAt: new Date().toISOString(),
           read: false,
-          meta:
-            options.data && options.data.meta ? options.data.meta : undefined,
+          meta: {
+            ...data,
+            eventType: data.type || "system.general",
+            type: data.type || "system.general",
+            route:
+              data.route || data.route_path || data.link
+                ? { pathname: data.route || data.route_path || data.link }
+                : undefined,
+          },
         };
         await sendToClients({
           type: "notification:received",
@@ -949,7 +963,7 @@ try {
           `/admin/customers/${customerId}/bills?open=${notifData.billId}`,
         );
       } else {
-        url = sanitizeRelativeUrl(`/customers/bills?open=${notifData.billId}`);
+        url = sanitizeRelativeUrl(`/customer/bills?open=${notifData.billId}`);
       }
     } else if (notifData.meta && notifData.meta.route) {
       try {

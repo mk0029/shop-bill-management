@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
-import { notificationService } from "@/lib/notification-service";
 import { formatDayDateTime, formatRelativeDayDateTime, formatApproachTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent, type WorkTaskShopChatEventInput } from "@/lib/shop-chat/server-events";
+import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -38,28 +38,31 @@ async function sendViaWaBotServer(phone: string, message: string) {
   }
 }
 
-async function notify(actorUserId: string, title: string, body: string, assignedTechnicianId?: string) {
-  await notificationService.emit({
-    type: "admin_broadcast",
+async function notify(
+  actorUserId: string,
+  taskId: string,
+  eventType: ReturnType<typeof notificationTypeForStatus>,
+  title: string,
+  body: string,
+  eventKey = "event",
+) {
+  await sendNotificationEvent({
+    eventId: `${eventType}.${taskId}.admins.${eventKey}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
+    type: eventType,
     actorUserId,
-    data: {
-      route: "/dashboard/work-list",
-      message: body,
-      extra: { target: "all_admins", title, body },
-    },
+    userIds: await getActiveAdminUserIds(),
+    title,
+    body,
+    data: { taskId, route: "/dashboard/work-list", route_path: "/dashboard/work-list" },
+    skipActor: true,
   });
-  if (assignedTechnicianId) {
-    await notificationService.emit({
-      type: "user_direct",
-      actorUserId,
-      data: {
-        route: "/dashboard/work-list",
-        customerId: assignedTechnicianId,
-        message: body,
-        extra: { targetUserId: assignedTechnicianId, title, body },
-      },
-    });
-  }
+}
+
+function notificationTypeForStatus(status: string) {
+  if (status === "completed") return "workTask.completed" as const;
+  if (status === "cancelled") return "workTask.cancelled" as const;
+  if (status === "hold") return "workTask.hold" as const;
+  return "workTask.updated" as const;
 }
 
 async function sendCustomerWorkUpdate(args: {
@@ -343,12 +346,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const dueStr = updated?.dueAt ? formatDayDateTime(updated.dueAt) : "-";
   const techName = updated?.assignedTechnicianName || "Technician";
   const status = updated?.status || "updated";
+  const eventType = notificationTypeForStatus(String(updated?.status || patch.status || "updated"));
+  const updateTitle = "Work task updated";
+  const updateBody = `${updated?.title || existing?.title} updated by ${actor?.name || "User"}. Technician: ${techName}. Status: ${status}. Due: ${dueStr}.`;
   await notify(
     actorUserId,
-    "Work task updated",
-    `${updated?.title || existing?.title} updated by ${actor?.name || "User"}. Technician: ${techName}. Status: ${status}. Due: ${dueStr}.`,
-    assignedTechnicianId || undefined,
+    id,
+    eventType,
+    updateTitle,
+    updateBody,
+    String(updated?.updatedAt || Date.now()),
   );
+
+  if (customerRefId) {
+    await sendNotificationEvent({
+      eventId: `${eventType}.${id}.customer.${customerRefId}.${String(updated?.updatedAt || Date.now())}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
+      type: eventType,
+      actorUserId,
+      userId: customerRefId,
+      title: updateTitle,
+      body: `${updated?.title || existing?.title} updated. Status: ${status}.`,
+      data: {
+        taskId: id,
+        customerId: customerRefId,
+        status: String(updated?.status || existing?.status || ""),
+        route: "/customer/work-tasks",
+        route_path: "/customer/work-tasks",
+      },
+      skipActor: true,
+    });
+  }
 
   return NextResponse.json({ success: true, data: updated });
 }
@@ -403,9 +430,28 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
   await notify(
     actorUserId,
+    id,
+    "workTask.cancelled",
     "Work task deleted",
     `Work task deleted: ${existing.title}. Technician: ${existing?.assignedTechnician?.name || "Technician"}.`,
-    existing?.assignedTechnician?._id,
+    "deleted",
   );
+  if (customerRefId) {
+    await sendNotificationEvent({
+      eventId: `workTask.cancelled.${id}.customer.${customerRefId}`,
+      type: "workTask.cancelled",
+      actorUserId,
+      userId: customerRefId,
+      title: "Work task deleted",
+      body: `Work task deleted: ${existing.title}.`,
+      data: {
+        taskId: id,
+        customerId: customerRefId,
+        route: "/customer/work-tasks",
+        route_path: "/customer/work-tasks",
+      },
+      skipActor: true,
+    });
+  }
   return NextResponse.json({ success: true });
 }

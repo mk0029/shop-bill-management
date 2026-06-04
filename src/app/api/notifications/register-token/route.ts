@@ -1,12 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
-import { sanityClient } from '@/lib/sanity'
+import { registerFcmToken } from '@/lib/fcm/tokens.server'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
-    const { token, userId } = body
-    try { console.log('[API] register-token request', { userId, hasToken: !!token }) } catch {}
+    const { token, userId, deviceInfo } = body
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ success: false, error: 'Missing token' }, { status: 400 })
     }
@@ -14,108 +12,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing userId' }, { status: 400 })
     }
 
-    // Determine environment (dev vs prod) by host
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || ''
-    const isDevHost = /localhost|127\.0\.0\.1/i.test(host)
-    const env: 'dev' | 'prod' = isDevHost ? 'dev' : 'prod'
-
-    // Fetch current user doc with revision for optimistic concurrency
-    const doc = await sanityClient.fetch(
-      `*[_type=="user" && (_id==$id || clerkId==$id || customerId==$id)][0]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
-      { id: userId }
-    )
-    if (!doc?._id) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
-    }
-
-    // Helper to extract tokens from arrays (legacy string-based)
-    const getTokens = (arr: any[]) => Array.isArray(arr) ? arr.filter(Boolean) : []
-    const tokens = getTokens(doc.fcmTokens)
-    const tokensProd = getTokens((doc as any).fcmTokensProd)
-    const tokensDev = getTokens((doc as any).fcmTokensDev)
-
-    // Check if this token is already registered (legacy string check)
-    const isAlreadyRegistered = (arr: any[]) => arr.includes(token)
-    if (isAlreadyRegistered(tokens)) {
-      const alreadyInEnv = env === 'prod' ? isAlreadyRegistered(tokensProd) : isAlreadyRegistered(tokensDev)
-      if (alreadyInEnv) {
-        return NextResponse.json({ success: true, data: { _id: doc._id, alreadyRegistered: true } })
-      }
-    }
-
-    // Ensure token uniqueness across ALL users: remove token from any other user docs first
-    try {
-      const others = await sanityClient.fetch(
-        `*[_type=="user" && $token in fcmTokens && _id != $id]{ _id, _rev, fcmTokens, fcmTokensProd, fcmTokensDev }`,
-        { token, id: doc._id }
-      ) as any[]
-      if (Array.isArray(others) && others.length) {
-        await Promise.allSettled(others.map(u =>
-          sanityClient
-            .patch(u._id)
-            .ifRevisionId(u._rev)
-            .setIfMissing({ fcmTokens: [], fcmTokensProd: [], fcmTokensDev: [] })
-            .set({
-              fcmTokens: (Array.isArray(u.fcmTokens) ? u.fcmTokens : []).filter((t: any) => t !== token),
-              fcmTokensProd: (Array.isArray(u.fcmTokensProd) ? u.fcmTokensProd : []).filter((t: any) => t !== token),
-              fcmTokensDev: (Array.isArray(u.fcmTokensDev) ? u.fcmTokensDev : []).filter((t: any) => t !== token),
-              updatedAt: new Date().toISOString(),
-            })
-            .commit({ autoGenerateArrayKeys: true })
-        ))
-      }
-    } catch (removeErr) {
-      try { console.warn('[API] register-token: failed to evict token from other users', removeErr) } catch {}
-    }
-
-    // Helper to ensure uniqueness and move to end, cap at latest 3 tokens.
-    const makeUnique = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)))
-    const moveToEnd = (arr: string[], value: string) => {
-      const filtered = (arr || []).filter(t => t && t !== value)
-      filtered.push(value)
-      return filtered
-    }
-    const cap = (arr: string[], max = 3) => (arr || []).slice(-max)
-
-    let attempt = 0
-    while (attempt < 2) {
-      attempt++
-      const current = attempt === 1 ? tokens : (await sanityClient.fetch(
-        `*[_type=="user" && _id==$id][0]{ _rev, fcmTokens }`,
-        { id: doc._id }
-      ))?.fcmTokens ?? []
-
-      const nextTokens = cap(makeUnique(moveToEnd(Array.isArray(current) ? current : [], token)))
-      const currentProd = attempt === 1 ? tokensProd : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0].fcmTokensProd`, { id: doc._id })) || []
-      const currentDev = attempt === 1 ? tokensDev : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0].fcmTokensDev`, { id: doc._id })) || []
-      const nextProd = env === 'prod'
-        ? cap(makeUnique(moveToEnd(Array.isArray(currentProd) ? currentProd : [], token)))
-        : cap(makeUnique((Array.isArray(currentProd) ? currentProd : []).filter(t => t !== token)))
-      const nextDev = env === 'dev'
-        ? cap(makeUnique(moveToEnd(Array.isArray(currentDev) ? currentDev : [], token)))
-        : cap(makeUnique((Array.isArray(currentDev) ? currentDev : []).filter(t => t !== token)))
-
-      try {
-        const updated = await sanityClient
-          .patch(doc._id)
-          .ifRevisionId(attempt === 1 ? doc._rev : (await sanityClient.fetch(`*[_type=="user" && _id==$id][0]._rev`, { id: doc._id })) as string)
-          .setIfMissing({ fcmTokens: [], fcmTokensProd: [], fcmTokensDev: [] })
-          .set({ fcmTokens: nextTokens, fcmTokensProd: nextProd, fcmTokensDev: nextDev, updatedAt: new Date().toISOString() })
-          .commit({ autoGenerateArrayKeys: true })
-        try { console.log('[API] register-token success') } catch {}
-        return NextResponse.json({ success: true, data: { _id: (updated as any)._id, tokens: (updated as any).fcmTokens || [] } })
-      } catch (err: any) {
-        const code = err?.statusCode || err?.status
-        const isConflict = code === 409
-        if (!isConflict) {
-          throw err
-        }
-      }
-    }
-    // If still failing, fall back to success since another request most likely registered it
-    return NextResponse.json({ success: true, data: { _id: doc._id, alreadyRegistered: true } })
-  } catch (e: any) {
-    try { console.error('[API] register-token error', e?.message || e) } catch {}
-    return NextResponse.json({ success: false, error: e?.message || 'Server error' }, { status: 500 })
+    const data = await registerFcmToken({ userId, token, deviceInfo })
+    return NextResponse.json({ success: true, data })
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Server error'
+    return NextResponse.json({ success: false, error: message }, { status: message === 'User not found' ? 404 : 500 })
   }
 }

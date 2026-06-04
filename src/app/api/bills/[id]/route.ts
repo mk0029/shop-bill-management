@@ -6,6 +6,7 @@ import { notificationService } from "@/lib/notification-service";
 import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 import { getServerAuth } from "@/lib/server-auth";
 import { updateStockForBill } from "@/lib/inventory-management";
+import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
 
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
   return await sanityClient.fetch(
@@ -232,54 +233,75 @@ export async function PATCH(
       console.error('[WA] bill_payment_update send failed', e)
     }
 
-    // Unified notification: bill status update (only when status is provided)
+    // Unified notification: bill status/payment update.
     try {
-      const actorUserId = (req.headers.get('x-user-id') || '').trim()
-      if (actorUserId && typeof updates.status !== 'undefined') {
+      const actorUserId = String(auth.userId || req.headers.get('x-user-id') || '').trim()
+      const changedKeys = ["status", "paymentStatus", "paidAmount", "balanceAmount"].filter(
+        (key) => typeof (updates as any)[key] !== "undefined",
+      );
+      if (actorUserId && changedKeys.length) {
         const bill = await sanityClient.fetch(
-          `*[_type == "bill" && _id == $id][0]{ _id, customer->{_id}, status }`,
+          `*[_type == "bill" && _id == $id][0]{ _id, billNumber, customer->{_id}, status, paymentStatus, paidAmount, balanceAmount }`,
           { id }
         )
         const customerId = bill?.customer?._id ? String(bill.customer._id) : undefined
+        const billNumber = String(bill?.billNumber || prev?.billNumber || id)
+        const statusText = typeof updates.status !== "undefined" ? String(updates.status) : String(bill?.status || "")
+        const paymentText = typeof updates.paymentStatus !== "undefined" ? String(updates.paymentStatus) : String(bill?.paymentStatus || "")
+        const suffix = changedKeys
+          .map((key) => `${key}-${String((updates as any)[key])}`)
+          .join(".")
+          .replace(/[^a-zA-Z0-9_.-]/g, "-")
 
-        const title = 'Bill status updated'
-        const bodyText = `Bill status updated${updates.status ? `: ${String(updates.status)}` : ''}`
+        const title = changedKeys.some((key) => key !== "status") ? 'Bill payment updated' : 'Bill status updated'
+        const bodyText = changedKeys.some((key) => key !== "status")
+          ? `Bill ${billNumber} payment updated${paymentText ? `: ${paymentText}` : ''}`
+          : `Bill ${billNumber} status updated${statusText ? `: ${statusText}` : ''}`
+        const adminRoute = `/admin/billing?open=${encodeURIComponent(String(id))}`
+        const customerRoute = `/customer/bills?open=${encodeURIComponent(String(id))}`
 
-        // Admins-only (audience=admins) so admins can see it in /api/notifications/list
-        await notificationService.emit({
-          type: 'bill_status_updated',
+        await sendNotificationEvent({
+          eventId: `billing.updated.${String(id)}.admins.${suffix}`,
+          type: 'billing.updated',
           actorUserId,
+          userIds: await getActiveAdminUserIds(),
+          title,
+          body: bodyText,
           data: {
             billId: String(id),
-            status: String(updates.status),
-            route: `/admin/billing?open=${encodeURIComponent(String(id))}`,
-            extra: {
-              title,
-              body: bodyText,
-            },
+            billNumber,
+            customerId,
+            status: statusText,
+            paymentStatus: paymentText,
+            route: adminRoute,
+            route_path: adminRoute,
           },
+          skipActor: true,
         })
 
-        // Customer direct notification (audience=users)
         if (customerId) {
-          await notificationService.emit({
-            type: 'user_direct',
+          await sendNotificationEvent({
+            eventId: `billing.updated.${String(id)}.customer.${customerId}.${suffix}`,
+            type: 'billing.updated',
             actorUserId,
+            userId: String(customerId),
+            title,
+            body: bodyText,
             data: {
+              billId: String(id),
+              billNumber,
               customerId: String(customerId),
-              route: '/customer',
-              message: bodyText,
-              extra: {
-                targetUserId: String(customerId),
-                title,
-                body: bodyText,
-              },
+              status: statusText,
+              paymentStatus: paymentText,
+              route: customerRoute,
+              route_path: customerRoute,
             },
+            skipActor: true,
           })
         }
       }
     } catch (notifyErr) {
-      console.error('[Notify] bill_status_updated emit failed', notifyErr)
+      console.error('[Notify] billing.updated event failed', notifyErr)
     }
     
     // Create cash book entry asynchronously (don't wait for it)

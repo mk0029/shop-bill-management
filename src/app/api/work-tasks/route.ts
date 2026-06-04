@@ -1,10 +1,10 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
-import { notificationService } from "@/lib/notification-service";
 import { formatApproachTime, formatDayDate, formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent } from "@/lib/shop-chat/server-events";
+import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -38,66 +38,34 @@ async function sendViaWaBotServer(phone: string, message: string) {
   }
 }
 
-async function getTechnicianUserIds() {
-  const ids = await sanityClient.fetch<string[]>(
-    `*[_type=="user" && role=="technician" && isActive != false]._id`,
-  );
-  return Array.from(new Set((ids || []).filter(Boolean)));
-}
-
 async function notifyWorkTaskEvent(args: {
+  taskId: string;
   actorUserId: string;
   title: string;
   body: string;
   assignedTechnicianId?: string;
   notifyAllTechnicians?: boolean;
 }) {
-  await notificationService.emit({
-    type: "admin_broadcast",
+  const targetIds = args.notifyAllTechnicians
+    ? await getActiveAdminUserIds()
+    : args.assignedTechnicianId
+      ? [args.assignedTechnicianId]
+      : await getActiveAdminUserIds();
+
+  await sendNotificationEvent({
+    eventId: `workTask.created.${args.taskId}.admins`,
+    type: "workTask.created",
     actorUserId: args.actorUserId,
+    userIds: targetIds,
+    title: args.title,
+    body: args.body,
     data: {
       route: "/dashboard/work-list",
-      message: args.body,
-      extra: { target: "all_admins", title: args.title, body: args.body },
+      route_path: "/dashboard/work-list",
+      taskId: args.taskId,
     },
+    skipActor: true,
   });
-
-  if (args.assignedTechnicianId) {
-    await notificationService.emit({
-      eventId: `worktask.direct.${Date.now()}.${args.assignedTechnicianId}`,
-      type: "user_direct",
-      actorUserId: args.actorUserId,
-      data: {
-        route: "/dashboard/work-list",
-        customerId: args.assignedTechnicianId,
-        message: args.body,
-        extra: {
-          targetUserId: args.assignedTechnicianId,
-          title: args.title,
-          body: args.body,
-        },
-      },
-    });
-  }
-
-  if (args.notifyAllTechnicians) {
-    const technicianIds = await getTechnicianUserIds();
-    await Promise.all(
-      technicianIds.map((uid) =>
-        notificationService.emit({
-          eventId: `worktask.tech.${Date.now()}.${uid}`,
-          type: "user_direct",
-          actorUserId: args.actorUserId,
-          data: {
-            route: "/dashboard/work-list",
-            customerId: uid,
-            message: args.body,
-            extra: { targetUserId: uid, title: args.title, body: args.body },
-          },
-        }),
-      ),
-    );
-  }
 }
 
 async function sendTechnicianTaskAssigned(args: {
@@ -262,6 +230,21 @@ export async function POST(req: NextRequest) {
           createdAt: now,
           updatedAt: now,
         });
+        await sendNotificationEvent({
+          eventId: `workTask.created.${String(created?._id || "")}.customer.${String(body.customerRefId)}`,
+          type: "workTask.created",
+          actorUserId,
+          userId: String(body.customerRefId),
+          title: "Service task created",
+          body: `Your service task was created: ${title}. Technician: ${tech?.name || "Technician"}.`,
+          data: {
+            taskId: String(created?._id || ""),
+            customerId: String(body.customerRefId),
+            route: "/customer/work-tasks",
+            route_path: "/customer/work-tasks",
+          },
+          skipActor: true,
+        });
         if (!customer?.phone) return;
         const requestDate = formatDayDate(now);
         const approachTime = formatApproachTime(dueAt, now);
@@ -288,6 +271,7 @@ Thank you for trusting Jambh Electrical Services ⚡`;
 
   postCreateJobs.push(
     notifyWorkTaskEvent({
+      taskId: String(created?._id || ""),
       actorUserId,
       title: "New work assigned",
       body: `New work assigned: ${title}. Technician: ${tech.name || "Technician"}. Due: ${formatDayDateTime(dueAt)}.`,

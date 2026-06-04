@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notificationService } from '@/lib/notification-service'
+import { sendNotificationEvent, getActiveAdminUserIds } from '@/services/notifications/notification-events.server'
+import type { NotificationEventType } from '@/types/notifications'
 
 function corsHeaders(req: NextRequest): Record<string, string> {
   const origin = req.headers.get('origin') || '*'
@@ -59,23 +61,54 @@ export async function POST(req: NextRequest) {
     const actorUserId = (
       String(body?.actorUserId || req.headers.get('x-user-id') || getActorUserIdFromAuthCookie(req) || '')
     ).trim()
-    if (!actorUserId) {
-      return NextResponse.json(
-        { success: false, error: 'Missing actorUserId (x-user-id header)' },
-        { status: 400, headers: corsHeaders(req) }
-      )
-    }
+    const resolvedActorUserId = actorUserId || 'system'
 
 
     const dataObj = (body?.data && typeof body.data === 'object') ? body.data : undefined
     const route = (dataObj?.route || dataObj?.link || undefined) as string | undefined
+    const eventType = String(body.eventType || '') as NotificationEventType
+    const eventId =
+      body?.eventId && typeof body.eventId === 'string'
+        ? body.eventId
+        : undefined
+    const directUserIds: string[] = Array.isArray(body.userIds) ? body.userIds.map(String).filter(Boolean) : []
+
+    if (eventType.includes('.') && directUserIds.length) {
+      const result = await sendNotificationEvent({
+        eventId,
+        type: eventType,
+        actorUserId: resolvedActorUserId,
+        userIds: directUserIds,
+        title: String(body.title),
+        body: String(body.body),
+        data: dataObj,
+        skipActor: true,
+      })
+      return NextResponse.json({ success: result.ok, ...result }, { status: 200, headers: corsHeaders(req) })
+    }
 
     // Admin broadcast / direct user(s)
     if (body.audience === 'admins' || body.audience === 'all') {
+      if (eventType.includes('.')) {
+        const userIds = body.audience === 'admins'
+          ? await getActiveAdminUserIds()
+          : []
+        const result = await sendNotificationEvent({
+          eventId,
+          type: eventType,
+          actorUserId: resolvedActorUserId,
+          userIds,
+          title: String(body.title),
+          body: String(body.body),
+          data: dataObj,
+          skipActor: true,
+        })
+        return NextResponse.json({ success: result.ok, ...result }, { status: 200, headers: corsHeaders(req) })
+      }
       const target = body.audience === 'admins' ? 'all_admins' : 'all_users'
       const result = await notificationService.emit({
         type: 'admin_broadcast',
-        actorUserId,
+        actorUserId: resolvedActorUserId,
         data: {
           route,
           message: String(body.body),
@@ -90,7 +123,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: result.ok, ...result }, { status: 200, headers: corsHeaders(req) })
     }
 
-    const userIds: string[] = Array.isArray(body.userIds) ? body.userIds.map(String).filter(Boolean) : []
+    const userIds: string[] = directUserIds
     if (!userIds.length) {
       return NextResponse.json(
         { success: false, error: 'Provide userIds for direct notifications' },
@@ -107,7 +140,7 @@ export async function POST(req: NextRequest) {
         notificationService.emit({
           eventId: baseEventId ? `${baseEventId}.${uid}` : undefined,
           type: 'user_direct',
-          actorUserId,
+          actorUserId: resolvedActorUserId,
           data: {
             route,
             customerId: uid,

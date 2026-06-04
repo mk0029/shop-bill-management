@@ -22,12 +22,12 @@ export async function GET(req: NextRequest) {
 
     const ids = [userId, clerkId, customerId].filter(Boolean)
     const phones = phone ? [phone] : []
-    const isAdmin = role === 'admin'
+    const isAdmin = role === 'admin' || role === 'super_admin' || role === 'technician'
 
     const query = `*[_type=="notification" && (
       audience == "all" ||
       (audience == "admins" && $isAdmin) ||
-      (audience == "users" && (
+      (audience in ["users", "custom"] && (
         (defined(targetUserIds) && count(targetUserIds[@ in $ids]) > 0) ||
         (defined(targetPhones) && count(targetPhones[@ in $phones]) > 0)
       ))
@@ -40,8 +40,10 @@ export async function GET(req: NextRequest) {
       _id,
       title,
       body,
+      type,
       audience,
       createdAt,
+      _createdAt,
       data,
       billId,
       billNumber,

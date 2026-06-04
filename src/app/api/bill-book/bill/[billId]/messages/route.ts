@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { sendNotificationEvent } from "@/services/notifications/notification-events.server";
 
 export async function GET(
   _req: Request,
@@ -74,6 +75,52 @@ export async function POST(
       createdAt: now,
       updatedAt: now,
     });
+
+    if (recipientId && String(recipientId) !== String(senderId || "")) {
+      const [recipient, sender, bill] = await Promise.all([
+        sanityClient.fetch<{ _id?: string; role?: string; name?: string } | null>(
+          `*[_type=="user" && _id==$id][0]{_id, role, name}`,
+          { id: String(recipientId) },
+        ),
+        senderId
+          ? sanityClient.fetch<{ _id?: string; role?: string; name?: string } | null>(
+              `*[_type=="user" && _id==$id][0]{_id, role, name}`,
+              { id: String(senderId) },
+            )
+          : Promise.resolve(null),
+        sanityClient.fetch<{ billNumber?: string; customer?: { _id?: string; name?: string } } | null>(
+          `*[_type=="bill" && _id==$id][0]{billNumber, customer->{_id, name}}`,
+          { id: String(billId) },
+        ),
+      ]);
+      const recipientRole = String(recipient?.role || "");
+      const senderName = String(sender?.name || "Someone");
+      const isRecipientCustomer = recipientRole === "customer";
+      const targetRoute = isRecipientCustomer
+        ? `/customer/bills?open=${encodeURIComponent(String(billId))}`
+        : `/admin/billing?open=${encodeURIComponent(String(billId))}`;
+
+      sendNotificationEvent({
+        eventId: `bill.message.created.${String((doc as { _id?: string })?._id || Date.now())}`,
+        type: "bill.message.created",
+        actorUserId: senderId ? String(senderId) : undefined,
+        userId: String(recipientId),
+        title: isRecipientCustomer ? "New bill message" : `Message from ${bill?.customer?.name || senderName}`,
+        body: String(content).slice(0, 120),
+        data: {
+          userId: String(recipientId),
+          billId: String(billId),
+          billNumber: bill?.billNumber || "",
+          customerId: bill?.customer?._id || "",
+          messageId: String((doc as { _id?: string })?._id || ""),
+          senderId: senderId ? String(senderId) : "",
+          senderName,
+          route: targetRoute,
+          route_path: targetRoute,
+        },
+        skipActor: true,
+      }).catch((error) => console.error("[Notify] bill.message.created failed", error));
+    }
 
     return NextResponse.json({ success: true, data: doc });
   } catch (error) {

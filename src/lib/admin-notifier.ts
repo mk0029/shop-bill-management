@@ -9,6 +9,8 @@ export async function notifyAdmins(payload: {
   body: string;
   data?: Record<string, string>;
   excludeUserIds?: string[];
+  eventType?: string;
+  eventId?: string;
 }) {
   try {
     const res = await fetch('/api/notifications/send', {
@@ -19,6 +21,8 @@ export async function notifyAdmins(payload: {
         title: payload.title,
         body: payload.body,
         data: payload.data || {},
+        eventType: payload.eventType,
+        eventId: payload.eventId,
         excludeUserIds: Array.isArray(payload.excludeUserIds) ? payload.excludeUserIds : undefined,
       }),
     });

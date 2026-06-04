@@ -164,6 +164,79 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
 
       const result = await sanityClient.create(newBill);
       // The real-time listener will automatically update the local state
+      try {
+        if (typeof window !== 'undefined') {
+          const actorId = (function getActorId(){
+            try {
+              const raw = getCookie('auth-storage');
+              if (!raw) return null as string | null;
+              let parsedUnknown: unknown = null;
+              try { parsedUnknown = JSON.parse(decodeURIComponent(raw)); } catch { parsedUnknown = null; }
+              const parsed = typeof parsedUnknown === 'object' && parsedUnknown !== null ? parsedUnknown as { state?: { user?: any } } : undefined;
+              const user = parsed?.state?.user as any;
+              return (user?.id as string) || (user?._id as string) || null;
+            } catch { return null as string | null; }
+          })();
+          const billId = String((result as any)?._id || '');
+          const billNo = String((result as any)?.billNumber || billData.billNumber || '');
+          const customerId = String((result as any)?.customer?._ref || billData.customer || '').trim();
+          const amount = Number((result as any)?.totalAmount || billData.totalAmount || 0);
+          const payStatus = String((result as any)?.paymentStatus || billData.paymentStatus || 'pending');
+          let customerName = '';
+          try {
+            if (customerId) {
+              const doc = await sanityClient.fetch<{ name?: string } | null>(
+                `*[_type=="user" && _id==$id][0]{name}`,
+                { id: customerId },
+              );
+              customerName = String(doc?.name || '').trim();
+            }
+          } catch {}
+
+          fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audience: 'admins',
+              eventId: `billing.created.${billId || Date.now()}.admins`,
+              eventType: 'billing.created',
+              actorUserId: actorId || undefined,
+              title: 'Bill created',
+              body: `${customerName || 'Customer'} | Rs.${amount} | ${payStatus}`,
+              data: {
+                billId,
+                event: 'bill-created',
+                billNumber: billNo,
+                route: `/admin/billing?open=${encodeURIComponent(billId)}`,
+              },
+              excludeUserIds: actorId ? [actorId] : undefined,
+            }),
+          }).catch(() => {});
+
+          if (customerId) {
+            fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                eventId: `billing.created.${billId || Date.now()}.customer`,
+                eventType: 'billing.created',
+                actorUserId: actorId || undefined,
+                title: 'Bill created',
+                body: billNo ? `Your bill ${billNo} was created` : 'Your bill was created',
+                userIds: [customerId],
+                data: {
+                  billId,
+                  event: 'bill-created',
+                  billNumber: billNo,
+                  customerId,
+                  route: `/customer/bills?open=${encodeURIComponent(billId)}`,
+                  route_path: '/customer/bills',
+                },
+              }),
+            }).catch(() => {});
+          }
+        }
+      } catch {}
       set({ loading: false });
       return result as Bill;
     } catch (error) {
@@ -223,10 +296,16 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                eventId: `billing.updated.${String((result as any)?._id ?? billId)}.status.${String(nextStatus ?? 'updated')}`,
+                eventType: 'billing.updated',
                 title: 'Bill updated',
                 body: `Status: ${String(nextStatus ?? 'updated')}`,
                 userIds: [customerId],
-                data: { billId: String((result as any)?._id ?? billId) },
+                data: {
+                  billId: String((result as any)?._id ?? billId),
+                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? billId))}`,
+                  route_path: '/customer/bills',
+                },
                 sound: 'default',
               }),
             }).catch(() => {});
@@ -239,10 +318,17 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                eventId: `billing.updated.${String((result as any)?._id ?? billId)}.customer`,
+                eventType: 'billing.updated',
                 title: 'Bill updated',
                 body: billNo ? `Bill ${billNo} was updated` : 'Your bill was updated',
                 userIds: [customerId],
-                data: { billId: String((result as any)?._id ?? billId), event: 'bill-updated' },
+                data: {
+                  billId: String((result as any)?._id ?? billId),
+                  event: 'bill-updated',
+                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? billId))}`,
+                  route_path: '/customer/bills',
+                },
                 sound: 'default',
               }),
             }).catch(() => {});
@@ -279,9 +365,16 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 audience: 'admins',
+                eventId: `billing.updated.${String((result as any)?._id ?? billId)}.admins`,
+                eventType: 'billing.updated',
+                actorUserId: actorId || undefined,
                 title: 'Bill updated',
                 body: billNo ? `Bill ${billNo} • ${changeSummary}` : changeSummary,
-                data: { billId: String((result as any)?._id ?? billId), event: 'bill-updated' },
+                data: {
+                  billId: String((result as any)?._id ?? billId),
+                  event: 'bill-updated',
+                  route: `/admin/billing?open=${encodeURIComponent(String((result as any)?._id ?? billId))}`,
+                },
                 excludeUserIds: actorId ? [actorId] : undefined,
                 // Exclude current device
                 excludeTokens: await (async () => {

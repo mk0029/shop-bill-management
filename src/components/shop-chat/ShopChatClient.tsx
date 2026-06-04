@@ -173,6 +173,14 @@ function dedupeBillCreatedMessages(messages: ShopChatMessage[]) {
   });
 }
 
+function chatNotificationBody(text: string, type: ShopChatMessage["type"]) {
+  if (type === "text") {
+    const preview = text.trim().replace(/\s+/g, " ");
+    return preview ? preview.slice(0, 140) : "New message";
+  }
+  return `Sent a ${type === "file" ? "file" : type}`;
+}
+
 function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
   return {
     id: message.messageId,
@@ -972,6 +980,45 @@ export default function ShopChatClient({
     }
   };
 
+  const notifyChatMessageFallback = async (message: ShopChatMessage) => {
+    if (!activeRoom || !myUserId || message.senderId !== myUserId) return;
+
+    const supportTargets = (activeRoom.admins || [])
+      .map((admin) => String(admin.userId || "").trim())
+      .filter((id) => id && id !== myUserId);
+    const customerTargets = [String(activeRoom.customerId || "").trim()].filter((id) => id && id !== myUserId);
+    const userIds = Array.from(new Set(mode === "customer" ? supportTargets : customerTargets));
+    if (!userIds.length && mode !== "customer") return;
+
+    const senderName = String(message.senderName || (user as any)?.name || (mode === "customer" ? "Customer" : "Support"));
+    const route = mode === "customer" ? "/admin/chat" : "/customer/chat";
+
+    await fetch("/api/notifications/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId: `chat.message.created.${message.messageId}`,
+        eventType: "chat.message.created",
+        actorUserId: myUserId,
+        ...(userIds.length ? { userIds } : { audience: "admins" }),
+        title: mode === "customer" ? `Message from ${senderName}` : "New message from support",
+        body: chatNotificationBody(message.text, message.type),
+        data: {
+          event: "chat-message-created",
+          route,
+          route_path: route,
+          roomId: activeRoom.roomId,
+          customerId: activeRoom.customerId,
+          messageId: message.messageId,
+          senderId: message.senderId,
+          senderName,
+        },
+      }),
+    }).catch((error) => {
+      console.warn("[FCM] chat notification fallback failed", error);
+    });
+  };
+
   const sendText = async (
     text: string,
     options?: {
@@ -1023,9 +1070,10 @@ export default function ShopChatClient({
             attachments: options?.attachments || [],
             replyTo: options?.replyTo || null,
             clientMessageId: tempId,
-          });
+      });
       setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], response.message) }));
       if (response.room) upsertRoom(response.room);
+      void notifyChatMessageFallback(response.message);
     } catch {
       setMessagesByRoom((prev) => ({
         ...prev,
