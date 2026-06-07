@@ -27,6 +27,11 @@ import type { ShopChatMessage, ShopChatRoom } from "@/lib/shop-chat/types";
 import type { Message } from "@/lib/types";
 import { useDynamicViewportHeight } from "@/hooks/use-dynamic-viewport-height";
 import { useNotificationStore } from "@/store/notification-store";
+import {
+  clearAppSystemNotifications,
+  markNotificationHandled,
+  setActiveChatId,
+} from "@/lib/notifications/dedupe";
 
 type Mode = "admin" | "customer";
 
@@ -942,6 +947,12 @@ export default function ShopChatClient({
   }, [myUserId, socket, upsertRoom]);
 
   useEffect(() => {
+    setActiveChatId(activeRoom?.roomId || null);
+    if (activeRoom?.roomId) clearAppSystemNotifications({ roomId: activeRoom.roomId });
+    return () => setActiveChatId(null);
+  }, [activeRoom?.roomId]);
+
+  useEffect(() => {
     if (!activeRoom || !socket) return;
     const unread = activeMessages.filter((message) => message.senderId !== myUserId && !message.readBy.some((receipt) => receipt.userId === myUserId));
     if (!unread.length) return;
@@ -952,6 +963,8 @@ export default function ShopChatClient({
       const meta = notification.meta;
       return meta?.type === "shop_chat" && meta?.roomId === activeRoom.roomId;
     });
+    unread.forEach((message) => markNotificationHandled(message.messageId));
+    clearAppSystemNotifications({ roomId: activeRoom.roomId });
     socket.emit("message:read", { roomId: activeRoom.roomId, messageIds: unread.map((message) => message.messageId) });
   }, [activeMessages, activeRoom, myUserId, socket]);
 

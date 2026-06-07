@@ -23,6 +23,21 @@ export async function GET(req: NextRequest) {
     const ids = [userId, clerkId, customerId].filter(Boolean)
     const phones = phone ? [phone] : []
     const isAdmin = role === 'admin' || role === 'super_admin' || role === 'technician'
+    const adminSkippedInAppTypes = [
+      'chat.message.created',
+      'bill.message.created',
+      'billing.created',
+      'billing.updated',
+      'workTask.created',
+      'workTask.updated',
+      'workTask.completed',
+      'workTask.cancelled',
+      'workTask.cancle',
+      'workTask.hold',
+      'toolRent.created',
+      'toolRent.updated',
+      'toolRent.returnDue',
+    ]
 
     const query = `*[_type=="notification" && (
       audience == "all" ||
@@ -36,6 +51,8 @@ export async function GET(req: NextRequest) {
       (defined(clearedByUserIds) && count(clearedByUserIds[@ in $ids]) > 0) ||
       (defined(clearedByPhones) && count(clearedByPhones[@ in $phones]) > 0)
     ))
+    && !(defined(actorUserId) && actorUserId in $ids)
+    && !($isAdmin && type in $adminSkippedInAppTypes)
     ] | order(coalesce(createdAt, _createdAt) desc)[0...$limit]{
       _id,
       title,
@@ -52,7 +69,14 @@ export async function GET(req: NextRequest) {
     }`
 
     const includeCleared = url.searchParams.get('includeCleared') === 'true'
-    const items = await sanityClient.fetch<any[]>(query, { ids, phones, isAdmin, limit, includeCleared })
+    const items = await sanityClient.fetch<any[]>(query, {
+      ids,
+      phones,
+      isAdmin,
+      limit,
+      includeCleared,
+      adminSkippedInAppTypes,
+    })
     return NextResponse.json({ items: items || [] }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'

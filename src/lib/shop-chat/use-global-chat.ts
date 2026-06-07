@@ -6,6 +6,12 @@ import { getMyShopChatRoom, listShopChatRooms } from "./api";
 import { useShopChatSocket } from "./socket";
 import type { ShopChatMessage, ShopChatRoom } from "./types";
 import { useNotificationStore } from "@/store/notification-store";
+import {
+  clearAppSystemNotifications,
+  getActiveChatId,
+  markNotificationHandled,
+  wasNotificationHandled,
+} from "@/lib/notifications/dedupe";
 
 function isSupportRole(role?: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -79,6 +85,7 @@ export function useGlobalShopChat(
           const meta = notification.meta;
           return meta?.type === "shop_chat" && meta?.roomId === room.roomId;
         });
+        clearAppSystemNotifications({ roomId: room.roomId });
       }
 
       const previous = roomsRef.current.find(
@@ -86,7 +93,15 @@ export function useGlobalShopChat(
       );
       if (previous?.lastMessage?.messageId === last.messageId) return;
 
+      const activeChatId = getActiveChatId();
+      if (activeChatId === room.roomId) {
+        markNotificationHandled(last.messageId);
+        clearAppSystemNotifications({ roomId: room.roomId });
+        return;
+      }
+
       if (!isChatRoute && last.senderId !== userId) {
+        if (wasNotificationHandled(last.messageId) || wasNotificationHandled(chatNotificationId(last.messageId))) return;
         if (notifiedMessageIdsRef.current.has(last.messageId)) return;
         notifiedMessageIdsRef.current.add(last.messageId);
 

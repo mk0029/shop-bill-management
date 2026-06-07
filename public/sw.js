@@ -48,7 +48,20 @@ self.addEventListener("activate", (event) => {
             .map((key) => caches.delete(key)),
         ),
       )
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(async () => {
+        try {
+          const clis = await self.clients.matchAll({
+            type: "window",
+            includeUncontrolled: true,
+          });
+          for (const client of clis) {
+            try {
+              client.postMessage({ type: "SW_ACTIVATED", version: SW_VERSION });
+            } catch {}
+          }
+        } catch {}
+      }),
   );
 });
 
@@ -511,6 +524,7 @@ try {
       if (explicit) return explicit;
       // Bill-specific
       if (d.billId) return `bill-${d.billId}`;
+      if (d.roomId) return `chat-${d.roomId}`;
       // Inventory grouping by category/product if available
       if (d.event === "inventory-updated") {
         if (d.categoryId) return `inv-cat-${d.categoryId}`;
@@ -720,78 +734,8 @@ try {
     } catch {}
     await self.registration.showNotification(title, options);
 
-    // Broadcast to any open clients so they can add to their in-app store
-    try {
-      const sendToClients = async (payload) => {
-        try {
-          const clis = await clients.matchAll({
-            type: "window",
-            includeUncontrolled: true,
-          });
-          for (const c of clis) {
-            try {
-              c.postMessage(payload);
-            } catch {}
-          }
-        } catch {}
-      };
-      if (bc) {
-        const appNotification = {
-          id:
-            data.id ||
-            `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: data.type || "system",
-          title,
-          body: options.body || "",
-          createdAt: new Date().toISOString(),
-          read: false,
-          meta: {
-            ...data,
-            eventType: data.type || "system.general",
-            type: data.type || "system.general",
-            route:
-              data.route || data.route_path || data.link
-                ? { pathname: data.route || data.route_path || data.link }
-                : undefined,
-          },
-        };
-        bc.postMessage({
-          type: "notification:received",
-          payload: appNotification,
-        });
-        // Persist so that if no client is listening, we can replay later
-        try {
-          await saveRecentNotification(appNotification);
-        } catch {}
-      } else {
-        const appNotification = {
-          id:
-            data.id ||
-            `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: data.type || "system",
-          title,
-          body: options.body || "",
-          createdAt: new Date().toISOString(),
-          read: false,
-          meta: {
-            ...data,
-            eventType: data.type || "system.general",
-            type: data.type || "system.general",
-            route:
-              data.route || data.route_path || data.link
-                ? { pathname: data.route || data.route_path || data.link }
-                : undefined,
-          },
-        };
-        await sendToClients({
-          type: "notification:received",
-          payload: appNotification,
-        });
-        try {
-          await saveRecentNotification(appNotification);
-        } catch {}
-      }
-    } catch {}
+    // Do not replay system notifications into the app. In-app notifications
+    // are produced by realtime/unread sync when the app is foregrounded.
   }
 
   async function processQueuedNotifications() {
@@ -849,52 +793,35 @@ try {
       );
       return;
     }
-    // From page: ask SW to replay any recent shown notifications and then clear them
-    if (event && event.data && event.data === "REQUEST_RECENT_NOTIFICATIONS") {
+    if (event && event.data && event.data.type === "CLEAR_NOTIFICATIONS") {
       event.waitUntil(
         (async () => {
-          try {
-            const items = await getAllRecentNotifications();
-            const sendToClients = async (payload) => {
-              try {
-                const clis = await clients.matchAll({
-                  type: "window",
-                  includeUncontrolled: true,
-                });
-                for (const c of clis) {
-                  try {
-                    c.postMessage(payload);
-                  } catch {}
-                }
-              } catch {}
-            };
-            if (items && items.length) {
-              if (bc) {
-                for (const item of items) {
-                  if (item && item.payload) {
-                    try {
-                      bc.postMessage({
-                        type: "notification:received",
-                        payload: item.payload,
-                      });
-                    } catch {}
-                  }
-                }
-              } else {
-                for (const item of items) {
-                  if (item && item.payload) {
-                    await sendToClients({
-                      type: "notification:received",
-                      payload: item.payload,
-                    });
-                  }
-                }
-              }
-              await clearAllRecentNotifications();
-            }
-          } catch {}
+          const filter = event.data.filter || {};
+          const all = await self.registration.getNotifications();
+          for (const notification of all) {
+            const data = (notification && notification.data) || {};
+            const tag = notification.tag || data.tag || "";
+            const matches =
+              !filter ||
+              (!filter.roomId && !filter.tag && !filter.id) ||
+              (filter.roomId && String(data.roomId || "").trim() === String(filter.roomId)) ||
+              (filter.tag && String(tag) === String(filter.tag)) ||
+              (filter.id && String(data.id || data.notificationId || data.messageId || tag || "") === String(filter.id));
+            if (matches) notification.close();
+          }
         })(),
       );
+      return;
+    }
+    if (event && event.data && event.data.type === "CLEAR_RECENT_NOTIFICATIONS") {
+      event.waitUntil(clearAllRecentNotifications());
+      return;
+    }
+    // Legacy request intentionally clears only. Old FCM notifications are not
+    // replayed into the foreground app.
+    if (event && event.data && event.data === "REQUEST_RECENT_NOTIFICATIONS") {
+      event.waitUntil(clearAllRecentNotifications());
+      return;
     }
     // Update device-local paused state
     if (event && event.data && event.data.type === "NOTIFICATIONS_SET_PAUSED") {
@@ -950,6 +877,7 @@ try {
   self.addEventListener("notificationclick", (event) => {
     event.notification.close();
     const notifData = (event.notification && event.notification.data) || {};
+    const clickedTag = event.notification.tag || notifData.tag || "";
     const action = event.action;
     if (action === "dismiss") {
       return; // do nothing
@@ -977,10 +905,35 @@ try {
 
     event.waitUntil(
       (async () => {
+        try {
+          const all = await self.registration.getNotifications();
+          for (const notification of all) {
+            const data = (notification && notification.data) || {};
+            if (
+              (clickedTag && notification.tag === clickedTag) ||
+              (notifData.roomId && data.roomId === notifData.roomId) ||
+              (notifData.billId && data.billId === notifData.billId)
+            ) {
+              notification.close();
+            }
+          }
+        } catch {}
         const allClients = await clients.matchAll({
           type: "window",
           includeUncontrolled: true,
         });
+        const handledPayload = {
+          id: notifData.id || notifData.notificationId || notifData.messageId || clickedTag,
+          notificationId: notifData.id || notifData.notificationId,
+          messageId: notifData.messageId,
+          roomId: notifData.roomId,
+          tag: clickedTag,
+          link: url,
+        };
+        try {
+          if (bc) bc.postMessage({ type: "notification:clicked", payload: handledPayload });
+          for (const c of allClients) c.postMessage({ type: "notification:clicked", payload: handledPayload });
+        } catch {}
         const sameOrigin = allClients.find(
           (c) => "url" in c && c.url && c.url.startsWith(self.location.origin),
         );

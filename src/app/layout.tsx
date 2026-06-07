@@ -12,6 +12,7 @@ import OfflineWarning from "../components/pwa/offline-warning";
 import AuthPrehydrate from "../components/providers/auth-prehydrate";
 import AuthRoleSync from "../components/providers/auth-role-sync";
 import BackgroundFeaturesGate from "../components/providers/background-features-gate";
+import ServiceWorkerUpdatePrompt from "@/components/providers/service-worker-update-prompt";
 
 import "./globals.css";
 import RouteProgress from "../components/ui/route-progress";
@@ -139,6 +140,7 @@ export default function RootLayout({
         <DataProvider>
           <SanityRealtimeProvider>
             {children}
+            <ServiceWorkerUpdatePrompt />
             <AuthBackgroundGate>
               <BackgroundFeaturesGate />
               {/* <PWAInstaller /> */}

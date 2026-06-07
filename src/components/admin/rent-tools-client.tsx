@@ -16,6 +16,7 @@ import { sendViaWaBot } from "@/lib/wa-bot-send";
 import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { useAuthStore } from "@/store/auth-store";
 import {
   Clock,
   User,
@@ -111,6 +112,7 @@ function overdueReminderMessage(r: ToolRental) {
 
 export default function AdminRentToolsClient() {
   const router = useRouter();
+  const authUser = useAuthStore((state) => state.user) as { id?: string; _id?: string } | null;
   const [tools, setTools] = useState<any[]>([]);
   const [rentals, setRentals] = useState<ToolRental[]>([]);
   const [loading, setLoading] = useState(true);
@@ -248,6 +250,25 @@ export default function AdminRentToolsClient() {
         message: overdueReminderMessage(r),
       });
       if (!res.ok) throw new Error(res.error || "Failed to send reminder");
+      fetch("/api/notifications/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: `toolRent.returnDue.${r._id}.customer.${Date.now()}`,
+          eventType: "toolRent.returnDue",
+          actorUserId: authUser?.id || authUser?._id || undefined,
+          userIds: [r.customerRefId || r.customerId].filter(Boolean),
+          title: "Tool return reminder",
+          body: `${r.toolName} return is overdue. Please return it as soon as possible.`,
+          data: {
+            rentalId: r._id,
+            toolName: r.toolName,
+            customerId: r.customerRefId || r.customerId,
+            route: "/customer/rented-items",
+            route_path: "/customer/rented-items",
+          },
+        }),
+      }).catch(() => {});
       toast.success("Reminder sent on WhatsApp");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to send reminder");

@@ -71,9 +71,11 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
     if (!enabled) return;
     const authStorage = getShopAuthHeader();
     if (!authStorage) return;
+    const shouldConnect = () =>
+      typeof document === "undefined" || document.visibilityState === "visible";
 
     const nextSocket: ShopChatSocket = io(`${SHOP_CHAT_URL}/chat`, {
-      autoConnect: true,
+      autoConnect: shouldConnect(),
       auth: { authStorage: toBase64Url(authStorage) },
       transports: ["websocket"],
       reconnection: true,
@@ -89,7 +91,28 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
     nextSocket.on("disconnect", () => setConnected(false));
 
     setSocket(nextSocket);
+    const goOffline = () => {
+      if (nextSocket.connected || nextSocket.active) nextSocket.disconnect();
+    };
+    const goOnline = () => {
+      if (shouldConnect() && !nextSocket.connected) nextSocket.connect();
+    };
+    const onVisibilityChange = () => {
+      if (shouldConnect()) goOnline();
+      else goOffline();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", goOffline);
+    window.addEventListener("pageshow", goOnline);
+    window.addEventListener("focus", goOnline);
+    document.addEventListener("freeze", goOffline);
     return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", goOffline);
+      window.removeEventListener("pageshow", goOnline);
+      window.removeEventListener("focus", goOnline);
+      document.removeEventListener("freeze", goOffline);
       nextSocket.disconnect();
       setConnected(false);
       setSocket(null);

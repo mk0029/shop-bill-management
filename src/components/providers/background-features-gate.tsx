@@ -44,5 +44,9 @@ export default function BackgroundFeaturesGate() {
     );
   }
 
-  return <DeviceSessionWatcher />;
+  return (
+    <>
+      <DeviceSessionWatcher />
+    </>
+  );
 }

@@ -30,7 +30,10 @@ export default function AutoNotifications() {
       // 1) Register the Firebase Messaging Service Worker
       if ("serviceWorker" in navigator) {
         try {
-          await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+          const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+            updateViaCache: "none",
+          });
+          await registration.update().catch(() => undefined);
           // Clean up legacy/duplicate workers that can cause double notifications
           try {
             const regs = await navigator.serviceWorker.getRegistrations();

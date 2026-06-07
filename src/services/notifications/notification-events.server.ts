@@ -92,10 +92,18 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
       };
     }
 
-    const targetUserIds = unique([input.userId, ...(input.userIds || [])]).filter((id) => {
+    const requestedTargetUserIds = unique([input.userId, ...(input.userIds || [])]);
+    const targetUserIds = requestedTargetUserIds.filter((id) => {
       if (!input.skipActor) return true;
       return id !== input.actorUserId;
     });
+    if (requestedTargetUserIds.length && !targetUserIds.length) {
+      return {
+        ok: true,
+        targetUserIds: [],
+        send: { success: true, sent: 0, failed: 0 },
+      };
+    }
     const eventId = eventIdFor(input);
     const persisted = await persistNotification(input, targetUserIds, eventId);
     if ("conflict" in persisted && persisted.conflict) {
@@ -148,6 +156,16 @@ export async function getActiveAdminUserIds() {
     `*[_type=="user" && role in ["admin","super_admin","technician"] && isActive != false]._id`,
   );
   return unique(ids || []);
+}
+
+export async function filterUserIdsByRole(userIds: string[], roles: string[]) {
+  const ids = unique(userIds);
+  if (!ids.length || !roles.length) return [];
+  const result = await sanityClient.fetch<string[]>(
+    `*[_type=="user" && _id in $ids && role in $roles && isActive != false]._id`,
+    { ids, roles },
+  );
+  return unique(result || []);
 }
 
 export async function sendNotificationToAdmins(input: Omit<SendNotificationEventInput, "userIds" | "userId">) {

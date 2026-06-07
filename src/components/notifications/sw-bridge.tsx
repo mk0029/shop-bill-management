@@ -4,6 +4,14 @@ import { useEffect } from "react";
 import { useNotificationStore, type AppNotification } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import {
+  clearAppSystemNotifications,
+  markNotificationHandled,
+  notificationIdentity,
+  wasNotificationHandled,
+  getActiveChatId,
+  postNotificationWorkerMessage,
+} from "@/lib/notifications/dedupe";
+import {
   isCustomerNotificationVisible,
   mapPushNotificationToAppNotification,
 } from "@/lib/notifications/customer";
@@ -26,26 +34,49 @@ export default function SWNotificationBridge() {
       });
     };
 
-    // Helper to ask the active SW to replay any recent notifications it stored
-    const requestRecent = async () => {
+    let bc: BroadcastChannel | null = null;
+    const handleWorkerMessage = (data: unknown) => {
       try {
-        if (typeof navigator === 'undefined' || !("serviceWorker" in navigator)) return;
-        const reg = await navigator.serviceWorker.getRegistration();
-        const sw = reg?.active || navigator.serviceWorker.controller;
-        if (sw) sw.postMessage('REQUEST_RECENT_NOTIFICATIONS');
+        const msg = data as { type?: string; payload?: Record<string, unknown> };
+        if (!msg || typeof msg !== "object") return;
+        if (msg.type === "notification:clicked" && msg.payload) {
+          const id = notificationIdentity(msg.payload);
+          markNotificationHandled(id);
+          if (msg.payload.messageId) markNotificationHandled(msg.payload.messageId);
+        }
       } catch {}
     };
-
-    let bc: BroadcastChannel | null = null;
     try {
       bc = new BroadcastChannel("app-notifications");
       bc.onmessage = (ev: MessageEvent) => {
         try {
           const msg = ev?.data;
           if (!msg || typeof msg !== "object") return;
+          if (msg.type === "notification:clicked" && msg.payload) {
+            const payload = msg.payload as Record<string, unknown>;
+            const id = notificationIdentity(payload);
+            markNotificationHandled(id);
+            if (payload.messageId) markNotificationHandled(payload.messageId);
+            return;
+          }
           if (msg.type === "notification:received" && msg.payload) {
             const p = mapPushNotificationToAppNotification(msg.payload as AppNotification);
             if (!p) return;
+            const meta = p.meta || {};
+            const id = notificationIdentity({
+              id: p.id,
+              notificationId: meta.id || meta.notificationId,
+              messageId: meta.messageId,
+              roomId: meta.roomId,
+              tag: meta.tag,
+            });
+            if (wasNotificationHandled(id) || wasNotificationHandled(meta.messageId)) return;
+            if (meta.type === "shop_chat" && meta.roomId && getActiveChatId() === String(meta.roomId)) {
+              markNotificationHandled(id);
+              if (meta.messageId) markNotificationHandled(meta.messageId);
+              clearAppSystemNotifications({ roomId: String(meta.roomId) });
+              return;
+            }
             
             // Filter notifications based on user role and ownership
             if (!shouldReceiveNotification(p)) {
@@ -68,20 +99,25 @@ export default function SWNotificationBridge() {
       // BroadcastChannel not supported; nothing to do.
     }
 
-    // Request any notifications received while app was backgrounded
-    void requestRecent();
+    clearAppSystemNotifications();
 
-    // Re-request when tab becomes visible (e.g., returning from background)
     const onVis = () => {
-      if (document.visibilityState === 'visible') void requestRecent();
+      if (document.visibilityState === 'visible') clearAppSystemNotifications();
     };
+    const onFocus = () => clearAppSystemNotifications();
+    const onMessage = (event: MessageEvent) => handleWorkerMessage(event.data);
     document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onFocus);
+    navigator.serviceWorker?.addEventListener?.('message', onMessage);
+    void postNotificationWorkerMessage({ type: "CLEAR_RECENT_NOTIFICATIONS" });
 
     return () => {
       try {
         if (bc) bc.close();
       } catch {}
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onFocus);
+      navigator.serviceWorker?.removeEventListener?.('message', onMessage);
     };
   }, [add]);
 

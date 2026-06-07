@@ -172,6 +172,41 @@ async function createCashBookCreditEntry(args: {
   });
 }
 
+function notifyCustomerToolRent(args: {
+  eventId: string;
+  eventType: "toolRent.created" | "toolRent.updated";
+  actorUserId?: string;
+  customerUserId?: string;
+  title: string;
+  body: string;
+  rentalId: string;
+  toolName?: string;
+}) {
+  const customerUserId = String(args.customerUserId || "").trim();
+  if (!customerUserId) return;
+  fetch("/api/notifications/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      eventId: args.eventId,
+      eventType: args.eventType,
+      actorUserId: args.actorUserId || undefined,
+      userIds: [customerUserId],
+      title: args.title,
+      body: args.body,
+      data: {
+        rentalId: args.rentalId,
+        toolName: args.toolName || "",
+        customerId: customerUserId,
+        route: "/customer/rented-items",
+        route_path: "/customer/rented-items",
+      },
+    }),
+  }).catch((error) => {
+    console.warn("[FCM] tool rent customer notification failed", error);
+  });
+}
+
 function generateRentalBillNumber() {
   const d = new Date();
   const y = d.getFullYear();
@@ -367,6 +402,16 @@ export const toolRentalService = {
       eventType: "toolRent.created",
       eventId: `toolRent.created.${rentalId}.admins`,
     });
+    notifyCustomerToolRent({
+      eventId: `toolRent.created.${rentalId}.customer.${input.customer._id}`,
+      eventType: "toolRent.created",
+      actorUserId: input.createdBy || getActorUserIdFromAuthCookie(),
+      customerUserId: input.customer._id,
+      title: "Tool rental created",
+      body: `You rented ${input.tool.toolName}. Return due: ${formatDateTime(expectedReturnTime)}`,
+      rentalId,
+      toolName: input.tool.toolName,
+    });
 
     if (rental) {
       const actorUserId = getActorUserIdFromAuthCookie() || String(rental.createdBy || "");
@@ -447,6 +492,16 @@ export const toolRentalService = {
       data: { route_path: "/admin/rent-tools", rentalId },
       eventType: "toolRent.updated",
       eventId: `toolRent.updated.${rentalId}.duration`,
+    });
+    notifyCustomerToolRent({
+      eventId: `toolRent.updated.${rentalId}.customer.duration`,
+      eventType: "toolRent.updated",
+      actorUserId: getActorUserIdFromAuthCookie() || String(rental.createdBy || ""),
+      customerUserId: rental.customerRefId || rental.customerId,
+      title: "Tool rental updated",
+      body: `${rental.toolName} rental duration updated. New return due: ${formatDateTime(expectedReturnTime)}`,
+      rentalId,
+      toolName: rental.toolName,
     });
 
     return updated;
@@ -545,6 +600,16 @@ export const toolRentalService = {
       eventType: "toolRent.updated",
       eventId: `toolRent.updated.${rental._id}.returned`,
     });
+    notifyCustomerToolRent({
+      eventId: `toolRent.updated.${rental._id}.customer.returned`,
+      eventType: "toolRent.updated",
+      actorUserId,
+      customerUserId: rental.customerRefId || rental.customerId,
+      title: "Tool returned",
+      body: `${rental.toolName} returned. Final total: Rs ${finalTotal.toFixed(2)}.`,
+      rentalId: rental._id,
+      toolName: rental.toolName,
+    });
 
     return { overdueUnits, extraChargeAmount, finalTotal, paymentStatus };
   },
@@ -596,6 +661,16 @@ export const toolRentalService = {
         eventType: "toolRent.updated",
         eventId: `toolRent.updated.${rentalId}.payment.${normalizedPaid}`,
       });
+      notifyCustomerToolRent({
+        eventId: `toolRent.updated.${rentalId}.customer.payment.${normalizedPaid}`,
+        eventType: "toolRent.updated",
+        actorUserId,
+        customerUserId: rental.customerRefId || rental.customerId,
+        title: "Tool rental payment updated",
+        body: `${rental.toolName} payment status: ${paymentStatus}. Paid: Rs ${normalizedPaid}.`,
+        rentalId,
+        toolName: rental.toolName,
+      });
     }
     return updated;
   },
@@ -624,6 +699,16 @@ export const toolRentalService = {
       data: { route_path: "/admin/rent-tools", rentalId },
       eventType: "toolRent.updated",
       eventId: `toolRent.updated.${rentalId}.deleted`,
+    });
+    notifyCustomerToolRent({
+      eventId: `toolRent.updated.${rentalId}.customer.deleted`,
+      eventType: "toolRent.updated",
+      actorUserId: getActorUserIdFromAuthCookie() || String(rental.createdBy || ""),
+      customerUserId: rental.customerRefId || rental.customerId,
+      title: "Tool rental removed",
+      body: `${rental.toolName} rental was removed.`,
+      rentalId,
+      toolName: rental.toolName,
     });
 
     return { success: true };

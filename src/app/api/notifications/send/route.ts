@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notificationService } from '@/lib/notification-service'
-import { sendNotificationEvent, getActiveAdminUserIds } from '@/services/notifications/notification-events.server'
+import {
+  filterUserIdsByRole,
+  getActiveAdminUserIds,
+  sendNotificationEvent,
+} from '@/services/notifications/notification-events.server'
 import type { NotificationEventType } from '@/types/notifications'
 
 function corsHeaders(req: NextRequest): Record<string, string> {
@@ -73,12 +77,16 @@ export async function POST(req: NextRequest) {
         : undefined
     const directUserIds: string[] = Array.isArray(body.userIds) ? body.userIds.map(String).filter(Boolean) : []
 
+    const eventTargetUserIds = eventType === 'billing.created' || eventType === 'billing.updated'
+      ? await filterUserIdsByRole(directUserIds, ['customer'])
+      : directUserIds
+
     if (eventType.includes('.') && directUserIds.length) {
       const result = await sendNotificationEvent({
         eventId,
         type: eventType,
         actorUserId: resolvedActorUserId,
-        userIds: directUserIds,
+        userIds: eventTargetUserIds,
         title: String(body.title),
         body: String(body.body),
         data: dataObj,

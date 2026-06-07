@@ -46,6 +46,7 @@ export default function SessionRealtimeBridge() {
         authStorage: toBase64Url(authStorage),
         deviceId: deviceInfo.deviceId,
         deviceName: deviceInfo.deviceName,
+        presence: false,
       },
       transports: ["websocket"],
       reconnection: true,
