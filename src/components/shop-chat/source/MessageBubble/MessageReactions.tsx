@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { reactToShopChatMessage } from "@/lib/shop-chat/api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Message } from "@/lib/types";
+import { safeUserName } from "@/lib/display-text";
 
 interface MessageReactionsProps {
   message: Message;
@@ -59,7 +60,7 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({ message, isCurrentU
           ...previous.filter((reaction) => String(reaction.userId) !== myUserId),
           {
             userId: myUserId,
-            userName: String(user?.name || user?.email || "You"),
+            userName: safeUserName(user?.name || user?.email, "You"),
             emoji: nextEmoji,
             timestamp: new Date().toISOString(),
           },
@@ -164,7 +165,7 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({ message, isCurrentU
               <div className="max-h-28 space-y-1 overflow-y-auto border-t border-gray-700/70 pt-2 text-xs text-gray-200">
                 {localReactions.map((reaction, index) => (
                   <div key={`${reaction.userId}-${index}`} className="flex items-center justify-between rounded px-2 py-1 hover:bg-gray-700/60">
-                    <span className="truncate">{reaction.userName || reaction.userId}</span>
+                    <span className="truncate">{safeUserName(reaction.userName || reaction.userId)}</span>
                     <span>{reaction.emoji}</span>
                   </div>
                 ))}

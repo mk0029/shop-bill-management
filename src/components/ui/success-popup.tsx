@@ -14,6 +14,7 @@ import {
   FileText,
 } from "lucide-react";
 import { generateEnhancedProductName } from "@/lib/product-naming";
+import { safeUserName } from "@/lib/display-text";
 
 export interface SuccessPopupData {
   title: string;
@@ -246,7 +247,7 @@ export const createCustomerSuccessPopup = (
   details: [
     {
       label: "Customer Name",
-      value: customerData.name,
+      value: safeUserName(customerData.name, "Customer"),
     },
     {
       label: "Phone Number",
@@ -358,7 +359,7 @@ export const createBillSuccessPopup = (
     },
     {
       label: "Customer",
-      value: billData.customerName,
+      value: safeUserName(billData.customerName, "Customer"),
     },
     {
       label: "Total Amount",

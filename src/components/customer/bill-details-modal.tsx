@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { BillPaymentSection } from "./bill-payment-section";
+import { safeUserName } from "@/lib/display-text";
 
 type SanityBill = any;
 
@@ -82,7 +83,7 @@ export function BillDetailsModal({
             </h4>
             <div className="flex items-center gap-2">
               <p className="text-white">
-                Technician: {selectedBill.technician.name}
+                Technician: {safeUserName(selectedBill.technician.name, "Technician")}
                 {selectedBill.technician?.phone && (
                   <>
                     &nbsp; | &nbsp;

@@ -9,6 +9,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
+import { safeUserName } from "@/lib/display-text";
 import Portal from "@/lib/ui/Portal";
 
 type GalleryItem = {
@@ -108,7 +109,7 @@ const MediaGalleryViewer: React.FC<MediaGalleryViewerProps> = ({
               <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-3 md:px-6">
                 <div className="pointer-events-auto rounded-xl bg-white/10 px-3 py-2 backdrop-blur-sm">
                   <div className="max-w-[46vw] truncate text-sm font-semibold text-slate-100 md:text-base">
-                    {current.senderName}
+                    {safeUserName(current.senderName)}
                   </div>
                   <div className="max-w-[46vw] truncate text-xs text-slate-300/80 md:text-sm">
                     {formattedTime}

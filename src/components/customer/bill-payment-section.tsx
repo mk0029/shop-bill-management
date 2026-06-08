@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { safeUserName } from "@/lib/display-text";
 
 type SanityBill = any;
 
@@ -158,7 +159,7 @@ export function BillPaymentSection({ selectedBill }: BillPaymentSectionProps) {
           },
           modal: { ondismiss: () => {} },
           prefill: {
-            name: b?.customer?.name || "",
+            name: safeUserName(b?.customer?.name, ""),
             email: b?.customer?.email || "",
             contact: b?.customer?.phone || "",
           },

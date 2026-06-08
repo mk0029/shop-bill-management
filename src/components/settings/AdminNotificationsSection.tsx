@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useSettingsStore } from "@/store/settings-store";
+import ScheduledNotificationPreferences from "@/components/notifications/ScheduledNotificationPreferences";
+import { useAuthStore } from "@/store/auth-store";
 
 export default function AdminNotificationsSection() {
   const showInAppNotifications = useSettingsStore((s) => s.showInAppNotifications);
@@ -12,6 +14,7 @@ export default function AdminNotificationsSection() {
   const playSoundOnNotification = useSettingsStore((s) => s.playSoundOnNotification);
   const pauseIncomingNotifications = useSettingsStore((s) => s.pauseIncomingNotifications);
   const setDefaults = useSettingsStore((s) => s.setDefaults);
+  const role = useAuthStore((s) => s.role);
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
@@ -64,6 +67,13 @@ export default function AdminNotificationsSection() {
               checked={!!playSoundOnNotification}
               onCheckedChange={(v) => setDefaults({ playSoundOnNotification: !!v })}
             />
+          </div>
+          <div className="space-y-3 rounded-md border border-gray-800 bg-gray-900/60 p-3">
+            <div>
+              <div className="text-gray-200 font-medium">Scheduled greetings</div>
+              <div className="text-gray-400">Daily and festival greetings keep the FCM channel active without spamming users.</div>
+            </div>
+            <ScheduledNotificationPreferences role={role} />
           </div>
         </div>
       </CardContent>

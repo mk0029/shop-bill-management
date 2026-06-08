@@ -2,6 +2,7 @@
 import { BillDetailModal as BaseBillDetailModal } from "@/components/ui/bill-detail-modal";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { safeUserName } from "@/lib/display-text";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -108,7 +109,7 @@ export const BillDetailModal = ({
         },
         modal: { ondismiss: () => {} },
         prefill: {
-          name: b?.customer?.name || "",
+          name: safeUserName(b?.customer?.name, ""),
           email: b?.customer?.email || "",
           contact: b?.customer?.phone || "",
         },

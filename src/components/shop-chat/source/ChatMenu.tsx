@@ -1,6 +1,7 @@
 ﻿import React, { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckSquare, ImageIcon, Info, Save, Search, Share2, Trash2, X } from "lucide-react";
+import { safeInitial, safeUserName } from "@/lib/display-text";
 import Portal from "@/lib/ui/Portal";
 import SmartPopup from "@/lib/ui/SmartPopup";
 
@@ -84,6 +85,7 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
   const [avatarErrored, setAvatarErrored] = useState(false);
   const status = statusText({ peerOnline, peerTyping, peerLastSeen, statusLabel });
   const members = groupInfo?.members || [];
+  const displayPeerName = safeUserName(peerName, isGroup ? "Group" : "User");
   const closeInfo = () => {
     setDetailsOpen(false);
     onClose();
@@ -107,14 +109,14 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
         return `${item.label}: ${item.value || "-"}${fields}`;
       })
       .join("\n");
-    downloadText(`${peerName || "chat"}-details.txt`, `${peerName || peerId}\n${status}\n\n${detailsText}`);
+    downloadText(`${displayPeerName}-details.txt`, `${displayPeerName || peerId}\n${status}\n\n${detailsText}`);
     onClose();
   };
 
   const shareChat = async () => {
-    const text = `${peerName || peerId}\n${status}`;
+    const text = `${displayPeerName || peerId}\n${status}`;
     try {
-      if (navigator.share) await navigator.share({ title: peerName || "Chat", text });
+      if (navigator.share) await navigator.share({ title: displayPeerName || "Chat", text });
       else await navigator.clipboard.writeText(text);
     } catch {}
     onClose();
@@ -153,21 +155,21 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
             </button>
             <div className="flex flex-col items-center gap-1.5 text-center">
               <div className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-emerald-700/60 text-xl font-semibold text-white ring-2 ring-emerald-500/40">
-                {String(peerName || "U").charAt(0).toUpperCase()}
+                {safeInitial(peerName)}
                 {peerAvatar && !avatarErrored && (
                   <img
                     src={peerAvatar}
-                    alt={peerName || "User"}
+                    alt={displayPeerName}
                     className="absolute inset-0 h-16 w-16 rounded-full object-cover"
                     onError={() => setAvatarErrored(true)}
                   />
                 )}
               </div>
-              <div className="max-w-full truncate text-lg font-semibold">{peerName || "User"}</div>
+              <div className="max-w-full truncate text-lg font-semibold">{displayPeerName}</div>
               <div className="max-w-full truncate text-xs text-gray-300">{status}</div>
             {isGroup && (
               <div className="max-w-[90%] truncate text-[11px] text-gray-300">
-                  {members.map((member) => member.userName || member.userId).filter(Boolean).join(", ") || "Members list unavailable"}
+                  {members.map((member) => safeUserName(member.userName || member.userId, "Member")).filter(Boolean).join(", ") || "Members list unavailable"}
                 </div>
               )}
             </div>

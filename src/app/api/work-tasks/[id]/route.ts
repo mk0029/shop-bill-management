@@ -409,7 +409,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       priority: String(existing?.priority || "medium"),
       issueCategory: String(existing?.issueCategory || "other"),
       dueAt: String(existing?.dueAt || ""),
-      assignedTechnicianName: String(existing?.assignedTechnicianName || existing?.assignedTechnician?.name || ""),
+      assignedTechnicianName: sanitizeUserText(String(existing?.assignedTechnicianName || existing?.assignedTechnician?.name || "")).trim(),
       action: "deleted",
       createdAt: String(existing?.createdAt || ""),
       updatedAt: new Date().toISOString(),
@@ -422,7 +422,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await sendCustomerWorkUpdate({
       customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
       taskTitle: existing?.title || "Work",
-      technicianName: existing?.assignedTechnicianName || existing?.assignedTechnician?.name || "Technician",
+      technicianName: sanitizeUserText(String(existing?.assignedTechnicianName || existing?.assignedTechnician?.name || "")).trim() || "Technician",
       type: "deleted",
     });
   } catch {
@@ -433,7 +433,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     id,
     "workTask.cancelled",
     "Work task deleted",
-    `Work task deleted: ${existing.title}. Technician: ${existing?.assignedTechnician?.name || "Technician"}.`,
+    `Work task deleted: ${existing.title}. Technician: ${sanitizeUserText(String(existing?.assignedTechnician?.name || "")).trim() || "Technician"}.`,
     "deleted",
   );
   if (customerRefId) {

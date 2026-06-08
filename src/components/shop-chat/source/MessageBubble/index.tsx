@@ -17,6 +17,7 @@ import MessageReactions from "./reactionsPicker";
 import LinkPreviewCard from "@/components/LinkPreviewCard";
 import SmartPopup from "@/lib/ui/SmartPopup";
 import { decodeTransportText, mediaReplyLabel } from "@/lib/messageCodec";
+import { safeUserName } from "@/lib/display-text";
 
 interface MessageBubbleProps {
   message: Message;
@@ -56,6 +57,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const router = useRouter();
   const user = useAuthStore((state) => state.user as any);
   const isCurrentUser = String(user?.id || user?._id || "") === String(message.senderId);
+  const senderRole = String(message.senderRole || "");
+  const isSupportSender = senderRole === "admin" || senderRole === "super_admin" || senderRole === "technician";
+  const supportSenderName = safeUserName(message.senderName, senderRole === "technician" ? "Technician" : "Support");
+  const supportFirstName = supportSenderName.split(/\s+/)[0] || supportSenderName;
+  const showSupportBadge = isSupportSender && !isCurrentUser && message.messageKind !== "system";
   const time = new Date(message.timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -320,7 +326,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       ? message.systemEventData
       : null;
   const isCustomerViewer = String(user?.role || "") === "customer";
-  const billOwnerName = String(billEventData?.customerName || "").trim();
+  const billOwnerName = safeUserName(billEventData?.customerName, "Customer");
   const billSubject = isCustomerViewer ? "Your bill" : `${billOwnerName || "Customer"}'s bill`;
   const openBillEvent = () => {
     const rawBillId = String(billEventData?.billId || "").trim();
@@ -379,6 +385,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           }
         }}
       >
+        {showSupportBadge && (
+          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-300">
+            <span className="max-w-[7rem] truncate normal-case tracking-normal text-slate-200">{supportFirstName}</span>
+            <span className="rounded-full border border-sky-300/30 bg-sky-400/12 px-1.5 py-0.5 text-[9px] leading-none text-sky-100">
+              Support
+            </span>
+          </div>
+        )}
         <AnimatePresence>
           {isDeletedForEveryone && message.wipePulseAt && (
             <motion.div
@@ -486,7 +500,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </div>
               ) : null}
               {workTaskEventData.assignedTechnicianName ? (
-                <div>Technician: {String(workTaskEventData.assignedTechnicianName)}</div>
+                <div>Technician: {safeUserName(workTaskEventData.assignedTechnicianName, "Technician")}</div>
               ) : null}
             </div>
             <div className="mt-1 text-xs font-medium text-sky-200">For more detail click here</div>
@@ -513,7 +527,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               const msgSenderId = String(message.senderId);
               const replyingToSelf =
                 replySenderId && replySenderId === msgSenderId;
-              let who = message.replyTo?.senderName || replySenderId;
+              let who = safeUserName(message.replyTo?.senderName || replySenderId);
               if (replySenderId) {
                 if (replySenderId === meId) {
                   who = isCurrentUser ? "yourself" : "you";

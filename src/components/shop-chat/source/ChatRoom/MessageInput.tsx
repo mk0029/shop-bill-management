@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import AttachmentPicker from "./AttachmentPicker";
 import VoiceRecorder from "./VoiceRecorder";
 import CameraCaptureButton from "./CameraCaptureButton";
+import { safeUserName } from "@/lib/display-text";
 
 interface MessageInputProps {
   onSendMessage: (content: string) => Promise<void>;
@@ -229,14 +230,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
     if (!content || isSending || disabled) return;
 
     setIsSending(true);
+    setMessage("");
+    if (onTypingRef.current) {
+      onTypingRef.current({ active: false, kind: "text" });
+      lastTypingSentRef.current = false;
+      typingPingAtRef.current = 0;
+    }
     try {
       await onSendMessage(content);
-      setMessage("");
-      if (onTypingRef.current) {
-        onTypingRef.current({ active: false, kind: "text" });
-        lastTypingSentRef.current = false;
-        typingPingAtRef.current = 0;
-      }
       if (allowAutoFocusRef.current) {
         focusComposerInput();
         setTimeout(() => {
@@ -244,6 +245,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         }, 30);
       }
     } catch (error) {
+      setMessage(content);
       console.error("Failed to send message:", error);
     } finally {
       setIsSending(false);
@@ -322,7 +324,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 <div className="mb-1 text-xs text-emerald-300">
                   {editingMessage
                     ? "Editing message"
-                    : `Replying to ${replyTo?.senderName || "message"}`}
+                    : `Replying to ${safeUserName(replyTo?.senderName, "message")}`}
                 </div>
                 <div className="truncate text-sm text-slate-200">
                   {editingMessage ? editingMessage.content : replyTo?.text}

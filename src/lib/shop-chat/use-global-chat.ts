@@ -12,6 +12,7 @@ import {
   markNotificationHandled,
   wasNotificationHandled,
 } from "@/lib/notifications/dedupe";
+import { safeUserName } from "@/lib/display-text";
 
 function isSupportRole(role?: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -104,11 +105,12 @@ export function useGlobalShopChat(
         if (wasNotificationHandled(last.messageId) || wasNotificationHandled(chatNotificationId(last.messageId))) return;
         if (notifiedMessageIdsRef.current.has(last.messageId)) return;
         notifiedMessageIdsRef.current.add(last.messageId);
+        const senderName = safeUserName(last.senderName, "Someone");
 
         useNotificationStore.getState().add({
           id: chatNotificationId(last.messageId),
           type: "chat",
-          title: `${last.senderName || "Someone"} sent ${messageTypePhrase(last.type)}`,
+          title: `${senderName} sent ${messageTypePhrase(last.type)}`,
           body: messagePreview(last),
           createdAt: last.createdAt,
           meta: {
@@ -116,7 +118,7 @@ export function useGlobalShopChat(
             roomId: room.roomId,
             messageId: last.messageId,
             messageType: last.type,
-            senderName: last.senderName,
+            senderName,
             userId: role === "customer" ? userId : room.customerId,
             route: {
               pathname: chatPath,

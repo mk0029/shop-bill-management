@@ -215,9 +215,13 @@ export async function POST(req: NextRequest) {
           `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
           { id: String(body.customerRefId) },
         );
+        const safeCustomerName =
+          sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
+        const safeTechnicianName =
+          sanitizeUserText(String(tech?.name || "")).trim() || "Technician";
         await publishWorkTaskShopChatEvent(req, {
           customerId: String(body.customerRefId),
-          customerName: customer?.name || "",
+          customerName: safeCustomerName,
           taskId: String(created?._id || ""),
           title,
           description: String(body?.description || "").trim(),
@@ -225,7 +229,7 @@ export async function POST(req: NextRequest) {
           priority: String(doc.priority || "medium"),
           issueCategory: String(doc.issueCategory || "other"),
           dueAt,
-          assignedTechnicianName: tech?.name || "",
+          assignedTechnicianName: safeTechnicianName,
           action: "created",
           createdAt: now,
           updatedAt: now,
@@ -236,7 +240,7 @@ export async function POST(req: NextRequest) {
           actorUserId,
           userId: String(body.customerRefId),
           title: "Service task created",
-          body: `Your service task was created: ${title}. Technician: ${tech?.name || "Technician"}.`,
+          body: `Your service task was created: ${title}. Technician: ${safeTechnicianName}.`,
           data: {
             taskId: String(created?._id || ""),
             customerId: String(body.customerRefId),
@@ -248,10 +252,6 @@ export async function POST(req: NextRequest) {
         if (!customer?.phone) return;
         const requestDate = formatDayDate(now);
         const approachTime = formatApproachTime(dueAt, now);
-        const safeCustomerName =
-          sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
-        const safeTechnicianName =
-          sanitizeUserText(String(tech?.name || "")).trim() || "Technician";
         const msg = `✅ Service Request Registered
 
 Dear ${safeCustomerName},
@@ -274,7 +274,7 @@ Thank you for trusting Jambh Electrical Services ⚡`;
       taskId: String(created?._id || ""),
       actorUserId,
       title: "New work assigned",
-      body: `New work assigned: ${title}. Technician: ${tech.name || "Technician"}. Due: ${formatDayDateTime(dueAt)}.`,
+      body: `New work assigned: ${title}. Technician: ${sanitizeUserText(String(tech.name || "")).trim() || "Technician"}. Due: ${formatDayDateTime(dueAt)}.`,
       assignedTechnicianId,
       notifyAllTechnicians: true,
     }),
@@ -282,7 +282,7 @@ Thank you for trusting Jambh Electrical Services ⚡`;
   postCreateJobs.push(
     sendTechnicianTaskAssigned({
       technicianPhone: tech?.phone,
-      technicianName: tech?.name,
+      technicianName: sanitizeUserText(String(tech?.name || "")).trim() || "Technician",
       taskTitle: title,
       dueAt,
       priority: String(body?.priority || "medium"),

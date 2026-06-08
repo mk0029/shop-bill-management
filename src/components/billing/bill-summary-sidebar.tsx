@@ -11,6 +11,7 @@ import { Switch } from "@radix-ui/react-switch";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
+import { safeUserName } from "@/lib/display-text";
 
 interface BillSummarySidebarProps {
   selectedCustomer: any;
@@ -64,7 +65,7 @@ export const BillSummarySidebar = ({
         {selectedCustomer && (
           <div className="p-3 bg-gray-800 rounded-lg">
             <h4 className="font-medium text-white mb-2">Customer</h4>
-            <p className="text-gray-300">{selectedCustomer.name}</p>
+            <p className="text-gray-300">{safeUserName(selectedCustomer.name, "Customer")}</p>
             <p className="text-sm text-gray-400">{selectedCustomer.phone}</p>
             {selectedCustomer.email && (
               <p className="text-sm text-gray-400">{selectedCustomer.email}</p>

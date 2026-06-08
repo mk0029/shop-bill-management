@@ -9,6 +9,9 @@ export interface Message {
   id: string;
   content: string;
   senderId: string;
+  senderName?: string;
+  senderRole?: string;
+  senderAvatar?: string;
   timestamp: string;
   status?: "sending" | "pending" | "sent" | "delivered" | "read" | "failed";
   tempId?: string;

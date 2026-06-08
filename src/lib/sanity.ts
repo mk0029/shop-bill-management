@@ -208,6 +208,8 @@ export const queries = {
     email,
     phone,
     location,
+    profileImage,
+    "profileImageUrl": profileImage.asset->url,
     reminderLimit,
     dueReminderRepeatDays,
     allowDueReminder,

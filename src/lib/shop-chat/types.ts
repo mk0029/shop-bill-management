@@ -4,6 +4,9 @@ export type ShopChatParticipant = {
   userId: string;
   role: ShopChatRole;
   name: string;
+  avatar?: string | null;
+  profileImage?: string | null;
+  profileImageUrl?: string | null;
   email?: string | null;
   phone?: string | null;
 };
@@ -15,6 +18,9 @@ export type ShopChatLastMessage = {
   senderId: string;
   senderRole: ShopChatRole;
   senderName: string;
+  senderAvatar?: string | null;
+  senderProfileImage?: string | null;
+  senderProfileImageUrl?: string | null;
   createdAt: string;
 };
 
@@ -48,6 +54,9 @@ export type ShopChatMessage = {
   senderId: string;
   senderRole: ShopChatRole;
   senderName: string;
+  senderAvatar?: string | null;
+  senderProfileImage?: string | null;
+  senderProfileImageUrl?: string | null;
   status: "sending" | "sent" | "delivered" | "read" | "failed";
   deliveredTo: ShopChatReceipt[];
   readBy: ShopChatReceipt[];

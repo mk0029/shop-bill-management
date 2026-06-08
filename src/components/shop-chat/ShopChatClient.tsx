@@ -32,6 +32,7 @@ import {
   markNotificationHandled,
   setActiveChatId,
 } from "@/lib/notifications/dedupe";
+import { safeInitial, safeUserName } from "@/lib/display-text";
 
 type Mode = "admin" | "customer";
 
@@ -41,6 +42,9 @@ type ChatCustomer = {
   email?: string;
   phone?: string;
   location?: string;
+  avatar?: string;
+  profileImage?: string;
+  profileImageUrl?: string;
 };
 
 function supportRoleLabel(role?: string | null) {
@@ -186,12 +190,67 @@ function chatNotificationBody(text: string, type: ShopChatMessage["type"]) {
   return `Sent a ${type === "file" ? "file" : type}`;
 }
 
+function sanityAssetRefToImageUrl(ref: string) {
+  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "";
+  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || "";
+  if (!projectId || !dataset || !ref.startsWith("image-")) return "";
+  const parts = ref.replace(/^image-/, "").split("-");
+  const format = parts.pop();
+  const dimensions = parts.pop();
+  const id = parts.join("-");
+  if (!id || !dimensions || !format) return "";
+  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}-${dimensions}.${format}`;
+}
+
+function normalizeChatImage(input: unknown) {
+  if (!input) return "";
+  if (typeof input === "string") return sanityAssetRefToImageUrl(input) || input;
+  if (typeof input !== "object") return "";
+  const value = input as {
+    url?: unknown;
+    asset?: { url?: unknown; _ref?: unknown };
+    _ref?: unknown;
+  };
+  if (typeof value.url === "string") return value.url;
+  if (typeof value.asset?.url === "string") return value.asset.url;
+  if (typeof value.asset?._ref === "string") return sanityAssetRefToImageUrl(value.asset._ref);
+  if (typeof value._ref === "string") return sanityAssetRefToImageUrl(value._ref);
+  return "";
+}
+
+function imageFromProfileLike(input: unknown) {
+  const value = input as {
+    avatar?: unknown;
+    profileImage?: unknown;
+    profileImageUrl?: unknown;
+    image?: unknown;
+    photoURL?: unknown;
+    senderAvatar?: unknown;
+    senderProfileImage?: unknown;
+    senderProfileImageUrl?: unknown;
+  } | null;
+  const raw =
+    value?.avatar ||
+    value?.profileImageUrl ||
+    value?.profileImage ||
+    value?.image ||
+    value?.photoURL ||
+    value?.senderAvatar ||
+    value?.senderProfileImageUrl ||
+    value?.senderProfileImage ||
+    "";
+  return normalizeChatImage(raw);
+}
+
 function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
   return {
     id: message.messageId,
     tempId: message.clientMessageId || undefined,
     content: message.text,
     senderId: message.senderId,
+    senderName: safeUserName(message.senderName, message.senderRole === "customer" ? "Customer" : "Support"),
+    senderRole: message.senderRole,
+    senderAvatar: imageFromProfileLike(message),
     receiverId: undefined,
     groupId: message.roomId,
     timestamp: effectiveMessageTimestamp(message),
@@ -202,7 +261,7 @@ function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
           messageId: message.replyTo.messageId,
           text: message.replyTo.text,
           senderId: message.replyTo.senderId,
-          senderName: message.replyTo.senderName,
+          senderName: safeUserName(message.replyTo.senderName),
         }
       : null,
     editedAt: message.editedAt || undefined,
@@ -360,7 +419,8 @@ function RoomSidebar({
               <ChatItem
                 friend={{
                   _id: room.roomId,
-                  name: room.customerName,
+                  name: safeUserName(room.customerName, "Customer"),
+                  avatar: imageFromProfileLike(room.participants.find((participant) => participant.userId === room.customerId)),
                   online: onlineUserIds.has(room.customerId),
                   lastSeen: lastSeenByUser[room.customerId],
                   statusText: presenceText,
@@ -459,12 +519,12 @@ function ChatPanel({
         .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)),
     [messages],
   );
-  const headerName = mode === "customer" ? "Chat Support" : room?.customerName || "";
+  const headerName = mode === "customer" ? "Chat Support" : safeUserName(room?.customerName, "Customer");
   const detailItems = useMemo(() => {
     if (!room) return [];
     if (mode === "customer") {
       const adminDetails = (room.admins || []).map((admin, index) => ({
-        label: admin.name || `${supportRoleLabel(admin.role)} ${index + 1}`,
+        label: safeUserName(admin.name, `${supportRoleLabel(admin.role)} ${index + 1}`),
         value: supportRoleLabel(admin.role),
         tone: admin.role === "technician" ? "technician" as const : "admin" as const,
         fields: [
@@ -491,7 +551,7 @@ function ChatPanel({
         .map((message) => ({
           id: message.id,
           src: message.content,
-          senderName: message.senderId === room?.customerId ? room.customerName : "Admin",
+          senderName: safeUserName(message.senderName, message.senderId === room?.customerId ? "Customer" : "Support"),
           timestamp: message.timestamp,
         })),
     [room?.customerId, room?.customerName, sourceMessages],
@@ -509,7 +569,7 @@ function ChatPanel({
             messageId: replyTo.id,
             text: replyTo.content,
             senderId: replyTo.senderId,
-            senderName: replyTo.senderId === room?.customerId ? room.customerName : "Admin",
+            senderName: safeUserName(replyTo.senderName, replyTo.senderId === room?.customerId ? "Customer" : "Support"),
           }
         : null,
     });
@@ -527,7 +587,15 @@ function ChatPanel({
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#0b1220]">
       <ChatHeader
-        peer={{ id: room.customerId, name: headerName, online: peerOnline, lastSeen: peerLastSeen || undefined }}
+        peer={{
+          id: room.customerId,
+          name: headerName,
+          avatar: mode === "admin"
+            ? imageFromProfileLike(customerDetails || room.participants.find((participant) => participant.userId === room.customerId))
+            : imageFromProfileLike(room.admins[0]),
+          online: peerOnline,
+          lastSeen: peerLastSeen || undefined,
+        }}
         typingLabel={typingText}
         statusLabel={statusLabel}
         connected={connected}
@@ -543,7 +611,7 @@ function ChatPanel({
           activeMemberCount: room.participants.filter((participant) => participant.role === "customer" ? peerOnline : true).length,
           members: room.participants.map((participant) => ({
             userId: participant.userId,
-            userName: participant.name,
+            userName: safeUserName(participant.name, "Member"),
             role: participant.role,
             status: participant.role === "customer" ? (peerOnline ? "online" : formatLastSeen(peerLastSeen)) : "support",
           })),
@@ -575,7 +643,7 @@ function ChatPanel({
               ? {
                   messageId: replyTo.id,
                   text: replyTo.content,
-                  senderName: replyTo.senderId === room.customerId ? room.customerName : "Admin",
+                  senderName: safeUserName(replyTo.senderName, replyTo.senderId === room.customerId ? "Customer" : "Support"),
                 }
               : undefined
           }
@@ -1003,7 +1071,7 @@ export default function ShopChatClient({
     const userIds = Array.from(new Set(mode === "customer" ? supportTargets : customerTargets));
     if (!userIds.length && mode !== "customer") return;
 
-    const senderName = String(message.senderName || (user as any)?.name || (mode === "customer" ? "Customer" : "Support"));
+    const senderName = safeUserName(message.senderName || (user as any)?.name, mode === "customer" ? "Customer" : "Support");
     const route = mode === "customer" ? "/admin/chat" : "/customer/chat";
 
     await fetch("/api/notifications/send", {
@@ -1052,7 +1120,7 @@ export default function ShopChatClient({
       attachments: options?.attachments || [],
       senderId: myUserId,
       senderRole: mode === "admin" ? (myRole === "technician" ? "technician" : "admin") : "customer",
-      senderName: String((user as any)?.name || (mode === "admin" ? "Admin" : "Customer")),
+      senderName: safeUserName((user as any)?.name, mode === "admin" ? "Admin" : "Customer"),
       status: "sending",
       deliveredTo: [],
       readBy: [],
@@ -1335,10 +1403,15 @@ export default function ShopChatClient({
             {selectedCustomer && (
               <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-950 p-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
-                  {selectedCustomer.name.slice(0, 1).toUpperCase()}
+                  {imageFromProfileLike(selectedCustomer) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={imageFromProfileLike(selectedCustomer)} alt={safeUserName(selectedCustomer.name, "Customer")} className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    safeInitial(selectedCustomer.name)
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-white">{selectedCustomer.name}</p>
+                  <p className="truncate font-medium text-white">{safeUserName(selectedCustomer.name, "Customer")}</p>
                   <p className="truncate text-xs text-gray-400">
                     {[selectedCustomer.phone, selectedCustomer.location].filter(Boolean).join(" • ") || "Existing customer"}
                   </p>
@@ -1400,7 +1473,7 @@ export default function ShopChatClient({
               <option value="">Select room</option>
               {rooms.map((room) => (
                 <option key={room.roomId} value={room.roomId}>
-                  {room.customerName}
+                  {safeUserName(room.customerName, "Customer")}
                 </option>
               ))}
             </select>
@@ -1433,7 +1506,7 @@ export default function ShopChatClient({
       <Modal
         isOpen={billsOpen}
         onClose={() => setBillsOpen(false)}
-        title={mode === "customer" ? "Your Bills" : `${activeRoom?.customerName || "Customer"} Bills`}
+        title={mode === "customer" ? "Your Bills" : `${safeUserName(activeRoom?.customerName, "Customer")} Bills`}
         size="lg"
       >
         <div className="space-y-4">

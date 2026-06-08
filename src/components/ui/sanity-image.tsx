@@ -2,10 +2,38 @@ import Image, { ImageProps } from 'next/image';
 import { useMemo, useState, ReactNode } from 'react';
 
 interface SanityImageProps extends Omit<ImageProps, 'src'> {
-  src: string | null | undefined;
+  src: unknown;
   alt: string;
   className?: string;
   fallback?: ReactNode;
+}
+
+function sanityAssetRefToUrl(ref: string) {
+  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "";
+  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || "";
+  if (!projectId || !dataset || !ref.startsWith("image-")) return "";
+  const parts = ref.replace(/^image-/, "").split("-");
+  const format = parts.pop();
+  const dimensions = parts.pop();
+  const id = parts.join("-");
+  if (!id || !dimensions || !format) return "";
+  return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}-${dimensions}.${format}`;
+}
+
+function normalizeImageSrc(src: unknown) {
+  if (!src) return "";
+  if (typeof src === "string") return src;
+  if (typeof src !== "object") return "";
+  const value = src as {
+    url?: unknown;
+    asset?: { url?: unknown; _ref?: unknown };
+    _ref?: unknown;
+  };
+  if (typeof value.url === "string") return value.url;
+  if (typeof value.asset?.url === "string") return value.asset.url;
+  if (typeof value.asset?._ref === "string") return sanityAssetRefToUrl(value.asset._ref);
+  if (typeof value._ref === "string") return sanityAssetRefToUrl(value._ref);
+  return "";
 }
 
 export function SanityImage({
@@ -17,16 +45,20 @@ export function SanityImage({
 }: SanityImageProps) {
   const [hasError, setHasError] = useState(false);
   const imageUrl = useMemo(() => {
-    if (!src) return null;
+    const normalizedSrc = normalizeImageSrc(src);
+    if (!normalizedSrc) return null;
     
     // If it's already a full URL or data URL, return as is
-    if (src.startsWith('http') || src.startsWith('data:')) {
-      return src;
+    if (normalizedSrc.startsWith('http') || normalizedSrc.startsWith('data:')) {
+      return normalizedSrc;
     }
+
+    const sanityAssetUrl = sanityAssetRefToUrl(normalizedSrc);
+    if (sanityAssetUrl) return sanityAssetUrl;
     
     // Prepend Sanity URL if it's a relative path
     const baseUrl = process.env.NEXT_PUBLIC_SANITY_URL || '';
-    return src.startsWith('/') ? `${baseUrl}${src}` : `${baseUrl}/${src}`;
+    return normalizedSrc.startsWith('/') ? `${baseUrl}${normalizedSrc}` : `${baseUrl}/${normalizedSrc}`;
   }, [src]);
 
   if (!imageUrl || hasError) {

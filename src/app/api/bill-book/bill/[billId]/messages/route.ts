@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { safeUserName } from "@/lib/display-text";
 
 export async function GET(
   _req: Request,
@@ -94,7 +95,8 @@ export async function POST(
         ),
       ]);
       const recipientRole = String(recipient?.role || "");
-      const senderName = String(sender?.name || "Someone");
+      const senderName = safeUserName(sender?.name, "Someone");
+      const customerName = safeUserName(bill?.customer?.name, "Customer");
       const isRecipientCustomer = recipientRole === "customer";
       const targetRoute = isRecipientCustomer
         ? `/customer/bills?open=${encodeURIComponent(String(billId))}`
@@ -105,7 +107,7 @@ export async function POST(
         type: "bill.message.created",
         actorUserId: senderId ? String(senderId) : undefined,
         userId: String(recipientId),
-        title: isRecipientCustomer ? "New bill message" : `Message from ${bill?.customer?.name || senderName}`,
+        title: isRecipientCustomer ? "New bill message" : `Message from ${customerName || senderName}`,
         body: String(content).slice(0, 120),
         data: {
           userId: String(recipientId),

@@ -16,6 +16,7 @@ import {
 } from "@/components/realtime/realtime-bill-list";
 import { FileText, Plus, Search, Calculator, FileTextIcon } from "lucide-react";
 import ResponsiveAccordion from "../ui/responsive-accordion";
+import { safeUserName } from "@/lib/display-text";
 
 export type BillingBrowserVariant = "all" | "pending";
 
@@ -80,12 +81,12 @@ export function BillingBrowser({
     return {
       id: bill._id,
       _id: bill._id,
-      customerName: bill.customer?.name || "Unknown Customer",
+      customerName: safeUserName(bill.customer?.name, "Unknown Customer"),
       customerId: bill.customer?._id || bill.customer?._ref || "",
       technician: bill.technician
         ? {
             _id: bill.technician?._id || bill.technician?._ref,
-            name: bill.technician?.name,
+            name: safeUserName(bill.technician?.name, "Technician"),
             phone: bill.technician?.phone,
             email: bill.technician?.email,
           }
@@ -125,7 +126,7 @@ export function BillingBrowser({
       // Include discount for modal display
       discount: (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0,
       customer: {
-        name: bill.customer?.name || "Unknown Customer",
+        name: safeUserName(bill.customer?.name, "Unknown Customer"),
         phone: bill.customer?.phone || "",
         email: bill.customer?.email || "",
         location: bill.customer?.location || "",

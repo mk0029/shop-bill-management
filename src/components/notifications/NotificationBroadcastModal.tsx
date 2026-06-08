@@ -11,6 +11,7 @@ import { useNotificationStore } from "@/store/notification-store";
 import { useDataStore } from "@/store/data-store";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useAuthStore } from "@/store/auth-store";
+import { safeUserName } from "@/lib/display-text";
 
 export type Audience = "admins" | "all" | "users" | "whatsapp";
 
@@ -101,9 +102,7 @@ export default function NotificationBroadcastModal({
     const norm = (s: string) => (s || "").replace(/\D+/g, "");
     return (allUsers || []).map((u: StoreUser) => {
       const id = String(u?._id || u?.id || "");
-      const name = String(
-        u?.name || u?.email || u?.customerId || u?.clerkId || "Unnamed",
-      );
+      const name = safeUserName(u?.name || u?.email || u?.customerId || u?.clerkId, "Unnamed");
       const phones = [
         u?.phone,
         u?.phoneNumber,
@@ -466,14 +465,14 @@ export default function NotificationBroadcastModal({
                     key={u.id}
                     className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-md border border-gray-800 bg-gray-900 text-gray-200"
                   >
-                    <span>{u.name}</span>
+                    <span>{safeUserName(u.name, "Unnamed")}</span>
                     <button
                       type="button"
                       className="text-gray-400 hover:text-white"
                       onClick={() =>
                         setSelected((prev) => prev.filter((s) => s.id !== u.id))
                       }
-                      aria-label={`Remove ${u.name}`}
+                      aria-label={`Remove ${safeUserName(u.name, "Unnamed")}`}
                     >
                       ✕
                     </button>
@@ -514,14 +513,14 @@ export default function NotificationBroadcastModal({
                     key={u.id}
                     className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-md border border-gray-800 bg-gray-900 text-gray-200"
                   >
-                    <span>{u.name}</span>
+                    <span>{safeUserName(u.name, "Unnamed")}</span>
                     <button
                       type="button"
                       className="text-gray-400 hover:text-white"
                       onClick={() =>
                         setSelected((prev) => prev.filter((s) => s.id !== u.id))
                       }
-                      aria-label={`Remove ${u.name}`}
+                      aria-label={`Remove ${safeUserName(u.name, "Unnamed")}`}
                     >
                       ✕
                     </button>

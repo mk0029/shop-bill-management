@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { User, Camera } from "lucide-react";
 import { SanityImage } from "@/components/ui/sanity-image";
+import { safeUserName } from "@/lib/display-text";
 
 interface CustomerUser {
   name?: string;
@@ -24,25 +25,7 @@ export const ProfileHeader = ({
   onEditToggle,
   onImageChange,
 }: ProfileHeaderProps) => {
-  // Using SanityImage component for consistent image handling
-  const sanitizeUserText = (text: string): string => {
-    try {
-      let s = text ?? "";
-      s = s.replace(/\(.*?\)/g, "");
-      s = s.replace(/\{.*?\}/g, "");
-      s = s.replace(/\[.*?\]/g, "");
-      s = s.replace(/"[^"]*"/g, "");
-      s = s.replace(/'[^']*'/g, "");
-      s = s.replace(/\*\*.*?\*\*/g, "");
-      s = s.replace(/\*.*?\*/g, "");
-      s = s.replace(/\s{2,}/g, " ").trim();
-      return s;
-    } catch {
-      return "";
-    }
-  };
-
-  const displayName = sanitizeUserText(user?.name || "");
+  const displayName = safeUserName(user?.name);
   return (
     <div className="space-y-6 max-md:space-y-4 ">
       {/* Header */}

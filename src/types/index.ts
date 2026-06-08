@@ -11,7 +11,7 @@ export interface User {
   phone?: string;
   location?: string;
   profileImage?: string;
-  role: "admin" | "super_admin" | "customer";
+  role: "admin" | "super_admin" | "technician" | "customer";
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;

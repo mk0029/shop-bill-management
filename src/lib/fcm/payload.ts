@@ -16,10 +16,11 @@ export function buildNotificationData(args: {
   body: string;
   data?: NotificationData;
 }) {
+  const data = toStringData(args.data);
   return {
-    ...toStringData(args.data),
+    ...data,
     ...(args.id ? { id: args.id } : {}),
-    ...(args.id ? { tag: args.id } : {}),
+    tag: data.tag || args.id || "",
     type: String(args.type),
     title: args.title,
     body: args.body,

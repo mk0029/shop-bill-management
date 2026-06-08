@@ -29,6 +29,7 @@ import { sanityApiService } from "@/lib/sanity-api-service";
 import { Wifi } from "lucide-react";
 import CustomerNotifications from "./CustomerNotification";
 import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
+import { safeUserName } from "@/lib/display-text";
 
 interface NavigationItem {
   label: string;
@@ -196,26 +197,8 @@ export function CustomerNavigation() {
     window.addEventListener("touchcancel", onUp);
   };
 
-  // Sanitize displayed text by removing content enclosed in (), {}, [], quotes, and markdown * or **
-  const sanitizeUserText = (text: string): string => {
-    try {
-      let s = text ?? "";
-      s = s.replace(/\(.*?\)/g, "");
-      s = s.replace(/\{.*?\}/g, "");
-      s = s.replace(/\[.*?\]/g, "");
-      s = s.replace(/"[^"]*"/g, "");
-      s = s.replace(/'[^']*'/g, "");
-      s = s.replace(/\*\*.*?\*\*/g, "");
-      s = s.replace(/\*.*?\*/g, "");
-      s = s.replace(/\s{2,}/g, " ").trim();
-      return s;
-    } catch {
-      return "";
-    }
-  };
-
   const rawDisplayName = user?.name || "Customer";
-  const displayName = sanitizeUserText(rawDisplayName) || "Customer";
+  const displayName = safeUserName(rawDisplayName, "Customer");
 
   const isActive = (href?: string) => {
     if (!href) return false;

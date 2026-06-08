@@ -17,6 +17,7 @@ import { NotificationDebug } from "../fcm/notification-debug";
 import { NotificationReset } from "../fcm/notification-reset";
 import { initForegroundNotifications } from "@/notifications/init-foreground";
 import { CustomerAccountDebug } from "../customer/customer-account-debug";
+import ScheduledNotificationPreferences from "@/components/notifications/ScheduledNotificationPreferences";
 
 export default function CustomerSettingsClient({
   userId,
@@ -173,6 +174,13 @@ export default function CustomerSettingsClient({
               {status}
             </div>
           )}
+          <div className="space-y-3 rounded-md border border-gray-800 bg-gray-900/60 p-3">
+            <div>
+              <div className="text-gray-200 font-medium">Scheduled greetings</div>
+              <div className="text-gray-400">Daily and festival greetings keep notifications healthy and useful.</div>
+            </div>
+            <ScheduledNotificationPreferences role="customer" />
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Message } from "@/lib/types";
 import MessageStatus from "./MessageStatus";
+import { safeUserName } from "@/lib/display-text";
 
 interface MediaCollageBubbleProps {
   messages: Message[];
@@ -64,6 +65,10 @@ const MediaCollageBubble: React.FC<MediaCollageBubbleProps> = ({
     hour: "2-digit",
     minute: "2-digit",
   });
+  const senderRole = String(lastMessage.senderRole || messages[0]?.senderRole || "");
+  const isSupportSender = senderRole === "admin" || senderRole === "super_admin" || senderRole === "technician";
+  const supportSenderName = safeUserName(lastMessage.senderName || messages[0]?.senderName, senderRole === "technician" ? "Technician" : "Support");
+  const supportFirstName = supportSenderName.split(/\s+/)[0] || supportSenderName;
 
   return (
     <>
@@ -75,6 +80,14 @@ const MediaCollageBubble: React.FC<MediaCollageBubbleProps> = ({
           className={`group relative max-w-[75%] rounded-2xl p-2 shadow-sm ${
             isCurrentUser ? "bg-gray-700 text-gray-100" : "bg-gray-800 text-gray-100"
           }`}>
+          {isSupportSender && !isCurrentUser && (
+            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-300">
+              <span className="max-w-[7rem] truncate normal-case tracking-normal text-slate-200">{supportFirstName}</span>
+              <span className="rounded-full border border-sky-300/30 bg-sky-400/12 px-1.5 py-0.5 text-[9px] leading-none text-sky-100">
+                Support
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-1.5">
             {visible.map((message, idx) => (
               <div key={message.id} className={tileClassForCount(visible.length, idx)}>

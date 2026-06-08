@@ -33,8 +33,9 @@ import { canManageAdmins } from "@/lib/admin-utils";
 import { useAuthStore } from "@/store/auth-store";
 import Image from "next/image";
 import { OnlineStatusToggle } from "@/components/online-status-toggle";
-import { sanitizeUserText } from "@/constants/defaults";
+import { safeUserName } from "@/lib/display-text";
 import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
+import { SanityImage } from "./sanity-image";
 
 interface NavigationItem {
   label: string;
@@ -151,10 +152,7 @@ export function Navigation() {
     user?.email?.split("@")[0] ||
     (role === "admin" || role === "super_admin" ? "Admin" : "User");
 
-  const displayName =
-    role === "admin" || role === "super_admin"
-      ? rawDisplayName
-      : sanitizeUserText(rawDisplayName) || "User";
+  const displayName = safeUserName(rawDisplayName, role === "admin" || role === "super_admin" ? "Admin" : "User");
 
   const getFilteredAdminNavigation = () => {
     const userEmail = (user as { email?: string } | null)?.email;
@@ -459,8 +457,15 @@ export function Navigation() {
 
               <div className="p-4 border-t border-gray-800">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                    <SanityImage
+                      src={(user as any)?.profileImage || (user as any)?.profileImageUrl}
+                      alt={displayName || "Profile"}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                      fallback={<User className="w-5 h-5 text-white" />}
+                    />
                   </div>
                   <div>
                     <p className="text-white font-medium">{displayName}</p>
@@ -557,8 +562,15 @@ export function Navigation() {
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <SanityImage
+                src={(user as any)?.profileImage || (user as any)?.profileImageUrl}
+                alt={displayName || "Profile"}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                fallback={<User className="w-5 h-5 text-white" />}
+              />
             </div>
             {!isDesktopNavMinimized && (
               <div>

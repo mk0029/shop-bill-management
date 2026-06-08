@@ -1,5 +1,8 @@
 "use client";
+
+import { clearAppSystemNotifications } from "@/lib/notifications/dedupe";
 import { onForegroundMessage } from "@/notifications/lib/firebase";
+import { useNotificationStore } from "@/store/notification-store";
 import type { MessagePayload } from "firebase/messaging";
 
 export function initForegroundNotifications() {
@@ -7,19 +10,37 @@ export function initForegroundNotifications() {
 
   const ensurePermission = async () => {
     if (!("Notification" in window)) return false;
-    // Do not request permission automatically; only proceed if already granted
     return Notification.permission === "granted";
   };
 
-  // Start listener
   onForegroundMessage(async (payload: MessagePayload) => {
-    console.log('🔔 FCM Foreground Message Received:', payload);
-    
-    const granted = await ensurePermission();
-    if (!granted) {
-      console.log('❌ Permission not granted for foreground notification');
-      return; // fall back to in-app only
+    const data = payload.data || {};
+    const isScheduledGreeting =
+      data.category === "scheduled_greeting" ||
+      data.scheduledType === "dailyGreeting" ||
+      data.scheduledType === "festivalGreeting";
+
+    if (isScheduledGreeting) {
+      const id = String(data.id || data.notificationId || `scheduled-${data.date || Date.now()}`);
+      clearAppSystemNotifications({ tag: String(data.tag || "scheduled-greeting") });
+      useNotificationStore.getState().add({
+        id,
+        type: "system",
+        title: payload.notification?.title || data.title || "Notification",
+        body: payload.notification?.body || data.body || "",
+        createdAt: new Date().toISOString(),
+        meta: {
+          type: "scheduled_greeting",
+          scheduledType: data.scheduledType,
+          festivalName: data.festivalName,
+          route: data.route ? { pathname: data.route } : undefined,
+        },
+      });
+      return;
     }
+
+    const granted = await ensurePermission();
+    if (!granted) return;
 
     try {
       const reg = await navigator.serviceWorker.ready;
@@ -31,14 +52,11 @@ export function initForegroundNotifications() {
         data: {
           link: payload.fcmOptions?.link || payload.data?.click_action || "/",
         },
-      } as any; // Type assertion to allow custom properties
+      } as NotificationOptions;
 
-      console.log('📱 Showing foreground notification:', title, options);
-      // Show native toast even when tab is open so users see it if app is backgrounded
       await reg.showNotification(title, options);
-      console.log('✅ Foreground notification displayed successfully');
     } catch (error) {
-      console.error('❌ Failed to show foreground notification:', error);
+      console.error("Failed to show foreground notification:", error);
     }
   });
 }

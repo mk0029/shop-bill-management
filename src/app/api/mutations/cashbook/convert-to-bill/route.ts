@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
 import { notificationService } from '@/lib/notification-service'
 import { sendViaWaBotServer } from '@/lib/wa-bot-server'
+import { safeUserName } from '@/lib/display-text'
 
 export async function POST(req: NextRequest) {
   try {
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
             `*[_type=="user" && _id==$id][0]{name}`,
             { id: String(customerId) }
           )
-          return String(doc?.name || '').trim()
+          return safeUserName(doc?.name, 'Customer')
         } catch {
           return ''
         }

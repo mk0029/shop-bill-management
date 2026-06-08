@@ -12,6 +12,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   "toolRent.created",
   "toolRent.updated",
   "toolRent.returnDue",
+  "scheduled.dailyGreeting",
+  "scheduled.festivalGreeting",
   "system.general",
 ] as const;
 

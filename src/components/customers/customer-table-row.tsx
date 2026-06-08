@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import {
   formatCustomerActivity,
   formatLastBillDate,
-  getCustomerInitials,
   getCustomerStatusColor,
 } from "@/lib/customer-utils";
 import { useLocaleStore } from "@/store/locale-store";
@@ -10,6 +9,7 @@ import type { CustomerWithStats } from "@/types/customer";
 import { motion } from "framer-motion";
 import { Eye, MapPin, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
+import { safeInitial, safeUserName } from "@/lib/display-text";
 
 interface CustomerTableRowProps {
   customer: CustomerWithStats;
@@ -29,6 +29,7 @@ export default function CustomerTableRow({
   const { currency } = useLocaleStore();
   const statusColors = getCustomerStatusColor(customer.isActive);
   const [isMobile, setIsMobile] = useState(true);
+  const customerDisplayName = safeUserName(customer.name, "Customer");
 
   useEffect(() => {
     const checkMobile = () => {
@@ -50,10 +51,10 @@ export default function CustomerTableRow({
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gray-600/80 rounded-full flex items-center justify-center">
             <span className="text-white font-medium text-sm">
-              {getCustomerInitials(customer.name)}
+              {safeInitial(customer.name)}
             </span>
           </div>
-          <div className="flex justify-between max-sm:w-[85%] sm:gap-3">  <p className="text-white font-medium truncate overflow-hidden max-sm:max-w-[210px]">{customer.name}</p>
+          <div className="flex justify-between max-sm:w-[85%] sm:gap-3">  <p className="text-white font-medium truncate overflow-hidden max-sm:max-w-[210px]">{customerDisplayName}</p>
          
           <span>  {formatCustomerActivity(customer, currency) === "All Paid" ? null : (
                 <span className="text-yellow-500">{formatCustomerActivity(customer, currency).replace('pending', '')}</span>

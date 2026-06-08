@@ -27,6 +27,7 @@ import { BillDetails, generateWhatsAppMessage } from "@/lib/whatsapp-share";
 import { sendViaWaBot } from "@/lib/wa-bot-send";
 
 import { useLocaleStore } from "@/store/locale-store";
+import { safeUserName } from "@/lib/display-text";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -413,7 +414,7 @@ export const BillDetailModal = ({
             <div className="bg-gray-800/50 rounded-lg p-2 sm:p-4 border border-gray-700">
               <div className="text-sm text-gray-300 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-medium">{bill.customer.name}</p>
+                  <p className="font-medium">{safeUserName(bill.customer.name, "Customer")}</p>
                   {bill.customer.phone && (
                     <p className="text-gray-400">{bill.customer.phone}</p>
                   )}

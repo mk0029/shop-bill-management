@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { workTaskService, type WorkTask } from "@/lib/work-task-service";
 import { formatDayDateTime } from "@/lib/date-time";
+import { safeUserName } from "@/lib/display-text";
 
 function toLabel(value?: string) {
   return String(value || "-").replace(/-/g, " ");
@@ -138,7 +139,7 @@ export default function CustomerWorkTasksClient() {
                     {(task.assignedTechnicianName || task.assignedTechnician?.name) && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-0.5 text-gray-300">
                         <UserRound className="h-3.5 w-3.5" />
-                        {task.assignedTechnicianName || task.assignedTechnician?.name}
+                        {safeUserName(task.assignedTechnicianName || task.assignedTechnician?.name, "Technician")}
                       </span>
                     )}
                   </div>
@@ -173,7 +174,9 @@ export default function CustomerWorkTasksClient() {
               <div>
                 <div className="text-gray-500">Technician</div>
                 <div className="text-gray-100">
-                  {selectedTask.assignedTechnicianName || selectedTask.assignedTechnician?.name || "-"}
+                  {selectedTask.assignedTechnicianName || selectedTask.assignedTechnician?.name
+                    ? safeUserName(selectedTask.assignedTechnicianName || selectedTask.assignedTechnician?.name, "Technician")
+                    : "-"}
                 </div>
               </div>
               <div>

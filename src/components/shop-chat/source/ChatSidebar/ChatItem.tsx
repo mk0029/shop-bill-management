@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { BellOff, Check, Pin, Star, Users, X } from "lucide-react";
 import SmartPopup from "@/lib/ui/SmartPopup";
 import { decodeTransportText } from "@/lib/messageCodec";
+import { safeInitial, safeUserName } from "@/lib/display-text";
 
 interface ChatItemProps {
   friend: {
@@ -83,6 +84,7 @@ const ChatItem: React.FC<ChatItemProps> = ({
   const [avatarErrored, setAvatarErrored] = useState(false);
   const muteMenuRef = useRef<HTMLDivElement | null>(null);
   const isGroup = !!friend.isGroup;
+  const friendName = safeUserName(friend.name, isGroup ? "Group" : "Unknown User");
 
   React.useEffect(() => {
     setAvatarLoaded(false);
@@ -108,15 +110,15 @@ const ChatItem: React.FC<ChatItemProps> = ({
       const toMe = String(lastMessage.replyMeta.toSenderId || "") === currentUserId;
       const base = lastMessage.replyMeta.toText || lastMessage.content || "[message]";
       if (repliedByMe) return `You replied to: ${base}`;
-      if (toMe) return `${friend.name || "They"} replied to you: ${base}`;
-      return `${friend.name || "They"} replied: ${base}`;
+      if (toMe) return `${friendName} replied to you: ${base}`;
+      return `${friendName} replied: ${base}`;
     }
 
     if (kind === "reaction" && lastMessage.reactionMeta) {
       const who =
         String(lastMessage.senderId) === currentUserId
           ? "You"
-          : lastMessage.reactionMeta.byUserName || friend.name || "They";
+          : safeUserName(lastMessage.reactionMeta.byUserName || friend.name, "They");
       const base = lastMessage.reactionMeta.toText || lastMessage.content || "[message]";
       const emoji = String(lastMessage.reactionMeta.emoji || "").trim();
       return emoji ? `${who} reacted (${emoji}) : ${base}` : `${who} reacted: ${base}`;
@@ -124,7 +126,7 @@ const ChatItem: React.FC<ChatItemProps> = ({
 
     if (kind === "media") {
       const mine = String(lastMessage.senderId) === currentUserId;
-      const who = mine ? "You" : friend.name || "They";
+      const who = mine ? "You" : friendName;
       const m = /\[(\w+)\]/.exec(lastMessage.content || "");
       const t = (m?.[1] || "").toLowerCase();
       const label =
@@ -155,8 +157,8 @@ const ChatItem: React.FC<ChatItemProps> = ({
 
   if (!isGroup && isBlocked) {
     lastText = blockMeta?.byMe
-      ? `You blocked ${friend.name || "this user"}`
-      : `${friend.name || "This user"} blocked you${blockMeta?.requested ? " · Requested" : ""}`;
+      ? `You blocked ${friendName}`
+      : `${friendName} blocked you${blockMeta?.requested ? " · Requested" : ""}`;
     if (blockMeta?.at) {
       lastTime = new Date(blockMeta.at).toLocaleTimeString([], {
         hour: "2-digit",
@@ -192,12 +194,12 @@ const ChatItem: React.FC<ChatItemProps> = ({
     >
       <div className="relative shrink-0">
         <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-emerald-700/70 text-xs font-semibold text-white ring-1 ring-emerald-400/25">
-          {String(friend.name || "U").trim().charAt(0).toUpperCase() || "U"}
+          {safeInitial(friend.name)}
           {!hideAvatar && friend.avatar && !avatarErrored && (
             <img
               src={friend.avatar}
               className={`absolute inset-0 h-9 w-9 rounded-full object-cover transition-opacity duration-200 ${avatarLoaded ? "opacity-100" : "opacity-0"}`}
-              alt={friend.name}
+              alt={friendName}
               onLoad={() => setAvatarLoaded(true)}
               onError={() => {
                 setAvatarLoaded(false);
@@ -218,7 +220,7 @@ const ChatItem: React.FC<ChatItemProps> = ({
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
             {isPinned && <Pin size={12} className="shrink-0 text-gray-400" />}
             {isGroup && <Users size={12} className="shrink-0 text-sky-300/90" />}
-            <span className="min-w-0 truncate text-[15px] font-medium text-white">{friend.name}</span>
+            <span className="min-w-0 truncate text-[15px] font-medium text-white">{friendName}</span>
             {presenceText && (
               <span className={`hidden max-w-[4.75rem] shrink-0 truncate text-[10px] sm:inline ${friend.online ? "text-emerald-300" : "text-gray-500"}`}>
                 · {presenceText}

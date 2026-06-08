@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, MoreVertical, Receipt } from "lucide-react";
 import { motion } from "framer-motion";
 import ChatMenu from "@/components/shop-chat/source/ChatMenu";
+import { safeInitial, safeUserName } from "@/lib/display-text";
 
 interface ChatHeaderProps {
   peer: {
@@ -72,6 +73,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   }, [peer?.avatar, peer?.id]);
 
   if (!peer) return null;
+  const peerDisplayName = safeUserName(peer.name);
   const displayStatus = typingLabel || statusLabel || (connected ? "Live" : "Offline");
   const statusTone = typingLabel ? "text-emerald-200 bg-emerald-500/15 border-emerald-400/25" : peer.online ? "text-emerald-200 bg-emerald-500/15 border-emerald-400/25" : "text-slate-300 bg-slate-700/45 border-slate-600/60";
 
@@ -114,12 +116,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             title="View contact info"
           >
             <div className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-700/70 text-sm font-semibold text-white ring-1 ring-emerald-400/25">
-              {String(peer.name || "U").trim().charAt(0).toUpperCase() || "U"}
+              {safeInitial(peer.name)}
               {peer.avatar && !avatarErrored && (
                 <img
                   src={peer.avatar}
                   className={`absolute inset-0 h-10 w-10 rounded-full object-cover transition-opacity duration-200 ${avatarLoaded ? "opacity-100" : "opacity-0"}`}
-                  alt={peer.name || "User"}
+                  alt={peerDisplayName}
                   onLoad={() => setAvatarLoaded(true)}
                   onError={() => {
                     setAvatarLoaded(false);
@@ -129,7 +131,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               )}
             </div>
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-[1.06rem] font-semibold text-gray-100">{peer.name || "Unknown User"}</div>
+              <div className="truncate text-[1.06rem] font-semibold text-gray-100">{peerDisplayName}</div>
               <div className="pt-1">
                 <span className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] leading-none ${statusTone}`}>
                   <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${typingLabel || peer.online ? "bg-emerald-300" : "bg-slate-400"}`} />
@@ -165,7 +167,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
       <ChatMenu
         peerId={peer.id}
-        peerName={peer.name}
+        peerName={peerDisplayName}
         peerAvatar={peer.avatar}
         peerOnline={peer.online}
         peerLastSeen={peer.lastSeen}
@@ -184,7 +186,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       />
       <ChatMenu
         peerId={peer.id}
-        peerName={peer.name}
+        peerName={peerDisplayName}
         peerAvatar={peer.avatar}
         peerOnline={peer.online}
         peerLastSeen={peer.lastSeen}

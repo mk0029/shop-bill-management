@@ -4,6 +4,7 @@ import { useLocaleStore } from "@/store/locale-store";
 import { formatCustomerActivity } from "@/lib/customer-utils";
 import type { CustomerWithStats } from "@/types/customer";
 import Link from "next/link";
+import { safeInitial, safeUserName } from "@/lib/display-text";
 
 interface CustomerDetailModalProps {
   customer: CustomerWithStats | null;
@@ -23,6 +24,7 @@ export default function CustomerDetailModal({
   const { currency } = useLocaleStore();
 
   if (!customer) return null;
+  const customerDisplayName = safeUserName(customer.name, "Customer");
 
   const formatDate = (iso: string) => {
     try {
@@ -102,11 +104,11 @@ export default function CustomerDetailModal({
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
             <span className="text-white font-bold text-xl">
-              {customer.name.charAt(0)}
+              {safeInitial(customer.name)}
             </span>
           </div>
           <div className="flex-1">
-            <h3 className="text-xl font-bold text-white">{customer.name}</h3>
+            <h3 className="text-xl font-bold text-white">{customerDisplayName}</h3>
             {/* <p className="text-gray-400">Customer ID: {customer.clerkId}</p> */}
             {/* <p className="text-white font-bold text-base sm:text-lg mt-1">
             

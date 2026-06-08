@@ -7,6 +7,7 @@ import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 import { getServerAuth } from "@/lib/server-auth";
 import { updateStockForBill } from "@/lib/inventory-management";
 import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { safeUserName } from "@/lib/display-text";
 
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
   return await sanityClient.fetch(
@@ -200,7 +201,7 @@ export async function PATCH(
           const balance = Number(bill?.balanceAmount ?? nextBal ?? prev?.balanceAmount ?? Math.max(0, total - paid));
 
           const billNo = String(bill?.billNumber || prev?.billNumber || id);
-          const techName = String(bill?.technician?.name || prev?.technician?.name || '').trim();
+          const techName = safeUserName(bill?.technician?.name || prev?.technician?.name, "");
           const svc = String(bill?.serviceType || prev?.serviceType || '').replace(/_/g, ' ').trim();
 
           const siteUrl =
@@ -325,7 +326,7 @@ export async function PATCH(
             const result = await sanityApiService.cashBook.createEntryFromBillPayment({
               billId: id,
               userId: bill.customer._id,
-              userName: bill.customer.name,
+              userName: safeUserName(bill.customer.name, "Customer"),
               amount: Number(paymentDelta),
               paymentType: 'credit'
             });

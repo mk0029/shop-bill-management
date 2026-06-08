@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { User, Search, RefreshCw } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
+import { safeUserName } from "@/lib/display-text";
 
 export function CustomerAccountDebug() {
   const { user, isAuthenticated } = useAuthStore();
@@ -57,7 +58,7 @@ export function CustomerAccountDebug() {
           userId: user.id,
           clerkId: user.clerkId,
           customerId: (user as any).customerId,
-          name: user?.name || (user as any)?.firstName || "Customer",
+          name: safeUserName(user?.name || (user as any)?.firstName, "Customer"),
           email: user.email,
         }),
       });
@@ -94,7 +95,7 @@ export function CustomerAccountDebug() {
           <p>ID: {user?.id}</p>
           <p>Clerk ID: {user?.clerkId}</p>
           <p>Customer ID: {(user as any)?.customerId}</p>
-          <p>Name: {user?.name || (user as any)?.firstName || "Customer"}</p>
+          <p>Name: {safeUserName(user?.name || (user as any)?.firstName, "Customer")}</p>
           <p>Email: {user?.email}</p>
         </div>
 
@@ -116,7 +117,7 @@ export function CustomerAccountDebug() {
               <div>Token Count: {debugInfo.tokenCount || 0}</div>
               {debugInfo.userData && (
                 <div className="mt-2 text-gray-300">
-                  <div>DB Name: {debugInfo.userData.name}</div>
+                  <div>DB Name: {safeUserName(debugInfo.userData.name)}</div>
                   <div>DB ID: {debugInfo.userData._id}</div>
                 </div>
               )}
