@@ -57,6 +57,7 @@ const adminNavigation: NavigationItem[] = [
     icon: Building2,
   },
   { label: "Rent Tools", href: "/admin/rent-tools", icon: Wrench },
+  { label: "Repair Requests", href: "/admin/repair-requests", icon: Wrench },
   { label: "Work List", href: "/dashboard/work-list", icon: FileText },
   {
     label: "Other",
@@ -129,6 +130,7 @@ const technicianNavigation: NavigationItem[] = [
   { label: "Chat", href: "/admin/chat", icon: MessageCircle },
   { label: "Cash Book", href: "/admin/cash-book", icon: DollarSign },
   { label: "Inventory", href: "/admin/inventory", icon: Package },
+  { label: "Repair Requests", href: "/admin/repair-requests", icon: Wrench },
   { label: "Work List", href: "/dashboard/work-list", icon: Wrench },
 ];
 

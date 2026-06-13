@@ -71,8 +71,8 @@ const customerNavigation: NavigationItem[] = [
   },
   {
     label: "Request Repair",
+    href: "/customer/request-repair",
     icon: Wrench,
-    isDisabled: true,
   },
 ];
 
