@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@sanity/client';
 import { notificationService } from '@/lib/notification-service';
+import { getShopStatusMessage, getShopStatusMessages } from '@/lib/shop-status-messages.server';
 
 type ShopStatus = 'offline' | 'online' | 'at_shop';
 
@@ -118,23 +119,15 @@ export async function POST(req: Request) {
         try {
           const actorUserId = (req.headers.get('x-user-id') || '').trim();
           if (actorUserId) {
-            const title = newStatus === 'offline'
-              ? 'Shop is now Offline'
-              : newStatus === 'online'
-                ? 'Shop is Available'
-                : 'Shop status updated'
-            const bodyText = newStatus === 'offline'
-              ? "We are temporarily unavailable. You can still browse and we'll notify you when we're back."
-              : newStatus === 'online'
-                ? "We're back online and ready to serve you."
-                : 'Shop status changed.'
+            const messages = await getShopStatusMessages();
+            const message = getShopStatusMessage(messages, newStatus);
             await notificationService.emit({
               type: 'shop_status',
               actorUserId,
               data: {
                 status: newStatus,
                 route: '/admin/settings',
-                extra: { title, body: bodyText },
+                extra: { title: message.title, body: message.body },
               },
             })
           }

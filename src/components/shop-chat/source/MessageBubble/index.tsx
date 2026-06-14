@@ -56,12 +56,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 }) => {
   const router = useRouter();
   const user = useAuthStore((state) => state.user as any);
-  const isCurrentUser = String(user?.id || user?._id || "") === String(message.senderId);
+  const isCurrentUser =
+    String(user?.id || user?._id || "") === String(message.senderId);
   const senderRole = String(message.senderRole || "");
-  const isSupportSender = senderRole === "admin" || senderRole === "super_admin" || senderRole === "technician";
-  const supportSenderName = safeUserName(message.senderName, senderRole === "technician" ? "Technician" : "Support");
-  const supportFirstName = supportSenderName.split(/\s+/)[0] || supportSenderName;
-  const showSupportBadge = isSupportSender && !isCurrentUser && message.messageKind !== "system";
+  const isSupportSender =
+    senderRole === "admin" ||
+    senderRole === "super_admin" ||
+    senderRole === "technician";
+  const supportSenderName = safeUserName(
+    message.senderName,
+    senderRole === "technician" ? "Technician" : "Support",
+  );
+  const supportFirstName =
+    supportSenderName.split(/\s+/)[0] || supportSenderName;
+  const showSupportBadge =
+    isSupportSender && !isCurrentUser && message.messageKind !== "system";
   const time = new Date(message.timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -129,7 +138,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     })();
 
     const dataMime = contentText.startsWith("data:")
-      ? contentText.slice(5, contentText.indexOf(";") > 0 ? contentText.indexOf(";") : contentText.indexOf(",")).toLowerCase()
+      ? contentText
+          .slice(
+            5,
+            contentText.indexOf(";") > 0
+              ? contentText.indexOf(";")
+              : contentText.indexOf(","),
+          )
+          .toLowerCase()
       : "";
     const byUrl = dataMime.startsWith("image/")
       ? "image"
@@ -140,22 +156,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           : dataMime
             ? "file"
             : extSource.match(
-                /\.(png|jpg|jpeg|gif|webp|avif|bmp|heic|heif)(\?|#|$)/,
-              )
-      ? "image"
-      : extSource.match(
-            /\.(mp3|mpeg|mpga|m4a|aac|wav|ogg|oga|flac|opus|weba|wma|amr|aiff|aif|mka)(\?|#|$)/,
-          )
-        ? "audio"
-        : extSource.match(
-              /\.(mp4|mov|m4v|webm|avi|mkv|3gp|mpeg|mpg|wmv|flv|ts|m2ts|mts|ogv|vob|rm|rmvb)(\?|#|$)/,
-            )
-          ? "video"
-          : extSource.match(
-                /\.(pdf|zip|rar|7z|txt|csv|doc|docx|xls|xlsx|ppt|pptx|apk|dmg|exe|tar|gz|bz2|xz|iso)(\?|#|$)/,
-              )
-            ? "file"
-            : null;
+                  /\.(png|jpg|jpeg|gif|webp|avif|bmp|heic|heif)(\?|#|$)/,
+                )
+              ? "image"
+              : extSource.match(
+                    /\.(mp3|mpeg|mpga|m4a|aac|wav|ogg|oga|flac|opus|weba|wma|amr|aiff|aif|mka)(\?|#|$)/,
+                  )
+                ? "audio"
+                : extSource.match(
+                      /\.(mp4|mov|m4v|webm|avi|mkv|3gp|mpeg|mpg|wmv|flv|ts|m2ts|mts|ogv|vob|rm|rmvb)(\?|#|$)/,
+                    )
+                  ? "video"
+                  : extSource.match(
+                        /\.(pdf|zip|rar|7z|txt|csv|doc|docx|xls|xlsx|ppt|pptx|apk|dmg|exe|tar|gz|bz2|xz|iso)(\?|#|$)/,
+                      )
+                    ? "file"
+                    : null;
 
     const byType = (message as any).type as string | undefined;
     if (byUrl === "audio" && byType === "video") {
@@ -303,7 +319,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     .toLowerCase();
   const isDeletedForEveryone =
     !!message.deletedForEveryone || deletedText === "this message was deleted";
-  const inferredBillId = String(message.tempId || "").startsWith("event:bill_created:")
+  const inferredBillId = String(message.tempId || "").startsWith(
+    "event:bill_created:",
+  )
     ? String(message.tempId || "").replace("event:bill_created:", "")
     : "";
   const inferredBillAmount = (() => {
@@ -312,7 +330,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     return Number(match[1].replace(/,/g, "")) || 0;
   })();
   const billEventData =
-    message.systemEventType === "bill_created" || message.systemEventData?.eventType === "bill_created"
+    message.systemEventType === "bill_created" ||
+    message.systemEventData?.eventType === "bill_created"
       ? message.systemEventData
       : inferredBillId || /bill is created|bill created/i.test(contentText)
         ? {
@@ -322,27 +341,49 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           }
         : null;
   const workTaskEventData =
-    message.systemEventType === "work_task" || message.systemEventData?.eventType === "work_task"
+    message.systemEventType === "work_task" ||
+    message.systemEventData?.eventType === "work_task"
       ? message.systemEventData
       : null;
   const isCustomerViewer = String(user?.role || "") === "customer";
   const billOwnerName = safeUserName(billEventData?.customerName, "Customer");
-  const billSubject = isCustomerViewer ? "Your bill" : `${billOwnerName || "Customer"}'s bill`;
+  const billSubject = isCustomerViewer
+    ? "Your bill"
+    : `${billOwnerName || "Customer"}'s bill`;
   const openBillEvent = () => {
     const rawBillId = String(billEventData?.billId || "").trim();
     if (String(user?.role || "") === "customer") {
-      router.push(rawBillId ? `/customer/bills?open=${encodeURIComponent(rawBillId)}` : "/customer/bills");
+      router.push(
+        rawBillId
+          ? `/customer/bills?open=${encodeURIComponent(rawBillId)}`
+          : "/customer/bills",
+      );
       return;
     }
-    const customerId = encodeURIComponent(String(billEventData.customerId || ""));
+    const customerId = encodeURIComponent(
+      String(billEventData.customerId || ""),
+    );
     if (customerId) {
-      router.push(rawBillId ? `/admin/customers/${customerId}/bills?open=${encodeURIComponent(rawBillId)}` : `/admin/customers/${customerId}/bills`);
+      router.push(
+        rawBillId
+          ? `/admin/customers/${customerId}/bills?open=${encodeURIComponent(rawBillId)}`
+          : `/admin/customers/${customerId}/bills`,
+      );
       return;
     }
-    router.push(rawBillId ? `/admin/billing?open=${encodeURIComponent(rawBillId)}` : "/admin/billing");
+    router.push(
+      rawBillId
+        ? `/admin/billing?open=${encodeURIComponent(rawBillId)}`
+        : "/admin/billing",
+    );
   };
-  const workTaskTitle = String(workTaskEventData?.title || "Service task").trim();
-  const workTaskAction = String(workTaskEventData?.action || "updated").replace(/_/g, " ");
+  const workTaskTitle = String(
+    workTaskEventData?.title || "Service task",
+  ).trim();
+  const workTaskAction = String(workTaskEventData?.action || "updated").replace(
+    /_/g,
+    " ",
+  );
   const openWorkTaskEvent = () => {
     if (!workTaskEventData?.taskId) return;
     const taskId = encodeURIComponent(String(workTaskEventData.taskId));
@@ -386,10 +427,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         }}
       >
         {showSupportBadge && (
-          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-300">
-            <span className="max-w-[7rem] truncate normal-case tracking-normal text-slate-200">{supportFirstName}</span>
+          <div className="mb-1 -mt-0.5 flex items-end -mr-1 font-medium capitalize tracking-wide text-slate-300">
+            {/* <span className="max-w-[7rem] truncate normal-case tracking-normal text-slate-200"></span> */}
             <span className="rounded-full border border-sky-300/30 bg-sky-400/12 px-1.5 py-0.5 text-[9px] leading-none text-sky-100">
-              Support
+              {supportFirstName}
             </span>
           </div>
         )}
@@ -451,16 +492,26 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 <Receipt size={16} />
               </span>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">Bill Created</div>
+                <div className="truncate text-sm font-semibold">
+                  Bill Created
+                </div>
                 <div className="truncate text-[11px] text-emerald-100/70">
-                  {String(billEventData.billNumber || billEventData.billId || "Bill")}
+                  {String(
+                    billEventData.billNumber || billEventData.billId || "Bill",
+                  )}
                 </div>
               </div>
             </div>
             <div className="text-sm text-slate-100">
-              {billSubject} is created{Number(billEventData.totalAmount || 0) > 0 ? ` of ₹${Number(billEventData.totalAmount || 0).toLocaleString()}` : ""}.
+              {billSubject} is created
+              {Number(billEventData.totalAmount || 0) > 0
+                ? ` of ₹${Number(billEventData.totalAmount || 0).toLocaleString()}`
+                : ""}
+              .
             </div>
-            <div className="mt-1 text-xs font-medium text-emerald-200">For more detail click here</div>
+            <div className="mt-1 text-xs font-medium text-emerald-200">
+              For more detail click here
+            </div>
           </button>
         )}
 
@@ -479,31 +530,52 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 <ClipboardList size={16} />
               </span>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">Service Task</div>
+                <div className="truncate text-sm font-semibold">
+                  Service Task
+                </div>
                 <div className="truncate text-[11px] capitalize text-sky-100/70">
                   {workTaskAction}
                 </div>
               </div>
             </div>
-            <div className="text-sm font-medium text-slate-100">{workTaskTitle}</div>
+            <div className="text-sm font-medium text-slate-100">
+              {workTaskTitle}
+            </div>
             <div className="mt-1 space-y-0.5 text-xs text-slate-200/85">
-              {workTaskEventData.status ? <div>Status: {String(workTaskEventData.status).replace(/-/g, " ")}</div> : null}
+              {workTaskEventData.status ? (
+                <div>
+                  Status: {String(workTaskEventData.status).replace(/-/g, " ")}
+                </div>
+              ) : null}
               {workTaskEventData.dueAt ? (
                 <div>
                   Due:{" "}
-                  {Number.isNaN(new Date(String(workTaskEventData.dueAt)).getTime())
+                  {Number.isNaN(
+                    new Date(String(workTaskEventData.dueAt)).getTime(),
+                  )
                     ? String(workTaskEventData.dueAt)
-                    : new Date(String(workTaskEventData.dueAt)).toLocaleString([], {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
+                    : new Date(String(workTaskEventData.dueAt)).toLocaleString(
+                        [],
+                        {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        },
+                      )}
                 </div>
               ) : null}
               {workTaskEventData.assignedTechnicianName ? (
-                <div>Technician: {safeUserName(workTaskEventData.assignedTechnicianName, "Technician")}</div>
+                <div>
+                  Technician:{" "}
+                  {safeUserName(
+                    workTaskEventData.assignedTechnicianName,
+                    "Technician",
+                  )}
+                </div>
               ) : null}
             </div>
-            <div className="mt-1 text-xs font-medium text-sky-200">For more detail click here</div>
+            <div className="mt-1 text-xs font-medium text-sky-200">
+              For more detail click here
+            </div>
           </button>
         )}
 
@@ -527,7 +599,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               const msgSenderId = String(message.senderId);
               const replyingToSelf =
                 replySenderId && replySenderId === msgSenderId;
-              let who = safeUserName(message.replyTo?.senderName || replySenderId);
+              let who = safeUserName(
+                message.replyTo?.senderName || replySenderId,
+              );
               if (replySenderId) {
                 if (replySenderId === meId) {
                   who = isCurrentUser ? "yourself" : "you";
@@ -538,7 +612,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               return <div className="text-slate-300/95">Replying to {who}</div>;
             })()}
             <div className="truncate text-slate-300/75">
-              {mediaReplyLabel(String(message.replyTo?.text || "")) || message.replyTo?.messageId || ""}
+              {mediaReplyLabel(String(message.replyTo?.text || "")) ||
+                message.replyTo?.messageId ||
+                ""}
             </div>
           </button>
         )}
@@ -570,7 +646,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <span className="h-px flex-1 bg-slate-400/45" />
           </div>
         ) : (
-          !media && !billEventData && !workTaskEventData && <MessageContent content={contentText} />
+          !media &&
+          !billEventData &&
+          !workTaskEventData && <MessageContent content={contentText} />
         )}
 
         {/* Link preview */}

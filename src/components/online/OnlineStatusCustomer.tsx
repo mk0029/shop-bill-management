@@ -1,10 +1,16 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
+import { Clock3, DoorOpen, MapPin, Power, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { formatDate } from "@/constants/defaults";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, DoorOpen, Power } from "lucide-react";
-import { formatDate } from "@/constants/defaults";
+import {
+  defaultShopStatusMessages,
+  type ShopStatusKey,
+  type ShopStatusMessages,
+} from "@/lib/shop-status-message-defaults";
 
 interface OnlineStatusDoc {
   _id: string;
@@ -20,147 +26,188 @@ export default function OnlineStatusCustomerButton() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<OnlineStatusDoc | null>(null);
+  const [messages, setMessages] = useState<ShopStatusMessages>(defaultShopStatusMessages);
 
-  // Fetch status when opening
   useEffect(() => {
-    if (!open) return;
     let unsub: { unsubscribe: () => void } | undefined;
-    (async () => {
-      setLoading(true);
+    let active = true;
+
+    async function load() {
       const res = await sanityApiService.online.getOnlineStatus();
-      if (res.success) setStatus(res.data);
-      setLoading(false);
-      // subscribe realtime
+      if (active && res.success) setStatus(res.data);
       unsub = sanityClient
         .listen('*[_type == "online" && _id == "onlineStatus"]', {}, { includeResult: true })
         .subscribe((ev: any) => {
           const doc = ev?.result as OnlineStatusDoc | undefined;
           if (doc) setStatus(doc);
         });
-    })();
-    return () => {
-      if (unsub && typeof unsub.unsubscribe === "function") unsub.unsubscribe();
-    };
-  }, [open]);
+    }
 
-  // Also fetch and subscribe once on mount so the button reflects current status
-  useEffect(() => {
-    let unsub: { unsubscribe: () => void } | undefined;
-    (async () => {
-      const res = await sanityApiService.online.getOnlineStatus();
-      if (res.success) setStatus(res.data);
-      unsub = sanityClient
-        .listen('*[_type == "online" && _id == "onlineStatus"]', {}, { includeResult: true })
-        .subscribe((ev: any) => {
-          const doc = ev?.result as OnlineStatusDoc | undefined;
-          if (doc) setStatus(doc);
-        });
-    })();
+    void load();
     return () => {
-      if (unsub && typeof unsub.unsubscribe === "function") unsub.unsubscribe();
+      active = false;
+      unsub?.unsubscribe?.();
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+
+    async function refresh() {
+      setLoading(true);
+      try {
+        const [statusRes, messagesRes] = await Promise.all([
+          sanityApiService.online.getOnlineStatus(),
+          fetch("/api/shop-status-messages", { cache: "no-store" }),
+        ]);
+        if (active && statusRes.success) setStatus(statusRes.data);
+        const json = await messagesRes.json().catch(() => ({}));
+        if (active && messagesRes.ok && json?.success && json.data) {
+          setMessages(json.data);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void refresh();
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const state = useMemo(() => {
     const isOnline = !!status?.isOnline;
     const atShop = !!status?.atShop;
-    const note: string = status?.note || "";
-    const updatedAt: string | undefined = status?.updatedAt || status?._updatedAt;
+    const note = status?.note || "";
+    const updatedAt = status?.updatedAt || status?._updatedAt;
     return { isOnline, atShop, note, updatedAt };
   }, [status]);
 
-  const buttonConfig = useMemo(() => {
-    if (loading) {
-      return { label: "Checking...", className: "", icon: null as React.ReactNode };
-    }
-    if (state.isOnline) {
-      if (state.atShop) {
-        return {
-          label: "Available",
-          className: "bg-green-600 hover:bg-green-700 text-white",
-          icon: <CheckCircle2 className="w-4 max-sm:hidden h-4 mr-2" />,
-        };
-      }
+  const statusKey: ShopStatusKey = state.isOnline ? (state.atShop ? "at_shop" : "online") : "offline";
+  const statusMessage = messages[statusKey] || defaultShopStatusMessages[statusKey];
+
+  const statusConfig = useMemo(() => {
+    if (statusKey === "at_shop") {
       return {
-        label: "Available (Not at shop)",
-        className: "bg-amber-500 hover:bg-amber-600 text-black",
-        icon: <DoorOpen className="w-4 max-sm:hidden h-4 mr-2" />,
+        label: "At Shop",
+        eyebrow: "Open for visits",
+        icon: <MapPin className="h-5 w-5" />,
+        buttonClass: "border-emerald-400/35 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25",
+        dotClass: "bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.7)]",
+        panelClass: "border-emerald-400/25 bg-emerald-500/10 text-emerald-100",
+      };
+    }
+    if (statusKey === "online") {
+      return {
+        label: "Available",
+        eyebrow: "Online support",
+        icon: <DoorOpen className="h-5 w-5" />,
+        buttonClass: "border-amber-400/35 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25",
+        dotClass: "bg-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.65)]",
+        panelClass: "border-amber-400/25 bg-amber-500/10 text-amber-100",
       };
     }
     return {
       label: "Offline",
-      className: "bg-red-600 hover:bg-red-700 text-white",
-      icon: <Power className="w-4 max-sm:hidden h-4 mr-2" />,
+      eyebrow: "Currently unavailable",
+      icon: <Power className="h-5 w-5" />,
+      buttonClass: "border-rose-400/35 bg-rose-500/15 text-rose-100 hover:bg-rose-500/25",
+      dotClass: "bg-rose-300 shadow-[0_0_14px_rgba(253,164,175,0.65)]",
+      panelClass: "border-rose-400/25 bg-rose-500/10 text-rose-100",
     };
-  }, [loading, state.isOnline, state.atShop]);
+  }, [statusKey]);
 
   return (
     <>
       <Button
         size="sm"
         onClick={() => setOpen(true)}
-        className={buttonConfig.className+' '+'max-sm:text-xs'}
-        aria-label={`Current status: ${buttonConfig.label}. Click to check details`}
-        title={`Current status: ${buttonConfig.label}`}
+        className={`${statusConfig.buttonClass} h-10 gap-2 rounded-full border px-3 text-xs font-semibold shadow-sm backdrop-blur transition sm:px-4 sm:text-sm`}
+        aria-label={`Current shop status: ${statusConfig.label}. Click to check details`}
+        title={`Current shop status: ${statusConfig.label}`}
       >
-        {buttonConfig.icon}
-        {buttonConfig.label}
+        <span className={`h-2 w-2 rounded-full ${statusConfig.dotClass}`} />
+        <span className="max-w-[9rem] truncate">{loading ? "Checking..." : statusConfig.label}</span>
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:px-4">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
-          {/* Modal */}
-          <div className="relative z-10 w-full max-w-md rounded-lg border border-gray-800 bg-gray-900 p-5 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Store Status</h3>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-gray-400 hover:text-white"
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            {loading ? (
-              <div className="text-gray-300">Loading...</div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-base">
-                  {state.isOnline ? (
-                    state.atShop ? (
-                      <>
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                        <span className="text-green-400 font-medium">We are Available (at shop)</span>
-                      </>
-                    ) : (
-                      <>
-                        <DoorOpen className="w-5 h-5 text-yellow-500" />
-                        <span className="text-yellow-400 font-medium">We are Available (not at shop)</span>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <Power className="w-5 h-5 text-red-500" />
-                      <span className="text-red-400 font-medium">We are Offline</span>
-                    </>
-                  )}
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:px-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 text-slate-100 shadow-2xl">
+            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-800/90 to-transparent" />
+            <div className="relative p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Store Status</div>
+                  <h3 className="mt-1 text-xl font-semibold">{statusConfig.label}</h3>
                 </div>
-
-                {state.note && (
-                  <div className="text-sm text-gray-300">
-                    Note: <span className="text-gray-200">{state.note}</span>
-                  </div>
-                )}
-               {state.updatedAt && (
-  <div className="text-xs text-white">
-    Updated: {formatDate(new Date(state.updatedAt))}
-  </div>
-)}
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="grid h-9 w-9 place-items-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-            )}
-           
+
+              {loading ? (
+                <div className="mt-5 rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-300">
+                  Checking the latest store status...
+                </div>
+              ) : (
+                <div className="mt-5 space-y-4">
+                  <div className={`rounded-2xl border p-4 ${statusConfig.panelClass}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-950/70 ring-1 ring-white/10">
+                        {statusConfig.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium uppercase tracking-[0.14em] opacity-75">
+                          {statusConfig.eyebrow}
+                        </div>
+                        <div className="mt-1 text-base font-semibold">{statusMessage.title}</div>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-100/85">{statusMessage.body}</p>
+                  </div>
+
+                  {state.note && (
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-sm text-slate-300">
+                      <span className="font-medium text-slate-100">Note: </span>
+                      {state.note}
+                    </div>
+                  )}
+
+                  {state.updatedAt && (
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <Clock3 className="h-3.5 w-3.5" />
+                      Updated {formatDate(new Date(state.updatedAt))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setOpen(false)}
+                      className="border-slate-700 bg-slate-900 hover:bg-slate-800"
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setOpen(false)}
+                      className="bg-blue-600 text-white hover:bg-blue-500"
+                    >
+                      Got it
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

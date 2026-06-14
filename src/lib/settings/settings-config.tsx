@@ -115,6 +115,9 @@ export const settingsTree: SettingNode[] = [
         { type: "toggle", key: "notify.messages.skipActiveChat", title: "Skip Open Chat", defaultValue: true },
       ], MessageCircle),
       option("billing", "Billing Notifications", "Bill creation, payment, and update alerts", [{ type: "toggle", key: "notify.billing.enabled", title: "Enable Billing Alerts", defaultValue: true }], ReceiptText),
+      option("shop-status", "Shop Status Messages", "Default customer messages for Offline, Available, and At Shop", [
+        { type: "action", key: "notify.shopStatusMessages", title: "Edit Shop Status Messages", label: "Open", href: "/admin/settings/shop-status-messages" },
+      ], Bell, ["admin", "super_admin"]),
       option("work-tasks", "Work Task Notifications", "Task assignment and status alerts", [{ type: "toggle", key: "notify.work.enabled", title: "Enable Work Alerts", defaultValue: true }], BriefcaseBusiness),
       option("repair-requests", "Repair Request Notifications", "Repair request creation, cancellation, schedule, and work-list movement alerts", [
         { type: "toggle", key: "notify.repair.enabled", title: "Enable Repair Request Alerts", defaultValue: true },

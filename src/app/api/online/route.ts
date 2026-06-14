@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@sanity/client';
 import { sendToAll } from '@/lib/notification-service';
+import { getShopStatusMessage, getShopStatusMessages } from '@/lib/shop-status-messages.server';
 
 // Ensure this API is always dynamic and not cached
 export const dynamic = 'force-dynamic';
@@ -90,25 +91,13 @@ export async function POST(req: Request) {
     if (prevStatus !== newStatus) {
       try {
         const timestamp = new Date().toISOString();
-        if (newStatus === 'offline') {
-          await sendToAll('Shop is Offline', 'We are temporarily unavailable. We\'ll notify you when we\'re Available.', {
-            status: 'offline',
-            type: 'shop_status',
-            updatedAt: timestamp,
-          }, Array.isArray(excludeTokens) ? excludeTokens : undefined);
-        } else if (newStatus === 'online') {
-          await sendToAll('Shop is Available', 'We\'re now Available to serve you.', {
-            status: 'online',
-            type: 'shop_status',
-            updatedAt: timestamp,
-          }, Array.isArray(excludeTokens) ? excludeTokens : undefined);
-        } else if (newStatus === 'at_shop') {
-          await sendToAll('We are at Shop Now!', 'We are now available at the shop. Visit us for service!', {
-            status: 'at_shop',
-            type: 'shop_status',
-            updatedAt: timestamp,
-          }, Array.isArray(excludeTokens) ? excludeTokens : undefined);
-        }
+        const messages = await getShopStatusMessages();
+        const message = getShopStatusMessage(messages, newStatus);
+        await sendToAll(message.title, message.body, {
+          status: newStatus,
+          type: 'shop_status',
+          updatedAt: timestamp,
+        }, Array.isArray(excludeTokens) ? excludeTokens : undefined);
       } catch (e) {
         console.error('FCM broadcast error (/api/online):', e);
       }

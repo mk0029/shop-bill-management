@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomInt } from "node:crypto";
 import { getServerAuth } from "@/lib/server-auth";
 import { sanityClient } from "@/lib/sanity";
+import { sendAppEmail } from "@/lib/email/server";
+
+export const runtime = "nodejs";
 
 type OtpRecord = {
   code: string;
   userId: string;
+  channel: "email" | "whatsapp";
   expiresAt: number;
   verifiedUntil?: number;
 };
@@ -20,28 +24,49 @@ function otpStore() {
 }
 
 async function getUser(userId: string) {
-  return sanityClient.fetch<{ _id: string; email?: string | null } | null>(
-    `*[_type=="user" && _id==$userId && isActive != false][0]{_id,email}`,
+  return sanityClient.fetch<{ _id: string; name?: string | null; email?: string | null; phone?: string | null } | null>(
+    `*[_type=="user" && _id==$userId && isActive != false][0]{_id,name,email,phone}`,
     { userId },
   );
 }
 
 async function sendOtpEmail(email: string, code: string) {
-  const serviceUrl = process.env.EMAIL_SERVICE_URL || "";
-  if (!serviceUrl) return { sent: false, reason: "EMAIL_SERVICE_URL not configured" };
+  return sendAppEmail({
+    to: email,
+    subject: "Your Jambh Electric password OTP",
+    text: `Your Jambh Electric password OTP is ${code}. It expires in 10 minutes. Do not share it with anyone.`,
+    template: "password-otp",
+    data: { code },
+  });
+}
 
-  const response = await fetch(serviceUrl, {
+async function sendOtpWhatsApp(phone: string, code: string, name?: string | null) {
+  const waBotBaseUrl = (process.env.WA_BOT_URL || "").replace(/\/+$/, "");
+  const token = process.env.WA_BOT_TOKEN || "";
+  if (!waBotBaseUrl || !token) return { sent: false, reason: "WhatsApp service is not configured" };
+
+  const firstName = String(name || "").trim().split(/\s+/)[0] || "Customer";
+  const response = await fetch(`${waBotBaseUrl}/send-message`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": token,
+    },
     body: JSON.stringify({
-      to: email,
-      subject: "Your password verification code",
-      text: `Your verification code is ${code}. It expires in 10 minutes.`,
+      phone,
+      message: `Hi ${firstName}, your Jambh Electric password OTP is ${code}. It expires in 10 minutes. Do not share it with anyone.`,
     }),
   });
 
-  if (!response.ok) throw new Error(`Email service failed with ${response.status}`);
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || !json?.ok) {
+    return { sent: false, reason: json?.error || `WhatsApp send failed (${response.status})` };
+  }
   return { sent: true };
+}
+
+function channelLabel(channel: "email" | "whatsapp") {
+  return channel === "whatsapp" ? "WhatsApp" : "email";
 }
 
 export async function POST(request: NextRequest) {
@@ -53,29 +78,60 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const action = String(body?.action || "");
-    const user = await getUser(auth.userId);
-    if (!user?._id) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
-    }
 
     if (action === "request") {
-      if (!user.email) {
-        return NextResponse.json({ success: false, error: "No email is available for this account" }, { status: 400 });
+      const user = await getUser(auth.userId);
+      if (!user?._id) {
+        return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+      }
+
+      const requestedChannel = String(body?.channel || "").toLowerCase();
+      const channel: "email" | "whatsapp" =
+        requestedChannel === "email" || requestedChannel === "whatsapp"
+          ? requestedChannel
+          : user.phone
+            ? "whatsapp"
+            : "email";
+
+      if (channel === "email" && !user.email) {
+        return NextResponse.json({ success: false, error: "Add an email address in Personal Information first" }, { status: 400 });
+      }
+      if (channel === "whatsapp" && !user.phone) {
+        return NextResponse.json({ success: false, error: "No mobile number is available for this account" }, { status: 400 });
       }
       const code = String(randomInt(100000, 999999));
       otpStore().set(auth.userId, {
         code,
         userId: auth.userId,
+        channel,
         expiresAt: Date.now() + 10 * 60 * 1000,
       });
-      const email = await sendOtpEmail(user.email, code).catch((error) => ({
-        sent: false,
-        reason: error instanceof Error ? error.message : "Email failed",
-      }));
+      const result =
+        channel === "whatsapp"
+          ? await sendOtpWhatsApp(user.phone || "", code, user.name).catch((error) => ({
+              sent: false,
+              reason: error instanceof Error ? error.message : "WhatsApp failed",
+            }))
+          : await sendOtpEmail(user.email || "", code).catch((error) => ({
+              sent: false,
+              reason: error instanceof Error ? error.message : "Email failed",
+            }));
+
+      if (!result.sent && process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          { success: false, error: result.reason || `${channelLabel(channel)} OTP could not be sent` },
+          { status: 502 },
+        );
+      }
+
       return NextResponse.json({
         success: true,
-        emailSent: email.sent,
-        message: email.sent ? "OTP sent to your email" : "OTP generated, but email service is not configured",
+        channel,
+        emailSent: channel === "email" ? result.sent : false,
+        whatsappSent: channel === "whatsapp" ? result.sent : false,
+        message: result.sent
+          ? `OTP sent on ${channelLabel(channel)}`
+          : `Dev OTP generated. ${result.reason || `${channelLabel(channel)} service is not configured`}`,
         devOtp: process.env.NODE_ENV !== "production" ? code : undefined,
       });
     }
@@ -90,7 +146,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Invalid OTP" }, { status: 400 });
       }
       otpStore().set(auth.userId, { ...record, verifiedUntil: Date.now() + 5 * 60 * 1000 });
-      return NextResponse.json({ success: true, message: "Email verified" });
+      return NextResponse.json({ success: true, message: "OTP verified" });
     }
 
     if (action === "update") {

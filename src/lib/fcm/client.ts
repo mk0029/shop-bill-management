@@ -48,6 +48,15 @@ export async function autoRegisterFcmToken(
   if (!token) return { success: false, skipped: true, reason: "no-token" };
 
   const deviceInfo = getDeviceInfo();
+  const cached = getCachedRegisteredToken(userId);
+  if (
+    !options.forceRefresh &&
+    cached?.token === token &&
+    cached.deviceId === deviceInfo.deviceId
+  ) {
+    return { success: true, token, deviceId: deviceInfo.deviceId, skipped: true, reason: "already-registered" };
+  }
+
   const status = await fetch("/api/notifications/device-status", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

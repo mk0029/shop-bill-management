@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { formatDayDate } from "@/lib/date-time";
+import { sendAppEmail } from "@/lib/email/server";
 
 export const runtime = "nodejs";
 
@@ -79,27 +80,23 @@ export async function POST(req: Request) {
         const dueDateObj = dueDate ? new Date(dueDate) : null;
         const formattedDate = dueDateObj ? formatDayDate(dueDateObj) : "upcoming";
 
-        const emailRes = await fetch(
-          process.env.EMAIL_SERVICE_URL || `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/emails/send`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: email,
-              subject: `Payment Reminder: Bill #${billNumber}`,
-              template: "payment-reminder",
-              data: {
-                billNumber,
-                amount,
-                dueDate: formattedDate,
-                billId,
-              },
-            }),
-          }
-        );
+        const emailResult = await sendAppEmail({
+          to: email,
+          subject: `Payment Reminder: Bill #${billNumber}`,
+          template: "payment-reminder",
+          data: {
+            billNumber,
+            amount,
+            dueDate: formattedDate,
+            billId,
+          },
+        });
 
-        const emailJson = await emailRes.json().catch(() => ({}));
-        results.email = { success: emailRes.ok, data: emailJson };
+        results.email = {
+          success: emailResult.sent,
+          data: emailResult.data,
+          error: emailResult.reason,
+        };
       } catch (error: any) {
         results.email = { success: false, error: error.message };
       }

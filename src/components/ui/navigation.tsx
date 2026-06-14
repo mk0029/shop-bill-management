@@ -2,26 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ChevronDown,
-  FileText,
-  History,
-  Home,
-  LogOut,
-  Menu,
-  MessageCircle,
-  Package,
-  Plus,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings,
-  Shield,
-  User,
-  Users,
-  X,
-  DollarSign,
-  Wrench,
-} from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down.js";
+import DollarSign from "lucide-react/dist/esm/icons/dollar-sign.js";
+import FileText from "lucide-react/dist/esm/icons/file-text.js";
+import History from "lucide-react/dist/esm/icons/history.js";
+import Home from "lucide-react/dist/esm/icons/home.js";
+import LogOut from "lucide-react/dist/esm/icons/log-out.js";
+import Menu from "lucide-react/dist/esm/icons/menu.js";
+import MessageCircle from "lucide-react/dist/esm/icons/message-circle.js";
+import Package from "lucide-react/dist/esm/icons/package.js";
+import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close.js";
+import PanelLeftOpen from "lucide-react/dist/esm/icons/panel-left-open.js";
+import Plus from "lucide-react/dist/esm/icons/plus.js";
+import Settings from "lucide-react/dist/esm/icons/settings.js";
+import Shield from "lucide-react/dist/esm/icons/shield.js";
+import User from "lucide-react/dist/esm/icons/user.js";
+import Users from "lucide-react/dist/esm/icons/users.js";
+import Wrench from "lucide-react/dist/esm/icons/wrench.js";
+import X from "lucide-react/dist/esm/icons/x.js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./button";

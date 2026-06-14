@@ -37,6 +37,8 @@ type ClientToServerEvents = {
   "typing:update": (payload: { roomId: string; typing: boolean }) => void;
   "message:delivered": (payload: { messageIds: string[] }) => void;
   "message:read": (payload: { roomId: string; messageIds?: string[] }) => void;
+  "presence:ping": () => void;
+  "presence:offline": () => void;
 };
 
 export type ShopChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -84,6 +86,7 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
 
     nextSocket.on("connect", () => {
       setConnected(true);
+      nextSocket.emit("presence:ping");
       if (activeRoomRef.current) {
         nextSocket.emit("room:join", { roomId: activeRoomRef.current });
       }
@@ -92,6 +95,9 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
 
     setSocket(nextSocket);
     const goOffline = () => {
+      if (nextSocket.connected) {
+        nextSocket.emit("presence:offline");
+      }
       if (nextSocket.connected || nextSocket.active) nextSocket.disconnect();
     };
     const goOnline = () => {
@@ -107,12 +113,18 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
     window.addEventListener("pageshow", goOnline);
     window.addEventListener("focus", goOnline);
     document.addEventListener("freeze", goOffline);
+    const presencePingTimer = window.setInterval(() => {
+      if (nextSocket.connected && shouldConnect()) {
+        nextSocket.emit("presence:ping");
+      }
+    }, 25_000);
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", goOffline);
       window.removeEventListener("pageshow", goOnline);
       window.removeEventListener("focus", goOnline);
       document.removeEventListener("freeze", goOffline);
+      window.clearInterval(presencePingTimer);
       nextSocket.disconnect();
       setConnected(false);
       setSocket(null);

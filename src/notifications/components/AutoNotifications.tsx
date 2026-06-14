@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useAuthStore } from "../../store/auth-store";
 import { useNotificationStore } from "../../store/notification-store";
 import { getClientApp, isMessagingAvailable } from "../lib/firebase";
-import { ensureFcmToken, registerFcmToken } from "../../lib/fcm";
+import { ensureFcmToken } from "../../lib/fcm";
 
 /**
  * AutoNotifications
@@ -77,8 +77,6 @@ export default function AutoNotifications() {
         const userId = user?.id ?? null;
         if (userId) {
           await ensureFcmToken({ userId }).catch(() => {});
-          // Best-effort extra registration call (idempotent + handles transient failures)
-          await registerFcmToken({ userId }).catch(() => {});
         }
       }
     }
@@ -93,30 +91,14 @@ export default function AutoNotifications() {
         Notification.permission === "granted"
       ) {
         ensureFcmToken({ userId: user.id }).catch(() => {});
-        registerFcmToken({ userId: user.id }).catch(() => {});
-      }
-    }
-
-    // Also attempt when tab becomes visible (user came back)
-    function handleVisibility() {
-      if (document.visibilityState === "visible" && user?.id) {
-        if (
-          typeof Notification !== "undefined" &&
-          Notification.permission === "granted"
-        ) {
-          ensureFcmToken({ userId: user.id }).catch(() => {});
-          registerFcmToken({ userId: user.id }).catch(() => {});
-        }
       }
     }
 
     window.addEventListener("online", handleOnline);
-    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       cancelled = true;
       window.removeEventListener("online", handleOnline);
-      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [user, hydrated, isAuthenticated]);
 

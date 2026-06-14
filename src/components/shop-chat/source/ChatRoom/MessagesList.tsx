@@ -344,20 +344,26 @@ const MessagesList: React.FC<MessagesListProps> = ({
 
                 {item.kind === "single" ? (
                   item.message.messageKind === "system" ? (
-                    <div className="flex justify-center py-1.5">
+                    <div className="flex justify-center py-4 sm:py-1.5">
                       <button
                         type="button"
                         onClick={() => {
                           if (getBillEventData(item.message)) openBillEvent(item.message);
                         }}
                         disabled={!isClickableSystemEvent(item.message)}
-                        className={`max-w-[86%] rounded-full border border-slate-600/40 bg-slate-800/70 px-3 py-1 text-center text-[11px] text-slate-300 ${
+                        className={`relative max-w-[min(92%,22rem)] rounded-2xl border border-slate-600/40 bg-slate-800/70 px-3.5 pb-3 pt-4 text-left text-[11px] leading-relaxed text-slate-300 shadow-sm sm:max-w-[86%] sm:px-3 sm:py-1.5 ${
                           isClickableSystemEvent(item.message)
                             ? "cursor-pointer transition hover:border-emerald-400/50 hover:bg-slate-700/80 hover:text-emerald-100"
                             : "cursor-default"
                         }`}
                       >
-                        {String(item.message.content || "").trim() || "Group activity"}
+                        <span className="absolute left-1/2 top-0 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-emerald-400/35 bg-slate-900 px-2 py-0.5 text-[9px] font-medium leading-none text-emerald-200 shadow-sm sm:hidden">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                          Shop App
+                        </span>
+                        <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                          {String(item.message.content || "").trim() || "Group activity"}
+                        </span>
                       </button>
                     </div>
                   ) : (

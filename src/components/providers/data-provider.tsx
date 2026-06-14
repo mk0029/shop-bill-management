@@ -14,15 +14,12 @@ export function DataProvider({ children }: DataProviderProps) {
   const {
     loadAdminData,
     loadCustomerData,
-    refreshUsers,
-    refreshBillsOnly,
-    refreshActiveProducts,
     isLoading,
     error,
     lastSyncTime,
   } = useDataStore();
   const { user, role, isAuthenticated } = useAuthStore();
-  const online = useOnline(isAuthenticated);
+  const { online } = useOnline(isAuthenticated);
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
@@ -49,28 +46,6 @@ export function DataProvider({ children }: DataProviderProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, lastSyncTime]);
-
-  useEffect(() => {
-    if (!role) return;
-
-    const intervalMs = 15_000;
-    const tick = () => {
-      if (role === "admin" || role === "super_admin" || role === "technician") {
-        refreshUsers();
-        refreshBillsOnly({ role: "admin" });
-        refreshActiveProducts();
-      } else if (role === "customer") {
-        refreshBillsOnly({
-          role: "customer",
-          customerId: (user as any)?.customerId,
-        });
-      }
-    };
-
-    tick();
-    const id = setInterval(tick, intervalMs);
-    return () => clearInterval(id);
-  }, [role, user, refreshUsers, refreshBillsOnly, refreshActiveProducts]);
 
   // Offline-friendly handling: render page and show compact banners
   const retry = () => {

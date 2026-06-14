@@ -7,8 +7,6 @@ import { getDeviceInfo } from "@/lib/fcm/device";
 import { registerDeviceSession } from "@/lib/fcm";
 import { setAutoLogoutInfo } from "@/lib/auto-logout";
 
-const WATCH_INTERVAL_MS = 15000;
-
 export default function DeviceSessionWatcher() {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,16 +56,21 @@ export default function DeviceSessionWatcher() {
       }
     }
 
-    check();
-    const id = window.setInterval(check, WATCH_INTERVAL_MS);
-    window.addEventListener("focus", check);
-    document.addEventListener("visibilitychange", check);
+    const checkWhenVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      void check();
+    };
+
+    void check();
+    window.addEventListener("focus", checkWhenVisible);
+    window.addEventListener("online", checkWhenVisible);
+    document.addEventListener("visibilitychange", checkWhenVisible);
 
     return () => {
       cancelled = true;
-      window.clearInterval(id);
-      window.removeEventListener("focus", check);
-      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", checkWhenVisible);
+      window.removeEventListener("online", checkWhenVisible);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
     };
   }, [hydrated, isAuthenticated, user?.id, logout, router, pathname]);
 

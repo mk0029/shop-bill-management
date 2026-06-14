@@ -16,8 +16,6 @@ export function SanityRealtimeProvider({
   children,
 }: SanityRealtimeProviderProps) {
   const {
-    loadAdminData,
-    loadCustomerData,
     setupRealtimeListeners: setupDataRealtime,
     cleanupRealtimeListeners: cleanupDataRealtime,
     isRealtimeConnected: isDataConnected,
@@ -61,21 +59,9 @@ export function SanityRealtimeProvider({
         initKeyRef.current = initKey;
 
         if (role === "admin") {
-          // Admin: full datasets + realtime for brands/categories
-          await Promise.all([
-            loadAdminData({
-              userId,
-              customerId,
-            }),
-            fetchBrands(),
-            fetchCategories(),
-          ]);
-        } else if (role === "customer") {
-          // Customer: only own user + bills
-          await loadCustomerData({
-            userId,
-            customerId,
-          });
+          // DataProvider owns the global data bootstrap. This provider only
+          // starts realtime listeners and store-specific metadata loads.
+          await Promise.all([fetchBrands(), fetchCategories()]);
         }
 
         // Start realtime listeners after initial load

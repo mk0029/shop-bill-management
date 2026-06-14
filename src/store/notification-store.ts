@@ -105,20 +105,47 @@ export const useNotificationStore = create<NotificationState>()(
           const nowTs = Date.now();
           const windowMs = 2 * 60 * 1000; // 2 minutes
           const existing = state.items;
+          const byId = new Map(existing.map((item) => [item.id, item]));
+          const mergedExisting = new Map(byId);
+          const newItems: AppNotification[] = [];
 
-          const filtered = list.filter((n) => {
-            // De-dup by id
-            if (n.id && existing.some((x) => x.id === n.id)) return false;
-            const createdAt = n.createdAt || new Date().toISOString();
-            const ts = Date.parse(createdAt) || nowTs;
+          for (const incoming of list) {
+            const createdAt = incoming.createdAt || new Date().toISOString();
+            const n: AppNotification = {
+              ...incoming,
+              createdAt,
+              read: incoming.read ?? false,
+            };
+
+            if (n.id && byId.has(n.id)) {
+              const current = byId.get(n.id)!;
+              mergedExisting.set(n.id, {
+                ...current,
+                ...n,
+                meta: { ...(current.meta || {}), ...(n.meta || {}) },
+                read: Boolean(current.read || n.read),
+              });
+              continue;
+            }
+
+            const ts = Date.parse(n.createdAt) || nowTs;
             // De-dup by same content within window
-            const dup = existing.some((x) =>
+            const dup = [...mergedExisting.values(), ...newItems].some((x) =>
               x.title === n.title && x.body === n.body && Math.abs((Date.parse(x.createdAt) || nowTs) - ts) < windowMs
             );
-            return !dup;
-          });
+            if (!dup) newItems.push(n);
+          }
 
-          const items = [...filtered, ...existing].slice(0, 100);
+          const items = [
+            ...newItems,
+            ...existing.map((item) => mergedExisting.get(item.id) || item),
+          ]
+            .sort(
+              (a, b) =>
+                (Date.parse(b.createdAt) || 0) -
+                (Date.parse(a.createdAt) || 0),
+            )
+            .slice(0, 100);
           const unread = items.filter((x) => !x.read).length;
           return { items, unread };
         }),

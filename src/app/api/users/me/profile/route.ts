@@ -99,14 +99,21 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const location = typeof body?.location === "string" ? body.location.trim().slice(0, 160) : undefined;
+    const email =
+      typeof body?.email === "string" ? body.email.trim().toLowerCase().slice(0, 180) : undefined;
     const address = body?.homeAddress && typeof body.homeAddress === "object" ? body.homeAddress as HomeAddress : undefined;
     const profileImageAssetId = typeof body?.profileImageAssetId === "string" ? body.profileImageAssetId.trim() : "";
     const removeProfileImage = body?.removeProfileImage === true;
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ success: false, error: "Enter a valid email address" }, { status: 400 });
+    }
 
     const safePatch: Record<string, unknown> = {
       updatedAt: new Date().toISOString(),
     };
     if (location !== undefined) safePatch.location = location;
+    if (email) safePatch.email = email;
     if (profileImageAssetId) {
       safePatch.profileImage = {
         _type: "image",
@@ -116,6 +123,7 @@ export async function PATCH(request: NextRequest) {
 
     const userPatch = sanityClient.patch(auth.userId).set(safePatch);
     if (removeProfileImage) userPatch.unset(["profileImage"]);
+    if (email === "") userPatch.unset(["email"]);
     await userPatch.commit();
     let updatedAddress: HomeAddress | null = null;
     if (address) {

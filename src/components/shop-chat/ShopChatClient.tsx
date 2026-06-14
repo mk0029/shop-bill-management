@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, MessageCircle, Plus, Search, UserPlus, X } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
@@ -105,16 +105,16 @@ function customerStatusText(customerId: string, onlineUserIds?: Set<string>, las
   return onlineUserIds?.has(customerId) ? "Online" : formatLastSeen(lastSeenByUser?.[customerId]);
 }
 
+function firstDisplayName(name: string, fallback = "Support") {
+  return safeUserName(name, fallback).trim().split(/\s+/)[0] || fallback;
+}
+
 function supportStatusText(supportMembers: ShopChatRoom["admins"] = [], onlineUserIds?: Set<string>, lastSeenByUser?: Record<string, string>) {
   const onlineMembers = supportMembers.filter((member) => onlineUserIds?.has(member.userId));
-  const onlineAdmins = onlineMembers.filter((member) => member.role !== "technician").length;
-  const onlineTechnicians = onlineMembers.filter((member) => member.role === "technician").length;
   if (onlineMembers.length) {
-    const parts = [
-      onlineAdmins ? `${onlineAdmins} admin${onlineAdmins === 1 ? "" : "s"}` : "",
-      onlineTechnicians ? `${onlineTechnicians} technician${onlineTechnicians === 1 ? "" : "s"}` : "",
-    ].filter(Boolean);
-    return `${parts.join(", ")} online`;
+    return onlineMembers
+      .map((member) => firstDisplayName(member.name, supportRoleLabel(member.role)))
+      .join(",");
   }
   const latestSeen = supportMembers
     .map((member) => lastSeenByUser?.[member.userId])
@@ -278,6 +278,7 @@ function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
 }
 
 function RoomSidebar({
+  mode,
   rooms,
   activeRoomId,
   myUserId,
@@ -287,6 +288,7 @@ function RoomSidebar({
   onlineUserIds = new Set<string>(),
   lastSeenByUser = {},
 }: {
+  mode: Mode;
   rooms: ShopChatRoom[];
   activeRoomId?: string | null;
   myUserId?: string;
@@ -303,8 +305,11 @@ function RoomSidebar({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rooms;
-    return rooms.filter((room) => `${room.customerName} ${room.customerKey || ""}`.toLowerCase().includes(q));
-  }, [query, rooms]);
+    return rooms.filter((room) => {
+      const label = mode === "customer" ? "support chat support team" : `${room.customerName} ${room.customerKey || ""}`;
+      return label.toLowerCase().includes(q);
+    });
+  }, [mode, query, rooms]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -329,7 +334,7 @@ function RoomSidebar({
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
             <MessageCircle className="h-5 w-5 text-blue-400" />
-            Customer Chats
+            {mode === "customer" ? "Chats" : "Customer Chats"}
           </h2>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -345,18 +350,20 @@ function RoomSidebar({
             >
               <Search className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchOpen(false);
-                onAddClick();
-              }}
-              className="grid h-9 w-9 place-items-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
-              title="Add customer to chat"
-              aria-label="Add customer to chat"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
+            {mode === "admin" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen(false);
+                  onAddClick();
+                }}
+                className="grid h-9 w-9 place-items-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
+                title="Add customer to chat"
+                aria-label="Add customer to chat"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
         {searchOpen && (
@@ -399,7 +406,10 @@ function RoomSidebar({
       <ul className="min-h-0 flex-1 divide-y divide-slate-800/80 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {filtered.map((room) => {
           const unread = myUserId ? room.unreadBy?.[myUserId] || 0 : 0;
-          const presenceText = customerStatusText(room.customerId, onlineUserIds, lastSeenByUser);
+          const presenceText =
+            mode === "customer"
+              ? supportStatusText(room.admins, onlineUserIds, lastSeenByUser)
+              : customerStatusText(room.customerId, onlineUserIds, lastSeenByUser);
           const last = room.lastMessage
             ? {
                 content:
@@ -419,10 +429,22 @@ function RoomSidebar({
               <ChatItem
                 friend={{
                   _id: room.roomId,
-                  name: safeUserName(room.customerName, "Customer"),
-                  avatar: imageFromProfileLike(room.participants.find((participant) => participant.userId === room.customerId)),
-                  online: onlineUserIds.has(room.customerId),
-                  lastSeen: lastSeenByUser[room.customerId],
+                  name: mode === "customer" ? "Shop Support" : safeUserName(room.customerName, "Customer"),
+                  avatar:
+                    mode === "customer"
+                      ? imageFromProfileLike(room.admins[0])
+                      : imageFromProfileLike(room.participants.find((participant) => participant.userId === room.customerId)),
+                  online:
+                    mode === "customer"
+                      ? room.admins.some((admin) => onlineUserIds.has(admin.userId))
+                      : onlineUserIds.has(room.customerId),
+                  lastSeen:
+                    mode === "customer"
+                      ? room.admins
+                          .map((admin) => lastSeenByUser[admin.userId])
+                          .filter(Boolean)
+                          .sort((a, b) => Date.parse(b) - Date.parse(a))[0]
+                      : lastSeenByUser[room.customerId],
                   statusText: presenceText,
                   isGroup: true,
                   memberCount: room.participants.length,
@@ -793,6 +815,7 @@ export default function ShopChatClient({
   useDynamicViewportHeight();
 
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const myUserId = String((user as any)?.id || (user as any)?._id || "");
@@ -819,8 +842,11 @@ export default function ShopChatClient({
   const deliveredRef = useRef<Set<string>>(new Set());
   const readAtRef = useRef<Record<string, number>>({});
   const autoOpenCustomerRef = useRef("");
+  const initialChatParamRef = useRef(searchParams.get("chat") || "");
+  const handledReloadParamRef = useRef(false);
   const syncedBillEventsRef = useRef<Set<string>>(new Set());
   const { socket, connected, sendMessage: sendSocketMessage } = useShopChatSocket(activeRoom?.roomId);
+  const chatParam = searchParams.get("chat") || "";
 
   const activeMessages = activeRoom
     ? dedupeBillCreatedMessages(messagesByRoom[activeRoom.roomId] || [])
@@ -833,6 +859,39 @@ export default function ShopChatClient({
     () => initialCustomers.find((customer) => customer._id === selectedCustomerId) || null,
     [initialCustomers, selectedCustomerId],
   );
+
+  const pushChatParam = useCallback(
+    (roomId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (params.get("chat") === roomId) return;
+      params.set("chat", roomId);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  const clearChatParam = useCallback(() => {
+    setActiveRoom(null);
+    const params = new URLSearchParams(searchParams.toString());
+    if (!params.has("chat")) {
+      return;
+    }
+    params.delete("chat");
+    const next = params.toString();
+    router.push(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (handledReloadParamRef.current) return;
+    handledReloadParamRef.current = true;
+    if (!chatParam || typeof window === "undefined") return;
+    const nav = window.performance?.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type !== "reload") return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete("chat");
+    const next = params.toString();
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [chatParam, pathname, router]);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -919,8 +978,12 @@ export default function ShopChatClient({
           const response = await getMyShopChatRoom();
           if (cancelled) return;
           setRooms([response.room]);
-          setActiveRoom(response.room);
-          await loadMessages(response.room);
+          if (initialChatParamRef.current === response.room.roomId) {
+            setActiveRoom(response.room);
+            await loadMessages(response.room);
+          } else {
+            setActiveRoom(null);
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load chat");
@@ -933,6 +996,18 @@ export default function ShopChatClient({
       cancelled = true;
     };
   }, [loadMessages, mode, syncBillEventsForRoom]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!chatParam) {
+      if (activeRoom) setActiveRoom(null);
+      return;
+    }
+    if (activeRoom?.roomId === chatParam) return;
+    const room = rooms.find((item) => item.roomId === chatParam);
+    if (!room) return;
+    void selectRoom(room, false);
+  }, [activeRoom, chatParam, loading, rooms]);
 
   useEffect(() => {
     const customerId = searchParams.get("customerId") || "";
@@ -1036,7 +1111,8 @@ export default function ShopChatClient({
     socket.emit("message:read", { roomId: activeRoom.roomId, messageIds: unread.map((message) => message.messageId) });
   }, [activeMessages, activeRoom, myUserId, socket]);
 
-  const selectRoom = async (room: ShopChatRoom) => {
+  const selectRoom = async (room: ShopChatRoom, syncUrl = true) => {
+    if (syncUrl) pushChatParam(room.roomId);
     setActiveRoom(room);
     if (!messagesByRoom[room.roomId]) {
       await loadMessages(room);
@@ -1291,13 +1367,14 @@ export default function ShopChatClient({
       style={{ height: "var(--app-vh, 100dvh)" }}
     >
       <div className="relative flex h-full min-h-0 overflow-hidden">
-        {mode === "admin" && (
+        {(mode === "admin" || mode === "customer") && (
           <div
             className={`absolute inset-y-0 left-0 z-20 h-full w-full shrink-0 transition-transform duration-300 ease-out md:static md:w-80 md:translate-x-0 ${
               activeRoom ? "-translate-x-full pointer-events-none md:pointer-events-auto" : "translate-x-0"
             }`}
           >
             <RoomSidebar
+              mode={mode}
               rooms={rooms}
               activeRoomId={activeRoom?.roomId}
               myUserId={myUserId}
@@ -1311,7 +1388,7 @@ export default function ShopChatClient({
         )}
         <div
           className={`absolute inset-0 z-10 flex min-w-0 flex-1 transition-transform duration-300 ease-out md:static md:z-auto md:translate-x-0 ${
-            mode === "admin" && !activeRoom
+            !activeRoom
               ? "translate-x-full pointer-events-none md:pointer-events-auto"
               : "translate-x-0 pointer-events-auto"
           }`}
@@ -1349,13 +1426,7 @@ export default function ShopChatClient({
             customerDetails={activeCustomer}
             canGoBack
             onOpenBills={openBillsPanel}
-            onBack={() => {
-              if (mode === "customer") {
-                router.push("/customer/bills");
-                return;
-              }
-              setActiveRoom(null);
-            }}
+            onBack={clearChatParam}
             onSend={sendText}
             onSendFiles={sendFiles}
             onSendVoiceNote={sendVoiceNote}

@@ -459,6 +459,8 @@ export default function SettingsBrowser({
 
   const pageTitle = node?.title || "Settings";
   const pageDescription = node?.description || "Manage app behavior, security, notifications, billing, and data.";
+  const isFocusedPasswordPage = node?.componentKey === "password";
+  const activeQuery = isFocusedPasswordPage ? "" : query.trim();
 
   if (slug.length && !node) {
     return (
@@ -511,19 +513,21 @@ export default function SettingsBrowser({
             ))}
           </nav>
         ) : null}
-        <div className="mt-3 flex items-center gap-2 rounded-md border border-slate-800 bg-slate-900 px-3">
-          <Search className="h-4 w-4 text-slate-500" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search settings"
-            className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500"
-          />
-        </div>
+        {!isFocusedPasswordPage ? (
+          <div className="mt-3 flex items-center gap-2 rounded-md border border-slate-800 bg-slate-900 px-3">
+            <Search className="h-4 w-4 text-slate-500" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search settings"
+              className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-500"
+            />
+          </div>
+        ) : null}
       </header>
 
       <div className="space-y-4 sm:space-y-5">
-        {query.trim() ? (
+        {activeQuery ? (
           <SettingsSection title="Search Results">
             {searchResults.length ? searchResults.map(({ node, path }) => (
               <SettingsCategory key={path.join("/")} node={node} href={hrefFor(basePath, path)} />
@@ -531,7 +535,7 @@ export default function SettingsBrowser({
           </SettingsSection>
         ) : null}
 
-        {!slug.length && !query.trim() ? (
+        {!slug.length && !activeQuery ? (
           <>
             {favorites.length ? (
               <SettingsSection title="Pinned Settings">
@@ -579,7 +583,7 @@ export default function SettingsBrowser({
           </>
         ) : null}
 
-        {slug.length && !query.trim() ? (
+        {slug.length && !activeQuery ? (
           <>
             {children.length ? (
               <SettingsSection title="Options">
@@ -605,7 +609,7 @@ export default function SettingsBrowser({
               </div>
             ) : null}
 
-            {role === "customer" && slug[0] === "notifications" && (slug.length === 1 || slug[1] === "in-app" || slug[1] === "push") ? (
+            {role === "customer" && slug[0] === "notifications" && slug[1] === "in-app" ? (
               <div className="px-4 sm:px-0">
                 <CustomerSettingsClient userId={customerUserId || null} />
               </div>

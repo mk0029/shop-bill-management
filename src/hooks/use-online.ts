@@ -11,7 +11,6 @@ export function useOnline(enabled = true): { online: boolean; setOnline: (online
     let destroyed = false;
     let consecutiveFailures = 0;
     const FAILURE_THRESHOLD = 2; // require 2 failed checks before declaring offline
-    const CHECK_INTERVAL_MS = 20000; // 20s
     const TIMEOUT_MS = 3500; // 3.5s network timeout
 
     const setOnlineSafe = (value: boolean) => {
@@ -71,26 +70,23 @@ export function useOnline(enabled = true): { online: boolean; setOnline: (online
       void checkConnectivity();
     }, 500);
 
-    // Re-check when tab becomes visible (useful on iOS PWA)
-    const onVis = () => {
-      if (document.visibilityState === "visible") {
-        void checkConnectivity();
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
-
-    // Periodic checks
-    const interval = setInterval(() => {
+    // Re-check only on meaningful browser/app lifecycle events.
+    const checkWhenVisible = () => {
+      if (document.visibilityState !== "visible") return;
       void checkConnectivity();
-    }, CHECK_INTERVAL_MS);
+    };
+    document.addEventListener("visibilitychange", checkWhenVisible);
+    window.addEventListener("focus", checkWhenVisible);
+    window.addEventListener("online", checkWhenVisible);
 
     return () => {
       destroyed = true;
       clearTimeout(initialTimer);
-      clearInterval(interval);
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
-      document.removeEventListener("visibilitychange", onVis);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
+      window.removeEventListener("focus", checkWhenVisible);
+      window.removeEventListener("online", checkWhenVisible);
     };
   }, []);
 
