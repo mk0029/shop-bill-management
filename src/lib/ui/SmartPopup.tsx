@@ -1,6 +1,6 @@
 import React from "react";
 import Portal from "@/lib/ui/Portal";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Props = {
   open: boolean;
@@ -38,14 +38,39 @@ export default function SmartPopup({ open, onClose, anchorPoint, className, chil
     setPos({ left, top });
   }, [open, anchorPoint?.x, anchorPoint?.y]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && popupRef.current?.contains(target)) return;
+      onClose();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    const handleCloseAll = () => onClose();
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("smartpopup:close-all" as any, handleCloseAll);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("smartpopup:close-all" as any, handleCloseAll);
+    };
+  }, [onClose, open]);
+
   if (!open) return null;
   return (
     <Portal>
-      <div className="fixed inset-0 z-[1200]" onClick={onClose} />
+      <div className="fixed inset-0 z-[3000]" onClick={onClose} />
       <div
         ref={popupRef}
-        className={`fixed z-[1201] rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-2xl ${className || ""}`}
+        className={`fixed z-[3001] rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-2xl ${className || ""}`}
         style={{ left: pos.left, top: pos.top }}
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
       >
         {children}
       </div>

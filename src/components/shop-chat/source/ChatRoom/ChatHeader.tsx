@@ -78,10 +78,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const statusTone = typingLabel ? "text-emerald-200 bg-emerald-500/15 border-emerald-400/25" : peer.online ? "text-emerald-200 bg-emerald-500/15 border-emerald-400/25" : "text-slate-300 bg-slate-700/45 border-slate-600/60";
 
   const openMenu = () => {
+    if (menuOpen) {
+      setMenuOpen(false);
+      return;
+    }
     document.dispatchEvent(new Event("smartpopup:close-all" as any));
     const rect = menuBtnRef.current?.getBoundingClientRect();
     setMenuPoint(rect ? { x: rect.left - 210, y: rect.bottom + 8 } : null);
-    setMenuOpen((value) => !value);
+    setMenuOpen(true);
   };
 
   return (
