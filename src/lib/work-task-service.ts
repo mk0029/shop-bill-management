@@ -18,6 +18,10 @@ export type WorkTask = {
   completionNotes?: string;
   cancellationReason?: string;
   holdReason?: string;
+  repairRequestId?: string;
+  repairDetails?: string;
+  customerNotes?: string;
+  requestSource?: string;
   createdBy?: { _id: string; name?: string } | null;
   createdByName?: string;
   completedAt?: string;

@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { safeUserName } from "@/lib/display-text";
+import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ async function createRequestId() {
 
 const repairRequestProjection = `{
   _id, requestId, details, notes, priority, source, status, scheduledAt, createdAt, updatedAt,
+  cancelledByName, cancelledByRole, cancelledAt,
   customerName, customerPhone, technicianName,
   customer->{_id, name, phone, customerId, profileImage, "profileImageUrl": profileImage.asset->url},
   technician->{_id, name, role, phone, profileImage, "profileImageUrl": profileImage.asset->url},
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
   const details = cleanText(body?.details, 2000);
   const notes = cleanText(body?.notes, 1000);
   const priority = String(body?.priority || "average").trim();
-  const source = String(body?.source || "in_chat").trim();
+  const source = priority === "high" ? "whatsapp" : "in_chat";
   const technicianId = String(body?.technicianId || "").trim();
 
   if (details.length < 5) {
@@ -152,21 +154,37 @@ export async function POST(req: NextRequest) {
   });
 
   const adminIds = await getActiveAdminUserIds();
-  await sendNotificationEvent({
-    eventId: `repairRequest.created.${created._id}.admins`,
-    type: "system.general",
-    actorUserId: customer._id,
-    userIds: adminIds,
-    title: "New repair request",
-    body: `${safeCustomerName} requested repair service (${priority}).`,
-    data: {
-      route: "/admin/repair-requests",
-      route_path: "/admin/repair-requests",
-      repairRequestId: String(created._id),
-      requestId,
-    },
-    skipActor: true,
-  });
+  const postCreateJobs: Promise<unknown>[] = [
+    sendNotificationEvent({
+      eventId: `repairRequest.created.${created._id}.admins`,
+      type: "system.general",
+      actorUserId: customer._id,
+      userIds: adminIds,
+      title: priority === "high" ? "High priority repair request" : "New repair request",
+      body: `${requestId} from ${safeCustomerName}. Priority: ${priority === "high" ? "High" : "Average"}. Open Repair Requests to review and assign time.`,
+      data: {
+        route: "/admin/repair-requests",
+        route_path: "/admin/repair-requests",
+        repairRequestId: String(created._id),
+        requestId,
+      },
+      skipActor: true,
+    }),
+  ];
+
+  if (priority === "high") {
+    postCreateJobs.push(
+      (async () => {
+        const adminPhones = await sanityClient.fetch<string[]>(
+          `*[_type=="user" && role in ["admin","super_admin","technician"] && isActive != false && defined(phone)].phone`,
+        );
+        const message = `High priority repair request\n\nRequest: ${requestId}\nCustomer: ${safeCustomerName}\nPreferred technician: ${safeTechnicianName}\nDetails: ${details}\n\nOpen Repair Requests in the app to review, assign time, or add it to the work list.`;
+        return sendViaWaBotServer({ phones: adminPhones || [], message });
+      })(),
+    );
+  }
+
+  await Promise.allSettled(postCreateJobs);
 
   return NextResponse.json({ success: true, data: created });
 }

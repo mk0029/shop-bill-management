@@ -11,6 +11,18 @@ const defaultPreferences = {
   festivalGreetingEnabled: true,
   adminGreetingsEnabled: true,
   customerGreetingsEnabled: true,
+  chatNotificationsEnabled: true,
+  billingNotificationsEnabled: true,
+  repairRequestNotificationsEnabled: true,
+  workListNotificationsEnabled: true,
+  workTaskNotificationsEnabled: true,
+  toolRentNotificationsEnabled: true,
+  notificationTone: 'Default',
+  chatTone: 'Chime',
+  billingTone: 'Default',
+  repairTone: 'Alert',
+  workTone: 'Soft',
+  toolRentTone: 'Default',
   pushEnabled: true,
   paused: false,
   notificationLanguage: 'en',
@@ -31,12 +43,29 @@ function cleanTime(value: unknown, fallback: string) {
   return /^\d{1,2}:\d{2}$/.test(text) ? text : fallback
 }
 
+function cleanTone(value: unknown, fallback: string) {
+  const text = String(value || '').trim()
+  return ['Default', 'Soft', 'Alert', 'Chime', 'Urgent', 'Silent'].includes(text) ? text : fallback
+}
+
 function cleanPrefs(body: any) {
   return {
     dailyGreetingEnabled: cleanBoolean(body?.dailyGreetingEnabled, defaultPreferences.dailyGreetingEnabled),
     festivalGreetingEnabled: cleanBoolean(body?.festivalGreetingEnabled, defaultPreferences.festivalGreetingEnabled),
     adminGreetingsEnabled: cleanBoolean(body?.adminGreetingsEnabled, defaultPreferences.adminGreetingsEnabled),
     customerGreetingsEnabled: cleanBoolean(body?.customerGreetingsEnabled, defaultPreferences.customerGreetingsEnabled),
+    chatNotificationsEnabled: cleanBoolean(body?.chatNotificationsEnabled, defaultPreferences.chatNotificationsEnabled),
+    billingNotificationsEnabled: cleanBoolean(body?.billingNotificationsEnabled, defaultPreferences.billingNotificationsEnabled),
+    repairRequestNotificationsEnabled: cleanBoolean(body?.repairRequestNotificationsEnabled, defaultPreferences.repairRequestNotificationsEnabled),
+    workListNotificationsEnabled: cleanBoolean(body?.workListNotificationsEnabled, defaultPreferences.workListNotificationsEnabled),
+    workTaskNotificationsEnabled: cleanBoolean(body?.workTaskNotificationsEnabled, defaultPreferences.workTaskNotificationsEnabled),
+    toolRentNotificationsEnabled: cleanBoolean(body?.toolRentNotificationsEnabled, defaultPreferences.toolRentNotificationsEnabled),
+    notificationTone: cleanTone(body?.notificationTone, defaultPreferences.notificationTone),
+    chatTone: cleanTone(body?.chatTone, defaultPreferences.chatTone),
+    billingTone: cleanTone(body?.billingTone, defaultPreferences.billingTone),
+    repairTone: cleanTone(body?.repairTone, defaultPreferences.repairTone),
+    workTone: cleanTone(body?.workTone, defaultPreferences.workTone),
+    toolRentTone: cleanTone(body?.toolRentTone, defaultPreferences.toolRentTone),
     pushEnabled: cleanBoolean(body?.pushEnabled, defaultPreferences.pushEnabled),
     paused: cleanBoolean(body?.paused, defaultPreferences.paused),
     quietHours: {

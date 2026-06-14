@@ -126,9 +126,96 @@ function getTaskNotes(task: WorkTask) {
     task.completionNotes ||
     (task as any).holdReason ||
     task.cancellationReason ||
+    task.repairDetails ||
+    task.customerNotes ||
     task.description ||
     (task as any).notes ||
     ""
+  );
+}
+
+function getTaskDetailsText(task: WorkTask) {
+  return task.repairDetails || parseRepairDescription(task.description).details || task.description || "";
+}
+
+function hasRepairRequestDetails(task: WorkTask) {
+  const parsed = parseRepairDescription(task.description);
+  return Boolean(
+    task.repairRequestId ||
+      task.repairDetails ||
+      task.customerNotes ||
+      task.requestSource ||
+      parsed.customerNotes ||
+      parsed.source,
+  );
+}
+
+function parseRepairDescription(description?: string) {
+  const raw = String(description || "").trim();
+  if (!raw) return { details: "", customerNotes: "", source: "" };
+  const sourceMatch = raw.match(/\s*Source:\s*(.+)$/i);
+  const withoutSource = sourceMatch
+    ? raw.slice(0, sourceMatch.index).trim()
+    : raw;
+  const notesMatch = withoutSource.match(/\s*Customer notes:\s*/i);
+  if (!notesMatch || typeof notesMatch.index !== "number") {
+    return {
+      details: withoutSource,
+      customerNotes: "",
+      source: sourceMatch?.[1]?.trim() || "",
+    };
+  }
+  return {
+    details: withoutSource.slice(0, notesMatch.index).trim(),
+    customerNotes: withoutSource.slice(notesMatch.index + notesMatch[0].length).trim(),
+    source: sourceMatch?.[1]?.trim() || "",
+  };
+}
+
+function RepairTaskSummary({
+  task,
+  compact = false,
+}: {
+  task: WorkTask;
+  compact?: boolean;
+}) {
+  const details = getTaskDetailsText(task);
+  const parsed = parseRepairDescription(task.description);
+  const customerNotes = task.customerNotes || parsed.customerNotes || "";
+  const source = task.requestSource || parsed.source || "";
+  const showStructured = hasRepairRequestDetails(task);
+
+  if (!showStructured) {
+    return details ? (
+      <p className={`${compact ? "text-xs line-clamp-2" : "text-sm"} text-gray-300 mt-2 leading-5`}>
+        {details}
+      </p>
+    ) : null;
+  }
+
+  return (
+    <div className={`${compact ? "mt-1 space-y-1" : "mt-2 space-y-2"}`}>
+      {details ? (
+        <p className={`${compact ? "text-xs line-clamp-2" : "text-sm"} text-gray-200 leading-5 whitespace-pre-wrap`}>
+          {details}
+        </p>
+      ) : null}
+      {customerNotes ? (
+        <div className="rounded-md border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            Customer notes
+          </p>
+          <p className="mt-1 text-xs text-slate-100 leading-5 whitespace-pre-wrap">
+            {customerNotes}
+          </p>
+        </div>
+      ) : null}
+      {source ? (
+        <p className="text-xs text-slate-400">
+          Source: <span className="text-slate-200">{source}</span>
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -814,11 +901,7 @@ export default function WorkListClient({
                                       : ""}
                                   </p>
                                 ) : null}
-                                {task.description ? (
-                                  <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                                    {task.description}
-                                  </p>
-                                ) : null}
+                                <RepairTaskSummary task={task} compact />
                               </td>
                               <td className="py-2 pr-2 text-gray-300">
                                 {task.assignedTechnicianName ||
@@ -892,11 +975,7 @@ export default function WorkListClient({
                               <p className="text-xs text-gray-400 leading-5">
                                 Due: {formatDayDateTime(task.dueAt)}
                               </p>
-                              {task.description ? (
-                                <p className="text-sm text-gray-300 mt-2 leading-5">
-                                  {task.description}
-                                </p>
-                              ) : null}
+                              <RepairTaskSummary task={task} />
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="px-2.5 py-1 text-xs rounded-md border border-gray-700 text-gray-200">
@@ -1017,9 +1096,7 @@ export default function WorkListClient({
                                 Cancellation Reason: {task.cancellationReason}
                               </p>
                             ) : null}
-                            {task.description ? (
-                              <p>Task Notes: {task.description}</p>
-                            ) : null}
+                            <RepairTaskSummary task={task} />
                             {(task as any).notes &&
                             (task as any).notes !== task.description ? (
                               <p>Notes: {(task as any).notes}</p>
@@ -1247,9 +1324,7 @@ export default function WorkListClient({
             <p className="text-sm text-gray-300">
               Due: {formatDayDateTime(activeTask.dueAt)}
             </p>
-            {activeTask.description ? (
-              <p className="text-sm text-gray-200">{activeTask.description}</p>
-            ) : null}
+            <RepairTaskSummary task={activeTask} />
             <div className="flex gap-2 pt-2">
               <Button
                 variant="secondary"

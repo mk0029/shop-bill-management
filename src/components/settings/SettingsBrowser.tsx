@@ -16,6 +16,7 @@ import PersonalInformationSection from "@/components/settings/PersonalInformatio
 import CustomerSettingsClient from "@/components/customer/customer-settings-client";
 import { getDeviceInfo } from "@/lib/fcm/device";
 import { APP_VERSION } from "@/lib/app-version";
+import { setNotificationTone } from "@/lib/notification-sound";
 import { useAuthStore } from "@/store/auth-store";
 import { SettingsCategory, SettingsOption, SettingsSection } from "@/components/settings/SettingsRows";
 import {
@@ -282,6 +283,9 @@ export default function SettingsBrowser({
   };
 
   const recordChange = (key: string, value: unknown) => {
+    if (key === "sound.tone") {
+      setNotificationTone(String(value || "Default"));
+    }
     const nextValues = { ...values, [key]: value };
     setValues(nextValues);
     writeJson(VALUES_KEY, nextValues);

@@ -82,8 +82,12 @@ export function CustomerNavigation() {
   const router = useRouter();
   const { logout, user } = useAuthStore();
   const { hasUnread: hasChatUnread } = useGlobalShopChat(user as any);
+  const [repairAttentionCount, setRepairAttentionCount] = useState(0);
   const isAdmin = user?.role === "admin";
   const isChatRoute = pathname === "/customer/chat";
+  const isRepairRoute =
+    pathname === "/customer/request-repair" ||
+    pathname.startsWith("/customer/request-repair/");
 
   // Admin-only: Online Status quick slider
   const [onlineStep, setOnlineStep] = useState(0); // 0 offline, 1 online(not at shop), 2 online(at shop)
@@ -139,6 +143,49 @@ export function CustomerNavigation() {
       });
     return () => sub.unsubscribe();
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const loadRepairAttention = async () => {
+      try {
+        const res = await fetch("/api/repair-requests", { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        if (!active || !json?.success) return;
+        const requests = Array.isArray(json.data) ? json.data : [];
+        const activeRequests = requests.filter((request: { status?: string }) =>
+            ["pending", "accepted", "on_hold"].includes(String(request.status || "")),
+          );
+        const latestStamp = activeRequests.reduce((latest: string, request: { updatedAt?: string; createdAt?: string }) => {
+          const stamp = String(request.updatedAt || request.createdAt || "");
+          if (!stamp) return latest;
+          if (!latest) return stamp;
+          return new Date(stamp).getTime() > new Date(latest).getTime() ? stamp : latest;
+        }, "");
+        const userId = String((user as any)?._id || (user as any)?.id || "current");
+        const seenKey = `repair_requests_seen_customer_${userId}`;
+        if (isRepairRoute) {
+          if (latestStamp) window.localStorage.setItem(seenKey, latestStamp);
+          setRepairAttentionCount(0);
+          return;
+        }
+        const seenStamp = window.localStorage.getItem(seenKey) || "";
+        const hasUnseen =
+          !!latestStamp &&
+          (!seenStamp ||
+            new Date(latestStamp).getTime() > new Date(seenStamp).getTime());
+        setRepairAttentionCount(hasUnseen ? activeRequests.length : 0);
+      } catch {}
+    };
+    void loadRepairAttention();
+    const sub = sanityClient
+      .listen('*[_type == "repairRequest"]', {}, { includeResult: false })
+      .subscribe(() => void loadRepairAttention());
+    return () => {
+      active = false;
+      sub.unsubscribe();
+    };
+  }, [user, isRepairRoute]);
 
   const updateOnline = async (idx: 0 | 1 | 2) => {
     setUpdating(true);
@@ -215,6 +262,10 @@ export function CustomerNavigation() {
     const active = isActive(item.href);
     const isDisabled = item.isDisabled;
     const showChatDot = hasChatUnread && item.href === "/customer/chat";
+    const showRepairDot =
+      !isRepairRoute &&
+      repairAttentionCount > 0 &&
+      item.href === "/customer/request-repair";
 
     if (isMobile) {
       if (isDisabled) {
@@ -242,7 +293,7 @@ export function CustomerNavigation() {
         >
           <Icon className="w-5 h-5" />
           <span className="font-medium">{item.label}</span>
-          {showChatDot && (
+          {(showChatDot || showRepairDot) && (
             <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
           )}
         </Link>
@@ -272,7 +323,7 @@ export function CustomerNavigation() {
       >
         <Icon className="w-5 h-5" />
         <span className="font-medium">{item.label}</span>
-        {showChatDot && (
+        {(showChatDot || showRepairDot) && (
           <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
         )}
       </Link>

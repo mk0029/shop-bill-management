@@ -18,6 +18,7 @@ import {
   FileText,
   CreditCard,
   Calculator,
+  ClipboardList,
   Download,
   Upload,
   History,
@@ -26,6 +27,8 @@ import {
   UserRound,
   MapPin,
 } from "lucide-react";
+
+const notificationToneOptions = ["Default", "Soft", "Alert", "Chime", "Urgent", "Silent"];
 
 export type SettingControl =
   | { type: "toggle"; key: string; title: string; description?: string; defaultValue?: boolean }
@@ -90,11 +93,18 @@ export const settingsTree: SettingNode[] = [
         { type: "toggle", key: "push.chat", title: "Message Notifications", defaultValue: true },
         { type: "toggle", key: "push.billing", title: "Billing Notifications", defaultValue: true },
         { type: "toggle", key: "push.work", title: "Work Notifications", defaultValue: true },
+        { type: "toggle", key: "push.repairRequests", title: "Repair Request Notifications", defaultValue: true },
+        { type: "toggle", key: "push.workList", title: "Work List Notifications", defaultValue: true },
         { type: "toggle", key: "push.toolRent", title: "Tool Rental Notifications", defaultValue: true },
       ], Smartphone),
       option("sound", "Notification Sound", "Foreground sound and vibration preferences", [
         { type: "toggle", key: "sound.enabled", title: "Play Sound", defaultValue: false },
-        { type: "select", key: "sound.tone", title: "Tone", defaultValue: "Default", options: ["Default", "Soft", "Alert", "Silent"] },
+        { type: "select", key: "sound.tone", title: "Default Tone", defaultValue: "Default", options: notificationToneOptions },
+        { type: "select", key: "sound.chatTone", title: "Chat Tone", defaultValue: "Chime", options: notificationToneOptions },
+        { type: "select", key: "sound.billingTone", title: "Billing Tone", defaultValue: "Default", options: notificationToneOptions },
+        { type: "select", key: "sound.repairTone", title: "Repair Request Tone", defaultValue: "Alert", options: notificationToneOptions },
+        { type: "select", key: "sound.workTone", title: "Work Task Tone", defaultValue: "Soft", options: notificationToneOptions },
+        { type: "select", key: "sound.toolRentTone", title: "Tool Rental Tone", defaultValue: "Default", options: notificationToneOptions },
       ], Volume2),
       option("popovers", "Notification Popovers", "Control banners and popover display", [
         { type: "toggle", key: "popover.enabled", title: "Show Popovers", defaultValue: true },
@@ -106,6 +116,19 @@ export const settingsTree: SettingNode[] = [
       ], MessageCircle),
       option("billing", "Billing Notifications", "Bill creation, payment, and update alerts", [{ type: "toggle", key: "notify.billing.enabled", title: "Enable Billing Alerts", defaultValue: true }], ReceiptText),
       option("work-tasks", "Work Task Notifications", "Task assignment and status alerts", [{ type: "toggle", key: "notify.work.enabled", title: "Enable Work Alerts", defaultValue: true }], BriefcaseBusiness),
+      option("repair-requests", "Repair Request Notifications", "Repair request creation, cancellation, schedule, and work-list movement alerts", [
+        { type: "toggle", key: "notify.repair.enabled", title: "Enable Repair Request Alerts", defaultValue: true },
+        { type: "toggle", key: "notify.repair.created", title: "New Repair Requests", defaultValue: true },
+        { type: "toggle", key: "notify.repair.cancelled", title: "Cancelled Repair Requests", defaultValue: true },
+        { type: "toggle", key: "notify.repair.movedToWorkList", title: "Moved To Work List", defaultValue: true },
+        { type: "select", key: "notify.repair.tone", title: "Repair Alert Tone", defaultValue: "Alert", options: notificationToneOptions },
+      ], Wrench),
+      option("work-list", "Work List Notifications", "Work list task changes, deletion, hold, completion, and timing alerts", [
+        { type: "toggle", key: "notify.workList.enabled", title: "Enable Work List Alerts", defaultValue: true },
+        { type: "toggle", key: "notify.workList.deleted", title: "Task Deleted Alerts", defaultValue: true },
+        { type: "toggle", key: "notify.workList.timeChanged", title: "Time Change Alerts", defaultValue: true },
+        { type: "select", key: "notify.workList.tone", title: "Work List Alert Tone", defaultValue: "Soft", options: notificationToneOptions },
+      ], ClipboardList),
       option("tool-rent", "Tool Rent Notifications", "Rental, payment, and return alerts", [{ type: "toggle", key: "notify.toolRent.enabled", title: "Enable Rental Alerts", defaultValue: true }], Wrench),
       option("reminders", "Reminder Notifications", "Due and overdue reminder behavior", [{ type: "toggle", key: "notify.reminders.enabled", title: "Enable Reminders", defaultValue: true }], Clock),
       option("quiet-hours", "Quiet Hours", "Mute non-urgent alerts during selected hours", [

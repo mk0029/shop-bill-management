@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  BarChart3,
   ChevronDown,
   FileText,
   History,
@@ -18,7 +17,6 @@ import {
   Settings,
   Shield,
   User,
-  Building2,
   Users,
   X,
   DollarSign,
@@ -36,6 +34,7 @@ import { OnlineStatusToggle } from "@/components/online-status-toggle";
 import { safeUserName } from "@/lib/display-text";
 import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
 import { SanityImage } from "./sanity-image";
+import { sanityClient } from "@/lib/sanity";
 
 interface NavigationItem {
   label: string;
@@ -54,32 +53,16 @@ const adminNavigation: NavigationItem[] = [
   {
     label: "Brand Management",
     href: "/admin/inventory/brands",
-    icon: Building2,
+    icon: Package,
   },
   { label: "Rent Tools", href: "/admin/rent-tools", icon: Wrench },
   { label: "Repair Requests", href: "/admin/repair-requests", icon: Wrench },
   { label: "Work List", href: "/dashboard/work-list", icon: FileText },
   {
     label: "Other",
-    href: "/admin/inventory",
-    icon: Package,
+    href: "/admin/settings",
+    icon: Settings,
     children: [
-      { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
-      {
-        label: "Estimate Fitting Cost",
-        href: "/admin/billing/fitting-wiring",
-        icon: Settings,
-      },
-      {
-        label: "Fitting Items List",
-        href: "/admin/tools/fitting-items",
-        icon: Settings,
-      },
-      {
-        label: "Tools List Settings",
-        href: "/admin/settings/toolslist",
-        icon: Wrench,
-      },
       { label: "Settings", href: "/admin/settings", icon: Settings },
       {
         label: "Stock History",
@@ -146,7 +129,11 @@ export function Navigation() {
   const router = useRouter();
   const { role, logout, user } = useAuthStore();
   const { hasUnread: hasChatUnread } = useGlobalShopChat(user as any);
+  const [repairAttentionCount, setRepairAttentionCount] = useState(0);
   const isChatRoute = pathname === "/admin/chat";
+  const isRepairRoute =
+    pathname === "/admin/repair-requests" ||
+    Boolean(pathname?.startsWith("/admin/repair-requests/"));
   const hideChatHeader = isChatRoute && (isDesktopViewport || isChatRoomOpen);
 
   const rawDisplayName =
@@ -256,6 +243,49 @@ export function Navigation() {
     return () => window.removeEventListener("shop-chat:room-state", onState as EventListener);
   }, [isChatRoute]);
 
+  useEffect(() => {
+    if (!(role === "admin" || role === "super_admin" || role === "technician")) return;
+    let active = true;
+    const loadRepairAttention = async () => {
+      try {
+        const res = await fetch("/api/repair-requests", { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+        if (!active || !json?.success) return;
+        const requests = Array.isArray(json.data) ? json.data : [];
+        const pendingRequests = requests.filter(
+          (request: { status?: string }) => String(request.status || "") === "pending",
+        );
+        const latestStamp = pendingRequests.reduce((latest: string, request: { updatedAt?: string; createdAt?: string }) => {
+          const stamp = String(request.updatedAt || request.createdAt || "");
+          if (!stamp) return latest;
+          if (!latest) return stamp;
+          return new Date(stamp).getTime() > new Date(latest).getTime() ? stamp : latest;
+        }, "");
+        const userId = String((user as any)?._id || (user as any)?.id || "current");
+        const seenKey = `repair_requests_seen_admin_${userId}`;
+        if (isRepairRoute) {
+          if (latestStamp) window.localStorage.setItem(seenKey, latestStamp);
+          setRepairAttentionCount(0);
+          return;
+        }
+        const seenStamp = window.localStorage.getItem(seenKey) || "";
+        const hasUnseen =
+          !!latestStamp &&
+          (!seenStamp ||
+            new Date(latestStamp).getTime() > new Date(seenStamp).getTime());
+        setRepairAttentionCount(hasUnseen ? pendingRequests.length : 0);
+      } catch {}
+    };
+    void loadRepairAttention();
+    const sub = sanityClient
+      .listen('*[_type == "repairRequest"]', {}, { includeResult: false })
+      .subscribe(() => void loadRepairAttention());
+    return () => {
+      active = false;
+      sub.unsubscribe();
+    };
+  }, [role, user, isRepairRoute]);
+
   if (!mounted) return null;
 
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
@@ -264,6 +294,10 @@ export function Navigation() {
     const isExpanded = expandedItems === item.label;
     const active = isActive(item.href);
     const showChatDot = hasChatUnread && item.href.split("?")[0] === "/admin/chat";
+    const showRepairDot =
+      !isRepairRoute &&
+      repairAttentionCount > 0 &&
+      item.href.split("?")[0] === "/admin/repair-requests";
 
     if (isMobile) {
       return (
@@ -298,7 +332,7 @@ export function Navigation() {
             >
               <Icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
-              {showChatDot && (
+              {(showChatDot || showRepairDot) && (
                 <span className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
               )}
             </Link>
@@ -345,7 +379,7 @@ export function Navigation() {
               }`}
             >
               <Icon className="w-5 h-5" />
-              {showChatDot && (
+              {(showChatDot || showRepairDot) && (
                 <span className="absolute right-2 top-1.5 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
               )}
             </Link>
@@ -398,7 +432,7 @@ export function Navigation() {
           {!isDesktopNavMinimized && (
             <span className="font-medium">{item.label}</span>
           )}
-          {showChatDot && (
+          {(showChatDot || showRepairDot) && (
             <span className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
           )}
         </Link>

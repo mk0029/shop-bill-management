@@ -390,12 +390,42 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const existing = await sanityClient.fetch<any>(
     `*[_type=="workTask" && _id==$id][0]{
       title, description, priority, status, issueCategory, dueAt,
+      repairRequestId, repairDetails, customerNotes, requestSource,
       completionNotes, cancellationReason, holdReason, createdAt, updatedAt,
+      repairRequest->{_id,requestId},
       assignedTechnician->{_id,name}, assignedTechnicianName, customerRef
     }`,
     { id },
   );
   if (!existing) return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+
+  const now = new Date().toISOString();
+  const actor = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{name,role}`, { id: actorUserId });
+  const linkedRepairRequest =
+    existing?.repairRequest?._id
+      ? existing.repairRequest
+      : await sanityClient.fetch<any>(
+          `*[_type=="repairRequest" && (workTask._ref==$taskId || requestId==$requestId)][0]{_id,requestId}`,
+          { taskId: id, requestId: String(existing?.repairRequestId || "") },
+        );
+
+  if (linkedRepairRequest?._id) {
+    const repairPatch: Record<string, unknown> = {
+      status: "cancelled",
+      cancelledByName: sanitizeUserText(String(actor?.name || "")).trim() || "Admin",
+      cancelledByRole: String(auth.role || actor?.role || "admin"),
+      cancelledAt: now,
+      updatedAt: now,
+    };
+    if (actorUserId) {
+      repairPatch.updatedBy = { _type: "reference", _ref: actorUserId };
+    }
+    await sanityClient
+      .patch(linkedRepairRequest._id)
+      .set(repairPatch)
+      .unset(["workTask"])
+      .commit();
+  }
 
   await sanityClient.delete(id);
   const customerRefId = String(existing?.customerRef?._ref || existing?.customerRef?._id || "");
@@ -412,7 +442,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       assignedTechnicianName: sanitizeUserText(String(existing?.assignedTechnicianName || existing?.assignedTechnician?.name || "")).trim(),
       action: "deleted",
       createdAt: String(existing?.createdAt || ""),
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
       completionNotes: String(existing?.completionNotes || ""),
       cancellationReason: String(existing?.cancellationReason || ""),
       holdReason: String(existing?.holdReason || ""),
@@ -452,6 +482,24 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       },
       skipActor: true,
     });
+    if (linkedRepairRequest?._id) {
+      await sendNotificationEvent({
+        eventId: `repairRequest.cancelled.${linkedRepairRequest._id}.customer.${customerRefId}.${now}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
+        type: "workTask.cancelled",
+        actorUserId,
+        userId: customerRefId,
+        title: "Repair request cancelled",
+        body: `Repair request ${linkedRepairRequest.requestId || existing?.repairRequestId || ""} was cancelled because the linked work task was deleted.`,
+        data: {
+          taskId: id,
+          repairRequestId: linkedRepairRequest._id,
+          requestId: linkedRepairRequest.requestId || existing?.repairRequestId || "",
+          route: "/customer/request-repair",
+          route_path: "/customer/request-repair",
+        },
+        skipActor: true,
+      });
+    }
   }
   return NextResponse.json({ success: true });
 }

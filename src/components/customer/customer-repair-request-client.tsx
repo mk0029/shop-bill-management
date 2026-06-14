@@ -1,16 +1,19 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CalendarClock, CheckCircle2, ClipboardList, RefreshCcw, Send, UserRound, Wrench } from "lucide-react";
+import { AlertCircle, CalendarClock, CheckCircle2, ClipboardList, Plus, Send, UserRound, XCircle } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName } from "@/lib/display-text";
+import { sanityClient } from "@/lib/sanity";
 
 type TechnicianOption = {
   _id: string;
@@ -28,6 +31,9 @@ type RepairRequest = {
   status?: string;
   scheduledAt?: string;
   createdAt?: string;
+  cancelledByName?: string;
+  cancelledByRole?: string;
+  cancelledAt?: string;
   technicianName?: string;
   technician?: { name?: string };
   workTask?: { _id?: string; title?: string; status?: string; dueAt?: string };
@@ -36,6 +42,7 @@ type RepairRequest = {
 function statusClass(status?: string) {
   if (status === "accepted") return "border-emerald-500/40 bg-emerald-500/15 text-emerald-200";
   if (status === "rejected") return "border-rose-500/40 bg-rose-500/15 text-rose-200";
+  if (status === "cancelled") return "border-gray-500/40 bg-gray-700/40 text-gray-200";
   if (status === "on_hold") return "border-amber-500/40 bg-amber-500/15 text-amber-200";
   if (status === "added_to_work_list") return "border-blue-500/40 bg-blue-500/15 text-blue-200";
   return "border-slate-500/40 bg-slate-700/40 text-slate-200";
@@ -51,29 +58,44 @@ function label(value?: string) {
   return String(value || "-").replace(/_/g, " ");
 }
 
+function actorRoleLabel(role?: string, fallback = "customer") {
+  if (role === "customer") return "customer";
+  if (role === "technician") return "technician";
+  if (role === "super_admin") return "admin";
+  if (role === "admin") return "admin";
+  return fallback;
+}
+
+function cancelledByText(request: RepairRequest) {
+  if (!["cancelled", "rejected"].includes(String(request.status || ""))) return "";
+  const fallback = request.status === "cancelled" ? "customer" : "admin";
+  const role = actorRoleLabel(request.cancelledByRole, fallback);
+  const name = safeUserName(request.cancelledByName, "");
+  return name ? `Cancelled by ${role}: ${name}` : `Cancelled by ${role}`;
+}
+
 const priorityOptions = [
   { value: "average", label: "Average" },
   { value: "high", label: "High" },
 ];
 
-const sourceOptions = [
-  { value: "in_chat", label: "In-chat" },
-  { value: "whatsapp", label: "WhatsApp" },
-];
+const initialForm = {
+  details: "",
+  notes: "",
+  priority: "average",
+  source: "in_chat",
+  technicianId: "",
+};
 
 export default function CustomerRepairRequestClient() {
   const [technicians, setTechnicians] = useState<TechnicianOption[]>([]);
   const [requests, setRequests] = useState<RepairRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    details: "",
-    notes: "",
-    priority: "average",
-    source: "in_chat",
-    technicianId: "",
-  });
+  const [form, setForm] = useState(initialForm);
 
   const load = useCallback(async () => {
     setError("");
@@ -101,17 +123,26 @@ export default function CustomerRepairRequestClient() {
 
   useEffect(() => {
     void load();
+    const sub = sanityClient
+      .listen('*[_type == "repairRequest"]', {}, { includeResult: false })
+      .subscribe(() => void load());
+    const onFocus = () => void load();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      sub.unsubscribe();
+      window.removeEventListener("focus", onFocus);
+    };
   }, [load]);
 
   const activeCount = useMemo(
-    () => requests.filter((request) => !["rejected", "added_to_work_list"].includes(String(request.status || ""))).length,
+    () => requests.filter((request) => !["rejected", "cancelled", "added_to_work_list"].includes(String(request.status || ""))).length,
     [requests],
   );
 
   const technicianOptions = useMemo(
     () => technicians.map((technician) => ({
       value: technician._id,
-      label: `${safeUserName(technician.name, "Technician")} (${label(technician.role)})`,
+      label: safeUserName(technician.name, "Technician"),
     })),
     [technicians],
   );
@@ -138,13 +169,41 @@ export default function CustomerRepairRequestClient() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json?.success) throw new Error(json?.error || "Failed to submit repair request");
       toast.success(`Repair request created: ${json.data?.requestId || "Submitted"}`);
-      setForm((prev) => ({ ...prev, details: "", notes: "" }));
+      setForm({ ...initialForm, technicianId: technicians[0]?._id || "" });
+      setIsCreateOpen(false);
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to submit repair request");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const cancelRequest = async (request: RepairRequest) => {
+    setCancellingId(request._id);
+    try {
+      const res = await fetch(`/api/repair-requests/${encodeURIComponent(request._id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) throw new Error(json?.error || "Failed to cancel request");
+      toast.success("Repair request cancelled");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel request");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const updatePriority = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      priority: value,
+      source: value === "high" ? "whatsapp" : "in_chat",
+    }));
   };
 
   return (
@@ -169,14 +228,14 @@ export default function CustomerRepairRequestClient() {
         </Card>
       </div>
 
-      <Card className="border-gray-800 bg-gray-900">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Wrench className="h-5 w-5" />
-            New Repair Request
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex justify-end">
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-emerald-600 text-white hover:bg-emerald-500">
+          <Plus className="h-4 w-4" />
+          Create Repair Request
+        </Button>
+      </div>
+
+      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="New Repair Request" size="xl">
           <form onSubmit={submit} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-2 text-sm font-medium text-gray-200 md:col-span-2">
@@ -194,12 +253,14 @@ export default function CustomerRepairRequestClient() {
                 <Dropdown
                   options={priorityOptions}
                   value={form.priority}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, priority: value }))}
+                  onValueChange={updatePriority}
                   placeholder="Select priority"
                   removeSearchForce
                   classNameButton="bg-gray-950 hover:bg-gray-900"
                 />
-                <span className="block text-xs text-amber-200">High priority tasks may include extra charges.</span>
+                <span className="block text-xs text-slate-400">
+                  Average requests notify in app. High priority requests notify in app and WhatsApp, and may include extra charges.
+                </span>
               </label>
               <label className="space-y-2 text-sm font-medium text-gray-200">
                 Mechanic / Technician
@@ -210,17 +271,6 @@ export default function CustomerRepairRequestClient() {
                   placeholder="Select mechanic / technician"
                   disabled={technicianOptions.length === 0}
                   searchable={technicianOptions.length > 5}
-                  classNameButton="bg-gray-950 hover:bg-gray-900"
-                />
-              </label>
-              <label className="space-y-2 text-sm font-medium text-gray-200">
-                Request source
-                <Dropdown
-                  options={sourceOptions}
-                  value={form.source}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, source: value }))}
-                  placeholder="Select source"
-                  removeSearchForce
                   classNameButton="bg-gray-950 hover:bg-gray-900"
                 />
               </label>
@@ -241,8 +291,7 @@ export default function CustomerRepairRequestClient() {
               </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
+      </Modal>
 
       <Card className="border-gray-800 bg-gray-900">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -250,10 +299,6 @@ export default function CustomerRepairRequestClient() {
             <ClipboardList className="h-5 w-5" />
             Your Repair Requests
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => void load()} className="gap-2 text-gray-300">
-            <RefreshCcw className="h-4 w-4" />
-            Refresh
-          </Button>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -266,9 +311,17 @@ export default function CustomerRepairRequestClient() {
           ) : requests.length === 0 ? (
             <div className="p-8 text-center text-gray-400">No repair requests yet.</div>
           ) : (
-            <div className="divide-y divide-gray-800">
-              {requests.map((request) => (
-                <div key={request._id} className="p-4">
+            <div className="space-y-3 p-4">
+              {requests.map((request) => {
+                const isCancelled = request.status === "cancelled";
+                const cancelText = cancelledByText(request);
+                return (
+                <div
+                  key={request._id}
+                  className={`rounded-lg border border-slate-800 bg-slate-950/25 p-4 ${
+                    isCancelled ? "opacity-55 grayscale" : ""
+                  }`}
+                >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -277,28 +330,49 @@ export default function CustomerRepairRequestClient() {
                         <Badge className={priorityClass(request.priority)}>{label(request.priority)}</Badge>
                       </div>
                       <p className="mt-2 line-clamp-2 text-sm text-gray-300">{request.details}</p>
+                      {cancelText ? (
+                        <p className="mt-2 text-xs font-medium text-slate-400">{cancelText}</p>
+                      ) : null}
                     </div>
-                    {request.status === "added_to_work_list" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/40 px-2.5 py-1 text-xs text-blue-100">
+                    {request.status === "added_to_work_list" && request.workTask?._id ? (
+                      <Link
+                        href={`/customer/work-tasks?open=${encodeURIComponent(request.workTask._id)}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs text-blue-100 transition hover:bg-blue-500/20"
+                      >
                         <CheckCircle2 className="h-3.5 w-3.5" />
-                        Work list
-                      </span>
+                        Moved to tasks page
+                      </Link>
+                    ) : null}
+                    {!["cancelled", "rejected", "added_to_work_list"].includes(String(request.status || "")) ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        loading={cancellingId === request._id}
+                        onClick={() => void cancelRequest(request)}
+                        className="gap-1 text-rose-200 hover:text-rose-100"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Cancel
+                      </Button>
                     ) : null}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-300">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-1">
-                      <UserRound className="h-3.5 w-3.5" />
-                      {safeUserName(request.technicianName || request.technician?.name, "Technician")}
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-1">
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      {request.scheduledAt ? formatDayDateTime(request.scheduledAt) : request.createdAt ? formatDayDateTime(request.createdAt) : "-"}
-                    </span>
-                    <span className="rounded-full border border-gray-700 px-2.5 py-1">{label(request.source)}</span>
-                  </div>
+                  {!isCancelled ? (
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-300">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-1">
+                        <UserRound className="h-3.5 w-3.5" />
+                        {safeUserName(request.technicianName || request.technician?.name, "Technician")}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-1">
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        {request.scheduledAt ? formatDayDateTime(request.scheduledAt) : request.createdAt ? formatDayDateTime(request.createdAt) : "-"}
+                      </span>
+                      <span className="rounded-full border border-gray-700 px-2.5 py-1">{label(request.source)}</span>
+                    </div>
+                  ) : null}
                   {request.notes ? <p className="mt-3 rounded-md bg-gray-950 p-3 text-sm text-gray-300">Notes: {request.notes}</p> : null}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

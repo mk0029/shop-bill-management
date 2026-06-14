@@ -110,14 +110,14 @@ export async function GET(req: NextRequest) {
 
   const query = auth.role === "customer"
     ? `*[_type == "workTask" && (customerRef._ref == $customerUserId || customerRef->customerId == $customerCode)]{
-    _id, title, description, priority, status, issueCategory, dueAt,
+    _id, title, description, repairRequestId, repairDetails, customerNotes, requestSource, priority, status, issueCategory, dueAt,
     completionNotes, cancellationReason, holdReason, completedAt, createdAt, updatedAt, createdByName, assignedTechnicianName,
     customerRef->{_id, name, phone},
     assignedTechnician->{_id, name, phone},
     createdBy->{_id, name}
   } | order(dueAt asc)`
     : `*[_type == "workTask"]{
-    _id, title, description, priority, status, issueCategory, dueAt,
+    _id, title, description, repairRequestId, repairDetails, customerNotes, requestSource, priority, status, issueCategory, dueAt,
     completionNotes, cancellationReason, holdReason, completedAt, createdAt, updatedAt, createdByName, assignedTechnicianName,
     customerRef->{_id, name, phone},
     assignedTechnician->{_id, name, phone},
