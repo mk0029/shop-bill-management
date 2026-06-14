@@ -19,6 +19,26 @@ import SmartPopup from "@/lib/ui/SmartPopup";
 import { decodeTransportText, mediaReplyLabel } from "@/lib/messageCodec";
 import { safeUserName } from "@/lib/display-text";
 
+function roleSafeSystemText(text: string, viewerRole: string) {
+  const adminSafe = text
+    .replace(/\bYour bill is created\b/gi, "Bill created")
+    .replace(/\bYour bill has been created\b/gi, "Bill created")
+    .replace(/\bYour bill created\b/gi, "Bill created")
+    .replace(/\bYour payment received\b/gi, "Payment received")
+    .replace(/\bYour credit added\b/gi, "Credit recorded")
+    .replace(/\bNew service task created\b/gi, "New work assigned")
+    .replace(/\bService task completed\b/gi, "Task completed");
+
+  if (viewerRole !== "customer") return adminSafe;
+
+  return adminSafe
+    .replace(/\bNew work assigned\b/gi, "Shop assigned new work")
+    .replace(/\bWork updated\b/gi, "Shop updated your work")
+    .replace(/\bService task updated\b/gi, "Shop updated your work")
+    .replace(/\bService task time updated\b/gi, "Shop updated your work time")
+    .replace(/\bTask completed\b/gi, "Shop completed your task");
+}
+
 interface MessageBubbleProps {
   message: Message;
   prev?: Message | null;
@@ -102,8 +122,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   // Decode content for display
   const contentText = useMemo(() => {
-    return decodeTransportText(decodeTransportText(message.content || ""));
-  }, [message.content]);
+    const decoded = decodeTransportText(decodeTransportText(message.content || ""));
+    return roleSafeSystemText(decoded, String(user?.role || ""));
+  }, [message.content, user?.role]);
 
   // Detect media and URLs
   const urlRe = /(https?:\/\/[^\s]+)/gi;
@@ -346,10 +367,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       ? message.systemEventData
       : null;
   const isCustomerViewer = String(user?.role || "") === "customer";
-  const billOwnerName = safeUserName(billEventData?.customerName, "Customer");
-  const billSubject = isCustomerViewer
-    ? "Your bill"
-    : `${billOwnerName || "Customer"}'s bill`;
+  const billAmount = Number(billEventData?.totalAmount || 0);
+  const billEventText = isCustomerViewer
+    ? `Your bill${billAmount > 0 ? ` of ₹${billAmount.toLocaleString()}` : ""} has been created`
+    : `Bill created${billAmount > 0 ? ` of ₹${billAmount.toLocaleString()}` : ""}`;
   const openBillEvent = () => {
     const rawBillId = String(billEventData?.billId || "").trim();
     if (String(user?.role || "") === "customer") {
@@ -384,6 +405,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     /_/g,
     " ",
   );
+  const workTaskSystemText =
+    isCustomerViewer && workTaskAction === "created"
+      ? "Shop assigned new work"
+      : isCustomerViewer && workTaskAction === "completed"
+        ? "Shop completed your task"
+        : isCustomerViewer
+          ? "Shop updated your work"
+          : workTaskAction === "created"
+            ? "New work assigned"
+            : workTaskAction === "completed"
+              ? "Task completed"
+              : "Work updated";
   const openWorkTaskEvent = () => {
     if (!workTaskEventData?.taskId) return;
     const taskId = encodeURIComponent(String(workTaskEventData.taskId));
@@ -503,11 +536,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               </div>
             </div>
             <div className="text-sm text-slate-100">
-              {billSubject} is created
-              {Number(billEventData.totalAmount || 0) > 0
-                ? ` of ₹${Number(billEventData.totalAmount || 0).toLocaleString()}`
-                : ""}
-              .
+              {billEventText}.
             </div>
             <div className="mt-1 text-xs font-medium text-emerald-200">
               For more detail click here
@@ -531,7 +560,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               </span>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">
-                  Service Task
+                  {workTaskSystemText}
                 </div>
                 <div className="truncate text-[11px] capitalize text-sky-100/70">
                   {workTaskAction}

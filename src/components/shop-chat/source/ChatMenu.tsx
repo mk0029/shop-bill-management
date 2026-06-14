@@ -48,7 +48,7 @@ function statusText(input: {
   if (input.statusLabel) return input.statusLabel;
   if (input.peerOnline) return "Online";
   if (input.peerLastSeen) return `Last seen ${new Date(input.peerLastSeen).toLocaleString()}`;
-  return "Offline";
+  return "Never logged in";
 }
 
 function downloadText(filename: string, text: string) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { notificationCutoffIso } from '@/lib/notifications/age'
 
 /**
  * GET /api/notifications/list?userId=...&role=...&phone=...&limit=...
@@ -17,8 +18,15 @@ export async function GET(req: NextRequest) {
     const customerId = (url.searchParams.get('customerId') || '').trim()
     const phone = (url.searchParams.get('phone') || '').trim()
     const role = (url.searchParams.get('role') || '').trim()
+    const sinceRaw = (url.searchParams.get('since') || '').trim()
     const limitRaw = url.searchParams.get('limit')
     const limit = Math.max(1, Math.min(200, Number(limitRaw || 50) || 50))
+    const maxAgeCutoffIso = notificationCutoffIso()
+    const sinceDate = sinceRaw ? new Date(sinceRaw) : null
+    const cutoffIso =
+      sinceDate && !Number.isNaN(sinceDate.getTime()) && sinceDate.toISOString() > maxAgeCutoffIso
+        ? sinceDate.toISOString()
+        : maxAgeCutoffIso
 
     const ids = [userId, clerkId, customerId].filter(Boolean)
     const phones = phone ? [phone] : []
@@ -53,6 +61,7 @@ export async function GET(req: NextRequest) {
     ))
     && !(defined(actorUserId) && actorUserId in $ids)
     && !($isAdmin && type in $adminSkippedInAppTypes)
+    && coalesce(createdAt, _createdAt) >= $cutoffIso
     ] | order(coalesce(createdAt, _createdAt) desc)[0...$limit]{
       _id,
       title,
@@ -76,6 +85,7 @@ export async function GET(req: NextRequest) {
       limit,
       includeCleared,
       adminSkippedInAppTypes,
+      cutoffIso,
     })
     return NextResponse.json({ items: items || [] }, { status: 200 })
   } catch (e: unknown) {

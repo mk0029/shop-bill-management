@@ -117,6 +117,12 @@ export function deleteShopChatMessage(messageId: string, scope: "me" | "everyone
   );
 }
 
+export function clearShopChatRoom(roomId: string) {
+  return requestJson<{ message: ShopChatMessage; room: ShopChatRoom }>(`/rooms/${encodeURIComponent(roomId)}/clear`, {
+    method: "POST",
+  });
+}
+
 export function reactToShopChatMessage(messageId: string, emoji: string | null) {
   return requestJson<{ message: ShopChatMessage }>(`/messages/${encodeURIComponent(messageId)}/react`, {
     method: "POST",

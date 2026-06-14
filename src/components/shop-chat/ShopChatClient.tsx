@@ -13,6 +13,7 @@ import MessageInput from "@/components/shop-chat/source/ChatRoom/MessageInput";
 import MessagesList from "@/components/shop-chat/source/ChatRoom/MessagesList";
 import ChatItem from "@/components/shop-chat/source/ChatSidebar/ChatItem";
 import {
+  clearShopChatRoom,
   deleteShopChatMessage,
   editShopChatMessage,
   forwardShopChatMessage,
@@ -91,9 +92,9 @@ function formatTime(value?: string | null) {
 }
 
 function formatLastSeen(value?: string | null) {
-  if (!value) return "Last seen recently";
+  if (!value) return "Never logged in";
   const then = Date.parse(value);
-  if (!Number.isFinite(then)) return "Last seen recently";
+  if (!Number.isFinite(then)) return "Never logged in";
   const diff = Date.now() - then;
   if (diff < 60_000) return "Last seen just now";
   if (diff < 60 * 60_000) return `Last seen ${Math.max(1, Math.floor(diff / 60_000))}m ago`;
@@ -188,6 +189,26 @@ function chatNotificationBody(text: string, type: ShopChatMessage["type"]) {
     return preview ? preview.slice(0, 140) : "New message";
   }
   return `Sent a ${type === "file" ? "file" : type}`;
+}
+
+function roleSafeSystemText(text: string, mode: ChatMode) {
+  const adminSafe = text
+    .replace(/\bYour bill is created\b/gi, "Bill created")
+    .replace(/\bYour bill has been created\b/gi, "Bill created")
+    .replace(/\bYour bill created\b/gi, "Bill created")
+    .replace(/\bYour payment received\b/gi, "Payment received")
+    .replace(/\bYour credit added\b/gi, "Credit recorded")
+    .replace(/\bNew service task created\b/gi, "New work assigned")
+    .replace(/\bService task completed\b/gi, "Task completed");
+
+  if (mode !== "customer") return adminSafe;
+
+  return adminSafe
+    .replace(/\bNew work assigned\b/gi, "Shop assigned new work")
+    .replace(/\bWork updated\b/gi, "Shop updated your work")
+    .replace(/\bService task updated\b/gi, "Shop updated your work")
+    .replace(/\bService task time updated\b/gi, "Shop updated your work time")
+    .replace(/\bTask completed\b/gi, "Shop completed your task");
 }
 
 function sanityAssetRefToImageUrl(ref: string) {
@@ -414,7 +435,7 @@ function RoomSidebar({
             ? {
                 content:
                   room.lastMessage.type === "text"
-                    ? room.lastMessage.text
+                    ? roleSafeSystemText(room.lastMessage.text, mode)
                     : `[${room.lastMessage.type}]`,
                 timestamp: room.lastMessage.createdAt,
                 senderId: room.lastMessage.senderId,
@@ -706,7 +727,7 @@ function ChatPanel({
                     className="block w-full px-2 py-2 text-left text-sm hover:bg-slate-800"
                   >
                     <div className="text-xs text-slate-500">{new Date(message.timestamp).toLocaleString()}</div>
-                    <div className="truncate">{message.content || "Media message"}</div>
+                    <div className="truncate">{roleSafeSystemText(message.content || "Media message", mode)}</div>
                   </button>
                 ))}
               {searchQuery && !sourceMessages.some((message) => message.content.toLowerCase().includes(searchQuery.toLowerCase())) && (
@@ -1042,6 +1063,12 @@ export default function ShopChatClient({
         socket.emit("message:delivered", { messageIds: [message.messageId] });
       }
     };
+    const onMessageCleared = ({ roomId, message }: { roomId: string; message: ShopChatMessage }) => {
+      setMessagesByRoom((prev) => ({
+        ...prev,
+        [roomId]: [message],
+      }));
+    };
     const onStatus = ({ messages }: { messages: ShopChatMessage[] }) => {
       setMessagesByRoom((prev) => {
         const next = { ...prev };
@@ -1077,12 +1104,14 @@ export default function ShopChatClient({
     };
     socket.on("room:updated", onRoomUpdated);
     socket.on("message:new", onMessageNew);
+    socket.on("message:cleared", onMessageCleared);
     socket.on("message:status", onStatus);
     socket.on("typing:update", onTyping);
     socket.on("presence:snapshot", onPresence);
     return () => {
       socket.off("room:updated", onRoomUpdated);
       socket.off("message:new", onMessageNew);
+      socket.off("message:cleared", onMessageCleared);
       socket.off("message:status", onStatus);
       socket.off("typing:update", onTyping);
       socket.off("presence:snapshot", onPresence);
@@ -1310,10 +1339,13 @@ export default function ShopChatClient({
     }
   };
 
-  const clearActiveChat = () => {
+  const clearActiveChat = async () => {
     if (!activeRoom) return;
-    if (!window.confirm("Clear this chat on this screen?")) return;
-    setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: [] }));
+    if (!window.confirm("Clear this chat for both admin and customer?")) return;
+    const roomId = activeRoom.roomId;
+    const response = await clearShopChatRoom(roomId);
+    setMessagesByRoom((prev) => ({ ...prev, [roomId]: [response.message] }));
+    upsertRoom(response.room);
   };
 
   const sendTyping = (typing: boolean) => {

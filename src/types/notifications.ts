@@ -1,6 +1,8 @@
 export const NOTIFICATION_EVENT_TYPES = [
   "chat.message.created",
   "bill.message.created",
+  "bill_created",
+  "admin_bill_created",
   "billing.created",
   "billing.updated",
   "workTask.created",

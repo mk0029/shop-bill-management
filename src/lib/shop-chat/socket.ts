@@ -11,6 +11,7 @@ type ServerToClientEvents = {
   "room:updated": (room: ShopChatRoom) => void;
   "room:error": (payload: { roomId?: string; message: string }) => void;
   "message:new": (message: ShopChatMessage) => void;
+  "message:cleared": (payload: { roomId: string; message: ShopChatMessage }) => void;
   "message:status": (payload: { messages: ShopChatMessage[] }) => void;
   "message:read": (payload: { roomId: string; userId: string; messageIds: string[] }) => void;
   "typing:update": (payload: { roomId: string; userId: string; role: string; name: string; typing: boolean; at: string }) => void;

@@ -1,6 +1,7 @@
 "use client";
 
 import type { AppNotification, AppNotificationType } from "@/store/notification-store";
+import { isNotificationRecent } from "./age";
 
 type CustomerIdentity = {
   userId?: string;
@@ -26,6 +27,7 @@ function eventTypeOf(input: Record<string, unknown>) {
 export function notificationAppType(eventType: string): AppNotificationType {
   if (eventType.startsWith("chat.")) return "chat";
   if (eventType.startsWith("billing.")) return "billing";
+  if (eventType === "bill_created" || eventType === "admin_bill_created") return "billing";
   if (eventType.startsWith("bill.")) return "chat";
   if (eventType.includes("payment")) return "payment";
   if (eventType.startsWith("workTask.")) return "system";
@@ -56,7 +58,8 @@ export function mapServerNotificationToAppNotification(raw: Record<string, unkno
   const id = stringValue(raw._id) || stringValue(raw.id);
   const title = stringValue(raw.title);
   const body = stringValue(raw.body) || stringValue(raw.message);
-  if (!id || !title || !body) return null;
+  const createdAt = stringValue(raw.createdAt) || stringValue(raw._createdAt) || new Date().toISOString();
+  if (!id || !title || !body || !isNotificationRecent(createdAt)) return null;
 
   const billId = stringValue(raw.billId) || stringValue(data.billId);
   const customerId = stringValue(raw.customerId) || stringValue(data.customerId);
@@ -68,7 +71,7 @@ export function mapServerNotificationToAppNotification(raw: Record<string, unkno
     type: notificationAppType(eventType),
     title,
     body,
-    createdAt: stringValue(raw.createdAt) || stringValue(raw._createdAt) || new Date().toISOString(),
+    createdAt,
     read: false,
     meta: {
       source: "server",
@@ -87,7 +90,7 @@ export function mapPushNotificationToAppNotification(raw: AppNotification): AppN
   const meta = (raw.meta || {}) as Record<string, unknown>;
   const eventType = stringValue(meta.eventType) || stringValue(meta.type) || stringValue(raw.type) || "system.general";
   const mappedType = notificationAppType(eventType);
-  if (!raw.id || !raw.title || !raw.body) return null;
+  if (!raw.id || !raw.title || !raw.body || !isNotificationRecent(raw.createdAt)) return null;
   return {
     ...raw,
     type: mappedType,
@@ -111,6 +114,8 @@ export function isCustomerNotificationVisible(notification: AppNotification, ide
   const currentIds = new Set([identity.userId, identity.customerId].filter(Boolean));
 
   if (eventType === "system.general" || eventType === "shop_status") return true;
+  if (eventType === "bill_created") return !targetUserId || currentIds.has(targetUserId);
+  if (eventType === "admin_bill_created") return false;
   if (eventType.startsWith("billing.")) return !targetUserId || currentIds.has(targetUserId);
   if (eventType.startsWith("bill.")) return !targetUserId || currentIds.has(targetUserId);
   if (eventType.startsWith("chat.")) return !targetUserId || currentIds.has(targetUserId);

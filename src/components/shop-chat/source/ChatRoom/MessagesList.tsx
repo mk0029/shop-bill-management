@@ -29,6 +29,76 @@ interface MessagesListProps {
   onOpenImage?: (payload: { src: string; messageId: string }) => void;
 }
 
+function roleSafeSystemText(text: string, viewerRole: string) {
+  const adminSafe = text
+    .replace(/\bYour bill is created\b/gi, "Bill created")
+    .replace(/\bYour bill has been created\b/gi, "Bill created")
+    .replace(/\bYour bill created\b/gi, "Bill created")
+    .replace(/\bYour payment received\b/gi, "Payment received")
+    .replace(/\bYour credit added\b/gi, "Credit recorded")
+    .replace(/\bNew service task created\b/gi, "New work assigned")
+    .replace(/\bService task completed\b/gi, "Task completed");
+
+  if (viewerRole !== "customer") return adminSafe;
+
+  return adminSafe
+    .replace(/\bNew work assigned\b/gi, "Shop assigned new work")
+    .replace(/\bWork updated\b/gi, "Shop updated your work")
+    .replace(/\bService task updated\b/gi, "Shop updated your work")
+    .replace(/\bService task time updated\b/gi, "Shop updated your work time")
+    .replace(/\bTask completed\b/gi, "Shop completed your task");
+}
+
+function formatSystemDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString([], {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatSystemMessageText(text: string, viewerRole: string) {
+  return roleSafeSystemText(text, viewerRole).replace(
+    /\b(Due|Date|Time):\s*(\d{4}-\d{2}-\d{2}T[^\s]+)/gi,
+    (_match, label: string, value: string) =>
+      `${label}: ${formatSystemDate(value)}`,
+  );
+}
+
+function messageTime(value?: string) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function isTaskOrRentSystemMessage(message: Message) {
+  const eventType = String(
+    message.systemEventType || message.systemEventData?.eventType || "",
+  ).toLowerCase();
+  if (
+    eventType.includes("work_task") ||
+    eventType.includes("worktask") ||
+    eventType.includes("tool_rent") ||
+    eventType.includes("toolrent") ||
+    eventType.includes("rent")
+  ) {
+    return true;
+  }
+
+  const text = String(message.content || "").toLowerCase();
+  return (
+    /\b(service task|work assigned|work updated|task completed)\b/.test(text) ||
+    /\b(tool rent|tool rental|rental|rent due|return due)\b/.test(text)
+  );
+}
+
 const MessagesList: React.FC<MessagesListProps> = ({
   messages,
   onLoadMore,
@@ -53,6 +123,7 @@ const MessagesList: React.FC<MessagesListProps> = ({
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const user = useAuthStore((s) => s.user as any);
+  const viewerRole = String(user?.role || "");
   const me = String(user?.id || user?._id || "");
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [autoScrollNext, setAutoScrollNext] = useState(true);
@@ -344,28 +415,41 @@ const MessagesList: React.FC<MessagesListProps> = ({
 
                 {item.kind === "single" ? (
                   item.message.messageKind === "system" ? (
-                    <div className="flex justify-center py-4 sm:py-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (getBillEventData(item.message)) openBillEvent(item.message);
-                        }}
-                        disabled={!isClickableSystemEvent(item.message)}
-                        className={`relative max-w-[min(92%,22rem)] rounded-2xl border border-slate-600/40 bg-slate-800/70 px-3.5 pb-3 pt-4 text-left text-[11px] leading-relaxed text-slate-300 shadow-sm sm:max-w-[86%] sm:px-3 sm:py-1.5 ${
-                          isClickableSystemEvent(item.message)
-                            ? "cursor-pointer transition hover:border-emerald-400/50 hover:bg-slate-700/80 hover:text-emerald-100"
-                            : "cursor-default"
-                        }`}
-                      >
-                        <span className="absolute left-1/2 top-0 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-emerald-400/35 bg-slate-900 px-2 py-0.5 text-[9px] font-medium leading-none text-emerald-200 shadow-sm sm:hidden">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                          Shop App
-                        </span>
-                        <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                          {String(item.message.content || "").trim() || "Group activity"}
-                        </span>
-                      </button>
-                    </div>
+                    isTaskOrRentSystemMessage(item.message) ? (
+                      <div className={`flex py-1 ${viewerRole === "customer" ? "justify-start" : "justify-end"}`}>
+                        <div className="relative max-w-[min(66%,23rem)] rounded-2xl border border-slate-600/40 bg-slate-800/70 px-3 py-2 text-left text-[11px] leading-relaxed text-slate-200 shadow-sm sm:max-w-[86%]">
+                          <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                            {formatSystemMessageText(String(item.message.content || "").trim(), viewerRole) || "Group activity"}
+                          </span>
+                          <span className="mt-1 block text-right text-[9px] leading-none text-slate-300/80">
+                            {messageTime(item.message.timestamp)}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-center py-4 sm:py-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (getBillEventData(item.message)) openBillEvent(item.message);
+                          }}
+                          disabled={!isClickableSystemEvent(item.message)}
+                          className={`relative max-w-[min(92%,22rem)] rounded-2xl border border-slate-600/40 bg-slate-800/70 px-3.5 pb-3 pt-4 text-left text-[11px] leading-relaxed text-slate-300 shadow-sm sm:max-w-[86%] sm:px-3 sm:py-1.5 ${
+                            isClickableSystemEvent(item.message)
+                              ? "cursor-pointer transition hover:border-emerald-400/50 hover:bg-slate-700/80 hover:text-emerald-100"
+                              : "cursor-default"
+                          }`}
+                        >
+                          <span className="absolute left-1/2 top-0 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-emerald-400/35 bg-slate-900 px-2 py-0.5 text-[9px] font-medium leading-none text-emerald-200 shadow-sm sm:hidden">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                            Shop App
+                          </span>
+                          <span className="block whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                            {formatSystemMessageText(String(item.message.content || "").trim(), viewerRole) || "Group activity"}
+                          </span>
+                        </button>
+                      </div>
+                    )
                   ) : (
                     <MessageBubble
                       message={item.message}

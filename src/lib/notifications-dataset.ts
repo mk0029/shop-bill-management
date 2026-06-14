@@ -24,7 +24,7 @@ export async function persistNotification(input: PersistInput) {
   return res.json()
 }
 
-export async function listNotifications(params: { userId?: string; clerkId?: string; customerId?: string; role?: string; phone?: string; limit?: number; includeCleared?: boolean }) {
+export async function listNotifications(params: { userId?: string; clerkId?: string; customerId?: string; role?: string; phone?: string; limit?: number; includeCleared?: boolean; since?: string }) {
   const query = new URLSearchParams()
   if (params.userId) query.set('userId', params.userId)
   if (params.clerkId) query.set('clerkId', params.clerkId)
@@ -33,6 +33,7 @@ export async function listNotifications(params: { userId?: string; clerkId?: str
   if (params.phone) query.set('phone', params.phone)
   if (typeof params.limit === 'number') query.set('limit', String(params.limit))
   if (params.includeCleared) query.set('includeCleared', 'true')
+  if (params.since) query.set('since', params.since)
 
   const res = await fetch(`/api/notifications/list?${query.toString()}`, { method: 'GET' })
   if (!res.ok) {

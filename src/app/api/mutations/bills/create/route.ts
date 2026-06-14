@@ -3,6 +3,10 @@ import { sanityClient } from '@/lib/sanity'
 import { sendViaWaBotServer } from '@/lib/wa-bot-server'
 import { getActiveAdminUserIds, sendNotificationEvent } from '@/services/notifications/notification-events.server'
 import { safeUserName } from '@/lib/display-text'
+import {
+  billCreatedAdminNotification,
+  billCreatedCustomerNotification,
+} from '@/lib/notifications/templates'
 
 export async function POST(req: NextRequest) {
   try {
@@ -66,7 +70,6 @@ export async function POST(req: NextRequest) {
       // - Customer: store as audience=users (direct)
       const billId = String((created as any)?.billNumber || (created as any)?._id || '')
       const adminRoute = `/admin/billing?open=${encodeURIComponent(String(billId || ''))}`
-      const title = 'Bill Created'
       const customerName = await (async () => {
         try {
           if (!customerId) return ''
@@ -80,21 +83,22 @@ export async function POST(req: NextRequest) {
         }
       })()
       const amount = Number((created as any)?.totalAmount || 0)
-      const payStatus = String((created as any)?.paymentStatus || (created as any)?.status || 'pending')
-      const bodyText = `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`
+      const adminNotification = billCreatedAdminNotification({ amount, customerName })
+      const customerNotification = billCreatedCustomerNotification({ amount, customerName })
 
       const adminIds = await getActiveAdminUserIds()
       await sendNotificationEvent({
         eventId: `billing.created.${String((created as any)?._id || billId)}.admins`,
-        type: 'billing.created',
+        type: adminNotification.type,
         actorUserId,
         userIds: adminIds,
-        title,
-        body: bodyText,
+        title: adminNotification.title,
+        body: adminNotification.body,
         data: {
           billId,
           billNumber: String((created as any)?.billNumber || ''),
           customerId,
+          targetRole: adminNotification.targetRole,
           route: adminRoute,
           route_path: adminRoute,
         },
@@ -105,15 +109,16 @@ export async function POST(req: NextRequest) {
         const customerRoute = `/customer/bills?open=${encodeURIComponent(String((created as any)?._id || billId))}`
         await sendNotificationEvent({
           eventId: `billing.created.${String((created as any)?._id || billId)}.customer.${String(customerId)}`,
-          type: 'billing.created',
+          type: customerNotification.type,
           actorUserId,
           userId: String(customerId),
-          title,
-          body: `Your bill ${String((created as any)?.billNumber || billId)} has been created. Amount: Rs ${amount}.`,
+          title: customerNotification.title,
+          body: customerNotification.body,
           data: {
             billId: String((created as any)?._id || billId),
             billNumber: String((created as any)?.billNumber || ''),
             customerId: String(customerId),
+            targetRole: customerNotification.targetRole,
             route: customerRoute,
             route_path: customerRoute,
           },

@@ -23,6 +23,7 @@ export type NotificationEvent = {
   type:
     | "customer_created"
     | "bill_created"
+    | "admin_bill_created"
     | "bill_status_updated"
     | "cashbook_entry"
     | "inventory_added"
@@ -53,7 +54,8 @@ function unique(values: Array<string | undefined | null>) {
 }
 
 function mapLegacyType(type: NotificationEvent["type"]): NotificationEventType {
-  if (type === "bill_created") return "billing.created";
+  if (type === "bill_created") return "bill_created";
+  if (type === "admin_bill_created") return "admin_bill_created";
   if (type === "bill_status_updated") return "billing.updated";
   if (type === "user_direct") return "system.general";
   if (type === "shop_status") return "system.general";
@@ -65,6 +67,7 @@ function defaultText(event: NotificationEvent) {
   const body = String(event.data.extra?.body || event.data.message || "").trim();
   if (title && body) return { title, body };
   if (event.type === "bill_created") return { title: "Bill created", body: "A new bill has been created." };
+  if (event.type === "admin_bill_created") return { title: "New Bill Created", body: "A new bill has been created." };
   if (event.type === "bill_status_updated") return { title: "Bill updated", body: `Bill status updated: ${event.data.status || ""}` };
   if (event.type === "cashbook_entry") return { title: "Cashbook entry", body: "A cashbook entry was added." };
   if (event.type === "inventory_added") return { title: "Inventory updated", body: "A new inventory item was added." };
@@ -91,7 +94,10 @@ async function resolveLegacyTargets(event: NotificationEvent) {
   if (event.type === "user_direct") {
     return unique([String(event.data.extra?.targetUserId || event.data.customerId || "")]);
   }
-  if (event.type === "bill_created" || event.type === "bill_status_updated") {
+  if (event.type === "bill_created") {
+    return unique([event.data.customerId]);
+  }
+  if (event.type === "admin_bill_created" || event.type === "bill_status_updated") {
     return getActiveAdminUserIds();
   }
   if (event.type === "shop_status") {

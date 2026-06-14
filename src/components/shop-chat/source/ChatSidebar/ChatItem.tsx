@@ -54,6 +54,30 @@ interface ChatItemProps {
   onDeclineUnblock: () => void;
 }
 
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function formatSidebarTimestamp(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const today = startOfDay(new Date());
+  const messageDay = startOfDay(date);
+  const diffDays = Math.floor((today - messageDay) / (24 * 60 * 60 * 1000));
+
+  if (diffDays <= 0) {
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays <= 6) {
+    return date.toLocaleDateString([], { day: "numeric", month: "short" });
+  }
+  if (diffDays <= 13) return "Last week";
+  return "";
+}
+
 const ChatItem: React.FC<ChatItemProps> = ({
   friend,
   lastMessage,
@@ -94,7 +118,8 @@ const ChatItem: React.FC<ChatItemProps> = ({
   const hideAvatar = !!isBlocked && !isGroup;
   const lastWasFromMe = lastMessage && String(lastMessage.senderId) === currentUserId;
   const showUnread = unreadCount > 0 && (!lastWasFromMe || isGroup);
-  const presenceText = friend.statusText || (friend.online ? "Online" : friend.lastSeen ? `Last seen ${new Date(friend.lastSeen).toLocaleString()}` : "");
+  const presenceText =
+    friend.statusText || (friend.online ? "Online" : friend.lastSeen ? `Last seen ${new Date(friend.lastSeen).toLocaleString()}` : "Never logged in");
 
   const formatPreview = () => {
     if (!lastMessage) {
@@ -151,19 +176,14 @@ const ChatItem: React.FC<ChatItemProps> = ({
   };
 
   let lastText = formatPreview();
-  let lastTime = lastMessage?.timestamp
-    ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "";
+  let lastTime = formatSidebarTimestamp(lastMessage?.timestamp);
 
   if (!isGroup && isBlocked) {
     lastText = blockMeta?.byMe
       ? `You blocked ${friendName}`
       : `${friendName} blocked you${blockMeta?.requested ? " · Requested" : ""}`;
     if (blockMeta?.at) {
-      lastTime = new Date(blockMeta.at).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      lastTime = formatSidebarTimestamp(blockMeta.at);
     }
   }
 
@@ -190,7 +210,7 @@ const ChatItem: React.FC<ChatItemProps> = ({
       className={`relative flex w-full cursor-pointer items-center gap-3 px-3 py-3 transition hover:bg-gray-800/50 ${isArchived ? "opacity-75" : ""}`}
       onClick={onSelect}
       onContextMenu={handleContextMenu}
-      title={!isBlocked && friend.lastSeen ? `Last seen ${new Date(friend.lastSeen).toLocaleString()}` : ""}
+      title={!isBlocked ? presenceText : ""}
     >
       <div className="relative shrink-0">
         <div className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-emerald-700/70 text-xs font-semibold text-white ring-1 ring-emerald-400/25">

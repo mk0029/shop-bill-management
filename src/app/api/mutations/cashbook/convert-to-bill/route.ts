@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
-import { notificationService } from '@/lib/notification-service'
 import { sendViaWaBotServer } from '@/lib/wa-bot-server'
 import { safeUserName } from '@/lib/display-text'
+import { getActiveAdminUserIds, sendNotificationEvent } from '@/services/notifications/notification-events.server'
+import {
+  billCreatedAdminNotification,
+  billCreatedCustomerNotification,
+} from '@/lib/notifications/templates'
 
 export async function POST(req: NextRequest) {
   try {
@@ -113,7 +117,6 @@ export async function POST(req: NextRequest) {
 
     try {
       const billId = String(createdBillId)
-      const title = 'Bill created'
       const customerName = await (async () => {
         try {
           if (!customerId) return ''
@@ -126,36 +129,46 @@ export async function POST(req: NextRequest) {
           return ''
         }
       })()
-      const payStatus = String((billDoc as any)?.paymentStatus || 'pending')
-      const bodyText = `${customerName || 'Customer'} | ₹${totalAmount} | ${payStatus}`
+      const adminNotification = billCreatedAdminNotification({ amount: totalAmount, customerName })
+      const customerNotification = billCreatedCustomerNotification({ amount: totalAmount, customerName })
+      const adminRoute = `/admin/billing?open=${encodeURIComponent(String(billId))}`
+      const customerRoute = `/customer/bills?open=${encodeURIComponent(String(billId))}`
 
-      await notificationService.emit({
-        type: 'bill_created',
+      await sendNotificationEvent({
+        eventId: `billing.created.${billId}.admins`,
+        type: adminNotification.type,
         actorUserId,
+        userIds: await getActiveAdminUserIds(),
+        title: adminNotification.title,
+        body: adminNotification.body,
         data: {
           billId,
-          route: `/admin/billing?open=${encodeURIComponent(String(billId))}`,
-          extra: {
-            title,
-            body: bodyText,
-          },
+          billNumber: String((billDoc as any)?.billNumber || ''),
+          customerId,
+          targetRole: adminNotification.targetRole,
+          route: adminRoute,
+          route_path: adminRoute,
         },
+        skipActor: true,
       })
 
       if (customerId) {
-        await notificationService.emit({
-          type: 'user_direct',
+        await sendNotificationEvent({
+          eventId: `billing.created.${billId}.customer.${String(customerId)}`,
+          type: customerNotification.type,
           actorUserId,
+          userId: String(customerId),
+          title: customerNotification.title,
+          body: customerNotification.body,
           data: {
+            billId,
+            billNumber: String((billDoc as any)?.billNumber || ''),
             customerId: String(customerId),
-            route: '/customer',
-            message: bodyText,
-            extra: {
-              targetUserId: String(customerId),
-              title,
-              body: bodyText,
-            },
+            targetRole: customerNotification.targetRole,
+            route: customerRoute,
+            route_path: customerRoute,
           },
+          skipActor: true,
         })
       }
     } catch (e) {

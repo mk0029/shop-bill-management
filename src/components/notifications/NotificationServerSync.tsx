@@ -20,10 +20,44 @@ type SyncUser = {
   customerId?: string;
 } | null;
 
+const SYNC_ANCHOR_PREFIX = "notification_sync_anchor";
+
 function isAppNotification(
   notification: AppNotification | null,
 ): notification is AppNotification {
   return Boolean(notification);
+}
+
+function syncAnchorKey(input: {
+  userId?: string;
+  customerId?: string;
+  role?: string;
+  phone?: string;
+}) {
+  const identity =
+    input.userId ||
+    input.customerId ||
+    input.phone ||
+    (input.role === "admin" || input.role === "super_admin" || input.role === "technician"
+      ? `role:${input.role}`
+      : "");
+  return identity ? `${SYNC_ANCHOR_PREFIX}:${identity}` : "";
+}
+
+function readSyncAnchor(key: string) {
+  if (!key || typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeSyncAnchor(key: string, value: string) {
+  if (!key || typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {}
 }
 
 export default function NotificationServerSync() {
@@ -54,11 +88,26 @@ export default function NotificationServerSync() {
 
     inFlightRef.current = true;
     try {
+      const anchorKey = syncAnchorKey({
+        userId: userId || undefined,
+        customerId: customerId || undefined,
+        role: role || undefined,
+        phone: phone || undefined,
+      });
+      const existingAnchor = readSyncAnchor(anchorKey);
+      const syncStartedAt = new Date().toISOString();
+
+      if (!existingAnchor) {
+        writeSyncAnchor(anchorKey, syncStartedAt);
+        return;
+      }
+
       const resp = await listNotifications({
         userId: userId || undefined,
         customerId: customerId || undefined,
         role: role || undefined,
         phone: phone || undefined,
+        since: existingAnchor,
         limit: 75,
       });
       const serverItems = Array.isArray(resp?.items) ? resp.items : [];
@@ -77,6 +126,7 @@ export default function NotificationServerSync() {
         );
 
       if (mapped.length) addMany(mapped);
+      writeSyncAnchor(anchorKey, syncStartedAt);
     } catch {
       // Best-effort background sync; the panel can still render persisted local state.
     } finally {
