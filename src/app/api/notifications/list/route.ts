@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     const limit = Math.max(1, Math.min(200, Number(limitRaw || 50) || 50))
     const maxAgeCutoffIso = notificationCutoffIso()
     const scheduledGreetingMaxAgeCutoffIso = scheduledGreetingCutoffIso()
+    const nowIso = new Date().toISOString()
     const sinceDate = sinceRaw ? new Date(sinceRaw) : null
     const cutoffIso =
       sinceDate && !Number.isNaN(sinceDate.getTime()) && sinceDate.toISOString() > maxAgeCutoffIso
@@ -62,6 +63,7 @@ export async function GET(req: NextRequest) {
     ))
     && !(defined(actorUserId) && actorUserId in $ids)
     && !($isAdmin && type in $adminSkippedInAppTypes)
+    && (!defined(data.expiresAt) || data.expiresAt >= $nowIso)
     && (
       (type in $scheduledGreetingTypes && coalesce(createdAt, _createdAt) >= $scheduledGreetingCutoffIso) ||
       (!(type in $scheduledGreetingTypes) && coalesce(createdAt, _createdAt) >= $cutoffIso)
@@ -91,6 +93,7 @@ export async function GET(req: NextRequest) {
       adminSkippedInAppTypes,
       cutoffIso,
       scheduledGreetingCutoffIso: scheduledGreetingMaxAgeCutoffIso,
+      nowIso,
       scheduledGreetingTypes: ['daily_good_morning', 'hindu_festival_greeting'],
     })
     return NextResponse.json({ items: items || [] }, { status: 200 })

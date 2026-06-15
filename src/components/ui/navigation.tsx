@@ -10,6 +10,7 @@ import Home from "lucide-react/dist/esm/icons/home.js";
 import LogOut from "lucide-react/dist/esm/icons/log-out.js";
 import Menu from "lucide-react/dist/esm/icons/menu.js";
 import MessageCircle from "lucide-react/dist/esm/icons/message-circle.js";
+import Megaphone from "lucide-react/dist/esm/icons/megaphone.js";
 import Package from "lucide-react/dist/esm/icons/package.js";
 import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close.js";
 import PanelLeftOpen from "lucide-react/dist/esm/icons/panel-left-open.js";
@@ -62,6 +63,11 @@ const adminNavigation: NavigationItem[] = [
     icon: Settings,
     children: [
       { label: "Settings", href: "/admin/settings", icon: Settings },
+      {
+        label: "Send Notifications",
+        href: "/admin/notifications",
+        icon: Megaphone,
+      },
       {
         label: "Stock History",
         href: "/admin/inventory/history",

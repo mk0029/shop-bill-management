@@ -52,6 +52,13 @@ function routeFor(eventType: string, data: Record<string, unknown>) {
   return undefined;
 }
 
+function isExpired(data: Record<string, unknown>) {
+  const expiresAt = stringValue(data.expiresAt);
+  if (!expiresAt) return false;
+  const expiresTs = Date.parse(expiresAt);
+  return Number.isFinite(expiresTs) && expiresTs <= Date.now();
+}
+
 export function mapServerNotificationToAppNotification(raw: Record<string, unknown>): AppNotification | null {
   const data = ((raw.data && typeof raw.data === "object" ? raw.data : {}) || {}) as Record<string, unknown>;
   const eventType = eventTypeOf(raw);
@@ -59,7 +66,7 @@ export function mapServerNotificationToAppNotification(raw: Record<string, unkno
   const title = stringValue(raw.title);
   const body = stringValue(raw.body) || stringValue(raw.message);
   const createdAt = stringValue(raw.createdAt) || stringValue(raw._createdAt) || new Date().toISOString();
-  if (!id || !title || !body || !isNotificationRecent(createdAt, undefined, eventType)) return null;
+  if (!id || !title || !body || isExpired(data) || !isNotificationRecent(createdAt, undefined, eventType)) return null;
 
   const billId = stringValue(raw.billId) || stringValue(data.billId);
   const customerId = stringValue(raw.customerId) || stringValue(data.customerId);
@@ -77,6 +84,7 @@ export function mapServerNotificationToAppNotification(raw: Record<string, unkno
       source: "server",
       type: eventType,
       eventType,
+      expiresAt: stringValue(data.expiresAt) || undefined,
       userId: customerId,
       billId,
       taskId,
