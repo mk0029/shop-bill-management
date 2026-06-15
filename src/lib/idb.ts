@@ -8,7 +8,18 @@ export interface IDBConfig {
 
 export function openDB({ dbName, storeName }: IDBConfig): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName, 1);
+    if (typeof window === "undefined" || !("indexedDB" in window)) {
+      reject(new Error("IndexedDB is not available in this browser"));
+      return;
+    }
+
+    let req: IDBOpenDBRequest;
+    try {
+      req = window.indexedDB.open(dbName, 1);
+    } catch (error) {
+      reject(error);
+      return;
+    }
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(storeName)) {
@@ -28,6 +39,8 @@ export async function idbAdd<T>(cfg: IDBConfig, value: T): Promise<number> {
     const req = store.add(value as any);
     req.onsuccess = () => resolve(req.result as number);
     req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => db.close();
   });
 }
 
@@ -39,6 +52,8 @@ export async function idbGetAll<T>(cfg: IDBConfig): Promise<T[]> {
     const req = store.getAll();
     req.onsuccess = () => resolve(req.result as T[]);
     req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => db.close();
   });
 }
 
@@ -50,5 +65,7 @@ export async function idbDelete(cfg: IDBConfig, id: number): Promise<void> {
     const req = store.delete(id);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => db.close();
   });
 }

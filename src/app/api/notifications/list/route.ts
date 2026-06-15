@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
-import { notificationCutoffIso } from '@/lib/notifications/age'
+import { notificationCutoffIso, scheduledGreetingCutoffIso } from '@/lib/notifications/age'
 
 /**
  * GET /api/notifications/list?userId=...&role=...&phone=...&limit=...
@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     const limitRaw = url.searchParams.get('limit')
     const limit = Math.max(1, Math.min(200, Number(limitRaw || 50) || 50))
     const maxAgeCutoffIso = notificationCutoffIso()
+    const scheduledGreetingMaxAgeCutoffIso = scheduledGreetingCutoffIso()
     const sinceDate = sinceRaw ? new Date(sinceRaw) : null
     const cutoffIso =
       sinceDate && !Number.isNaN(sinceDate.getTime()) && sinceDate.toISOString() > maxAgeCutoffIso
@@ -61,7 +62,10 @@ export async function GET(req: NextRequest) {
     ))
     && !(defined(actorUserId) && actorUserId in $ids)
     && !($isAdmin && type in $adminSkippedInAppTypes)
-    && coalesce(createdAt, _createdAt) >= $cutoffIso
+    && (
+      (type in $scheduledGreetingTypes && coalesce(createdAt, _createdAt) >= $scheduledGreetingCutoffIso) ||
+      (!(type in $scheduledGreetingTypes) && coalesce(createdAt, _createdAt) >= $cutoffIso)
+    )
     ] | order(coalesce(createdAt, _createdAt) desc)[0...$limit]{
       _id,
       title,
@@ -86,6 +90,8 @@ export async function GET(req: NextRequest) {
       includeCleared,
       adminSkippedInAppTypes,
       cutoffIso,
+      scheduledGreetingCutoffIso: scheduledGreetingMaxAgeCutoffIso,
+      scheduledGreetingTypes: ['daily_good_morning', 'hindu_festival_greeting'],
     })
     return NextResponse.json({ items: items || [] }, { status: 200 })
   } catch (e: unknown) {

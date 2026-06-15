@@ -16,6 +16,11 @@ export function getFirebaseConfig() {
 
 export function getFirebaseApp(): FirebaseApp | null {
   if (typeof window === "undefined") return null;
-  if (getApps().length) return getApps()[0] || null;
-  return initializeApp(getFirebaseConfig());
+  try {
+    if (getApps().length) return getApps()[0] || null;
+    return initializeApp(getFirebaseConfig());
+  } catch (error) {
+    console.warn("[Firebase] Failed to initialize client app", error);
+    return null;
+  }
 }

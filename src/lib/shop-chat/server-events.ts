@@ -9,6 +9,7 @@ const CHAT_API_URL = `${RAW_CHAT_URL.replace(/\/+$/, "")}/chat`;
 export type WorkTaskShopChatEventInput = {
   customerId: string;
   taskId: string;
+  actorUserId?: string;
   title: string;
   description?: string;
   status?: string;

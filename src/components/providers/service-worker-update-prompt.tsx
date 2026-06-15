@@ -27,9 +27,13 @@ export default function ServiceWorkerUpdatePrompt() {
     let registration: ServiceWorkerRegistration | undefined;
 
     const onControllerChange = () => {
-      if (!acceptedRef.current || refreshing) return;
-      setRefreshing(true);
-      window.location.reload();
+      try {
+        if (!acceptedRef.current || refreshing) return;
+        setRefreshing(true);
+        window.location.reload();
+      } catch {
+        setRefreshing(false);
+      }
     };
 
     const watchRegistration = (reg: ServiceWorkerRegistration) => {
@@ -50,7 +54,11 @@ export default function ServiceWorkerUpdatePrompt() {
       });
     };
 
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    try {
+      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    } catch {
+      return;
+    }
 
     navigator.serviceWorker
       .register("/firebase-messaging-sw.js", { updateViaCache: "none" })
@@ -89,8 +97,13 @@ export default function ServiceWorkerUpdatePrompt() {
   const applyUpdate = () => {
     acceptedRef.current = true;
     setRefreshing(true);
-    waiting.worker.postMessage("SKIP_WAITING");
-    window.setTimeout(() => window.location.reload(), 2000);
+    try {
+      waiting.worker.postMessage("SKIP_WAITING");
+      window.setTimeout(() => window.location.reload(), 2000);
+    } catch {
+      setRefreshing(false);
+      setWaiting(null);
+    }
   };
 
   return (

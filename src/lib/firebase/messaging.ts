@@ -30,8 +30,13 @@ export async function isMessagingAvailable() {
 
 export async function ensureMessagingServiceWorker() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return undefined;
-  const existing = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
-  return existing || navigator.serviceWorker.register("/firebase-messaging-sw.js");
+  try {
+    const existing = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
+    return existing || navigator.serviceWorker.register("/firebase-messaging-sw.js");
+  } catch (error) {
+    console.warn("[FCM] Service worker unavailable", error);
+    return undefined;
+  }
 }
 
 export async function getFcmToken(options: { forceRefresh?: boolean } = {}) {

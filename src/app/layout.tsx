@@ -18,6 +18,7 @@ import "./globals.css";
 import RouteProgress from "../components/ui/route-progress";
 import NotificationToaster from "../components/notifications/NotificationToaster";
 import ForegroundSystemNotifier from "../notifications/components/ForegroundSystemNotifier";
+import ClientErrorLogger from "@/components/providers/client-error-logger";
 
 // Enable ISR by default for server components
 export const revalidate = 60; // Rebuild at most once per 60s; tune per route as needed
@@ -131,6 +132,7 @@ export default function RootLayout({
       >
         {/* Synchronous auth prehydration to speed up startup */}
         <AuthPrehydrate />
+        <ClientErrorLogger />
         {/* Role revalidation to handle server-side role changes without re-login */}
         <AuthRoleSync />
         {/* Global route progress bar */}

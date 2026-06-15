@@ -42,6 +42,7 @@ export function getOrCreateCustomerShopChatRoom(customerId: string) {
 export function createBillCreatedShopChatEvent(input: {
   customerId: string;
   billId: string;
+  actorUserId?: string;
   billNumber?: string;
   customerName?: string;
   totalAmount?: number;
@@ -57,6 +58,7 @@ export function createBillCreatedShopChatEvent(input: {
 export function createWorkTaskShopChatEvent(input: {
   customerId: string;
   taskId: string;
+  actorUserId?: string;
   title: string;
   description?: string;
   status?: string;

@@ -13,7 +13,13 @@ function canAccess(role: string | null) {
 function isAllowedDueTime(input: string) {
   const d = new Date(input);
   if (Number.isNaN(d.getTime())) return false;
-  return d.getHours() >= 7;
+  const hourText = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d).find((part) => part.type === "hour")?.value;
+  const hour = Number(hourText);
+  return Number.isFinite(hour) && hour >= 7;
 }
 
 async function sendViaWaBotServer(phone: string, message: string) {
@@ -223,6 +229,7 @@ export async function POST(req: NextRequest) {
           customerId: String(body.customerRefId),
           customerName: safeCustomerName,
           taskId: String(created?._id || ""),
+          actorUserId,
           title,
           description: String(body?.description || "").trim(),
           status: String(doc.status || "pending"),

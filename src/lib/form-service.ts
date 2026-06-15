@@ -842,6 +842,7 @@ export async function createBill(billData: {
             void createBillCreatedShopChatEvent({
               customerId,
               billId: String(createdId),
+              actorUserId: actorUserId || undefined,
               billNumber: String(billNumber),
               customerName: customerName || undefined,
               totalAmount: Number(grossTotal || 0),

@@ -59,7 +59,7 @@ export function mapServerNotificationToAppNotification(raw: Record<string, unkno
   const title = stringValue(raw.title);
   const body = stringValue(raw.body) || stringValue(raw.message);
   const createdAt = stringValue(raw.createdAt) || stringValue(raw._createdAt) || new Date().toISOString();
-  if (!id || !title || !body || !isNotificationRecent(createdAt)) return null;
+  if (!id || !title || !body || !isNotificationRecent(createdAt, undefined, eventType)) return null;
 
   const billId = stringValue(raw.billId) || stringValue(data.billId);
   const customerId = stringValue(raw.customerId) || stringValue(data.customerId);
@@ -90,7 +90,7 @@ export function mapPushNotificationToAppNotification(raw: AppNotification): AppN
   const meta = (raw.meta || {}) as Record<string, unknown>;
   const eventType = stringValue(meta.eventType) || stringValue(meta.type) || stringValue(raw.type) || "system.general";
   const mappedType = notificationAppType(eventType);
-  if (!raw.id || !raw.title || !raw.body || !isNotificationRecent(raw.createdAt)) return null;
+  if (!raw.id || !raw.title || !raw.body || !isNotificationRecent(raw.createdAt, undefined, eventType)) return null;
   return {
     ...raw,
     type: mappedType,
@@ -114,6 +114,7 @@ export function isCustomerNotificationVisible(notification: AppNotification, ide
   const currentIds = new Set([identity.userId, identity.customerId].filter(Boolean));
 
   if (eventType === "system.general" || eventType === "shop_status") return true;
+  if (eventType === "daily_good_morning" || eventType === "hindu_festival_greeting") return true;
   if (eventType === "bill_created") return !targetUserId || currentIds.has(targetUserId);
   if (eventType === "admin_bill_created") return false;
   if (eventType.startsWith("billing.")) return !targetUserId || currentIds.has(targetUserId);

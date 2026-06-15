@@ -18,6 +18,8 @@ export type ShopChatLastMessage = {
   senderId: string;
   senderRole: ShopChatRole;
   senderName: string;
+  systemEventType?: string | null;
+  systemEventData?: Record<string, any> | null;
   senderAvatar?: string | null;
   senderProfileImage?: string | null;
   senderProfileImageUrl?: string | null;

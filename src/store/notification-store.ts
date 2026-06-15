@@ -76,7 +76,8 @@ export const useNotificationStore = create<NotificationState>()(
           }
 
           const createdAt = n.createdAt || new Date().toISOString();
-          if (!isNotificationRecent(createdAt)) {
+          const eventType = String(n.meta?.eventType || n.meta?.type || n.type || "");
+          if (!isNotificationRecent(createdAt, undefined, eventType)) {
             return state;
           }
           const nowTs = Date.now();
@@ -99,7 +100,9 @@ export const useNotificationStore = create<NotificationState>()(
             read: false,
             ...n,
           };
-          const items = [item, ...state.items].filter((x) => isNotificationRecent(x.createdAt)).slice(0, 100); // cap to 100
+          const items = [item, ...state.items]
+            .filter((x) => isNotificationRecent(x.createdAt, undefined, String(x.meta?.eventType || x.meta?.type || x.type || "")))
+            .slice(0, 100); // cap to 100
           const unread = items.filter((x) => !x.read).length;
           return { items, unread };
         }),
@@ -108,14 +111,17 @@ export const useNotificationStore = create<NotificationState>()(
         set((state) => {
           const nowTs = Date.now();
           const windowMs = 2 * 60 * 1000; // 2 minutes
-          const existing = state.items.filter((item) => isNotificationRecent(item.createdAt));
+          const existing = state.items.filter((item) =>
+            isNotificationRecent(item.createdAt, nowTs, String(item.meta?.eventType || item.meta?.type || item.type || "")),
+          );
           const byId = new Map(existing.map((item) => [item.id, item]));
           const mergedExisting = new Map(byId);
           const newItems: AppNotification[] = [];
 
           for (const incoming of list) {
             const createdAt = incoming.createdAt || new Date().toISOString();
-            if (!isNotificationRecent(createdAt, nowTs)) continue;
+            const incomingType = String(incoming.meta?.eventType || incoming.meta?.type || incoming.type || "");
+            if (!isNotificationRecent(createdAt, nowTs, incomingType)) continue;
             const n: AppNotification = {
               ...incoming,
               createdAt,
@@ -145,7 +151,7 @@ export const useNotificationStore = create<NotificationState>()(
             ...newItems,
             ...existing.map((item) => mergedExisting.get(item.id) || item),
           ]
-            .filter((item) => isNotificationRecent(item.createdAt))
+            .filter((item) => isNotificationRecent(item.createdAt, nowTs, String(item.meta?.eventType || item.meta?.type || item.type || "")))
             .sort(
               (a, b) =>
                 (Date.parse(b.createdAt) || 0) -
@@ -159,20 +165,24 @@ export const useNotificationStore = create<NotificationState>()(
       markAsRead: (id) =>
         set((state) => {
           const items = state.items.map((x) => (x.id === id ? { ...x, read: true } : x));
-          const activeItems = items.filter((x) => isNotificationRecent(x.createdAt));
+          const activeItems = items.filter((x) => isNotificationRecent(x.createdAt, undefined, String(x.meta?.eventType || x.meta?.type || x.type || "")));
           const unread = activeItems.filter((x) => !x.read).length;
           return { items: activeItems, unread };
         }),
 
       markAllRead: () =>
         set((state) => {
-          const items = state.items.filter((x) => isNotificationRecent(x.createdAt)).map((x) => ({ ...x, read: true }));
+          const items = state.items
+            .filter((x) => isNotificationRecent(x.createdAt, undefined, String(x.meta?.eventType || x.meta?.type || x.type || "")))
+            .map((x) => ({ ...x, read: true }));
           return { items, unread: 0 };
         }),
 
       removeWhere: (predicate) =>
         set((state) => {
-          const items = state.items.filter((item) => isNotificationRecent(item.createdAt) && !predicate(item));
+          const items = state.items.filter(
+            (item) => isNotificationRecent(item.createdAt, undefined, String(item.meta?.eventType || item.meta?.type || item.type || "")) && !predicate(item),
+          );
           const unread = items.filter((x) => !x.read).length;
           return { items, unread };
         }),
@@ -180,7 +190,7 @@ export const useNotificationStore = create<NotificationState>()(
       clearRead: () =>
         set((state) => {
           console.log('clearRead called, current items:', state.items.length);
-          const items = state.items.filter((x) => isNotificationRecent(x.createdAt) && !x.read);
+          const items = state.items.filter((x) => isNotificationRecent(x.createdAt, undefined, String(x.meta?.eventType || x.meta?.type || x.type || "")) && !x.read);
           const unread = items.filter((x) => !x.read).length;
           console.log('after clearRead, items:', items.length);
           return { items, unread };
@@ -227,7 +237,7 @@ export const useNotificationStore = create<NotificationState>()(
       migrate: (state: unknown) => {
         const s = state as { items?: AppNotification[]; unread?: number; toasted?: Record<string, true> } | undefined;
         if (s && Array.isArray(s.items)) {
-          const items = s.items.filter((x) => isNotificationRecent(x.createdAt));
+          const items = s.items.filter((x) => isNotificationRecent(x.createdAt, undefined, String(x.meta?.eventType || x.meta?.type || x.type || "")));
           const unread = items.filter((x) => !x.read).length;
           const toasted = s.toasted && typeof s.toasted === "object" ? s.toasted : {};
           return { items, unread, toasted };
@@ -235,7 +245,7 @@ export const useNotificationStore = create<NotificationState>()(
         return { items: [], unread: 0, toasted: {} };
       },
       partialize: (s) => {
-        const items = s.items.filter((x) => isNotificationRecent(x.createdAt));
+        const items = s.items.filter((x) => isNotificationRecent(x.createdAt, undefined, String(x.meta?.eventType || x.meta?.type || x.type || "")));
         return { items, unread: items.filter((x) => !x.read).length, toasted: s.toasted };
       },
     }

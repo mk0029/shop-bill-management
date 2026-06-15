@@ -622,7 +622,7 @@ function ChatPanel({
   if (!room) {
     return (
       <div className="flex min-h-[70vh] flex-1 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/60 text-gray-400">
-        Select a customer room to start chatting.
+        {mode === "customer" ? "Opening your support chat..." : "Select a customer room to start chatting."}
       </div>
     );
   }
@@ -863,7 +863,6 @@ export default function ShopChatClient({
   const deliveredRef = useRef<Set<string>>(new Set());
   const readAtRef = useRef<Record<string, number>>({});
   const autoOpenCustomerRef = useRef("");
-  const initialChatParamRef = useRef(searchParams.get("chat") || "");
   const handledReloadParamRef = useRef(false);
   const syncedBillEventsRef = useRef<Set<string>>(new Set());
   const { socket, connected, sendMessage: sendSocketMessage } = useShopChatSocket(activeRoom?.roomId);
@@ -905,14 +904,14 @@ export default function ShopChatClient({
   useEffect(() => {
     if (handledReloadParamRef.current) return;
     handledReloadParamRef.current = true;
-    if (!chatParam || typeof window === "undefined") return;
+    if (mode !== "admin" || !chatParam || typeof window === "undefined") return;
     const nav = window.performance?.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
     if (nav?.type !== "reload") return;
     const params = new URLSearchParams(window.location.search);
     params.delete("chat");
     const next = params.toString();
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [chatParam, pathname, router]);
+  }, [chatParam, mode, pathname, router]);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -999,12 +998,8 @@ export default function ShopChatClient({
           const response = await getMyShopChatRoom();
           if (cancelled) return;
           setRooms([response.room]);
-          if (initialChatParamRef.current === response.room.roomId) {
-            setActiveRoom(response.room);
-            await loadMessages(response.room);
-          } else {
-            setActiveRoom(null);
-          }
+          setActiveRoom(response.room);
+          await loadMessages(response.room);
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load chat");
@@ -1019,6 +1014,7 @@ export default function ShopChatClient({
   }, [loadMessages, mode, syncBillEventsForRoom]);
 
   useEffect(() => {
+    if (mode === "customer") return;
     if (loading) return;
     if (!chatParam) {
       if (activeRoom) setActiveRoom(null);
@@ -1028,7 +1024,7 @@ export default function ShopChatClient({
     const room = rooms.find((item) => item.roomId === chatParam);
     if (!room) return;
     void selectRoom(room, false);
-  }, [activeRoom, chatParam, loading, rooms]);
+  }, [activeRoom, chatParam, loading, mode, rooms]);
 
   useEffect(() => {
     const customerId = searchParams.get("customerId") || "";
@@ -1141,7 +1137,7 @@ export default function ShopChatClient({
   }, [activeMessages, activeRoom, myUserId, socket]);
 
   const selectRoom = async (room: ShopChatRoom, syncUrl = true) => {
-    if (syncUrl) pushChatParam(room.roomId);
+    if (syncUrl && mode === "admin") pushChatParam(room.roomId);
     setActiveRoom(room);
     if (!messagesByRoom[room.roomId]) {
       await loadMessages(room);
@@ -1399,7 +1395,7 @@ export default function ShopChatClient({
       style={{ height: "var(--app-vh, 100dvh)" }}
     >
       <div className="relative flex h-full min-h-0 overflow-hidden">
-        {(mode === "admin" || mode === "customer") && (
+        {mode === "admin" && (
           <div
             className={`absolute inset-y-0 left-0 z-20 h-full w-full shrink-0 transition-transform duration-300 ease-out md:static md:w-80 md:translate-x-0 ${
               activeRoom ? "-translate-x-full pointer-events-none md:pointer-events-auto" : "translate-x-0"
@@ -1456,7 +1452,7 @@ export default function ShopChatClient({
                 : undefined
             }
             customerDetails={activeCustomer}
-            canGoBack
+            canGoBack={mode === "admin"}
             onOpenBills={openBillsPanel}
             onBack={clearChatParam}
             onSend={sendText}

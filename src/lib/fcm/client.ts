@@ -3,6 +3,7 @@
 import type { MessagePayload } from "firebase/messaging";
 import { getFcmToken, onForegroundMessage, ensureMessagingServiceWorker } from "@/lib/firebase/messaging";
 import { getDeviceInfo } from "./device";
+import { logClientError, normalizeUnknownError, safeStorageAvailable } from "@/lib/client-error-logger";
 
 const REGISTERED_KEY = (userId: string) => `fcm-registered:${userId}`;
 const PENDING_KEY = (userId: string) => `fcm-pending-token:${userId}`;
@@ -17,10 +18,20 @@ type RegisterResult = {
 };
 
 export async function requestNotificationPermission() {
-  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
-  if (Notification.permission === "granted") return "granted";
-  if (Notification.permission === "denied") return "denied";
-  return Notification.requestPermission();
+  try {
+    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+    if (Notification.permission === "granted") return "granted";
+    if (Notification.permission === "denied") return "denied";
+    return await Notification.requestPermission();
+  } catch (error) {
+    const normalized = normalizeUnknownError(error);
+    void logClientError({
+      source: "fcm.permission",
+      message: normalized.message,
+      stack: normalized.stack,
+    });
+    return "unsupported";
+  }
 }
 
 export async function getTokenWithoutRegister() {
@@ -38,104 +49,147 @@ export async function autoRegisterFcmToken(
   userId: string,
   options: { forceRefresh?: boolean } = {},
 ): Promise<RegisterResult> {
-  if (!userId || typeof window === "undefined") return { success: false, skipped: true, reason: "no-user" };
-  if (!("Notification" in window) || Notification.permission !== "granted") {
-    return { success: false, skipped: true, reason: "permission-not-granted" };
-  }
-
-  await ensureMessagingServiceWorker().catch(() => undefined);
-  const token = await getFcmToken({ forceRefresh: options.forceRefresh });
-  if (!token) return { success: false, skipped: true, reason: "no-token" };
-
-  const deviceInfo = getDeviceInfo();
-  const cached = getCachedRegisteredToken(userId);
-  if (
-    !options.forceRefresh &&
-    cached?.token === token &&
-    cached.deviceId === deviceInfo.deviceId
-  ) {
-    return { success: true, token, deviceId: deviceInfo.deviceId, skipped: true, reason: "already-registered" };
-  }
-
-  const status = await fetch("/api/notifications/device-status", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, deviceId: deviceInfo.deviceId }),
-  })
-    .then((res) => res.json())
-    .catch(() => null);
-  if (status?.success && status?.known !== false && status?.active === false) {
-    return { success: false, skipped: true, reason: "device-inactive" };
-  }
-
-  const res = await fetch("/api/notifications/register-token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, token, deviceInfo }),
-  });
-  const json = await res.json().catch(() => ({}));
-
-  if (!res.ok || !json?.success) {
-    try {
-      localStorage.setItem(PENDING_KEY(userId), JSON.stringify({ token, deviceInfo, ts: Date.now() }));
-    } catch {}
-    return { success: false, error: json?.error || "registration-failed" };
-  }
-
   try {
-    localStorage.removeItem(PENDING_KEY(userId));
-    localStorage.setItem(REGISTERED_KEY(userId), JSON.stringify({ token, deviceId: deviceInfo.deviceId, ts: Date.now() }));
-  } catch {}
+    if (!userId || typeof window === "undefined") return { success: false, skipped: true, reason: "no-user" };
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      return { success: false, skipped: true, reason: "permission-not-granted" };
+    }
 
-  return { success: true, token, deviceId: deviceInfo.deviceId };
+    await ensureMessagingServiceWorker().catch(() => undefined);
+    const token = await getFcmToken({ forceRefresh: options.forceRefresh });
+    if (!token) return { success: false, skipped: true, reason: "no-token" };
+
+    const deviceInfo = getDeviceInfo();
+    const cached = getCachedRegisteredToken(userId);
+    if (
+      !options.forceRefresh &&
+      cached?.token === token &&
+      cached.deviceId === deviceInfo.deviceId
+    ) {
+      return { success: true, token, deviceId: deviceInfo.deviceId, skipped: true, reason: "already-registered" };
+    }
+
+    const status = await fetch("/api/notifications/device-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, deviceId: deviceInfo.deviceId }),
+    })
+      .then((res) => res.json())
+      .catch(() => null);
+    if (status?.success && status?.known !== false && status?.active === false) {
+      return { success: false, skipped: true, reason: "device-inactive" };
+    }
+
+    const res = await fetch("/api/notifications/register-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, token, deviceInfo }),
+    });
+    const json = await res.json().catch(() => ({}));
+
+    if (!res.ok || !json?.success) {
+      try {
+        if (safeStorageAvailable("localStorage")) {
+          localStorage.setItem(PENDING_KEY(userId), JSON.stringify({ token, deviceInfo, ts: Date.now() }));
+        }
+      } catch {}
+      return { success: false, error: json?.error || "registration-failed" };
+    }
+
+    try {
+      if (safeStorageAvailable("localStorage")) {
+        localStorage.removeItem(PENDING_KEY(userId));
+        localStorage.setItem(REGISTERED_KEY(userId), JSON.stringify({ token, deviceId: deviceInfo.deviceId, ts: Date.now() }));
+      }
+    } catch {}
+
+    return { success: true, token, deviceId: deviceInfo.deviceId };
+  } catch (error) {
+    const normalized = normalizeUnknownError(error);
+    void logClientError({
+      source: "fcm.auto-register",
+      userId,
+      message: normalized.message,
+      stack: normalized.stack,
+    });
+    return { success: false, skipped: true, reason: "fcm-unavailable" };
+  }
 }
 
 export async function registerDeviceSession(userId: string): Promise<RegisterResult> {
-  if (!userId || typeof window === "undefined") return { success: false, skipped: true, reason: "no-user" };
-  const deviceInfo = getDeviceInfo();
-  if (!deviceInfo.deviceId) return { success: false, skipped: true, reason: "no-device" };
+  try {
+    if (!userId || typeof window === "undefined") return { success: false, skipped: true, reason: "no-user" };
+    const deviceInfo = getDeviceInfo();
+    if (!deviceInfo.deviceId) return { success: false, skipped: true, reason: "no-device" };
 
-  const res = await fetch("/api/notifications/register-device", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, deviceInfo }),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || !json?.success) {
-    return { success: false, error: json?.error || "device-registration-failed" };
+    const res = await fetch("/api/notifications/register-device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, deviceInfo }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success) {
+      return { success: false, error: json?.error || "device-registration-failed" };
+    }
+    const status = await fetch("/api/notifications/device-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, deviceId: deviceInfo.deviceId }),
+    })
+      .then((response) => response.json())
+      .catch(() => null);
+    if (status?.success && status?.known !== false && status?.active === false) {
+      return { success: false, error: "device-inactive" };
+    }
+    return { success: true, deviceId: deviceInfo.deviceId };
+  } catch (error) {
+    const normalized = normalizeUnknownError(error);
+    void logClientError({
+      source: "fcm.device-session",
+      userId,
+      message: normalized.message,
+      stack: normalized.stack,
+    });
+    return { success: false, skipped: true, reason: "device-registration-unavailable" };
   }
-  const status = await fetch("/api/notifications/device-status", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, deviceId: deviceInfo.deviceId }),
-  })
-    .then((response) => response.json())
-    .catch(() => null);
-  if (status?.success && status?.known !== false && status?.active === false) {
-    return { success: false, error: "device-inactive" };
-  }
-  return { success: true, deviceId: deviceInfo.deviceId };
 }
 
 export async function retryPendingFcmToken(userId: string) {
-  if (!userId || typeof window === "undefined") return { success: false, reason: "no-user" };
-  const raw = localStorage.getItem(PENDING_KEY(userId));
-  if (!raw) return { success: false, reason: "no-pending" };
-  const pending = JSON.parse(raw) as { token?: string; deviceInfo?: unknown };
-  if (!pending.token) return { success: false, reason: "no-token" };
-  const res = await fetch("/api/notifications/register-token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, token: pending.token, deviceInfo: pending.deviceInfo || getDeviceInfo() }),
-  });
-  if (!res.ok) return { success: false, error: "registration-failed" };
-  localStorage.removeItem(PENDING_KEY(userId));
-  return { success: true, token: pending.token };
+  try {
+    if (!userId || typeof window === "undefined") return { success: false, reason: "no-user" };
+    if (!safeStorageAvailable("localStorage")) return { success: false, reason: "storage-unavailable" };
+    const raw = localStorage.getItem(PENDING_KEY(userId));
+    if (!raw) return { success: false, reason: "no-pending" };
+    const pending = JSON.parse(raw) as { token?: string; deviceInfo?: unknown };
+    if (!pending.token) return { success: false, reason: "no-token" };
+    const res = await fetch("/api/notifications/register-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, token: pending.token, deviceInfo: pending.deviceInfo || getDeviceInfo() }),
+    });
+    if (!res.ok) return { success: false, error: "registration-failed" };
+    localStorage.removeItem(PENDING_KEY(userId));
+    return { success: true, token: pending.token };
+  } catch (error) {
+    const normalized = normalizeUnknownError(error);
+    void logClientError({
+      source: "fcm.retry-pending",
+      userId,
+      message: normalized.message,
+      stack: normalized.stack,
+    });
+    return { success: false, reason: "retry-unavailable" };
+  }
 }
 
 export function hasPendingToken(userId: string) {
-  if (!userId || typeof window === "undefined") return false;
-  return Boolean(localStorage.getItem(PENDING_KEY(userId)));
+  try {
+    if (!userId || typeof window === "undefined") return false;
+    if (!safeStorageAvailable("localStorage")) return false;
+    return Boolean(localStorage.getItem(PENDING_KEY(userId)));
+  } catch {
+    return false;
+  }
 }
 
 export function getCachedRegisteredToken(userId: string): { token: string; deviceId?: string; ts?: number } | null {
@@ -149,20 +203,33 @@ export function getCachedRegisteredToken(userId: string): { token: string; devic
 }
 
 export async function unregisterFcmToken({ userId }: { userId?: string | null }) {
-  if (!userId) return { success: false, skipped: true, reason: "no-user" };
-  const cached = getCachedRegisteredToken(userId);
-  const token = cached?.token || (await getFcmToken());
-  if (!token) return { success: false, skipped: true, reason: "no-token" };
-  const res = await fetch("/api/notifications/unregister-token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, token }),
-  });
   try {
-    localStorage.removeItem(REGISTERED_KEY(userId));
-    localStorage.removeItem(PENDING_KEY(userId));
-  } catch {}
-  return { success: res.ok };
+    if (!userId) return { success: false, skipped: true, reason: "no-user" };
+    const cached = getCachedRegisteredToken(userId);
+    const token = cached?.token || (await getFcmToken());
+    if (!token) return { success: false, skipped: true, reason: "no-token" };
+    const res = await fetch("/api/notifications/unregister-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, token }),
+    });
+    try {
+      if (safeStorageAvailable("localStorage")) {
+        localStorage.removeItem(REGISTERED_KEY(userId));
+        localStorage.removeItem(PENDING_KEY(userId));
+      }
+    } catch {}
+    return { success: res.ok };
+  } catch (error) {
+    const normalized = normalizeUnknownError(error);
+    void logClientError({
+      source: "fcm.unregister",
+      userId,
+      message: normalized.message,
+      stack: normalized.stack,
+    });
+    return { success: false, skipped: true, reason: "unregister-unavailable" };
+  }
 }
 
 export async function ensureFcmToken(options: { userId?: string | null; forceRefresh?: boolean } = {}) {
@@ -175,16 +242,34 @@ export async function registerFcmToken(options: { userId?: string | null; forceR
 }
 
 export async function listenForegroundMessages(handler: (payload: MessagePayload) => void) {
-  return onForegroundMessage(handler);
+  try {
+    return await onForegroundMessage(handler);
+  } catch (error) {
+    const normalized = normalizeUnknownError(error);
+    void logClientError({
+      source: "fcm.foreground-listener",
+      message: normalized.message,
+      stack: normalized.stack,
+    });
+    return () => undefined;
+  }
 }
 
 export function getDeviceNotificationsPaused() {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem("device-notifications-paused") === "1";
+  try {
+    if (typeof window === "undefined" || !safeStorageAvailable("localStorage")) return false;
+    return localStorage.getItem("device-notifications-paused") === "1";
+  } catch {
+    return false;
+  }
 }
 
 export async function setDeviceNotificationsPaused(paused: boolean) {
   if (typeof window !== "undefined") {
-    localStorage.setItem("device-notifications-paused", paused ? "1" : "0");
+    try {
+      if (safeStorageAvailable("localStorage")) {
+        localStorage.setItem("device-notifications-paused", paused ? "1" : "0");
+      }
+    } catch {}
   }
 }

@@ -4,6 +4,8 @@ import { sanityClient } from "@/lib/sanity";
 import { getActiveFcmTokensForUsers } from "@/lib/fcm/tokens.server";
 import { sendNotificationEvent } from "@/services/notifications/notification-events.server";
 
+type ScheduledNotificationType = "daily_good_morning" | "hindu_festival_greeting";
+
 type GreetingPrefs = {
   dailyGreetingEnabled?: boolean;
   festivalGreetingEnabled?: boolean;
@@ -37,23 +39,126 @@ type FestivalDoc = {
   slug?: { current?: string };
 };
 
+type GreetingRunStats = {
+  sent: number;
+  skipped: number;
+  failed: number;
+};
+
 const DEFAULT_TIMEZONE = "Asia/Kolkata";
 const MORNING_START_HOUR = 7;
 const MORNING_END_HOUR = 10;
+const GREETING_TTL_HOURS = 12;
 
-const FESTIVAL_SEED_2026 = [
-  { name: "Makar Sankranti", slug: "makar-sankranti", date: "2026-01-14", emoji: "🪁", sourceUrl: "https://www.timeanddate.com/holidays/india/makar-sankranti" },
-  { name: "Maha Shivratri", slug: "maha-shivratri", date: "2026-02-15", emoji: "🔱", sourceUrl: "https://www.hindu-blog.com/2025/10/hindu-festivals-2026-list-of-important-festivals-calendar.html" },
-  { name: "Holi", slug: "holi", date: "2026-03-03", emoji: "🌈", sourceUrl: "https://hindutone.com/festivals/holi/2026/" },
-  { name: "Ram Navami", slug: "ram-navami", date: "2026-03-26", emoji: "🏹", sourceUrl: "https://www.timeanddate.com/holidays/india/rama-navami" },
-  { name: "Hanuman Jayanti", slug: "hanuman-jayanti", date: "2026-04-02", emoji: "🙏", sourceUrl: "https://www.satvikworld.com/pages/hindu-calendar-festival-list" },
-  { name: "Raksha Bandhan", slug: "raksha-bandhan", date: "2026-08-28", emoji: "🧶", sourceUrl: "https://www.satvikworld.com/pages/hindu-calendar-festival-list" },
-  { name: "Janmashtami", slug: "janmashtami", date: "2026-09-04", emoji: "🪈", sourceUrl: "https://www.satvikworld.com/pages/hindu-calendar-festival-list" },
-  { name: "Ganesh Chaturthi", slug: "ganesh-chaturthi", date: "2026-09-14", emoji: "🐘", sourceUrl: "https://www.satvikworld.com/pages/hindu-calendar-festival-list" },
-  { name: "Navratri", slug: "navratri", date: "2026-10-11", emoji: "🪔", sourceUrl: "https://www.timeanddate.com/holidays/india/navratri" },
-  { name: "Dussehra", slug: "dussehra", date: "2026-10-20", emoji: "🏹", sourceUrl: "https://vedicgod.com/blog/navratri-2026-astrological-significance/" },
-  { name: "Diwali", slug: "diwali", date: "2026-11-08", emoji: "🪔", sourceUrl: "https://diwali.info/diwali-dates" },
+const HINDU_FESTIVAL_FALLBACKS = [
+  {
+    name: "Makar Sankranti",
+    slug: "makar-sankranti",
+    emoji: "🪁",
+    dates: { 2026: "2026-01-14", 2027: "2027-01-14" },
+    body: "Wishing you a bright and prosperous Makar Sankranti.",
+  },
+  {
+    name: "Maha Shivratri",
+    slug: "maha-shivratri",
+    emoji: "🔱",
+    dates: { 2026: "2026-02-15", 2027: "2027-03-06" },
+    body: "May Lord Shiva bless you with peace, strength, and happiness.",
+  },
+  {
+    name: "Holi",
+    slug: "holi",
+    emoji: "🌈",
+    dates: { 2026: "2026-03-04", 2027: "2027-03-22" },
+    body: "Wishing you a colorful and joyful Holi.",
+  },
+  {
+    name: "Ram Navami",
+    slug: "ram-navami",
+    emoji: "🏹",
+    dates: { 2026: "2026-03-26", 2027: "2027-04-15" },
+    body: "Wishing you peace, courage, and blessings on Ram Navami.",
+  },
+  {
+    name: "Hanuman Jayanti",
+    slug: "hanuman-jayanti",
+    emoji: "🙏",
+    dates: { 2026: "2026-04-02", 2027: "2027-04-22" },
+    body: "May Lord Hanuman bless you with strength, devotion, and protection.",
+  },
+  {
+    name: "Akshaya Tritiya",
+    slug: "akshaya-tritiya",
+    emoji: "✨",
+    dates: { 2026: "2026-04-19", 2027: "2027-05-08" },
+    body: "Wishing you prosperity and new beginnings on Akshaya Tritiya.",
+  },
+  {
+    name: "Raksha Bandhan",
+    slug: "raksha-bandhan",
+    emoji: "",
+    dates: { 2026: "2026-08-28", 2027: "2027-08-16" },
+    body: "Wishing you a happy Raksha Bandhan.",
+  },
+  {
+    name: "Janmashtami",
+    slug: "janmashtami",
+    emoji: "🦚",
+    dates: { 2026: "2026-09-04", 2027: "2027-08-25" },
+    body: "May Lord Krishna bring joy, love, and wisdom to your home.",
+  },
+  {
+    name: "Ganesh Chaturthi",
+    slug: "ganesh-chaturthi",
+    emoji: "🐘",
+    dates: { 2026: "2026-09-14", 2027: "2027-09-04" },
+    body: "May Lord Ganesha remove obstacles and bring prosperity.",
+  },
+  {
+    name: "Navratri",
+    slug: "navratri",
+    emoji: "🪔",
+    dates: { 2026: "2026-10-11", 2027: "2027-10-01" },
+    body: "Wishing you devotion, strength, and joy during Navratri.",
+  },
+  {
+    name: "Dussehra",
+    slug: "dussehra",
+    emoji: "🏹",
+    dates: { 2026: "2026-10-20", 2027: "2027-10-09" },
+    body: "May good always triumph over evil. Happy Dussehra.",
+  },
+  {
+    name: "Karwa Chauth",
+    slug: "karwa-chauth",
+    emoji: "🌙",
+    dates: { 2026: "2026-10-29", 2027: "2027-10-18" },
+    body: "Wishing you love, togetherness, and blessings on Karwa Chauth.",
+  },
+  {
+    name: "Diwali",
+    slug: "diwali",
+    emoji: "🪔",
+    dates: { 2026: "2026-11-08", 2027: "2027-10-29" },
+    body: "Wishing you and your family a bright and prosperous Diwali.",
+  },
+  {
+    name: "Govardhan Puja",
+    slug: "govardhan-puja",
+    emoji: "🙏",
+    dates: { 2026: "2026-11-09", 2027: "2027-10-30" },
+    body: "Wishing you blessings, abundance, and happiness on Govardhan Puja.",
+  },
+  {
+    name: "Bhai Dooj",
+    slug: "bhai-dooj",
+    emoji: "",
+    dates: { 2026: "2026-11-11", 2027: "2027-10-31" },
+    body: "Wishing you a joyful Bhai Dooj filled with love and blessings.",
+  },
 ] as const;
+
+type HinduFestivalFallback = (typeof HINDU_FESTIVAL_FALLBACKS)[number];
 
 function localDateParts(date: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -87,9 +192,8 @@ function isQuietNow(prefs: GreetingPrefs | undefined, hour: number, minute: numb
   if (!quiet?.enabled) return false;
   const start = parseTime(quiet.start);
   const end = parseTime(quiet.end);
-  if (start == null || end == null) return false;
+  if (start == null || end == null || start === end) return false;
   const current = hour * 60 + minute;
-  if (start === end) return false;
   if (start < end) return current >= start && current < end;
   return current >= start || current < end;
 }
@@ -106,22 +210,115 @@ function roleAllowsGreeting(user: GreetingUser) {
 function logDocId(input: {
   userId: string;
   date: string;
-  type: "dailyGreeting" | "festivalGreeting";
+  year: number;
+  type: ScheduledNotificationType;
   festivalSlug?: string;
   tokenDocId?: string;
 }) {
+  const period = input.type === "hindu_festival_greeting" ? input.year : input.date;
   const hash = createHash("sha256")
-    .update(`${input.userId}|${input.date}|${input.type}|${input.festivalSlug || ""}|${input.tokenDocId || "user"}`)
+    .update(`${input.userId}|${period}|${input.type}|${input.festivalSlug || ""}|${input.tokenDocId || "user"}`)
     .digest("hex")
     .slice(0, 48);
   return `scheduledNotificationLog.${hash}`;
 }
 
+function titleForFestival(name: string, emoji?: string) {
+  return `Happy ${name}${emoji ? ` ${emoji}` : ""}`;
+}
+
+async function fetchFestivalCalendarFromApi(year: number) {
+  const endpoint = process.env.HINDU_FESTIVAL_API_URL || process.env.INDIA_FESTIVAL_API_URL || "";
+  if (!endpoint) return [];
+
+  try {
+    const url = endpoint
+      .replace("{year}", String(year))
+      .replace("{country}", "IN")
+      .replace("{timezone}", encodeURIComponent(DEFAULT_TIMEZONE));
+    const response = await fetch(url, { next: { revalidate: 7 * 24 * 60 * 60 } });
+    if (!response.ok) return [];
+    const json = await response.json();
+    const items = Array.isArray(json) ? json : Array.isArray(json?.items) ? json.items : Array.isArray(json?.holidays) ? json.holidays : [];
+    const allowed = new Set<string>(HINDU_FESTIVAL_FALLBACKS.map((festival) => festival.slug));
+
+    return items
+      .map((item: Record<string, unknown>) => {
+        const name = String(item.name || item.title || "").trim();
+        const date = String(item.date || item.startDate || "").slice(0, 10);
+        const fallback = HINDU_FESTIVAL_FALLBACKS.find(
+          (festival) => festival.name.toLowerCase() === name.toLowerCase(),
+        ) as HinduFestivalFallback | undefined;
+        const slug = String(item.slug || fallback?.slug || "").trim();
+        if (!allowed.has(slug) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+        const festivalName = fallback ? fallback.name : name;
+        const festivalEmoji = fallback ? fallback.emoji : "";
+        const festivalBody = fallback
+          ? fallback.body
+          : `Wishing you and your family happiness on ${festivalName}.`;
+        return {
+          name: festivalName,
+          slug,
+          date,
+          year,
+          emoji: festivalEmoji,
+          title: titleForFestival(festivalName, festivalEmoji),
+          body: festivalBody,
+          sourceUrl: endpoint,
+          source: "api",
+        };
+      })
+      .filter(Boolean) as Array<{
+      name: string;
+      slug: string;
+      date: string;
+      year: number;
+      emoji: string;
+      title: string;
+      body: string;
+      sourceUrl: string;
+      source: string;
+    }>;
+  } catch (error) {
+    console.warn("[ScheduledGreetings] Festival API failed, using fallback calendar", error);
+    return [];
+  }
+}
+
 async function seedFestivalCalendar(year: number) {
-  if (year !== 2026) return;
+  const apiFestivals = await fetchFestivalCalendarFromApi(year);
+  const apiSlugs = new Set(apiFestivals.map((festival) => festival.slug));
+  const fallbackFestivals = HINDU_FESTIVAL_FALLBACKS
+    .map((festival) => {
+      const date = festival.dates[year as keyof typeof festival.dates];
+      if (!date || apiSlugs.has(festival.slug)) return null;
+      return {
+        name: festival.name,
+        slug: festival.slug,
+        date,
+        year,
+        emoji: festival.emoji,
+        title: titleForFestival(festival.name, festival.emoji),
+        body: festival.body,
+        source: "fallback",
+        sourceUrl: "",
+      };
+    })
+    .filter(Boolean) as Array<{
+    name: string;
+    slug: string;
+    date: string;
+    year: number;
+    emoji: string;
+    title: string;
+    body: string;
+    source: string;
+    sourceUrl: string;
+  }>;
+
   const now = new Date().toISOString();
   await Promise.allSettled(
-    FESTIVAL_SEED_2026.map((festival) =>
+    [...apiFestivals, ...fallbackFestivals].map((festival) =>
       sanityClient.createIfNotExists({
         _id: `festivalCalendar.${festival.date}.${festival.slug}`,
         _type: "festivalCalendar",
@@ -130,12 +327,12 @@ async function seedFestivalCalendar(year: number) {
         date: festival.date,
         year,
         emoji: festival.emoji,
-        title: `Happy ${festival.name} ${festival.emoji}`,
-        body: "Wishing you and your family happiness and prosperity.",
+        title: festival.title,
+        body: festival.body,
         isActive: true,
-        source: "seeded",
+        source: festival.source,
         sourceUrl: festival.sourceUrl,
-        notes: "Seeded fallback calendar. Admins can edit this date if a regional calendar differs.",
+        notes: "Hindu festival greeting calendar. Edit this document if your regional observance date differs.",
         createdAt: now,
         updatedAt: now,
       }),
@@ -160,10 +357,19 @@ async function festivalsForDate(localDate: string, year: number) {
   );
 }
 
-async function hasUserLog(userId: string, date: string, type: "dailyGreeting" | "festivalGreeting") {
+async function hasUserLog(input: {
+  userId: string;
+  date: string;
+  year: number;
+  type: ScheduledNotificationType;
+  festivalSlug?: string;
+}) {
   const existing = await sanityClient.fetch<string | null>(
-    `*[_type=="scheduledNotificationLog" && userId==$userId && date==$date && notificationType==$type][0]._id`,
-    { userId, date, type },
+    `*[_type=="scheduledNotificationLog" && userId==$userId && notificationType==$type && (
+      ($type == "daily_good_morning" && date==$date) ||
+      ($type == "hindu_festival_greeting" && festivalSlug==$festivalSlug && year==$year)
+    )][0]._id`,
+    input,
   );
   return Boolean(existing);
 }
@@ -171,8 +377,9 @@ async function hasUserLog(userId: string, date: string, type: "dailyGreeting" | 
 async function writeLog(input: {
   user: GreetingUser;
   date: string;
+  year: number;
   timezone: string;
-  type: "dailyGreeting" | "festivalGreeting";
+  type: ScheduledNotificationType;
   status: "sent" | "failed" | "skipped";
   reason?: string;
   festival?: FestivalDoc;
@@ -184,6 +391,7 @@ async function writeLog(input: {
     _id: logDocId({
       userId: input.user._id,
       date: input.date,
+      year: input.year,
       type: input.type,
       festivalSlug,
       tokenDocId: input.token?._id,
@@ -192,7 +400,9 @@ async function writeLog(input: {
     userId: input.user._id,
     user: { _type: "reference", _ref: input.user._id },
     notificationType: input.type,
+    greetingDate: input.date,
     date: input.date,
+    year: input.year,
     festivalName: input.festival?.name || "",
     festivalSlug,
     timezone: input.timezone,
@@ -208,75 +418,68 @@ async function writeLog(input: {
   });
 }
 
+function dailyMessage() {
+  return {
+    type: "daily_good_morning" as const,
+    title: "Good Morning 🌞",
+    body: "Have a great day!",
+    festival: undefined,
+  };
+}
+
 function festivalMessage(festival: FestivalDoc) {
   return {
-    type: "festivalGreeting" as const,
-    eventType: "scheduled.festivalGreeting" as const,
-    title: festival.title || `Happy ${festival.name} ${festival.emoji || ""}`.trim(),
+    type: "hindu_festival_greeting" as const,
+    title: festival.title || titleForFestival(festival.name, festival.emoji),
     body: festival.body || "Wishing you and your family happiness and prosperity.",
     festival,
   };
 }
 
-function dailyMessage() {
-  return {
-    type: "dailyGreeting" as const,
-    eventType: "scheduled.dailyGreeting" as const,
-    title: "Good Morning ☀️",
-    body: "Start your day with fresh updates.",
-    festival: undefined,
-  };
-}
+async function dispatchGreeting(input: {
+  user: GreetingUser;
+  timezone: string;
+  localDate: string;
+  localYear: number;
+  message: ReturnType<typeof dailyMessage> | ReturnType<typeof festivalMessage>;
+}) {
+  const { user, timezone, localDate, localYear, message } = input;
+  const festivalSlug = message.festival?.slug?.current || "";
 
-async function sendForUser(user: GreetingUser, now: Date, force = false) {
-  const timezone = user.notificationTimezone || DEFAULT_TIMEZONE;
-  const local = localDateParts(now, timezone);
-  const prefs = user.notificationPreferences || {};
-
-  if (!roleAllowsGreeting(user)) {
-    await writeLog({ user, date: local.date, timezone, type: "dailyGreeting", status: "skipped", reason: "preferences_disabled" });
+  if (await hasUserLog({ userId: user._id, date: localDate, year: localYear, type: message.type, festivalSlug })) {
     return { sent: 0, skipped: 1, failed: 0 };
   }
-  if (!force && (local.hour < MORNING_START_HOUR || local.hour > MORNING_END_HOUR)) {
-    return { sent: 0, skipped: 1, failed: 0 };
-  }
-  if (isQuietNow(prefs, local.hour, local.minute)) {
-    await writeLog({ user, date: local.date, timezone, type: "dailyGreeting", status: "skipped", reason: "quiet_hours" });
-    return { sent: 0, skipped: 1, failed: 0 };
-  }
-
-  const festivals = prefs.festivalGreetingEnabled === false ? [] : await festivalsForDate(local.date, local.year);
-  const message = festivals[0] ? festivalMessage(festivals[0]) : dailyMessage();
-  if (message.type === "dailyGreeting" && prefs.dailyGreetingEnabled === false) {
-    await writeLog({ user, date: local.date, timezone, type: message.type, status: "skipped", reason: "daily_greeting_disabled" });
-    return { sent: 0, skipped: 1, failed: 0 };
-  }
-  if (await hasUserLog(user._id, local.date, message.type)) return { sent: 0, skipped: 1, failed: 0 };
 
   const tokens = await getActiveFcmTokensForUsers([user._id]);
-  const eventId = `${message.eventType}.${user._id}.${local.date}${message.festival ? `.${message.festival.slug?.current || message.festival._id}` : ""}`;
+  const expiresAt = new Date(Date.now() + GREETING_TTL_HOURS * 60 * 60 * 1000).toISOString();
+  const eventId = `${message.type}.${user._id}.${message.type === "daily_good_morning" ? localDate : `${localYear}.${festivalSlug}`}`;
   const result = await sendNotificationEvent({
     eventId,
-    type: message.eventType,
+    type: message.type,
     userId: user._id,
     title: message.title,
     body: message.body,
     data: {
       category: "scheduled_greeting",
+      notificationType: message.type,
       scheduledType: message.type,
       festivalName: message.festival?.name || "",
+      festivalSlug,
       festivalDate: message.festival?.date || "",
-      date: local.date,
+      greetingDate: localDate,
+      year: localYear,
+      expiresAt,
       route: "/",
-      tag: `scheduled-greeting-${user._id}-${local.date}`,
-      replaceGroup: "scheduled-greeting",
+      tag: `scheduled-greeting-${message.type}-${user._id}-${message.type === "daily_good_morning" ? localDate : `${localYear}-${festivalSlug}`}`,
+      replaceGroup: message.type,
     },
   });
 
   if (!tokens.length) {
     await writeLog({
       user,
-      date: local.date,
+      date: localDate,
+      year: localYear,
       timezone,
       type: message.type,
       status: "skipped",
@@ -292,10 +495,18 @@ async function sendForUser(user: GreetingUser, now: Date, force = false) {
     tokens.map((token) =>
       writeLog({
         user,
-        date: local.date,
+        date: localDate,
+        year: localYear,
         timezone,
         type: message.type,
-        status: invalid.has(token.token) || result.send.success === false ? (invalid.has(token.token) ? "failed" : result.send.sent > 0 ? "sent" : "failed") : "sent",
+        status:
+          invalid.has(token.token) || result.send.success === false
+            ? invalid.has(token.token)
+              ? "failed"
+              : result.send.sent > 0
+                ? "sent"
+                : "failed"
+            : "sent",
         reason: invalid.has(token.token) ? "invalid_or_expired_token" : result.error || result.send.errors?.join("; ") || "",
         festival: message.festival,
         notificationId: result.notificationId,
@@ -311,6 +522,51 @@ async function sendForUser(user: GreetingUser, now: Date, force = false) {
   };
 }
 
+function addStats(total: GreetingRunStats, next: GreetingRunStats) {
+  total.sent += next.sent;
+  total.skipped += next.skipped;
+  total.failed += next.failed;
+}
+
+async function sendForUser(user: GreetingUser, now: Date, force = false) {
+  const timezone = user.notificationTimezone || DEFAULT_TIMEZONE;
+  const local = localDateParts(now, timezone);
+  const prefs = user.notificationPreferences || {};
+  const stats: GreetingRunStats = { sent: 0, skipped: 0, failed: 0 };
+
+  if (!roleAllowsGreeting(user)) {
+    await writeLog({ user, date: local.date, year: local.year, timezone, type: "daily_good_morning", status: "skipped", reason: "preferences_disabled" });
+    return { ...stats, skipped: 1 };
+  }
+
+  if (!force && (local.hour < MORNING_START_HOUR || local.hour > MORNING_END_HOUR)) {
+    return { ...stats, skipped: 1 };
+  }
+
+  if (isQuietNow(prefs, local.hour, local.minute)) {
+    await writeLog({ user, date: local.date, year: local.year, timezone, type: "daily_good_morning", status: "skipped", reason: "quiet_hours" });
+    return { ...stats, skipped: 1 };
+  }
+
+  if (prefs.dailyGreetingEnabled !== false) {
+    addStats(stats, await dispatchGreeting({ user, timezone, localDate: local.date, localYear: local.year, message: dailyMessage() }));
+  } else {
+    await writeLog({ user, date: local.date, year: local.year, timezone, type: "daily_good_morning", status: "skipped", reason: "daily_greeting_disabled" });
+    stats.skipped += 1;
+  }
+
+  if (prefs.festivalGreetingEnabled !== false) {
+    const festivals = await festivalsForDate(local.date, local.year);
+    for (const festival of festivals) {
+      addStats(stats, await dispatchGreeting({ user, timezone, localDate: local.date, localYear: local.year, message: festivalMessage(festival) }));
+    }
+  } else {
+    await writeLog({ user, date: local.date, year: local.year, timezone, type: "hindu_festival_greeting", status: "skipped", reason: "festival_greeting_disabled" });
+  }
+
+  return stats;
+}
+
 export async function runScheduledGreetings(input?: { now?: Date; force?: boolean }) {
   const now = input?.now || new Date();
   const users = await sanityClient.fetch<GreetingUser[]>(
@@ -323,17 +579,12 @@ export async function runScheduledGreetings(input?: { now?: Date; force?: boolea
     }`,
   );
 
-  let sent = 0;
-  let skipped = 0;
-  let failed = 0;
+  const totals: GreetingRunStats = { sent: 0, skipped: 0, failed: 0 };
   for (const user of users || []) {
     try {
-      const result = await sendForUser(user, now, Boolean(input?.force));
-      sent += result.sent;
-      skipped += result.skipped;
-      failed += result.failed;
+      addStats(totals, await sendForUser(user, now, Boolean(input?.force)));
     } catch (error) {
-      failed += 1;
+      totals.failed += 1;
       console.error("[ScheduledGreetings] user failed", user._id, error);
     }
   }
@@ -341,9 +592,9 @@ export async function runScheduledGreetings(input?: { now?: Date; force?: boolea
   return {
     ok: true,
     users: users.length,
-    sent,
-    skipped,
-    failed,
+    sent: totals.sent,
+    skipped: totals.skipped,
+    failed: totals.failed,
     at: now.toISOString(),
   };
 }

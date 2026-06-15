@@ -52,6 +52,22 @@ function chatNotificationId(messageId: string) {
   return `shop-chat:${messageId}`;
 }
 
+function ownActionActorId(last: NonNullable<ShopChatRoom["lastMessage"]>) {
+  const data = last.systemEventData;
+  if (!data || typeof data !== "object") return "";
+  const candidates = [
+    data.actorUserId,
+    data.createdById,
+    data.updatedById,
+    data.clearedById,
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
 export function useGlobalShopChat(
   user?: { id?: string; _id?: string; role?: string | null } | null,
 ) {
@@ -101,7 +117,10 @@ export function useGlobalShopChat(
         return;
       }
 
-      if (!isChatRoute && last.senderId !== userId) {
+      const actorUserId = ownActionActorId(last);
+      const isOwnMessage = last.senderId === userId || actorUserId === userId;
+
+      if (!isChatRoute && !isOwnMessage) {
         if (wasNotificationHandled(last.messageId) || wasNotificationHandled(chatNotificationId(last.messageId))) return;
         if (notifiedMessageIdsRef.current.has(last.messageId)) return;
         notifiedMessageIdsRef.current.add(last.messageId);
@@ -119,6 +138,7 @@ export function useGlobalShopChat(
             messageId: last.messageId,
             messageType: last.type,
             senderName,
+            actorUserId: actorUserId || undefined,
             userId: role === "customer" ? userId : room.customerId,
             route: {
               pathname: chatPath,
