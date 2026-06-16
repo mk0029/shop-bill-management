@@ -13,6 +13,13 @@ export type ActiveFcmToken = {
   updatedAt?: string;
 };
 
+type LegacyUserTokens = {
+  _id: string;
+  fcmTokens?: string[] | null;
+  fcmTokensProd?: string[] | null;
+  fcmTokensDev?: string[] | null;
+};
+
 type SanityUserDeviceLimit = {
   _id: string;
   allowedDevicesCount?: number | null;
@@ -55,7 +62,55 @@ export async function resolveUserId(userId: string): Promise<string> {
 
 export async function registerFcmToken(input: RegisterFcmTokenInput) {
   const token = String(input.token || "").trim();
-  return registerUserDeviceSession({ ...input, token });
+  const requestedUserId = String(input.userId || "").trim();
+  if (!requestedUserId) throw new Error("Missing userId");
+  if (!token) throw new Error("Missing token");
+
+  const userId = await resolveUserId(requestedUserId);
+  console.log("[FCM_TRACE] register_token_user_id", userId);
+  const now = new Date().toISOString();
+  const deviceInfo: FcmDeviceInfo = input.deviceInfo || {};
+  const stableDeviceId = String(deviceInfo.deviceId || "").trim();
+  const docId = stableDeviceId ? deviceDocId(userId, stableDeviceId) : tokenDocId(token);
+
+  await sanityClient.createIfNotExists({
+    _id: docId,
+    _type: "userFcmToken",
+    token,
+    createdAt: now,
+    user: { _type: "reference", _ref: userId },
+    userId,
+    deviceId: stableDeviceId || docId,
+    isActive: true,
+  });
+
+  await sanityClient
+    .patch(docId)
+    .set({
+      user: { _type: "reference", _ref: userId },
+      userId,
+      deviceId: stableDeviceId || docId,
+      deviceName: deviceInfo.deviceName || deviceInfo.platform || "Device",
+      platform: deviceInfo.platform || "",
+      browser: deviceInfo.browser || "",
+      os: deviceInfo.os || "",
+      userAgent: deviceInfo.userAgent || "",
+      token,
+      isActive: true,
+      updatedAt: now,
+      lastUsedAt: now,
+    })
+    .unset(["deactivatedReason", "deactivatedAt", "replacedByDeviceName"])
+    .commit({ autoGenerateArrayKeys: true });
+
+  if (stableDeviceId) {
+    await deactivateDuplicateDeviceDocs(userId, stableDeviceId, docId, {
+      notifyRevokedDevices: false,
+      reason: "FCM_TOKEN_REFRESH",
+    });
+  }
+
+  return { userId, tokenId: docId };
 }
 
 export async function registerUserDeviceSession(input: RegisterFcmTokenInput) {
@@ -105,7 +160,10 @@ export async function registerUserDeviceSession(input: RegisterFcmTokenInput) {
     .commit({ autoGenerateArrayKeys: true });
 
   if (stableDeviceId) {
-    await deactivateDuplicateDeviceDocs(userId, stableDeviceId, docId);
+    await deactivateDuplicateDeviceDocs(userId, stableDeviceId, docId, {
+      notifyRevokedDevices: true,
+      reason: "LOGGED_IN_ON_ANOTHER_DEVICE",
+    });
   }
 
   await sanityClient
@@ -143,8 +201,11 @@ export async function unregisterFcmToken(userId: string, token: string) {
 export async function getActiveFcmTokensForUsers(userIds: string[]): Promise<ActiveFcmToken[]> {
   const ids = Array.from(new Set((userIds || []).map(String).filter(Boolean)));
   if (!ids.length) return [];
-  return sanityClient.fetch<ActiveFcmToken[]>(
-    `*[_type=="userFcmToken" && isActive == true && defined(token) && token != "" && userId in $ids] | order(updatedAt desc) {
+  const resolvedIds = await resolveUserIdsForNotificationTargets(ids);
+  const lookupIds = Array.from(new Set([...ids, ...resolvedIds]));
+  console.log("[FCM_TRACE] receiver_id", lookupIds.join(","));
+  const tokenDocs = await sanityClient.fetch<ActiveFcmToken[]>(
+    `*[_type=="userFcmToken" && isActive == true && defined(token) && token != "" && (userId in $ids || user._ref in $ids)] | order(updatedAt desc) {
       _id,
       userId,
       token,
@@ -153,11 +214,61 @@ export async function getActiveFcmTokensForUsers(userIds: string[]): Promise<Act
       isActive,
       updatedAt
     }`,
-    { ids },
+    { ids: lookupIds },
   );
+
+  const legacyUsers = await sanityClient.fetch<LegacyUserTokens[]>(
+    `*[_type=="user" && _id in $ids]{
+      _id,
+      fcmTokens,
+      fcmTokensProd,
+      fcmTokensDev
+    }`,
+    { ids: lookupIds },
+  );
+
+  const legacyDocs: ActiveFcmToken[] = [];
+  for (const user of legacyUsers || []) {
+    const tokens = [
+      ...(Array.isArray(user.fcmTokens) ? user.fcmTokens : []),
+      ...(Array.isArray(user.fcmTokensProd) ? user.fcmTokensProd : []),
+      ...(Array.isArray(user.fcmTokensDev) ? user.fcmTokensDev : []),
+    ];
+    for (const token of tokens) {
+      if (!token) continue;
+      legacyDocs.push({
+        _id: `legacy.${user._id}.${createHash("sha256").update(token).digest("hex").slice(0, 12)}`,
+        userId: user._id,
+        token,
+        isActive: true,
+      });
+    }
+  }
+
+  const byToken = new Map<string, ActiveFcmToken>();
+  for (const doc of [...tokenDocs, ...legacyDocs]) {
+    if (doc.token && !byToken.has(doc.token)) byToken.set(doc.token, doc);
+  }
+  console.log("[FCM_TRACE] receiver_token_found", byToken.size > 0);
+  console.log("[FCM_TRACE] token_count", byToken.size);
+  return Array.from(byToken.values());
 }
 
-async function deactivateDuplicateDeviceDocs(userId: string, deviceId: string, keepDocId: string) {
+async function resolveUserIdsForNotificationTargets(ids: string[]) {
+  if (!ids.length) return [];
+  const resolved = await sanityClient.fetch<string[]>(
+    `*[_type=="user" && (_id in $ids || clerkId in $ids || customerId in $ids) && isActive != false]._id`,
+    { ids },
+  );
+  return Array.from(new Set((resolved || []).map(String).filter(Boolean)));
+}
+
+async function deactivateDuplicateDeviceDocs(
+  userId: string,
+  deviceId: string,
+  keepDocId: string,
+  options: { notifyRevokedDevices: boolean; reason: string },
+) {
   const duplicates = await sanityClient.fetch<Array<{ _id: string; token?: string; deviceName?: string }>>(
     `*[_type=="userFcmToken" && userId==$userId && deviceId==$deviceId && _id != $keepDocId && isActive == true]{
       _id,
@@ -174,23 +285,25 @@ async function deactivateDuplicateDeviceDocs(userId: string, deviceId: string, k
         .patch(doc._id)
         .set({
           isActive: false,
-          deactivatedReason: "LOGGED_IN_ON_ANOTHER_DEVICE",
+          deactivatedReason: options.reason,
           deactivatedAt: now,
           updatedAt: now,
         })
         .commit(),
     ),
   );
-  await Promise.allSettled(
-    duplicates.map((doc) =>
-      notifyChatBackendDeviceRevoked({
-        userId,
-        deviceId,
-        reason: "LOGGED_IN_ON_ANOTHER_DEVICE",
-        loggedInOn: doc.deviceName,
-      }),
-    ),
-  );
+  if (options.notifyRevokedDevices) {
+    await Promise.allSettled(
+      duplicates.map((doc) =>
+        notifyChatBackendDeviceRevoked({
+          userId,
+          deviceId,
+          reason: "LOGGED_IN_ON_ANOTHER_DEVICE",
+          loggedInOn: doc.deviceName,
+        }),
+      ),
+    );
+  }
 }
 
 export async function getActiveTokenStringsForUsers(userIds: string[]): Promise<string[]> {

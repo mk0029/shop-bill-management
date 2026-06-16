@@ -13,9 +13,15 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await registerFcmToken({ userId, token, deviceInfo })
+    console.log('[FCM_TRACE] register_token_saved', JSON.stringify({
+      userId: data.userId,
+      tokenId: data.tokenId,
+      deviceId: deviceInfo?.deviceId || '',
+    }))
     return NextResponse.json({ success: true, data })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
+    console.error('[FCM_TRACE] register_token_error', message)
     return NextResponse.json({ success: false, error: message }, { status: message === 'User not found' ? 404 : 500 })
   }
 }

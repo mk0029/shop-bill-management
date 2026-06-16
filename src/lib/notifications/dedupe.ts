@@ -80,12 +80,16 @@ export function setActiveChatId(roomId?: string | null) {
 }
 
 export async function postNotificationWorkerMessage(message: unknown) {
-  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return false;
   try {
     const reg = await navigator.serviceWorker.ready;
     const worker = reg.active || navigator.serviceWorker.controller;
-    worker?.postMessage(message);
-  } catch {}
+    if (!worker) return false;
+    worker.postMessage(message);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function clearAppSystemNotifications(filter?: { roomId?: string; tag?: string; id?: string }) {

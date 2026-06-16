@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
 import { DataProvider } from "../components/providers/data-provider";
 import { SanityRealtimeProvider } from "../components/providers/SanityRealtimeProvider";
 import AuthBackgroundGate from "../components/providers/auth-background-gate";
@@ -26,16 +25,6 @@ export const revalidate = 60; // Rebuild at most once per 60s; tune per route as
 export const viewport: Viewport = {
   themeColor: "#0ea5e9",
 };
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://jambh-ell.vercel.app";
@@ -127,9 +116,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
-      >
+      <body className="min-h-screen bg-background text-foreground antialiased">
         {/* Synchronous auth prehydration to speed up startup */}
         <AuthPrehydrate />
         <ClientErrorLogger />

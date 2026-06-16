@@ -60,25 +60,8 @@ export async function autoRegisterFcmToken(
     if (!token) return { success: false, skipped: true, reason: "no-token" };
 
     const deviceInfo = getDeviceInfo();
-    const cached = getCachedRegisteredToken(userId);
-    if (
-      !options.forceRefresh &&
-      cached?.token === token &&
-      cached.deviceId === deviceInfo.deviceId
-    ) {
-      return { success: true, token, deviceId: deviceInfo.deviceId, skipped: true, reason: "already-registered" };
-    }
-
-    const status = await fetch("/api/notifications/device-status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, deviceId: deviceInfo.deviceId }),
-    })
-      .then((res) => res.json())
-      .catch(() => null);
-    if (status?.success && status?.known !== false && status?.active === false) {
-      return { success: false, skipped: true, reason: "device-inactive" };
-    }
+    console.info("[FCM_TRACE] register_client_user_id", userId);
+    console.info("[FCM_TRACE] register_client_device_id", deviceInfo.deviceId || "");
 
     const res = await fetch("/api/notifications/register-token", {
       method: "POST",

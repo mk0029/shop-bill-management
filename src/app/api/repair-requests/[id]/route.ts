@@ -84,6 +84,34 @@ async function notifyCustomer(args: {
   });
 }
 
+async function notifyAssignedTechnician(args: {
+  request: RepairRequestDoc;
+  actorUserId: string;
+  title: string;
+  body: string;
+  route?: string;
+  taskId?: string;
+}) {
+  const technicianId = args.request.technician?._id || args.request.technicianRefId;
+  if (!technicianId) return;
+  await sendNotificationEvent({
+    eventId: `repairRequest.technician.${args.request._id}.${Date.now()}`,
+    type: args.taskId ? "workTask.updated" : "system.general",
+    actorUserId: args.actorUserId,
+    userId: technicianId,
+    title: args.title,
+    body: args.body,
+    data: {
+      route: args.route || "/admin/repair-requests",
+      route_path: args.route || "/admin/repair-requests",
+      repairRequestId: args.request._id,
+      requestId: args.request.requestId,
+      ...(args.taskId ? { taskId: args.taskId } : {}),
+    },
+    skipActor: true,
+  });
+}
+
 function workTaskStatusForRepairStatus(status: string) {
   if (status === "on_hold") return "hold";
   if (status === "rejected") return "cancelled";
@@ -108,10 +136,6 @@ async function createWorkTaskFromRepairRequest(request: RepairRequestDoc, actorU
   }
 
   const now = new Date().toISOString();
-  const actorName = safeUserName(
-    String((auth.user as { name?: string } | null)?.name || ""),
-    auth.role === "customer" ? "Customer" : "Admin",
-  );
   const actor = await sanityClient.fetch<{ _id: string; name?: string } | null>(
     `*[_type=="user" && _id==$id][0]{_id,name}`,
     { id: actorUserId },
@@ -172,6 +196,10 @@ export async function PATCH(
   }
 
   const now = new Date().toISOString();
+  const actorName = safeUserName(
+    String((auth.user as { name?: string } | null)?.name || ""),
+    auth.role === "customer" ? "Customer" : "Admin",
+  );
 
   if (action === "cancel") {
     if (auth.role !== "customer" || request.customer?._id !== auth.userId) {
@@ -189,9 +217,10 @@ export async function PATCH(
       updatedBy: { _type: "reference", _ref: auth.userId },
     }).commit();
 
-    const adminIds = await getActiveAdminUserIds();
+    const technicianId = request.technician?._id || request.technicianRefId;
+    const adminIds = technicianId ? [technicianId] : await getActiveAdminUserIds();
     await sendNotificationEvent({
-      eventId: `repairRequest.cancelled.${id}.admins`,
+      eventId: `repairRequest.cancelled.${id}.${technicianId || "admins"}`,
       type: "system.general",
       actorUserId: auth.userId,
       userIds: adminIds,
@@ -239,12 +268,50 @@ export async function PATCH(
         : "/customer/request-repair",
       taskId: request.workTask?._id,
     });
+    await notifyAssignedTechnician({
+      request: { ...request, scheduledAt },
+      actorUserId: auth.userId,
+      title: "Repair time updated",
+      body: `${request.requestId} is scheduled for ${formatDayDateTime(scheduledAt)}.`,
+      route: request.workTask?._id ? "/dashboard/work-list" : "/admin/repair-requests",
+      taskId: request.workTask?._id,
+    });
 
     return NextResponse.json({ success: true, data: patched });
   }
 
   if (action in STATUS_BY_ACTION) {
     const nextStatus = STATUS_BY_ACTION[action as keyof typeof STATUS_BY_ACTION];
+    if (nextStatus === "rejected") {
+      const patched = await sanityClient.patch(id).set({
+        status: "rejected",
+        cancelledByName: actorName,
+        cancelledByRole: auth.role || "admin",
+        cancelledAt: now,
+        updatedAt: now,
+        updatedBy: { _type: "reference", _ref: auth.userId },
+      }).commit();
+
+      await Promise.allSettled([
+        notifyCustomer({
+          request: { ...request, status: "rejected" },
+          actorUserId: auth.userId,
+          title: "Repair request rejected",
+          body: `${request.requestId} was rejected by Admin.`,
+          route: "/customer/request-repair",
+        }),
+        notifyAssignedTechnician({
+          request: { ...request, status: "rejected" },
+          actorUserId: auth.userId,
+          title: "Repair request rejected",
+          body: `${request.requestId} was rejected by Admin.`,
+          route: "/admin/repair-requests",
+        }),
+      ]);
+
+      return NextResponse.json({ success: true, data: patched });
+    }
+
     const nextScheduledAt = scheduledAt && isValidDateTime(scheduledAt) ? scheduledAt : request.scheduledAt;
     if (!nextScheduledAt || !isValidDateTime(nextScheduledAt)) {
       return NextResponse.json({ success: false, error: "Assign a valid time before updating request status" }, { status: 400 });
@@ -269,14 +336,24 @@ export async function PATCH(
       updatedBy: { _type: "reference", _ref: auth.userId },
     }).commit();
 
-    await notifyCustomer({
-      request: { ...request, status: nextStatus, scheduledAt: nextScheduledAt },
-      actorUserId: auth.userId,
-      title: "Repair moved to service tasks",
-      body: `${request.requestId} is ${nextStatus.replace(/_/g, " ")} and was added to your service tasks for ${formatDayDateTime(nextScheduledAt)}.`,
-      route: `/customer/work-tasks?open=${encodeURIComponent(task._id)}`,
-      taskId: task._id,
-    });
+    await Promise.allSettled([
+      notifyCustomer({
+        request: { ...request, status: nextStatus, scheduledAt: nextScheduledAt },
+        actorUserId: auth.userId,
+        title: "Repair moved to service tasks",
+        body: `${request.requestId} is ${nextStatus.replace(/_/g, " ")} and was added to your service tasks for ${formatDayDateTime(nextScheduledAt)}.`,
+        route: `/customer/work-tasks?open=${encodeURIComponent(task._id)}`,
+        taskId: task._id,
+      }),
+      notifyAssignedTechnician({
+        request: { ...request, status: nextStatus, scheduledAt: nextScheduledAt },
+        actorUserId: auth.userId,
+        title: "Repair task updated",
+        body: `${request.requestId} is ${nextStatus.replace(/_/g, " ")} for ${formatDayDateTime(nextScheduledAt)}.`,
+        route: "/dashboard/work-list",
+        taskId: task._id,
+      }),
+    ]);
     return NextResponse.json({ success: true, data: patched, workTaskId: task._id });
   }
 
@@ -293,7 +370,8 @@ export async function PATCH(
         updatedBy: { _type: "reference", _ref: auth.userId },
       }).commit();
 
-      const adminIds = await getActiveAdminUserIds();
+      const technicianId = request.technician?._id || request.technicianRefId;
+      const targetAdminIds = technicianId ? [technicianId] : await getActiveAdminUserIds();
       await Promise.allSettled([
         notifyCustomer({
           request: { ...requestForTask, status: "added_to_work_list" },
@@ -304,12 +382,12 @@ export async function PATCH(
           taskId: task._id,
         }),
         sendNotificationEvent({
-          eventId: `repairRequest.addedToWorkList.${id}.admins`,
+          eventId: `repairRequest.addedToWorkList.${id}.${technicianId || "technician"}`,
           type: "workTask.created",
           actorUserId: auth.userId,
-          userIds: adminIds,
+          userIds: targetAdminIds,
           title: "Repair request converted",
-          body: `${request.requestId} is now a work task. WhatsApp was skipped for this conversion.`,
+          body: `${request.requestId} is now your work task. WhatsApp was skipped for this conversion.`,
           data: {
             route: "/dashboard/work-list",
             route_path: "/dashboard/work-list",

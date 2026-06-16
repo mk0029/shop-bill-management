@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
       replacedByDeviceName?: string;
       lastLoginAt?: string;
     } | null>(
-      `*[_type=="userFcmToken" && userId==$userId && deviceId==$deviceId] | order(updatedAt desc)[0]{
+      `coalesce(
+        *[_type=="userFcmToken" && userId==$userId && deviceId==$deviceId && isActive == true] | order(updatedAt desc)[0],
+        *[_type=="userFcmToken" && userId==$userId && deviceId==$deviceId] | order(updatedAt desc)[0]
+      ){
         _id,
         isActive,
         deviceName,
@@ -43,7 +46,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       known: true,
-      active: current.isActive !== false,
+      active: current.deactivatedReason === "FCM_TOKEN_REFRESH" ? true : current.isActive !== false,
       reason: current.deactivatedReason,
       loggedInOn: current.replacedByDeviceName,
       deviceName: current.deviceName,

@@ -1,116 +1,148 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useAuthStore } from "../../store/auth-store";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import FcmRetryPopup from "@/components/notifications/FcmRetryPopup";
+import { useAuthStore } from "../../store/auth-store";
 
 /**
  * AskForNotifications
- * - Uses native OS/browser Notification permission prompt (no custom UI)
- * - Managed by useState: defaults to true; set to false once user allows (granted)
- * - Mount this once globally (e.g., in RootLayout)
+ * - Shows a custom explanatory prompt before the native OS/browser permission prompt.
+ * - Bottom aligned on mobile, centered on desktop to match the app update prompt.
+ * - Mount this once globally.
  */
 export default function AskForNotifications() {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hydrated = useAuthStore((s) => s.hydrated);
   const [ask, setAsk] = useState<boolean>(true);
-  const toastIdRef = useRef<string | number | null>(null);
+  const [showPrompt, setShowPrompt] = useState<boolean>(false);
+  const [showBlockedWarning, setShowBlockedWarning] = useState<boolean>(false);
+  const [requesting, setRequesting] = useState<boolean>(false);
 
-  // Helper to show guidance when notifications are hard-blocked by the browser
   function showBlockedInfo() {
-    if (toastIdRef.current != null) toast.dismiss(toastIdRef.current);
-    toastIdRef.current = toast("Enable notifications in browser settings", {
-      description:
-        "Notifications are blocked by your browser. Click the padlock icon in the address bar → Site settings → Notifications: Allow, then reload.",
-      duration: 10000,
-    });
+    setShowBlockedWarning(true);
   }
 
-  // Main effect: ask for permission if needed
   useEffect(() => {
     if (!hydrated || !isAuthenticated || !user) return;
 
-    // If notifications are not supported, do nothing
     if (!("Notification" in window)) {
       setAsk(false);
+      setShowPrompt(false);
       return;
     }
 
-    // If already granted, no need to ask again
     if (Notification.permission === "granted") {
       setAsk(false);
-      // Opportunistically auto-register token on mount if user exists
+      setShowPrompt(false);
       const userId = user?.id ?? null;
       if (userId) {
-        // Import autoRegisterFcmToken dynamically to avoid circular deps
         import("../../lib/fcm").then(({ autoRegisterFcmToken }) => {
           autoRegisterFcmToken(userId).catch(() => {});
         });
       }
-      // Dismiss any existing toast (if any)
-      if (toastIdRef.current != null) {
-        toast.dismiss(toastIdRef.current);
-        toastIdRef.current = null;
-      }
+      setShowBlockedWarning(false);
       return;
     }
 
-    // Request permission if we should ask and the current state is default or denied
     if (
       ask &&
       (Notification.permission === "default" ||
         Notification.permission === "denied")
     ) {
-      // Show a toast first to explain why we're asking
-      if (toastIdRef.current != null) toast.dismiss(toastIdRef.current);
-      toastIdRef.current = toast("Stay updated with notifications", {
-        description:
-          "We’ll notify you about important updates. You can change this anytime.",
-        action: {
-          label: "Allow",
-          onClick: async () => {
-            try {
-              const perm = await Notification.requestPermission();
-              if (perm === "granted") {
-                toast.success("Notifications enabled!");
-                setAsk(false);
-                // Auto-register token after permission granted
-                const userId = user?.id ?? null;
-                if (userId) {
-                  import("../../lib/fcm").then(({ autoRegisterFcmToken }) => {
-                    autoRegisterFcmToken(userId).catch(() => {});
-                  });
-                }
-              } else if (perm === "denied") {
-                showBlockedInfo();
-                setAsk(false);
-              }
-            } catch {
-              showBlockedInfo();
-              setAsk(false);
-            }
-          },
-        },
-        cancel: {
-          label: "Not now",
-          onClick: () => {
-            setAsk(false);
-          },
-        },
-        duration: 15000,
-        onDismiss: () => {
-          toastIdRef.current = null;
-        },
-      });
+      setShowPrompt(true);
     }
   }, [hydrated, isAuthenticated, user, ask]);
+
+  useEffect(() => {
+    if (!showBlockedWarning) return;
+    const timer = window.setTimeout(() => setShowBlockedWarning(false), 10000);
+    return () => window.clearTimeout(timer);
+  }, [showBlockedWarning]);
+
+  async function allowNotifications() {
+    if (requesting || typeof window === "undefined" || !("Notification" in window)) return;
+
+    setRequesting(true);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        toast.success("Notifications enabled!");
+        setAsk(false);
+        setShowPrompt(false);
+        const userId = user?.id ?? null;
+        if (userId) {
+          import("../../lib/fcm").then(({ autoRegisterFcmToken }) => {
+            autoRegisterFcmToken(userId).catch(() => {});
+          });
+        }
+      } else if (perm === "denied") {
+        showBlockedInfo();
+        setAsk(false);
+        setShowPrompt(false);
+      }
+    } catch {
+      showBlockedInfo();
+      setAsk(false);
+      setShowPrompt(false);
+    } finally {
+      setRequesting(false);
+    }
+  }
+
+  function dismissPrompt() {
+    setAsk(false);
+    setShowPrompt(false);
+  }
 
   return (
     <>
       <FcmRetryPopup />
-      {/* No UI: this component only manages permission flow */}
+      {showBlockedWarning ? (
+        <div className="pointer-events-none fixed inset-0 z-[1100] flex items-center justify-center p-4">
+          <div className="pointer-events-auto w-full max-w-md rounded-lg border border-yellow-400/40 bg-yellow-950 p-4 text-center text-yellow-50 shadow-2xl shadow-yellow-950/30">
+            <div className="text-base font-semibold text-yellow-100">
+              Enable notifications in browser settings
+            </div>
+            <div className="mx-auto mt-2 max-w-sm text-sm leading-6 text-yellow-200">
+              Notifications are blocked by your browser. Open site settings, set Notifications to Allow, then reload.
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showPrompt ? (
+        <div className="fixed inset-0 z-[1000] flex items-end justify-center p-4 sm:items-center sm:p-6">
+          <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-4 rounded-lg border border-slate-700 bg-slate-950 p-4 text-center text-white shadow-2xl sm:p-5">
+            <div className="w-full">
+              <div className="text-base font-semibold sm:text-base">
+                Stay updated with notifications
+              </div>
+              <div className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-300 sm:text-xs sm:leading-5">
+                We'll notify you about important updates. You can change this anytime.
+              </div>
+            </div>
+            <div className="grid w-full max-w-sm grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="w-full rounded-md border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200"
+                onClick={dismissPrompt}
+                disabled={requesting}
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-md bg-emerald-500 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-70"
+                onClick={allowNotifications}
+                disabled={requesting}
+              >
+                {requesting ? "Allowing..." : "Allow"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

@@ -942,21 +942,17 @@ export default function WorkListClient({
                               <button
                                 className="w-full flex items-center justify-between gap-2"
                                 onClick={() =>
-                                  embedded
-                                    ? setExpandedMobileTaskId((prev) =>
-                                        prev === task._id ? null : task._id,
-                                      )
-                                    : setActiveTask(task)
+                                  setExpandedMobileTaskId((prev) =>
+                                    prev === task._id ? null : task._id,
+                                  )
                                 }
                               >
                                 <span className="text-white font-semibold text-[17px] leading-5 text-left hover:text-blue-300">
                                   {task.title}
                                 </span>
-                                {embedded ? (
-                                  <ChevronDown
-                                    className={`h-4 w-4 text-gray-300 transition-transform ${expandedMobileTaskId === task._id ? "rotate-180" : ""}`}
-                                  />
-                                ) : null}
+                                <ChevronDown
+                                  className={`h-4 w-4 text-gray-300 transition-transform ${expandedMobileTaskId === task._id ? "rotate-180" : ""}`}
+                                />
                               </button>
                               <p className="mt-1 text-xs text-gray-400 leading-5">
                                 {task.assignedTechnicianName ||
@@ -964,18 +960,24 @@ export default function WorkListClient({
                                   "-"}{" "}
                                 • {toLabel(task.issueCategory)}
                               </p>
-                              {task.customerRef?.name ? (
-                                <p className="text-xs text-blue-300 leading-5">
-                                  Customer: {task.customerRef.name}
-                                  {task.customerRef?.phone
-                                    ? ` (${task.customerRef.phone})`
-                                    : ""}
-                                </p>
-                              ) : null}
-                              <p className="text-xs text-gray-400 leading-5">
-                                Due: {formatDayDateTime(task.dueAt)}
-                              </p>
-                              <RepairTaskSummary task={task} />
+                              <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                                expandedMobileTaskId === task._id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                              }`}>
+                                <div className="overflow-hidden">
+                                  {task.customerRef?.name ? (
+                                    <p className="text-xs text-blue-300 leading-5">
+                                      Customer: {task.customerRef.name}
+                                      {task.customerRef?.phone
+                                        ? ` (${task.customerRef.phone})`
+                                        : ""}
+                                    </p>
+                                  ) : null}
+                                  <p className="text-xs text-gray-400 leading-5">
+                                    Due: {formatDayDateTime(task.dueAt)}
+                                  </p>
+                                  <RepairTaskSummary task={task} />
+                                </div>
+                              </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="px-2.5 py-1 text-xs rounded-md border border-gray-700 text-gray-200">
@@ -985,24 +987,30 @@ export default function WorkListClient({
                                 {toLabel(task.priority)}
                               </span>
                             </div>
-                            <div className="pt-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setActionTask(task)}
-                                className="w-full justify-center font-medium"
-                              >
-                                Actions
-                              </Button>
+                            <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                              expandedMobileTaskId === task._id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                            }`}>
+                              <div className="overflow-hidden">
+                                <div className="pt-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setActionTask(task)}
+                                    className="w-full justify-center font-medium"
+                                  >
+                                    Actions
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          {task.status === "completed" &&
+                          {expandedMobileTaskId === task._id && task.status === "completed" &&
                           task.completionNotes ? (
                             <p className="text-xs text-green-300 mt-2">
                               Completion: {task.completionNotes}
                             </p>
                           ) : null}
-                          {task.status === "cancelled" &&
+                          {expandedMobileTaskId === task._id && task.status === "cancelled" &&
                           task.cancellationReason ? (
                             <p className="text-xs text-red-300 mt-2">
                               Cancelled: {task.cancellationReason}
@@ -1025,7 +1033,8 @@ export default function WorkListClient({
                 {historyTasks.length === 0 ? (
                   <p className="text-gray-400">No history items found.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <>
+                  <div className="hidden grid-cols-1 md:grid md:grid-cols-2 gap-3">
                     {historyTasks.map((task) => (
                       <div
                         key={task._id}
@@ -1124,6 +1133,121 @@ export default function WorkListClient({
                       </div>
                     ))}
                   </div>
+                  <div className="space-y-3 md:hidden">
+                    {historyTasks.map((task) => {
+                      const isExpanded = expandedMobileTaskId === task._id;
+                      return (
+                        <div
+                          key={task._id}
+                          className={`rounded-lg p-3 border ${
+                            task.status === "completed"
+                              ? "border-green-700/30 bg-green-950/10"
+                              : task.status === "hold"
+                                ? "border-yellow-700/30 bg-yellow-950/10"
+                                : "border-red-700/30 bg-red-950/10"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            className="flex w-full items-start justify-between gap-3 text-left"
+                            onClick={() =>
+                              setExpandedMobileTaskId((prev) =>
+                                prev === task._id ? null : task._id,
+                              )
+                            }
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-base font-semibold leading-5 text-white">
+                                {task.title}
+                              </span>
+                              <span className="mt-1 block text-xs leading-5 text-gray-300">
+                                {task.customerRef?.name || "Customer"} |{" "}
+                                {task.assignedTechnicianName ||
+                                  task.assignedTechnician?.name ||
+                                  "-"}
+                              </span>
+                              <span className="mt-1 block text-xs text-gray-400">
+                                Updated:{" "}
+                                {formatDayDateTime(
+                                  task.updatedAt ||
+                                    task.completedAt ||
+                                    task.createdAt ||
+                                    "",
+                                )}
+                              </span>
+                            </span>
+                            <span className="flex shrink-0 items-center gap-2">
+                              <span className="text-xs px-2 py-1 rounded-full border border-gray-600/40 bg-gray-700/30 text-gray-200">
+                                {toLabel(task.status)}
+                              </span>
+                              <ChevronDown
+                                className={`h-4 w-4 text-gray-300 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                              />
+                            </span>
+                          </button>
+                          <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                            isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                          }`}>
+                            <div className="overflow-hidden">
+                              <div className="mt-3 space-y-1 text-xs text-gray-300">
+                                {task.customerRef?.phone ? (
+                                  <p>
+                                    Phone:{" "}
+                                    <span className="text-gray-100">
+                                      {task.customerRef.phone}
+                                    </span>
+                                  </p>
+                                ) : null}
+                                <p>
+                                  Priority:{" "}
+                                  <span className="text-gray-100 capitalize">
+                                    {task.priority}
+                                  </span>
+                                </p>
+                              </div>
+                              {getTaskNotes(task) ? (
+                                <div className="mt-2 text-sm text-gray-200 border-t border-green-800/40 pt-2">
+                                  {task.completionNotes ? (
+                                    <p>Completion Notes: {task.completionNotes}</p>
+                                  ) : null}
+                                  {(task as any).holdReason ? (
+                                    <p>Hold Reason: {(task as any).holdReason}</p>
+                                  ) : null}
+                                  {task.cancellationReason ? (
+                                    <p>Cancellation Reason: {task.cancellationReason}</p>
+                                  ) : null}
+                                  <RepairTaskSummary task={task} />
+                                  {(task as any).notes &&
+                                  (task as any).notes !== task.description ? (
+                                    <p>Notes: {(task as any).notes}</p>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() =>
+                                    updateTaskStatus(task, "in-progress")
+                                  }
+                                >
+                                  Back To In Progress
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateTaskStatus(task, "pending")}
+                                >
+                                  Mark Pending
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>

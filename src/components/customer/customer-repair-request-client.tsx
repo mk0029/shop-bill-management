@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CalendarClock, CheckCircle2, ClipboardList, Plus, Send, UserRound, XCircle } from "lucide-react";
+import { AlertCircle, CalendarClock, CheckCircle2, ChevronDown, ClipboardList, Plus, Send, UserRound, XCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +96,7 @@ export default function CustomerRepairRequestClient() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState(initialForm);
+  const [expandedMobileRequestId, setExpandedMobileRequestId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -169,9 +170,12 @@ export default function CustomerRepairRequestClient() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json?.success) throw new Error(json?.error || "Failed to submit repair request");
       toast.success(`Repair request created: ${json.data?.requestId || "Submitted"}`);
+      if (json.data?._id) {
+        setRequests((prev) => [json.data as RepairRequest, ...prev.filter((item) => item._id !== json.data._id)]);
+      }
       setForm({ ...initialForm, technicianId: technicians[0]?._id || "" });
       setIsCreateOpen(false);
-      await load();
+      void load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to submit repair request");
     } finally {
@@ -313,15 +317,43 @@ export default function CustomerRepairRequestClient() {
           ) : (
             <div className="space-y-3 p-4">
               {requests.map((request) => {
-                const isCancelled = request.status === "cancelled";
+                const isClosed = ["cancelled", "rejected"].includes(String(request.status || ""));
                 const cancelText = cancelledByText(request);
+                const isExpanded = expandedMobileRequestId === request._id;
+                const technicianName = safeUserName(request.technicianName || request.technician?.name, "Technician");
+                const updatedTime = request.scheduledAt
+                  ? formatDayDateTime(request.scheduledAt)
+                  : request.createdAt
+                    ? formatDayDateTime(request.createdAt)
+                    : "-";
                 return (
                 <div
                   key={request._id}
-                  className={`rounded-lg border border-slate-800 bg-slate-950/25 p-4 ${
-                    isCancelled ? "opacity-55 grayscale" : ""
+                  className={`rounded-lg border border-slate-800 bg-slate-950/25 p-0 transition hover:bg-slate-900/50 sm:p-4 ${
+                    isClosed ? "opacity-55 grayscale" : ""
                   }`}
                 >
+                  <button
+                    type="button"
+                    className="flex w-full items-start justify-between gap-3 p-4 text-left sm:hidden"
+                    onClick={() => setExpandedMobileRequestId((prev) => (prev === request._id ? null : request._id))}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-base font-semibold leading-5 text-white">{request.requestId}</span>
+                      <span className="mt-1 block truncate text-xs leading-5 text-gray-300">
+                        {technicianName} | {updatedTime}
+                      </span>
+                      <span className="mt-2 flex flex-wrap gap-1.5">
+                        <Badge className={statusClass(request.status)}>{label(request.status)}</Badge>
+                        <Badge className={priorityClass(request.priority)}>{label(request.priority)}</Badge>
+                      </span>
+                    </span>
+                    <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                  </button>
+                  <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out sm:block sm:opacity-100 ${
+                    isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                  }`}>
+                  <div className="overflow-hidden p-4 pt-0 sm:overflow-visible sm:p-0">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -356,20 +388,22 @@ export default function CustomerRepairRequestClient() {
                       </Button>
                     ) : null}
                   </div>
-                  {!isCancelled ? (
+                  {!isClosed ? (
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-300">
                       <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-1">
                         <UserRound className="h-3.5 w-3.5" />
-                        {safeUserName(request.technicianName || request.technician?.name, "Technician")}
+                        {technicianName}
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-1">
                         <CalendarClock className="h-3.5 w-3.5" />
-                        {request.scheduledAt ? formatDayDateTime(request.scheduledAt) : request.createdAt ? formatDayDateTime(request.createdAt) : "-"}
+                        {updatedTime}
                       </span>
                       <span className="rounded-full border border-gray-700 px-2.5 py-1">{label(request.source)}</span>
                     </div>
                   ) : null}
-                  {request.notes ? <p className="mt-3 rounded-md bg-gray-950 p-3 text-sm text-gray-300">Notes: {request.notes}</p> : null}
+                  {!isClosed && request.notes ? <p className="mt-3 rounded-md bg-gray-950 p-3 text-sm text-gray-300">Notes: {request.notes}</p> : null}
+                  </div>
+                  </div>
                 </div>
                 );
               })}

@@ -21,12 +21,27 @@ type NotificationDoc = {
   targetUserIds: string[];
   data?: Record<string, unknown>;
   readBy: string[];
+  deliveryStatus: "queued" | "sent" | "failed" | "delivered" | "opened";
+  statusHistory: Array<{ status: string; at: string; detail?: string }>;
+  sentAt?: string;
+  deliveredAt?: string;
+  openedAt?: string;
+  deliveryAttempts: number;
+  deliveryError?: string;
   createdAt: string;
   eventId: string;
 };
 
 function unique(values: Array<string | undefined | null>) {
   return Array.from(new Set(values.map((value) => String(value || "").trim()).filter(Boolean)));
+}
+
+function tracePayload(payload: Record<string, unknown>) {
+  try {
+    console.log("[FCM_TRACE] payload", JSON.stringify(payload));
+  } catch {
+    console.log("[FCM_TRACE] payload", payload);
+  }
 }
 
 function eventIdFor(input: SendNotificationEventInput) {
@@ -61,6 +76,9 @@ async function persistNotification(input: SendNotificationEventInput, targetUser
       route: input.data?.route || input.data?.route_path,
     },
     readBy: [],
+    deliveryStatus: "queued",
+    statusHistory: [{ status: "queued", at: createdAt }],
+    deliveryAttempts: 0,
     createdAt,
     eventId: id,
   };
@@ -75,6 +93,38 @@ async function persistNotification(input: SendNotificationEventInput, targetUser
   }
 }
 
+async function updateNotificationDeliveryStatus(args: {
+  notificationId?: string;
+  status: "sent" | "failed";
+  attempts: number;
+  detail?: string;
+}) {
+  if (!args.notificationId) return;
+  const now = new Date().toISOString();
+  await sanityClient
+    .patch(args.notificationId)
+    .set({
+      deliveryStatus: args.status,
+      deliveryAttempts: args.attempts,
+      updatedAt: now,
+      ...(args.status === "sent" ? { sentAt: now } : {}),
+      ...(args.detail ? { deliveryError: args.detail.slice(0, 1000) } : {}),
+    })
+    .setIfMissing({ statusHistory: [] })
+    .append("statusHistory", [
+      {
+        _key: `${args.status}.${Date.now()}`,
+        status: args.status,
+        at: now,
+        ...(args.detail ? { detail: args.detail.slice(0, 500) } : {}),
+      },
+    ])
+    .commit({ autoGenerateArrayKeys: true })
+    .catch((error) => {
+      console.error("[Notifications] Failed to update delivery status", error);
+    });
+}
+
 export async function sendNotificationEvent(input: SendNotificationEventInput): Promise<{
   ok: boolean;
   notificationId?: string;
@@ -83,6 +133,8 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
   error?: string;
 }> {
   try {
+    console.log("[FCM_TRACE] event_type", input.type);
+    console.log("[FCM_TRACE] sender_id", input.actorUserId || "");
     if (!hasNotificationText(input.title, input.body)) {
       return {
         ok: false,
@@ -93,10 +145,14 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
     }
 
     const requestedTargetUserIds = unique([input.userId, ...(input.userIds || [])]);
+    console.log("[FCM_TRACE] receiver_id", requestedTargetUserIds.join(","));
     const targetUserIds = requestedTargetUserIds.filter((id) => {
       if (!input.skipActor) return true;
       return id !== input.actorUserId;
     });
+    if (targetUserIds.length !== requestedTargetUserIds.length) {
+      console.log("[FCM_TRACE] receiver_id_after_skip_actor", targetUserIds.join(","));
+    }
     if (requestedTargetUserIds.length && !targetUserIds.length) {
       return {
         ok: true,
@@ -116,7 +172,15 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
     }
 
     const tokens = await getActiveTokenStringsForUsers(targetUserIds);
+    console.log("[FCM_TRACE] receiver_token_found", tokens.length > 0);
+    console.log("[FCM_TRACE] token_count", tokens.length);
     if (!tokens.length) {
+      await updateNotificationDeliveryStatus({
+        notificationId: persisted.notificationId,
+        status: "failed",
+        attempts: 0,
+        detail: "No active tokens",
+      });
       return {
         ok: true,
         notificationId: persisted.notificationId,
@@ -125,23 +189,38 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
       };
     }
 
+    const payload = buildNotificationData({
+      id: persisted.notificationId,
+      type: input.type,
+      title: input.title.trim(),
+      body: input.body.trim(),
+      data: input.data,
+    });
+    tracePayload(payload);
     const send = await sendFcmToTokens({
       tokens,
       title: input.title.trim(),
       body: input.body.trim(),
-      data: buildNotificationData({
-        id: persisted.notificationId,
-        type: input.type,
-        title: input.title.trim(),
-        body: input.body.trim(),
-        data: input.data,
-      }),
+      data: payload,
+      imageUrl: typeof input.data?.imageUrl === "string" ? input.data.imageUrl : undefined,
+    });
+    console.log("[FCM_TRACE] firebase_response", JSON.stringify(send));
+    if (send.errors?.length) {
+      console.error("[FCM_TRACE] firebase_error", send.errors.slice(0, 5).join(" | "));
+    }
+
+    await updateNotificationDeliveryStatus({
+      notificationId: persisted.notificationId,
+      status: send.sent > 0 ? "sent" : "failed",
+      attempts: tokens.length,
+      detail: send.errors?.slice(0, 3).join(" | "),
     });
 
     return { ok: true, notificationId: persisted.notificationId, targetUserIds, send };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Notifications] sendNotificationEvent failed", message);
+    console.error("[FCM_TRACE] firebase_error", message);
     return {
       ok: false,
       targetUserIds: [],

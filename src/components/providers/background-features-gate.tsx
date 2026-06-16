@@ -9,16 +9,12 @@ import AutoNotifications from "@/notifications/components/AutoNotifications";
 import ForegroundSystemNotifier from "@/notifications/components/ForegroundSystemNotifier";
 import NotificationToaster from "@/components/notifications/NotificationToaster";
 import NotificationServerSync from "@/components/notifications/NotificationServerSync";
-import DeviceSessionWatcher from "@/components/providers/device-session-watcher";
-import SessionRealtimeBridge from "@/components/providers/session-realtime-bridge";
 
 export default function BackgroundFeaturesGate() {
   const role = useAuthStore((s) => s.role);
 
   const commonFeatures = (
     <>
-      <SessionRealtimeBridge />
-      <DeviceSessionWatcher />
       <SWNotificationBridge />
       <AskForNotifications />
       <AutoNotifications />
@@ -47,8 +43,6 @@ export default function BackgroundFeaturesGate() {
   }
 
   return (
-    <>
-      <DeviceSessionWatcher />
-    </>
+    null
   );
 }

@@ -283,7 +283,7 @@ Thank you for trusting Jambh Electrical Services ⚡`;
       title: "New work assigned",
       body: `New work assigned: ${title}. Technician: ${sanitizeUserText(String(tech.name || "")).trim() || "Technician"}. Due: ${formatDayDateTime(dueAt)}.`,
       assignedTechnicianId,
-      notifyAllTechnicians: true,
+      notifyAllTechnicians: false,
     }),
   );
   postCreateJobs.push(

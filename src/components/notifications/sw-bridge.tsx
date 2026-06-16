@@ -35,6 +35,8 @@ export default function SWNotificationBridge() {
     };
 
     let bc: BroadcastChannel | null = null;
+    let disposed = false;
+    let reconnectTimer: number | null = null;
     const handleWorkerMessage = (data: unknown) => {
       try {
         const msg = data as { type?: string; payload?: Record<string, unknown> };
@@ -46,9 +48,21 @@ export default function SWNotificationBridge() {
         }
       } catch {}
     };
-    try {
-      bc = new BroadcastChannel("app-notifications");
-      bc.onmessage = (ev: MessageEvent) => {
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimer) return;
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        setupChannel();
+      }, 2000);
+    };
+
+    const setupChannel = () => {
+      try {
+        if (bc) bc.close();
+      } catch {}
+      try {
+        bc = new BroadcastChannel("app-notifications");
+        bc.onmessage = (ev: MessageEvent) => {
         try {
           const msg = ev?.data;
           if (!msg || typeof msg !== "object") return;
@@ -93,11 +107,21 @@ export default function SWNotificationBridge() {
               createdAt: p.createdAt,
             });
           }
-        } catch {}
-      };
-    } catch {
-      // BroadcastChannel not supported; nothing to do.
-    }
+        } catch (error) {
+          console.error("[SWNotificationBridge] message handling failed", error);
+          scheduleReconnect();
+        }
+        };
+        bc.onmessageerror = (error) => {
+          console.error("[SWNotificationBridge] channel message error", error);
+          scheduleReconnect();
+        };
+      } catch (error) {
+        console.warn("[SWNotificationBridge] BroadcastChannel unavailable", error);
+      }
+    };
+
+    setupChannel();
 
     clearAppSystemNotifications();
 
@@ -112,6 +136,8 @@ export default function SWNotificationBridge() {
     void postNotificationWorkerMessage({ type: "CLEAR_RECENT_NOTIFICATIONS" });
 
     return () => {
+      disposed = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
       try {
         if (bc) bc.close();
       } catch {}

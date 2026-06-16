@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CalendarClock, ClipboardList, UserRound, X } from "lucide-react";
+import { CalendarClock, ChevronDown, ClipboardList, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ export default function CustomerWorkTasksClient() {
   const [tasks, setTasks] = useState<WorkTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<WorkTask | null>(null);
+  const [expandedMobileTaskId, setExpandedMobileTaskId] = useState<string | null>(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -114,37 +115,79 @@ export default function CustomerWorkTasksClient() {
             <div className="p-8 text-center text-gray-400">No service tasks found.</div>
           ) : (
             <div className="divide-y divide-gray-800">
-              {tasks.map((task) => (
-                <button
-                  key={task._id}
-                  type="button"
-                  onClick={() => setSelectedTask(task)}
-                  className="block w-full p-4 text-left transition hover:bg-gray-800/60"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-base font-semibold text-white">{task.title}</div>
-                      {task.description ? (
-                        <div className="mt-1 line-clamp-2 text-sm text-gray-400">{task.description}</div>
-                      ) : null}
+              {tasks.map((task) => {
+                const isExpanded = expandedMobileTaskId === task._id;
+                const technicianName = safeUserName(task.assignedTechnicianName || task.assignedTechnician?.name, "Technician");
+                const dueLabel = task.dueAt ? formatDayDateTime(task.dueAt) : "-";
+                return (
+                  <div key={task._id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTask(task)}
+                      className="hidden w-full p-4 text-left transition hover:bg-gray-800/60 sm:block"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-base font-semibold text-white">{task.title}</div>
+                          {task.description ? (
+                            <div className="mt-1 line-clamp-2 text-sm text-gray-400">{task.description}</div>
+                          ) : null}
+                        </div>
+                        <Badge className={statusClass(task.status)}>{toLabel(task.status)}</Badge>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        <Badge className={priorityClass(task.priority)}>{toLabel(task.priority)}</Badge>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-0.5 text-gray-300">
+                          <CalendarClock className="h-3.5 w-3.5" />
+                          {dueLabel}
+                        </span>
+                        {(task.assignedTechnicianName || task.assignedTechnician?.name) && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-0.5 text-gray-300">
+                            <UserRound className="h-3.5 w-3.5" />
+                            {technicianName}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                    <div className="p-4 sm:hidden">
+                      <button
+                        type="button"
+                        className="flex w-full items-start justify-between gap-3 text-left"
+                        onClick={() => setExpandedMobileTaskId((prev) => (prev === task._id ? null : task._id))}
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-base font-semibold leading-5 text-white">{task.title}</span>
+                          <span className="mt-1 block truncate text-xs leading-5 text-gray-300">
+                            {technicianName} | Due: {dueLabel}
+                          </span>
+                          <span className="mt-2 flex flex-wrap gap-1.5">
+                            <Badge className={statusClass(task.status)}>{toLabel(task.status)}</Badge>
+                            <Badge className={priorityClass(task.priority)}>{toLabel(task.priority)}</Badge>
+                          </span>
+                        </span>
+                        <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      </button>
+                      <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                        isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                      }`}>
+                        <div className="overflow-hidden">
+                          {task.description ? (
+                            <div className="mt-3 rounded-md bg-gray-950 p-3 text-sm text-gray-300">{task.description}</div>
+                          ) : null}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedTask(task)}
+                            className="mt-3 w-full justify-center"
+                          >
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <Badge className={statusClass(task.status)}>{toLabel(task.status)}</Badge>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                    <Badge className={priorityClass(task.priority)}>{toLabel(task.priority)}</Badge>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-0.5 text-gray-300">
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      {task.dueAt ? formatDayDateTime(task.dueAt) : "-"}
-                    </span>
-                    {(task.assignedTechnicianName || task.assignedTechnician?.name) && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-2.5 py-0.5 text-gray-300">
-                        <UserRound className="h-3.5 w-3.5" />
-                        {safeUserName(task.assignedTechnicianName || task.assignedTechnician?.name, "Technician")}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

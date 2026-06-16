@@ -153,20 +153,22 @@ export async function POST(req: NextRequest) {
     updatedAt: now,
   });
 
-  const adminIds = await getActiveAdminUserIds();
+  const selectedTechnicianId = technician._id;
+  const adminIds = selectedTechnicianId ? [selectedTechnicianId] : await getActiveAdminUserIds();
   const postCreateJobs: Promise<unknown>[] = [
     sendNotificationEvent({
-      eventId: `repairRequest.created.${created._id}.admins`,
+      eventId: `repairRequest.created.${created._id}.${selectedTechnicianId || "admins"}`,
       type: "system.general",
       actorUserId: customer._id,
       userIds: adminIds,
       title: priority === "high" ? "High priority repair request" : "New repair request",
-      body: `${requestId} from ${safeCustomerName}. Priority: ${priority === "high" ? "High" : "Average"}. Open Repair Requests to review and assign time.`,
+      body: `${requestId} from ${safeCustomerName}. Priority: ${priority === "high" ? "High" : "Average"}. Assigned to ${safeTechnicianName}.`,
       data: {
         route: "/admin/repair-requests",
         route_path: "/admin/repair-requests",
         repairRequestId: String(created._id),
         requestId,
+        assignedTechnicianId: selectedTechnicianId,
       },
       skipActor: true,
     }),
@@ -176,7 +178,8 @@ export async function POST(req: NextRequest) {
     postCreateJobs.push(
       (async () => {
         const adminPhones = await sanityClient.fetch<string[]>(
-          `*[_type=="user" && role in ["admin","super_admin","technician"] && isActive != false && defined(phone)].phone`,
+          `*[_type=="user" && _id==$technicianId && isActive != false && defined(phone)].phone`,
+          { technicianId: selectedTechnicianId },
         );
         const message = `High priority repair request\n\nRequest: ${requestId}\nCustomer: ${safeCustomerName}\nPreferred technician: ${safeTechnicianName}\nDetails: ${details}\n\nOpen Repair Requests in the app to review, assign time, or add it to the work list.`;
         return sendViaWaBotServer({ phones: adminPhones || [], message });
@@ -184,7 +187,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await Promise.allSettled(postCreateJobs);
+  void Promise.allSettled(postCreateJobs).catch((error) => {
+    console.error("[RepairRequest] post-create notification jobs failed", error);
+  });
 
   return NextResponse.json({ success: true, data: created });
 }

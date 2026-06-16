@@ -139,7 +139,7 @@ export default function NotificationsPopover() {
                     <X className="h-5 w-5" />
                   </Button>
                 </div>
-                <CustomerNotificationsClient />
+                <CustomerNotificationsClient onRequestClose={() => setOpen(false)} />
               </motion.div>
             </>
           )}

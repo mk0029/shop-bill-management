@@ -254,10 +254,8 @@ export async function PATCH(
           .join(".")
           .replace(/[^a-zA-Z0-9_.-]/g, "-")
 
-        const title = changedKeys.some((key) => key !== "status") ? 'Bill payment updated' : 'Bill status updated'
-        const bodyText = changedKeys.some((key) => key !== "status")
-          ? `Bill ${billNumber} payment updated${paymentText ? `: ${paymentText}` : ''}`
-          : `Bill ${billNumber} status updated${statusText ? `: ${statusText}` : ''}`
+        const title = 'Bill updated by Admin'
+        const bodyText = `Bill ${billNumber} was updated by Admin. Review changes by clicking here.`
         const adminRoute = `/admin/billing?open=${encodeURIComponent(String(id))}`
         const customerRoute = `/customer/bills?open=${encodeURIComponent(String(id))}`
 

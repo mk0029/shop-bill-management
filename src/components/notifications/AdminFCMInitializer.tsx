@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useAuthStore } from "../../store/auth-store";
-import { initFCM } from "../../lib/fcm-client";
+import { ensureFcmToken } from "../../lib/fcm-client";
 
 // Initializes FCM in the admin portal and registers token for the current user
 export default function AdminFCMInitializer() {
@@ -18,10 +18,10 @@ export default function AdminFCMInitializer() {
   useEffect(() => {
     if (!hydrated || !isAuthenticated) return;
     if (!uid) return;
-    const cleanup = initFCM(() => uid || null);
-    return () => {
-      cleanup();
-    };
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    ensureFcmToken({ userId: uid }).catch((error) => {
+      console.warn("[FCM] admin token registration failed", error);
+    });
   }, [uid, hydrated, isAuthenticated]);
 
   return null;

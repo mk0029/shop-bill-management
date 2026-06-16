@@ -15,7 +15,7 @@ export default async function CustomerLayout({
   if (auth.role !== "customer") redirect("/admin/dashboard");
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="h-[var(--app-vh,100dvh)] overflow-hidden bg-gray-950 [--customer-topbar-h:57px] xl:[--customer-topbar-h:89px]">
       <CustomerNavigation />
       <CustomerMainShell>
         <LayoutCall>{children}</LayoutCall>

@@ -13,6 +13,12 @@ function cleanText(value: unknown, max: number) {
   return String(value || "").trim().slice(0, max);
 }
 
+function isFutureDate(value: string) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time > Date.now() + 30_000;
+}
+
 function audienceRoles(audience: BroadcastAudience) {
   if (audience === "customers") return ["customer"];
   if (audience === "admins") return ["admin", "super_admin", "technician"];
@@ -26,6 +32,89 @@ async function getTargetUserIds(audience: BroadcastAudience) {
     { roles },
   );
   return Array.from(new Set((ids || []).map(String).filter(Boolean)));
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const secret = req.nextUrl.searchParams.get("secret");
+    const configuredSecret = process.env.NOTIFICATIONS_CRON_SECRET || process.env.CRON_SECRET;
+    if (configuredSecret) {
+      if (secret !== configuredSecret) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+      }
+    } else {
+      const auth = await getServerAuth();
+      if (!auth.isAuthenticated || !canSend(auth.role)) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
+      }
+    }
+
+    const now = new Date().toISOString();
+    const campaigns = await sanityClient.fetch<Array<{
+      _id: string;
+      title?: string;
+      description?: string;
+      audience?: BroadcastAudience;
+      category?: string;
+      imageUrl?: string;
+      ctaLabel?: string;
+      ctaUrl?: string;
+      expiresAt?: string;
+      targetUserIds?: string[];
+      createdBy?: { _ref?: string };
+    }>>(
+      `*[_type=="notificationCampaign" && status=="queued" && scheduledAt <= $now][0...20]{
+        _id,title,description,audience,category,imageUrl,ctaLabel,ctaUrl,expiresAt,targetUserIds,createdBy
+      }`,
+      { now },
+    );
+
+    const results: Array<{
+      campaignId: string;
+      success: boolean;
+      notificationId?: string;
+    }> = [];
+    for (const campaign of campaigns || []) {
+      const targetUserIds = Array.isArray(campaign.targetUserIds) && campaign.targetUserIds.length
+        ? campaign.targetUserIds
+        : await getTargetUserIds(campaign.audience || "customers");
+      const result = await sendNotificationEvent({
+        eventId: `campaign.${campaign._id}`,
+        type: "system.general",
+        actorUserId: campaign.createdBy?._ref || "",
+        userIds: targetUserIds,
+        title: String(campaign.title || "Offer"),
+        body: String(campaign.description || ""),
+        data: {
+          category: campaign.category || "special_offer",
+          audience: campaign.audience || "customers",
+          expiresAt: campaign.expiresAt,
+          imageUrl: campaign.imageUrl,
+          ctaLabel: campaign.ctaLabel,
+          ctaUrl: campaign.ctaUrl,
+          route: campaign.ctaUrl || undefined,
+          route_path: campaign.ctaUrl || undefined,
+        },
+        skipActor: true,
+      });
+      await sanityClient
+        .patch(campaign._id)
+        .set({
+          status: result.ok ? "sent" : "failed",
+          notificationId: result.notificationId,
+          publishedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          ...(result.error ? { error: result.error } : {}),
+        })
+        .commit();
+      results.push({ campaignId: campaign._id, success: result.ok, notificationId: result.notificationId });
+    }
+
+    return NextResponse.json({ success: true, processed: results.length, results });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Server error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -48,9 +137,14 @@ export async function POST(req: NextRequest) {
     }
 
     const title = cleanText(body?.title, 90);
-    const message = cleanText(body?.message || body?.body, 500);
-    const link = cleanText(body?.link, 220);
+    const message = cleanText(body?.message || body?.body || body?.description, 500);
+    const imageUrl = cleanText(body?.imageUrl || body?.image, 500);
+    const ctaLabel = cleanText(body?.ctaLabel, 80);
+    const ctaUrl = cleanText(body?.ctaUrl || body?.link, 220);
+    const link = ctaUrl || cleanText(body?.link, 220);
     const category = cleanText(body?.category, 50) || "special_offer";
+    const scheduledAt = cleanText(body?.scheduledAt, 80);
+    const expiryDate = cleanText(body?.expiryDate || body?.expiresAt, 80);
     const expiresInHours = Math.max(
       1,
       Math.min(168, Number(body?.expiresInHours || 24) || 24),
@@ -73,11 +167,39 @@ export async function POST(req: NextRequest) {
 
     const actorUserId = String(auth.userId || "").trim();
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + expiresInHours * 60 * 60 * 1000).toISOString();
+    const expiresAt = expiryDate && !Number.isNaN(new Date(expiryDate).getTime())
+      ? new Date(expiryDate).toISOString()
+      : new Date(now.getTime() + expiresInHours * 60 * 60 * 1000).toISOString();
     const eventId = `custom.${category}.${audience}.${now.toISOString().slice(0, 19)}`.replace(
       /[^a-zA-Z0-9_.-]/g,
       "-",
     );
+
+    if (isFutureDate(scheduledAt)) {
+      const campaign = await sanityClient.create({
+        _type: "notificationCampaign",
+        title,
+        description: message,
+        audience,
+        category,
+        imageUrl,
+        ctaLabel,
+        ctaUrl: link,
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        expiresAt,
+        status: "queued",
+        targetUserIds,
+        createdBy: actorUserId ? { _type: "reference", _ref: actorUserId } : undefined,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      });
+      return NextResponse.json({
+        success: true,
+        scheduled: true,
+        campaignId: campaign._id,
+        targetCount: targetUserIds.length,
+      });
+    }
 
     const result = await sendNotificationEvent({
       eventId,
@@ -90,6 +212,9 @@ export async function POST(req: NextRequest) {
         category,
         audience,
         expiresAt,
+        imageUrl,
+        ctaLabel,
+        ctaUrl: link,
         route: link || undefined,
         route_path: link || undefined,
       },

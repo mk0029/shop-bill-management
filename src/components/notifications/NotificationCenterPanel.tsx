@@ -30,6 +30,7 @@ type NotificationCenterPanelProps = {
   onClear: () => void;
   onClearRead: () => void;
   onMarkAsRead: (id: string) => void;
+  clearingIds?: Set<string>;
 };
 
 type NotificationGroup = {
@@ -147,8 +148,10 @@ export default function NotificationCenterPanel({
   onClear,
   onClearRead,
   onMarkAsRead,
+  clearingIds = new Set<string>(),
 }: NotificationCenterPanelProps) {
   const hasRead = items.some((notification) => !!notification.read);
+  const isClearing = clearingIds.size > 0;
   const groups = useMemo(() => groupNotifications(items), [items]);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, true>>(
     {},
@@ -197,6 +200,7 @@ export default function NotificationCenterPanel({
                   type="button"
                   className={secondaryActionClass}
                   onClick={onMarkAllRead}
+                  disabled={isClearing}
                 >
                   <CheckCheck className="mr-2 h-4 w-4" />
                   Mark all
@@ -207,6 +211,7 @@ export default function NotificationCenterPanel({
                   type="button"
                   className={outlineActionClass}
                   onClick={onClearRead}
+                  disabled={isClearing}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Clear read
@@ -217,6 +222,7 @@ export default function NotificationCenterPanel({
                   type="button"
                   className={outlineActionClass}
                   onClick={onClear}
+                  disabled={isClearing}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Clear
@@ -254,7 +260,7 @@ export default function NotificationCenterPanel({
                 },
               }}
             >
-              {groups.map((group) => {
+              {groups.map((group, groupIndex) => {
                 const notification = group.notifications[0];
                 const groupCount = group.notifications.length;
                 const expanded = Boolean(expandedGroups[group.key]);
@@ -268,6 +274,9 @@ export default function NotificationCenterPanel({
                 const finalHref = eventHref || href;
                 const { title: displayTitle, body: displayBody } =
                   displayText(notification);
+                const groupClearing =
+                  clearingIds.size > 0 &&
+                  group.notifications.every((item) => clearingIds.has(item.id));
 
                 const content = (
                   <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -309,6 +318,16 @@ export default function NotificationCenterPanel({
                   <motion.article
                     key={group.key}
                     layout
+                    animate={
+                      groupClearing
+                        ? {
+                            opacity: 0,
+                            x: 42,
+                            scale: 0.96,
+                            filter: "blur(3px)",
+                          }
+                        : "visible"
+                    }
                     variants={{
                       hidden: { opacity: 0, y: 10, scale: 0.98 },
                       visible: { opacity: 1, y: 0, scale: 1 },
@@ -318,6 +337,7 @@ export default function NotificationCenterPanel({
                       stiffness: 420,
                       damping: 34,
                       mass: 0.7,
+                      delay: groupClearing ? groupIndex * 0.055 : 0,
                     }}
                     className={`rounded-[1rem] border px-2 py-2 shadow-lg shadow-black/10 transition hover:border-slate-700/80 hover:bg-slate-900/75 sm:rounded-[1.25rem] sm:px-3 sm:py-2.5 ${
                       groupUnread === 0

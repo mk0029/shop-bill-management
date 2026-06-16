@@ -416,21 +416,12 @@ try {
     });
   }
 
-  // Preference check — fall back to showing if endpoint fails
+  // Display push by default. The service worker cannot rely on app auth/cookies
+  // while the tab is hidden, so only the device-local pause flag suppresses OS UI.
   async function shouldShowNotification(payload) {
     try {
-      // Device-local pause: block notifications if paused
       if (await getPaused()) return false;
-      const resp = await fetch("/api/notifications/preferences", {
-        method: "GET",
-        credentials: "include",
-      });
-      if (!resp.ok) return true;
-      const json = await resp.json();
-      const enabled = !!json?.enabled;
-      const types = Array.isArray(json?.types) ? json.types : [];
-      const pType = (payload && payload.data && payload.data.type) || "default";
-      return enabled && (types.length === 0 || types.includes(pType));
+      return true;
     } catch {
       return true;
     }
@@ -507,6 +498,26 @@ try {
       }
     }
     return false;
+  }
+
+  async function reportNotificationStatus(payloadOrData, status) {
+    try {
+      const data =
+        (payloadOrData && payloadOrData.data) ||
+        (payloadOrData && payloadOrData.notification && payloadOrData.notification.data) ||
+        payloadOrData ||
+        {};
+      const notificationId = data.notificationId || data.id;
+      if (!notificationId) return;
+      await fetch("/api/notifications/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationId, status }),
+        keepalive: true,
+      });
+    } catch (error) {
+      console.warn("SW: notification status update failed", error);
+    }
   }
 
   // ----- Deduping & Aggregation helpers -----
@@ -733,9 +744,44 @@ try {
       if (existing && existing.length) existing.forEach((n) => n.close());
     } catch {}
     await self.registration.showNotification(title, options);
+    await reportNotificationStatus(options.data, "delivered");
 
     // Do not replay system notifications into the app. In-app notifications
     // are produced by realtime/unread sync when the app is foregrounded.
+  }
+
+  function normalizePushPayload(payload) {
+    const data = {
+      ...((payload && payload.data) || {}),
+      ...((payload && payload.notification && payload.notification.data) || {}),
+    };
+    const notification = {
+      ...((payload && payload.notification) || {}),
+      ...((payload && payload.data && payload.data.notification) || {}),
+    };
+    const fcmNotification =
+      payload &&
+      payload.notification &&
+      payload.notification.title
+        ? payload.notification
+        : null;
+    return {
+      ...payload,
+      data,
+      notification: {
+        title:
+          notification.title ||
+          data.title ||
+          (fcmNotification && fcmNotification.title) ||
+          "Notification",
+        body:
+          notification.body ||
+          data.body ||
+          (fcmNotification && fcmNotification.body) ||
+          "",
+      },
+      webpush: payload && payload.webpush ? payload.webpush : {},
+    };
   }
 
   async function processQueuedNotifications() {
@@ -834,12 +880,12 @@ try {
   messaging.onBackgroundMessage((payload) => {
     console.log("📨 SW: onBackgroundMessage received:", payload);
     const maybeQueue = async () => {
-      const queued = await queueNotification(payload);
+      const normalized = normalizePushPayload(payload);
+      const queued = await queueNotification(normalized);
       console.log("📨 SW: queued result:", queued);
-      if (!queued) await maybeAggregateAndShow(payload);
+      if (!queued) await maybeAggregateAndShow(normalized);
     };
-    // Fire-and-forget; onBackgroundMessage has no event to waitUntil
-    maybeQueue();
+    return maybeQueue();
   });
 
   // Fallback for raw Web Push / non-FCM messages
@@ -851,8 +897,8 @@ try {
     } catch {
       return; // Not JSON
     }
-    // Detect FCM-generated push (firebase-messaging) and SKIP here because
-    // firebase.messaging().onBackgroundMessage already handles it. This avoids double-display.
+    // Detect FCM-generated push. Keep this as a guarded fallback because
+    // onBackgroundMessage can be terminated before async notification work finishes.
     const isFcmMsg = !!(
       payload &&
       (payload["from"] ||
@@ -861,7 +907,14 @@ try {
             payload.data["google.c.a.c_id"])))
     );
     if (isFcmMsg) {
-      return; // Let onBackgroundMessage path handle it
+      event.waitUntil(
+        (async () => {
+          const normalized = normalizePushPayload(payload);
+          const queued = await queueNotification(normalized);
+          if (!queued) await maybeAggregateAndShow(normalized);
+        })(),
+      );
+      return;
     }
 
     // Non-FCM web push: render via SW
@@ -877,6 +930,7 @@ try {
   self.addEventListener("notificationclick", (event) => {
     event.notification.close();
     const notifData = (event.notification && event.notification.data) || {};
+    event.waitUntil(reportNotificationStatus(notifData, "opened"));
     const clickedTag = event.notification.tag || notifData.tag || "";
     const action = event.action;
     if (action === "dismiss") {

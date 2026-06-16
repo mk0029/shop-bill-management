@@ -51,12 +51,16 @@ async function notify(
   title: string,
   body: string,
   eventKey = "event",
+  assignedTechnicianId?: string,
 ) {
+  const targetUserIds = assignedTechnicianId
+    ? [assignedTechnicianId]
+    : await getActiveAdminUserIds();
   await sendNotificationEvent({
-    eventId: `${eventType}.${taskId}.admins.${eventKey}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
+    eventId: `${eventType}.${taskId}.${assignedTechnicianId || "admins"}.${eventKey}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
     type: eventType,
     actorUserId,
-    userIds: await getActiveAdminUserIds(),
+    userIds: targetUserIds,
     title,
     body,
     data: { taskId, route: "/dashboard/work-list", route_path: "/dashboard/work-list" },
@@ -363,6 +367,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     updateTitle,
     updateBody,
     String(updated?.updatedAt || Date.now()),
+    String(updated?.assignedTechnician?._id || updated?.assignedTechnician?._ref || assignedTechnicianId || ""),
   );
 
   if (customerRefId) {
@@ -473,6 +478,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     "Work task deleted",
     `Work task deleted: ${existing.title}. Technician: ${sanitizeUserText(String(existing?.assignedTechnician?.name || "")).trim() || "Technician"}.`,
     "deleted",
+    String(existing?.assignedTechnician?._id || existing?.assignedTechnician?._ref || ""),
   );
   if (customerRefId) {
     await sendNotificationEvent({

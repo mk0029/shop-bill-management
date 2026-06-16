@@ -2,6 +2,8 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import BellRing from "lucide-react/dist/esm/icons/bell-ring.js";
+import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock.js";
+import Image from "lucide-react/dist/esm/icons/image.js";
 import Megaphone from "lucide-react/dist/esm/icons/megaphone.js";
 import Send from "lucide-react/dist/esm/icons/send.js";
 import Sparkles from "lucide-react/dist/esm/icons/sparkles.js";
@@ -14,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Audience = "customers" | "admins" | "all";
 type Category = "special_offer" | "festival_offer" | "service_update" | "general";
+type PublishMode = "instant" | "scheduled";
 
 const audienceOptions: Array<{
   value: Audience;
@@ -165,9 +168,18 @@ export default function AdminNotificationBroadcastPage() {
   const [message, setMessage] = useState("");
   const [link, setLink] = useState("/customer/notifications");
   const [expiresInHours, setExpiresInHours] = useState(24);
+  const [imageUrl, setImageUrl] = useState("");
+  const [ctaLabel, setCtaLabel] = useState("View Offer");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [publishMode, setPublishMode] = useState<PublishMode>("instant");
+  const [scheduledAt, setScheduledAt] = useState("");
   const [sending, setSending] = useState(false);
 
-  const canSend = title.trim().length > 0 && message.trim().length > 0 && !sending;
+  const canSend =
+    title.trim().length > 0 &&
+    message.trim().length > 0 &&
+    (publishMode === "instant" || scheduledAt.trim().length > 0) &&
+    !sending;
   const previewBody = useMemo(
     () => message.trim() || "Your notification message will appear here.",
     [message],
@@ -187,7 +199,12 @@ export default function AdminNotificationBroadcastPage() {
           category,
           title: title.trim(),
           message: message.trim(),
+          imageUrl: imageUrl.trim() || undefined,
+          ctaLabel: ctaLabel.trim() || undefined,
+          ctaUrl: link.trim() || undefined,
           link: link.trim() || undefined,
+          expiryDate: expiryDate || undefined,
+          scheduledAt: publishMode === "scheduled" ? scheduledAt : undefined,
           expiresInHours,
         }),
       });
@@ -195,7 +212,11 @@ export default function AdminNotificationBroadcastPage() {
       if (!response.ok || data?.success === false) {
         throw new Error(data?.error || "Failed to send notification");
       }
-      toast.success(`Notification sent to ${data.targetCount || 0} users`);
+      toast.success(
+        data?.scheduled
+          ? `Promotion scheduled for ${data.targetCount || 0} users`
+          : `Notification sent to ${data.targetCount || 0} users`,
+      );
       setMessage("");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send notification");
@@ -229,7 +250,11 @@ export default function AdminNotificationBroadcastPage() {
             className="space-y-5 rounded-lg border border-slate-800 bg-slate-900/60 p-4 shadow-xl shadow-black/15 sm:p-5"
           >
             <section className="space-y-3">
-              <label className="text-sm font-medium text-slate-200">Audience</label>
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+                <Sparkles className="h-4 w-4 text-orange-300" />
+                Offer / Promotion Popup
+              </div>
+              <label className="text-sm font-medium text-slate-200">Target Audience</label>
               <div className="grid gap-2 sm:grid-cols-3">
                 {audienceOptions.map((option) => {
                   const Icon = option.icon;
@@ -290,7 +315,7 @@ export default function AdminNotificationBroadcastPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Message</label>
+                <label className="text-sm font-medium text-slate-200">Description</label>
                 <Textarea
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
@@ -301,8 +326,32 @@ export default function AdminNotificationBroadcastPage() {
                 />
                 <div className="text-right text-xs text-slate-500">{message.length}/500</div>
               </div>
+            </section>
+
+            <section className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Open Link</label>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-200">
+                  <Image className="h-4 w-4 text-blue-300" />
+                  Image / Banner
+                </label>
+                <Input
+                  value={imageUrl}
+                  onChange={(event) => setImageUrl(event.target.value)}
+                  placeholder="https://..."
+                  className="border-slate-700 bg-slate-950 text-slate-100"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-200">CTA Button</label>
+                <Input
+                  value={ctaLabel}
+                  onChange={(event) => setCtaLabel(event.target.value)}
+                  placeholder="View Offer"
+                  className="border-slate-700 bg-slate-950 text-slate-100"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-200">CTA Link</label>
                 <Input
                   value={link}
                   onChange={(event) => setLink(event.target.value)}
@@ -310,6 +359,46 @@ export default function AdminNotificationBroadcastPage() {
                   className="border-slate-700 bg-slate-950 text-slate-100"
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-200">Expiry Date</label>
+                <Input
+                  type="datetime-local"
+                  value={expiryDate}
+                  onChange={(event) => setExpiryDate(event.target.value)}
+                  className="border-slate-700 bg-slate-950 text-slate-100"
+                />
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-200">
+                <CalendarClock className="h-4 w-4 text-emerald-300" />
+                Publishing
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(["instant", "scheduled"] as PublishMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setPublishMode(mode)}
+                    className={`h-11 rounded-md border text-sm font-medium capitalize transition ${
+                      publishMode === mode
+                        ? "border-emerald-400 bg-emerald-500/15 text-emerald-100"
+                        : "border-slate-700 bg-slate-950/60 text-slate-300 hover:border-slate-500"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+              {publishMode === "scheduled" ? (
+                <Input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(event) => setScheduledAt(event.target.value)}
+                  className="border-slate-700 bg-slate-950 text-slate-100"
+                />
+              ) : null}
             </section>
 
             <section className="space-y-2">
@@ -356,12 +445,23 @@ export default function AdminNotificationBroadcastPage() {
                   <BellRing className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
+                  {imageUrl.trim() ? (
+                    <div className="mb-3 aspect-[16/7] overflow-hidden rounded-md border border-slate-800 bg-slate-900">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imageUrl.trim()} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  ) : null}
                   <div className="line-clamp-2 text-sm font-semibold text-white">
                     {title.trim() || "Notification title"}
                   </div>
                   <div className="mt-1 line-clamp-4 text-sm leading-5 text-slate-300">
                     {previewBody}
                   </div>
+                  {ctaLabel.trim() ? (
+                    <div className="mt-3 inline-flex h-8 items-center rounded-md bg-blue-600 px-3 text-xs font-semibold text-white">
+                      {ctaLabel.trim()}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="border-t border-slate-800 px-4 py-3 text-xs text-slate-500">

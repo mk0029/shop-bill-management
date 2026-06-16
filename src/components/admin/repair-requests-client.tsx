@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CalendarClock, Check, ClipboardList, PauseCircle, UserRound, Wrench, XCircle } from "lucide-react";
+import { AlertCircle, CalendarClock, Check, ChevronDown, ClipboardList, PauseCircle, UserRound, Wrench, XCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -153,6 +153,7 @@ export default function AdminRepairRequestsClient() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [timePickerRequestId, setTimePickerRequestId] = useState<string | null>(null);
   const [pendingTimeAction, setPendingTimeAction] = useState<string | null>(null);
+  const [expandedMobileRequestId, setExpandedMobileRequestId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -203,7 +204,7 @@ export default function AdminRepairRequestsClient() {
   const runAction = async (request: RepairRequest, action: string, scheduleOverride?: string, loadingAction?: string) => {
     const scheduleInput = scheduleOverride || scheduleById[request._id] || "";
     const scheduledAt = fromDateTimeLocal(scheduleInput);
-    if (["schedule", "accept", "hold", "reject"].includes(action) && !scheduledAt) {
+    if (["schedule", "accept", "hold"].includes(action) && !scheduledAt) {
       openTimePicker(request, action);
       return;
     }
@@ -341,14 +342,41 @@ export default function AdminRepairRequestsClient() {
                 const customerName = safeUserName(request.customerName || request.customer?.name, "Customer");
                 const technicianName = safeUserName(request.technicianName || request.technician?.name, "Technician");
                 const cancelText = cancelledByText(request);
+                const isMobileExpanded = expandedMobileRequestId === request._id;
+                const timeHeadline = request.scheduledAt
+                  ? formatDayDateTime(request.scheduledAt)
+                  : request.createdAt
+                    ? formatDayDateTime(request.createdAt)
+                    : "Time not set";
                 if (isClosed) {
                   return (
                     <article
                       key={request._id}
-                      className={`rounded-lg border border-slate-800 bg-slate-950/30 p-4 transition hover:bg-slate-900/50 ${
+                      className={`rounded-lg border border-slate-800 bg-slate-950/30 p-0 transition hover:bg-slate-900/50 sm:p-4 ${
                         isCancelled || request.status === "rejected" ? "opacity-60 grayscale" : ""
                       }`}
                     >
+                      <button
+                        type="button"
+                        className="flex w-full items-start justify-between gap-3 p-4 text-left sm:hidden"
+                        onClick={() => setExpandedMobileRequestId((prev) => (prev === request._id ? null : request._id))}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-base font-semibold text-white">{request.requestId}</span>
+                          <span className="mt-1 block truncate text-xs text-slate-400">
+                            {customerName} | {technicianName} | {timeHeadline}
+                          </span>
+                          <span className="mt-2 flex flex-wrap gap-1.5">
+                            <Badge className={statusClass(request.status)}>{label(request.status)}</Badge>
+                            <Badge className={priorityClass(request.priority)}>{label(request.priority)}</Badge>
+                          </span>
+                        </span>
+                        <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-slate-300 transition-transform ${isMobileExpanded ? "rotate-180" : ""}`} />
+                      </button>
+                      <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out sm:block sm:opacity-100 ${
+                        isMobileExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                      }`}>
+                      <div className="overflow-hidden p-4 pt-0 sm:overflow-visible sm:p-0">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -386,16 +414,40 @@ export default function AdminRepairRequestsClient() {
                           </Link>
                         ) : null}
                       </div>
+                      </div>
+                      </div>
                     </article>
                   );
                 }
                 return (
                   <article
                     key={request._id}
-                    className={`rounded-lg border border-slate-800 bg-slate-950/25 p-4 transition hover:bg-slate-900/60 ${
+                    className={`rounded-lg border border-slate-800 bg-slate-950/25 p-0 transition hover:bg-slate-900/60 sm:p-4 ${
                       isCancelled ? "opacity-55 grayscale" : ""
                     }`}
                   >
+                    <button
+                      type="button"
+                      className="flex w-full items-start justify-between gap-3 p-4 text-left sm:hidden"
+                      onClick={() => setExpandedMobileRequestId((prev) => (prev === request._id ? null : request._id))}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-base font-semibold text-white">{request.requestId}</span>
+                        <span className="mt-1 block truncate text-xs text-slate-400">
+                          {customerName} | {technicianName} | {timeHeadline}
+                        </span>
+                        <span className="mt-2 flex flex-wrap gap-1.5">
+                          <Badge className={statusClass(request.status)}>{label(request.status)}</Badge>
+                          <Badge className={priorityClass(request.priority)}>{label(request.priority)}</Badge>
+                          <Badge className="border-gray-700 bg-gray-950 text-gray-200">{label(request.source)}</Badge>
+                        </span>
+                      </span>
+                      <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-slate-300 transition-transform ${isMobileExpanded ? "rotate-180" : ""}`} />
+                    </button>
+                    <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out sm:block sm:opacity-100 ${
+                      isMobileExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                    }`}>
+                    <div className="overflow-hidden p-4 pt-0 sm:overflow-visible sm:p-0">
                     <div className="grid gap-4 xl:grid-cols-[17rem_minmax(0,1fr)_20rem] xl:items-start">
                       <div className="rounded-lg border border-slate-800 bg-slate-950/30 p-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -520,6 +572,8 @@ export default function AdminRepairRequestsClient() {
                           </>
                         )}
                       </div>
+                    </div>
+                    </div>
                     </div>
                   </article>
                 );
