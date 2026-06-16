@@ -51,7 +51,7 @@ export default function ForegroundSystemNotifier() {
               badge: data.badge || '/je-p-48.png',
               tag: data.tag || id,
               renotify: true,
-              requireInteraction: true,
+              requireInteraction: false,
               data: {
                 ...data,
                 id,

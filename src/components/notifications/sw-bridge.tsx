@@ -85,7 +85,9 @@ export default function SWNotificationBridge() {
               tag: meta.tag,
             });
             if (wasNotificationHandled(id) || wasNotificationHandled(meta.messageId)) return;
-            if (meta.type === "shop_chat" && meta.roomId && getActiveChatId() === String(meta.roomId)) {
+            const eventType = String(meta.eventType || meta.type || p.type || "");
+            const isChatNotification = p.type === "chat" || eventType === "shop_chat" || eventType.startsWith("chat.");
+            if (isChatNotification && meta.roomId && getActiveChatId() === String(meta.roomId)) {
               markNotificationHandled(id);
               if (meta.messageId) markNotificationHandled(meta.messageId);
               clearAppSystemNotifications({ roomId: String(meta.roomId) });

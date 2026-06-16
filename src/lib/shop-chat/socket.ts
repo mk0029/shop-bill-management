@@ -38,6 +38,7 @@ type ClientToServerEvents = {
   "typing:update": (payload: { roomId: string; typing: boolean }) => void;
   "message:delivered": (payload: { messageIds: string[] }) => void;
   "message:read": (payload: { roomId: string; messageIds?: string[] }) => void;
+  "chat:active": (payload: { roomId?: string | null }) => void;
   "presence:ping": () => void;
   "presence:offline": () => void;
 };
@@ -90,6 +91,7 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
       nextSocket.emit("presence:ping");
       if (activeRoomRef.current) {
         nextSocket.emit("room:join", { roomId: activeRoomRef.current });
+        nextSocket.emit("chat:active", { roomId: activeRoomRef.current });
       }
     });
     nextSocket.on("disconnect", () => setConnected(false));
@@ -135,7 +137,9 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
   useEffect(() => {
     if (!socket || !activeRoomId) return;
     socket.emit("room:join", { roomId: activeRoomId });
+    socket.emit("chat:active", { roomId: activeRoomId });
     return () => {
+      socket.emit("chat:active", { roomId: null });
       socket.emit("room:leave", { roomId: activeRoomId });
     };
   }, [activeRoomId, socket]);

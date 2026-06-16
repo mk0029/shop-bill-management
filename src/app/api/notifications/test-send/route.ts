@@ -11,10 +11,7 @@ function notificationBackendUrl() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    if (!body?.token) {
-      return NextResponse.json({ success: false, error: "Missing token" }, { status: 400 });
-    }
-    const response = await fetch(`${notificationBackendUrl()}/notifications/remove-token`, {
+    const response = await fetch(`${notificationBackendUrl()}/notifications/test-send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -167,6 +167,42 @@ export function useGlobalShopChat(
     });
   }, []);
 
+  const clearChatRoomNotifications = useCallback((roomId?: string | null) => {
+    useNotificationStore.getState().removeWhere((notification) => {
+      const meta = notification.meta;
+      if (notification.type !== "chat" && meta?.type !== "shop_chat") return false;
+      if (!roomId) return true;
+      return String(meta?.roomId || "") === roomId;
+    });
+    if (roomId) clearAppSystemNotifications({ roomId });
+    else clearAppSystemNotifications();
+  }, []);
+
+  const clearSeenRoomNotifications = useCallback(
+    (room: ShopChatRoom) => {
+      const lastMessageId = room.lastMessage?.messageId;
+      if (lastMessageId) {
+        markNotificationHandled(lastMessageId);
+        markNotificationHandled(chatNotificationId(lastMessageId));
+      }
+      clearChatRoomNotifications(room.roomId);
+    },
+    [clearChatRoomNotifications],
+  );
+
+  const markRoomSeenLocally = useCallback(
+    (room: ShopChatRoom) => {
+      return {
+        ...room,
+        unreadBy: {
+          ...(room.unreadBy || {}),
+          ...(userId ? { [userId]: 0 } : {}),
+        },
+      };
+    },
+    [userId],
+  );
+
   useEffect(() => {
     if (!enabled) {
       setRooms([]);
@@ -180,8 +216,10 @@ export function useGlobalShopChat(
         if (isSupportRole(role)) {
           const response = await listShopChatRooms();
           if (!cancelled) {
-            setRooms(response.rooms);
-            roomsRef.current = response.rooms;
+            if (isChatRoute) response.rooms.forEach(clearSeenRoomNotifications);
+            const nextRooms = isChatRoute ? response.rooms.map(markRoomSeenLocally) : response.rooms;
+            setRooms(nextRooms);
+            roomsRef.current = nextRooms;
             loadedRef.current = true;
           }
           return;
@@ -189,7 +227,8 @@ export function useGlobalShopChat(
         if (role === "customer") {
           const response = await getMyShopChatRoom();
           if (!cancelled) {
-            const nextRooms = [response.room];
+            if (isChatRoute) clearSeenRoomNotifications(response.room);
+            const nextRooms = [isChatRoute ? markRoomSeenLocally(response.room) : response.room];
             setRooms(nextRooms);
             roomsRef.current = nextRooms;
             loadedRef.current = true;
@@ -207,16 +246,23 @@ export function useGlobalShopChat(
     return () => {
       cancelled = true;
     };
-  }, [enabled, role]);
+  }, [clearSeenRoomNotifications, enabled, isChatRoute, markRoomSeenLocally, role]);
 
   useEffect(() => {
     if (!socket || !enabled) return;
     const onRoomUpdated = (room: ShopChatRoom) => {
+      if (isChatRoute) {
+        clearSeenRoomNotifications(room);
+        upsertRoom(markRoomSeenLocally(room));
+        return;
+      }
       maybeNotifyFromRoom(room);
       upsertRoom(room);
     };
-    const onRoomJoined = ({ room }: { room: ShopChatRoom }) =>
-      upsertRoom(room);
+    const onRoomJoined = ({ room }: { room: ShopChatRoom }) => {
+      if (isChatRoute) clearSeenRoomNotifications(room);
+      upsertRoom(isChatRoute ? markRoomSeenLocally(room) : room);
+    };
     socket.on("room:updated", onRoomUpdated);
     socket.on("room:joined", onRoomJoined);
     return () => {
@@ -224,19 +270,34 @@ export function useGlobalShopChat(
       socket.off("room:joined", onRoomJoined);
     };
   }, [
+    clearSeenRoomNotifications,
     enabled,
+    isChatRoute,
+    markRoomSeenLocally,
     maybeNotifyFromRoom,
     socket,
     upsertRoom,
   ]);
 
+  useEffect(() => {
+    if (!enabled || !isChatRoute) return;
+    roomsRef.current.forEach(clearSeenRoomNotifications);
+    setRooms((prev) => {
+      const next = prev.map(markRoomSeenLocally);
+      roomsRef.current = next;
+      return next;
+    });
+  }, [clearSeenRoomNotifications, enabled, isChatRoute, markRoomSeenLocally]);
+
   const unreadCount = useMemo(
     () =>
-      rooms.reduce(
-        (sum, room) => sum + Number(room.unreadBy?.[userId] || 0),
-        0,
-      ),
-    [rooms, userId],
+      isChatRoute
+        ? 0
+        : rooms.reduce(
+            (sum, room) => sum + Number(room.unreadBy?.[userId] || 0),
+            0,
+          ),
+    [isChatRoute, rooms, userId],
   );
 
   return {

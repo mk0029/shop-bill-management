@@ -8,6 +8,7 @@ import {
 } from "@/store/notification-store";
 import { buildNotificationHref } from "@/store/notification-store";
 import { buildEventHref } from "@/lib/event-navigation";
+import { getActiveChatId, markNotificationHandled } from "@/lib/notifications/dedupe";
 import { useRouter } from "next/navigation";
 import { Bell, MessageCircle, X } from "lucide-react";
 
@@ -51,6 +52,20 @@ export default function NotificationToaster() {
         return;
       }
       lastIdRef.current = latest.id;
+
+      const meta = latest.meta || {};
+      const eventType = String(meta.eventType || meta.type || latest.type || "");
+      const roomId = String(meta.roomId || "");
+      const isActiveChatNotification =
+        (latest.type === "chat" || eventType === "shop_chat" || eventType.startsWith("chat.")) &&
+        roomId &&
+        getActiveChatId() === roomId;
+      if (isActiveChatNotification) {
+        markNotificationHandled(latest.id);
+        markNotificationHandled(meta.messageId);
+        markToasted(latest.id);
+        return;
+      }
 
       const description = latest.body || "You have a new notification";
       const href = buildNotificationHref(latest);

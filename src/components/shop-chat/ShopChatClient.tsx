@@ -183,14 +183,6 @@ function dedupeBillCreatedMessages(messages: ShopChatMessage[]) {
   });
 }
 
-function chatNotificationBody(text: string, type: ShopChatMessage["type"]) {
-  if (type === "text") {
-    const preview = text.trim().replace(/\s+/g, " ");
-    return preview ? preview.slice(0, 140) : "New message";
-  }
-  return `Sent a ${type === "file" ? "file" : type}`;
-}
-
 function roleSafeSystemText(text: string, mode: ChatMode) {
   const adminSafe = text
     .replace(/\bYour bill is created\b/gi, "Bill created")
@@ -862,6 +854,9 @@ export default function ShopChatClient({
   const [chatBillsLoading, setChatBillsLoading] = useState(false);
   const deliveredRef = useRef<Set<string>>(new Set());
   const readAtRef = useRef<Record<string, number>>({});
+  const activeRoomRef = useRef<ShopChatRoom | null>(null);
+  const messagesByRoomRef = useRef<Record<string, ShopChatMessage[]>>({});
+  const refreshAtRef = useRef<Record<string, number>>({});
   const autoOpenCustomerRef = useRef("");
   const handledReloadParamRef = useRef(false);
   const syncedBillEventsRef = useRef<Set<string>>(new Set());
@@ -879,6 +874,14 @@ export default function ShopChatClient({
     () => initialCustomers.find((customer) => customer._id === selectedCustomerId) || null,
     [initialCustomers, selectedCustomerId],
   );
+
+  useEffect(() => {
+    activeRoomRef.current = activeRoom;
+  }, [activeRoom]);
+
+  useEffect(() => {
+    messagesByRoomRef.current = messagesByRoom;
+  }, [messagesByRoom]);
 
   const pushChatParam = useCallback(
     (roomId: string) => {
@@ -944,6 +947,30 @@ export default function ShopChatClient({
       [room.roomId]: dedupeBillCreatedMessages(response.messages),
     }));
   }, []);
+
+  const refreshRoomMessages = useCallback(
+    (room: ShopChatRoom | null, throttleMs = 1000) => {
+      if (!room) return;
+      const now = Date.now();
+      if (now - (refreshAtRef.current[room.roomId] || 0) < throttleMs) return;
+      refreshAtRef.current[room.roomId] = now;
+      void loadMessages(room).catch((error) => {
+        console.warn("[ShopChat] failed to refresh messages", error);
+      });
+    },
+    [loadMessages],
+  );
+
+  const refreshRoomIfMissingLastMessage = useCallback(
+    (room: ShopChatRoom) => {
+      const lastMessageId = room.lastMessage?.messageId;
+      if (!lastMessageId) return;
+      const messages = messagesByRoomRef.current[room.roomId] || [];
+      const hasLastMessage = messages.some((message) => message.messageId === lastMessageId);
+      if (!hasLastMessage) refreshRoomMessages(room);
+    },
+    [refreshRoomMessages],
+  );
 
   const syncBillEventsForRoom = useCallback(async (room: ShopChatRoom) => {
     if (mode !== "admin" || syncedBillEventsRef.current.has(room.roomId)) return;
@@ -1048,7 +1075,18 @@ export default function ShopChatClient({
 
   useEffect(() => {
     if (!socket) return;
-    const onRoomUpdated = (room: ShopChatRoom) => upsertRoom(room);
+    const onRoomUpdated = (room: ShopChatRoom) => {
+      upsertRoom(room);
+      if (activeRoomRef.current?.roomId === room.roomId) {
+        refreshRoomIfMissingLastMessage(room);
+      }
+    };
+    const onRoomJoined = ({ room }: { room: ShopChatRoom }) => {
+      upsertRoom(room);
+      if (activeRoomRef.current?.roomId === room.roomId) {
+        refreshRoomIfMissingLastMessage(room);
+      }
+    };
     const onMessageNew = (message: ShopChatMessage) => {
       setMessagesByRoom((prev) => ({
         ...prev,
@@ -1099,6 +1137,7 @@ export default function ShopChatClient({
       });
     };
     socket.on("room:updated", onRoomUpdated);
+    socket.on("room:joined", onRoomJoined);
     socket.on("message:new", onMessageNew);
     socket.on("message:cleared", onMessageCleared);
     socket.on("message:status", onStatus);
@@ -1106,13 +1145,34 @@ export default function ShopChatClient({
     socket.on("presence:snapshot", onPresence);
     return () => {
       socket.off("room:updated", onRoomUpdated);
+      socket.off("room:joined", onRoomJoined);
       socket.off("message:new", onMessageNew);
       socket.off("message:cleared", onMessageCleared);
       socket.off("message:status", onStatus);
       socket.off("typing:update", onTyping);
       socket.off("presence:snapshot", onPresence);
     };
-  }, [myUserId, socket, upsertRoom]);
+  }, [myUserId, refreshRoomIfMissingLastMessage, socket, upsertRoom]);
+
+  useEffect(() => {
+    if (!connected) return;
+    refreshRoomMessages(activeRoomRef.current);
+  }, [connected, refreshRoomMessages]);
+
+  useEffect(() => {
+    const refreshVisibleRoom = () => {
+      if (document.visibilityState === "hidden") return;
+      refreshRoomMessages(activeRoomRef.current);
+    };
+    document.addEventListener("visibilitychange", refreshVisibleRoom);
+    window.addEventListener("focus", refreshVisibleRoom);
+    window.addEventListener("pageshow", refreshVisibleRoom);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshVisibleRoom);
+      window.removeEventListener("focus", refreshVisibleRoom);
+      window.removeEventListener("pageshow", refreshVisibleRoom);
+    };
+  }, [refreshRoomMessages]);
 
   useEffect(() => {
     setActiveChatId(activeRoom?.roomId || null);
@@ -1139,9 +1199,7 @@ export default function ShopChatClient({
   const selectRoom = async (room: ShopChatRoom, syncUrl = true) => {
     if (syncUrl && mode === "admin") pushChatParam(room.roomId);
     setActiveRoom(room);
-    if (!messagesByRoom[room.roomId]) {
-      await loadMessages(room);
-    }
+    await loadMessages(room);
     void syncBillEventsForRoom(room);
   };
 
@@ -1160,45 +1218,6 @@ export default function ShopChatClient({
     } finally {
       setAddingCustomer(false);
     }
-  };
-
-  const notifyChatMessageFallback = async (message: ShopChatMessage) => {
-    if (!activeRoom || !myUserId || message.senderId !== myUserId) return;
-
-    const supportTargets = (activeRoom.admins || [])
-      .map((admin) => String(admin.userId || "").trim())
-      .filter((id) => id && id !== myUserId);
-    const customerTargets = [String(activeRoom.customerId || "").trim()].filter((id) => id && id !== myUserId);
-    const userIds = Array.from(new Set(mode === "customer" ? supportTargets : customerTargets));
-    if (!userIds.length && mode !== "customer") return;
-
-    const senderName = safeUserName(message.senderName || (user as any)?.name, mode === "customer" ? "Customer" : "Support");
-    const route = mode === "customer" ? "/admin/chat" : "/customer/chat";
-
-    await fetch("/api/notifications/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventId: `chat.message.created.${message.messageId}`,
-        eventType: "chat.message.created",
-        actorUserId: myUserId,
-        ...(userIds.length ? { userIds } : { audience: "admins" }),
-        title: mode === "customer" ? `Message from ${senderName}` : "New message from support",
-        body: chatNotificationBody(message.text, message.type),
-        data: {
-          event: "chat-message-created",
-          route,
-          route_path: route,
-          roomId: activeRoom.roomId,
-          customerId: activeRoom.customerId,
-          messageId: message.messageId,
-          senderId: message.senderId,
-          senderName,
-        },
-      }),
-    }).catch((error) => {
-      console.warn("[FCM] chat notification fallback failed", error);
-    });
   };
 
   const sendText = async (
@@ -1255,7 +1274,6 @@ export default function ShopChatClient({
       });
       setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], response.message) }));
       if (response.room) upsertRoom(response.room);
-      void notifyChatMessageFallback(response.message);
     } catch {
       setMessagesByRoom((prev) => ({
         ...prev,

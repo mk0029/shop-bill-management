@@ -12,12 +12,22 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuthStore } from "@/store/auth-store";
+import { SHOP_CHAT_URL } from "@/lib/shop-chat/api";
+import { shopChatHeaders } from "@/lib/shop-chat/auth";
+import quickTemplates from "./quick-templates.json";
 
 type Audience = "customers" | "admins" | "all";
-type Category = "special_offer" | "festival_offer" | "service_update" | "general";
+type Category =
+  | "special_offer"
+  | "festival_offer"
+  | "service_update"
+  | "general";
 type PublishMode = "instant" | "scheduled";
 
+const TESTING_MODE = process.env.NEXT_PUBLIC_TESTING_MODE === "true";
 const audienceOptions: Array<{
   value: Audience;
   label: string;
@@ -43,124 +53,6 @@ const expiryOptions = [
   { value: "168", label: "7 days" },
 ];
 
-const quickTemplates = [
-  {
-    label: "5% Off",
-    title: "5% Off Today",
-    message: "Get 5% off on selected electrical services today. Book your service with Jambh Electrics now.",
-  },
-  {
-    label: "10% Off",
-    title: "10% Service Discount",
-    message: "Enjoy 10% off on service charges for a limited time. Contact Jambh Electrics to book your visit.",
-  },
-  {
-    label: "15% Off",
-    title: "15% Festival Discount",
-    message: "Festival special: get 15% off on selected electrical work. Offer valid for a limited time.",
-  },
-  {
-    label: "Lights 5%",
-    title: "5% Off on Lights",
-    message: "Festival purchase offer: get 5% off on selected lights and decorative lights at Jambh Electrics.",
-  },
-  {
-    label: "Decor 10%",
-    title: "10% Off on Decoration Lights",
-    message: "Brighten your festival celebrations with 10% off on selected decoration lights for a limited time.",
-  },
-  {
-    label: "Diwali Lights",
-    title: "Diwali Lights Offer",
-    message: "Diwali special: get festival discount on LED lights, decoration lights, and fitting support.",
-  },
-  {
-    label: "LED Bulbs",
-    title: "LED Bulb Purchase Offer",
-    message: "Buy LED bulbs and selected lighting products with special festival discount at Jambh Electrics.",
-  },
-  {
-    label: "Light Combo",
-    title: "Lights Combo Offer",
-    message: "Buy lights and decoration lights together and get extra discount on your purchase.",
-  },
-  {
-    label: "20% Off",
-    title: "20% Off on Big Work",
-    message: "Get 20% off on major wiring, fitting, or maintenance work above the minimum billing amount.",
-  },
-  {
-    label: "Switches 5%",
-    title: "5% Off on Switches",
-    message: "Festival offer: get 5% off on selected switches, sockets, and electrical accessories.",
-  },
-  {
-    label: "Fan Buy",
-    title: "Fan Purchase Discount",
-    message: "Get a special festival discount on selected fan purchases and fitting service.",
-  },
-  {
-    label: "Wire Offer",
-    title: "Wiring Material Offer",
-    message: "Purchase selected wiring material and get festival discount for a limited time.",
-  },
-  {
-    label: "Home Combo",
-    title: "Home Electrical Combo Offer",
-    message: "Buy lights, switches, sockets, and fitting items together and get a special combo discount.",
-  },
-  {
-    label: "Visit Off",
-    title: "Visit Charge Discount",
-    message: "Book today and get a discount on visit charges for home electrical service.",
-  },
-  {
-    label: "Free Checkup",
-    title: "Free Checkup with Service",
-    message: "Get a free basic electrical checkup with any paid repair or fitting service.",
-  },
-  {
-    label: "AC Discount",
-    title: "AC Service Discount",
-    message: "Get a special discount on AC servicing and electrical checking. Book your slot today.",
-  },
-  {
-    label: "Fan Repair",
-    title: "Fan Repair Discount",
-    message: "Fan repair offer: get a discount on repair service charges for a limited time.",
-  },
-  {
-    label: "LED Offer",
-    title: "LED Fitting Discount",
-    message: "Upgrade to LED lighting and get a special discount on fitting charges.",
-  },
-  {
-    label: "Combo Offer",
-    title: "Repair + Fitting Combo Offer",
-    message: "Book repair and fitting work together and get an extra discount on total service charges.",
-  },
-  {
-    label: "New Customer",
-    title: "New Customer Discount",
-    message: "First-time customers get a special discount on their first service booking with Jambh Electrics.",
-  },
-  {
-    label: "Shop Offer",
-    title: "Shop Maintenance Discount",
-    message: "Get a special discount on shop electrical maintenance and safety checking.",
-  },
-  {
-    label: "Monsoon Off",
-    title: "Monsoon Safety Discount",
-    message: "Monsoon offer: get discounted electrical safety checks for wiring, sockets, and earthing.",
-  },
-  {
-    label: "Limited Deal",
-    title: "Limited Time Discount",
-    message: "Limited time deal: get extra discount on selected electrical services. Book before the offer ends.",
-  },
-];
-
 export default function AdminNotificationBroadcastPage() {
   const [audience, setAudience] = useState<Audience>("customers");
   const [category, setCategory] = useState<Category>("special_offer");
@@ -174,6 +66,10 @@ export default function AdminNotificationBroadcastPage() {
   const [publishMode, setPublishMode] = useState<PublishMode>("instant");
   const [scheduledAt, setScheduledAt] = useState("");
   const [sending, setSending] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const { user } = useAuthStore();
+  const currentUserId = String((user as any)?.id || (user as any)?._id || "");
 
   const canSend =
     title.trim().length > 0 &&
@@ -184,6 +80,12 @@ export default function AdminNotificationBroadcastPage() {
     () => message.trim() || "Your notification message will appear here.",
     [message],
   );
+
+  function applyTemplate(template: (typeof quickTemplates)[number]) {
+    setTitle(template.title);
+    setMessage(template.message);
+    setTemplatesOpen(false);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -219,16 +121,81 @@ export default function AdminNotificationBroadcastPage() {
       );
       setMessage("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send notification");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send notification",
+      );
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleTestNotification() {
+    if (!TESTING_MODE || !currentUserId || testing) return;
+    const selectedAudience =
+      audienceOptions.find((item) => item.value === audience)?.label ||
+      "selected users";
+    setTesting(true);
+    try {
+      const response = await fetch(`${SHOP_CHAT_URL}/notifications/test-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...shopChatHeaders() },
+        credentials: "include",
+        body: JSON.stringify({
+          eventType: "system.general",
+          eventId: `admin.manual-test.${audience}.${Date.now()}`,
+          actorUserId: currentUserId,
+          audience,
+          title: title.trim() || "Backend FCM test",
+          body:
+            message.trim() ||
+            `Manual ${selectedAudience.toLowerCase()} test sent at ${new Date().toLocaleTimeString()}`,
+          data: {
+            route:
+              audience === "customers"
+                ? "/customer/notifications"
+                : "/admin/notifications",
+            source: "admin_manual_test",
+            audience,
+          },
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.error || "Failed to send test notification");
+      }
+      const results = Array.isArray(data?.results) ? data.results : [];
+      const sent = results.filter(
+        (result: any) => result?.status === "sent",
+      ).length;
+      const skipped = results.filter(
+        (result: any) => result?.status === "skipped",
+      ).length;
+      const failedResults = results.filter(
+        (result: any) => result?.status === "failed",
+      );
+      const failed = failedResults.length;
+      const firstFailure = failedResults[0]?.failureReason
+        ? `: ${failedResults[0].failureReason}`
+        : "";
+      const unregistered = Number(data?.skippedUnregistered || 0);
+      toast.success(
+        `Test sent to ${selectedAudience}: ${sent} sent, ${skipped} skipped, ${unregistered} unregistered, ${failed} failed${firstFailure}`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to send test notification",
+      );
+    } finally {
+      setTesting(false);
     }
   }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-2 border-b border-slate-800 pb-4">
+        <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-blue-500/15 text-blue-300">
               <Megaphone className="h-5 w-5" />
@@ -238,10 +205,25 @@ export default function AdminNotificationBroadcastPage() {
                 Send Notifications
               </h1>
               <p className="text-sm text-slate-400">
-                Broadcast special day offers, service updates, and announcements.
+                Broadcast special day offers, service updates, and
+                announcements.
               </p>
             </div>
           </div>
+          {TESTING_MODE ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestNotification}
+              disabled={!currentUserId || testing}
+              className="w-full border-orange-400/40 bg-orange-500/10 text-orange-100 hover:bg-orange-500/20 sm:w-auto"
+            >
+              <BellRing className="mr-2 h-4 w-4" />
+              {testing
+                ? "Testing..."
+                : `Send Test to ${audienceOptions.find((item) => item.value === audience)?.label || "Audience"}`}
+            </Button>
+          ) : null}
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -254,7 +236,9 @@ export default function AdminNotificationBroadcastPage() {
                 <Sparkles className="h-4 w-4 text-orange-300" />
                 Offer / Promotion Popup
               </div>
-              <label className="text-sm font-medium text-slate-200">Target Audience</label>
+              <label className="text-sm font-medium text-slate-200">
+                Target Audience
+              </label>
               <div className="grid gap-2 sm:grid-cols-3">
                 {audienceOptions.map((option) => {
                   const Icon = option.icon;
@@ -280,7 +264,9 @@ export default function AdminNotificationBroadcastPage() {
 
             <section className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Type</label>
+                <label className="text-sm font-medium text-slate-200">
+                  Type
+                </label>
                 <Dropdown
                   options={categoryOptions}
                   value={category}
@@ -291,7 +277,9 @@ export default function AdminNotificationBroadcastPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Expires After</label>
+                <label className="text-sm font-medium text-slate-200">
+                  Expires After
+                </label>
                 <Dropdown
                   options={expiryOptions}
                   value={String(expiresInHours)}
@@ -305,7 +293,9 @@ export default function AdminNotificationBroadcastPage() {
 
             <section className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Title</label>
+                <label className="text-sm font-medium text-slate-200">
+                  Title
+                </label>
                 <Input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
@@ -315,7 +305,9 @@ export default function AdminNotificationBroadcastPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Description</label>
+                <label className="text-sm font-medium text-slate-200">
+                  Description
+                </label>
                 <Textarea
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
@@ -324,7 +316,9 @@ export default function AdminNotificationBroadcastPage() {
                   placeholder="Write the offer or announcement..."
                   className="min-h-36 border-slate-700 bg-slate-950 text-slate-100"
                 />
-                <div className="text-right text-xs text-slate-500">{message.length}/500</div>
+                <div className="text-right text-xs text-slate-500">
+                  {message.length}/500
+                </div>
               </div>
             </section>
 
@@ -342,7 +336,9 @@ export default function AdminNotificationBroadcastPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">CTA Button</label>
+                <label className="text-sm font-medium text-slate-200">
+                  CTA Button
+                </label>
                 <Input
                   value={ctaLabel}
                   onChange={(event) => setCtaLabel(event.target.value)}
@@ -351,7 +347,9 @@ export default function AdminNotificationBroadcastPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">CTA Link</label>
+                <label className="text-sm font-medium text-slate-200">
+                  CTA Link
+                </label>
                 <Input
                   value={link}
                   onChange={(event) => setLink(event.target.value)}
@@ -360,7 +358,9 @@ export default function AdminNotificationBroadcastPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Expiry Date</label>
+                <label className="text-sm font-medium text-slate-200">
+                  Expiry Date
+                </label>
                 <Input
                   type="datetime-local"
                   value={expiryDate}
@@ -375,7 +375,7 @@ export default function AdminNotificationBroadcastPage() {
                 <CalendarClock className="h-4 w-4 text-emerald-300" />
                 Publishing
               </label>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 {(["instant", "scheduled"] as PublishMode[]).map((mode) => (
                   <button
                     key={mode}
@@ -402,16 +402,24 @@ export default function AdminNotificationBroadcastPage() {
             </section>
 
             <section className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">Quick Templates</label>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <label className="text-sm font-medium text-slate-200">
+                Quick Templates
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTemplatesOpen(true)}
+                className="flex h-11 w-full items-center justify-center gap-2 border-slate-700 bg-slate-950 text-slate-100 hover:bg-slate-900 sm:hidden"
+              >
+                <Sparkles className="h-4 w-4" />
+                Open Templates
+              </Button>
+              <div className="hidden gap-2 sm:grid sm:grid-cols-2 xl:grid-cols-3">
                 {quickTemplates.map((template) => (
                   <button
                     key={template.label}
                     type="button"
-                    onClick={() => {
-                      setTitle(template.title);
-                      setMessage(template.message);
-                    }}
+                    onClick={() => applyTemplate(template)}
                     className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-left text-xs font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
@@ -448,7 +456,11 @@ export default function AdminNotificationBroadcastPage() {
                   {imageUrl.trim() ? (
                     <div className="mb-3 aspect-[16/7] overflow-hidden rounded-md border border-slate-800 bg-slate-900">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={imageUrl.trim()} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={imageUrl.trim()}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                     </div>
                   ) : null}
                   <div className="line-clamp-2 text-sm font-semibold text-white">
@@ -465,12 +477,34 @@ export default function AdminNotificationBroadcastPage() {
                 </div>
               </div>
               <div className="border-t border-slate-800 px-4 py-3 text-xs text-slate-500">
-                Audience: {audienceOptions.find((item) => item.value === audience)?.label}
+                Audience:{" "}
+                {audienceOptions.find((item) => item.value === audience)?.label}
               </div>
             </div>
           </aside>
         </div>
       </div>
+      <Modal
+        isOpen={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        title="Quick Templates"
+        size="md"
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-slate-800 bg-slate-950 sm:mt-0 sm:h-fit sm:max-h-[90dvh] sm:rounded-lg"
+      >
+        <div className="grid max-h-[calc(100dvh-5.5rem)] gap-2 overflow-y-auto pr-1">
+          {quickTemplates.map((template) => (
+            <button
+              key={template.label}
+              type="button"
+              onClick={() => applyTemplate(template)}
+              className="flex min-h-12 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-left text-sm font-medium text-slate-100 transition hover:border-blue-400 hover:bg-blue-500/10"
+            >
+              <Sparkles className="h-4 w-4 shrink-0 text-blue-300" />
+              <span className="min-w-0 truncate">{template.label}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
     </main>
   );
 }

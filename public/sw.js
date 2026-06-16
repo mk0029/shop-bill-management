@@ -604,7 +604,7 @@ try {
             notification: {
               tag: key,
               renotify: true,
-              requireInteraction: true,
+              requireInteraction: false,
             },
           },
         };
@@ -672,7 +672,7 @@ try {
       vibrate: wp.vibrate || [100, 50, 100],
       tag: wp.tag || data.tag || computeTag(payload),
       renotify: wp.renotify ?? true,
-      requireInteraction: wp.requireInteraction ?? true,
+      requireInteraction: wp.requireInteraction ?? false,
       // Show context-specific actions
       actions: (() => {
         const billId = data.billId;

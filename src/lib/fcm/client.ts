@@ -17,6 +17,24 @@ type RegisterResult = {
   error?: string;
 };
 
+function getCurrentAuthUser() {
+  try {
+    const cookie = document.cookie
+      .split("; ")
+      .find((item) => item.startsWith("auth-storage="))
+      ?.split("=")[1];
+    if (!cookie) return "";
+    const parsed = JSON.parse(decodeURIComponent(cookie));
+    const user = parsed?.state?.user || {};
+    return {
+      role: String(parsed?.state?.role || user.role || "").trim(),
+      displayName: String(user.name || user.email || user.phone || "").trim(),
+    };
+  } catch {
+    return { role: "", displayName: "" };
+  }
+}
+
 export async function requestNotificationPermission() {
   try {
     if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
@@ -59,14 +77,15 @@ export async function autoRegisterFcmToken(
     const token = await getFcmToken({ forceRefresh: options.forceRefresh });
     if (!token) return { success: false, skipped: true, reason: "no-token" };
 
-    const deviceInfo = getDeviceInfo();
+    const authUser = getCurrentAuthUser();
+    const deviceInfo = { ...getDeviceInfo(), role: authUser.role, displayName: authUser.displayName };
     console.info("[FCM_TRACE] register_client_user_id", userId);
     console.info("[FCM_TRACE] register_client_device_id", deviceInfo.deviceId || "");
 
     const res = await fetch("/api/notifications/register-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, token, deviceInfo }),
+      body: JSON.stringify({ userId, token, role: deviceInfo.role, displayName: deviceInfo.displayName, deviceInfo }),
     });
     const json = await res.json().catch(() => ({}));
 
@@ -145,10 +164,12 @@ export async function retryPendingFcmToken(userId: string) {
     if (!raw) return { success: false, reason: "no-pending" };
     const pending = JSON.parse(raw) as { token?: string; deviceInfo?: unknown };
     if (!pending.token) return { success: false, reason: "no-token" };
+    const authUser = getCurrentAuthUser();
+    const deviceInfo = { ...(pending.deviceInfo || getDeviceInfo()), role: authUser.role, displayName: authUser.displayName };
     const res = await fetch("/api/notifications/register-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, token: pending.token, deviceInfo: pending.deviceInfo || getDeviceInfo() }),
+      body: JSON.stringify({ userId, token: pending.token, role: deviceInfo.role, displayName: deviceInfo.displayName, deviceInfo }),
     });
     if (!res.ok) return { success: false, error: "registration-failed" };
     localStorage.removeItem(PENDING_KEY(userId));
