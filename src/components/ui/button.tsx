@@ -12,7 +12,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground hover:border-white/80 border border-transparent duration-300 transation-all ease-linear",
+          "border border-white/10 bg-white/[0.06] text-white shadow-inner shadow-white/10 backdrop-blur-xl hover:bg-white/10 hover:border-white/20 transition-all duration-300 ease-linear",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
@@ -34,7 +34,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
 export interface ButtonProps
@@ -56,7 +56,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     const Comp = asChild ? Slot : "button";
     return (
@@ -96,7 +96,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </Comp>
     );
-  }
+  },
 );
 Button.displayName = "Button";
 

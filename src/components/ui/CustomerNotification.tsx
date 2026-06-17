@@ -93,51 +93,54 @@ export default function CustomerNotifications() {
         )}
       </Button>
 
-      {mounted && createPortal(
-      <AnimatePresence>
-        {open && (
-          <>
-            {/* Backdrop overlay with blur for mobile and desktop */}
-            <motion.div
-              key="notif-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-[180] h-[var(--app-vh,100dvh)] w-full bg-slate-950/62 backdrop-blur-md"
-              onClick={() => setOpen(false)}
-              aria-hidden="true"
-            />
-
-            <motion.div
-              key="notif-popover"
-              ref={popoverRef}
-              initial={{ opacity: 0, y: -12, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -12, scale: 0.98 }}
-              transition={{ type: "spring", stiffness: 420, damping: 34 }}
-              className="fixed inset-x-2 top-2 z-[190] max-h-[calc(var(--app-vh,100dvh)-1rem)] overflow-y-auto backdrop-blur-xl sm:inset-x-0 sm:top-0 sm:w-full sm:backdrop-blur-2xl xl:pl-64"
-              role="dialog"
-              aria-label="Notifications popover"
-            >
-              <div className="pointer-events-none absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="pointer-events-auto h-9 w-9 rounded-full border border-white/10 bg-white/[0.07] text-slate-200 shadow-lg shadow-black/20 backdrop-blur-2xl hover:bg-orange-300/15 hover:text-white sm:h-10 sm:w-10"
-                  aria-label="Close notifications"
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <>
+                {/* Backdrop overlay with blur for mobile and desktop */}
+                <motion.div
+                  key="notif-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="fixed inset-0 z-[180] h-[var(--app-vh,100dvh)] w-full bg-slate-950/62 backdrop-blur-md"
                   onClick={() => setOpen(false)}
+                  aria-hidden="true"
+                />
+
+                <motion.div
+                  key="notif-popover"
+                  ref={popoverRef}
+                  initial={{ opacity: 0, y: -12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -12, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  className="fixed inset-x-2 top-3 z-[190] max-h-[calc(var(--app-vh,100dvh)-2.5rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden backdrop-blur-xl sm:inset-x-0 sm:top-2 sm:w-full sm:backdrop-blur-2xl xl:pl-64"
+                  role="dialog"
+                  aria-label="Notifications popover"
                 >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-              <CustomerNotificationsPage onRequestClose={() => setOpen(false)} />
-            </motion.div>
-          </>
+                  <div className="pointer-events-none absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="pointer-events-auto h-9 w-9 rounded-full border border-white/10 bg-white/[0.07] text-slate-200 shadow-lg shadow-black/20 backdrop-blur-2xl hover:bg-orange-300/15 hover:text-white sm:h-10 sm:w-10"
+                      aria-label="Close notifications"
+                      onClick={() => setOpen(false)}
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  <CustomerNotificationsPage
+                    onRequestClose={() => setOpen(false)}
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          document.body,
         )}
-      </AnimatePresence>,
-      document.body,
-      )}
     </div>
   );
 }
