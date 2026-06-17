@@ -154,7 +154,7 @@ export function CustomersOverview() {
                 return (
                   <div
                     key={customer._id}
-                    className="flex flex-row items-start justify-between gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg min-h-12"
+                    className="flex min-h-12 flex-row items-start justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.055] p-3 backdrop-blur-xl transition hover:bg-white/[0.08] sm:gap-4 sm:p-4"
                   >
                     <div className="flex-1 w-full">
                       <div className="flex items-center gap-3">

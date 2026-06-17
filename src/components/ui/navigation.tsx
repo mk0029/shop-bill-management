@@ -11,6 +11,7 @@ import LogOut from "lucide-react/dist/esm/icons/log-out.js";
 import Menu from "lucide-react/dist/esm/icons/menu.js";
 import MessageCircle from "lucide-react/dist/esm/icons/message-circle.js";
 import Megaphone from "lucide-react/dist/esm/icons/megaphone.js";
+import MoreVertical from "lucide-react/dist/esm/icons/more-vertical.js";
 import Package from "lucide-react/dist/esm/icons/package.js";
 import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close.js";
 import PanelLeftOpen from "lucide-react/dist/esm/icons/panel-left-open.js";
@@ -34,6 +35,7 @@ import { safeUserName } from "@/lib/display-text";
 import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
 import { SanityImage } from "./sanity-image";
 import { sanityClient } from "@/lib/sanity";
+import { createPortal } from "react-dom";
 
 interface NavigationItem {
   label: string;
@@ -128,7 +130,9 @@ export function Navigation() {
   const [isDesktopNavMinimized, setIsDesktopNavMinimized] = useState(false);
   const [isChatRoomOpen, setIsChatRoomOpen] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const prevOverflowRef = useRef<string | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const { role, logout, user } = useAuthStore();
@@ -145,7 +149,10 @@ export function Navigation() {
     user?.email?.split("@")[0] ||
     (role === "admin" || role === "super_admin" ? "Admin" : "User");
 
-  const displayName = safeUserName(rawDisplayName, role === "admin" || role === "super_admin" ? "Admin" : "User");
+  const displayName = safeUserName(
+    rawDisplayName,
+    role === "admin" || role === "super_admin" ? "Admin" : "User",
+  );
 
   const getFilteredAdminNavigation = () => {
     const userEmail = (user as { email?: string } | null)?.email;
@@ -200,6 +207,7 @@ export function Navigation() {
   }, [isDesktopNavMinimized]);
 
   const handleLogout = () => {
+    setAccountMenuOpen(false);
     logout();
     router.replace("/");
   };
@@ -222,6 +230,21 @@ export function Navigation() {
   }, []);
 
   useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (accountMenuRef.current?.contains(target)) return;
+      setAccountMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+    };
+  }, [accountMenuOpen]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const media = window.matchMedia("(min-width: 1280px)");
     const sync = () => setIsDesktopViewport(media.matches);
@@ -238,17 +261,24 @@ export function Navigation() {
     }
 
     const onState = (event: Event) => {
-      const detail = (event as CustomEvent<{ mode?: string; roomOpen?: boolean }>).detail;
+      const detail = (
+        event as CustomEvent<{ mode?: string; roomOpen?: boolean }>
+      ).detail;
       if (detail?.mode !== "admin") return;
       setIsChatRoomOpen(Boolean(detail.roomOpen));
     };
 
     window.addEventListener("shop-chat:room-state", onState as EventListener);
-    return () => window.removeEventListener("shop-chat:room-state", onState as EventListener);
+    return () =>
+      window.removeEventListener(
+        "shop-chat:room-state",
+        onState as EventListener,
+      );
   }, [isChatRoute]);
 
   useEffect(() => {
-    if (!(role === "admin" || role === "super_admin" || role === "technician")) return;
+    if (!(role === "admin" || role === "super_admin" || role === "technician"))
+      return;
     let active = true;
     const loadRepairAttention = async () => {
       try {
@@ -257,15 +287,26 @@ export function Navigation() {
         if (!active || !json?.success) return;
         const requests = Array.isArray(json.data) ? json.data : [];
         const pendingRequests = requests.filter(
-          (request: { status?: string }) => String(request.status || "") === "pending",
+          (request: { status?: string }) =>
+            String(request.status || "") === "pending",
         );
-        const latestStamp = pendingRequests.reduce((latest: string, request: { updatedAt?: string; createdAt?: string }) => {
-          const stamp = String(request.updatedAt || request.createdAt || "");
-          if (!stamp) return latest;
-          if (!latest) return stamp;
-          return new Date(stamp).getTime() > new Date(latest).getTime() ? stamp : latest;
-        }, "");
-        const userId = String((user as any)?._id || (user as any)?.id || "current");
+        const latestStamp = pendingRequests.reduce(
+          (
+            latest: string,
+            request: { updatedAt?: string; createdAt?: string },
+          ) => {
+            const stamp = String(request.updatedAt || request.createdAt || "");
+            if (!stamp) return latest;
+            if (!latest) return stamp;
+            return new Date(stamp).getTime() > new Date(latest).getTime()
+              ? stamp
+              : latest;
+          },
+          "",
+        );
+        const userId = String(
+          (user as any)?._id || (user as any)?.id || "current",
+        );
         const seenKey = `repair_requests_seen_admin_${userId}`;
         if (isRepairRoute) {
           if (latestStamp) window.localStorage.setItem(seenKey, latestStamp);
@@ -292,12 +333,91 @@ export function Navigation() {
 
   if (!mounted) return null;
 
+  const accountMenuItems =
+    role === "admin" || role === "super_admin" || role === "technician"
+      ? [
+          { label: "Update Profile", href: "/admin/settings/personal-information/profile", icon: User },
+          { label: "Update Password", href: "/admin/settings/personal-information/password", icon: Shield },
+          { label: "Notifications", href: "/admin/settings/notifications/in-app", icon: Megaphone },
+          { label: "Security", href: "/admin/settings/security", icon: Shield },
+        ]
+      : [
+          { label: "Update Profile", href: "/customer/settings/personal-information/profile", icon: User },
+          { label: "Update Password", href: "/customer/settings/personal-information/password", icon: Shield },
+          { label: "Notifications", href: "/customer/settings/notifications/in-app", icon: Megaphone },
+          { label: "Guide", href: "/customer/welcome", icon: FileText },
+        ];
+
+  const renderAccountMenu = (compact = false) => (
+    <div ref={accountMenuRef} className="relative ml-auto">
+      <button
+        type="button"
+        onClick={() => setAccountMenuOpen((open) => !open)}
+        className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/[0.055] text-slate-200 shadow-inner shadow-white/[0.03] backdrop-blur-xl transition hover:border-cyan-200/25 hover:bg-white/[0.09]"
+        aria-label="Account options"
+        title="Account options"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {accountMenuOpen && (
+        <div className="absolute bottom-full right-0 z-[280] mb-2 w-56 overflow-hidden rounded-xl border border-cyan-200/25 bg-[#07111f] p-1.5 text-white shadow-2xl shadow-black/60 ring-1 ring-white/10">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.08)_1px,transparent_1px)] bg-[size:22px_22px] opacity-20" />
+          <div className="relative space-y-1">
+            {!compact && (
+              <div className="rounded-lg bg-white/[0.04] px-3 py-2">
+                <p className="truncate text-sm font-semibold text-white">
+                  {displayName}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {role === "super_admin"
+                    ? "Super Admin"
+                    : role === "admin"
+                      ? "Administrator"
+                      : role === "technician"
+                        ? "Technician"
+                        : "Customer"}
+                </p>
+              </div>
+            )}
+            {accountMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-cyan-300/10 hover:text-white"
+                >
+                  <Icon className="h-4 w-4 text-cyan-100/70" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+            <div className="my-1 h-px bg-white/10" />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-200 transition hover:bg-red-500/12 hover:text-red-100"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
     const Icon = item.icon;
     const hasChildren = !!(item.children && item.children.length > 0);
     const isExpanded = expandedItems === item.label;
     const active = isActive(item.href);
-    const showChatDot = hasChatUnread && item.href.split("?")[0] === "/admin/chat";
+    const showChatDot =
+      hasChatUnread && item.href.split("?")[0] === "/admin/chat";
     const showRepairDot =
       !isRepairRoute &&
       repairAttentionCount > 0 &&
@@ -458,86 +578,83 @@ export function Navigation() {
         </Button>
       )} */}
 
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 xl:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
+      {createPortal(
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[200] bg-slate-950/62 backdrop-blur-md xl:hidden"
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
 
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-[60] xl:hidden flex flex-col"
-            >
-              <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-800">
-                <h2 className="text-xl font-bold text-white">Menu</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="hover:bg-gray-800"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-
-              <div className="sm:p-4 p-3 space-y-2 flex-1 overflow-auto flex flex-col grow">
-                {navigation.map((item) => renderNavigationItem(item, true))}
-                <div className="pt-2 px-4">
-                  <OnlineStatusToggle />
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed right-0 top-0 z-[210] flex h-[var(--app-vh,100dvh)] w-[85vw] max-w-sm flex-col border-l border-gray-800 bg-gray-900/94 shadow-2xl shadow-black/40 backdrop-blur-2xl xl:hidden"
+              >
+                <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-800">
+                  <h2 className="text-xl font-bold text-white">Menu</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="hover:bg-gray-800"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
                 </div>
-              </div>
 
-              <div className="p-4 border-t border-gray-800">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-                    <SanityImage
-                      src={(user as any)?.profileImage || (user as any)?.profileImageUrl}
-                      alt={displayName || "Profile"}
-                      width={40}
-                      height={40}
-                      className="w-full h-full object-cover"
-                      fallback={<User className="w-5 h-5 text-white" />}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">{displayName}</p>
-                    <p className="text-gray-400 text-sm">
-                      {role === "super_admin"
-                        ? "Super Admin"
-                        : role === "admin"
-                          ? "Administrator"
-                          : role === "technician"
-                            ? "Technician"
-                            : "User"}
-                    </p>
+                <div className="sm:p-4 p-3 space-y-2 flex-1 overflow-auto flex flex-col grow">
+                  {navigation.map((item) => renderNavigationItem(item, true))}
+                  <div className="pt-2 px-4">
+                    <OnlineStatusToggle />
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={handleLogout}
-                  className="w-full"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </Button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+
+                <div className="p-4 border-t border-gray-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                      <SanityImage
+                        src={
+                          (user as any)?.profileImage ||
+                          (user as any)?.profileImageUrl
+                        }
+                        alt={displayName || "Profile"}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        fallback={<User className="w-5 h-5 text-white" />}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white font-medium">{displayName}</p>
+                      <p className="text-gray-400 text-sm">
+                        {role === "super_admin"
+                          ? "Super Admin"
+                          : role === "admin"
+                            ? "Administrator"
+                            : role === "technician"
+                              ? "Technician"
+                        : "User"}
+                      </p>
+                    </div>
+                    {renderAccountMenu()}
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
       <nav
-        className={`hidden xl:block bg-gray-900 border-r border-gray-800 h-screen fixed z-50 left-0 top-0 overflow-y-auto transition-all duration-200 ${
-          isDesktopNavMinimized ? "w-20" : "w-64"
-        }`}
+        className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] overflow-y-auto border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:block"
       >
         <div className="p-4 border-b border-gray-800">
           <div
@@ -556,11 +673,12 @@ export function Navigation() {
             </div>
             {!isDesktopNavMinimized && (
               <>
-                <div>
-                  <h1 className="text-lg font-bold text-white">
-                    Jambh Electrics
+                <div className="min-w-0">
+                  <h1 className="text-base font-semibold leading-tight tracking-normal text-white">
+                    Jambh
+                    <span className="block text-blue-200">Electrics</span>
                   </h1>
-                  <p className="text-gray-400 text-sm">
+                  <p className="mt-0.5 text-xs text-gray-400">
                     {role === "admin" || role === "super_admin"
                       ? "Admin Panel"
                       : "Customer Portal"}
@@ -600,11 +718,13 @@ export function Navigation() {
           )}
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-4">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
               <SanityImage
-                src={(user as any)?.profileImage || (user as any)?.profileImageUrl}
+                src={
+                  (user as any)?.profileImage || (user as any)?.profileImageUrl
+                }
                 alt={displayName || "Profile"}
                 width={40}
                 height={40}
@@ -613,7 +733,7 @@ export function Navigation() {
               />
             </div>
             {!isDesktopNavMinimized && (
-              <div>
+              <div className="min-w-0">
                 <p className="text-white font-medium">{displayName}</p>
                 <p className="text-gray-400 text-sm">
                   {role === "super_admin"
@@ -626,22 +746,14 @@ export function Navigation() {
                 </p>
               </div>
             )}
+            {renderAccountMenu(isDesktopNavMinimized)}
           </div>
-          <Button
-            variant="outline"
-            onClick={handleLogout}
-            className="w-full"
-            title="Logout"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            {!isDesktopNavMinimized && "Logout"}
-          </Button>
         </div>
       </nav>
 
       {!hideChatHeader && <div className="h-[62px]" />}
       {!hideChatHeader && (
-        <div className="min-h-fit backdrop-blur-lg fixed z-40 top-0 w-full left-0">
+        <div className="admin-topbar fixed left-0 top-0 z-40 min-h-fit w-full backdrop-blur-lg transition-[left,width] duration-200">
           <div className="border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6">
             <div className="flex items-center justify-between">
               <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">

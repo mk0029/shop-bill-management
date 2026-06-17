@@ -54,6 +54,15 @@ export default function NotificationToaster() {
       lastIdRef.current = latest.id;
 
       const meta = latest.meta || {};
+      if (
+        meta.silent === true ||
+        meta.source === "server-bootstrap" ||
+        meta.source === "server-sync"
+      ) {
+        markToasted(latest.id);
+        return;
+      }
+
       const eventType = String(meta.eventType || meta.type || latest.type || "");
       const roomId = String(meta.roomId || "");
       const isActiveChatNotification =

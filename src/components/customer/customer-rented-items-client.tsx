@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { listenToolRentals, toolRentalService, type ToolRental } from "@/lib/tool-rental-service";
 import { formatDayDateTime } from "@/lib/date-time";
+import EmptyState from "@/components/ui/empty-state";
+import { PackageSearch } from "lucide-react";
 
 function formatINR(value: number) {
   return `Rs ${Number(value || 0).toFixed(2)}`;
@@ -70,9 +72,14 @@ export default function CustomerRentedItemsClient() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4 text-gray-400">Loading rented items...</div>
+        <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 text-gray-400 backdrop-blur-xl">Loading rented items...</div>
       ) : sorted.length === 0 ? (
-        <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4 text-gray-400">No rented tools found.</div>
+        <EmptyState
+          icon={PackageSearch}
+          eyebrow="Tool rental desk"
+          title="No rented tools right now"
+          description="When the shop assigns rented tools to your account, you will see return time, payment status, rent amount, and complete history here."
+        />
       ) : (
         <div className="space-y-3">
           {sorted.map((r) => {
@@ -87,7 +94,7 @@ export default function CustomerRentedItemsClient() {
 
             const total = Number(r.currentTotalAmount || r.totalAmount || 0);
             return (
-              <div key={r._id} className="rounded-xl border border-gray-800 bg-gray-900/70 p-4 space-y-2">
+              <div key={r._id} className="rounded-xl border border-gray-800 bg-gray-900/58 p-4 space-y-2 backdrop-blur-xl">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded ${statusClass}`}>{r.rentalStatus}</span>
                   <span className="text-xs px-2 py-0.5 rounded bg-blue-900/40 text-blue-300">{r.paymentStatus}</span>

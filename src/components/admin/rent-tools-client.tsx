@@ -17,6 +17,7 @@ import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useAuthStore } from "@/store/auth-store";
+import EmptyState from "@/components/ui/empty-state";
 import {
   Clock,
   User,
@@ -28,6 +29,7 @@ import {
   XCircle,
   MessageSquare,
   Trash2,
+  PackageSearch,
 } from "lucide-react";
 
 function formatINR(value: number) {
@@ -290,11 +292,11 @@ export default function AdminRentToolsClient() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-gray-800 bg-gray-900/70 p-4 space-y-3">
+      <div className="rounded-xl border border-gray-800 bg-gray-900/46 p-4 space-y-3 backdrop-blur-xl">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h3 className="text-white font-semibold">Rental Tracking</h3>
           <input
-            className="bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white w-full sm:max-w-xs"
+            className="w-full rounded-md border border-white/10 bg-white/[0.055] px-3 py-2 text-slate-100 shadow-inner shadow-white/[0.03] outline-none backdrop-blur-xl placeholder:text-slate-400/80 focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20 sm:max-w-xs"
             placeholder="Search rentals"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -303,7 +305,18 @@ export default function AdminRentToolsClient() {
         {loading ? (
           <p className="text-gray-400">Loading rentals...</p>
         ) : filteredRentals.length === 0 ? (
-          <p className="text-gray-400">No rentals found.</p>
+          <EmptyState
+            icon={PackageSearch}
+            eyebrow="Admin rental desk"
+            title="No active rentals found"
+            description="When tools are rented from the shop, this area will show customer details, due time, payment status, reminders, and return actions."
+            actions={[
+              {
+                label: "Rent tool",
+                href: "/admin/rent-tools/create",
+              },
+            ]}
+          />
         ) : (
           <div className="space-y-2">
             <AnimatePresence initial={false}>
@@ -532,7 +545,7 @@ export default function AdminRentToolsClient() {
               min={0}
               value={payInput}
               onChange={(e) => setPayInput(Number(e.target.value || 0))}
-              className="bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white w-full"
+              className="w-full rounded-md border border-white/10 bg-white/[0.055] px-3 py-2 text-slate-100 shadow-inner shadow-white/[0.03] outline-none backdrop-blur-xl placeholder:text-slate-400/80 focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20"
               placeholder="Enter paid amount"
             />
           </div>
@@ -552,7 +565,7 @@ export default function AdminRentToolsClient() {
             <div>
               <label className="text-xs text-gray-400">Duration Type</label>
               <select
-                className="mt-1 w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white"
+                className="mt-1 w-full rounded-md border border-white/10 bg-slate-950/80 px-3 py-2 text-slate-100 shadow-inner shadow-white/[0.03] outline-none backdrop-blur-xl focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20"
                 value={editDurationType}
                 onChange={(e) => setEditDurationType(e.target.value as DurationType)}
               >
@@ -567,7 +580,7 @@ export default function AdminRentToolsClient() {
                 min={1}
                 value={editDurationValue}
                 onChange={(e) => setEditDurationValue(Number(e.target.value || 1))}
-                className="mt-1 w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white"
+                className="mt-1 w-full rounded-md border border-white/10 bg-white/[0.055] px-3 py-2 text-slate-100 shadow-inner shadow-white/[0.03] outline-none backdrop-blur-xl focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20"
               />
             </div>
             <p className="text-xs text-gray-500">

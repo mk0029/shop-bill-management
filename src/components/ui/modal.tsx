@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   isOpen: boolean;
@@ -33,25 +34,38 @@ export function Modal({
   showCloseButton = true,
   className,
 }: ModalProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   React.useEffect(() => {
     if (isOpen) {
-      // document.documentElement.classList.add("overflow-hidden");
+      const bodyOverflow = document.body.style.overflow;
+      const htmlOverflow = document.documentElement.style.overflow;
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = bodyOverflow;
+        document.documentElement.style.overflow = htmlOverflow;
+      };
     } else {
       // document.documentElement.classList.remove("overflow-hidden");
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!mounted || !isOpen) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex  md:items-center justify-center p-3 sm:p-4">
+      <div className="fixed inset-0 z-[220] flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-y-auto p-3 sm:p-4">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm -top-5"
+          className="absolute inset-0 bg-slate-950/68 backdrop-blur-md"
           onClick={onClose}
         />
 
@@ -62,13 +76,13 @@ export function Modal({
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className={cn(
-            "relative bg-gray-900 border border-gray-800 rounded-lg shadow-2xl w-full max-h-[99dvh] sm:max-h-[90dvh] overflow-hidden h-fit",
+            "relative my-auto h-fit w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/86 text-slate-100 shadow-2xl shadow-black/45 backdrop-blur-2xl max-h-[calc(var(--app-vh,100dvh)-1.5rem)] sm:max-h-[calc(var(--app-vh,100dvh)-2rem)]",
             sizeClasses[size],
             className
           )}>
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between py-2 px-4 sm:p-6 border-b border-gray-800">
+            <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.04] px-4 py-2 backdrop-blur-xl sm:p-6">
               {title && (
                 <h2 className="text-lg sm:text-xl font-bold text-white">
                   {title}
@@ -79,7 +93,7 @@ export function Modal({
                   variant="ghost"
                   // size="sm"
                   onClick={onClose}
-                  className="min-h-6 min-w-6 md:min-h-8 md:min-w-8 p-0 hover:bg-gray-800 touch-manipulation">
+                  className="min-h-6 min-w-6 p-0 touch-manipulation hover:bg-white/[0.08] md:min-h-8 md:min-w-8">
                   <X className="min-h-6 min-w-6 md:min-h-8 md:min-w-8" />
                 </Button>
               )}
@@ -87,11 +101,12 @@ export function Modal({
           )}
 
           {/* Content */}
-          <div className="sm:p-4 p-3 md:p-6 overflow-auto max-h-[calc(99vh-120px)] sm:max-h-[calc(90vh-120px)]">
+          <div className="overflow-auto p-3 max-h-[calc(var(--app-vh,100dvh)-8rem)] sm:p-4 md:p-6">
             {children}
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

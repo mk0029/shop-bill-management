@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { workTaskService, type WorkTask } from "@/lib/work-task-service";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName } from "@/lib/display-text";
+import EmptyState from "@/components/ui/empty-state";
 
 function toLabel(value?: string) {
   return String(value || "-").replace(/-/g, " ");
@@ -87,13 +88,13 @@ export default function CustomerWorkTasksClient() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card className="border-gray-800 bg-gray-900">
+        <Card className="border-gray-800 bg-gray-900/58 backdrop-blur-xl">
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-white">{tasks.length}</div>
             <div className="text-sm text-gray-400">Total</div>
           </CardContent>
         </Card>
-        <Card className="border-gray-800 bg-gray-900">
+        <Card className="border-gray-800 bg-gray-900/58 backdrop-blur-xl">
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-sky-200">{activeTasks.length}</div>
             <div className="text-sm text-gray-400">Active</div>
@@ -112,7 +113,15 @@ export default function CustomerWorkTasksClient() {
           {loading ? (
             <div className="p-8 text-center text-gray-400">Loading service tasks...</div>
           ) : tasks.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">No service tasks found.</div>
+            <div className="p-4 sm:p-6">
+              <EmptyState
+                icon={ClipboardList}
+                compact
+                eyebrow="Service tracker"
+                title="No work updates yet"
+                description="When the shop starts or schedules service work for you, every status update, technician note, and due time will appear here."
+              />
+            </div>
           ) : (
             <div className="divide-y divide-gray-800">
               {tasks.map((task) => {

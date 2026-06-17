@@ -12,6 +12,7 @@ import { Modal } from "@/components/ui/modal";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName } from "@/lib/display-text";
 import { sanityClient } from "@/lib/sanity";
+import EmptyState from "@/components/ui/empty-state";
 
 type RepairRequest = {
   _id: string;
@@ -191,8 +192,18 @@ export default function AdminRepairRequestsClient() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    if (statusFilter === "all") return requests;
-    return requests.filter((request) => request.status === statusFilter);
+    const base =
+      statusFilter === "all"
+        ? requests
+        : requests.filter((request) => request.status === statusFilter);
+    return [...base].sort((a, b) => {
+      const aClosed = ["cancelled", "rejected"].includes(String(a.status || ""));
+      const bClosed = ["cancelled", "rejected"].includes(String(b.status || ""));
+      if (aClosed !== bClosed) return aClosed ? 1 : -1;
+      const aTime = new Date(a.scheduledAt || a.createdAt || "").getTime();
+      const bTime = new Date(b.scheduledAt || b.createdAt || "").getTime();
+      return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+    });
   }, [requests, statusFilter]);
 
   const counts = useMemo(() => ({
@@ -330,7 +341,15 @@ export default function AdminRepairRequestsClient() {
               {error}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">No repair requests found.</div>
+            <div className="p-4 sm:p-6">
+              <EmptyState
+                icon={ClipboardList}
+                compact
+                eyebrow="Admin repair queue"
+                title="No repair requests found"
+                description="New customer repair requests will appear here with priority, chat source, technician assignment, schedule controls, and work-list actions."
+              />
+            </div>
           ) : (
             <div className="space-y-3 p-4">
               {filtered.map((request) => {

@@ -49,7 +49,7 @@ export const Select: React.FC<SelectProps> = ({ value, onValueChange, children, 
 export const SelectTrigger: React.FC<SelectTriggerProps> = ({ className, children }) => {
   return (
     <div className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer",
+      "flex h-10 w-full cursor-pointer items-center justify-between rounded-md border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-slate-100 shadow-inner shadow-white/[0.03] backdrop-blur-xl placeholder:text-slate-400/80 focus:border-cyan-200/35 focus:outline-none focus:ring-2 focus:ring-cyan-300/20",
       className
     )}>
       {children}
@@ -70,7 +70,7 @@ export const SelectValue: React.FC<SelectValueProps> = ({ placeholder }) => {
 export const SelectContent: React.FC<SelectContentProps> = ({ children, className }) => {
   return (
     <div className={cn(
-      "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border border-gray-600 bg-gray-700 text-white shadow-md mt-1",
+      "absolute z-[260] mt-1 min-w-[8rem] overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/92 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl",
       className
     )}>
       {children}
@@ -85,8 +85,8 @@ export const SelectItem: React.FC<SelectItemProps> = ({ value, children }) => {
   return (
     <div
       className={cn(
-        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm text-white outline-none hover:bg-gray-600 focus:bg-gray-600",
-        isSelected && "bg-gray-600"
+        "relative flex w-full cursor-default select-none items-center rounded-lg py-1.5 pl-8 pr-2 text-sm text-slate-100 outline-none hover:bg-cyan-300/10 focus:bg-cyan-300/10",
+        isSelected && "bg-slate-700/85 text-white"
       )}
       onClick={() => onValueChange?.(value)}
     >

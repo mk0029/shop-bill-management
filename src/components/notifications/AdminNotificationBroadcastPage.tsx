@@ -193,7 +193,7 @@ export default function AdminNotificationBroadcastPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <main className="min-h-[calc(var(--app-vh,100dvh)-62px)] bg-transparent text-slate-100">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 border-b border-slate-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -229,7 +229,7 @@ export default function AdminNotificationBroadcastPage() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <form
             onSubmit={handleSubmit}
-            className="space-y-5 rounded-lg border border-slate-800 bg-slate-900/60 p-4 shadow-xl shadow-black/15 sm:p-5"
+            className="space-y-5 rounded-lg border border-white/10 bg-slate-900/45 p-4 shadow-xl shadow-black/15 backdrop-blur-xl sm:p-5"
           >
             <section className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
@@ -273,7 +273,7 @@ export default function AdminNotificationBroadcastPage() {
                   onValueChange={(value) => setCategory(value as Category)}
                   placeholder="Select type"
                   removeSearchForce
-                  classNameButton="!h-11 !min-h-11 border-slate-700 bg-slate-950 hover:bg-slate-900"
+                  classNameButton="!h-11 !min-h-11"
                 />
               </div>
               <div className="space-y-2">
@@ -286,7 +286,7 @@ export default function AdminNotificationBroadcastPage() {
                   onValueChange={(value) => setExpiresInHours(Number(value))}
                   placeholder="Select expiry"
                   removeSearchForce
-                  classNameButton="!h-11 !min-h-11 border-slate-700 bg-slate-950 hover:bg-slate-900"
+                  classNameButton="!h-11 !min-h-11"
                 />
               </div>
             </section>
@@ -301,7 +301,7 @@ export default function AdminNotificationBroadcastPage() {
                   onChange={(event) => setTitle(event.target.value)}
                   maxLength={90}
                   placeholder="Special Day Offer"
-                  className="border-slate-700 bg-slate-950 text-slate-100"
+                  className="text-slate-100"
                 />
               </div>
               <div className="space-y-2">
@@ -314,7 +314,7 @@ export default function AdminNotificationBroadcastPage() {
                   maxLength={500}
                   rows={6}
                   placeholder="Write the offer or announcement..."
-                  className="min-h-36 border-slate-700 bg-slate-950 text-slate-100"
+                  className="min-h-36 text-slate-100"
                 />
                 <div className="text-right text-xs text-slate-500">
                   {message.length}/500
@@ -332,7 +332,7 @@ export default function AdminNotificationBroadcastPage() {
                   value={imageUrl}
                   onChange={(event) => setImageUrl(event.target.value)}
                   placeholder="https://..."
-                  className="border-slate-700 bg-slate-950 text-slate-100"
+                  className="text-slate-100"
                 />
               </div>
               <div className="space-y-2">
@@ -343,7 +343,7 @@ export default function AdminNotificationBroadcastPage() {
                   value={ctaLabel}
                   onChange={(event) => setCtaLabel(event.target.value)}
                   placeholder="View Offer"
-                  className="border-slate-700 bg-slate-950 text-slate-100"
+                  className="text-slate-100"
                 />
               </div>
               <div className="space-y-2">
@@ -354,7 +354,7 @@ export default function AdminNotificationBroadcastPage() {
                   value={link}
                   onChange={(event) => setLink(event.target.value)}
                   placeholder="/customer/notifications"
-                  className="border-slate-700 bg-slate-950 text-slate-100"
+                  className="text-slate-100"
                 />
               </div>
               <div className="space-y-2">
@@ -365,7 +365,7 @@ export default function AdminNotificationBroadcastPage() {
                   type="datetime-local"
                   value={expiryDate}
                   onChange={(event) => setExpiryDate(event.target.value)}
-                  className="border-slate-700 bg-slate-950 text-slate-100"
+                  className="text-slate-100"
                 />
               </div>
             </section>
@@ -396,7 +396,7 @@ export default function AdminNotificationBroadcastPage() {
                   type="datetime-local"
                   value={scheduledAt}
                   onChange={(event) => setScheduledAt(event.target.value)}
-                  className="border-slate-700 bg-slate-950 text-slate-100"
+                  className="text-slate-100"
                 />
               ) : null}
             </section>
@@ -409,7 +409,7 @@ export default function AdminNotificationBroadcastPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setTemplatesOpen(true)}
-                className="flex h-11 w-full items-center justify-center gap-2 border-slate-700 bg-slate-950 text-slate-100 hover:bg-slate-900 sm:hidden"
+                className="flex h-11 w-full items-center justify-center gap-2 border-white/10 bg-white/[0.055] text-slate-100 hover:bg-white/[0.09] sm:hidden"
               >
                 <Sparkles className="h-4 w-4" />
                 Open Templates
@@ -420,7 +420,7 @@ export default function AdminNotificationBroadcastPage() {
                     key={template.label}
                     type="button"
                     onClick={() => applyTemplate(template)}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-left text-xs font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/10 bg-white/[0.055] px-3 py-2 text-left text-xs font-medium text-slate-300 transition hover:border-cyan-200/25 hover:bg-white/[0.09] hover:text-white"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     {template.label}
@@ -442,12 +442,12 @@ export default function AdminNotificationBroadcastPage() {
             </div>
           </form>
 
-          <aside className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 shadow-xl shadow-black/15">
+          <aside className="rounded-lg border border-white/10 bg-slate-900/45 p-4 shadow-xl shadow-black/15 backdrop-blur-xl">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-200">
               <BellRing className="h-4 w-4 text-blue-300" />
               Preview
             </div>
-            <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
+            <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.055] backdrop-blur-xl">
               <div className="flex items-start gap-3 p-4">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-500/15 text-orange-300">
                   <BellRing className="h-4 w-4" />

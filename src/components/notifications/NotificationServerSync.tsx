@@ -97,17 +97,12 @@ export default function NotificationServerSync() {
       const existingAnchor = readSyncAnchor(anchorKey);
       const syncStartedAt = new Date().toISOString();
 
-      if (!existingAnchor) {
-        writeSyncAnchor(anchorKey, syncStartedAt);
-        return;
-      }
-
       const resp = await listNotifications({
         userId: userId || undefined,
         customerId: customerId || undefined,
         role: role || undefined,
         phone: phone || undefined,
-        since: existingAnchor,
+        since: existingAnchor || undefined,
         limit: 75,
       });
       const serverItems = Array.isArray(resp?.items) ? resp.items : [];
@@ -123,7 +118,15 @@ export default function NotificationServerSync() {
             phone: phone || undefined,
             role: role || undefined,
           }),
-        );
+        )
+        .map((notification) => ({
+          ...notification,
+          meta: {
+            ...(notification.meta || {}),
+            silent: true,
+            source: existingAnchor ? "server-sync" : "server-bootstrap",
+          },
+        }));
 
       if (mapped.length) addMany(mapped);
       writeSyncAnchor(anchorKey, syncStartedAt);

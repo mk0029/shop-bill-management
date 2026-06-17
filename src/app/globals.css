@@ -173,7 +173,49 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 @media (min-width: 1280px) {
   .admin-main {
     margin-left: var(--admin-nav-w, 16rem);
+    width: calc(100% - var(--admin-nav-w, 16rem));
+    max-width: calc(100% - var(--admin-nav-w, 16rem));
   }
+
+  .admin-topbar {
+    left: var(--admin-nav-w, 16rem);
+    width: calc(100% - var(--admin-nav-w, 16rem));
+  }
+}
+
+.admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) {
+  border-color: rgb(255 255 255 / 0.1) !important;
+  background-color: rgb(255 255 255 / 0.055) !important;
+  color: rgb(241 245 249) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  backdrop-filter: blur(16px);
+}
+
+.admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea)::placeholder {
+  color: rgb(148 163 184 / 0.85) !important;
+}
+
+.admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea):focus {
+  border-color: rgb(103 232 249 / 0.35) !important;
+  outline: none !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.03),
+    0 0 0 2px rgb(103 232 249 / 0.18) !important;
+}
+
+.admin-main select option {
+  background-color: rgb(15 23 42);
+  color: rgb(241 245 249);
+}
+
+.admin-main :where(.bg-gray-950, .bg-slate-950, .bg-gray-900, .bg-slate-900) {
+  background-color: rgb(15 23 42 / 0.44) !important;
+  backdrop-filter: blur(16px);
+}
+
+.admin-main :where(.bg-gray-800, .bg-slate-800) {
+  background-color: rgb(255 255 255 / 0.055) !important;
+  backdrop-filter: blur(16px);
 }
 
 @keyframes notification-shrink {
@@ -182,5 +224,23 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
   to {
     transform: scaleX(0);
+  }
+}
+
+@keyframes welcome-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe\:animate-\[welcome-gradient_7s_ease-in-out_infinite\] {
+    animation: none;
   }
 }

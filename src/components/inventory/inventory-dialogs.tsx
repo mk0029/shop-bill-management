@@ -1,4 +1,7 @@
+"use client";
+
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -14,20 +17,28 @@ const Dialog = ({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
-}) => (
-  <div
-    className={`fixed inset-0 z-50 flex items-center justify-center ${
-      open ? "block" : "hidden"
-    }`}>
-    <div
-      className="fixed inset-0 bg-black/50"
-      onClick={() => onOpenChange(false)}
-    />
-    <div className="relative z-50 w-full max-w-lg rounded-lg bg-gray-900 border border-gray-800 p-6 shadow-lg">
-      {children}
-    </div>
-  </div>
-);
+}) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[220] flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-y-auto p-3 sm:p-4">
+      <div
+        className="fixed inset-0 bg-slate-950/68 backdrop-blur-md"
+        onClick={() => onOpenChange(false)}
+      />
+      <div className="relative z-10 my-auto w-full max-w-lg rounded-xl border border-white/10 bg-slate-950/86 p-4 text-slate-100 shadow-2xl shadow-black/45 backdrop-blur-2xl sm:p-6">
+        {children}
+      </div>
+    </div>,
+    document.body,
+  );
+};
 
 const DialogContent = ({ children }: { children: React.ReactNode }) => (
   <div className="space-y-4">{children}</div>

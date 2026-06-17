@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 import { Button } from "./button";
 import { Card } from "./card";
 import {
@@ -47,6 +48,11 @@ export function SuccessPopup({
   autoClose,
 }: SuccessPopupProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen && autoClose) {
@@ -93,7 +99,9 @@ export function SuccessPopup({
     onClose();
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -102,7 +110,7 @@ export function SuccessPopup({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[220] flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-y-auto bg-slate-950/68 p-4 backdrop-blur-md"
             onClick={onClose}
           >
             {/* Modal */}
@@ -232,7 +240,8 @@ export function SuccessPopup({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 

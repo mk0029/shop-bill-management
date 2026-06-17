@@ -47,8 +47,8 @@ export function initForegroundNotifications() {
       const title = payload.notification?.title || "Notification";
       const options: NotificationOptions = {
         body: payload.notification?.body || "",
-        icon: payload.data?.icon || "/je-192.ico",
-        badge: payload.data?.badge || "/je-192.ico",
+        icon: payload.data?.icon || "/je-p-192.png",
+        badge: payload.data?.badge || "/je-p-48.png",
         data: {
           link: payload.fcmOptions?.link || payload.data?.click_action || "/",
         },

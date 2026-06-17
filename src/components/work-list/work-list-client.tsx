@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ClipboardList } from "lucide-react";
 import {
   workTaskService,
   listenWorkTasks,
@@ -20,6 +20,7 @@ import { ResponsiveAccordion } from "@/components/ui/responsive-accordion";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { formatDayDateTime } from "@/lib/date-time";
 import { toast } from "sonner";
+import EmptyState from "@/components/ui/empty-state";
 
 const statusOptions = [
   "pending",
@@ -732,7 +733,7 @@ export default function WorkListClient({
 
   const wrapperClass = embedded
     ? "space-y-3"
-    : "min-h-screen bg-gray-900 sm:p-4 md:p-6 space-y-4";
+    : "min-h-[calc(var(--app-vh,100dvh)-62px)] sm:p-4 md:p-6 space-y-4";
 
   const runAction = async (
     action: "in-progress" | "done" | "hold" | "cancel" | "edit" | "delete",
@@ -1031,7 +1032,13 @@ export default function WorkListClient({
               </CardHeader>
               <CardContent>
                 {historyTasks.length === 0 ? (
-                  <p className="text-gray-400">No history items found.</p>
+                  <EmptyState
+                    icon={ClipboardList}
+                    compact
+                    eyebrow="Admin work history"
+                    title="No completed work history yet"
+                    description="Completed, cancelled, or held work items will appear here for review and tracking once your team updates service jobs."
+                  />
                 ) : (
                   <>
                   <div className="hidden grid-cols-1 md:grid md:grid-cols-2 gap-3">

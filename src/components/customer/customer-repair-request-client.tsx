@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName } from "@/lib/display-text";
 import { sanityClient } from "@/lib/sanity";
+import EmptyState from "@/components/ui/empty-state";
 
 type TechnicianOption = {
   _id: string;
@@ -313,7 +314,21 @@ export default function CustomerRepairRequestClient() {
               {error}
             </div>
           ) : requests.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">No repair requests yet.</div>
+            <div className="p-4 sm:p-6">
+              <EmptyState
+                icon={ClipboardList}
+                compact
+                eyebrow="Repair request desk"
+                title="No repair requests yet"
+                description="Create a request when you need service. You will be able to track shop response, assigned technician, schedule, and status here."
+                actions={[
+                  {
+                    label: "Create request",
+                    href: "/customer/request-repair",
+                  },
+                ]}
+              />
+            </div>
           ) : (
             <div className="space-y-3 p-4">
               {requests.map((request) => {

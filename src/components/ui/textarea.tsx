@@ -12,7 +12,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <div className="space-y-1">
         <textarea
           className={cn(
-            "flex min-h-12 md:min-h-20 w-full rounded-md border outline-none focus-visible:ring-0 border-input bg-background px-3 py-2 text-sm sm:text-base ring-offset-background placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 focus:border-white",
+            "flex min-h-12 md:min-h-20 w-full rounded-md border !border-white/10 !bg-white/[0.055] px-3 py-2 text-sm text-slate-100 shadow-inner shadow-white/[0.03] outline-none ring-offset-transparent backdrop-blur-xl placeholder:text-slate-400/80 focus:!border-cyan-200/35 focus-visible:ring-2 focus-visible:ring-cyan-300/20 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 sm:text-base",
             error && "border-destructive",
             className
           )}

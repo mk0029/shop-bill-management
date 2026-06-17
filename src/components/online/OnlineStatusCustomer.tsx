@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/constants/defaults";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
+import { createPortal } from "react-dom";
 import {
   defaultShopStatusMessages,
   type ShopStatusKey,
@@ -27,6 +28,11 @@ export default function OnlineStatusCustomerButton() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<OnlineStatusDoc | null>(null);
   const [messages, setMessages] = useState<ShopStatusMessages>(defaultShopStatusMessages);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let unsub: { unsubscribe: () => void } | undefined;
@@ -132,10 +138,10 @@ export default function OnlineStatusCustomerButton() {
         <span className="max-w-[9rem] truncate">{loading ? "Checking..." : statusConfig.label}</span>
       </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:px-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 text-slate-100 shadow-2xl">
+      {mounted && open && createPortal(
+        <div className="fixed inset-0 z-[220] flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-y-auto p-3 sm:px-4">
+          <div className="absolute inset-0 bg-slate-950/68 backdrop-blur-md" onClick={() => setOpen(false)} />
+          <div className="relative z-10 my-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-slate-950/86 text-slate-100 shadow-2xl shadow-black/45 backdrop-blur-2xl">
             <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-800/90 to-transparent" />
             <div className="relative p-5">
               <div className="flex items-start justify-between gap-3">
@@ -209,7 +215,8 @@ export default function OnlineStatusCustomerButton() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

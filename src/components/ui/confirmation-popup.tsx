@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 import { Button } from "./button";
 import { Card } from "./card";
 import {
@@ -47,6 +48,11 @@ export function ConfirmationPopup({
   autoClose,
 }: ConfirmationPopupProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen && autoClose) {
@@ -120,7 +126,9 @@ export function ConfirmationPopup({
 
   const colorClasses = getColorClasses();
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -129,7 +137,7 @@ export function ConfirmationPopup({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[220] flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-y-auto bg-slate-950/68 p-4 backdrop-blur-md"
             onClick={onClose}>
             {/* Modal */}
             <motion.div
@@ -254,6 +262,7 @@ export function ConfirmationPopup({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -2,6 +2,9 @@ import AdminNavigationShell from "@/components/ui/admin-navigation-shell";
 import NotificationSyncGate from "@/components/system/notification-sync-gate";
 import { getServerAuth } from "@/lib/server-auth";
 import { redirect } from "next/navigation";
+import AdminWelcomeGate from "@/components/admin/AdminWelcomeGate";
+import AppBackground from "@/components/ui/AppBackground";
+import AdminViewportHeight from "@/components/system/admin-viewport-height";
 
 export default async function AdminLayout({
   children,
@@ -18,11 +21,16 @@ export default async function AdminLayout({
     redirect("/customer/bills");
 
     return (
-      <div className="min-h-screen bg-gray-950">
-      <NotificationSyncGate />
-      <AdminNavigationShell />
-      <main className="admin-main pt-3 xl:pt-10 max-md:px-3 max-sm:px-1.5">
-        <div className="py-1 sm:p-2 xl:p-6">{children}</div>
+      <div className="relative isolate h-[var(--app-vh,100dvh)] overflow-hidden bg-gray-950">
+      <AppBackground variant="admin" />
+      <div className="relative z-10">
+        <AdminViewportHeight />
+        <NotificationSyncGate />
+        <AdminNavigationShell />
+        <AdminWelcomeGate />
+      </div>
+      <main className="admin-main hide-scroll relative z-10 h-[calc(var(--app-vh,100dvh)-62px)] overflow-y-auto overflow-x-hidden bg-transparent pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-1.5">
+        <div className="min-h-full pb-8 py-1 sm:p-2 sm:pb-10 xl:p-6 xl:pb-12">{children}</div>
       </main>
     </div>
   );

@@ -9,11 +9,13 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  MoreVertical,
   PackageCheck,
   Settings as SettingsIcon,
   User,
   Wrench,
   Calculator,
+  HelpCircle,
   X,
 } from "lucide-react";
 // removed Bell route link; notifications are accessed via header popover
@@ -30,6 +32,7 @@ import { Wifi } from "lucide-react";
 import CustomerNotifications from "./CustomerNotification";
 import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
 import { safeUserName } from "@/lib/display-text";
+import { createPortal } from "react-dom";
 
 interface NavigationItem {
   label: string;
@@ -74,10 +77,17 @@ const customerNavigation: NavigationItem[] = [
     href: "/customer/request-repair",
     icon: Wrench,
   },
+  {
+    label: "Guide",
+    href: "/customer/welcome",
+    icon: HelpCircle,
+  },
 ];
 
 export function CustomerNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname() || "";
   const router = useRouter();
   const { logout, user } = useAuthStore();
@@ -88,6 +98,10 @@ export function CustomerNavigation() {
   const isRepairRoute =
     pathname === "/customer/request-repair" ||
     pathname.startsWith("/customer/request-repair/");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Admin-only: Online Status quick slider
   const [onlineStep, setOnlineStep] = useState(0); // 0 offline, 1 online(not at shop), 2 online(at shop)
@@ -154,15 +168,27 @@ export function CustomerNavigation() {
         if (!active || !json?.success) return;
         const requests = Array.isArray(json.data) ? json.data : [];
         const activeRequests = requests.filter((request: { status?: string }) =>
-            ["pending", "accepted", "on_hold"].includes(String(request.status || "")),
-          );
-        const latestStamp = activeRequests.reduce((latest: string, request: { updatedAt?: string; createdAt?: string }) => {
-          const stamp = String(request.updatedAt || request.createdAt || "");
-          if (!stamp) return latest;
-          if (!latest) return stamp;
-          return new Date(stamp).getTime() > new Date(latest).getTime() ? stamp : latest;
-        }, "");
-        const userId = String((user as any)?._id || (user as any)?.id || "current");
+          ["pending", "accepted", "on_hold"].includes(
+            String(request.status || ""),
+          ),
+        );
+        const latestStamp = activeRequests.reduce(
+          (
+            latest: string,
+            request: { updatedAt?: string; createdAt?: string },
+          ) => {
+            const stamp = String(request.updatedAt || request.createdAt || "");
+            if (!stamp) return latest;
+            if (!latest) return stamp;
+            return new Date(stamp).getTime() > new Date(latest).getTime()
+              ? stamp
+              : latest;
+          },
+          "",
+        );
+        const userId = String(
+          (user as any)?._id || (user as any)?.id || "current",
+        );
         const seenKey = `repair_requests_seen_customer_${userId}`;
         if (isRepairRoute) {
           if (latestStamp) window.localStorage.setItem(seenKey, latestStamp);
@@ -253,9 +279,86 @@ export function CustomerNavigation() {
   };
 
   const handleLogout = () => {
+    setAccountMenuOpen(false);
     logout();
     router.replace("/");
   };
+
+  const accountMenuItems = [
+    {
+      label: "Update Profile",
+      href: "/customer/settings/personal-information/profile",
+      icon: User,
+    },
+    {
+      label: "Update Password",
+      href: "/customer/settings/personal-information/password",
+      icon: SettingsIcon,
+    },
+    {
+      label: "Notifications",
+      href: "/customer/settings/notifications/in-app",
+      icon: SettingsIcon,
+    },
+    {
+      label: "Open Guide",
+      href: "/customer/welcome",
+      icon: HelpCircle,
+    },
+  ];
+
+  const renderAccountMenu = () => (
+    <div className="relative ml-auto">
+      <button
+        type="button"
+        onClick={() => setAccountMenuOpen((open) => !open)}
+        className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/[0.055] text-slate-200 shadow-inner shadow-white/[0.03] backdrop-blur-xl transition hover:border-cyan-200/25 hover:bg-white/[0.09]"
+        aria-label="Account options"
+        title="Account options"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {accountMenuOpen && (
+        <div className="absolute bottom-full right-0 z-[280] mb-2 w-56 overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/94 p-1.5 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.07)_1px,transparent_1px)] bg-[size:22px_22px] opacity-35" />
+          <div className="relative space-y-1">
+            <div className="px-3 py-2">
+              <p className="truncate text-sm font-semibold text-white">
+                {displayName}
+              </p>
+              <p className="text-xs text-slate-400">Customer</p>
+            </div>
+            {accountMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-cyan-300/10 hover:text-white"
+                >
+                  <Icon className="h-4 w-4 text-cyan-100/70" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+            <div className="my-1 h-px bg-white/10" />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-red-200 transition hover:bg-red-500/12 hover:text-red-100"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   const renderNavigationItem = (item: NavigationItem, isMobile = false) => {
     const Icon = item.icon;
@@ -333,159 +436,158 @@ export function CustomerNavigation() {
   return (
     <>
       {/* Mobile Navigation Overlay */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-40 xl:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-
-            {/* Mobile Menu */}
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-0 right-0 h-full w-[85vw] max-w-sm bg-gray-900 border-l border-gray-800 z-50 xl:hidden"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-800">
-                <h2 className="text-xl font-bold text-white">Jambh Electric</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
+      {mounted &&
+        createPortal(
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[200] bg-slate-950/62 backdrop-blur-md xl:hidden"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="hover:bg-gray-800"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
+                />
 
-              {/* Navigation Items */}
-              <div className="sm:p-4 p-3 space-y-2">
-                {isAdmin && (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 mr-2">
-                        <Wifi className="w-4 h-4 text-green-400" />
-                        <span className="text-sm text-gray-300">
-                          Availability
-                        </span>
-                      </div>
-                      <div className="flex items-center pb-3 relative">
-                        <div
-                          role="slider"
-                          aria-label="Availability"
-                          aria-valuemin={0}
-                          aria-valuemax={2}
-                          aria-valuenow={onlineStep}
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "ArrowRight") {
-                              e.preventDefault();
-                              const nextRight = Math.min(2, onlineStep + 1) as
-                                | 0
-                                | 1
-                                | 2;
-                              setIndex(nextRight);
-                            } else if (e.key === "ArrowLeft") {
-                              e.preventDefault();
-                              const nextLeft = Math.max(0, onlineStep - 1) as
-                                | 0
-                                | 1
-                                | 2;
-                              setIndex(nextLeft);
-                            }
-                          }}
-                          onMouseDown={startMouseDrag}
-                          onTouchStart={startTouchDrag}
-                          ref={sliderRef}
-                          className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
-                        >
-                          <div className="absolute inset-0 grid grid-cols-3">
-                            <button
-                              type="button"
-                              className="col-span-1"
-                              onClick={() => setIndex(0)}
-                              aria-label="Offline"
-                            />
-                            <button
-                              type="button"
-                              className="col-span-1"
-                              onClick={() => setIndex(1)}
-                              aria-label="Available"
-                            />
-                            <button
-                              type="button"
-                              className="col-span-1"
-                              onClick={() => setIndex(2)}
-                              aria-label="At shop"
-                            />
+                {/* Mobile Menu */}
+                <motion.div
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                  className="fixed right-0 top-0 z-[210] h-[var(--app-vh,100dvh)] w-[85vw] max-w-sm border-l border-gray-800 bg-gray-900/94 shadow-2xl shadow-black/40 backdrop-blur-2xl xl:hidden"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-800">
+                    <h2 className="text-xl font-semibold tracking-normal text-white">
+                      Jambh Electrics
+                    </h2>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="hover:bg-gray-800"
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
+
+                  {/* Navigation Items */}
+                  <div className="sm:p-4 p-3 space-y-2">
+                    {isAdmin && (
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 mr-2">
+                            <Wifi className="w-4 h-4 text-green-400" />
+                            <span className="text-sm text-gray-300">
+                              Availability
+                            </span>
                           </div>
-                          <div
-                            className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
-                            style={{ left: knobLeft }}
-                          />
-                          <div className="flex items-center justify-between text-[8px] text-gray-400 px-1 absolute -bottom-4 w-full">
-                            <span>Offline</span>
-                            <span>Available</span>
-                            <span>At shop</span>
+                          <div className="flex items-center pb-3 relative">
+                            <div
+                              role="slider"
+                              aria-label="Availability"
+                              aria-valuemin={0}
+                              aria-valuemax={2}
+                              aria-valuenow={onlineStep}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "ArrowRight") {
+                                  e.preventDefault();
+                                  const nextRight = Math.min(
+                                    2,
+                                    onlineStep + 1,
+                                  ) as 0 | 1 | 2;
+                                  setIndex(nextRight);
+                                } else if (e.key === "ArrowLeft") {
+                                  e.preventDefault();
+                                  const nextLeft = Math.max(
+                                    0,
+                                    onlineStep - 1,
+                                  ) as 0 | 1 | 2;
+                                  setIndex(nextLeft);
+                                }
+                              }}
+                              onMouseDown={startMouseDrag}
+                              onTouchStart={startTouchDrag}
+                              ref={sliderRef}
+                              className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
+                            >
+                              <div className="absolute inset-0 grid grid-cols-3">
+                                <button
+                                  type="button"
+                                  className="col-span-1"
+                                  onClick={() => setIndex(0)}
+                                  aria-label="Offline"
+                                />
+                                <button
+                                  type="button"
+                                  className="col-span-1"
+                                  onClick={() => setIndex(1)}
+                                  aria-label="Available"
+                                />
+                                <button
+                                  type="button"
+                                  className="col-span-1"
+                                  onClick={() => setIndex(2)}
+                                  aria-label="At shop"
+                                />
+                              </div>
+                              <div
+                                className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
+                                style={{ left: knobLeft }}
+                              />
+                              <div className="flex items-center justify-between text-[8px] text-gray-400 px-1 absolute -bottom-4 w-full">
+                                <span>Offline</span>
+                                <span>Available</span>
+                                <span>At shop</span>
+                              </div>
+                            </div>
+                            {updating && (
+                              <span className="ml-2 text-[10px] text-gray-400">
+                                Updating...
+                              </span>
+                            )}
                           </div>
                         </div>
-                        {updating && (
-                          <span className="ml-2 text-[10px] text-gray-400">
-                            Updating...
-                          </span>
-                        )}
                       </div>
+                    )}
+                    {customerNavigation.map((item) =>
+                      renderNavigationItem(item, true),
+                    )}
+                  </div>
+
+                  {/* User Section */}
+                  <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                        <SanityImage
+                          src={user?.profileImage}
+                          alt={displayName || "Profile"}
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover"
+                          fallback={<User className="w-5 h-5 text-white" />}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-white font-medium">{displayName}</p>
+                        <p className="text-gray-400 text-sm">Customer</p>
+                      </div>
+                      {renderAccountMenu()}
                     </div>
                   </div>
-                )}
-                {customerNavigation.map((item) =>
-                  renderNavigationItem(item, true),
-                )}
-              </div>
-
-              {/* User Section */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-                    <SanityImage
-                      src={user?.profileImage}
-                      alt={displayName || "Profile"}
-                      width={40}
-                      height={40}
-                      className="w-full h-full object-cover"
-                      fallback={<User className="w-5 h-5 text-white" />}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">{displayName}</p>
-                    <p className="text-gray-400 text-sm">Customer</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={handleLogout}
-                  className="w-full"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </Button>
-              </div>
-            </motion.div>
-          </>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          document.body,
         )}
-      </AnimatePresence>
       {/* Mobile Menu Button */}
 
       {/* Desktop Navigation */}
-      <nav className="hidden lg:block w-64 bg-gray-900 border-r border-gray-800 h-screen fixed left-0 top-0">
+      <nav className="hidden lg:block w-64  backdrop-blur-[2px] border-r-white/10 border-solid border-r-[0.5px] h-screen fixed left-0 top-0">
         {/* Header */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -500,8 +602,11 @@ export function CustomerNavigation() {
                 quality={100}
               />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">Jambh Electrics</h1>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold leading-tight tracking-normal text-white">
+                Jambh
+                <span className="block text-blue-200">Electrics</span>
+              </h1>
             </div>
           </div>
         </div>
@@ -588,8 +693,8 @@ export function CustomerNavigation() {
         </div>
 
         {/* User Section - Desktop */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-4">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
               <SanityImage
                 src={user?.profileImage}
@@ -604,130 +709,131 @@ export function CustomerNavigation() {
               <p className="text-white font-medium">{displayName}</p>
               <p className="text-gray-400 text-sm">Customer</p>
             </div>
+            {renderAccountMenu()}
           </div>
-          <Button variant="outline" onClick={handleLogout} className="w-full">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
         </div>
       </nav>
 
       {/* Main Content Wrapper */}
-      {!isChatRoute && <div className="lg:ml-64 min-h-fit bg-gray-950">
-        {/* Top Bar */}
-        <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 xl:px-6 xl:py-6">
-          <div className="flex items-center justify-between">
-            <div className="max-md:hidden">
-              <h1 className="text-xl font-bold !leading-[120%] text-white">
-                {customerNavigation.find((item) => isActive(item.href))
-                  ?.label || "Home"}
-              </h1>
-            </div>
-            <div className="flex items-center gap-4 justify-end w-full">
-              <Link
-                href="/customer/chat"
-                className="relative inline-flex h-10 items-center justify-center gap-2 rounded-md border border-orange-400/30 bg-orange-500 px-3 text-sm font-semibold text-gray-950 shadow-sm transition hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-300 max-sm:w-10 max-sm:px-0"
-                title="Open chat"
-                aria-label="Open chat"
-              >
-                <MessageCircle className="h-4 w-4" />
-                <span className="max-sm:hidden">Chat</span>
-                {hasChatUnread && (
-                  <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-gray-900 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.95)] animate-pulse" />
-                )}
-              </Link>
-              {isAdmin ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 mr-2">
-                    <Wifi className="w-4 h-4 text-green-400" />
-                    <span className="text-sm text-gray-300">Availability</span>
-                  </div>
-                  <div className="flex items-center pb-3 relative">
-                    <div
-                      role="slider"
-                      aria-label="Availability"
-                      aria-valuemin={0}
-                      aria-valuemax={2}
-                      aria-valuenow={onlineStep}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "ArrowRight") {
-                          e.preventDefault();
-                          const nextRight = Math.min(2, onlineStep + 1) as
-                            | 0
-                            | 1
-                            | 2;
-                          setIndex(nextRight);
-                        } else if (e.key === "ArrowLeft") {
-                          e.preventDefault();
-                          const nextLeft = Math.max(0, onlineStep - 1) as
-                            | 0
-                            | 1
-                            | 2;
-                          setIndex(nextLeft);
-                        }
-                      }}
-                      onMouseDown={startMouseDrag}
-                      onTouchStart={startTouchDrag}
-                      ref={sliderRef}
-                      className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
-                    >
-                      <div className="absolute inset-0 grid grid-cols-3">
-                        <button
-                          type="button"
-                          className="col-span-1"
-                          onClick={() => setIndex(0)}
-                          aria-label="Offline"
-                        />
-                        <button
-                          type="button"
-                          className="col-span-1"
-                          onClick={() => setIndex(1)}
-                          aria-label="Available"
-                        />
-                        <button
-                          type="button"
-                          className="col-span-1"
-                          onClick={() => setIndex(2)}
-                          aria-label="At shop"
-                        />
-                      </div>
-                      <div
-                        className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
-                        style={{ left: knobLeft }}
-                      />
-                      <div className="flex items-center justify-between text-[8px] text-gray-400 px-1 absolute -bottom-4 w-full">
-                        <span>Offline</span>
-                        <span>Available</span>
-                        <span>At shop</span>
-                      </div>
-                    </div>
-                    {updating && (
-                      <span className="ml-2 text-[10px] text-gray-400">
-                        Updating...
+      {!isChatRoute && (
+        <div className="lg:ml-64 min-h-fit">
+          {/* Top Bar */}
+          <div className="border-b border-gray-800/80 bg-gray-900/78 px-4 py-2 backdrop-blur-xl xl:px-6 xl:py-6">
+            <div className="flex items-center justify-between">
+              <div className="max-md:hidden">
+                <h1 className="text-xl font-bold !leading-[120%] text-white">
+                  {customerNavigation.find((item) => isActive(item.href))
+                    ?.label || "Home"}
+                </h1>
+              </div>
+              <div className="flex items-center gap-4 justify-end w-full">
+                <Link
+                  href="/customer/chat"
+                  className="relative inline-flex h-10 items-center justify-center gap-2 rounded-md border border-orange-400/30 bg-orange-500 px-3 text-sm font-semibold text-gray-950 shadow-sm transition hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-300 max-sm:w-10 max-sm:px-0"
+                  title="Open chat"
+                  aria-label="Open chat"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="max-sm:hidden">Chat</span>
+                  {hasChatUnread && (
+                    <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-gray-900 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.95)] animate-pulse" />
+                  )}
+                </Link>
+                {isAdmin ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 mr-2">
+                      <Wifi className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-gray-300">
+                        Availability
                       </span>
-                    )}
+                    </div>
+                    <div className="flex items-center pb-3 relative">
+                      <div
+                        role="slider"
+                        aria-label="Availability"
+                        aria-valuemin={0}
+                        aria-valuemax={2}
+                        aria-valuenow={onlineStep}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowRight") {
+                            e.preventDefault();
+                            const nextRight = Math.min(2, onlineStep + 1) as
+                              | 0
+                              | 1
+                              | 2;
+                            setIndex(nextRight);
+                          } else if (e.key === "ArrowLeft") {
+                            e.preventDefault();
+                            const nextLeft = Math.max(0, onlineStep - 1) as
+                              | 0
+                              | 1
+                              | 2;
+                            setIndex(nextLeft);
+                          }
+                        }}
+                        onMouseDown={startMouseDrag}
+                        onTouchStart={startTouchDrag}
+                        ref={sliderRef}
+                        className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
+                      >
+                        <div className="absolute inset-0 grid grid-cols-3">
+                          <button
+                            type="button"
+                            className="col-span-1"
+                            onClick={() => setIndex(0)}
+                            aria-label="Offline"
+                          />
+                          <button
+                            type="button"
+                            className="col-span-1"
+                            onClick={() => setIndex(1)}
+                            aria-label="Available"
+                          />
+                          <button
+                            type="button"
+                            className="col-span-1"
+                            onClick={() => setIndex(2)}
+                            aria-label="At shop"
+                          />
+                        </div>
+                        <div
+                          className={`absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full shadow-sm transition-all duration-200 ease-out ${onlineStep === 2 ? "bg-green-300" : onlineStep === 1 ? "bg-amber-300" : "bg-slate-300"}`}
+                          style={{ left: knobLeft }}
+                        />
+                        <div className="flex items-center justify-between text-[8px] text-gray-400 px-1 absolute -bottom-4 w-full">
+                          <span>Offline</span>
+                          <span>Available</span>
+                          <span>At shop</span>
+                        </div>
+                      </div>
+                      {updating && (
+                        <span className="ml-2 text-[10px] text-gray-400">
+                          Updating...
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <OnlineStatusCustomerButton />
-              )}
-              <CustomerNotifications />
+                ) : (
+                  <OnlineStatusCustomerButton />
+                )}
+                <CustomerNotifications />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="xl:hidden relative"
+              >
+                <Menu className="w-5 h-5" />
+                {hasChatUnread && (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
+                )}
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="xl:hidden relative"
-            >
-              <Menu className="w-5 h-5" />
-              {hasChatUnread && (
-                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
-              )}
-            </Button>
           </div>
         </div>
-      </div>}
+      )}
     </>
   );
 }

@@ -19,9 +19,10 @@ export default function CustomerNotificationsClient({
 }: {
   onRequestClose?: () => void;
 }) {
-  const { items, unread, markAllRead, clear, markAsRead, clearRead, addMany } =
+  const { items, markAllRead, markAsRead, removeWhere, addMany } =
     useNotificationStore();
   const [clearingIds, setClearingIds] = useState<string[]>([]);
+  const [isClearing, setIsClearing] = useState(false);
   const user = useAuthStore((s) => s.user) as {
     id?: string;
     _id?: string;
@@ -31,6 +32,21 @@ export default function CustomerNotificationsClient({
   } | null;
   const userId = user?._id || user?.id;
   const role = user?.role;
+
+  const visibleItems = useMemo(() => {
+    return items.filter((notification) =>
+      isCustomerNotificationVisible(notification, {
+        userId: userId || undefined,
+        customerId: user?.customerId,
+        phone: user?.phone,
+        role: role || undefined,
+      }),
+    );
+  }, [items, role, userId, user?.customerId, user?.phone]);
+
+  const visibleUnread = useMemo(() => {
+    return visibleItems.filter((notification) => !notification.read).length;
+  }, [visibleItems]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,61 +87,71 @@ export default function CustomerNotificationsClient({
   const playClearAnimation = async (ids: string[]) => {
     if (!ids.length) return;
     setClearingIds(ids);
-    const duration = Math.min(1200, 360 + ids.length * 70);
+    const duration = Math.min(1100, 340 + ids.length * 55);
     await new Promise((resolve) => window.setTimeout(resolve, duration));
   };
 
   const finishClearAnimation = () => {
     setClearingIds([]);
-    window.setTimeout(() => onRequestClose?.(), 80);
+    setIsClearing(false);
   };
 
-  const handleClearRead = async () => {
-    const ids = (items || []).filter((n) => !!n.read).map((n) => n.id);
-    if (!ids.length) return;
-    await playClearAnimation(ids);
+  const clearIds = async (ids: string[], successMessage?: string) => {
+    const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+    if (!uniqueIds.length || isClearing) return;
+    setIsClearing(true);
+    await playClearAnimation(uniqueIds);
     try {
       await clearNotifications({
         userId: userId || undefined,
         phone: user?.phone || undefined,
-        notificationIds: ids,
+        notificationIds: uniqueIds,
       });
-    } catch {}
-    clearRead();
-    finishClearAnimation();
-  };
-
-  const handleClear = async () => {
-    const ids = (items || []).map((n) => n.id);
-    if (!ids.length) return;
-    await playClearAnimation(ids);
-    try {
-      await clearNotifications({
-        userId: userId || undefined,
-        phone: user?.phone || undefined,
-      });
-      clear();
-      toast.success("Notifications cleared");
-      finishClearAnimation();
+      const idSet = new Set(uniqueIds);
+      removeWhere((notification) => idSet.has(notification.id));
+      if (successMessage) toast.success(successMessage);
+      const remaining = visibleItems.filter((notification) => !idSet.has(notification.id));
+      if (remaining.length === 0) {
+        window.setTimeout(() => onRequestClose?.(), 140);
+      }
     } catch (e) {
-      setClearingIds([]);
       toast.error(
         e instanceof Error ? e.message : "Failed to clear notifications",
       );
+    } finally {
+      finishClearAnimation();
     }
+  };
+
+  const handleRemove = async (id: string) => {
+    await clearIds([id]);
+  };
+
+  const handleClearRead = async () => {
+    const ids = visibleItems.filter((n) => !!n.read).map((n) => n.id);
+    if (!ids.length) return;
+    await clearIds(ids);
+  };
+
+  const handleClear = async () => {
+    const ids = visibleItems.map((n) => n.id);
+    if (!ids.length) return;
+    await clearIds(ids, "Notifications cleared");
   };
 
   return (
     <>
       <SWNotificationBridge />
       <NotificationCenterPanel
-        items={items}
-        unread={unread}
+        items={visibleItems}
+        unread={visibleUnread}
         onMarkAllRead={markAllRead}
         onClear={handleClear}
         onClearRead={handleClearRead}
         onMarkAsRead={markAsRead}
+        onRemove={handleRemove}
         clearingIds={clearingIdSet}
+        isBusy={isClearing}
       />
     </>
   );

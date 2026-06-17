@@ -18,6 +18,26 @@ type PersistedState = {
 
 type AuthUser = Partial<User>;
 
+function clearWelcomeSeenKeys() {
+  if (typeof window === "undefined") return;
+
+  const removeMatchingKeys = (storage: Storage, prefixes: string[]) => {
+    try {
+      const keys: string[] = [];
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (key && prefixes.some((prefix) => key.startsWith(prefix))) {
+          keys.push(key);
+        }
+      }
+      keys.forEach((key) => storage.removeItem(key));
+    } catch {}
+  };
+
+  removeMatchingKeys(window.localStorage, ["customer_welcome_guide_seen"]);
+  removeMatchingKeys(window.sessionStorage, ["admin_welcome_seen"]);
+}
+
 interface AuthState {
   user: AuthUser | null;
   role: "admin" | "super_admin" | "technician" | "customer" | null;
@@ -96,6 +116,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        clearWelcomeSeenKeys();
         // Clear Zustand state
         set({
           user: null,

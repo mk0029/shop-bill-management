@@ -26,7 +26,14 @@ const RUNTIME_CACHE = `runtime-${SW_VERSION}`;
 // const OFFLINE_URL = '/offline'; // reserved for future use
 
 // Core assets to pre-cache
-const PRECACHE_URLS = ["/", "/favicon.ico", "/manifest.webmanifest"];
+const PRECACHE_URLS = [
+  "/",
+  "/favicon.ico",
+  "/manifest.webmanifest",
+  "/je-p-48.png",
+  "/je-p-192.png",
+  "/je-p-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -75,6 +82,7 @@ try {
 // Keyed by `${tag}|${title}|${body}` and expires after DEDUPE_WINDOW_MS
 const DEDUPE_WINDOW_MS = 4000;
 const recentlyShown = new Map(); // key -> timestamp
+const showingNow = new Set(); // key -> in-flight display lock
 
 function makeDedupeKey({ tag, title, body }) {
   return `${tag || ""}|${title || ""}|${body || ""}`;
@@ -727,24 +735,32 @@ try {
       },
     };
     // Dedupe: if an identical notification was shown moments ago, skip
+    let dedupeKey = "";
     try {
-      const dedupeKey = makeDedupeKey({
+      dedupeKey = makeDedupeKey({
         tag: options.tag,
         title,
         body: options.body || "",
       });
-      if (wasRecentlyShown(dedupeKey)) return;
+      if (showingNow.has(dedupeKey) || wasRecentlyShown(dedupeKey)) return;
+      showingNow.add(dedupeKey);
       markShown(dedupeKey);
     } catch {}
-    // Dedupe: close existing with same tag and replace with latest
     try {
-      const existing = await self.registration.getNotifications({
-        tag: options.tag,
-      });
-      if (existing && existing.length) existing.forEach((n) => n.close());
-    } catch {}
-    await self.registration.showNotification(title, options);
-    await reportNotificationStatus(options.data, "delivered");
+      // Dedupe: close existing with same tag and replace with latest
+      try {
+        const existing = await self.registration.getNotifications({
+          tag: options.tag,
+        });
+        if (existing && existing.length) existing.forEach((n) => n.close());
+      } catch {}
+      await self.registration.showNotification(title, options);
+      await reportNotificationStatus(options.data, "delivered");
+    } finally {
+      if (dedupeKey) {
+        setTimeout(() => showingNow.delete(dedupeKey), DEDUPE_WINDOW_MS);
+      }
+    }
 
     // Do not replay system notifications into the app. In-app notifications
     // are produced by realtime/unread sync when the app is foregrounded.

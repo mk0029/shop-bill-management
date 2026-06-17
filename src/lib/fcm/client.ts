@@ -141,7 +141,17 @@ export async function registerDeviceSession(userId: string): Promise<RegisterRes
       .then((response) => response.json())
       .catch(() => null);
     if (status?.success && status?.known !== false && status?.active === false) {
-      return { success: false, error: "device-inactive" };
+      console.warn("[FCM] Device has an inactive notification token; login will continue.", {
+        userId,
+        deviceId: deviceInfo.deviceId,
+        reason: status?.reason,
+      });
+      return {
+        success: true,
+        skipped: true,
+        reason: "notification-device-inactive",
+        deviceId: deviceInfo.deviceId,
+      };
     }
     return { success: true, deviceId: deviceInfo.deviceId };
   } catch (error) {

@@ -13,6 +13,9 @@ type FcmMessageInput = {
 
 type AccessTokenShape = string | { token?: string } | null;
 
+const NOTIFICATION_ICON = "/je-p-192.png";
+const NOTIFICATION_BADGE = "/je-p-48.png";
+
 function getProjectId() {
   if (process.env.PROJECT_ID) return process.env.PROJECT_ID;
   if (process.env.FIREBASE_PROJECT_ID) return process.env.FIREBASE_PROJECT_ID;
@@ -84,6 +87,8 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
   }
   sanitized.title ||= title;
   sanitized.body ||= body;
+  sanitized.icon ||= NOTIFICATION_ICON;
+  sanitized.badge ||= NOTIFICATION_BADGE;
   sanitized.click_action ||= buildWebPushLink(sanitized);
   const topic = buildWebPushTopic(sanitized);
 
@@ -96,6 +101,10 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
           TTL: "604800",
           Urgency: "high",
           Topic: topic,
+        },
+        notification: {
+          icon: sanitized.icon,
+          badge: sanitized.badge,
         },
         fcm_options: {
           link: sanitized.click_action,

@@ -6,6 +6,7 @@ import { useNotificationStore } from "@/store/notification-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSettingsStore } from "@/store/settings-store";
 import {
   initSoundOnUserGesture,
@@ -23,6 +24,11 @@ export default function NotificationsPopover() {
   const playSoundOnNotification = useSettingsStore(
     (s) => s.playSoundOnNotification,
   );
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -101,7 +107,7 @@ export default function NotificationsPopover() {
       </Button>
 
       {/* If popover is disabled, do not render it */}
-      {showNotificationPopover && (
+      {showNotificationPopover && mounted && createPortal(
         <AnimatePresence>
           {open && (
             <>
@@ -112,7 +118,7 @@ export default function NotificationsPopover() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="fixed inset-0 z-50 bg-black/80 blur-md h-screen w-full"
+                className="fixed inset-0 z-[180] h-[var(--app-vh,100dvh)] w-full bg-slate-950/62 backdrop-blur-md"
                 onClick={() => setOpen(false)}
                 aria-hidden="true"
               />
@@ -124,7 +130,7 @@ export default function NotificationsPopover() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -12, scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                className="fixed inset-x-2 top-2 z-[60] max-h-[calc(100dvh-1rem)] overflow-y-auto backdrop-blur-xl sm:inset-x-0 sm:top-0 sm:w-full sm:backdrop-blur-2xl xl:pl-64"
+                className="fixed inset-x-2 top-2 z-[190] max-h-[calc(var(--app-vh,100dvh)-1rem)] overflow-y-auto backdrop-blur-xl sm:inset-x-0 sm:top-0 sm:w-full sm:backdrop-blur-2xl xl:pl-64"
                 role="dialog"
                 aria-label="Notifications popover"
               >
@@ -132,7 +138,7 @@ export default function NotificationsPopover() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="pointer-events-auto h-9 w-9 rounded-full border border-slate-700/80 bg-slate-950/90 text-slate-300 shadow-lg shadow-black/20 hover:bg-slate-800 hover:text-white sm:h-10 sm:w-10"
+                    className="pointer-events-auto h-9 w-9 rounded-full border border-white/10 bg-white/[0.07] text-slate-200 shadow-lg shadow-black/20 backdrop-blur-2xl hover:bg-orange-300/15 hover:text-white sm:h-10 sm:w-10"
                     aria-label="Close notifications"
                     onClick={() => setOpen(false)}
                   >
@@ -143,7 +149,8 @@ export default function NotificationsPopover() {
               </motion.div>
             </>
           )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
       )}
     </div>
   );

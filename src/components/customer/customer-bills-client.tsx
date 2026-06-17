@@ -16,6 +16,7 @@ import {
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { sanitizeUserText } from "@/constants/defaults";
 import { useBills } from "@/hooks/use-sanity-data";
+import EmptyState from "@/components/ui/empty-state";
 
 export default function CustomerBillsClient() {
   const router = useRouter();
@@ -132,7 +133,7 @@ export default function CustomerBillsClient() {
         onStatusChange={setSelectedStatuses}
       />
 
-      <Card className="bg-gray-900 border-gray-800">
+      <Card className="border-gray-800 bg-gray-900/58 backdrop-blur-xl">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Receipt className="w-5 h-5" />
@@ -145,10 +146,22 @@ export default function CustomerBillsClient() {
               Loading bills...
             </div>
           ) : filteredBills.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">
-              {searchTerm || selectedStatuses.length > 0
-                ? "No bills match your filters"
-                : "No bills found"}
+            <div className="p-4 sm:p-6">
+              <EmptyState
+                icon={Receipt}
+                compact
+                eyebrow={searchTerm || selectedStatuses.length > 0 ? "No matching bill" : "Billing desk"}
+                title={
+                  searchTerm || selectedStatuses.length > 0
+                    ? "No bills match these filters"
+                    : "No bills yet"
+                }
+                description={
+                  searchTerm || selectedStatuses.length > 0
+                    ? "Try changing the search text or status filters. Your matching bills will appear here instantly."
+                    : "Once the shop creates a bill for your account, payment status, pending amount, and bill details will show here."
+                }
+              />
             </div>
           ) : (
             <div className="divide-y divide-gray-800 space-y-1 sm:space-y-2 px-1">

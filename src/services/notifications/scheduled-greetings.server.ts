@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { sanityClient } from "@/lib/sanity";
 import { getActiveFcmTokensForUsers } from "@/lib/fcm/tokens.server";
 import { sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { sanitizeUserText } from "@/constants/defaults";
 
 type ScheduledNotificationType = "daily_good_morning" | "hindu_festival_greeting";
 
@@ -22,6 +23,7 @@ type GreetingPrefs = {
 
 type GreetingUser = {
   _id: string;
+  name?: string;
   role?: string;
   notificationTimezone?: string;
   notificationLanguage?: string;
@@ -227,6 +229,10 @@ function titleForFestival(name: string, emoji?: string) {
   return `Happy ${name}${emoji ? ` ${emoji}` : ""}`;
 }
 
+function userDisplayName(name?: string) {
+  return sanitizeUserText(String(name || "")).trim() || "Customer";
+}
+
 async function fetchFestivalCalendarFromApi(year: number) {
   const endpoint = process.env.HINDU_FESTIVAL_API_URL || process.env.INDIA_FESTIVAL_API_URL || "";
   if (!endpoint) return [];
@@ -418,11 +424,13 @@ async function writeLog(input: {
   });
 }
 
-function dailyMessage() {
+function dailyMessage(user: GreetingUser) {
+  const name = userDisplayName(user.name);
+
   return {
     type: "daily_good_morning" as const,
     title: "Good Morning 🌞",
-    body: "Have a great day!",
+    body: `Good morning ${name}, have a great day!`,
     festival: undefined,
   };
 }
@@ -549,7 +557,7 @@ async function sendForUser(user: GreetingUser, now: Date, force = false) {
   }
 
   if (prefs.dailyGreetingEnabled !== false) {
-    addStats(stats, await dispatchGreeting({ user, timezone, localDate: local.date, localYear: local.year, message: dailyMessage() }));
+    addStats(stats, await dispatchGreeting({ user, timezone, localDate: local.date, localYear: local.year, message: dailyMessage(user) }));
   } else {
     await writeLog({ user, date: local.date, year: local.year, timezone, type: "daily_good_morning", status: "skipped", reason: "daily_greeting_disabled" });
     stats.skipped += 1;
@@ -572,6 +580,7 @@ export async function runScheduledGreetings(input?: { now?: Date; force?: boolea
   const users = await sanityClient.fetch<GreetingUser[]>(
     `*[_type=="user" && isActive != false && role in ["customer","admin","super_admin","technician"]]{
       _id,
+      name,
       role,
       notificationTimezone,
       notificationLanguage,
