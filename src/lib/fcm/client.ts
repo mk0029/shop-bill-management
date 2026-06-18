@@ -18,6 +18,38 @@ type RegisterResult = {
   error?: string;
 };
 
+async function fetchJsonWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    const json = await response.json().catch(() => ({}));
+    return { response, json };
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function queueDeviceSessionRetry(userId: string, deviceInfo: ReturnType<typeof getDeviceInfo>) {
+  try {
+    window.setTimeout(() => {
+      void fetchJsonWithTimeout(
+        "/api/notifications/register-device",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, deviceInfo }),
+        },
+        8000,
+      ).catch(() => undefined);
+    }, 2000);
+  } catch {}
+}
+
 export type DeviceSessionActivation = {
   userId: string;
   deviceId: string;
@@ -132,14 +164,29 @@ export async function registerDeviceSession(userId: string): Promise<RegisterRes
     const deviceInfo = getDeviceInfo();
     if (!deviceInfo.deviceId) return { success: false, skipped: true, reason: "no-device" };
 
-    const res = await fetch("/api/notifications/register-device", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, deviceInfo }),
-    });
-    const json = await res.json().catch(() => ({}));
+    const { response: res, json } = await fetchJsonWithTimeout(
+      "/api/notifications/register-device",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, deviceInfo }),
+      },
+      8000,
+    );
     if (!res.ok || !json?.success) {
-      return { success: false, error: json?.error || "device-registration-failed" };
+      markDeviceSessionActivated(userId, {
+        userId,
+        deviceId: deviceInfo.deviceId,
+        deviceName: deviceInfo.deviceName,
+        activatedAt: new Date().toISOString(),
+      });
+      queueDeviceSessionRetry(userId, deviceInfo);
+      return {
+        success: true,
+        skipped: true,
+        reason: json?.error || "device-registration-delayed",
+        deviceId: deviceInfo.deviceId,
+      };
     }
     markDeviceSessionActivated(userId, {
       userId,
@@ -149,6 +196,16 @@ export async function registerDeviceSession(userId: string): Promise<RegisterRes
     });
     return { success: true, deviceId: deviceInfo.deviceId };
   } catch (error) {
+    const deviceInfo = getDeviceInfo();
+    if (deviceInfo.deviceId) {
+      markDeviceSessionActivated(userId, {
+        userId,
+        deviceId: deviceInfo.deviceId,
+        deviceName: deviceInfo.deviceName,
+        activatedAt: new Date().toISOString(),
+      });
+      queueDeviceSessionRetry(userId, deviceInfo);
+    }
     const normalized = normalizeUnknownError(error);
     void logClientError({
       source: "fcm.device-session",
@@ -156,7 +213,12 @@ export async function registerDeviceSession(userId: string): Promise<RegisterRes
       message: normalized.message,
       stack: normalized.stack,
     });
-    return { success: false, skipped: true, reason: "device-registration-unavailable" };
+    return {
+      success: true,
+      skipped: true,
+      reason: "device-registration-delayed",
+      deviceId: deviceInfo.deviceId,
+    };
   }
 }
 

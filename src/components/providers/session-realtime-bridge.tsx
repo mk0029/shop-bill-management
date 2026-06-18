@@ -60,7 +60,7 @@ export default function SessionRealtimeBridge() {
     });
 
     socket.on("session:revoked", (payload: { reason?: string; deviceId?: string; loggedInOn?: string; message?: string }) => {
-      if (payload?.deviceId && payload.deviceId !== deviceInfo.deviceId) return;
+      if (!payload?.deviceId || payload.deviceId !== deviceInfo.deviceId) return;
       setAutoLogoutInfo({
         reason:
           payload?.reason === "DEVICE_LIMIT_EXCEEDED"

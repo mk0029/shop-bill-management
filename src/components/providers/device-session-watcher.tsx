@@ -7,6 +7,8 @@ import { getDeviceInfo } from "@/lib/fcm/device";
 import { getDeviceSessionActivation } from "@/lib/fcm";
 import { setAutoLogoutInfo } from "@/lib/auto-logout";
 
+const NEW_SESSION_GRACE_MS = 5 * 60 * 1000;
+
 export default function DeviceSessionWatcher() {
   const router = useRouter();
   const pathname = usePathname();
@@ -28,12 +30,18 @@ export default function DeviceSessionWatcher() {
         const res = await fetch("/api/notifications/device-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user?.id, deviceId: deviceInfo.deviceId }),
+          body: JSON.stringify({
+            userId: user?.id,
+            deviceId: deviceInfo.deviceId,
+            activatedAt: activation.activatedAt,
+          }),
         });
         const json = await res.json().catch(() => ({}));
         if (cancelled || !json?.success) return;
 
         if (json.known === false || json.active !== false) return;
+        const activatedAt = Date.parse(String(activation.activatedAt || ""));
+        if (Number.isFinite(activatedAt) && Date.now() - activatedAt < NEW_SESSION_GRACE_MS) return;
 
         setAutoLogoutInfo({
           reason:

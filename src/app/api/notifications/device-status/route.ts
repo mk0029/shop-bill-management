@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
     if (local?.success && local.known !== false) {
       return NextResponse.json(local);
     }
+    if (local?.success && local.known === false) {
+      return NextResponse.json(local);
+    }
 
     const response = await fetch(`${notificationBackendUrl()}/notifications/device-status`, {
       method: "POST",

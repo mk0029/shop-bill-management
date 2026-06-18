@@ -9,18 +9,28 @@ function notificationBackendUrl() {
   return raw.replace(/\/+$/, "");
 }
 
+async function fetchBackendWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const local = await registerUserDeviceSession(body);
-    const backend = await fetch(`${notificationBackendUrl()}/notifications/register-device`, {
+    const backend = await fetchBackendWithTimeout(`${notificationBackendUrl()}/notifications/register-device`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(process.env.CHAT_SYNC_TOKEN ? { "x-notify-secret": process.env.CHAT_SYNC_TOKEN } : {}),
       },
       body: JSON.stringify(body),
-    })
+    }, 3500)
       .then(async (response) => ({
         ok: response.ok,
         status: response.status,

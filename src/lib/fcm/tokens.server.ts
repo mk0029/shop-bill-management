@@ -168,7 +168,7 @@ export async function registerUserDeviceSession(input: RegisterFcmTokenInput) {
 
   if (stableDeviceId) {
     await deactivateDuplicateDeviceDocs(userId, stableDeviceId, docId, {
-      notifyRevokedDevices: true,
+      notifyRevokedDevices: false,
       reason: "LOGGED_IN_ON_ANOTHER_DEVICE",
     });
   }
@@ -410,12 +410,14 @@ async function enforceUserFcmTokenLimit(
   );
   await Promise.allSettled(
     stale.map((doc) =>
-      notifyChatBackendDeviceRevoked({
-        userId,
-        deviceId: doc.deviceId,
-        reason: "DEVICE_LIMIT_EXCEEDED",
-        loggedInOn: latestDeviceName,
-      }),
+      doc.deviceId && doc.deviceId !== keep?.deviceId
+        ? notifyChatBackendDeviceRevoked({
+            userId,
+            deviceId: doc.deviceId,
+            reason: "DEVICE_LIMIT_EXCEEDED",
+            loggedInOn: latestDeviceName,
+          })
+        : Promise.resolve(),
     ),
   );
   await removeLegacyUserTokens(userId, stale.map((doc) => doc.token).filter(Boolean) as string[]);
