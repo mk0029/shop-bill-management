@@ -340,7 +340,7 @@ const MessagesList: React.FC<MessagesListProps> = ({
   }
 
   return (
-    <div className="relative flex-1 min-h-0 overflow-x-hidden">
+    <div className="relative min-h-0 flex-1 overflow-x-hidden bg-white/[0.018] backdrop-blur-[2px]">
       <div
         ref={scrollRef}
         id="messages-scroll"
@@ -510,10 +510,10 @@ const MessagesList: React.FC<MessagesListProps> = ({
         )}
 
         {messages.length === 0 && !isLoading && !initialLoading && (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            <div className="text-center">
-              <div className="text-lg mb-2">No messages yet</div>
-              <div className="text-sm">Start the conversation!</div>
+          <div className="flex h-full items-center justify-center px-4 text-slate-300">
+            <div className="rounded-lg border border-white/10 bg-white/[0.045] px-5 py-4 text-center shadow-xl shadow-black/20 backdrop-blur-xl">
+              <div className="mb-1 text-base font-medium text-slate-200">No messages yet</div>
+              <div className="text-sm text-slate-400">Start the conversation</div>
             </div>
           </div>
         )}

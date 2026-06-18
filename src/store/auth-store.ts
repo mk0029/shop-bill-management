@@ -4,7 +4,7 @@ import { User, LoginCredentials, ProfileData } from "@/types";
 import { userApiService } from "@/lib/sanity-api-service";
 import { sanityClient } from "@/lib/sanity";
 import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
-import { ensureFcmToken, registerDeviceSession } from "@/lib/fcm";
+import { clearDeviceSessionActivation, ensureFcmToken, registerDeviceSession } from "@/lib/fcm";
 import { clearAutoLogoutInfo } from "@/lib/auto-logout";
 
 type PersistedState = {
@@ -34,8 +34,14 @@ function clearWelcomeSeenKeys() {
     } catch {}
   };
 
-  removeMatchingKeys(window.localStorage, ["customer_welcome_guide_seen"]);
-  removeMatchingKeys(window.sessionStorage, ["admin_welcome_seen"]);
+  removeMatchingKeys(window.localStorage, [
+    "customer_welcome_guide_seen",
+    "admin_welcome_seen",
+  ]);
+  removeMatchingKeys(window.sessionStorage, [
+    "customer_welcome_guide_seen",
+    "admin_welcome_seen",
+  ]);
 }
 
 interface AuthState {
@@ -116,6 +122,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        const currentUserId = String((get().user as any)?.id || (get().user as any)?._id || "");
+        if (currentUserId) clearDeviceSessionActivation(currentUserId);
         clearWelcomeSeenKeys();
         // Clear Zustand state
         set({

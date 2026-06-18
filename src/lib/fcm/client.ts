@@ -7,6 +7,7 @@ import { logClientError, normalizeUnknownError, safeStorageAvailable } from "@/l
 
 const REGISTERED_KEY = (userId: string) => `fcm-registered:${userId}`;
 const PENDING_KEY = (userId: string) => `fcm-pending-token:${userId}`;
+const DEVICE_SESSION_KEY = (userId: string) => `device-session-active:${userId}`;
 
 type RegisterResult = {
   success: boolean;
@@ -15,6 +16,13 @@ type RegisterResult = {
   skipped?: boolean;
   reason?: string;
   error?: string;
+};
+
+export type DeviceSessionActivation = {
+  userId: string;
+  deviceId: string;
+  deviceName?: string;
+  activatedAt: string;
 };
 
 function getCurrentAuthUser() {
@@ -133,26 +141,12 @@ export async function registerDeviceSession(userId: string): Promise<RegisterRes
     if (!res.ok || !json?.success) {
       return { success: false, error: json?.error || "device-registration-failed" };
     }
-    const status = await fetch("/api/notifications/device-status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, deviceId: deviceInfo.deviceId }),
-    })
-      .then((response) => response.json())
-      .catch(() => null);
-    if (status?.success && status?.known !== false && status?.active === false) {
-      console.warn("[FCM] Device has an inactive notification token; login will continue.", {
-        userId,
-        deviceId: deviceInfo.deviceId,
-        reason: status?.reason,
-      });
-      return {
-        success: true,
-        skipped: true,
-        reason: "notification-device-inactive",
-        deviceId: deviceInfo.deviceId,
-      };
-    }
+    markDeviceSessionActivated(userId, {
+      userId,
+      deviceId: deviceInfo.deviceId,
+      deviceName: deviceInfo.deviceName,
+      activatedAt: new Date().toISOString(),
+    });
     return { success: true, deviceId: deviceInfo.deviceId };
   } catch (error) {
     const normalized = normalizeUnknownError(error);
@@ -164,6 +158,30 @@ export async function registerDeviceSession(userId: string): Promise<RegisterRes
     });
     return { success: false, skipped: true, reason: "device-registration-unavailable" };
   }
+}
+
+export function markDeviceSessionActivated(userId: string, activation: DeviceSessionActivation) {
+  try {
+    if (!userId || typeof window === "undefined" || !safeStorageAvailable("localStorage")) return;
+    localStorage.setItem(DEVICE_SESSION_KEY(userId), JSON.stringify(activation));
+  } catch {}
+}
+
+export function getDeviceSessionActivation(userId: string): DeviceSessionActivation | null {
+  try {
+    if (!userId || typeof window === "undefined" || !safeStorageAvailable("localStorage")) return null;
+    const parsed = JSON.parse(localStorage.getItem(DEVICE_SESSION_KEY(userId)) || "null");
+    return parsed?.deviceId ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearDeviceSessionActivation(userId?: string | null) {
+  try {
+    if (!userId || typeof window === "undefined" || !safeStorageAvailable("localStorage")) return;
+    localStorage.removeItem(DEVICE_SESSION_KEY(userId));
+  } catch {}
 }
 
 export async function retryPendingFcmToken(userId: string) {

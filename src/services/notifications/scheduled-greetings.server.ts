@@ -230,7 +230,12 @@ function titleForFestival(name: string, emoji?: string) {
 }
 
 function userDisplayName(name?: string) {
-  return sanitizeUserText(String(name || "")).trim() || "Customer";
+  return sanitizeUserText(String(name || ""))
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim() || "Customer";
 }
 
 async function fetchFestivalCalendarFromApi(year: number) {
@@ -429,8 +434,8 @@ function dailyMessage(user: GreetingUser) {
 
   return {
     type: "daily_good_morning" as const,
-    title: "Good Morning 🌞",
-    body: `Good morning ${name}, have a great day!`,
+    title: `Good morning ${name}`,
+    body: `Good morning ${name}. Have a great day from Jambh Electrics.`,
     festival: undefined,
   };
 }

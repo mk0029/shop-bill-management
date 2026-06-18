@@ -36,7 +36,7 @@ function deviceDocId(userId: string, deviceId: string) {
 function clampAllowedDeviceCount(value: unknown) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 1;
-  return Math.min(2, Math.max(1, Math.trunc(parsed)));
+  return Math.min(1, Math.max(1, Math.trunc(parsed)));
 }
 
 export async function getAllowedDevicesCount(userId: string): Promise<number> {
@@ -110,6 +110,13 @@ export async function registerFcmToken(input: RegisterFcmTokenInput) {
     });
   }
 
+  await enforceUserFcmTokenLimit(
+    userId,
+    1,
+    deviceInfo.deviceName || deviceInfo.platform || "another device",
+    docId,
+  );
+
   return { userId, tokenId: docId };
 }
 
@@ -182,6 +189,40 @@ export async function registerUserDeviceSession(input: RegisterFcmTokenInput) {
   );
 
   return { userId, tokenId: docId, allowedDevicesCount };
+}
+
+export async function getDeviceSessionStatus(input: { userId: string; deviceId: string }) {
+  const requestedUserId = String(input.userId || "").trim();
+  const deviceId = String(input.deviceId || "").trim();
+  if (!requestedUserId || !deviceId) throw new Error("Missing userId/deviceId");
+  const userId = await resolveUserId(requestedUserId);
+  const doc = await sanityClient.fetch<{
+    _id: string;
+    isActive?: boolean | null;
+    deactivatedReason?: string | null;
+    replacedByDeviceName?: string | null;
+    deviceName?: string | null;
+  } | null>(
+    `*[_type=="userFcmToken" && userId==$userId && deviceId==$deviceId] | order(updatedAt desc)[0]{
+      _id,
+      isActive,
+      deactivatedReason,
+      replacedByDeviceName,
+      deviceName
+    }`,
+    { userId, deviceId },
+  );
+  if (!doc?._id) return { success: true, known: false, active: true, userId, deviceId };
+  return {
+    success: true,
+    known: true,
+    active: doc.isActive !== false,
+    reason: doc.deactivatedReason || "",
+    loggedInOn: doc.replacedByDeviceName || "",
+    deviceName: doc.deviceName || "",
+    userId,
+    deviceId,
+  };
 }
 
 export async function unregisterFcmToken(userId: string, token: string) {

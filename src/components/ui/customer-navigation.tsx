@@ -88,6 +88,7 @@ export function CustomerNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname() || "";
   const router = useRouter();
   const { logout, user } = useAuthStore();
@@ -102,6 +103,21 @@ export function CustomerNavigation() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (accountMenuRef.current?.contains(target)) return;
+      setAccountMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+    };
+  }, [accountMenuOpen]);
 
   // Admin-only: Online Status quick slider
   const [onlineStep, setOnlineStep] = useState(0); // 0 offline, 1 online(not at shop), 2 online(at shop)
@@ -308,7 +324,7 @@ export function CustomerNavigation() {
   ];
 
   const renderAccountMenu = () => (
-    <div className="relative ml-auto">
+    <div ref={accountMenuRef} className="relative ml-auto">
       <button
         type="button"
         onClick={() => setAccountMenuOpen((open) => !open)}
@@ -319,10 +335,10 @@ export function CustomerNavigation() {
         <MoreVertical className="h-4 w-4" />
       </button>
       {accountMenuOpen && (
-        <div className="absolute bottom-full right-0 z-[280] mb-2 w-56 overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/94 p-1.5 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.07)_1px,transparent_1px)] bg-[size:22px_22px] opacity-35" />
+        <div className="absolute bottom-full right-0 z-[280] mb-2 w-56 overflow-hidden rounded-xl border border-cyan-200/25 bg-[#07111f] p-1.5 text-white shadow-2xl shadow-black/60 ring-1 ring-white/10">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.08)_1px,transparent_1px)] bg-[size:22px_22px] opacity-20" />
           <div className="relative space-y-1">
-            <div className="px-3 py-2">
+            <div className="rounded-lg bg-white/[0.04] px-3 py-2">
               <p className="truncate text-sm font-semibold text-white">
                 {displayName}
               </p>

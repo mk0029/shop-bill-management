@@ -150,7 +150,7 @@ export const settingsTree: SettingNode[] = [
       option("devices", "Active Devices", "Current allowed devices and FCM sessions", [{ type: "action", key: "devices.review", title: "Review Active Device", label: "Check device" }], Smartphone),
       option("sessions", "Login Sessions", "Session timeout and current login behavior", [{ type: "number", key: "sessions.timeout", title: "Session Timeout", defaultValue: 30, suffix: "days" }], Clock),
       option("device-management", "Device Management", "Allowed device count and auto logout rules", [
-        { type: "select", key: "devices.allowed", title: "Allowed Devices", defaultValue: "1", options: ["1", "2"] },
+        { type: "select", key: "devices.allowed", title: "Allowed Devices", defaultValue: "1", options: ["1"] },
         { type: "toggle", key: "devices.autoLogout", title: "Auto Logout Old Devices", defaultValue: true },
       ], Smartphone),
       option("change-password", "Change Password", "Password management placeholder", [{ type: "action", key: "password.change", title: "Change Password", label: "Change" }], KeyRound),

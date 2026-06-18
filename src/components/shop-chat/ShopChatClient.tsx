@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, MessageCircle, Plus, Search, UserPlus, X } from "lucide-react";
+import { BatteryCharging, Cable, Fan, Lightbulb, Loader2, MessageCircle, Plug, Plus, Search, UserPlus, Wrench, X, Zap } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
@@ -92,14 +93,24 @@ function formatTime(value?: string | null) {
 }
 
 function formatLastSeen(value?: string | null) {
-  if (!value) return "Never logged in";
+  if (!value) return "Offline";
   const then = Date.parse(value);
-  if (!Number.isFinite(then)) return "Never logged in";
+  if (!Number.isFinite(then)) return "Offline";
   const diff = Date.now() - then;
   if (diff < 60_000) return "Last seen just now";
   if (diff < 60 * 60_000) return `Last seen ${Math.max(1, Math.floor(diff / 60_000))}m ago`;
   if (diff < 24 * 60 * 60_000) return `Last seen ${Math.max(1, Math.floor(diff / (60 * 60_000)))}h ago`;
   return `Last seen ${new Date(value).toLocaleDateString([], { day: "numeric", month: "short" })}`;
+}
+
+function roomSortTime(room: ShopChatRoom) {
+  const value = room.lastMessage?.createdAt || room.updatedAt || room.createdAt;
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sortRoomsByLatestMessage(rooms: ShopChatRoom[]) {
+  return [...rooms].sort((a, b) => roomSortTime(b) - roomSortTime(a));
 }
 
 function customerStatusText(customerId: string, onlineUserIds?: Set<string>, lastSeenByUser?: Record<string, string>) {
@@ -255,6 +266,81 @@ function imageFromProfileLike(input: unknown) {
   return normalizeChatImage(raw);
 }
 
+const emptyStateIcons = [
+  { Icon: Cable, left: "8%", top: "18%", delay: 0, size: "h-7 w-7" },
+  { Icon: Plug, left: "20%", top: "74%", delay: 0.35, size: "h-7 w-7" },
+  { Icon: Lightbulb, left: "42%", top: "12%", delay: 0.75, size: "h-8 w-8" },
+  { Icon: Fan, left: "72%", top: "18%", delay: 0.2, size: "h-7 w-7" },
+  { Icon: BatteryCharging, left: "84%", top: "70%", delay: 0.65, size: "h-7 w-7" },
+  { Icon: Wrench, left: "60%", top: "82%", delay: 1, size: "h-6 w-6" },
+  { Icon: Zap, left: "91%", top: "34%", delay: 0.45, size: "h-6 w-6" },
+];
+
+function ChatEmptyState({ mode }: { mode: Mode }) {
+  const reducedMotion = useReducedMotion();
+  const title = mode === "customer" ? "Opening your support room" : "Choose a customer chat";
+  const subtitle =
+    mode === "customer"
+      ? "Your conversation space is getting ready."
+      : "Select a customer from the sidebar to view messages, bills, and updates.";
+
+  return (
+    <section className="relative flex h-full min-h-[70vh] flex-1 items-center justify-center overflow-hidden border border-white/10 bg-[#070b15] text-slate-100">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(34,211,238,0.20),transparent_28%),radial-gradient(circle_at_82%_14%,rgba(249,115,22,0.18),transparent_26%),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))]" />
+      <div className="absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:42px_42px]" />
+      <div className="absolute left-[-10%] top-[24%] h-px w-[120%] rotate-[-7deg] bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent" />
+      <div className="absolute left-[-8%] top-[68%] h-px w-[116%] rotate-[5deg] bg-gradient-to-r from-transparent via-orange-300/25 to-transparent" />
+
+      {emptyStateIcons.map(({ Icon, left, top, delay, size }) => (
+        <motion.div
+          key={`${left}-${top}`}
+          className="absolute grid h-14 w-14 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-cyan-100/55 shadow-[0_0_40px_rgba(34,211,238,0.10)] backdrop-blur-sm"
+          style={{ left, top }}
+          initial={{ opacity: 0, y: 8, rotate: -4 }}
+          animate={
+            reducedMotion
+              ? { opacity: 0.34 }
+              : {
+                  opacity: [0.2, 0.46, 0.26],
+                  y: [-8, 10, -8],
+                  rotate: [-5, 6, -5],
+                }
+          }
+          transition={{
+            duration: 7 + delay,
+            delay,
+            repeat: reducedMotion ? 0 : Infinity,
+            ease: "easeInOut",
+          }}
+        >
+          <Icon className={size} />
+        </motion.div>
+      ))}
+
+      <div className="absolute inset-0 backdrop-blur-[1.5px]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#07101f]/45 to-[#050914]/85" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.42, ease: "easeOut" }}
+        className="relative z-10 mx-4 w-full max-w-md overflow-hidden rounded-lg border border-white/10 bg-slate-950/58 p-5 text-center shadow-2xl shadow-black/35 backdrop-blur-2xl"
+      >
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-lg border border-cyan-300/20 bg-white/[0.055] text-cyan-200 shadow-lg shadow-cyan-950/20 backdrop-blur-xl">
+          <MessageCircle className="h-7 w-7" />
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">Chat workspace</p>
+        <h3 className="mt-2 text-xl font-semibold tracking-normal text-white">{title}</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-400">{subtitle}</p>
+        <div className="mt-5 flex items-center justify-center gap-2 text-xs text-slate-500">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+          Live support ready
+        </div>
+      </motion.div>
+    </section>
+  );
+}
+
 function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
   return {
     id: message.messageId,
@@ -317,8 +403,9 @@ function RoomSidebar({
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rooms;
-    return rooms.filter((room) => {
+    const sorted = sortRoomsByLatestMessage(rooms);
+    if (!q) return sorted;
+    return sorted.filter((room) => {
       const label = mode === "customer" ? "support chat support team" : `${room.customerName} ${room.customerKey || ""}`;
       return label.toLowerCase().includes(q);
     });
@@ -342,8 +429,8 @@ function RoomSidebar({
   }, [searchOpen]);
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col border-r border-gray-800 bg-gray-900/80 md:w-80">
-      <div ref={searchContainerRef} className="border-b border-gray-800 px-4 pb-3 pt-4">
+    <aside className="flex h-full min-h-0 w-full flex-col border-r border-white/10 bg-slate-950/55 shadow-2xl shadow-black/30 backdrop-blur-2xl md:w-80">
+      <div ref={searchContainerRef} className="border-b border-white/10 bg-white/[0.035] px-4 pb-3 pt-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
             <MessageCircle className="h-5 w-5 text-blue-400" />
@@ -356,7 +443,7 @@ function RoomSidebar({
               className={`grid h-9 w-9 place-items-center rounded-full border transition ${
                 query.trim()
                   ? "border-blue-400/60 bg-blue-500/15 text-blue-100"
-                  : "border-slate-700 bg-slate-800/80 text-slate-200 hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
+                  : "border-white/10 bg-white/[0.06] text-slate-200 hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
               }`}
               title="Search chats"
               aria-label="Search chats"
@@ -370,7 +457,7 @@ function RoomSidebar({
                   setSearchOpen(false);
                   onAddClick();
                 }}
-                className="grid h-9 w-9 place-items-center rounded-full border border-slate-700 bg-slate-800/80 text-slate-200 transition hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
+                className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-slate-200 transition hover:border-blue-400/60 hover:bg-blue-500/15 hover:text-blue-100"
                 title="Add customer to chat"
                 aria-label="Add customer to chat"
               >
@@ -382,7 +469,7 @@ function RoomSidebar({
         {searchOpen && (
           <div
             ref={searchContainerRef}
-            className="mt-3 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-lg"
+            className="mt-3 rounded-lg border border-white/10 bg-slate-950/80 p-2 shadow-lg shadow-black/30 backdrop-blur-xl"
           >
             <div className="space-y-2">
             <div className="relative">
@@ -396,7 +483,7 @@ function RoomSidebar({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search customers..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 py-2.5 pl-10 pr-10 text-sm text-slate-100 outline-none placeholder:text-slate-400 focus:border-blue-400/70"
+                className="w-full rounded-lg border border-white/10 bg-white/[0.06] py-2.5 pl-10 pr-10 text-sm text-slate-100 outline-none placeholder:text-slate-400 focus:border-blue-400/70"
               />
               {query.trim() ? (
                 <button
@@ -416,7 +503,7 @@ function RoomSidebar({
           </div>
         )}
       </div>
-      <ul className="min-h-0 flex-1 divide-y divide-slate-800/80 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul className="min-h-0 flex-1 divide-y divide-white/10 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {filtered.map((room) => {
           const unread = myUserId ? room.unreadBy?.[myUserId] || 0 : 0;
           const presenceText =
@@ -437,7 +524,11 @@ function RoomSidebar({
           return (
             <div
               key={room.roomId}
-              className={room.roomId === activeRoomId ? "bg-blue-600/15" : "bg-transparent"}
+              className={
+                room.roomId === activeRoomId
+                  ? "bg-white/[0.055] shadow-[inset_2px_0_0_rgba(52,211,153,0.75)] backdrop-blur-xl"
+                  : "bg-transparent"
+              }
             >
               <ChatItem
                 friend={{
@@ -612,15 +703,11 @@ function ChatPanel({
   };
 
   if (!room) {
-    return (
-      <div className="flex min-h-[70vh] flex-1 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900/60 text-gray-400">
-        {mode === "customer" ? "Opening your support chat..." : "Select a customer room to start chatting."}
-      </div>
-    );
+    return <ChatEmptyState mode={mode} />;
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#0b1220]">
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
       <ChatHeader
         peer={{
           id: room.customerId,
@@ -667,7 +754,7 @@ function ChatPanel({
           setGalleryOpen(true);
         }}
       />
-      <div className="border-t border-gray-800 bg-[#111c2a]">
+      <div className="border-t border-white/10 bg-slate-950/45 backdrop-blur-2xl">
         <MessageInput
           onSendMessage={submitMessage}
           onTyping={(state) => onTyping(state.active)}
@@ -740,13 +827,13 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
 function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
   return (
     <div
-      className="min-h-0 overflow-hidden bg-gray-950"
+      className="min-h-0 overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
       style={{ height: "var(--app-vh, 100dvh)" }}
     >
       <div className="flex h-full min-h-0">
         {mode === "admin" && (
-          <aside className="hidden h-full w-80 shrink-0 flex-col border-r border-gray-800 bg-gray-900/80 md:flex">
-            <div className="border-b border-gray-800 p-4">
+          <aside className="hidden h-full w-80 shrink-0 flex-col border-r border-white/10 bg-slate-950/55 backdrop-blur-2xl md:flex">
+            <div className="border-b border-white/10 bg-white/[0.035] p-4">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <SkeletonBlock className="h-5 w-5 rounded-full bg-blue-500/25" />
@@ -773,9 +860,9 @@ function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
           </aside>
         )}
 
-        <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#0b1220]">
-          <div className="border-b border-gray-800 bg-[#111c2a] px-3 py-3">
-            <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-2xl border border-gray-700 bg-slate-800/70 px-4 py-3">
+        <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white/[0.018] backdrop-blur-xl">
+          <div className="border-b border-white/10 bg-slate-950/45 px-3 py-3 backdrop-blur-2xl">
+            <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-lg border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-xl">
               <SkeletonBlock className="h-11 w-11 rounded-full bg-emerald-500/20" />
               <div className="min-w-0 flex-1 space-y-2">
                 <SkeletonBlock className="h-4 w-36" />
@@ -785,7 +872,7 @@ function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-hidden bg-[#0b1220] p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-hidden bg-slate-950/20 p-4">
             <div className="flex items-end gap-2">
               <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20" />
               <SkeletonBlock className="h-14 w-44 rounded-2xl rounded-bl-sm" />
@@ -806,7 +893,7 @@ function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
             </div>
           </div>
 
-          <div className="border-t border-gray-800 bg-[#111c2a] p-3">
+          <div className="border-t border-white/10 bg-slate-950/45 p-3 backdrop-blur-2xl">
             <div className="flex items-center gap-3">
               <SkeletonBlock className="h-11 flex-1 rounded-full" />
               <SkeletonBlock className="h-11 w-11 rounded-full bg-emerald-500/25" />
@@ -935,7 +1022,7 @@ export default function ShopChatClient({
     setRooms((prev) => {
       const exists = prev.some((item) => item.roomId === room.roomId);
       const next = exists ? prev.map((item) => (item.roomId === room.roomId ? room : item)) : [room, ...prev];
-      return next.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+      return sortRoomsByLatestMessage(next);
     });
     setActiveRoom((prev) => (prev?.roomId === room.roomId ? room : prev));
   }, []);
@@ -1019,12 +1106,12 @@ export default function ShopChatClient({
         if (mode === "admin") {
           const response = await listShopChatRooms();
           if (cancelled) return;
-          setRooms(response.rooms);
+          setRooms(sortRoomsByLatestMessage(response.rooms));
           setActiveRoom(null);
         } else {
           const response = await getMyShopChatRoom();
           if (cancelled) return;
-          setRooms([response.room]);
+          setRooms(sortRoomsByLatestMessage([response.room]));
           setActiveRoom(response.room);
           await loadMessages(response.room);
         }
@@ -1409,7 +1496,7 @@ export default function ShopChatClient({
 
   return (
     <div
-      className="min-h-0 overflow-hidden bg-gray-950"
+      className="min-h-0 overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
       style={{ height: "var(--app-vh, 100dvh)" }}
     >
       <div className="relative flex h-full min-h-0 overflow-hidden">
@@ -1518,7 +1605,7 @@ export default function ShopChatClient({
               />
             </div>
             {selectedCustomer && (
-              <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-950 p-3">
+              <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.055] p-3 backdrop-blur-xl">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
                   {imageFromProfileLike(selectedCustomer) ? (
                     // eslint-disable-next-line @next/next/no-img-element

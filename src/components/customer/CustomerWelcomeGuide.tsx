@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
@@ -20,6 +21,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { sanitizeUserText } from "@/constants/defaults";
+import { useDynamicViewportHeight } from "@/hooks/use-dynamic-viewport-height";
 import { useAuthStore } from "@/store/auth-store";
 
 const GUIDE_SEEN_PREFIX = "customer_welcome_guide_seen";
@@ -209,6 +211,7 @@ export default function CustomerWelcomeGuide({
 }: {
   mode?: "gate" | "page";
 }) {
+  useDynamicViewportHeight({ shellClassName: "customer-welcome-shell" });
   const router = useRouter();
   const pathname = usePathname() || "";
   const reducedMotion = useReducedMotion();
@@ -222,13 +225,22 @@ export default function CustomerWelcomeGuide({
   );
   const userId = user?._id || user?.id;
   const [show, setShow] = useState(mode === "page");
-  const [step, setStep] = useState<1 | 2>(mode === "page" ? 2 : 1);
-  const [introReady, setIntroReady] = useState(mode === "page");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [introReady, setIntroReady] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (mode === "page") {
-      setStep(2);
-      setIntroReady(true);
+      if (hasSeen(userId)) {
+        router.replace("/customer/bills");
+        return;
+      }
+      setStep(1);
+      setIntroReady(false);
       setShow(true);
       return;
     }
@@ -240,7 +252,7 @@ export default function CustomerWelcomeGuide({
     setStep(1);
     setIntroReady(false);
     setShow(!hasSeen(userId));
-  }, [mode, pathname, user?.role, userId]);
+  }, [mode, pathname, router, user?.role, userId]);
 
   useEffect(() => {
     if (!show || step !== 1) return;
@@ -254,22 +266,23 @@ export default function CustomerWelcomeGuide({
     router.replace("/customer/bills");
   };
 
-  if (!show) return null;
+  if (!mounted || !show) return null;
 
-  return (
+  const wrapperClasses =
+    mode === "gate"
+      ? "fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/95"
+      : "relative min-h-[var(--app-vh,100dvh)] overflow-hidden bg-slate-950";
+
+  const content = (
     <motion.section
-      className={
-        mode === "gate"
-          ? "fixed inset-0 z-[80] overflow-y-auto bg-slate-950"
-          : "relative min-h-[calc(100dvh-var(--customer-topbar-h,57px))] overflow-hidden rounded-lg bg-slate-950"
-      }
+      className={wrapperClasses}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="relative min-h-[100dvh] overflow-hidden">
+      <div className="relative min-h-[var(--app-vh,100dvh)] overflow-hidden">
         <FloatingBackground />
-        <div className="relative z-10 flex min-h-[100dvh] items-center px-3 py-5 sm:px-6 lg:px-10">
+        <div className="relative z-10 flex min-h-[var(--app-vh,100dvh)] items-center px-3 py-5 sm:px-6 lg:px-10">
           <motion.div
             key={step}
             className="mx-auto w-full max-w-6xl overflow-hidden rounded-lg border border-white/10 bg-slate-950/84 shadow-2xl shadow-black/45 backdrop-blur-2xl"
@@ -392,4 +405,10 @@ export default function CustomerWelcomeGuide({
       </div>
     </motion.section>
   );
+
+  if (mode === "gate") {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }

@@ -66,14 +66,23 @@
   html.chat-shell,
   body.chat-shell,
   html.customer-shell,
-  body.customer-shell {
+  body.customer-shell,
+  html.admin-shell,
+  body.admin-shell,
+  html.customer-welcome-shell,
+  body.customer-welcome-shell,
+  html.admin-welcome-shell,
+  body.admin-welcome-shell {
     height: var(--app-vh, 100dvh);
     overflow: hidden;
     overscroll-behavior: none;
   }
 
   body.chat-shell,
-  body.customer-shell {
+  body.customer-shell,
+  body.admin-shell,
+  body.customer-welcome-shell,
+  body.admin-welcome-shell {
     position: fixed;
     inset: 0;
     width: 100%;
@@ -93,6 +102,10 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 .hide-scroll::-webkit-scrollbar {
   display: none;
+}
+.hide-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* For Firefox */

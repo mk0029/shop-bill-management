@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { getDeviceInfo } from "@/lib/fcm/device";
-import { registerDeviceSession } from "@/lib/fcm";
+import { getDeviceSessionActivation } from "@/lib/fcm";
 import { setAutoLogoutInfo } from "@/lib/auto-logout";
 
 export default function DeviceSessionWatcher() {
@@ -18,12 +18,13 @@ export default function DeviceSessionWatcher() {
   useEffect(() => {
     if (!hydrated || !isAuthenticated || !user?.id || pathname === "/auto-logout") return;
     let cancelled = false;
-    let registeredUnknownDevice = false;
 
     async function check() {
       try {
         const deviceInfo = getDeviceInfo();
         if (!deviceInfo.deviceId) return;
+        const activation = getDeviceSessionActivation(user.id);
+        if (!activation || activation.deviceId !== deviceInfo.deviceId) return;
         const res = await fetch("/api/notifications/device-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -32,13 +33,7 @@ export default function DeviceSessionWatcher() {
         const json = await res.json().catch(() => ({}));
         if (cancelled || !json?.success) return;
 
-        if (json.known === false && !registeredUnknownDevice) {
-          registeredUnknownDevice = true;
-          await registerDeviceSession(user?.id).catch(() => undefined);
-          return;
-        }
-
-        if (json.active !== false) return;
+        if (json.known === false || json.active !== false) return;
 
         setAutoLogoutInfo({
           reason:

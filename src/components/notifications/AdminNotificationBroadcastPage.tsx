@@ -93,6 +93,11 @@ export default function AdminNotificationBroadcastPage() {
 
     setSending(true);
     try {
+      const targetLink =
+        link.trim() ||
+        (audience === "customers"
+          ? "/customer/notifications"
+          : "/admin/notifications");
       const response = await fetch("/api/notifications/custom-broadcast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,8 +108,8 @@ export default function AdminNotificationBroadcastPage() {
           message: message.trim(),
           imageUrl: imageUrl.trim() || undefined,
           ctaLabel: ctaLabel.trim() || undefined,
-          ctaUrl: link.trim() || undefined,
-          link: link.trim() || undefined,
+          ctaUrl: targetLink,
+          link: targetLink,
           expiryDate: expiryDate || undefined,
           scheduledAt: publishMode === "scheduled" ? scheduledAt : undefined,
           expiresInHours,

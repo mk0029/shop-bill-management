@@ -4,6 +4,7 @@ import { sanityClient } from "@/lib/sanity";
 import { getActiveTokenStringsForUsers } from "@/lib/fcm/tokens.server";
 import { buildNotificationData, hasNotificationText } from "@/lib/fcm/payload";
 import { sendFcmToTokens } from "./fcm-sender.server";
+import { sanitizeUserText } from "@/constants/defaults";
 import type {
   NotificationEventType,
   NotificationSendResult,
@@ -60,13 +61,23 @@ function audienceFor(type: NotificationEventType, targetUserIds: string[]) {
   return targetUserIds.length === 1 ? "users" : "custom";
 }
 
+function cleanNotificationText(value: string, fallback: string) {
+  const cleaned = sanitizeUserText(String(value || ""))
+    .replace(/[<>`]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned || fallback;
+}
+
 async function persistNotification(input: SendNotificationEventInput, targetUserIds: string[], id: string) {
   const createdAt = new Date().toISOString();
+  const title = cleanNotificationText(input.title, "Notification");
+  const body = cleanNotificationText(input.body, "You have a new update.");
   const doc: NotificationDoc = {
     _id: `notification.${id}`,
     _type: "notification",
-    title: input.title.trim(),
-    body: input.body.trim(),
+    title,
+    body,
     audience: audienceFor(input.type, targetUserIds),
     type: input.type,
     actorUserId: input.actorUserId || "",
@@ -133,9 +144,11 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
   error?: string;
 }> {
   try {
+    const safeTitle = cleanNotificationText(input.title, "Notification");
+    const safeBody = cleanNotificationText(input.body, "You have a new update.");
     console.log("[FCM_TRACE] event_type", input.type);
     console.log("[FCM_TRACE] sender_id", input.actorUserId || "");
-    if (!hasNotificationText(input.title, input.body)) {
+    if (!hasNotificationText(safeTitle, safeBody)) {
       return {
         ok: false,
         targetUserIds: [],
@@ -161,7 +174,8 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
       };
     }
     const eventId = eventIdFor(input);
-    const persisted = await persistNotification(input, targetUserIds, eventId);
+    const safeInput = { ...input, title: safeTitle, body: safeBody };
+    const persisted = await persistNotification(safeInput, targetUserIds, eventId);
     if ("conflict" in persisted && persisted.conflict) {
       return {
         ok: true,
@@ -192,15 +206,15 @@ export async function sendNotificationEvent(input: SendNotificationEventInput): 
     const payload = buildNotificationData({
       id: persisted.notificationId,
       type: input.type,
-      title: input.title.trim(),
-      body: input.body.trim(),
+      title: safeTitle,
+      body: safeBody,
       data: input.data,
     });
     tracePayload(payload);
     const send = await sendFcmToTokens({
       tokens,
-      title: input.title.trim(),
-      body: input.body.trim(),
+      title: safeTitle,
+      body: safeBody,
       data: payload,
       imageUrl: typeof input.data?.imageUrl === "string" ? input.data.imageUrl : undefined,
     });

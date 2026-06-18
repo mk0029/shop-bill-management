@@ -314,11 +314,11 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const showSendButton = message.trim().length > 0;
 
   return (
-    <div className="chat-composer-root border-t border-slate-800/90 bg-slate-900/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+    <div className="chat-composer-root border-t border-white/10 bg-white/[0.025] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_32px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
       {/* Reply/Edit Preview */}
       {(replyTo || editingMessage) && (
         <div className="mx-auto w-full max-w-4xl px-2.5 md:px-4">
-          <div className="mb-2 rounded-2xl border border-slate-700/70 bg-slate-800/55 px-3 py-2 backdrop-blur-md">
+          <div className="mb-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 shadow-lg shadow-black/15 backdrop-blur-xl">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="mb-1 text-xs text-emerald-300">
@@ -333,7 +333,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               <button
                 type="button"
                 onClick={editingMessage ? onCancelEdit : onCancelReply}
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
                 title="Cancel"
               >
                 <X size={16} />
@@ -355,7 +355,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               allowAutoFocusRef.current = true;
               focusComposerInput();
             }}
-            className="group relative flex min-h-[50px] flex-1 items-center justify-between gap-2 rounded-[30px] border border-slate-700/80 bg-[#1e2733] px-3 py-1 shadow-[0_4px_16px_rgba(0,0,0,0.2)] transition-all duration-200 hover:border-slate-600 focus-within:border-emerald-400/75 focus-within:shadow-[0_0_0_3px_rgba(16,185,129,0.14)] "
+            className="group relative flex min-h-[50px] flex-1 items-center justify-between gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] focus-within:border-emerald-400/70 focus-within:bg-white/[0.065] focus-within:shadow-[0_0_0_3px_rgba(16,185,129,0.12)] "
           >
             <div
               className={`flex min-w-0 flex-1 items-center gap-2 transition-opacity ${
@@ -365,7 +365,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               <div data-composer-no-focus>
                 <AttachmentPicker
                   onFilesSelected={handleFilesSelected}
-                  className="h-9 w-9 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-slate-600 hover:bg-slate-700/70 hover:text-white"
+                  className="h-9 w-9 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white"
                 />
               </div>
 
@@ -423,7 +423,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                     }
                   }}
                   disabled={disabled}
-                  className="h-9 w-9 scale-125 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-slate-600 hover:bg-slate-700/70 hover:text-white"
+                  className="h-9 w-9 scale-125 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white"
                 />
               </div>
             </div>

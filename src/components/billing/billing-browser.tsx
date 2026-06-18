@@ -395,7 +395,7 @@ export function BillingBrowser({
             <FileText className="w-5 h-5" />
             All Bills
           </h2>
-          <div className="max-h-[600px] overflow-y-auto">
+          <div className="hide-scroll overflow-x-auto">
             <RealtimeBillList
               initialBills={initialForList}
               searchTerm={searchTerm}

@@ -95,15 +95,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: isMobile ? 0.2 : 0.14, ease: [0.22, 0.61, 0.36, 1] }}
       style={{ willChange: "transform, opacity" }}
-      className="border-b border-gray-800/90 bg-[#111c2a]/95 px-2 pb-2 pt-[max(0.58rem,env(safe-area-inset-top))] backdrop-blur md:px-3"
+      className="border-b border-white/10 bg-white/[0.018] px-2 pb-2 pt-[max(0.58rem,env(safe-area-inset-top))] backdrop-blur-2xl md:px-3"
     >
-      <div className="mx-auto flex min-h-[62px] w-full max-w-5xl items-center gap-2 rounded-2xl border border-slate-700/70 bg-[#1c2a3a]/95 px-2.5 shadow-[0_10px_26px_rgba(0,0,0,0.25)] md:min-h-[60px] md:px-3">
+      <div className="mx-auto flex min-h-[62px] w-full max-w-5xl items-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] px-2.5 shadow-[0_14px_34px_rgba(0,0,0,0.24)] backdrop-blur-xl md:min-h-[60px] md:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-300 transition-colors hover:bg-gray-700/60 hover:text-white md:hidden"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white md:hidden"
               title="Back to chats"
             >
               <ChevronLeft size={20} />
@@ -116,7 +116,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               setMenuOpen(false);
               setInfoOpen(true);
             }}
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1.5 py-1.5 text-left transition-colors hover:bg-gray-700/35"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.06]"
             title="View contact info"
           >
             <div className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-700/70 text-sm font-semibold text-white ring-1 ring-emerald-400/25">
@@ -151,7 +151,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             <button
               type="button"
               onClick={onOpenBills}
-              className="grid h-10 w-10 place-items-center rounded-full text-gray-300 transition-colors hover:bg-gray-700/50 hover:text-white"
+              className="grid h-10 w-10 place-items-center rounded-full text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
               title="Customer bills"
             >
               <Receipt size={18} />
@@ -161,7 +161,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             type="button"
             ref={menuBtnRef}
             onClick={openMenu}
-            className="grid h-10 w-10 place-items-center rounded-full text-gray-300 transition-colors hover:bg-gray-700/50 hover:text-white"
+            className="grid h-10 w-10 place-items-center rounded-full text-gray-300 transition-colors hover:bg-white/[0.08] hover:text-white"
             title="More options"
           >
             <MoreVertical size={19} />

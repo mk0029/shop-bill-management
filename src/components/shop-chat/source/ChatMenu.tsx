@@ -48,7 +48,7 @@ function statusText(input: {
   if (input.statusLabel) return input.statusLabel;
   if (input.peerOnline) return "Online";
   if (input.peerLastSeen) return `Last seen ${new Date(input.peerLastSeen).toLocaleString()}`;
-  return "Never logged in";
+  return "Offline";
 }
 
 function downloadText(filename: string, text: string) {
@@ -125,7 +125,7 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
   const infoPanel = (
     <Portal>
       <motion.div
-        className="fixed inset-0 z-[3000] bg-black/45"
+        className="fixed inset-0 z-[3000] bg-black/45 backdrop-blur-sm"
         onClick={closeInfo}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -138,17 +138,17 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
         exit={{ opacity: 0 }}
       >
         <motion.div
-          className="flex max-h-[78dvh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-gray-700 bg-gray-900 text-gray-100 shadow-2xl sm:max-h-[72dvh]"
+          className="flex max-h-[78dvh] w-full max-w-sm flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-950/85 text-gray-100 shadow-2xl shadow-black/40 backdrop-blur-2xl sm:max-h-[72dvh]"
           initial={{ y: 24, scale: 0.98 }}
           animate={{ y: 0, scale: 1 }}
           exit={{ y: 24, scale: 0.98 }}
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="relative shrink-0 border-b border-gray-700 px-4 py-4">
+          <div className="relative shrink-0 border-b border-white/10 bg-white/[0.035] px-4 py-4">
             <button
               type="button"
               onClick={closeInfo}
-              className="absolute right-3 top-3 rounded p-1.5 text-gray-300 hover:bg-gray-800 hover:text-white"
+              className="absolute right-3 top-3 rounded p-1.5 text-gray-300 hover:bg-white/[0.08] hover:text-white"
               title="Close details"
             >
               <X size={16} />
@@ -184,9 +184,9 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
                     ? "border-amber-400/45 bg-amber-500/10 shadow-[0_0_0_1px_rgba(251,191,36,0.08)]"
                     : item.tone === "admin"
                       ? "border-cyan-400/45 bg-cyan-500/10 shadow-[0_0_0_1px_rgba(34,211,238,0.08)]"
-                      : "border-gray-700/80 bg-gray-950/55";
+                      : "border-white/10 bg-white/[0.055]";
                 return (
-                <div key={item.label} className={`rounded-xl border px-3 py-2.5 text-left ${cardClass}`}>
+                <div key={item.label} className={`rounded-lg border px-3 py-2.5 text-left backdrop-blur-xl ${cardClass}`}>
                   <div className={`text-[10px] uppercase tracking-wide ${isSupportCard ? "text-gray-300" : "text-gray-500"}`}>{item.label}</div>
                   {isSupportCard && item.value && (
                     <div className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
@@ -231,8 +231,8 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
   return (
     <AnimatePresence>
       {open && variant === "menu" && (
-        <SmartPopup open={open} onClose={onClose} anchorPoint={anchorPoint || undefined} className="z-[3001] w-56 !border-gray-700 !bg-gray-900 !p-0">
-          <div className="overflow-hidden rounded-md border border-gray-700 bg-gray-900 text-gray-100 shadow-xl">
+        <SmartPopup open={open} onClose={onClose} anchorPoint={anchorPoint || undefined} className="z-[3001] w-56 !border-white/10 !bg-white/[0.055] !p-0 shadow-2xl shadow-black/35 backdrop-blur-2xl">
+          <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.055] text-gray-100 shadow-xl shadow-black/30 backdrop-blur-2xl">
             <ul className="py-1 text-sm">
               {onStartSelection && (
                 <li>
@@ -241,7 +241,7 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
                       onClose();
                       onStartSelection();
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-800"
+                    className="flex w-full items-center gap-2 px-3 py-2 hover:bg-white/[0.08]"
                   >
                     <CheckSquare size={16} /> Select Messages
                   </button>
@@ -253,7 +253,7 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
                     onClose();
                     onSearch?.();
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-800"
+                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-white/[0.08]"
                 >
                   <Search size={16} /> Search Messages
                 </button>
@@ -265,25 +265,25 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
                       onClose();
                       onOpenMedia();
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-800"
+                    className="flex w-full items-center gap-2 px-3 py-2 hover:bg-white/[0.08]"
                   >
                     <ImageIcon size={16} /> Room Media
                   </button>
                 </li>
               )}
               <li>
-                <button onClick={saveChatText} className="flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-800">
+                <button onClick={saveChatText} className="flex w-full items-center gap-2 px-3 py-2 hover:bg-white/[0.08]">
                   <Save size={16} /> Save Chat as Text
                 </button>
               </li>
               <li>
-                <button onClick={shareChat} className="flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-800">
+                <button onClick={shareChat} className="flex w-full items-center gap-2 px-3 py-2 hover:bg-white/[0.08]">
                   <Share2 size={16} /> Share Chat
                 </button>
               </li>
               {onClearChat && (
                 <li>
-                  <button onClick={onClearChat} className="flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-800">
+                  <button onClick={onClearChat} className="flex w-full items-center gap-2 px-3 py-2 hover:bg-white/[0.08]">
                     <Trash2 size={16} /> Clear Chat
                   </button>
                 </li>
@@ -294,7 +294,7 @@ const ChatMenu: React.FC<ChatMenuProps> = ({
                     onClose();
                     setDetailsOpen(true);
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-800"
+                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-white/[0.08]"
                 >
                   <Info size={16} /> {isGroup ? "Group Details / Report" : "View Details / Report"}
                 </button>

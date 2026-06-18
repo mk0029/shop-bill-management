@@ -4,6 +4,8 @@ import { useAuthStore } from "@/store/auth-store";
 import OfflineStatusOverlay from "@/components/online/offline-status-overlay";
 import NotificationsBridge from "@/components/realtime/notifications-bridge";
 import SWNotificationBridge from "@/components/notifications/sw-bridge";
+import DeviceSessionWatcher from "@/components/providers/device-session-watcher";
+import SessionRealtimeBridge from "@/components/providers/session-realtime-bridge";
 import AskForNotifications from "@/notifications/components/AskForNotifications";
 import AutoNotifications from "@/notifications/components/AutoNotifications";
 import ForegroundSystemNotifier from "@/notifications/components/ForegroundSystemNotifier";
@@ -15,6 +17,8 @@ export default function BackgroundFeaturesGate() {
 
   const commonFeatures = (
     <>
+      <DeviceSessionWatcher />
+      <SessionRealtimeBridge />
       <SWNotificationBridge />
       <AskForNotifications />
       <AutoNotifications />

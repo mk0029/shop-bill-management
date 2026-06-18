@@ -58,9 +58,9 @@ export const InventoryTable = ({
   }
 
   return (
-    <div className="bg-background border border-gray-800 rounded-lg overflow-hidden max-h-[90dvh] flex flex-col md:p-6">
-      <div className="overflow-auto flex-1">
-        <table className="w-full">
+    <div className="bg-background border border-gray-800 rounded-lg overflow-hidden md:p-6">
+      <div className="hide-scroll overflow-x-auto">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-gray-800 sticky top-0 z-10 rounded-t-lg">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">

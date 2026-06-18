@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 
 type ShopChatRouteFrameProps = {
@@ -13,8 +14,13 @@ export default function ShopChatRouteFrame({
   children,
   mode,
 }: ShopChatRouteFrameProps) {
+  const [mounted, setMounted] = useState(false);
   const [roomOpen, setRoomOpen] = useState(mode === "customer");
   const [hasDesktopSidebar, setHasDesktopSidebar] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -47,9 +53,9 @@ export default function ShopChatRouteFrame({
       : "16rem"
     : "0px";
 
-  return (
+  const frame = (
     <div
-      className="fixed right-0 z-[30] overflow-hidden bg-gray-950"
+      className="fixed right-0 z-[30] overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
       style={{
         top,
         left,
@@ -61,4 +67,8 @@ export default function ShopChatRouteFrame({
       {children}
     </div>
   );
+
+  if (!mounted) return null;
+
+  return createPortal(frame, document.body);
 }

@@ -19,6 +19,52 @@ function isFutureDate(value: string) {
   return Number.isFinite(time) && time > Date.now() + 30_000;
 }
 
+function notificationBackendUrl() {
+  const raw =
+    process.env.SHOP_CHAT_URL ||
+    process.env.NEXT_PUBLIC_SHOP_CHAT_URL ||
+    "https://shop-chat-backend.onrender.com/";
+  return raw.replace(/\/+$/, "");
+}
+
+async function sendBackendBroadcast(input: {
+  eventId: string;
+  actorUserId: string;
+  userIds: string[];
+  audience: BroadcastAudience;
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+}) {
+  try {
+    const response = await fetch(`${notificationBackendUrl()}/notifications/emit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.CHAT_SYNC_TOKEN ? { "x-notify-secret": process.env.CHAT_SYNC_TOKEN } : {}),
+      },
+      body: JSON.stringify({
+        eventId: input.eventId,
+        eventType: "system.general",
+        actorUserId: input.actorUserId,
+        userIds: input.userIds,
+        audience: input.audience,
+        title: input.title,
+        body: input.body,
+        data: input.data,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    return { ok: response.ok && result?.success !== false, status: response.status, result };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      result: { error: error instanceof Error ? error.message : "Backend notification send failed" },
+    };
+  }
+}
+
 function audienceRoles(audience: BroadcastAudience) {
   if (audience === "customers") return ["customer"];
   if (audience === "admins") return ["admin", "super_admin", "technician"];
@@ -78,6 +124,16 @@ export async function GET(req: NextRequest) {
       const targetUserIds = Array.isArray(campaign.targetUserIds) && campaign.targetUserIds.length
         ? campaign.targetUserIds
         : await getTargetUserIds(campaign.audience || "customers");
+      const notificationData = {
+        category: campaign.category || "special_offer",
+        audience: campaign.audience || "customers",
+        expiresAt: campaign.expiresAt,
+        imageUrl: campaign.imageUrl,
+        ctaLabel: campaign.ctaLabel,
+        ctaUrl: campaign.ctaUrl,
+        route: campaign.ctaUrl || undefined,
+        route_path: campaign.ctaUrl || undefined,
+      };
       const result = await sendNotificationEvent({
         eventId: `campaign.${campaign._id}`,
         type: "system.general",
@@ -85,18 +141,21 @@ export async function GET(req: NextRequest) {
         userIds: targetUserIds,
         title: String(campaign.title || "Offer"),
         body: String(campaign.description || ""),
-        data: {
-          category: campaign.category || "special_offer",
-          audience: campaign.audience || "customers",
-          expiresAt: campaign.expiresAt,
-          imageUrl: campaign.imageUrl,
-          ctaLabel: campaign.ctaLabel,
-          ctaUrl: campaign.ctaUrl,
-          route: campaign.ctaUrl || undefined,
-          route_path: campaign.ctaUrl || undefined,
-        },
-        skipActor: true,
+        data: notificationData,
+        skipActor: false,
       });
+      const sent = Number(result.send?.sent || 0);
+      if (sent < targetUserIds.length) {
+        await sendBackendBroadcast({
+          eventId: `campaign.${campaign._id}`,
+          actorUserId: campaign.createdBy?._ref || "",
+          userIds: targetUserIds,
+          audience: campaign.audience || "customers",
+          title: String(campaign.title || "Offer"),
+          body: String(campaign.description || ""),
+          data: notificationData,
+        });
+      }
       await sanityClient
         .patch(campaign._id)
         .set({
@@ -201,6 +260,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const notificationData = {
+      category,
+      audience,
+      expiresAt,
+      imageUrl,
+      ctaLabel,
+      ctaUrl: link,
+      route: link || undefined,
+      route_path: link || undefined,
+    };
     const result = await sendNotificationEvent({
       eventId,
       type: "system.general",
@@ -208,28 +277,33 @@ export async function POST(req: NextRequest) {
       userIds: targetUserIds,
       title,
       body: message,
-      data: {
-        category,
-        audience,
-        expiresAt,
-        imageUrl,
-        ctaLabel,
-        ctaUrl: link,
-        route: link || undefined,
-        route_path: link || undefined,
-      },
-      skipActor: true,
+      data: notificationData,
+      skipActor: false,
     });
+    const sent = Number(result.send?.sent || 0);
+    const backend =
+      sent < targetUserIds.length
+        ? await sendBackendBroadcast({
+            eventId,
+            actorUserId,
+            userIds: targetUserIds,
+            audience,
+            title,
+            body: message,
+            data: notificationData,
+          })
+        : undefined;
 
     return NextResponse.json(
       {
-        success: result.ok,
+        success: result.ok || Boolean(backend?.ok),
         targetCount: result.targetUserIds.length,
         notificationId: result.notificationId,
         send: result.send,
+        backendSend: backend?.result,
         error: result.error,
       },
-      { status: result.ok ? 200 : 500 },
+      { status: result.ok || backend?.ok ? 200 : 500 },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";

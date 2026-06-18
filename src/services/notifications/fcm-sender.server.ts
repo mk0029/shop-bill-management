@@ -80,7 +80,7 @@ function buildWebPushTopic(sanitized: Record<string, string>) {
   return safe || "app-notification";
 }
 
-function buildMessage(token: string, title: string, body: string, data?: Record<string, string>) {
+function buildMessage(token: string, title: string, body: string, data?: Record<string, string>, imageUrl?: string) {
   const sanitized: Record<string, string> = {};
   for (const [key, value] of Object.entries(data || {})) {
     sanitized[String(key)] = String(value);
@@ -103,8 +103,15 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
           Topic: topic,
         },
         notification: {
+          title,
+          body,
           icon: sanitized.icon,
           badge: sanitized.badge,
+          image: imageUrl || sanitized.image || sanitized.imageUrl,
+          tag: sanitized.tag || topic,
+          renotify: true,
+          requireInteraction: false,
+          silent: false,
         },
         fcm_options: {
           link: sanitized.click_action,
@@ -131,7 +138,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function sendOne(token: string, title: string, body: string, data?: Record<string, string>) {
+async function sendOne(token: string, title: string, body: string, data?: Record<string, string>, imageUrl?: string) {
   const projectId = getProjectId();
   if (!projectId) throw new Error("Firebase project id not configured");
   console.log("[FCM_TRACE] firebase_project_id", projectId);
@@ -143,7 +150,7 @@ async function sendOne(token: string, title: string, body: string, data?: Record
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(buildMessage(token, title, body, data)),
+    body: JSON.stringify(buildMessage(token, title, body, data, imageUrl)),
   });
 
   const text = await response.text().catch(() => "");
@@ -172,7 +179,7 @@ export async function sendFcmToTokens(input: FcmMessageInput): Promise<Notificat
       let lastError: unknown;
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          await sendOne(token, input.title, input.body, input.data);
+          await sendOne(token, input.title, input.body, input.data, input.imageUrl);
           return;
         } catch (error) {
           lastError = error;

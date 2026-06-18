@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDeviceSessionStatus } from "@/lib/fcm/tokens.server";
 
 function notificationBackendUrl() {
   const raw =
@@ -11,6 +12,19 @@ function notificationBackendUrl() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
+    const local = body?.userId && body?.deviceId
+      ? await getDeviceSessionStatus({
+          userId: String(body.userId),
+          deviceId: String(body.deviceId),
+        }).catch((error) => ({
+          success: false,
+          error: error instanceof Error ? error.message : "Local device status failed",
+        }))
+      : null;
+    if (local?.success && local.known !== false) {
+      return NextResponse.json(local);
+    }
+
     const response = await fetch(`${notificationBackendUrl()}/notifications/device-status`, {
       method: "POST",
       headers: {
@@ -20,6 +34,9 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
     const result = await response.json().catch(() => ({}));
+    if (local?.success && result?.known === false) {
+      return NextResponse.json(local);
+    }
     return NextResponse.json(result, { status: response.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";

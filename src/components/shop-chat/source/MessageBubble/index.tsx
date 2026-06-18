@@ -718,13 +718,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         preferred={isCurrentUser ? "left" : "right"}
         margin={8}
         padding={10}
-        className="w-40"
+        className="w-40 !border-white/10 !bg-white/[0.055] !p-0 shadow-2xl shadow-black/35 backdrop-blur-2xl"
       >
-        <div className="py-1 text-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.055] py-1 text-sm text-slate-100 shadow-xl shadow-black/30 backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
           {!isDeletedForEveryone && (
             <button
               type="button"
-              className="block w-full text-left px-3 py-1.5 rounded hover:bg-gray-800"
+              className="block w-full rounded px-3 py-1.5 text-left hover:bg-white/[0.08]"
               onClick={handleCopy}
             >
               Copy
@@ -733,7 +733,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {!isDeletedForEveryone && onReply && (
             <button
               type="button"
-              className="block w-full text-left px-3 py-1.5 rounded hover:bg-gray-800"
+              className="block w-full rounded px-3 py-1.5 text-left hover:bg-white/[0.08]"
               onClick={() => {
                 onReply(message);
                 setMenu((m) => ({ ...m, open: false }));
@@ -745,7 +745,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {!isDeletedForEveryone && onEdit && isCurrentUser && !media && (
             <button
               type="button"
-              className="block w-full text-left px-3 py-1.5 rounded hover:bg-gray-800"
+              className="block w-full rounded px-3 py-1.5 text-left hover:bg-white/[0.08]"
               onClick={() => {
                 onEdit(message);
                 setMenu((m) => ({ ...m, open: false }));
@@ -757,7 +757,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {!isDeletedForEveryone && onForward && (
             <button
               type="button"
-              className="block w-full text-left px-3 py-1.5 rounded hover:bg-gray-800"
+              className="block w-full rounded px-3 py-1.5 text-left hover:bg-white/[0.08]"
               onClick={() => {
                 onForward(message);
                 setMenu((m) => ({ ...m, open: false }));
@@ -769,7 +769,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {onSelect && (
             <button
               type="button"
-              className="block w-full text-left px-3 py-1.5 rounded hover:bg-gray-800"
+              className="block w-full rounded px-3 py-1.5 text-left hover:bg-white/[0.08]"
               onClick={() => {
                 onSelect(message);
                 setMenu((m) => ({ ...m, open: false }));
@@ -781,7 +781,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {onDelete && (
             <button
               type="button"
-              className="block w-full text-left px-3 py-1.5 rounded hover:bg-gray-800 text-rose-300"
+              className="block w-full rounded px-3 py-1.5 text-left text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
               onClick={() => {
                 onDelete(message);
                 setMenu((m) => ({ ...m, open: false }));

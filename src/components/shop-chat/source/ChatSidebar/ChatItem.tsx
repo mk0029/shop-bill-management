@@ -119,12 +119,12 @@ const ChatItem: React.FC<ChatItemProps> = ({
   const lastWasFromMe = lastMessage && String(lastMessage.senderId) === currentUserId;
   const showUnread = unreadCount > 0 && (!lastWasFromMe || isGroup);
   const presenceText =
-    friend.statusText || (friend.online ? "Online" : friend.lastSeen ? `Last seen ${new Date(friend.lastSeen).toLocaleString()}` : "Never logged in");
+    friend.statusText || (friend.online ? "Online" : friend.lastSeen ? `Last seen ${new Date(friend.lastSeen).toLocaleString()}` : "Offline");
 
   const formatPreview = () => {
     if (!lastMessage) {
       if (isGroup) {
-        return `${friend.memberCount || 0} members${friend.settings?.locked ? " · Locked" : ""}`;
+        return friend.settings?.locked ? "Locked" : "";
       }
       return "";
     }
@@ -207,7 +207,7 @@ const ChatItem: React.FC<ChatItemProps> = ({
 
   return (
     <li
-      className={`relative flex w-full cursor-pointer items-center gap-3 px-3 py-3 transition hover:bg-gray-800/50 ${isArchived ? "opacity-75" : ""}`}
+      className={`relative flex w-full cursor-pointer items-center gap-3 px-3 py-3 transition hover:bg-white/[0.055] ${isArchived ? "opacity-75" : ""}`}
       onClick={onSelect}
       onContextMenu={handleContextMenu}
       title={!isBlocked ? presenceText : ""}
@@ -229,7 +229,7 @@ const ChatItem: React.FC<ChatItemProps> = ({
           )}
         </div>
         <span
-          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-gray-900 ${
+          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-slate-950 ${
             isBlocked ? "bg-rose-500" : friend.online ? "bg-emerald-500" : "bg-gray-500"
           }`}
         />
@@ -242,7 +242,7 @@ const ChatItem: React.FC<ChatItemProps> = ({
             {isGroup && <Users size={12} className="shrink-0 text-sky-300/90" />}
             <span className="min-w-0 truncate text-[15px] font-medium text-white">{friendName}</span>
             {presenceText && (
-              <span className={`hidden max-w-[4.75rem] shrink-0 truncate text-[10px] sm:inline ${friend.online ? "text-emerald-300" : "text-gray-500"}`}>
+              <span className={`hidden max-w-[4.75rem] shrink-0 truncate text-[10px] sm:inline ${friend.online ? "text-emerald-300" : "text-slate-500"}`}>
                 · {presenceText}
               </span>
             )}
