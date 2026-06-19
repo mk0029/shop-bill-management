@@ -1,117 +1,198 @@
 [
   {
-    "label": "5% Off",
+    "label": "5% Service Off",
     "title": "5% Off Today",
-    "message": "Get 5% off on selected electrical services today. Book your service with Jambh Electrics now."
+    "message": "Get 5% off on selected electrical services today. Book your service with Jambh Electrics now.",
+    "category": "special_offer",
+    "ctaLabel": "Book Service"
   },
   {
-    "label": "10% Off",
+    "label": "10% Service Off",
     "title": "10% Service Discount",
-    "message": "Enjoy 10% off on service charges for a limited time. Contact Jambh Electrics to book your visit."
+    "message": "Enjoy 10% off on service charges for a limited time. Contact Jambh Electrics to book your visit.",
+    "category": "special_offer",
+    "ctaLabel": "Book Now"
   },
   {
-    "label": "15% Off",
+    "label": "15% Festival",
     "title": "15% Festival Discount",
-    "message": "Festival special: get 15% off on selected electrical work. Offer valid for a limited time."
+    "message": "Festival special: get 15% off on selected electrical work. Offer valid for a limited time.",
+    "category": "festival_offer",
+    "ctaLabel": "View Offer"
   },
   {
-    "label": "Lights 5%",
-    "title": "5% Off on Lights",
-    "message": "Festival purchase offer: get 5% off on selected lights and decorative lights at Jambh Electrics."
-  },
-  {
-    "label": "Decor 10%",
-    "title": "10% Off on Decoration Lights",
-    "message": "Brighten your festival celebrations with 10% off on selected decoration lights for a limited time."
-  },
-  {
-    "label": "Diwali Lights",
-    "title": "Diwali Lights Offer",
-    "message": "Diwali special: get festival discount on LED lights, decoration lights, and fitting support."
-  },
-  {
-    "label": "LED Bulbs",
-    "title": "LED Bulb Purchase Offer",
-    "message": "Buy LED bulbs and selected lighting products with special festival discount at Jambh Electrics."
-  },
-  {
-    "label": "Light Combo",
-    "title": "Lights Combo Offer",
-    "message": "Buy lights and decoration lights together and get extra discount on your purchase."
-  },
-  {
-    "label": "20% Off",
+    "label": "20% Big Work",
     "title": "20% Off on Big Work",
-    "message": "Get 20% off on major wiring, fitting, or maintenance work above the minimum billing amount."
+    "message": "Get 20% off on major wiring, fitting, or maintenance work above the minimum billing amount.",
+    "category": "special_offer",
+    "ctaLabel": "Get Discount"
   },
   {
-    "label": "Switches 5%",
-    "title": "5% Off on Switches",
-    "message": "Festival offer: get 5% off on selected switches, sockets, and electrical accessories."
-  },
-  {
-    "label": "Fan Buy",
-    "title": "Fan Purchase Discount",
-    "message": "Get a special festival discount on selected fan purchases and fitting service."
-  },
-  {
-    "label": "Wire Offer",
+    "label": "Wiring Material",
     "title": "Wiring Material Offer",
-    "message": "Purchase selected wiring material and get festival discount for a limited time."
+    "message": "Purchase selected wiring material and get a limited-time discount from Jambh Electrics.",
+    "category": "special_offer",
+    "ctaLabel": "Shop Now"
   },
   {
-    "label": "Home Combo",
-    "title": "Home Electrical Combo Offer",
-    "message": "Buy lights, switches, sockets, and fitting items together and get a special combo discount."
-  },
-  {
-    "label": "Visit Off",
-    "title": "Visit Charge Discount",
-    "message": "Book today and get a discount on visit charges for home electrical service."
+    "label": "Home Wiring",
+    "title": "Home Wiring Check",
+    "message": "Book a home wiring check and keep your switches, sockets, and wiring safe.",
+    "category": "service_update",
+    "ctaLabel": "Book Check"
   },
   {
     "label": "Free Checkup",
     "title": "Free Checkup with Service",
-    "message": "Get a free basic electrical checkup with any paid repair or fitting service."
+    "message": "Get a free basic electrical checkup with any paid repair or fitting service.",
+    "category": "special_offer",
+    "ctaLabel": "Claim Offer"
   },
   {
-    "label": "AC Discount",
-    "title": "AC Service Discount",
-    "message": "Get a special discount on AC servicing and electrical checking. Book your slot today."
+    "label": "Visit Charge",
+    "title": "Visit Charge Discount",
+    "message": "Book today and get a discount on visit charges for home electrical service.",
+    "category": "special_offer",
+    "ctaLabel": "Book Visit"
+  },
+  {
+    "label": "Diwali Lights",
+    "title": "Diwali Lights Offer",
+    "message": "Diwali special: get festival discount on LED lights, decoration lights, and fitting support.",
+    "category": "festival_offer",
+    "ctaLabel": "View Lights"
+  },
+  {
+    "label": "Decor Lights",
+    "title": "10% Off on Decoration Lights",
+    "message": "Brighten your festival celebrations with 10% off on selected decoration lights for a limited time.",
+    "category": "festival_offer",
+    "ctaLabel": "Shop Lights"
+  },
+  {
+    "label": "LED Bulbs",
+    "title": "LED Bulb Purchase Offer",
+    "message": "Buy LED bulbs and selected lighting products with special discount at Jambh Electrics.",
+    "category": "special_offer",
+    "ctaLabel": "Buy Now"
+  },
+  {
+    "label": "Light Combo",
+    "title": "Lights Combo Offer",
+    "message": "Buy lights and decoration lights together and get extra discount on your purchase.",
+    "category": "special_offer",
+    "ctaLabel": "View Combo"
+  },
+  {
+    "label": "Switches",
+    "title": "5% Off on Switches",
+    "message": "Get 5% off on selected switches, sockets, and electrical accessories.",
+    "category": "special_offer",
+    "ctaLabel": "Shop Items"
+  },
+  {
+    "label": "Fan Purchase",
+    "title": "Fan Purchase Discount",
+    "message": "Get a special discount on selected fan purchases and fitting service.",
+    "category": "special_offer",
+    "ctaLabel": "View Fans"
   },
   {
     "label": "Fan Repair",
     "title": "Fan Repair Discount",
-    "message": "Fan repair offer: get a discount on repair service charges for a limited time."
+    "message": "Fan repair offer: get a discount on repair service charges for a limited time.",
+    "category": "special_offer",
+    "ctaLabel": "Book Repair"
   },
   {
-    "label": "LED Offer",
+    "label": "AC Service",
+    "title": "AC Service Discount",
+    "message": "Get a special discount on AC servicing and electrical checking. Book your slot today.",
+    "category": "special_offer",
+    "ctaLabel": "Book Slot"
+  },
+  {
+    "label": "LED Fitting",
     "title": "LED Fitting Discount",
-    "message": "Upgrade to LED lighting and get a special discount on fitting charges."
+    "message": "Upgrade to LED lighting and get a special discount on fitting charges.",
+    "category": "special_offer",
+    "ctaLabel": "Upgrade Now"
   },
   {
-    "label": "Combo Offer",
+    "label": "Repair Combo",
     "title": "Repair + Fitting Combo Offer",
-    "message": "Book repair and fitting work together and get an extra discount on total service charges."
+    "message": "Book repair and fitting work together and get an extra discount on total service charges.",
+    "category": "special_offer",
+    "ctaLabel": "Book Combo"
   },
   {
     "label": "New Customer",
     "title": "New Customer Discount",
-    "message": "First-time customers get a special discount on their first service booking with Jambh Electrics."
+    "message": "First-time customers get a special discount on their first service booking with Jambh Electrics.",
+    "category": "special_offer",
+    "ctaLabel": "Start Now"
   },
   {
-    "label": "Shop Offer",
+    "label": "Shop Maintenance",
     "title": "Shop Maintenance Discount",
-    "message": "Get a special discount on shop electrical maintenance and safety checking."
+    "message": "Get a special discount on shop electrical maintenance and safety checking.",
+    "category": "special_offer",
+    "ctaLabel": "Book Check"
   },
   {
-    "label": "Monsoon Off",
+    "label": "Monsoon Safety",
     "title": "Monsoon Safety Discount",
-    "message": "Monsoon offer: get discounted electrical safety checks for wiring, sockets, and earthing."
+    "message": "Monsoon offer: get discounted electrical safety checks for wiring, sockets, and earthing.",
+    "category": "service_update",
+    "ctaLabel": "Check Safety"
+  },
+  {
+    "label": "Power Cut Help",
+    "title": "Power Issue Support",
+    "message": "Facing a power issue? Contact Jambh Electrics for quick checking and repair support.",
+    "category": "service_update",
+    "ctaLabel": "Get Help"
+  },
+  {
+    "label": "Bill Reminder",
+    "title": "Bill Payment Reminder",
+    "message": "Please check your pending bill details and complete payment when possible.",
+    "category": "general",
+    "ctaLabel": "Open Bill"
+  },
+  {
+    "label": "Work Update",
+    "title": "Work Status Updated",
+    "message": "Your electrical work status has been updated. Open the app to see the latest details.",
+    "category": "service_update",
+    "ctaLabel": "View Status"
+  },
+  {
+    "label": "Booking Open",
+    "title": "Service Booking Open",
+    "message": "Service slots are open today. Book early to get faster support from Jambh Electrics.",
+    "category": "general",
+    "ctaLabel": "Book Now"
+  },
+  {
+    "label": "Safety Tip",
+    "title": "Electrical Safety Tip",
+    "message": "Avoid overloading sockets and call a technician if switches or wires heat up.",
+    "category": "general",
+    "ctaLabel": "Learn More"
+  },
+  {
+    "label": "Festival Wishes",
+    "title": "Festival Wishes",
+    "message": "Warm wishes from Jambh Electrics. May your home stay bright, safe, and happy.",
+    "category": "festival_offer",
+    "ctaLabel": "Open"
   },
   {
     "label": "Limited Deal",
     "title": "Limited Time Discount",
-    "message": "Limited time deal: get extra discount on selected electrical services. Book before the offer ends."
+    "message": "Limited time deal: get extra discount on selected electrical services. Book before the offer ends.",
+    "category": "special_offer",
+    "ctaLabel": "Claim Deal"
   }
 ]

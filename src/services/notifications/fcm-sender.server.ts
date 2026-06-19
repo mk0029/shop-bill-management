@@ -1,6 +1,7 @@
 import "server-only";
 import { GoogleAuth } from "google-auth-library";
 import { deactivateFcmTokens } from "@/lib/fcm/tokens.server";
+import { sanitizeUserText } from "@/constants/defaults";
 import type { NotificationSendResult } from "@/types/notifications";
 
 type FcmMessageInput = {
@@ -80,13 +81,24 @@ function buildWebPushTopic(sanitized: Record<string, string>) {
   return safe || "app-notification";
 }
 
+function cleanOsNotificationText(value: unknown, fallback: string) {
+  const cleaned = sanitizeUserText(String(value || ""))
+    .replace(/["'`<>]/g, " ")
+    .replace(/[^\p{L}\p{N}\s.,!?₹$%&:/+-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || fallback;
+}
+
 function buildMessage(token: string, title: string, body: string, data?: Record<string, string>, imageUrl?: string) {
+  const safeTitle = cleanOsNotificationText(title, "Notification");
+  const safeBody = cleanOsNotificationText(body, "You have a new update.");
   const sanitized: Record<string, string> = {};
   for (const [key, value] of Object.entries(data || {})) {
     sanitized[String(key)] = String(value);
   }
-  sanitized.title ||= title;
-  sanitized.body ||= body;
+  sanitized.title = cleanOsNotificationText(sanitized.title || safeTitle, safeTitle);
+  sanitized.body = cleanOsNotificationText(sanitized.body || safeBody, safeBody);
   sanitized.icon ||= NOTIFICATION_ICON;
   sanitized.badge ||= NOTIFICATION_BADGE;
   sanitized.click_action ||= buildWebPushLink(sanitized);
@@ -113,8 +125,8 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
         priority: "HIGH",
         ttl: "604800s",
         notification: {
-          title,
-          body,
+          title: safeTitle,
+          body: safeBody,
           channel_id: androidChannelId,
           sound: "default",
           visibility: "PUBLIC",

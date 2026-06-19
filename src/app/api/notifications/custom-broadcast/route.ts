@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
-import { createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 type BroadcastAudience = "customers" | "admins" | "all";
 
@@ -134,39 +133,26 @@ export async function GET(req: NextRequest) {
         route: campaign.ctaUrl || undefined,
         route_path: campaign.ctaUrl || undefined,
       };
-      const result = await createAndDispatchNotification({
+      const result = await sendBackendBroadcast({
         eventId: `campaign.${campaign._id}`,
-        type: "system.general",
         actorUserId: campaign.createdBy?._ref || "",
         userIds: targetUserIds,
+        audience: campaign.audience || "customers",
         title: String(campaign.title || "Offer"),
         body: String(campaign.description || ""),
         data: notificationData,
-        skipActor: false,
       });
-      const sent = Number(result.send?.sent || 0);
-      if (sent < targetUserIds.length) {
-        await sendBackendBroadcast({
-          eventId: `campaign.${campaign._id}`,
-          actorUserId: campaign.createdBy?._ref || "",
-          userIds: targetUserIds,
-          audience: campaign.audience || "customers",
-          title: String(campaign.title || "Offer"),
-          body: String(campaign.description || ""),
-          data: notificationData,
-        });
-      }
       await sanityClient
         .patch(campaign._id)
         .set({
           status: result.ok ? "sent" : "failed",
-          notificationId: result.notificationId,
+          notificationId: result.result?.notificationId || result.result?.eventId,
           publishedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          ...(result.error ? { error: result.error } : {}),
+          ...(!result.ok ? { error: result.result?.error || "Backend notification send failed" } : {}),
         })
         .commit();
-      results.push({ campaignId: campaign._id, success: result.ok, notificationId: result.notificationId });
+      results.push({ campaignId: campaign._id, success: result.ok, notificationId: result.result?.notificationId || result.result?.eventId });
     }
 
     return NextResponse.json({ success: true, processed: results.length, results });
@@ -270,40 +256,25 @@ export async function POST(req: NextRequest) {
       route: link || undefined,
       route_path: link || undefined,
     };
-    const result = await createAndDispatchNotification({
+    const backend = await sendBackendBroadcast({
       eventId,
-      type: "system.general",
       actorUserId,
       userIds: targetUserIds,
+      audience,
       title,
       body: message,
       data: notificationData,
-      skipActor: false,
     });
-    const sent = Number(result.send?.sent || 0);
-    const backend =
-      sent < targetUserIds.length
-        ? await sendBackendBroadcast({
-            eventId,
-            actorUserId,
-            userIds: targetUserIds,
-            audience,
-            title,
-            body: message,
-            data: notificationData,
-          })
-        : undefined;
 
     return NextResponse.json(
       {
-        success: result.ok || Boolean(backend?.ok),
-        targetCount: result.targetUserIds.length,
-        notificationId: result.notificationId,
-        send: result.send,
-        backendSend: backend?.result,
-        error: result.error,
+        success: Boolean(backend.ok),
+        targetCount: targetUserIds.length,
+        notificationId: backend.result?.notificationId || backend.result?.eventId,
+        backendSend: backend.result,
+        error: backend.ok ? undefined : backend.result?.error || "Backend notification send failed",
       },
-      { status: result.ok || backend?.ok ? 200 : 500 },
+      { status: backend.ok ? 200 : 500 },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";
