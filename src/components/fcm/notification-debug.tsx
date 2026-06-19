@@ -74,19 +74,7 @@ export function NotificationDebug() {
       return;
     }
 
-    try {
-      // Test local notification
-      const notification = new Notification("Test Notification", {
-        body: "This is a test notification from your app!",
-        icon: "/favicon.ico",
-        tag: "test",
-      });
-
-      setTimeout(() => notification.close(), 5000);
-      toast.success("Test notification sent!");
-    } catch (error) {
-      toast.error("Failed to send test notification");
-    }
+    toast.info("Use the server test send so the notification is stored, deduped, and dispatched through FCM.");
   };
 
   useEffect(() => {

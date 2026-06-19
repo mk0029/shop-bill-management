@@ -3,7 +3,7 @@ import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName } from "@/lib/display-text";
-import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +66,7 @@ async function notifyCustomer(args: {
 }) {
   const customerId = args.request.customer?._id;
   if (!customerId) return;
-  await sendNotificationEvent({
+  await createAndDispatchNotification({
     eventId: `repairRequest.${args.request.status}.${args.request._id}.${Date.now()}`,
     type: "system.general",
     actorUserId: args.actorUserId,
@@ -94,7 +94,7 @@ async function notifyAssignedTechnician(args: {
 }) {
   const technicianId = args.request.technician?._id || args.request.technicianRefId;
   if (!technicianId) return;
-  await sendNotificationEvent({
+  await createAndDispatchNotification({
     eventId: `repairRequest.technician.${args.request._id}.${Date.now()}`,
     type: args.taskId ? "workTask.updated" : "system.general",
     actorUserId: args.actorUserId,
@@ -219,7 +219,7 @@ export async function PATCH(
 
     const technicianId = request.technician?._id || request.technicianRefId;
     const adminIds = technicianId ? [technicianId] : await getActiveAdminUserIds();
-    await sendNotificationEvent({
+    await createAndDispatchNotification({
       eventId: `repairRequest.cancelled.${id}.${technicianId || "admins"}`,
       type: "system.general",
       actorUserId: auth.userId,
@@ -381,7 +381,7 @@ export async function PATCH(
           route: `/customer/work-tasks?open=${encodeURIComponent(task._id)}`,
           taskId: task._id,
         }),
-        sendNotificationEvent({
+        createAndDispatchNotification({
           eventId: `repairRequest.addedToWorkList.${id}.${technicianId || "technician"}`,
           type: "workTask.created",
           actorUserId: auth.userId,

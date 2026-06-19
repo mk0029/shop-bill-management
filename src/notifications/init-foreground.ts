@@ -8,26 +8,23 @@ import type { MessagePayload } from "firebase/messaging";
 export function initForegroundNotifications() {
   if (typeof window === "undefined") return;
 
-  const ensurePermission = async () => {
-    if (!("Notification" in window)) return false;
-    return Notification.permission === "granted";
-  };
-
   onForegroundMessage(async (payload: MessagePayload) => {
     const data = payload.data || {};
+    const id = String(data.dedupeKey || data.id || data.notificationId || data.eventId || `push-${Date.now()}`);
+    const title = payload.notification?.title || data.title || "Notification";
+    const body = payload.notification?.body || data.body || "";
     const isScheduledGreeting =
       data.category === "scheduled_greeting" ||
       data.scheduledType === "dailyGreeting" ||
       data.scheduledType === "festivalGreeting";
 
     if (isScheduledGreeting) {
-      const id = String(data.id || data.notificationId || `scheduled-${data.date || Date.now()}`);
       clearAppSystemNotifications({ tag: String(data.tag || "scheduled-greeting") });
       useNotificationStore.getState().add({
         id,
         type: "system",
-        title: payload.notification?.title || data.title || "Notification",
-        body: payload.notification?.body || data.body || "",
+        title,
+        body,
         createdAt: new Date().toISOString(),
         meta: {
           type: "scheduled_greeting",
@@ -39,24 +36,17 @@ export function initForegroundNotifications() {
       return;
     }
 
-    const granted = await ensurePermission();
-    if (!granted) return;
-
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const title = payload.notification?.title || "Notification";
-      const options: NotificationOptions = {
-        body: payload.notification?.body || "",
-        icon: payload.data?.icon || "/je-p-192.png",
-        badge: payload.data?.badge || "/je-p-48.png",
-        data: {
-          link: payload.fcmOptions?.link || payload.data?.click_action || "/",
-        },
-      } as NotificationOptions;
-
-      await reg.showNotification(title, options);
-    } catch (error) {
-      console.error("Failed to show foreground notification:", error);
-    }
+    useNotificationStore.getState().add({
+      id,
+      type: "system",
+      title,
+      body,
+      createdAt: new Date().toISOString(),
+      meta: {
+        type: data.type || "push",
+        source: "push",
+        route: data.route ? { pathname: data.route } : undefined,
+      },
+    });
   });
 }

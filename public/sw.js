@@ -84,8 +84,8 @@ const DEDUPE_WINDOW_MS = 4000;
 const recentlyShown = new Map(); // key -> timestamp
 const showingNow = new Set(); // key -> in-flight display lock
 
-function makeDedupeKey({ tag, title, body }) {
-  return `${tag || ""}|${title || ""}|${body || ""}`;
+function makeDedupeKey({ dedupeKey, tag, title, body }) {
+  return String(dedupeKey || "").trim() || `${tag || ""}|${title || ""}|${body || ""}`;
 }
 
 function markShown(key) {
@@ -580,6 +580,7 @@ try {
         // Extra guard: if an identical notification was just shown, skip
         const n = (payload && payload.notification) || {};
         const dedupeKey = makeDedupeKey({
+          dedupeKey: d.dedupeKey,
           tag: key,
           title: n.title || d.title || "Notification",
           body: n.body || d.body || "",
@@ -653,7 +654,7 @@ try {
   }
 
   async function showNotification(payload) {
-    console.log("🔔 SW: showNotification called with payload:", payload);
+    console.log("[notifications-sw] showNotification called", payload);
 
     if (!(await shouldShowNotification(payload))) {
       console.log("🔔 SW: shouldShowNotification returned false");
@@ -738,11 +739,15 @@ try {
     let dedupeKey = "";
     try {
       dedupeKey = makeDedupeKey({
+        dedupeKey: data.dedupeKey,
         tag: options.tag,
         title,
         body: options.body || "",
       });
-      if (showingNow.has(dedupeKey) || wasRecentlyShown(dedupeKey)) return;
+      if (showingNow.has(dedupeKey) || wasRecentlyShown(dedupeKey)) {
+        console.log("[notifications-sw] skipped duplicate", { dedupeKey });
+        return;
+      }
       showingNow.add(dedupeKey);
       markShown(dedupeKey);
     } catch {}
@@ -755,6 +760,7 @@ try {
         if (existing && existing.length) existing.forEach((n) => n.close());
       } catch {}
       await self.registration.showNotification(title, options);
+      console.log("[notifications-sw] notification displayed", { dedupeKey, tag: options.tag, title });
       await reportNotificationStatus(options.data, "delivered");
     } finally {
       if (dedupeKey) {
@@ -894,8 +900,20 @@ try {
 
   // Handle background FCM messages (when app/tab is closed or in background)
   messaging.onBackgroundMessage((payload) => {
-    console.log("📨 SW: onBackgroundMessage received:", payload);
+    console.log("[notifications-sw] service worker received push", payload);
     const maybeQueue = async () => {
+      if (payload && payload.notification && payload.notification.title) {
+        const data = payload.data || {};
+        const dedupeKey = makeDedupeKey({
+          dedupeKey: data.dedupeKey,
+          tag: data.tag,
+          title: payload.notification.title,
+          body: payload.notification.body || data.body || "",
+        });
+        markShown(dedupeKey);
+        console.log("[notifications-sw] notification payload handled by FCM, skipping manual display", { dedupeKey });
+        return;
+      }
       const normalized = normalizePushPayload(payload);
       const queued = await queueNotification(normalized);
       console.log("📨 SW: queued result:", queued);
@@ -925,6 +943,18 @@ try {
     if (isFcmMsg) {
       event.waitUntil(
         (async () => {
+          if (payload && payload.notification && payload.notification.title) {
+            const data = payload.data || {};
+            const dedupeKey = makeDedupeKey({
+              dedupeKey: data.dedupeKey,
+              tag: data.tag,
+              title: payload.notification.title,
+              body: payload.notification.body || data.body || "",
+            });
+            markShown(dedupeKey);
+            console.log("[notifications-sw] FCM notification payload skipped in push fallback", { dedupeKey });
+            return;
+          }
           const normalized = normalizePushPayload(payload);
           const queued = await queueNotification(normalized);
           if (!queued) await maybeAggregateAndShow(normalized);

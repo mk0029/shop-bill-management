@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
 import { sendViaWaBotServer } from '@/lib/wa-bot-server'
-import { getActiveAdminUserIds, sendNotificationEvent } from '@/services/notifications/notification-events.server'
+import { getActiveAdminUserIds, createAndDispatchNotification } from '@/services/notifications/notification-events.server'
 import { safeUserName } from '@/lib/display-text'
 import {
   billCreatedAdminNotification,
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       const customerNotification = billCreatedCustomerNotification({ amount, customerName })
 
       const adminIds = await getActiveAdminUserIds()
-      await sendNotificationEvent({
+      await createAndDispatchNotification({
         eventId: `billing.created.${String((created as any)?._id || billId)}.admins`,
         type: adminNotification.type,
         actorUserId,
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
       if (customerId) {
         const customerRoute = `/customer/bills?open=${encodeURIComponent(String((created as any)?._id || billId))}`
-        await sendNotificationEvent({
+        await createAndDispatchNotification({
           eventId: `billing.created.${String((created as any)?._id || billId)}.customer.${String(customerId)}`,
           type: customerNotification.type,
           actorUserId,

@@ -20,7 +20,8 @@ export function buildNotificationData(args: {
   return {
     ...data,
     ...(args.id ? { id: args.id } : {}),
-    tag: data.tag || args.id || "",
+    dedupeKey: data.dedupeKey || "",
+    tag: data.tag || data.dedupeKey || args.id || "",
     type: String(args.type),
     title: args.title,
     body: args.body,

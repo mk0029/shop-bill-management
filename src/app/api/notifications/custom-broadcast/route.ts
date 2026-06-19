@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
-import { sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 type BroadcastAudience = "customers" | "admins" | "all";
 
@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
         route: campaign.ctaUrl || undefined,
         route_path: campaign.ctaUrl || undefined,
       };
-      const result = await sendNotificationEvent({
+      const result = await createAndDispatchNotification({
         eventId: `campaign.${campaign._id}`,
         type: "system.general",
         actorUserId: campaign.createdBy?._ref || "",
@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
       route: link || undefined,
       route_path: link || undefined,
     };
-    const result = await sendNotificationEvent({
+    const result = await createAndDispatchNotification({
       eventId,
       type: "system.general",
       actorUserId,

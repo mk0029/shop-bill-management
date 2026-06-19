@@ -4,7 +4,7 @@ import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { safeUserName } from "@/lib/display-text";
 import { sendViaWaBotServer } from "@/lib/wa-bot-server";
-import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 export const dynamic = "force-dynamic";
 
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
   const selectedTechnicianId = technician._id;
   const adminIds = selectedTechnicianId ? [selectedTechnicianId] : await getActiveAdminUserIds();
   const postCreateJobs: Promise<unknown>[] = [
-    sendNotificationEvent({
+    createAndDispatchNotification({
       eventId: `repairRequest.created.${created._id}.${selectedTechnicianId || "admins"}`,
       type: "system.general",
       actorUserId: customer._id,

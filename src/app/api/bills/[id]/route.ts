@@ -6,7 +6,7 @@ import { notificationService } from "@/lib/notification-service";
 import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 import { getServerAuth } from "@/lib/server-auth";
 import { updateStockForBill } from "@/lib/inventory-management";
-import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 import { safeUserName } from "@/lib/display-text";
 
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
@@ -259,7 +259,7 @@ export async function PATCH(
         const adminRoute = `/admin/billing?open=${encodeURIComponent(String(id))}`
         const customerRoute = `/customer/bills?open=${encodeURIComponent(String(id))}`
 
-        await sendNotificationEvent({
+        await createAndDispatchNotification({
           eventId: `billing.updated.${String(id)}.admins.${suffix}`,
           type: 'billing.updated',
           actorUserId,
@@ -279,7 +279,7 @@ export async function PATCH(
         })
 
         if (customerId) {
-          await sendNotificationEvent({
+          await createAndDispatchNotification({
             eventId: `billing.updated.${String(id)}.customer.${customerId}.${suffix}`,
             type: 'billing.updated',
             actorUserId,

@@ -1,11 +1,9 @@
 import "server-only";
 import { sanityClient } from "./sanity";
-import { sendFcmToTokens } from "@/services/notifications/fcm-sender.server";
 import {
+  createAndDispatchNotification,
   getActiveAdminUserIds,
-  sendNotificationEvent,
 } from "@/services/notifications/notification-events.server";
-import { getActiveTokenStringsForUsers } from "@/lib/fcm/tokens.server";
 import type { NotificationData, NotificationEventType } from "@/types/notifications";
 
 export type SendPayload = {
@@ -124,7 +122,7 @@ export const notificationService = {
     try {
       const targets = await resolveLegacyTargets(event);
       const text = defaultText(event);
-      const result = await sendNotificationEvent({
+      const result = await createAndDispatchNotification({
         eventId: event.eventId,
         type: mapLegacyType(event.type),
         actorUserId: event.actorUserId,
@@ -151,24 +149,27 @@ export const notificationService = {
 };
 
 export async function sendNotification(payload: SendPayload): Promise<SendResult> {
-  const tokens = payload.tokens?.length
-    ? payload.tokens
-    : payload.userIds?.length
-      ? await getActiveTokenStringsForUsers(payload.userIds)
-      : [];
-  const exclude = new Set((payload.excludeTokens || []).filter(Boolean));
-  const filtered = tokens.filter((token) => !exclude.has(token));
-  const result = await sendFcmToTokens({
-    tokens: filtered,
+  if (!payload.userIds?.length) {
+    return {
+      success: false,
+      sent: 0,
+      failed: 0,
+      errors: ["Direct token sends are disabled; dispatch notifications by target user id."],
+    };
+  }
+  const result = await createAndDispatchNotification({
+    type: "system.general",
+    actorUserId: "system",
+    userIds: payload.userIds,
     title: payload.title,
     body: payload.body,
-    data: payload.data,
+    data: payload.data as NotificationData,
   });
   return {
-    success: result.success,
-    sent: result.sent,
-    failed: result.failed,
-    errors: result.errors,
+    success: result.send.success,
+    sent: result.send.sent,
+    failed: result.send.failed,
+    errors: result.send.errors,
   };
 }
 

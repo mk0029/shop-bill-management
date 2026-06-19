@@ -1,10 +1,10 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { formatApproachTime, formatDayDate, formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent } from "@/lib/shop-chat/server-events";
-import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -58,7 +58,7 @@ async function notifyWorkTaskEvent(args: {
       ? [args.assignedTechnicianId]
       : await getActiveAdminUserIds();
 
-  await sendNotificationEvent({
+  await createAndDispatchNotification({
     eventId: `workTask.created.${args.taskId}.admins`,
     type: "workTask.created",
     actorUserId: args.actorUserId,
@@ -85,7 +85,7 @@ async function sendTechnicianTaskAssigned(args: {
   if (!phone) return;
   const safeTechnicianName =
     sanitizeUserText(String(args.technicianName || "")).trim() || "Technician";
-  const msg = `✅ New Work Assigned
+  const msg = `? New Work Assigned
 
 Hello ${safeTechnicianName},
 
@@ -241,7 +241,7 @@ export async function POST(req: NextRequest) {
           createdAt: now,
           updatedAt: now,
         });
-        await sendNotificationEvent({
+        await createAndDispatchNotification({
           eventId: `workTask.created.${String(created?._id || "")}.customer.${String(body.customerRefId)}`,
           type: "workTask.created",
           actorUserId,
@@ -259,18 +259,18 @@ export async function POST(req: NextRequest) {
         if (!customer?.phone) return;
         const requestDate = formatDayDate(now);
         const approachTime = formatApproachTime(dueAt, now);
-        const msg = `✅ Service Request Registered
+        const msg = `? Service Request Registered
 
 Dear ${safeCustomerName},
 
 Your request for *${title}* has been registered successfully.
 
-🛠️ Assigned Technician: ${safeTechnicianName}
-📅 Request Date: ${requestDate}
+??? Assigned Technician: ${safeTechnicianName}
+?? Request Date: ${requestDate}
 
 We will approach approximately by *${approachTime}* for inspection/service.
 
-Thank you for trusting Jambh Electrical Services ⚡`;
+Thank you for trusting Jambh Electrical Services ?`;
         await sendViaWaBotServer(String(customer.phone), msg);
       })(),
     );

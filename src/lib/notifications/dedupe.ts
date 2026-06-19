@@ -34,13 +34,14 @@ function writeEntries(entries: Entry[]) {
 }
 
 export function notificationIdentity(input: {
+  dedupeKey?: unknown;
   id?: unknown;
   notificationId?: unknown;
   messageId?: unknown;
   roomId?: unknown;
   tag?: unknown;
 }) {
-  const id = String(input.id || input.notificationId || input.messageId || input.tag || "").trim();
+  const id = String(input.dedupeKey || input.id || input.notificationId || input.messageId || input.tag || "").trim();
   if (id) return id;
   const roomId = String(input.roomId || "").trim();
   return roomId ? `room:${roomId}` : "";

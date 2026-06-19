@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { sanityClient } from "@/lib/sanity";
 import { getActiveFcmTokensForUsers } from "@/lib/fcm/tokens.server";
-import { sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 import { sanitizeUserText } from "@/constants/defaults";
 
 type ScheduledNotificationType = "daily_good_morning" | "hindu_festival_greeting";
@@ -464,9 +464,15 @@ async function dispatchGreeting(input: {
   }
 
   const tokens = await getActiveFcmTokensForUsers([user._id]);
+  console.log("[scheduled-greetings] token count per user", { userId: user._id, tokenCount: tokens.length });
   const expiresAt = new Date(Date.now() + GREETING_TTL_HOURS * 60 * 60 * 1000).toISOString();
   const eventId = `${message.type}.${user._id}.${message.type === "daily_good_morning" ? localDate : `${localYear}.${festivalSlug}`}`;
-  const result = await sendNotificationEvent({
+  const dedupeKey =
+    message.type === "daily_good_morning"
+      ? `daily_good_morning:${user._id}:${eventId}:${localDate}`
+      : `${message.type}:${user._id}:${festivalSlug || eventId}:${localYear}`;
+  console.log("[scheduled-greetings] dedupe key generated", { userId: user._id, dedupeKey });
+  const result = await createAndDispatchNotification({
     eventId,
     type: message.type,
     userId: user._id,
@@ -480,6 +486,7 @@ async function dispatchGreeting(input: {
       festivalSlug,
       festivalDate: message.festival?.date || "",
       greetingDate: localDate,
+      dedupeKey,
       year: localYear,
       expiresAt,
       route: "/",
@@ -541,7 +548,7 @@ function addStats(total: GreetingRunStats, next: GreetingRunStats) {
   total.failed += next.failed;
 }
 
-async function sendForUser(user: GreetingUser, now: Date, force = false) {
+async function sendForUser(user: GreetingUser, now: Date, options: { force?: boolean; skipDailyGoodMorning?: boolean } = {}) {
   const timezone = user.notificationTimezone || DEFAULT_TIMEZONE;
   const local = localDateParts(now, timezone);
   const prefs = user.notificationPreferences || {};
@@ -552,7 +559,7 @@ async function sendForUser(user: GreetingUser, now: Date, force = false) {
     return { ...stats, skipped: 1 };
   }
 
-  if (!force && (local.hour < MORNING_START_HOUR || local.hour > MORNING_END_HOUR)) {
+  if (!options.force && (local.hour < MORNING_START_HOUR || local.hour > MORNING_END_HOUR)) {
     return { ...stats, skipped: 1 };
   }
 
@@ -561,7 +568,10 @@ async function sendForUser(user: GreetingUser, now: Date, force = false) {
     return { ...stats, skipped: 1 };
   }
 
-  if (prefs.dailyGreetingEnabled !== false) {
+  if (options.skipDailyGoodMorning) {
+    await writeLog({ user, date: local.date, year: local.year, timezone, type: "daily_good_morning", status: "skipped", reason: "backend_scheduler_authoritative" });
+    stats.skipped += 1;
+  } else if (prefs.dailyGreetingEnabled !== false) {
     addStats(stats, await dispatchGreeting({ user, timezone, localDate: local.date, localYear: local.year, message: dailyMessage(user) }));
   } else {
     await writeLog({ user, date: local.date, year: local.year, timezone, type: "daily_good_morning", status: "skipped", reason: "daily_greeting_disabled" });
@@ -580,7 +590,7 @@ async function sendForUser(user: GreetingUser, now: Date, force = false) {
   return stats;
 }
 
-export async function runScheduledGreetings(input?: { now?: Date; force?: boolean }) {
+export async function runScheduledGreetings(input?: { now?: Date; force?: boolean; skipDailyGoodMorning?: boolean }) {
   const now = input?.now || new Date();
   const users = await sanityClient.fetch<GreetingUser[]>(
     `*[_type=="user" && isActive != false && role in ["customer","admin","super_admin","technician"]]{
@@ -592,11 +602,15 @@ export async function runScheduledGreetings(input?: { now?: Date; force?: boolea
       notificationPreferences
     }`,
   );
+  console.log("[scheduled-greetings] users selected", (users || []).map((user) => user._id));
 
   const totals: GreetingRunStats = { sent: 0, skipped: 0, failed: 0 };
   for (const user of users || []) {
     try {
-      addStats(totals, await sendForUser(user, now, Boolean(input?.force)));
+      addStats(totals, await sendForUser(user, now, {
+        force: Boolean(input?.force),
+        skipDailyGoodMorning: input?.skipDailyGoodMorning === true,
+      }));
     } catch (error) {
       totals.failed += 1;
       console.error("[ScheduledGreetings] user failed", user._id, error);

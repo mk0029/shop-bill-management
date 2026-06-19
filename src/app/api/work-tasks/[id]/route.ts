@@ -4,7 +4,7 @@ import { getServerAuth } from "@/lib/server-auth";
 import { formatDayDateTime, formatRelativeDayDateTime, formatApproachTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent, type WorkTaskShopChatEventInput } from "@/lib/shop-chat/server-events";
-import { getActiveAdminUserIds, sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -56,7 +56,7 @@ async function notify(
   const targetUserIds = assignedTechnicianId
     ? [assignedTechnicianId]
     : await getActiveAdminUserIds();
-  await sendNotificationEvent({
+  await createAndDispatchNotification({
     eventId: `${eventType}.${taskId}.${assignedTechnicianId || "admins"}.${eventKey}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
     type: eventType,
     actorUserId,
@@ -371,7 +371,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   );
 
   if (customerRefId) {
-    await sendNotificationEvent({
+    await createAndDispatchNotification({
       eventId: `${eventType}.${id}.customer.${customerRefId}.${String(updated?.updatedAt || Date.now())}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
       type: eventType,
       actorUserId,
@@ -481,7 +481,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     String(existing?.assignedTechnician?._id || existing?.assignedTechnician?._ref || ""),
   );
   if (customerRefId) {
-    await sendNotificationEvent({
+    await createAndDispatchNotification({
       eventId: `workTask.cancelled.${id}.customer.${customerRefId}`,
       type: "workTask.cancelled",
       actorUserId,
@@ -497,7 +497,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       skipActor: true,
     });
     if (linkedRepairRequest?._id) {
-      await sendNotificationEvent({
+      await createAndDispatchNotification({
         eventId: `repairRequest.cancelled.${linkedRepairRequest._id}.customer.${customerRefId}.${now}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
         type: "workTask.cancelled",
         actorUserId,

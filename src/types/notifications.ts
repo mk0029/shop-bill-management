@@ -25,7 +25,7 @@ export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 
 export type NotificationData = Record<string, string | number | boolean | null | undefined>;
 
-export type SendNotificationEventInput = {
+export type createAndDispatchNotificationInput = {
   type: NotificationEventType;
   userId?: string;
   userIds?: string[];
@@ -34,6 +34,7 @@ export type SendNotificationEventInput = {
   body: string;
   data?: NotificationData;
   eventId?: string;
+  dedupeKey?: string;
   skipActor?: boolean;
 };
 

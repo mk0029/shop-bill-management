@@ -19,13 +19,18 @@ async function handle(req: NextRequest) {
   }
 
   const force = req.nextUrl.searchParams.get("force") === "1";
+  const includeDailyGoodMorning = req.nextUrl.searchParams.get("includeDailyGoodMorning") === "1";
   const dateParam = req.nextUrl.searchParams.get("now");
   const now = dateParam ? new Date(dateParam) : new Date();
   if (Number.isNaN(now.getTime())) {
     return NextResponse.json({ success: false, error: "Invalid now date" }, { status: 400 });
   }
 
-  const result = await runScheduledGreetings({ now, force });
+  const result = await runScheduledGreetings({
+    now,
+    force,
+    skipDailyGoodMorning: !includeDailyGoodMorning,
+  });
   return NextResponse.json({ success: true, ...result });
 }
 

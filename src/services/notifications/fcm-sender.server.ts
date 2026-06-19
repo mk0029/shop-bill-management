@@ -90,7 +90,10 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
   sanitized.icon ||= NOTIFICATION_ICON;
   sanitized.badge ||= NOTIFICATION_BADGE;
   sanitized.click_action ||= buildWebPushLink(sanitized);
+  sanitized.dedupeKey ||= sanitized.dedupeKey || sanitized.tag || sanitized.id || "";
   const topic = buildWebPushTopic(sanitized);
+  const isDailyGreeting = sanitized.type === "daily_good_morning" || sanitized.scheduledType === "daily_good_morning";
+  const androidChannelId = isDailyGreeting ? "daily-greetings" : "shop_notifications";
 
   return {
     message: {
@@ -102,17 +105,6 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
           Urgency: "high",
           Topic: topic,
         },
-        notification: {
-          title,
-          body,
-          icon: sanitized.icon,
-          badge: sanitized.badge,
-          image: imageUrl || sanitized.image || sanitized.imageUrl,
-          tag: sanitized.tag || topic,
-          renotify: true,
-          requireInteraction: false,
-          silent: false,
-        },
         fcm_options: {
           link: sanitized.click_action,
         },
@@ -120,6 +112,14 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
       android: {
         priority: "HIGH",
         ttl: "604800s",
+        notification: {
+          title,
+          body,
+          channel_id: androidChannelId,
+          sound: "default",
+          visibility: "PUBLIC",
+          click_action: sanitized.click_action,
+        },
       },
     },
   };
@@ -163,7 +163,7 @@ async function sendOne(token: string, title: string, body: string, data?: Record
 }
 
 function isInvalidTokenError(message: string) {
-  return /UNREGISTERED|NotRegistered|registration-token-not-registered|requested entity was not found|token is not a valid FCM registration token/i.test(message);
+  return /UNREGISTERED|NotRegistered|registration-token-not-registered|invalid-registration-token|requested entity was not found|token is not a valid FCM registration token/i.test(message);
 }
 
 export async function sendFcmToTokens(input: FcmMessageInput): Promise<NotificationSendResult> {

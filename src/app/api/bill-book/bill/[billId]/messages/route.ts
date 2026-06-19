@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
-import { sendNotificationEvent } from "@/services/notifications/notification-events.server";
+import { createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 import { safeUserName } from "@/lib/display-text";
 
 export async function GET(
@@ -102,7 +102,7 @@ export async function POST(
         ? `/customer/bills?open=${encodeURIComponent(String(billId))}`
         : `/admin/billing?open=${encodeURIComponent(String(billId))}`;
 
-      sendNotificationEvent({
+      createAndDispatchNotification({
         eventId: `bill.message.created.${String((doc as { _id?: string })?._id || Date.now())}`,
         type: "bill.message.created",
         actorUserId: senderId ? String(senderId) : undefined,
