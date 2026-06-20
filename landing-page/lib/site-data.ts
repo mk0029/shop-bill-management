@@ -124,7 +124,7 @@ export const processSteps = [
 ];
 
 export const pricingHighlights = [
-  { title: "Inspection / Visit", price: "₹200 Fixed Visit", note: "Charged for technician time and travel." },
+  { title: "Inspection / Visit", price: " Rs.50~150 Visit", note: "Charged for technician time and travel." },
   { title: "Home Service", price: "Starts from ₹300", note: "Depends on repair type and duration." },
   { title: "Wiring / Fitting", price: "Estimate Based", note: "Final quote after site review." },
   { title: "Emergency / Late-Night", price: "2x-3x Charge", note: "After 8:00 PM based on risk and urgency." },

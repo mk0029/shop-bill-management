@@ -1,23 +1,16 @@
-﻿import { Metadata } from "next";
+import { Metadata } from "next";
 import { LandingShell } from "@landing/components/layout/landing-shell";
+import { TermsContent } from "@landing/components/layout/public-page-content";
 
-export const metadata: Metadata = { title: "Terms & Conditions", description: "Terms and conditions for Jambh Electrics services and website." };
-
-const sections = [
-  { title: "1. General Service Terms", points: ["All electrical work is done based on customer request, site condition, safety requirements, and material availability.", "Final charges may vary depending on work type, location, urgency, material used, and extra work found during inspection.", "We explain charges before starting work whenever possible.", "Customer must provide correct contact details, address, and service requirements.", "Jambh Electrics is not responsible for issues caused by old wiring, damaged fittings, low-quality existing materials, voltage issues, or third-party work."] },
-  { title: "2. Standard Working Hours", points: ["Standard working hours are 8:00 AM to 8:00 PM.", "Requests after 8:00 PM may be treated as late-night or emergency service.", "After 8:00 PM, charges may be 2x or 3x based on work type, risk, distance, urgency, and availability.", "Emergency work is accepted only if technician availability and safety conditions allow it.", "Night work may be refused if the work area is unsafe."] },
-  { title: "3. Payment Policy", points: ["Payment must be made after service completion or as agreed in advance.", "Some services may require advance payment.", "Product, material, tool rental, urgent work, or inspection may require advance payment.", "Delays in payment may result in service hold, account restriction, or refusal of future service.", "Pending bills must be cleared before new work unless approved."] },
-  { title: "4. Refund Policy", points: ["Inspection, visit, or completed work payments are non-refundable.", "Advance-paid but not started service may be considered for refund after review.", "No refund once work starts or materials are used.", "Product-related refunds depend on manufacturer/supplier policy.", "Approved refunds are processed via original payment method where possible."] },
-  { title: "5. Product & Material Policy", points: ["Product warranty depends on manufacturer/supplier policy.", "Used, fitted, damaged, or opened products may not be returnable.", "Material once installed or used is not refundable.", "Customer should confirm model, brand, and quantity before billing."] },
-  { title: "6. Work Quality & Safety Policy", points: ["Safety is priority during electrical work.", "Work may be stopped or refused if site is unsafe.", "Keep children, pets, and unnecessary people away from work area.", "Hidden faults/old wiring/water leakage/unsafe previous installations can impact results.", "Extra work found during service is discussed before continuation."] },
-  { title: "7. Equipment Borrowing / Tool Rental Policy", points: ["Tool rental is chargeable and fixed unless updated by Jambh Electrics.", "Standard rental: ₹100 per hour, ₹500 per day.", "Time starts from handover and full charge is deposited in advance.", "Delay in return may add hourly/daily charges.", "Damage/loss/theft during borrowing is recoverable from borrower.", "Borrower agrees to all rental terms by taking equipment."] },
-  { title: "8. Inspection & Visit Charges", points: ["A fixed visit charge of ₹200 applies to all standard service visits (within regular service area).", "Visit charge applies even if customer decides not to continue the work.", "Visit charge covers technician time, travel, and inspection effort.", "Visit/inspection charges are non-refundable."] },
-  { title: "9. Cancellation Policy", points: ["Cancel/reschedule as early as possible.", "If technician has started travel or reached location, visit charge may apply.", "Repeated cancellations may affect future availability."] },
-  { title: "10. Customer Account Policy", points: ["Accounts are for service history, billing, communication, and support.", "Provide correct name, phone, location, and service details.", "Access or service may be restricted for pending payment or misuse."] },
-  { title: "11. Support Policy", points: ["For service/product/payment/account issues, contact immediately.", "We review concerns and provide the best possible solution.", "Support channels: phone, WhatsApp, email, website form.", "We prioritize honest communication and quick support."] },
-  { title: "12. Changes to Terms", points: ["Jambh Electrics may update these terms at any time.", "Updated terms apply once published on the website."] },
-];
+export const metadata: Metadata = {
+  title: "Terms & Conditions",
+  description: "Terms and conditions for Jambh Electrics services and website.",
+};
 
 export default function TermsPage() {
-  return <LandingShell title="Terms & Conditions" copy="By using our services, website, account request form, tool rental, product purchase, or support service, you agree to these terms."><section className="container mx-auto px-4 py-12"><div className="space-y-6">{sections.map((section) => <article key={section.title} className="rounded-xl border border-slate-700 bg-slate-900/70 p-5"><h2 className="text-lg font-semibold">{section.title}</h2><ul className="mt-3 space-y-2 text-sm text-slate-300">{section.points.map((point) => <li key={point}>• {point}</li>)}</ul></article>)}</div></section></LandingShell>;
+  return (
+    <LandingShell titleKey="pages.terms.title" copyKey="pages.terms.copy">
+      <TermsContent />
+    </LandingShell>
+  );
 }

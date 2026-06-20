@@ -73,12 +73,20 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;')
 }
 
+const DELIVERY_SENDING_STALE_MS = 10 * 60 * 1000
+
 async function claimDelivery(key: string, channel: 'email' | 'whatsapp') {
-  const existing = await sanityClient.fetch<{ _id: string; status?: string } | null>(
-    `*[_id==$id][0]{_id,status}`,
+  const existing = await sanityClient.fetch<{ _id: string; status?: string; updatedAt?: string } | null>(
+    `*[_id==$id][0]{_id,status,updatedAt}`,
     { id: key },
   )
-  if (existing?.status === 'sent' || existing?.status === 'sending') {
+  const updatedAt = existing?.updatedAt ? Date.parse(existing.updatedAt) : 0
+  const sendingIsFresh =
+    existing?.status === 'sending' &&
+    Number.isFinite(updatedAt) &&
+    Date.now() - updatedAt < DELIVERY_SENDING_STALE_MS
+
+  if (existing?.status === 'sent' || sendingIsFresh) {
     return false
   }
   await sanityClient.createOrReplace({
@@ -139,9 +147,15 @@ async function sendWelcomeWhatsApp(input: {
   message: string
 }) {
   const phone = normalizeIndianPhone(String(input.phone || ''))
-  if (!phone) return
+  if (!phone) {
+    console.warn('[WelcomeDelivery] whatsapp skipped: missing phone', { userId: input.userId })
+    return
+  }
   const key = `welcome.whatsapp.user.${input.userId}`
-  if (!(await claimDelivery(key, 'whatsapp'))) return
+  if (!(await claimDelivery(key, 'whatsapp'))) {
+    console.log('[WelcomeDelivery] whatsapp skipped: already sent or sending', { userId: input.userId })
+    return
+  }
 
   try {
     const res = await fetch(new URL('/api/whatsapp/send-bulk', input.req.url), {
@@ -156,6 +170,7 @@ async function sendWelcomeWhatsApp(input: {
       await finishDelivery(key, 'failed', reason)
       return
     }
+    console.log('[WelcomeDelivery] whatsapp sent', { userId: input.userId, phone })
     await finishDelivery(key, 'sent')
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'WhatsApp send failed'
