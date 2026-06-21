@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useRef, useState, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
@@ -11,10 +11,10 @@ import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { BillFormData, Customer, Item } from "@/types";
 import {
-  RealtimeBillList,
   RealtimeBillStats,
 } from "@/components/realtime/realtime-bill-list";
-import { FileText, Plus, Search, Calculator, FileTextIcon } from "lucide-react";
+import CustomerBillGroup from "@/components/billing/customer-bill-group";
+import { FileText, Plus, Search, Calculator, FileTextIcon, Users } from "lucide-react";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 import { safeUserName } from "@/lib/display-text";
 
@@ -49,6 +49,8 @@ export function BillingBrowser({
   const [showCreateBill, setShowCreateBill] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBill, setSelectedBill] = useState<any | null>(null);
+  const [sortBy, setSortBy] = useState<string>("latest");
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>(defaultFilterStatus);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
     defaultFilterStatuses && defaultFilterStatuses.length > 0
@@ -245,7 +247,6 @@ export function BillingBrowser({
   };
 
   // Additional filter for pending variant
-  const computedFilterStatus = "all"; // We will handle status filtering locally when multi-select is used
   const baseBills =
     variant === "pending"
       ? bills.filter((b: any) =>
@@ -274,6 +275,91 @@ export function BillingBrowser({
           return selectedStatuses.includes(statusValue);
         })
       : baseBills;
+
+  // Compute per-group stats used for sorting
+  const groupStats = useMemo(() => {
+    const map = new Map<string, { totalPending: number; billCount: number; latestDate: number }>();
+    initialForList.forEach((bill: any) => {
+      const cid = bill.customer?._id || bill.customer?._ref;
+      if (!cid) return;
+      const prev = map.get(cid) || { totalPending: 0, billCount: 0, latestDate: 0 };
+      const amount = Number(bill.totalAmount ?? 0);
+      if ((bill.paymentStatus || bill.status) !== "paid") {
+        prev.totalPending += bill.balanceAmount != null
+          ? Number(bill.balanceAmount)
+          : Math.max(0, amount - Number(bill.paidAmount ?? 0));
+      }
+      prev.billCount += 1;
+      const d = new Date(bill.createdAt || bill.serviceDate || 0).getTime();
+      if (d > prev.latestDate) prev.latestDate = d;
+      map.set(cid, prev);
+    });
+    return map;
+  }, [initialForList]);
+
+  // Group bills by customer
+  const groupedBills = useMemo(() => {
+    const groups = new Map<string, { customer: any; bills: any[] }>();
+
+    initialForList.forEach((bill: any) => {
+      const customerId = bill.customer?._id || bill.customer?._ref;
+      if (!customerId) return;
+      if (!groups.has(customerId)) {
+        groups.set(customerId, { customer: bill.customer, bills: [] });
+      }
+      groups.get(customerId)!.bills.push(bill);
+    });
+
+    const raw = Array.from(groups.entries())
+      .map(([id, group]) => ({
+        id,
+        customer: group.customer,
+        bills: group.bills.sort((a: any, b: any) => {
+          const dateA = new Date(a.createdAt || a.serviceDate || 0);
+          const dateB = new Date(b.createdAt || b.serviceDate || 0);
+          return dateB.getTime() - dateA.getTime();
+        }),
+      }));
+
+    // Sort groups based on the selected sort mode
+    const st = groupStats;
+    switch (sortBy) {
+      case "pending-high":
+        return raw.sort((a, b) => (st.get(b.id)?.totalPending ?? 0) - (st.get(a.id)?.totalPending ?? 0));
+      case "pending-low":
+        return raw
+          .filter((a) => (st.get(a.id)?.totalPending ?? 0) > 0)
+          .sort((a, b) => (st.get(a.id)?.totalPending ?? 0) - (st.get(b.id)?.totalPending ?? 0));
+      case "bills":
+        return raw.sort((a, b) => (st.get(b.id)?.billCount ?? 0) - (st.get(a.id)?.billCount ?? 0));
+      case "name":
+        return raw.sort((a, b) => {
+          const na = (a.customer?.name || "").toLowerCase();
+          const nb = (b.customer?.name || "").toLowerCase();
+          return na.localeCompare(nb);
+        });
+      case "latest":
+      default:
+        return raw.sort((a, b) => (st.get(b.id)?.latestDate ?? 0) - (st.get(a.id)?.latestDate ?? 0));
+    }
+  }, [initialForList, sortBy, groupStats]);
+
+  // Overall search filters which customer groups are shown
+  const visibleGroups = useMemo(() => {
+    if (!searchTerm) return groupedBills;
+    const lower = searchTerm.toLowerCase();
+    return groupedBills.filter((g) => {
+      const name = (g.customer?.name || "").toLowerCase();
+      const phone = (g.customer?.phone || "").toLowerCase();
+      if (name.includes(lower) || phone.includes(lower)) return true;
+      return g.bills.some(
+        (b: any) =>
+          b.billNumber?.toLowerCase().includes(lower) ||
+          b._id?.toLowerCase().includes(lower),
+      );
+    });
+  }, [groupedBills, searchTerm]);
+
   const filterOptionsAll = [
     { value: "all", label: "All Bills" },
     { value: "paid", label: "Paid" },
@@ -338,7 +424,7 @@ export function BillingBrowser({
         </div>
       )}
 
-      {/* Search and Filter */}
+      {/* Search and Sort */}
       <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
         <div className="flex flex-col gap-3">
           <div className="relative">
@@ -350,62 +436,72 @@ export function BillingBrowser({
               className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedStatuses([])}
-              className={`px-3 py-1 text-xs rounded-full border ${selectedStatuses.length === 0 ? "bg-blue-600 text-white border-blue-500" : "bg-gray-800 text-gray-300 border-gray-700"}`}
-            >
-              All
-            </button>
-            {(
-              ["pending", "partial", "overdue", "paid"] as readonly string[]
-            ).map((status) => {
-              const active = selectedStatuses.includes(status);
-              return (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => {
-                    setSelectedStatuses((prev) => {
-                      const set = new Set(prev);
-                      if (set.has(status)) set.delete(status);
-                      else set.add(status);
-                      return Array.from(set);
-                    });
-                  }}
-                  className={`px-3 py-1 text-xs rounded-full border ${
-                    active
-                      ? "bg-blue-600 text-white border-blue-500"
-                      : "bg-gray-800 text-gray-300 border-gray-700"
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              );
-            })}
+
+          {/* Sort controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Sort by</span>
+            {[
+              { value: "latest", label: "Latest" },
+              { value: "pending-high", label: "Pending ↓" },
+              { value: "pending-low", label: "Pending ↑" },
+              { value: "bills", label: "Most Bills" },
+              { value: "name", label: "Name" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSortBy(opt.value)}
+                className={`px-2.5 py-1 text-[11px] rounded-full border ${
+                  sortBy === opt.value
+                    ? "bg-indigo-600 text-white border-indigo-500"
+                    : "bg-gray-800 text-gray-400 border-gray-700 hover:text-gray-200"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
       </Card>
 
-      {/* Bills List */}
-      <Card className="bg-gray-900 border-gray-800">
-        <div className="p-3 md:p-6">
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5" />
+      {/* Bills List - grouped by customer */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+            <Users className="w-5 h-5" />
             All Bills
           </h2>
-          <div className="hide-scroll overflow-x-auto">
-            <RealtimeBillList
-              initialBills={initialForList}
-              searchTerm={searchTerm}
-              filterStatus={computedFilterStatus}
-              onBillClick={(bill) => handleViewBill(buildSelectedBill(bill))}
-              showNewBillAnimation={true}
-            />
-          </div>
+          <span className="text-xs text-gray-500 ml-1">
+            {visibleGroups.length} cust · {initialForList.length} bill
+          </span>
         </div>
-      </Card>
+
+        {visibleGroups.length === 0 ? (
+          <Card className="bg-gray-900 border-gray-800">
+            <CardContent className="p-8 text-center">
+              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-400">No bills found</p>
+              <p className="text-sm text-gray-500 mt-1">
+                No bills match the current filters
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          visibleGroups.map((group) => (
+            <CustomerBillGroup
+              key={group.id}
+              group={group}
+              open={openGroupId === group.id}
+              onToggle={() =>
+                setOpenGroupId(
+                  openGroupId === group.id ? null : group.id,
+                )
+              }
+              onBillClick={(bill) => handleViewBill(buildSelectedBill(bill))}
+            />
+          ))
+        )}
+      </div>
 
       {/* Bill Form (kept for parity, not shown by default) */}
       <BillForm

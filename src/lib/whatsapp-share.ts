@@ -198,8 +198,9 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
   }
 
   if (loginLink) {
-    message += `\n*Login to your account:* ${loginLink}\n`;
-    message += `Your bill details will be auto-loaded.`;
+    message += `\nğŸ” *Your Secure Account*\n`;
+    message += `Click below to view your bills and account info safely. Your details are private and protected.\n`;
+    message += `${loginLink}\n`;
   }
 
   return message;

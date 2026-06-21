@@ -47,7 +47,7 @@ function routeFor(eventType: string, data: Record<string, unknown>) {
     return { pathname: "/customer/bills", query: billId ? { open: billId } : undefined };
   }
   if (eventType.startsWith("chat.")) return { pathname: "/customer/chat" };
-  if (eventType.startsWith("workTask.")) return { pathname: "/customer/work-tasks" };
+  if (eventType.startsWith("workTask.")) return { pathname: "/customer/request-repair" };
   if (eventType.startsWith("toolRent.")) return { pathname: "/customer/rented-items" };
   return undefined;
 }

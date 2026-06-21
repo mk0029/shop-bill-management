@@ -1,4 +1,4 @@
-import CustomerRepairRequestClient from "@/components/customer/customer-repair-request-client";
+import UnifiedCustomerWorkClient from "@/components/customer/unified-customer-work-client";
 import { getServerAuth } from "@/lib/server-auth";
 import { redirect } from "next/navigation";
 
@@ -9,5 +9,5 @@ export default async function CustomerRequestRepairPage() {
   if (!auth.isAuthenticated) redirect("/");
   if (auth.role !== "customer") redirect("/admin/dashboard");
 
-  return <CustomerRepairRequestClient />;
+  return <UnifiedCustomerWorkClient />;
 }

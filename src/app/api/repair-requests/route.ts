@@ -164,8 +164,8 @@ export async function POST(req: NextRequest) {
       title: priority === "high" ? "High priority repair request" : "New repair request",
       body: `${requestId} from ${safeCustomerName}. Priority: ${priority === "high" ? "High" : "Average"}. Assigned to ${safeTechnicianName}.`,
       data: {
-        route: "/admin/repair-requests",
-        route_path: "/admin/repair-requests",
+        route: "/dashboard/work-list",
+        route_path: "/dashboard/work-list",
         repairRequestId: String(created._id),
         requestId,
         assignedTechnicianId: selectedTechnicianId,

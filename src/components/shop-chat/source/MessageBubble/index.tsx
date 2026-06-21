@@ -421,7 +421,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (!workTaskEventData?.taskId) return;
     const taskId = encodeURIComponent(String(workTaskEventData.taskId));
     if (String(user?.role || "") === "customer") {
-      router.push(`/customer/work-tasks?open=${taskId}`);
+      router.push(`/customer/request-repair?open=${taskId}`);
       return;
     }
     router.push(`/dashboard/work-list?open=${taskId}`);

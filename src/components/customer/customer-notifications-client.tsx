@@ -16,8 +16,10 @@ import {
 
 export default function CustomerNotificationsClient({
   onRequestClose,
+  onRequestCloseSilent,
 }: {
   onRequestClose?: () => void;
+  onRequestCloseSilent?: () => void;
 }) {
   const { items, markAllRead, markAsRead, removeWhere, addMany } =
     useNotificationStore();
@@ -150,6 +152,8 @@ export default function CustomerNotificationsClient({
         onClearRead={handleClearRead}
         onMarkAsRead={markAsRead}
         onRemove={handleRemove}
+        onRequestClose={onRequestClose}
+        onRequestCloseSilent={onRequestCloseSilent}
         clearingIds={clearingIdSet}
         isBusy={isClearing}
       />

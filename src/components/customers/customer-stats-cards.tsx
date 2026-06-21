@@ -1,6 +1,6 @@
-import { Users, Loader2 } from "lucide-react";
+import { Users, Activity, Receipt, Loader2, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { useLocaleStore } from "@/store/locale-store";
+import { motion } from "framer-motion";
 import type { CustomerStats } from "@/types/customer";
 
 interface CustomerStatsCardsProps {
@@ -12,63 +12,66 @@ export default function CustomerStatsCards({
   stats,
   isLoading,
 }: CustomerStatsCardsProps) {
-  const { currency } = useLocaleStore();
-
   const statsConfig = [
     {
       title: "Total Customers",
       value: stats.totalCustomers,
       icon: Users,
-      color: "blue",
+      gradient: "from-blue-600 to-blue-400",
+      border: "border-blue-500/30",
+      bg: "bg-blue-950/40",
     },
     {
       title: "Active Customers",
       value: stats.activeCustomers,
-      icon: Users,
-      color: "green",
+      icon: Activity,
+      gradient: "from-emerald-600 to-emerald-400",
+      border: "border-emerald-500/30",
+      bg: "bg-emerald-950/40",
     },
     {
       title: "Total Bills",
       value: stats.totalBills,
-      icon: Users,
-      color: "yellow",
+      icon: Receipt,
+      gradient: "from-amber-600 to-amber-400",
+      border: "border-amber-500/30",
+      bg: "bg-amber-950/40",
     },
-   
   ];
 
-  const getColorClasses = (color: string) => {
-    const colorMap = {
-      blue: "bg-blue-600/20 text-blue-400",
-      green: "bg-green-600/20 text-green-400",
-      yellow: "bg-yellow-600/20 text-yellow-400",
-      purple: "bg-purple-600/20 text-purple-400",
-    };
-    return colorMap[color as keyof typeof colorMap] || colorMap.blue;
-  };
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 md:gap-6 sm:gap-4 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {statsConfig.map((stat, index) => (
-        <Card key={index} className="sm:p-4 p-3 bg-gray-900 border-gray-800">
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center ${getColorClasses(
-                stat.color
-              )}`}>
-              <stat.icon className="w-5 h-5" />
+        <motion.div
+          key={index}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 }}
+        >
+          <Card className={`relative overflow-hidden border ${stat.border} ${stat.bg} backdrop-blur-sm`}>
+            <div className="absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-[0.03]" />
+            <div className="relative p-4 sm:p-5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-widest text-gray-400">
+                    {stat.title}
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-bold text-white">
+                    {isLoading ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                    ) : (
+                      stat.value
+                    )}
+                  </p>
+                </div>
+                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
+                  <stat.icon className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${stat.gradient} opacity-50`} />
             </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">
-                {isLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  stat.value
-                )}
-              </p>
-              <p className="text-sm text-gray-400">{stat.title}</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
       ))}
     </div>
   );

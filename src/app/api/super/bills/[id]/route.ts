@@ -340,13 +340,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         const billNo = String(prev?.billNumber || id);
 
         const message =
-          `Your bill has been updated. View the changes on our web page using the link below. \n\n` +
+          `Your bill has been updated.\n\n` +
           `Bill Id: ${billNo}\n` +
-          // `Total: ₹${Number(totals.grossTotal).toFixed(2)}\n` +
-          // `Discount: ₹${Number(totals.discount).toFixed(2)}\n` +
-          // `Paid: ₹${Number(paidAmount).toFixed(2)}\n` +
-          // `Balance: ₹${Number(nextBalance).toFixed(2)}\n\n` +
-          (billLink ? `View bill:\n${billLink}` : "");
+          (billLink ? `\n🔐 Click below to view your updated bill safely:\n${billLink}` : "");
 
         await sendViaWaBotServer({ phones, message });
       }
@@ -403,6 +399,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       `*[_type == "bill" && _id == $id][0]{
         _id,
         billNumber,
+        customer->{phone},
         items[]{
           quantity,
           unitPrice,
@@ -456,6 +453,25 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     }
 
     await tx.commit();
+
+    // Best-effort WhatsApp notification
+    try {
+      const rawPhone = String(bill?.customer?.phone || '').trim();
+      const phones = (() => {
+        if (!rawPhone) return [] as string[];
+        if (rawPhone.startsWith('+')) return [rawPhone];
+        if (rawPhone.startsWith('0')) return [`+91${rawPhone.substring(1)}`];
+        return [`+91${rawPhone}`];
+      })();
+      if (phones.length) {
+        const billNo = String(bill?.billNumber || id);
+        const message = `Your bill ${billNo} has been deleted. If you have any questions, please contact Jambh Electrical Services.`;
+        await sendViaWaBotServer({ phones, message });
+      }
+    } catch {
+      // best-effort
+    }
+
     return NextResponse.json({ success: true, message: "Bill deleted" });
   } catch (error: any) {
     console.error("API: Failed to delete bill", error);

@@ -382,8 +382,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         taskId: id,
         customerId: customerRefId,
         status: String(updated?.status || existing?.status || ""),
-        route: "/customer/work-tasks",
-        route_path: "/customer/work-tasks",
+        route: "/customer/request-repair",
+        route_path: "/customer/request-repair",
       },
       skipActor: true,
     });
@@ -491,8 +491,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       data: {
         taskId: id,
         customerId: customerRefId,
-        route: "/customer/work-tasks",
-        route_path: "/customer/work-tasks",
+        route: "/customer/request-repair",
+        route_path: "/customer/request-repair",
       },
       skipActor: true,
     });

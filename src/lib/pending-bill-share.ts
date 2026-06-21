@@ -163,8 +163,9 @@ export function generatePendingBillsMessage({
   lines.push("");
 
   if (loginLink) {
-    lines.push("🔐 View & pay your bills here:");
+    lines.push("🔐 View & pay your bills securely here:");
     lines.push(loginLink);
+    lines.push("Your account is private — only you can access your billing info.");
     lines.push("");
   }
 

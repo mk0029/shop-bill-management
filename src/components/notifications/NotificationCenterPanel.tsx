@@ -31,6 +31,8 @@ type NotificationCenterPanelProps = {
   onClearRead: () => void;
   onMarkAsRead: (id: string) => void;
   onRemove?: (id: string) => void;
+  onRequestClose?: () => void;
+  onRequestCloseSilent?: () => void;
   clearingIds?: Set<string>;
   isBusy?: boolean;
 };
@@ -151,6 +153,8 @@ export default function NotificationCenterPanel({
   onClearRead,
   onMarkAsRead,
   onRemove,
+  onRequestClose,
+  onRequestCloseSilent,
   clearingIds = new Set<string>(),
   isBusy,
 }: NotificationCenterPanelProps) {
@@ -398,7 +402,10 @@ export default function NotificationCenterPanel({
                           <Link
                             href={finalHref}
                             className="min-w-0 flex-1"
-                            onClick={() => markGroupAsRead(group.notifications)}
+                            onClick={() => {
+                              markGroupAsRead(group.notifications);
+                              onRequestCloseSilent?.();
+                            }}
                           >
                             {content}
                           </Link>
@@ -430,9 +437,10 @@ export default function NotificationCenterPanel({
                             <Link
                               href={finalHref}
                               className={secondaryActionClass}
-                              onClick={() =>
-                                markGroupAsRead(group.notifications)
-                              }
+                              onClick={() => {
+                                markGroupAsRead(group.notifications);
+                                onRequestCloseSilent?.();
+                              }}
                             >
                               Open
                             </Link>
@@ -526,7 +534,10 @@ export default function NotificationCenterPanel({
                                             ? "bg-orange-300/[0.06]"
                                             : "bg-white/[0.035]"
                                         }`}
-                                        onClick={() => onMarkAsRead(item.id)}
+                                        onClick={() => {
+                                          onMarkAsRead(item.id);
+                                          onRequestCloseSilent?.();
+                                        }}
                                       >
                                         {preview}
                                       </Link>

@@ -47,25 +47,47 @@ export function RequestAccountForm({ support, compact = false }: { support: { em
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-slate-700 bg-slate-900/70 p-5 md:p-6" aria-label={t("form.aria")}>
+    <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-border bg-card p-5 md:p-6" aria-label={t("form.aria")}>
       <div className="grid gap-4 md:grid-cols-2">
-        <div><label htmlFor="ra-name" className="mb-1 block text-sm text-slate-200">{t("form.fullName")}</label><Input id="ra-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t("form.fullNamePlaceholder")} required /></div>
-        <div><label htmlFor="ra-phone" className="mb-1 block text-sm text-slate-200">{t("form.phoneNumber")}</label><Input id="ra-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder={t("form.phonePlaceholder")} required /></div>
+        <div><label htmlFor="ra-name" className="mb-1 block text-sm text-foreground">{t("form.fullName")}</label><Input id="ra-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t("form.fullNamePlaceholder")} required /></div>
+        <div><label htmlFor="ra-phone" className="mb-1 block text-sm text-foreground">{t("form.phoneNumber")}</label><Input id="ra-phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder={t("form.phonePlaceholder")} required /></div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <div><label className="mb-1 block text-sm text-slate-200">{t("form.location")}</label><Dropdown options={locationOptions} value={form.location} onValueChange={(value) => setForm((f) => ({ ...f, location: value }))} placeholder={t("form.locationPlaceholder")} /><Input className="hidden" readOnly required value={form.location} /></div>
+        <div><label className="mb-1 block text-sm text-foreground">{t("form.location")}</label><Dropdown options={locationOptions} value={form.location} onValueChange={(value) => setForm((f) => ({ ...f, location: value }))} placeholder={t("form.locationPlaceholder")} /><Input className="hidden" readOnly required value={form.location} /></div>
         <div>
-          <p className="mb-1 text-sm text-slate-200">{t("form.contactPreference")}</p>
-          <div className="flex gap-4 text-sm text-slate-300">
-            <label className="flex items-center gap-2"><input type="radio" name="channel" checked={form.channel === "whatsapp"} onChange={() => setForm((f) => ({ ...f, channel: "whatsapp" }))} /> {t("form.whatsapp")}</label>
-            <label className="flex items-center gap-2"><input type="radio" name="channel" checked={form.channel === "email"} onChange={() => setForm((f) => ({ ...f, channel: "email" }))} /> {t("form.email")}</label>
+          <p className="mb-2 text-sm text-foreground">{t("form.contactPreference")}</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, channel: "whatsapp" }))}
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                form.channel === "whatsapp"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <MessageCircle className="h-4 w-4" />
+              {t("form.whatsapp")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, channel: "email" }))}
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                form.channel === "email"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Mail className="h-4 w-4" />
+              {t("form.email")}
+            </button>
           </div>
         </div>
       </div>
-      <div><label htmlFor="ra-req" className="mb-1 block text-sm text-slate-200">{t("form.serviceRequirement")}</label><Textarea id="ra-req" value={form.requirement} onChange={(e) => setForm((f) => ({ ...f, requirement: e.target.value }))} placeholder={t("form.serviceRequirementPlaceholder")} rows={compact ? 3 : 5} /></div>
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
-      {success ? <p className="text-sm text-emerald-300">{success}</p> : null}
-      <Button type="submit" disabled={isLoading} className="bg-sky-500 text-slate-950 hover:bg-sky-400">{isLoading ? t("form.submitting") : form.channel === "whatsapp" ? <><MessageCircle className="mr-2 h-4 w-4" />{t("form.sendWhatsapp")}</> : <><Mail className="mr-2 h-4 w-4" />{t("form.sendEmail")}</>}</Button>
+      <div><label htmlFor="ra-req" className="mb-1 block text-sm text-foreground">{t("form.serviceRequirement")}</label><Textarea id="ra-req" value={form.requirement} onChange={(e) => setForm((f) => ({ ...f, requirement: e.target.value }))} placeholder={t("form.serviceRequirementPlaceholder")} rows={compact ? 3 : 5} /></div>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {success ? <p className="text-sm text-green-600">{success}</p> : null}
+      <Button type="submit" disabled={isLoading}>{isLoading ? t("form.submitting") : form.channel === "whatsapp" ? <><MessageCircle className="mr-2 h-4 w-4" />{t("form.sendWhatsapp")}</> : <><Mail className="mr-2 h-4 w-4" />{t("form.sendEmail")}</>}</Button>
     </form>
   );
 }

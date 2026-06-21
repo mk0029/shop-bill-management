@@ -1428,67 +1428,63 @@ export default function WorkListClient({
         size="sm"
       >
         {activeTask ? (
-          <div className="space-y-3">
-            {activeTask.customerRef?.name ? (
-              <p className="text-sm text-gray-300">
-                Customer:{" "}
-                <span className="text-gray-100">
-                  {activeTask.customerRef.name}
-                  {activeTask.customerRef?.phone
-                    ? ` (${activeTask.customerRef.phone})`
-                    : ""}
-                </span>
-              </p>
-            ) : null}
-            <p className="text-sm text-gray-300">
-              Assigned:{" "}
-              {activeTask.assignedTechnicianName ||
-                activeTask.assignedTechnician?.name ||
-                "-"}
-            </p>
-            <p className="text-sm text-gray-300">
-              Status: {toLabel(activeTask.status)}
-            </p>
-            <p className="text-sm text-gray-300">
-              Priority: {toLabel(activeTask.priority)}
-            </p>
-            <p className="text-sm text-gray-300">
-              Due: {formatDayDateTime(activeTask.dueAt)}
-            </p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-gray-800/40 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Status</p>
+                <span className="text-sm text-white">{toLabel(activeTask.status)}</span>
+              </div>
+              <div className="rounded-lg bg-gray-800/40 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Priority</p>
+                <span className="text-sm text-white">{toLabel(activeTask.priority)}</span>
+              </div>
+              <div className="rounded-lg bg-gray-800/40 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Customer</p>
+                <p className="text-sm text-white truncate">{activeTask.customerRef?.name || "-"}</p>
+              </div>
+              <div className="rounded-lg bg-gray-800/40 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Technician</p>
+                <p className="text-sm text-white truncate">{activeTask.assignedTechnicianName || activeTask.assignedTechnician?.name || "-"}</p>
+              </div>
+              <div className="rounded-lg bg-gray-800/40 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Due</p>
+                <p className="text-sm text-white">{formatDayDateTime(activeTask.dueAt)}</p>
+              </div>
+              <div className="rounded-lg bg-gray-800/40 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Category</p>
+                <p className="text-sm text-white capitalize">{toLabel((activeTask as any).issueCategory)}</p>
+              </div>
+            </div>
             <RepairTaskSummary task={activeTask} />
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                onClick={() => updateTaskStatus(activeTask, "in-progress")}
-                disabled={activeTask.status === "in-progress"}
-                className="flex-1"
-              >
-                In Progress
-              </Button>
-              <Button
-                onClick={markTaskCompleted}
-                disabled={completingTask || activeTask.status === "completed"}
-                className="flex-1"
-              >
-                {activeTask.status === "completed"
-                  ? "Already Completed"
-                  : completingTask
-                    ? "Completing..."
-                    : "Done"}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  updateTaskStatus(
-                    activeTask,
-                    "cancelled",
-                    "Cancelled by admin",
-                  )
-                }
-                className="flex-1"
-              >
-                Cancel
-              </Button>
+            <div className="flex gap-2 pt-1">
+              {activeTask.status !== "completed" && activeTask.status !== "cancelled" && (
+                <Button
+                  onClick={() => updateTaskStatus(activeTask, "in-progress")}
+                  disabled={activeTask.status === "in-progress"}
+                  className="flex-1 bg-yellow-500/15 text-yellow-100 border border-yellow-500/30 hover:bg-yellow-500/25"
+                >
+                  <Play className="w-3.5 h-3.5 mr-1" />In Progress
+                </Button>
+              )}
+              {activeTask.status !== "completed" && activeTask.status !== "cancelled" && (
+                <Button
+                  onClick={markTaskCompleted}
+                  disabled={completingTask || activeTask.status === "completed"}
+                  className="flex-1 bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
+                >
+                  {activeTask.status === "completed" ? "Already Completed" : completingTask ? "Completing..." : <><CheckCircle2 className="w-3.5 h-3.5 mr-1" />Done</>}
+                </Button>
+              )}
+              {activeTask.status !== "cancelled" && (
+                <Button
+                  variant="outline"
+                  onClick={() => updateTaskStatus(activeTask, "cancelled", "Cancelled by admin")}
+                  disabled={activeTask.status === "cancelled"}
+                  className="flex-1 bg-slate-500/15 text-slate-100 border border-slate-500/30 hover:bg-slate-500/25"
+                >
+                  <XCircle className="w-3.5 h-3.5 mr-1" />Cancel
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 onClick={() => {
@@ -1497,7 +1493,7 @@ export default function WorkListClient({
                 }}
                 className="flex-1"
               >
-                Delete
+                <Trash2 className="w-3.5 h-3.5 mr-1" />Delete
               </Button>
             </div>
           </div>
@@ -1511,55 +1507,50 @@ export default function WorkListClient({
         size="sm"
       >
         {actionTask ? (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-300">{actionTask.title}</p>
-            <div className="grid grid-cols-1 gap-2">
+          <div className="space-y-3">
+            <p className="text-sm text-gray-200 font-medium bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">{actionTask.title}</p>
+            <div className="grid grid-cols-2 gap-2">
               <Button
-                variant="secondary"
                 onClick={() => runAction("in-progress")}
                 disabled={!!actionLoading}
-                className="border border-yellow-500/35 bg-yellow-500/10 text-yellow-100 hover:bg-yellow-500/20"
+                className="bg-yellow-500/15 text-yellow-100 border border-yellow-500/30 hover:bg-yellow-500/25"
               >
-                {actionLoading === "in-progress" ? "Processing..." : "In Progress"}
+                <Play className="w-4 h-4 mr-2" />{actionLoading === "in-progress" ? "..." : "In Progress"}
               </Button>
               <Button
-                variant="outline"
                 onClick={() => runAction("done")}
                 disabled={!!actionLoading}
-                className="border border-green-500/35 bg-green-500/10 text-green-100 hover:bg-green-500/20"
+                className="bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
               >
-                {actionLoading === "done" ? "Processing..." : "Done"}
+                <CheckCircle2 className="w-4 h-4 mr-2" />{actionLoading === "done" ? "..." : "Done"}
               </Button>
               <Button
-                variant="outline"
                 onClick={() => runAction("hold")}
                 disabled={!!actionLoading}
-                className="border border-amber-500/35 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
+                className="bg-amber-500/15 text-amber-100 border border-amber-500/30 hover:bg-amber-500/25"
               >
-                {actionLoading === "hold" ? "Processing..." : "Hold"}
+                <PauseCircle className="w-4 h-4 mr-2" />{actionLoading === "hold" ? "..." : "Hold"}
               </Button>
               <Button
-                variant="outline"
                 onClick={() => runAction("cancel")}
                 disabled={!!actionLoading}
-                className="border border-slate-500/35 bg-slate-500/10 text-slate-100 hover:bg-slate-500/20"
+                className="bg-slate-500/15 text-slate-100 border border-slate-500/30 hover:bg-slate-500/25"
               >
-                {actionLoading === "cancel" ? "Processing..." : "Cancel"}
+                <XCircle className="w-4 h-4 mr-2" />{actionLoading === "cancel" ? "..." : "Cancel"}
               </Button>
               <Button
-                variant="outline"
                 onClick={() => runAction("edit")}
                 disabled={!!actionLoading}
-                className="border border-blue-500/35 bg-blue-500/10 text-blue-100 hover:bg-blue-500/20"
+                className="bg-blue-500/15 text-blue-100 border border-blue-500/30 hover:bg-blue-500/25"
               >
-                {actionLoading === "edit" ? "Processing..." : "Edit"}
+                <Edit className="w-4 h-4 mr-2" />{actionLoading === "edit" ? "..." : "Edit"}
               </Button>
               <Button
-                variant="destructive"
                 onClick={() => runAction("delete")}
                 disabled={!!actionLoading}
+                className="bg-rose-500/15 text-rose-100 border border-rose-500/30 hover:bg-rose-500/25"
               >
-                {actionLoading === "delete" ? "Processing..." : "Delete"}
+                <Trash2 className="w-4 h-4 mr-2" />{actionLoading === "delete" ? "..." : "Delete"}
               </Button>
             </div>
           </div>

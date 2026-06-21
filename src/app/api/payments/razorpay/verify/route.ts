@@ -113,7 +113,7 @@ export async function POST(req: Request) {
       const header =
         paymentStatus === 'paid'
           ? '✅ Payment Successful — Bill Fully Paid'
-          : '✅ Payment Recived— Bill is Partial';
+          : '✅ Payment Received — Bill is Partial';
 
       const message =
         `${header}\n\n` +
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
         `Payment Status: ${String(paymentStatus).toUpperCase()}\n\n` +
         `Thank you for your payment! 🙏  \n` +
         `Your bill has been successfully settled.\n\n` +
-        (billLink ? `View your receipt:\n${billLink}` : '');
+        (billLink ? `🔐 Your secure receipt is ready. Click below to view it safely:\n${billLink}` : '');
 
       if (phones.length) {
         await sendViaWaBotServer({ phones, message });

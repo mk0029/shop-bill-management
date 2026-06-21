@@ -41,28 +41,21 @@ function welcomeMessage(input: {
 }) {
   const safeName = sanitizeUserText(input.customerName || 'Customer') || 'Customer'
   return [
-    `Welcome ${safeName}`,
+    `🎉 Welcome, ${safeName}!`,
+    'Your account is ready. Explore products, request services, track updates, and connect with our team—all in one place.',
     '',
-    'Your account has been created successfully.',
+    `🎉 स्वागत है, ${safeName}!`,
+    'आपका अकाउंट तैयार है। अब आप उत्पाद देख सकते हैं, सेवाओं का अनुरोध कर सकते हैं, अपडेट ट्रैक कर सकते हैं और हमारी टीम से जुड़ सकते हैं — सब कुछ एक ही जगह पर।',
     '',
-    'You can now login and use our shop service app for:',
-    '- Repair requests',
-    '- Work status tracking',
-    '- Bills and payment updates',
-    '- Chat with shop/admin',
-    '- Service notifications',
-    '',
-    'Login here:',
+    '🔐 Your Secure Account:',
+    'Click the link below to log in and view your bills, service requests, and account info safely:',
     input.loginUrl,
     '',
-    'Login instructions:',
-    'Use your registered phone/customer ID and password or OTP shown by the app.',
+    'Your account is password-protected and private. Only you can access it.',
     '',
-    'Please keep your password/OTP private and never share it with anyone.',
+    `Need help? Contact us: ${input.contact}`,
     '',
-    `Support: ${input.contact}`,
-    '',
-    'Thank you for joining us.',
+    'Thank you for choosing Jambh Electrical Services ⚡',
   ].join('\n')
 }
 
@@ -190,7 +183,7 @@ async function runPostCreateDelivery(req: NextRequest, input: {
 }) {
   const userId = String(input.created?._id || '').trim()
   const safeName = sanitizeUserText(input.name || 'Customer') || 'Customer'
-  const loginUrl = `${siteUrl(req)}/login`
+  const loginUrl = `${siteUrl(req)}/login?phone=${encodeURIComponent(input.phone)}&passKey=${encodeURIComponent(input.secretKey)}`
   const contact = supportInfo()
   const message = welcomeMessage({ customerName: safeName, loginUrl, contact })
 

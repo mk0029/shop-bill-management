@@ -7,7 +7,7 @@ import {
 import { useLocaleStore } from "@/store/locale-store";
 import type { CustomerWithStats } from "@/types/customer";
 import { motion } from "framer-motion";
-import { Eye, MapPin, Phone } from "lucide-react";
+import { Eye, MapPin, Phone, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { safeInitial, safeUserName } from "@/lib/display-text";
 
@@ -18,6 +18,17 @@ interface CustomerTableRowProps {
   onEdit?: (customer: CustomerWithStats) => void;
   onDelete: (customerId: string) => void;
 }
+
+const avatarGradients = [
+  "from-blue-600 to-blue-400",
+  "from-emerald-600 to-emerald-400",
+  "from-purple-600 to-purple-400",
+  "from-amber-600 to-amber-400",
+  "from-rose-600 to-rose-400",
+  "from-cyan-600 to-cyan-400",
+  "from-violet-600 to-violet-400",
+  "from-pink-600 to-pink-400",
+];
 
 export default function CustomerTableRow({
   customer,
@@ -30,6 +41,7 @@ export default function CustomerTableRow({
   const statusColors = getCustomerStatusColor(customer.isActive);
   const [isMobile, setIsMobile] = useState(true);
   const customerDisplayName = safeUserName(customer.name, "Customer");
+  const gradient = avatarGradients[index % avatarGradients.length];
 
   useEffect(() => {
     const checkMobile = () => {
@@ -39,89 +51,101 @@ export default function CustomerTableRow({
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-  
+
+  const activity = formatCustomerActivity(customer, currency);
+  const hasPending = activity !== "All Paid";
+
   return (
     <motion.tr
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className="border-b border-gray-800 hover:bg-gray-800/50"
-      onClick={()=>{if(window.innerWidth<=640){ return onView(customer) } else{ return }}}>
-      <td className="py-3 px-1 sm:p-4">
+      transition={{ delay: index * 0.04, duration: 0.3 }}
+      onClick={() => { if (window.innerWidth <= 640) return onView(customer); }}
+      className="group border-b border-gray-800/40 hover:bg-white/[0.02] cursor-pointer sm:cursor-default transition-colors"
+    >
+      <td className="py-3 px-3 sm:px-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-600/80 rounded-full flex items-center justify-center">
-            <span className="text-white font-medium text-sm">
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-lg`}>
+            <span className="text-white font-semibold text-xs sm:text-sm">
               {safeInitial(customer.name)}
             </span>
           </div>
-          <div className="flex justify-between max-sm:w-[85%] sm:gap-3">  <p className="text-white font-medium truncate overflow-hidden max-sm:max-w-[210px]">{customerDisplayName}</p>
-         
-          <span>  {formatCustomerActivity(customer, currency) === "All Paid" ? null : (
-                <span className="text-yellow-500">{formatCustomerActivity(customer, currency).replace('pending', '')}</span>
-              )}</span></div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm sm:text-base font-medium text-white truncate">
+              {customerDisplayName}
+            </p>
+            {isMobile && (
+              <div className="flex items-center gap-2 mt-0.5">
+                {hasPending && (
+                  <span className="text-xs text-amber-400 font-medium">
+                    {activity}
+                  </span>
+                )}
+                {!isMobile && customer.location && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {customer.location}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          {isMobile && <ChevronRight className="w-4 h-4 text-gray-600" />}
         </div>
       </td>
-     { !isMobile&&<td className="py-4 px-4 max-sm:hidden">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-sm">
-            <Phone className="w-4 h-4 text-gray-400" />
-            <span className="text-white">{customer.phone}</span>
-          </div>
-          {customer.email && (
+
+      {!isMobile && (
+        <td className="py-3 px-4">
+          <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">@</span>
-              <span className="text-gray-400">{customer.email}</span>
+              <Phone className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+              <span className="text-gray-300">{customer.phone}</span>
             </div>
-          )}
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-400">{customer.location}</span>
+            <div className="flex items-center gap-2 text-sm">
+              <MapPin className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+              <span className="text-gray-400 truncate max-w-[160px]">{customer.location}</span>
+            </div>
           </div>
-        </div>
-      </td>}
-      { !isMobile&&<td className="py-4 px-4 max-sm:hidden">
-        <div className="space-y-1">
-          <p className="text-white text-sm">
-            {formatCustomerActivity(customer, currency)}
-          </p>
-          <p className="text-gray-400 text-xs">
-            {formatLastBillDate(customer.lastBillDate)}
-          </p>
-        </div>
-      </td>}
-{ !isMobile&&<td className="py-4 px-4 max-sm:hidden">
-        <span
-          className={`px-2 py-1 rounded-full text-xs ${statusColors.bg} ${statusColors.text}`}>
-          {customer.isActive ? "Active" : "Inactive"}
-        </span>
-      </td>}
-{ !isMobile&&<td className="py-4 px-4 max-sm:hidden">
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onView(customer)}
-            className="hover:bg-gray-800">
-            <Eye className="w-4 h-4" />&nbsp; View
-          </Button>
-          {/* {onEdit && (
+        </td>
+      )}
+
+      {!isMobile && (
+        <td className="py-3 px-4">
+          <div className="space-y-1">
+            <p className={`text-sm font-medium ${hasPending ? "text-amber-400" : "text-emerald-400"}`}>
+              {activity}
+            </p>
+            <p className="text-xs text-gray-500">
+              {formatLastBillDate(customer.lastBillDate)}
+            </p>
+          </div>
+        </td>
+      )}
+
+      {!isMobile && (
+        <td className="py-3 px-4">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusColors.bg} ${statusColors.text}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${customer.isActive ? "bg-emerald-400" : "bg-gray-400"}`} />
+            {customer.isActive ? "Active" : "Inactive"}
+          </span>
+        </td>
+      )}
+
+      {!isMobile && (
+        <td className="py-3 px-4">
+          <div className="flex gap-1">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onEdit(customer)}
-              className="hover:bg-gray-800 max-sm:hidden">
-              <Edit className="w-4 h-4" />
+              onClick={(e) => { e.stopPropagation(); onView(customer); }}
+              className="hover:bg-gray-800 text-gray-400 hover:text-white text-xs gap-1.5"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              View
             </Button>
-          )} */}
-          {/* <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(customer._id)}
-            className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
-            <Trash2 className="w-4 h-4" />
-          </Button> */}
-        </div>
-      </td>}
+          </div>
+        </td>
+      )}
     </motion.tr>
   );
 }

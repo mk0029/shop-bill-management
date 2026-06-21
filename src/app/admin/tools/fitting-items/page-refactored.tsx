@@ -264,9 +264,10 @@ export default function FittingItemsListPage() {
     });
 
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `Visit Our Website:\n`;
+    message += `🔐 Visit Our Secure Website:\n`;
     const loginUrl = `https://jambh-ell.vercel.app`;
-    message += `${loginUrl}\n\n`;
+    message += `${loginUrl}\n`;
+    message += `Explore our full range of products and services.\n\n`;
 
     message += `💡 *Quality Products for Better Performance & Durability*\n\n`;
     message += `Thank you for your trust 🙏\n`;

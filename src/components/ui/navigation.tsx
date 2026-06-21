@@ -22,6 +22,7 @@ import User from "lucide-react/dist/esm/icons/user.js";
 import Users from "lucide-react/dist/esm/icons/users.js";
 import Wrench from "lucide-react/dist/esm/icons/wrench.js";
 import X from "lucide-react/dist/esm/icons/x.js";
+import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./button";
@@ -47,6 +48,7 @@ interface NavigationItem {
 const adminNavigation: NavigationItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: Home },
   { label: "Cash Book", href: "/admin/cash-book", icon: DollarSign },
+  { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Chat", href: "/admin/chat", icon: MessageCircle },
   { label: "Bills", href: "/admin/billing", icon: FileText },
@@ -57,7 +59,6 @@ const adminNavigation: NavigationItem[] = [
     icon: Package,
   },
   { label: "Rent Tools", href: "/admin/rent-tools", icon: Wrench },
-  { label: "Repair Requests", href: "/admin/repair-requests", icon: Wrench },
   { label: "Work List", href: "/dashboard/work-list", icon: FileText },
   {
     label: "Other",
@@ -119,7 +120,6 @@ const technicianNavigation: NavigationItem[] = [
   { label: "Chat", href: "/admin/chat", icon: MessageCircle },
   { label: "Cash Book", href: "/admin/cash-book", icon: DollarSign },
   { label: "Inventory", href: "/admin/inventory", icon: Package },
-  { label: "Repair Requests", href: "/admin/repair-requests", icon: Wrench },
   { label: "Work List", href: "/dashboard/work-list", icon: Wrench },
 ];
 
@@ -140,8 +140,8 @@ export function Navigation() {
   const [repairAttentionCount, setRepairAttentionCount] = useState(0);
   const isChatRoute = pathname === "/admin/chat";
   const isRepairRoute =
-    pathname === "/admin/repair-requests" ||
-    Boolean(pathname?.startsWith("/admin/repair-requests/"));
+    pathname === "/dashboard/work-list" ||
+    Boolean(pathname?.startsWith("/dashboard/work-list/"));
   const hideChatHeader = isChatRoute && (isDesktopViewport || isChatRoomOpen);
 
   const rawDisplayName =
@@ -421,7 +421,7 @@ export function Navigation() {
     const showRepairDot =
       !isRepairRoute &&
       repairAttentionCount > 0 &&
-      item.href.split("?")[0] === "/admin/repair-requests";
+      item.href.split("?")[0] === "/dashboard/work-list";
 
     if (isMobile) {
       return (

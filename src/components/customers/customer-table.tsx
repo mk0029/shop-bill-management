@@ -1,8 +1,8 @@
-import { Users, Loader2 } from "lucide-react";
+import { Users, Loader2, SearchX } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import CustomerTableRow from "./customer-table-row";
 import type { CustomerWithStats } from "@/types/customer";
-import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
 interface CustomerTableProps {
   customers: CustomerWithStats[];
@@ -20,24 +20,24 @@ export default function CustomerTable({
   onViewCustomer,
   onEditCustomer,
   onDeleteCustomer,
-}: CustomerTableProps) 
-
-{
+}: CustomerTableProps) {
   if (isLoading) {
     return (
-      <Card className="bg-gray-900 border-gray-800">
-        <div className="p-3 md:p-6">
+      <Card className="bg-gray-900/80 border-gray-800 backdrop-blur-sm">
+        <div className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Customers</h2>
-            <div className="flex items-center gap-2 text-gray-400">
+            <h2 className="text-lg font-semibold text-white">Customers</h2>
+            <div className="flex items-center gap-2 text-sm text-gray-400">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Loading customers...</span>
+              Loading...
             </div>
           </div>
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <Loader2 className="h-6 w-6 sm:w-8 sm:h-8 animate-spin text-blue-500 mx-auto mb-4" />
-              <p className="text-gray-400">Loading customer data...</p>
+              <div className="w-12 h-12 rounded-full bg-gray-800 mx-auto mb-4 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+              </div>
+              <p className="text-gray-400 text-sm">Loading customer data...</p>
             </div>
           </div>
         </div>
@@ -47,74 +47,81 @@ export default function CustomerTable({
 
   if (customers.length === 0) {
     return (
-      <Card className="bg-gray-900 border-gray-800">
-        <div className="p-3 md:p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Customers</h2>
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 mb-2">No customers found</p>
-            <p className="text-sm text-gray-500">
-              {searchTerm
-                ? "Try adjusting your search terms"
-                : "Add your first customer to get started"}
-            </p>
+      <Card className="bg-gray-900/80 border-gray-800 backdrop-blur-sm">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">Customers</h2>
+          <div className="text-center py-16">
+            {searchTerm ? (
+              <>
+                <SearchX className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 mb-2">No customers found</p>
+                <p className="text-sm text-gray-500">
+                  Try adjusting your search terms
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 rounded-full bg-gray-800 mx-auto mb-4 flex items-center justify-center">
+                  <Users className="w-8 h-8 text-gray-600" />
+                </div>
+                <p className="text-gray-400 mb-2">No customers yet</p>
+                <p className="text-sm text-gray-500">
+                  Add your first customer to get started
+                </p>
+              </>
+            )}
           </div>
         </div>
       </Card>
     );
   }
-    const [isMobile, setIsMobile] = useState(true);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 640);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   return (
-    <Card className="bg-gray-900 border-gray-800 max-h-[85vh] overflow-y-auto">
-      <div className="p-3 pt-2 md:p-6 md:pt-5">
-        <h2 className="text-xl font-semibold text-white mb-2 sticky pt-2 top-0 pb-2 bg-gray-900">Customers</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            {!isMobile&&
-            <thead>
-              <tr className="border-b border-gray-800 max-sm:hidden">
-                <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                  Customer
-                </th>
-                <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                  Contact
-                </th>
-                <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                  Activity
-                </th>
-                <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                  Status
-                </th>
-                <th className="text-left py-3 px-4 text-gray-300 font-medium">
-                  Actions
-                </th>
-              </tr>
-            </thead>}
-            <tbody>
-              {customers.map((customer, index) => (
-                <CustomerTableRow
-                  key={customer._id}
-                  customer={customer}
-                  index={index}
-                  onView={onViewCustomer}
-                  onEdit={onEditCustomer}
-                  onDelete={onDeleteCustomer}
-                />
-              ))}
-            </tbody>
-
-          </table>
+    <Card className="bg-gray-900/80 border-gray-800 backdrop-blur-sm max-h-[75vh] overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
+        <div className="px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Customers</h2>
+            <span className="text-xs text-gray-500 bg-gray-800 px-2.5 py-1 rounded-full">
+              {customers.length} total
+            </span>
+          </div>
         </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="hidden sm:table-header-group">
+            <tr className="border-b border-gray-800/50">
+              <th className="text-left py-3 px-4 sm:px-6 text-xs font-medium uppercase tracking-wider text-gray-500">
+                Customer
+              </th>
+              <th className="text-left py-3 px-4 text-xs font-medium uppercase tracking-wider text-gray-500">
+                Contact
+              </th>
+              <th className="text-left py-3 px-4 text-xs font-medium uppercase tracking-wider text-gray-500">
+                Activity
+              </th>
+              <th className="text-left py-3 px-4 text-xs font-medium uppercase tracking-wider text-gray-500">
+                Status
+              </th>
+              <th className="text-left py-3 px-4 text-xs font-medium uppercase tracking-wider text-gray-500">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((customer, index) => (
+              <CustomerTableRow
+                key={customer._id}
+                customer={customer}
+                index={index}
+                onView={onViewCustomer}
+                onEdit={onEditCustomer}
+                onDelete={onDeleteCustomer}
+              />
+            ))}
+          </tbody>
+        </table>
       </div>
     </Card>
   );

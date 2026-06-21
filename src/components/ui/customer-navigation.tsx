@@ -4,7 +4,6 @@ import { useAuthStore } from "@/store/auth-store";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Building2,
-  ClipboardList,
   FileText,
   LogOut,
   Menu,
@@ -52,11 +51,7 @@ const customerNavigation: NavigationItem[] = [
     href: "/customer/chat",
     icon: MessageCircle,
   },
-  {
-    label: "Service Tasks",
-    href: "/customer/work-tasks",
-    icon: ClipboardList,
-  },
+
   {
     label: "Settings",
     href: "/customer/settings",

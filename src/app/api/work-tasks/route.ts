@@ -251,8 +251,8 @@ export async function POST(req: NextRequest) {
           data: {
             taskId: String(created?._id || ""),
             customerId: String(body.customerRefId),
-            route: "/customer/work-tasks",
-            route_path: "/customer/work-tasks",
+            route: "/customer/request-repair",
+            route_path: "/customer/request-repair",
           },
           skipActor: true,
         });

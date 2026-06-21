@@ -16,7 +16,9 @@ import { createCustomer } from "@/lib/form-service";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
-import { locationOptions } from "../../tools/fitting-items/constants";
+import { locationOptions as baseLocationOptions } from "../../tools/fitting-items/constants";
+
+const locationOptions = [...baseLocationOptions, { value: "__custom__", label: "Other (custom)" }];
 
 const serviceTypeOptions = [
   { value: "all", label: "All" },
@@ -35,12 +37,15 @@ export default function AddCustomerPage() {
     phone: "",
     email: "",
     location: "",
+    customLocation: "",
     serviceType: "All",
     address: "",
     notes: "",
     customerId: "",
     secretKey: "",
   });
+
+  const resolvedLocation = formData.location === "__custom__" ? formData.customLocation : formData.location;
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -61,6 +66,7 @@ export default function AddCustomerPage() {
       phone: "",
       email: "",
       location: "",
+      customLocation: "",
       serviceType: "",
       address: "",
       notes: "",
@@ -78,7 +84,8 @@ export default function AddCustomerPage() {
       alert("Please enter phone number");
       return false;
     }
-    if (!formData.location.trim()) {
+    const loc = formData.location === "__custom__" ? formData.customLocation : formData.location;
+    if (!loc.trim()) {
       alert("Please enter location");
       return false;
     }
@@ -100,7 +107,7 @@ export default function AddCustomerPage() {
       const result = await createCustomer({
         name: formData.name,
         phone: formData.phone,
-        location: formData.location,
+        location: resolvedLocation,
         email: formData.email || undefined,
       });
 
@@ -218,6 +225,23 @@ export default function AddCustomerPage() {
                   className="bg-gray-800 border-gray-700"
                   disabled={isLoading}
                 />
+                {formData.location === "__custom__" && (
+                  <div className="relative mt-2">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 z-[1]" />
+                    <Input
+                      id="customLocation"
+                      type="text"
+                      value={formData.customLocation}
+                      onChange={(e) =>
+                        handleInputChange("customLocation", e.target.value)
+                      }
+                      className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                      placeholder="Enter village / location name"
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

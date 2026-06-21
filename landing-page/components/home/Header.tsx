@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Languages, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { quickLinks } from "@landing/lib/site-data";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
@@ -33,30 +32,12 @@ function LanguageToggle() {
     <button
       type="button"
       onClick={() => setLanguage(nextLanguage)}
-      className="group inline-flex h-10 items-center gap-1 rounded-full border border-slate-700 bg-slate-950/95 p-1 shadow-inner shadow-black/20 transition hover:border-sky-500/70 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+      className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
       aria-label={t("common.language")}
       title={t("common.language")}
     >
-      <Languages className="ml-2 hidden h-4 w-4 text-sky-300 lg:block" />
-      {options.map((item) => (
-        <span
-          key={item.code}
-          className={`relative grid h-8 min-w-[4.35rem] place-items-center overflow-hidden rounded-full px-3 text-sm font-semibold transition sm:min-w-[5rem] ${
-            language === item.code
-              ? "text-white opacity-100"
-              : "text-slate-300 opacity-25 group-hover:opacity-45"
-          }`}
-        >
-          {language === item.code ? (
-            <motion.span
-              layoutId="landing-language-pill"
-              className="absolute inset-0 rounded-full bg-sky-500/25 shadow-sm ring-1 ring-sky-300/50"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-          ) : null}
-          <span className="relative">{item.label}</span>
-        </span>
-      ))}
+      <Languages className="h-4 w-4" />
+      {options.find((o) => o.code === language)?.label}
     </button>
   );
 }
@@ -92,8 +73,8 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-sky-900/50 bg-slate-950/80 backdrop-blur-xl">
-        <div className="container mx-auto flex h-20 items-center justify-between px-4">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-3">
             <Image
               src="/je-p-48.png"
@@ -101,19 +82,19 @@ export default function Header() {
               width={48}
               height={48}
             />
-            <span className="hidden text-base font-semibold leading-none text-slate-100 sm:block">
+            <span className="hidden text-base font-semibold leading-none sm:block">
               {t("common.brand")}
             </span>
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
-            {quickLinks.map((link, index) => (
+            {quickLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-base font-medium leading-none text-slate-200 transition hover:text-white"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                {t(navKeys[index])}
+                {t(navKeys[quickLinks.indexOf(link)])}
               </Link>
             ))}
           </nav>
@@ -121,10 +102,7 @@ export default function Header() {
           <div className="hidden items-center gap-3 md:flex">
             <LanguageToggle />
             <Link href="/login">
-              <Button
-                size="lg"
-                className="h-11 px-6 text-base font-semibold bg-sky-500 text-slate-950 hover:bg-sky-400"
-              >
+              <Button size="lg" className="h-10 px-5 text-sm font-semibold">
                 {t("common.login")}
               </Button>
             </Link>
@@ -133,71 +111,57 @@ export default function Header() {
           <div className="flex items-center gap-2 md:hidden">
             <LanguageToggle />
             <button
-              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-700 text-slate-100"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border text-foreground"
               onClick={() => setOpen(true)}
               aria-label={t("common.menu")}
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5" />
             </button>
           </div>
         </div>
       </header>
 
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[70] bg-black/65 md:hidden"
-              aria-label={t("common.closeMenuOverlay")}
-              onClick={() => setOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed inset-0 z-[80] w-full border-l border-slate-700 bg-slate-950 p-5 shadow-2xl md:hidden"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <span className="text-base font-semibold text-slate-100">
-                  {t("common.menu")}
-                </span>
-                <button
-                  aria-label={t("common.closeMenu")}
-                  onClick={() => setOpen(false)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-700 p-1 text-slate-200"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="flex flex-col gap-1">
-                {quickLinks.map((link, index) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    className="rounded-md px-3 py-2.5 text-base text-slate-200 hover:bg-slate-800"
-                  >
-                    {t(navKeys[index])}
-                  </Link>
-                ))}
+      {open && (
+        <>
+          <div
+            className="fixed inset-0 z-[70] bg-black/50 md:hidden"
+            onClick={() => setOpen(false)}
+          />
+          <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm border-l border-border bg-background p-5 shadow-lg md:hidden">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-base font-semibold">{t("common.menu")}</span>
+              <button
+                aria-label={t("common.closeMenu")}
+                onClick={() => setOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-1">
+              {quickLinks.map((link) => (
                 <Link
-                  href="/login"
+                  key={link.href}
+                  href={link.href}
                   onClick={() => setOpen(false)}
-                  className="mt-2"
+                  className="rounded-md px-3 py-2.5 text-base text-muted-foreground hover:bg-muted"
                 >
-                  <Button className="h-11 w-full text-base font-semibold bg-sky-500 text-slate-950 hover:bg-sky-400">
-                    {t("common.login")}
-                  </Button>
+                  {t(navKeys[quickLinks.indexOf(link)])}
                 </Link>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+              ))}
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="mt-2"
+              >
+                <Button className="h-11 w-full text-base font-semibold">
+                  {t("common.login")}
+                </Button>
+              </Link>
+            </div>
+          </aside>
+        </>
+      )}
     </>
   );
 }

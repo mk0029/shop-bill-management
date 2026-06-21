@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
   MessageCircle,
   Phone,
@@ -11,16 +10,13 @@ import {
   HandCoins,
   Timer,
 } from "lucide-react";
-import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
 
 const hindiHeroHeadingStyle = {
-  // fontSize: "clamp(2.7rem, 5.2vw, 4.7rem)",
   lineHeight: 1.2,
 } as const;
 
 const hindiSectionHeadingStyle = {
-  // fontSize: "clamp(2rem, 3.2vw, 3rem)",
   lineHeight: 1.24,
 } as const;
 
@@ -39,95 +35,58 @@ export function HeroSection({
   ];
 
   return (
-    <section
-      id="home"
-      className="relative overflow-hidden border-b border-slate-800"
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(14,165,233,0.16),transparent_42%),radial-gradient(circle_at_80%_0%,rgba(56,189,248,0.14),transparent_34%)]" />
-      <div className="container relative mx-auto grid items-center gap-10 px-4 py-12 md:py-20 lg:grid-cols-2">
-        <div className="max-w-2xl">
-          <p
-            className={`mb-3 font-semibold uppercase tracking-[0.18em] text-sky-300 ${isHindi ? "text-sm sm:text-[15px]" : "text-xs"}`}
-          >
-            {t("hero.eyebrow")}
-          </p>
-          <h1
-            className={`max-w-3xl font-bold text-white ${isHindi ? "text-3xl sm:text-4xl lg:text-5xl" : "text-3xl leading-[1.16] sm:text-4xl lg:text-5xl lg:leading-[1.12]"}`}
-            style={isHindi ? hindiHeroHeadingStyle : undefined}
-          >
-            {t("hero.title")}
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-            {t("hero.copy")}
-          </p>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
-            <Button
-              variant="secondary"
-              className="h-11 w-full text-base font-semibold sm:w-auto"
-              onClick={() => window.open(`tel:${support.phone}`, "_blank")}
+    <section className="relative overflow-hidden" id="home">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
+      <div className="container mx-auto px-4 py-14 md:py-28 relative">
+        <div className="grid md:grid-cols-2 gap-10 items-center">
+          <div>
+            <p className={`mb-3 font-semibold uppercase tracking-[0.18em] text-primary ${isHindi ? "text-sm sm:text-[15px]" : "text-xs"}`}>
+              {t("hero.eyebrow")}
+            </p>
+            <h1
+              className={`text-4xl md:text-5xl font-bold tracking-tight ${isHindi ? "" : ""}`}
+              style={isHindi ? hindiHeroHeadingStyle : undefined}
             >
-              {" "}
-              <Phone className="mr-2 h-4 w-4" /> {t("hero.callNow")}{" "}
-            </Button>
-            <Link
-              href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
-              target="_blank"
-              rel="noreferrer"
-              className="w-full sm:w-auto"
-            >
-              <Button
-                variant="outline"
-                className="h-11 w-full border-sky-600 text-base font-semibold text-sky-200 hover:bg-sky-900/40 sm:w-auto"
+              {t("hero.title")}
+            </h1>
+            <p className="mt-4 text-muted-foreground text-lg">
+              {t("hero.copy")}
+            </p>
+            <div className="mt-6 flex gap-3">
+              <a
+                href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 items-center rounded-md bg-primary px-5 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
               >
+                <MessageCircle className="mr-2 h-4 w-4" />
                 {t("hero.whatsapp")}
-              </Button>
-              {/* <Button
-                className="h-11 w-full bg-sky-500 text-base font-semibold text-slate-950 hover:bg-sky-400 sm:w-auto"
-                onClick={() =>
-                  shareToWhatsAppApp({
-                    text: t("hero.serviceMessage"),
-                    phone: support.whatsapp,
-                  })
-                }
+              </a>
+              <a
+                href={`tel:${support.phone}`}
+                className="inline-flex h-11 items-center rounded-md bg-secondary px-5 text-base font-semibold text-secondary-foreground hover:bg-secondary/80 transition-colors"
               >
-                <MessageCircle className="mr-2 h-4 w-4" />{" "}
-                {t("hero.getService")}
-              </Button> */}
-            </Link>
+                <Phone className="mr-2 h-4 w-4" />
+                {t("hero.callNow")}
+              </a>
+            </div>
+            <div className="mt-6 flex items-center gap-6 text-sm text-muted-foreground flex-wrap">
+              {badges.map((badge) => (
+                <p key={badge.label} className="flex items-center gap-2 text-base">
+                  <badge.icon className="size-6 text-primary" />
+                  {badge.label}
+                </p>
+              ))}
+            </div>
           </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {badges.map((badge) => (
-              <div
-                key={badge.label}
-                className="flex items-center gap-3 rounded-lg border border-slate-700/80 bg-slate-900/70 px-4 py-3 text-[15px] text-slate-100 sm:text-base"
-              >
-                <badge.icon className="h-5 w-5 text-sky-300" />
-                <span>{badge.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative mx-auto w-full max-w-xl">
-          <div className="absolute -inset-4 rounded-3xl bg-sky-500/15 blur-3xl" />
-          <div className="relative rounded-2xl border border-slate-700 bg-slate-900/90 p-6 shadow-2xl">
-            <Image
-              src="/je-p-512.png"
-              alt={t("common.brand")}
-              width={210}
-              height={210}
-              className="mx-auto"
-              priority
-            />
-            <div className="mt-5 space-y-3">
-              <p className="rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-300">
-                {t("hero.cardNote1")}
-              </p>
-              <p className="rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-300">
-                {t("hero.cardNote2")}
-              </p>
+          <div className="relative">
+            <div className="aspect-video rounded-xl bg-gray-900 border border-border flex items-center justify-center relative">
+              <Image
+                alt="brand"
+                src="/je-p-512.png"
+                fill
+                className="w-full h-auto absolute top-0 left-0 z-10 object-contain"
+              />
             </div>
           </div>
         </div>
@@ -152,19 +111,19 @@ export function SectionTitle({
     <div className="mx-auto max-w-3xl text-center">
       {eyebrow ? (
         <p
-          className={`font-semibold uppercase tracking-[0.16em] text-sky-300 ${isHindi ? "text-sm sm:text-[15px]" : "text-xs"}`}
+          className={`font-semibold uppercase tracking-[0.16em] text-primary ${isHindi ? "text-sm sm:text-[15px]" : "text-xs"}`}
         >
           {eyebrow}
         </p>
       ) : null}
       <h2
-        className={`mt-2 font-bold text-white ${isHindi ? "text-3xl md:text-4xl" : "text-3xl leading-[1.18] md:text-4xl"}`}
+        className={`mt-2 font-bold text-foreground ${isHindi ? "text-3xl md:text-4xl" : "text-3xl leading-[1.18] md:text-4xl"}`}
         style={isHindi ? hindiSectionHeadingStyle : undefined}
       >
         {title}
       </h2>
       {copy ? (
-        <p className="mt-3 text-base leading-7 text-slate-300">{copy}</p>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">{copy}</p>
       ) : null}
     </div>
   );
@@ -172,7 +131,7 @@ export function SectionTitle({
 
 export function PremiumCard({ children }: { children: React.ReactNode }) {
   return (
-    <article className="h-full rounded-xl border border-slate-700 bg-slate-900/70 p-5 transition duration-200 hover:-translate-y-0.5 hover:border-sky-500/60 hover:shadow-[0_0_18px_rgba(14,165,233,0.18)]">
+    <article className="h-full rounded-xl border border-border bg-card p-5">
       {children}
     </article>
   );
@@ -205,109 +164,67 @@ export function FooterSection({
   ];
 
   return (
-    <footer className="border-t border-slate-800 bg-slate-950">
-      <div className="container mx-auto px-4 py-14">
-        <div className="grid gap-10 md:grid-cols-2 xl:grid-cols-4">
-          <div className="md:col-span-2 xl:col-span-1">
-            <h3 className="text-2xl font-semibold text-white">
-              {t("common.brand")}
-            </h3>
-            <p className="mt-4 max-w-sm text-base leading-relaxed text-slate-300">
-              {t("footer.copy")}
-            </p>
-          </div>
-
-          <div>
-            <h4 className="text-xl font-semibold text-white">
-              {t("footer.quickLinks")}
-            </h4>
-            <ul className="mt-4 space-y-2.5 text-base text-slate-300">
-              <li>
-                <Link href="/about" className="hover:text-white">
-                  {t("nav.about")}
-                </Link>
-              </li>
-              <li>
-                <Link href="/services" className="hover:text-white">
-                  {t("nav.services")}
-                </Link>
-              </li>
-              <li>
-                <Link href="/products" className="hover:text-white">
-                  {t("nav.products")}
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="hover:text-white">
-                  {t("nav.pricing")}
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:text-white">
-                  {t("nav.contact")}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-xl font-semibold text-white">
-              {t("footer.services")}
-            </h4>
-            <ul className="mt-4 space-y-2.5 text-base text-slate-300">
-              {serviceLinks.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-xl font-semibold text-white">
-              {t("footer.contactPolicies")}
-            </h4>
-            <ul className="mt-4 space-y-2.5 text-base text-slate-300">
-              <li>
-                <a href={`tel:${support.phone}`} className="hover:text-white">
-                  {support.phone}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
-                  className="hover:text-white"
-                >
-                  {t("footer.whatsappLabel")}: {support.whatsapp}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`mailto:${support.email}`}
-                  className="hover:text-white"
-                >
-                  {support.email}
-                </a>
-              </li>
-              <li>{t("footer.workingHours")}</li>
-              <li className="pt-2">
-                <Link href="/terms" className="hover:text-white">
-                  {t("footer.terms")}
-                </Link>{" "}
-                ·{" "}
-                <Link href="/privacy-policy" className="hover:text-white">
-                  {t("footer.privacy")}
-                </Link>{" "}
-                ·{" "}
-                <Link href="/refund-policy" className="hover:text-white">
-                  {t("footer.refund")}
-                </Link>
-              </li>
-            </ul>
-          </div>
+    <footer className="container mx-auto px-4 py-10">
+      <div className="grid md:grid-cols-4 gap-8 text-sm">
+        <div>
+          <div className="text-lg font-semibold">{t("common.brand")}</div>
+          <p className="mt-3 text-muted-foreground">
+            {t("footer.copy")}
+          </p>
+        </div>
+        <div>
+          <div className="font-semibold">{t("footer.quickLinks")}</div>
+          <ul className="mt-3 space-y-2 text-muted-foreground">
+            <li className="text-base font-normal">
+              <Link href="/about" className="hover:text-foreground">{t("nav.about")}</Link>
+            </li>
+            <li className="text-base font-normal">
+              <Link href="/services" className="hover:text-foreground">{t("nav.services")}</Link>
+            </li>
+            <li className="text-base font-normal">
+              <Link href="/products" className="hover:text-foreground">{t("nav.products")}</Link>
+            </li>
+            <li className="text-base font-normal">
+              <Link href="/pricing" className="hover:text-foreground">{t("nav.pricing")}</Link>
+            </li>
+            <li className="text-base font-normal">
+              <Link href="/contact" className="hover:text-foreground">{t("nav.contact")}</Link>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <div className="font-semibold">{t("footer.services")}</div>
+          <ul className="mt-3 space-y-2 text-muted-foreground">
+            {serviceLinks.map((item) => (
+              <li key={item} className="text-base font-normal">{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="font-semibold">{t("footer.contactPolicies")}</div>
+          <ul className="mt-3 space-y-2 text-muted-foreground">
+            <li className="text-base font-normal">
+              <a href={`tel:${support.phone}`} className="hover:text-foreground">{support.phone}</a>
+            </li>
+            <li className="text-base font-normal">
+              <a href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`} className="hover:text-foreground">{t("footer.whatsappLabel")}: {support.whatsapp}</a>
+            </li>
+            <li className="text-base font-normal">
+              <a href={`mailto:${support.email}`} className="hover:text-foreground">{support.email}</a>
+            </li>
+            <li className="text-base font-normal">{t("footer.workingHours")}</li>
+            <li className="pt-2">
+              <Link href="/terms" className="hover:text-foreground">{t("footer.terms")}</Link>
+              {" "}·{" "}
+              <Link href="/privacy-policy" className="hover:text-foreground">{t("footer.privacy")}</Link>
+              {" "}·{" "}
+              <Link href="/refund-policy" className="hover:text-foreground">{t("footer.refund")}</Link>
+            </li>
+          </ul>
         </div>
       </div>
-      <div className="border-t border-slate-800 py-5 text-center text-sm text-slate-400">
-        (c) {new Date().getFullYear()} {t("common.brand")}.{" "}
-        {t("footer.copyright")}
+      <div className="mt-8 pt-6 border-t text-xs text-muted-foreground text-center">
+        (c) {new Date().getFullYear()} {t("common.brand")}. {t("footer.copyright")}
       </div>
     </footer>
   );

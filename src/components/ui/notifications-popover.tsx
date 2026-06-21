@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { useNotificationStore } from "@/store/notification-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSettingsStore } from "@/store/settings-store";
 import {
   initSoundOnUserGesture,
   playNotificationSound,
 } from "@/lib/notification-sound";
+
+const QUERY_PARAM = "notifications=1";
 
 export default function NotificationsPopover() {
   const { items, unread, markAllRead } = useNotificationStore();
@@ -25,25 +27,73 @@ export default function NotificationsPopover() {
     (s) => s.playSoundOnNotification,
   );
   const [mounted, setMounted] = useState(false);
+  const openRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // On mount, clear stale notification param from a full page refresh
+  useEffect(() => {
+    if (window.location.search.includes(QUERY_PARAM)) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  // Sync open state with browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      if (openRef.current && !window.location.search.includes(QUERY_PARAM)) {
+        setOpen(false);
+        openRef.current = false;
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleToggle = useCallback(() => {
+    if (openRef.current) {
+      handleClose();
+    } else {
+      window.history.pushState({ notifications: true }, "", `?${QUERY_PARAM}`);
+      setOpen(true);
+      openRef.current = true;
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    if (!openRef.current) return;
+    setOpen(false);
+    openRef.current = false;
+    if (window.location.search.includes(QUERY_PARAM)) {
+      window.history.back();
+    }
+  }, []);
+
+  const handleCloseSilent = useCallback(() => {
+    if (!openRef.current) return;
+    setOpen(false);
+    openRef.current = false;
+    if (window.location.search.includes(QUERY_PARAM)) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
   // Close on outside click
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      if (!open) return;
+      if (!openRef.current) return;
       const t = e.target as Node;
       const clickedAnchor = anchorRef.current?.contains(t);
       const clickedPopover = popoverRef.current?.contains(t);
       if (anchorRef.current && !clickedAnchor && !clickedPopover) {
-        setOpen(false);
+        handleClose();
       }
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
-  }, [open]);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -91,7 +141,7 @@ export default function NotificationsPopover() {
             if (unread > 0) markAllRead();
             return;
           }
-          setOpen((s) => !s);
+          handleToggle();
         }}
         className="relative text-gray-300 hover:text-white hover:bg-gray-800/60 rounded-full"
         aria-haspopup="dialog"
@@ -121,10 +171,10 @@ export default function NotificationsPopover() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
                   className="fixed inset-0 z-[180] h-[var(--app-vh,100dvh)] w-full bg-slate-950/62 backdrop-blur-md"
-                  onClick={() => setOpen(false)}
+                  onClick={handleClose}
                   aria-hidden="true"
                 />
-
+              
                 <motion.div
                   key="notif-popover"
                   ref={popoverRef}
@@ -142,13 +192,14 @@ export default function NotificationsPopover() {
                       variant="ghost"
                       className="pointer-events-auto h-9 w-9 rounded-full border border-white/10 bg-white/[0.07] text-slate-200 shadow-lg shadow-black/20 backdrop-blur-2xl hover:bg-orange-300/15 hover:text-white sm:h-10 sm:w-10"
                       aria-label="Close notifications"
-                      onClick={() => setOpen(false)}
+                      onClick={handleClose}
                     >
                       <X className="h-5 w-5" />
                     </Button>
                   </div>
                   <CustomerNotificationsClient
-                    onRequestClose={() => setOpen(false)}
+                    onRequestClose={handleClose}
+                    onRequestCloseSilent={handleCloseSilent}
                   />
                 </motion.div>
               </>

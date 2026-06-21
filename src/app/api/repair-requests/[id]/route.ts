@@ -102,8 +102,8 @@ async function notifyAssignedTechnician(args: {
     title: args.title,
     body: args.body,
     data: {
-      route: args.route || "/admin/repair-requests",
-      route_path: args.route || "/admin/repair-requests",
+      route: args.route || "/dashboard/work-list",
+      route_path: args.route || "/dashboard/work-list",
       repairRequestId: args.request._id,
       requestId: args.request.requestId,
       ...(args.taskId ? { taskId: args.taskId } : {}),
@@ -227,8 +227,8 @@ export async function PATCH(
       title: "Repair request cancelled",
       body: `Request ${request.requestId} was cancelled by the customer.`,
       data: {
-        route: "/admin/repair-requests",
-        route_path: "/admin/repair-requests",
+        route: "/dashboard/work-list",
+        route_path: "/dashboard/work-list",
         repairRequestId: id,
         requestId: request.requestId,
       },
@@ -264,7 +264,7 @@ export async function PATCH(
       title: "Repair time updated",
       body: `${request.requestId} is scheduled for ${formatDayDateTime(scheduledAt)}.`,
       route: request.workTask?._id
-        ? `/customer/work-tasks?open=${encodeURIComponent(request.workTask._id)}`
+        ? `/customer/request-repair?open=${encodeURIComponent(request.workTask._id)}`
         : "/customer/request-repair",
       taskId: request.workTask?._id,
     });
@@ -273,7 +273,7 @@ export async function PATCH(
       actorUserId: auth.userId,
       title: "Repair time updated",
       body: `${request.requestId} is scheduled for ${formatDayDateTime(scheduledAt)}.`,
-      route: request.workTask?._id ? "/dashboard/work-list" : "/admin/repair-requests",
+      route: "/dashboard/work-list",
       taskId: request.workTask?._id,
     });
 
@@ -305,7 +305,7 @@ export async function PATCH(
           actorUserId: auth.userId,
           title: "Repair request rejected",
           body: `${request.requestId} was rejected by Admin.`,
-          route: "/admin/repair-requests",
+          route: "/dashboard/work-list",
         }),
       ]);
 
@@ -342,7 +342,7 @@ export async function PATCH(
         actorUserId: auth.userId,
         title: "Repair moved to service tasks",
         body: `${request.requestId} is ${nextStatus.replace(/_/g, " ")} and was added to your service tasks for ${formatDayDateTime(nextScheduledAt)}.`,
-        route: `/customer/work-tasks?open=${encodeURIComponent(task._id)}`,
+        route: `/customer/request-repair?open=${encodeURIComponent(task._id)}`,
         taskId: task._id,
       }),
       notifyAssignedTechnician({
@@ -378,7 +378,7 @@ export async function PATCH(
           actorUserId: auth.userId,
           title: "Repair moved to service tasks",
           body: `${request.requestId} was added to your service tasks for ${formatDayDateTime(nextScheduledAt || "")}. Tap to open your task list.`,
-          route: `/customer/work-tasks?open=${encodeURIComponent(task._id)}`,
+          route: `/customer/request-repair?open=${encodeURIComponent(task._id)}`,
           taskId: task._id,
         }),
         createAndDispatchNotification({

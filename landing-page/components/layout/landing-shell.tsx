@@ -57,18 +57,16 @@ function LandingShellContent({
   const resolvedCopy = copyKey ? t(copyKey) : copy;
 
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="min-h-screen bg-slate-950 text-white">
-        <section className="border-b border-slate-800 bg-slate-900/40">
-          <div className="container mx-auto px-4 py-12">
-            <SectionTitle title={resolvedTitle} copy={resolvedCopy} />
-          </div>
+      <main className="flex-1 text-foreground">
+        <section className="container mx-auto px-4 py-12">
+          <SectionTitle title={resolvedTitle} copy={resolvedCopy} />
         </section>
         {children}
         <FooterSection support={support} />
       </main>
-    </>
+    </div>
   );
 }
 

@@ -73,17 +73,14 @@ export default function LandingHomeContent({
   const { t } = useLandingLanguage();
 
   return (
-    <>
+    <div className="min-h-screen bg-background text-foreground">
       <Header />
-      <main className="min-h-screen bg-slate-950 text-white">
+      <main>
         <HeroSection
           support={{ phone: support.phone, whatsapp: support.whatsapp }}
         />
 
-        <section
-          id="services"
-          className="container mx-auto px-4 py-14 md:py-16"
-        >
+        <section id="services" className="container mx-auto px-4 py-14 md:py-16">
           <SectionTitle
             eyebrow={t("services.eyebrow")}
             title={t("services.title")}
@@ -92,16 +89,16 @@ export default function LandingHomeContent({
           <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {services.slice(0, 6).map((item, index) => (
               <PremiumCard key={item.slug}>
-                <item.icon className="h-7 w-7 text-sky-300" />
-                <h3 className="mt-3 text-lg font-semibold text-white">
+                <item.icon className="h-7 w-7 text-primary" />
+                <h3 className="mt-3 text-lg font-semibold text-foreground">
                   {t(`services.items.${serviceKeys[index]}.title`)}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {t(`services.items.${serviceKeys[index]}.shortDescription`)}
                 </p>
                 <Link
                   href={`/services/${item.slug}`}
-                  className="mt-4 inline-flex items-center text-sm font-medium text-sky-300 hover:text-sky-200"
+                  className="mt-4 inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                 >
                   {t("common.viewDetails")}{" "}
                   <ArrowRight className="ml-1 h-4 w-4" />
@@ -111,10 +108,7 @@ export default function LandingHomeContent({
           </div>
         </section>
 
-        <section
-          id="about"
-          className="border-y border-slate-800 bg-slate-900/35 py-14 md:py-16"
-        >
+        <section id="about" className="border-y border-border bg-muted/30 py-14 md:py-16">
           <div className="container mx-auto px-4">
             <SectionTitle
               eyebrow={t("why.eyebrow")}
@@ -122,15 +116,11 @@ export default function LandingHomeContent({
               copy={t("why.copy")}
             />
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {whyChooseUs.map((item, index) => (
+              {whyChooseUs.map((item) => (
                 <PremiumCard key={item.title}>
-                  <item.icon className="h-6 w-6 text-sky-300" />
-                  <h3 className="mt-3 text-base font-semibold text-white">
-                    {t(`why.items.${whyKeys[index]}.title`)}
-                  </h3>
-                  <p className="mt-2 text-sm text-slate-300">
-                    {t(`why.items.${whyKeys[index]}.copy`)}
-                  </p>
+                  <item.icon className="h-6 w-6 text-primary" />
+                  <h3 className="mt-3 text-base font-semibold">{item.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{item.copy}</p>
                 </PremiumCard>
               ))}
             </div>
@@ -146,13 +136,13 @@ export default function LandingHomeContent({
             {processSteps.map((step, index) => (
               <div
                 key={step}
-                className={`rounded-lg border border-slate-700 bg-slate-900/70 p-5 text-slate-100 ${
+                className={`rounded-lg border border-border bg-card p-5 text-card-foreground ${
                   index === 4
                     ? "sm:col-span-2 lg:col-span-2"
                     : "lg:col-span-2"
                 }`}
               >
-                <p className="text-sm font-semibold uppercase tracking-wide text-sky-300">
+                <p className="text-sm font-semibold uppercase tracking-wide text-primary">
                   {t("common.step")} {index + 1}
                 </p>
                 <p className="mt-2 text-lg leading-snug">
@@ -163,10 +153,7 @@ export default function LandingHomeContent({
           </div>
         </section>
 
-        <section
-          id="pricing"
-          className="border-y border-slate-800 bg-slate-900/35 py-14 md:py-16"
-        >
+        <section id="pricing" className="border-y border-border bg-muted/30 py-14 md:py-16">
           <div className="container mx-auto px-4">
             <SectionTitle
               eyebrow={t("pricing.eyebrow")}
@@ -176,13 +163,13 @@ export default function LandingHomeContent({
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {pricingHighlights.map((item, index) => (
                 <PremiumCard key={item.title}>
-                  <h3 className="font-semibold text-white">
+                  <h3 className="font-semibold text-foreground">
                     {t(`pricing.items.${pricingKeys[index]}.title`)}
                   </h3>
-                  <p className="mt-2 text-2xl font-bold text-sky-300">
+                  <p className="mt-2 text-2xl font-bold text-primary">
                     {t(`pricing.items.${pricingKeys[index]}.price`)}
                   </p>
-                  <p className="mt-2 text-sm text-slate-300">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     {t(`pricing.items.${pricingKeys[index]}.note`)}
                   </p>
                 </PremiumCard>
@@ -191,38 +178,32 @@ export default function LandingHomeContent({
           </div>
         </section>
 
-        <section
-          id="rent-tools"
-          className="container mx-auto px-4 py-14 md:py-16"
-        >
-          <div className="rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-900 to-sky-950/35 p-6 md:p-8">
-            <h2 className="text-2xl font-bold text-white">
+        <section id="rent-tools" className="container mx-auto px-4 py-14 md:py-16">
+          <div className="rounded-2xl border border-border bg-card p-6 md:p-8">
+            <h2 className="text-2xl font-bold text-foreground">
               {t("rentTools.title")}
             </h2>
-            <p className="mt-2 max-w-2xl text-slate-300">
+            <p className="mt-2 max-w-2xl text-muted-foreground">
               {t("rentTools.copy")}
             </p>
             <div className="mt-5 flex flex-wrap gap-3 text-sm">
-              <span className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-white">
+              <span className="rounded-md border border-border bg-muted px-3 py-2 text-foreground">
                 {t("rentTools.hourly")}
               </span>
-              <span className="rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-white">
+              <span className="rounded-md border border-border bg-muted px-3 py-2 text-foreground">
                 {t("rentTools.daily")}
               </span>
             </div>
             <Link
               href="/rent-tools"
-              className="mt-5 inline-flex items-center rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-sky-400"
+              className="mt-5 inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               {t("rentTools.cta")}
             </Link>
           </div>
         </section>
 
-        <section
-          id="request"
-          className="border-y border-slate-800 bg-slate-900/35 py-14 md:py-16"
-        >
+        <section id="request" className="border-y border-border bg-muted/30 py-14 md:py-16">
           <div className="container mx-auto px-4">
             <SectionTitle
               eyebrow={t("account.eyebrow")}
@@ -238,19 +219,19 @@ export default function LandingHomeContent({
           </div>
         </section>
 
-        <section className="border-y border-slate-800 bg-slate-900/35 py-14 md:py-16">
+        <section className="border-y border-border bg-muted/30 py-14 md:py-16">
           <div className="container mx-auto px-4">
             <SectionTitle eyebrow={t("faq.eyebrow")} title={t("faq.title")} />
             <div className="mx-auto mt-8 max-w-4xl space-y-3">
               {faqs.map((faq, index) => (
                 <details
                   key={faq.q}
-                  className="rounded-xl border border-slate-700 bg-slate-900/70 p-4"
+                  className="rounded-xl border border-border bg-card p-4"
                 >
-                  <summary className="cursor-pointer text-base font-medium text-white">
+                  <summary className="cursor-pointer text-base font-medium text-foreground">
                     {t(`faq.items.${faqKeys[index]}.q`)}
                   </summary>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     {t(`faq.items.${faqKeys[index]}.a`)}
                   </p>
                 </details>
@@ -260,28 +241,28 @@ export default function LandingHomeContent({
         </section>
 
         <section id="contact" className="container mx-auto px-4 py-14 md:py-16">
-          <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 text-center md:p-8">
-            <h2 className="text-2xl font-bold text-white">
+          <div className="rounded-2xl border border-border bg-card p-6 text-center md:p-8">
+            <h2 className="text-2xl font-bold text-foreground">
               {t("contact.title")}
             </h2>
             <div className="mt-5 flex flex-wrap justify-center gap-3">
               <a
                 href={`tel:${support.phone}`}
-                className="inline-flex items-center rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400"
+                className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Phone className="mr-2 h-4 w-4" />
                 {t("common.callNow")}
               </a>
               <a
                 href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
-                className="inline-flex items-center rounded-md border border-sky-500 px-4 py-2 text-sm text-sky-300 hover:bg-sky-950/40"
+                className="inline-flex items-center rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
               >
                 <MessageCircle className="mr-2 h-4 w-4" />
                 {t("common.whatsapp")}
               </a>
               <Link
                 href="/request-account"
-                className="inline-flex items-center rounded-md border border-slate-600 px-4 py-2 text-sm text-white hover:bg-slate-800"
+                className="inline-flex items-center rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
               >
                 {t("common.requestAccount")}
               </Link>
@@ -291,6 +272,6 @@ export default function LandingHomeContent({
 
         <FooterSection support={support} />
       </main>
-    </>
+    </div>
   );
 }

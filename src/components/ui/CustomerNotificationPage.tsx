@@ -4,8 +4,15 @@ import CustomerNotificationsClient from "@/components/customer/customer-notifica
 
 export default function CustomerNotificationsPage({
   onRequestClose,
+  onRequestCloseSilent,
 }: {
   onRequestClose?: () => void;
+  onRequestCloseSilent?: () => void;
 }) {
-  return <CustomerNotificationsClient onRequestClose={onRequestClose} />;
+  return (
+    <CustomerNotificationsClient
+      onRequestClose={onRequestClose}
+      onRequestCloseSilent={onRequestCloseSilent}
+    />
+  );
 }

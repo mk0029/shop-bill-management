@@ -5,6 +5,7 @@ import { formatCustomerActivity } from "@/lib/customer-utils";
 import type { CustomerWithStats } from "@/types/customer";
 import Link from "next/link";
 import { safeInitial, safeUserName } from "@/lib/display-text";
+import { Phone, MapPin, Receipt, Calendar, CreditCard, Hash } from "lucide-react";
 
 interface CustomerDetailModalProps {
   customer: CustomerWithStats | null;
@@ -13,6 +14,13 @@ interface CustomerDetailModalProps {
   onViewBills?: (customer: CustomerWithStats) => void;
   onEditCustomer?: (customer: CustomerWithStats) => void;
 }
+
+const accentGradients = [
+  "from-blue-600 to-blue-400",
+  "from-emerald-600 to-emerald-400",
+  "from-purple-600 to-purple-400",
+  "from-amber-600 to-amber-400",
+];
 
 export default function CustomerDetailModal({
   customer,
@@ -25,6 +33,7 @@ export default function CustomerDetailModal({
 
   if (!customer) return null;
   const customerDisplayName = safeUserName(customer.name, "Customer");
+  const gradient = accentGradients[customer.totalBills % accentGradients.length];
 
   const formatDate = (iso: string) => {
     try {
@@ -42,141 +51,144 @@ export default function CustomerDetailModal({
     }
   };
 
-  const customerDetails = [
+  const activity = formatCustomerActivity(customer, currency);
+  const isAllPaid = activity === "All Paid";
+
+  const detailItems = [
     {
-      type: "phone",
-      label: (
-        <span>
-          Phone&nbsp; &nbsp; &nbsp;{" "}
-          <span className="text-xs text-yellow-400/50 sm:hidden">
-            click for call
-          </span>
-        </span>
-      ),
+      icon: Phone,
+      label: "Phone",
       value: customer.phone,
+      href: `tel:${customer.phone.replace(/\s+/g, "")}`,
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
     },
-    { type: "string", label: "Location", value: customer.location },
-    { type: "string", label: "ID", value: customer.customerId },
     {
-      type: "string",
+      icon: MapPin,
+      label: "Location",
+      value: customer.location,
+      color: "text-amber-400",
+      bg: "bg-amber-500/10",
+    },
+    {
+      icon: Hash,
+      label: "Customer ID",
+      value: customer.customerId,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10",
+    },
+    {
+      icon: Receipt,
       label: "Total Bills",
       value: customer.totalBills.toString(),
+      color: "text-cyan-400",
+      bg: "bg-cyan-500/10",
     },
     {
-      type: "string",
+      icon: CreditCard,
       label: "Total Spent",
       value: `${currency}${customer.totalSpent.toLocaleString()}`,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
     },
     {
-      type: "string",
+      icon: CreditCard,
       label: "Pending",
-      value: (
-        <span>
-          {" "}
-          {formatCustomerActivity(customer, currency) === "All Paid" ? (
-            <span className="text-green-500">All Paid</span>
-          ) : (
-            <span className="text-yellow-500">
-              {formatCustomerActivity(customer, currency)}
-            </span>
-          )}
-        </span>
+      value: isAllPaid ? (
+        <span className="text-emerald-400">All Paid</span>
+      ) : (
+        <span className="text-amber-400">{activity}</span>
       ),
+      color: isAllPaid ? "text-emerald-400" : "text-amber-400",
+      bg: isAllPaid ? "bg-emerald-500/10" : "bg-amber-500/10",
     },
     {
-      type: "string",
+      icon: Calendar,
       label: "Last Bill",
       value: customer.lastBillDate
         ? formatDate(customer.lastBillDate)
         : "No bills yet",
+      color: "text-gray-400",
+      bg: "bg-gray-500/10",
     },
     {
-      type: "string",
+      icon: Calendar,
       label: "Member Since",
       value: formatDate(customer.createdAt),
+      color: "text-gray-400",
+      bg: "bg-gray-500/10",
     },
   ];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Customer Details" size="lg">
-      <div className="space-y-6 max-md:space-y-4">
-        {/* Customer Header */}
+      <div className="space-y-6">
+        {/* Header with gradient avatar */}
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+          <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl shrink-0`}>
             <span className="text-white font-bold text-xl">
               {safeInitial(customer.name)}
             </span>
           </div>
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-white">{customerDisplayName}</h3>
-            {/* <p className="text-gray-400">Customer ID: {customer.clerkId}</p> */}
-            {/* <p className="text-white font-bold text-base sm:text-lg mt-1">
-            
-            </p> */}
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold text-white truncate">
+              {customerDisplayName}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                customer.isActive
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-gray-500/10 text-gray-400"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${customer.isActive ? "bg-emerald-400" : "bg-gray-400"}`} />
+                {customer.isActive ? "Active" : "Inactive"}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Customer Details Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          {customerDetails.map((detail, index) => {
-            const isPhone =
-              typeof detail.type === "string" &&
-              detail.type.toLowerCase() === "phone" &&
-              !!detail.value;
-            const isEmail =
-              typeof detail.type === "string" &&
-              detail.type.toLowerCase() === "email" &&
-              !!detail.value;
-
-            if (isPhone) {
-              return (
-                <Link
-                  key={index}
-                  href={`tel:${String(detail.value).replace(/\s+/g, "")}`}
-                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70"
-                >
-                  <p className="text-sm text-gray-400">{detail.label}</p>
-                  <p className="text-white">{detail.value}</p>
-                </Link>
-              );
-            }
-
-            if (isEmail) {
-              return (
-                <Link
-                  key={index}
-                  href={`mailto:${String(detail.value)}`}
-                  className="p-3 bg-gray-800 rounded border border-gray-700 block hover:bg-gray-700/70"
-                >
-                  <p className="text-sm text-gray-400">{detail.label}</p>
-                  <p className="text-white">{detail.value}</p>
-                </Link>
-              );
-            }
-
-            return (
-              <div
-                key={index}
-                className="p-3 bg-gray-800 rounded border border-gray-700"
-              >
-                <p className="text-sm text-gray-400">{detail.label}</p>
-                <p className="text-white capitalize">{detail.value}</p>
+        {/* Details Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {detailItems.map((item, index) => {
+            const Icon = item.icon;
+            const content = (
+              <div className={`p-3 rounded-xl border border-gray-800 ${item.bg} backdrop-blur-sm hover:border-gray-700 transition-colors`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
+                    <Icon className={`w-4 h-4 ${item.color}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-gray-500 mb-0.5">{item.label}</p>
+                    <p className="text-sm font-medium text-white truncate">{item.value}</p>
+                  </div>
+                </div>
               </div>
             );
+
+            if (item.href) {
+              return (
+                <Link key={index} href={item.href} className="block">
+                  {content}
+                </Link>
+              );
+            }
+
+            return <div key={index}>{content}</div>;
           })}
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-2">
           {onViewBills && (
-            <Button className="flex-1" onClick={() => onViewBills(customer)}>
+            <Button className="flex-1 gap-2" onClick={() => onViewBills(customer)}>
+              <Receipt className="w-4 h-4" />
               View Bills
             </Button>
           )}
           {onEditCustomer && (
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 gap-2"
               onClick={() => onEditCustomer(customer)}
             >
               Edit Customer

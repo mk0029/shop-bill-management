@@ -210,7 +210,7 @@ export async function PATCH(
 
           const header = isPaid
             ? '✅ Payment Successful — Bill Fully Paid'
-            : '✅ Payment Recived— Bill is Partial'
+            : '✅ Payment Received — Bill is Partial'
 
           const message =
             `${header}\n\n` +
@@ -225,7 +225,7 @@ export async function PATCH(
             `Payment Status: ${isPaid ? 'PAID' : 'PARTIAL'}\n\n` +
             `Thank you for your payment! 🙏  \n` +
             `Your bill has been successfully settled.\n\n` +
-            (billLink ? `View your receipt:\n${billLink}` : '')
+            (billLink ? `🔐 Your secure receipt is ready. Click below to view it safely:\n${billLink}` : '')
 
           await sendViaWaBotServer({ phones, message });
         }
@@ -411,6 +411,7 @@ export async function DELETE(
       `*[_type == "bill" && _id == $id][0]{
         _id,
         billNumber,
+        customer->{phone},
         items[]{
           quantity,
           unitPrice,
@@ -470,6 +471,25 @@ export async function DELETE(
     }
 
     await tx.commit();
+
+    // Best-effort WhatsApp notification
+    try {
+      const rawPhone = String(bill?.customer?.phone || '').trim();
+      const phones = (() => {
+        if (!rawPhone) return [] as string[];
+        if (rawPhone.startsWith('+')) return [rawPhone];
+        if (rawPhone.startsWith('0')) return [`+91${rawPhone.substring(1)}`];
+        return [`+91${rawPhone}`];
+      })();
+      if (phones.length) {
+        const billNo = String(bill?.billNumber || id);
+        const message = `Bill ${billNo} has been deleted. If you have any questions, please contact Jambh Electrical Services.`;
+        await sendViaWaBotServer({ phones, message });
+      }
+    } catch {
+      // best-effort
+    }
+
     return NextResponse.json({ success: true, message: "Bill deleted" });
   } catch (error: any) {
     console.error("API: Failed to delete bill", error);

@@ -502,10 +502,11 @@ export default function CustomerBillsPage() {
 
     return (
       `Dear ${sanitizeUserText(name || "Customer")},\n\n` +
-      `We’re happy to let you know that all your bills have been successfully paid ✅\n` +
+      `We're happy to let you know that all your bills have been successfully paid ✅\n` +
       `Thank you so much for clearing everything on time — we really appreciate it.\n\n` +
-      `🔐 View all your bills anytime here:\n` +
+      `🔐 Your bills are ready to view. Click below to access your account safely:\n` +
       `${loginUrl}\n\n` +
+      `Your account is password-protected and private. Only you can see your billing info.\n\n` +
       `Thanks for trusting Jambh Electrical Services.\n` +
       `Always here if you need anything ⚡🙏\n\n` +
       `— Jambh Electrical Services`
