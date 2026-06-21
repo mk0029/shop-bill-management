@@ -1,7 +1,6 @@
 "use client";
 
 import { LoginForm } from "@landing/components/forms/login-form";
-import { Card } from "@/components/ui/card";
 import { useAuthStore } from "@/store/auth-store";
 import { useLocaleStore } from "@/store/locale-store";
 import { motion, useReducedMotion } from "framer-motion";
@@ -42,34 +41,28 @@ function isStaffRole(role: string | null) {
 }
 
 function ElectricalLoginBackground() {
-  const reducedMotion = useReducedMotion();
-
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden bg-[#070b15]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(34,211,238,0.20),transparent_28%),radial-gradient(circle_at_82%_14%,rgba(249,115,22,0.18),transparent_26%),linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))]" />
-      <div className="absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:42px_42px]" />
-      <div className="absolute left-[-10%] top-[24%] h-px w-[120%] rotate-[-7deg] bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent" />
-      <div className="absolute left-[-8%] top-[68%] h-px w-[116%] rotate-[5deg] bg-gradient-to-r from-transparent via-orange-300/25 to-transparent" />
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: "#0B0D12" }}>
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 20% 20%, rgba(56,189,248,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(139,92,246,0.05) 0%, transparent 50%)" }} />
+      <div className="absolute inset-0 opacity-[0.12]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "42px 42px" }} />
+      <div className="absolute left-[-10%] top-[24%] h-px w-[120%] rotate-[-7deg]" style={{ background: "linear-gradient(90deg, transparent, rgba(56,189,248,0.2), transparent)" }} />
+      <div className="absolute left-[-8%] top-[68%] h-px w-[116%] rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.15), transparent)" }} />
 
       {floatingIcons.map(({ Icon, left, top, delay, size }) => (
         <motion.div
           key={`${left}-${top}`}
-          className="absolute grid h-14 w-14 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-cyan-100/55 shadow-[0_0_40px_rgba(34,211,238,0.10)] backdrop-blur-sm"
+          className="absolute grid h-14 w-14 place-items-center rounded-full border border-white/5 bg-white/[0.03] text-sky-300/40 shadow-lg backdrop-blur-sm"
           style={{ left, top }}
           initial={{ opacity: 0, y: 8, rotate: -4 }}
-          animate={
-            reducedMotion
-              ? { opacity: 0.36 }
-              : {
-                  opacity: [0.22, 0.48, 0.28],
-                  y: [-8, 10, -8],
-                  rotate: [-5, 6, -5],
-                }
-          }
+          animate={{
+            opacity: [0.15, 0.35, 0.15],
+            y: [-8, 10, -8],
+            rotate: [-5, 6, -5],
+          }}
           transition={{
             duration: 7 + delay,
             delay,
-            repeat: reducedMotion ? 0 : Infinity,
+            repeat: Infinity,
             ease: "easeInOut",
           }}
         >
@@ -77,8 +70,8 @@ function ElectricalLoginBackground() {
         </motion.div>
       ))}
 
-      <div className="absolute inset-0 backdrop-blur-[1.5px]" />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#07101f]/45 to-[#050914]/85" />
+      <div className="absolute inset-0" style={{ backdropFilter: "blur(2px)" }} />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, transparent 0%, rgba(10,10,15,0.6) 100%)" }} />
     </div>
   );
 }
@@ -153,23 +146,23 @@ export default function LandingLoginPage() {
   }, [hydrated, isAuthenticated, role, router]);
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-6 text-slate-100 sm:px-6 lg:px-10">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-6 sm:px-6 lg:px-10">
       <ElectricalLoginBackground />
       <ClientOnly>
         <motion.main
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-lg overflow-hidden rounded-[1.25rem] border border-white/10 bg-slate-950/62 shadow-2xl shadow-black/45 backdrop-blur-2xl"
+          className="relative z-10 w-full max-w-lg overflow-hidden rounded-[1.25rem] glass-strong shadow-2xl"
         >
           <section className="p-4 sm:p-5">
-            <Card className="border-white/10 bg-slate-950/72 p-5 shadow-none backdrop-blur-xl sm:p-6">
+            <div className="glass-card-static p-5 sm:p-6">
               <div className="mb-6 text-center">
                 <motion.div
                   initial={{ scale: 0.92, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.12, type: "spring", stiffness: 180 }}
-                  className="mx-auto mb-4 grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border border-cyan-300/15 bg-slate-900 shadow-lg shadow-cyan-950/30"
+                  className="mx-auto mb-4 grid h-16 w-16 place-items-center overflow-hidden rounded-2xl glass shadow-lg"
                 >
                   <Image
                     src="/je-p-512.png"
@@ -180,13 +173,13 @@ export default function LandingLoginPage() {
                     priority
                   />
                 </motion.div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
                   Welcome back
                 </p>
                 <h2 className="mt-2 text-2xl font-bold tracking-normal text-white">
                   {t("auth.login")}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
+                <p className="mt-2 text-sm leading-6 text-[#B8C0CC]">
                   Sign in to continue to your Jambh Electrics workspace.
                 </p>
               </div>
@@ -195,7 +188,7 @@ export default function LandingLoginPage() {
                 <motion.div
                   initial={{ opacity: 0, x: -14 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="mb-6 rounded-xl border border-red-400/35 bg-red-950/55 px-4 py-3 text-red-100"
+                  className="mb-6 rounded-xl border border-red-400/20 bg-red-950/40 px-4 py-3 text-red-200"
                 >
                   <div className="flex items-center gap-2">
                     <Info className="h-4 w-4" />
@@ -213,9 +206,9 @@ export default function LandingLoginPage() {
                   secretKey: passKey || undefined,
                 }}
               />
-            </Card>
+            </div>
 
-            <div className="mt-6 text-center text-xs text-slate-600">
+            <div className="mt-6 text-center text-xs text-white/30">
               <p>{new Date().getFullYear()} Jambh Electrics</p>
               <p className="mt-1">Professional Jambh Electrics system</p>
             </div>

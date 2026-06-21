@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Languages, Menu, X } from "lucide-react";
+import { Languages, Menu, X, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { quickLinks } from "@landing/lib/site-data";
@@ -32,11 +32,11 @@ function LanguageToggle() {
     <button
       type="button"
       onClick={() => setLanguage(nextLanguage)}
-      className="inline-flex h-9 items-center gap-1 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+      className="glass-button inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-[#E5E7EB]"
       aria-label={t("common.language")}
       title={t("common.language")}
     >
-      <Languages className="h-4 w-4" />
+      <Languages className="h-3.5 w-3.5" />
       {options.find((o) => o.code === language)?.label}
     </button>
   );
@@ -44,8 +44,15 @@ function LanguageToggle() {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const prevOverflowRef = useRef<string | null>(null);
   const { t } = useLandingLanguage();
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const body = document.body;
@@ -73,26 +80,36 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/je-p-48.png"
-              alt={t("common.brand")}
-              width={48}
-              height={48}
-            />
-            <span className="hidden text-base font-semibold leading-none sm:block">
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "glass-strong shadow-glass"
+            : "bg-transparent"
+        }`}
+      >
+        <div className="container mx-auto flex h-16 md:h-20 items-center justify-between px-4">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative">
+              <Image
+                src="/je-p-48.png"
+                alt={t("common.brand")}
+                width={40}
+                height={40}
+                className="transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-sky-400 animate-pulse-glow" />
+            </div>
+            <span className="hidden text-base font-bold text-white tracking-tight sm:block">
               {t("common.brand")}
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="hidden items-center gap-1 md:flex">
             {quickLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="glass-button rounded-xl px-3.5 py-2 text-sm font-medium text-[#B8C0CC] hover:text-white"
               >
                 {t(navKeys[quickLinks.indexOf(link)])}
               </Link>
@@ -102,7 +119,8 @@ export default function Header() {
           <div className="hidden items-center gap-3 md:flex">
             <LanguageToggle />
             <Link href="/login">
-              <Button size="lg" className="h-10 px-5 text-sm font-semibold">
+              <Button className="glass-button-primary h-10 rounded-xl px-5 text-sm font-semibold text-sky-200 shadow-none">
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                 {t("common.login")}
               </Button>
             </Link>
@@ -111,7 +129,7 @@ export default function Header() {
           <div className="flex items-center gap-2 md:hidden">
             <LanguageToggle />
             <button
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border text-foreground"
+              className="glass-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#E5E7EB]"
               onClick={() => setOpen(true)}
               aria-label={t("common.menu")}
             >
@@ -124,16 +142,16 @@ export default function Header() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[70] bg-black/50 md:hidden"
+            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm md:hidden animate-fade-in"
             onClick={() => setOpen(false)}
           />
-          <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm border-l border-border bg-background p-5 shadow-lg md:hidden">
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-base font-semibold">{t("common.menu")}</span>
+          <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm glass-strong p-6 shadow-2xl md:hidden animate-slide-up">
+            <div className="mb-6 flex items-center justify-between">
+              <span className="text-base font-semibold text-white">{t("common.menu")}</span>
               <button
                 aria-label={t("common.closeMenu")}
                 onClick={() => setOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border"
+                className="glass-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#E5E7EB]"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -144,7 +162,7 @@ export default function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-2.5 text-base text-muted-foreground hover:bg-muted"
+                  className="glass rounded-xl px-4 py-3 text-base text-[#B8C0CC] hover:text-white transition-colors"
                 >
                   {t(navKeys[quickLinks.indexOf(link)])}
                 </Link>
@@ -152,9 +170,10 @@ export default function Header() {
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="mt-2"
+                className="mt-3"
               >
-                <Button className="h-11 w-full text-base font-semibold">
+                <Button className="glass-button-primary h-12 w-full rounded-xl text-base font-semibold text-sky-200 shadow-none">
+                  <Sparkles className="h-4 w-4 mr-2" />
                   {t("common.login")}
                 </Button>
               </Link>

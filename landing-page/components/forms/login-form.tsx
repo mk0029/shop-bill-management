@@ -32,9 +32,7 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const hasAutoSubmitted = useRef(false);
 
-  // Auto-submit if URL has query params and both fields are prefilled/auto-filled
   useEffect(() => {
-    // Ensure this runs only in the browser
     const hasQuery =
       typeof window !== "undefined" &&
       typeof window.location?.search === "string" &&
@@ -48,7 +46,6 @@ export function LoginForm({
     const secretFilled = !!formData.secretKey?.trim();
     if (!phoneFilled || !secretFilled) return;
 
-    // Validate (inline) and submit once
     const isPhoneValid = /^\+?[1-9]\d{1,14}$/.test(formData.phone.trim());
     const isSecretValid = formData.secretKey.trim().length > 0;
     if (!isPhoneValid || !isSecretValid) return;
@@ -56,7 +53,6 @@ export function LoginForm({
     hasAutoSubmitted.current = true;
     onSubmit(formData).catch((err) => {
       console.error("Auto login failed:", err);
-      // Allow retry on user interaction if auto-submit fails
       hasAutoSubmitted.current = false;
     });
   }, [formData, isLoading, onSubmit]);
@@ -94,7 +90,6 @@ export function LoginForm({
 
   const handleInputChange = (field: keyof LoginCredentials, value: string) => {
     setFormData((prev: LoginCredentials) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (formErrors[field as keyof typeof formErrors]) {
       setFormErrors((prev: Partial<LoginCredentials>) => ({
         ...prev,
@@ -107,11 +102,11 @@ export function LoginForm({
     <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4" noValidate>
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="phone" className="text-gray-300 font-medium">
+          <Label htmlFor="phone" className="text-[#B8C0CC] font-medium text-sm">
             Phone Number
           </Label>
           <div className="relative">
-            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B8C0CC]/50 w-4 h-4 z-10" />
             <Input
               id="phone"
               type="number"
@@ -119,9 +114,9 @@ export function LoginForm({
               value={formData.phone}
               onChange={(e) => handleInputChange("phone", e.target.value)}
               disabled={isLoading}
-              className={`pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500  ${
+              className={`glass-input pl-10 text-white placeholder:text-[#B8C0CC]/50 ${
                 formErrors.phone
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  ? "border-red-500/50 focus:border-red-500"
                   : ""
               }`}
             />
@@ -132,11 +127,11 @@ export function LoginForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="secretKey" className="text-gray-300 font-medium">
+          <Label htmlFor="secretKey" className="text-[#B8C0CC] font-medium text-sm">
             Secret Key
           </Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B8C0CC]/50 w-4 h-4 z-10" />
             <Input
               id="secretKey"
               type={showPassword ? "text" : "password"}
@@ -144,16 +139,16 @@ export function LoginForm({
               value={formData.secretKey}
               onChange={(e) => handleInputChange("secretKey", e.target.value)}
               disabled={isLoading}
-              className={`pl-10 pr-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500  ${
+              className={`glass-input pl-10 pr-10 text-white placeholder:text-[#B8C0CC]/50 ${
                 formErrors.secretKey
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  ? "border-red-500/50 focus:border-red-500"
                   : ""
               }`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#B8C0CC]/50 hover:text-[#E5E7EB]"
               disabled={isLoading}
             >
               {showPassword ? (
@@ -169,37 +164,30 @@ export function LoginForm({
         </div>
       </div>
 
-      {/* Remember Me */}
       <div className="flex items-center space-x-2">
         <input
           id="rememberMe"
           type="checkbox"
-          className="h-4 w-4 rounded border-gray-700 bg-gray-800 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 rounded border-white/10 bg-white/5 text-sky-500 focus:ring-sky-500/30"
           checked={!!formData.rememberMe}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, rememberMe: e.target.checked }))
           }
           disabled={isLoading}
         />
-        <Label htmlFor="rememberMe" className="text-gray-300">
+        <Label htmlFor="rememberMe" className="text-[#B8C0CC] text-sm">
           Remember me
         </Label>
       </div>
 
-      {/* {error && (
-        <div className="bg-red-900/50 border border-red-800 text-red-200 px-4 py-3 rounded-lg">
-          <p className="text-sm">{error}</p>
-        </div>
-      )} */}
-
       <Button
         type="submit"
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3"
+        className="glass-button-primary w-full h-11 rounded-2xl text-sky-200 font-semibold shadow-none"
         disabled={isLoading}
       >
         {isLoading ? (
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-sky-200 mr-2"></div>
             Signing in...
           </div>
         ) : (

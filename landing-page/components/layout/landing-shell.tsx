@@ -5,6 +5,7 @@ import {
   FooterSection,
   SectionTitle,
 } from "@landing/components/shared/landing-sections";
+import ElectricalBackground from "@landing/components/shared/ElectricalBackground";
 import { getSupportContact } from "@/lib/auth-service";
 import { RequestAccountForm } from "@landing/components/forms/request-account-form";
 import {
@@ -57,16 +58,18 @@ function LandingShellContent({
   const resolvedCopy = copyKey ? t(copyKey) : copy;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1 text-foreground">
-        <section className="container mx-auto px-4 py-12">
-          <SectionTitle title={resolvedTitle} copy={resolvedCopy} />
-        </section>
-        {children}
-        <FooterSection support={support} />
-      </main>
-    </div>
+    <ElectricalBackground>
+      <div className="flex min-h-screen flex-col text-[#E5E7EB]">
+        <Header />
+        <main className="flex-1">
+          <section className="container mx-auto px-4 pt-24 pb-8">
+            <SectionTitle title={resolvedTitle} copy={resolvedCopy} />
+          </section>
+          {children}
+          <FooterSection support={support} />
+        </main>
+      </div>
+    </ElectricalBackground>
   );
 }
 
@@ -74,9 +77,11 @@ export function RequestAccountBlock() {
   const support = getSupportContact();
   return (
     <div className="mx-auto max-w-4xl">
-      <RequestAccountForm
-        support={{ email: support.email, whatsapp: support.whatsapp }}
-      />
+      <div className="glass-card p-8">
+        <RequestAccountForm
+          support={{ email: support.email, whatsapp: support.whatsapp }}
+        />
+      </div>
     </div>
   );
 }

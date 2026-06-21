@@ -47,19 +47,23 @@ const simplePolicyCounts = {
 
 const termsPointCounts = [5, 5, 5, 5, 4, 5, 6, 4, 3, 3, 4, 2];
 
+function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`glass-card p-6 ${className}`}>{children}</div>;
+}
+
 export function AboutContent() {
   const { t } = useLandingLanguage();
 
   return (
     <section className="container mx-auto px-4 py-12">
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="text-xl font-semibold text-foreground">{t("pages.about.heading")}</h2>
-        <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+      <GlassCard>
+        <h2 className="text-xl font-semibold text-white">{t("pages.about.heading")}</h2>
+        <ul className="mt-4 space-y-3 text-sm leading-6 text-[#B8C0CC]">
           {aboutBulletKeys.map((key) => (
             <li key={key}>- {t(`pages.about.bullets.${key}`)}</li>
           ))}
         </ul>
-      </div>
+      </GlassCard>
     </section>
   );
 }
@@ -71,16 +75,18 @@ export function ServicesGrid() {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {services.map((item, index) => (
         <PremiumCard key={item.slug}>
-          <item.icon className="h-7 w-7 text-primary" />
-          <h3 className="mt-3 text-lg font-semibold">
+          <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center mb-4">
+            <item.icon className="h-5 w-5 text-sky-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white">
             {t(`services.items.${serviceKeys[index]}.title`)}
           </h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-sm leading-relaxed text-[#B8C0CC]">
             {t(`services.items.${serviceKeys[index]}.shortDescription`)}
           </p>
           <Link
             href={`/services/${item.slug}`}
-            className="mt-4 inline-block text-sm text-primary"
+            className="mt-4 inline-block text-sm text-sky-400 hover:text-sky-300 transition-colors"
           >
             {t("common.viewDetails")}
           </Link>
@@ -98,10 +104,10 @@ export function ProductsContent() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {productKeys.map((key) => (
           <PremiumCard key={key}>
-            <h2 className="text-xl font-semibold text-foreground">
+            <h2 className="text-xl font-semibold text-white">
               {t(`pages.products.categories.${key}.title`)}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-sm leading-relaxed text-[#B8C0CC]">
               {t(`pages.products.categories.${key}.details`)}
             </p>
           </PremiumCard>
@@ -139,12 +145,12 @@ function ProductGuidanceCard({
   copy: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <p className="flex items-center gap-2 text-primary">
+    <GlassCard>
+      <p className="flex items-center gap-2 text-sky-400">
         <Icon className="h-4 w-4" /> {title}
       </p>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy}</p>
-    </div>
+      <p className="mt-2 text-sm leading-6 text-[#B8C0CC]">{copy}</p>
+    </GlassCard>
   );
 }
 
@@ -155,18 +161,18 @@ export function PricingContent() {
     <section className="container mx-auto grid gap-4 px-4 py-12 md:grid-cols-2 lg:grid-cols-4">
       {pricingHighlights.map((item, index) => (
         <PremiumCard key={item.title}>
-          <h2 className="font-semibold text-foreground">
+          <h2 className="font-semibold text-white text-sm uppercase tracking-wider text-sky-400/80">
             {t(`pricing.items.${pricingKeys[index]}.title`)}
           </h2>
-          <p className="mt-2 text-xl font-bold text-primary">
+          <p className="mt-2 text-xl font-bold text-gradient">
             {t(`pricing.items.${pricingKeys[index]}.price`)}
           </p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          <p className="mt-2 text-sm leading-6 text-[#B8C0CC]">
             {t(`pricing.items.${pricingKeys[index]}.note`)}
           </p>
         </PremiumCard>
       ))}
-      <p className="text-sm leading-6 text-muted-foreground md:col-span-2 lg:col-span-4">
+      <p className="text-sm leading-6 text-[#B8C0CC] md:col-span-2 lg:col-span-4">
         {t("pages.pricing.finalNote")}
       </p>
     </section>
@@ -180,28 +186,28 @@ export function RentToolsContent() {
   return (
     <section className="container mx-auto px-4 py-12">
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-6">
+        <GlassCard>
           <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/40 bg-primary/10 text-primary">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-400">
               <CircleCheck className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-xl font-semibold text-foreground">
+              <h2 className="text-xl font-semibold text-white">
                 {t("pages.rentTools.loginTitle")}
               </h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              <p className="mt-3 text-sm leading-6 text-[#B8C0CC]">
                 {t("pages.rentTools.copy")}
               </p>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
+          <div className="mt-6 grid gap-3 text-sm text-[#B8C0CC]">
             <p className="flex items-start gap-2">
-              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
               <span>{t("pages.rentTools.accountPoint")}</span>
             </p>
             <p className="flex items-start gap-2">
-              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
               <span>{t("pages.rentTools.requestPoint")}</span>
             </p>
           </div>
@@ -209,40 +215,42 @@ export function RentToolsContent() {
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="glass-button-primary inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold text-sky-200"
             >
               <CircleCheck className="h-4 w-4" />
               {t("common.login")}
             </Link>
             <a
               href="#rent-tools-account-request"
-              className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+              className="glass-button inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold text-[#E5E7EB]"
             >
               <CircleCheck className="h-4 w-4" />
               {t("common.requestAccount")}
             </a>
           </div>
 
-          <div className="mt-8 border-t border-border pt-5">
-            <h3 className="text-sm font-semibold text-foreground">
+          <div className="mt-8 border-t border-white/5 pt-5">
+            <h3 className="text-sm font-semibold text-white">
               {t("pages.rentTools.pricingTitle")}
             </h3>
-            <p className="mt-3 text-primary">{t("pages.rentTools.hourly")}</p>
-            <p className="text-primary">{t("pages.rentTools.daily")}</p>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
+            <p className="mt-3 text-sky-400">{t("pages.rentTools.hourly")}</p>
+            <p className="text-violet-400">{t("pages.rentTools.daily")}</p>
+            <p className="mt-4 text-sm leading-6 text-[#B8C0CC]">
               {t("pages.rentTools.rateCopy")}
             </p>
           </div>
-        </div>
+        </GlassCard>
 
         <div id="rent-tools-account-request" className="scroll-mt-24">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">
+          <h2 className="mb-4 text-lg font-semibold text-white">
             {t("pages.rentTools.requestTitle")}
           </h2>
-          <RequestAccountForm
-            support={{ email: support.email, whatsapp: support.whatsapp }}
-            compact
-          />
+          <div className="glass-card p-6">
+            <RequestAccountForm
+              support={{ email: support.email, whatsapp: support.whatsapp }}
+              compact
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -258,32 +266,32 @@ export function ContactContent({
 
   return (
     <section className="container mx-auto grid gap-4 px-4 py-12 lg:grid-cols-2">
-      <div className="rounded-xl border border-border bg-card p-6 text-sm leading-6 text-muted-foreground">
-        <p>{t("pages.contact.phone")}: {support.phone}</p>
-        <p className="mt-2">{t("pages.contact.whatsapp")}: {support.whatsapp}</p>
-        <p className="mt-2">{t("pages.contact.email")}: {support.email}</p>
-        <p className="mt-2">{t("pages.contact.address")}: {t("pages.contact.addressValue")}</p>
-        <p className="mt-2">{t("pages.contact.workingHours")}: {t("pages.contact.workingHoursValue")}</p>
+      <GlassCard>
+        <p className="text-sm leading-6 text-[#B8C0CC]">{t("pages.contact.phone")}: {support.phone}</p>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.contact.whatsapp")}: {support.whatsapp}</p>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.contact.email")}: {support.email}</p>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.contact.address")}: {t("pages.contact.addressValue")}</p>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.contact.workingHours")}: {t("pages.contact.workingHoursValue")}</p>
         <div className="mt-4 flex gap-2">
-          <a href={`tel:${support.phone}`} className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+          <a href={`tel:${support.phone}`} className="glass-button-primary rounded-2xl px-4 py-2 text-sm font-semibold text-sky-200 inline-flex items-center gap-2">
             {t("common.callNow")}
           </a>
-          <a href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`} className="rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+          <a href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`} className="glass-button rounded-2xl px-4 py-2 text-sm font-semibold text-[#E5E7EB] inline-flex items-center gap-2">
             {t("common.whatsapp")}
           </a>
         </div>
-      </div>
-      <form className="rounded-xl border border-border bg-card p-6">
-        <h2 className="text-lg font-semibold text-foreground">{t("pages.contact.formTitle")}</h2>
+      </GlassCard>
+      <GlassCard>
+        <h2 className="text-lg font-semibold text-white">{t("pages.contact.formTitle")}</h2>
         <div className="mt-4 space-y-3">
-          <input className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground" placeholder={t("pages.contact.namePlaceholder")} />
-          <input className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground" placeholder={t("pages.contact.phonePlaceholder")} />
-          <textarea className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground" rows={5} placeholder={t("pages.contact.messagePlaceholder")} />
-          <button type="button" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+          <input className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50" placeholder={t("pages.contact.namePlaceholder")} />
+          <input className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50" placeholder={t("pages.contact.phonePlaceholder")} />
+          <textarea className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50" rows={5} placeholder={t("pages.contact.messagePlaceholder")} />
+          <button type="button" className="glass-button-primary rounded-2xl px-5 py-2.5 text-sm font-semibold text-sky-200">
             {t("pages.contact.submit")}
           </button>
         </div>
-      </form>
+      </GlassCard>
     </section>
   );
 }
@@ -303,52 +311,52 @@ export function ServiceDetailContent({
   return (
     <section className="container mx-auto px-4 py-12">
       <div className="grid gap-4 xl:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-6 xl:col-span-2">
-          <h2 className="text-2xl font-semibold text-foreground">
+        <GlassCard className="xl:col-span-2">
+          <h2 className="text-2xl font-semibold text-white">
             {t("pages.serviceDetail.includedTitle")}
           </h2>
-          {hasExtra ? <p className="mt-3 text-base leading-7 text-muted-foreground">{extraSummary}</p> : null}
+          {hasExtra ? <p className="mt-3 text-base leading-7 text-[#B8C0CC]">{extraSummary}</p> : null}
 
-          <ul className="mt-5 space-y-2 text-base text-muted-foreground">
+          <ul className="mt-5 space-y-2 text-base text-[#B8C0CC]">
             {Array.from({ length: includesCount }, (_, index) => (
               <li key={index} className="flex items-start gap-2">
-                <CircleCheck className="mt-0.5 h-4 w-4 text-primary" />
+                <CircleCheck className="mt-0.5 h-4 w-4 text-sky-400" />
                 <span>{t(`pages.serviceDetail.includes.${serviceSlug}.item${index + 1}`)}</span>
               </li>
             ))}
           </ul>
 
           {extraPointCount ? (
-            <div className="mt-6 rounded-lg border border-border bg-muted/50 p-4">
-              <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+            <div className="mt-6 glass rounded-xl p-4">
+              <p className="text-sm font-semibold uppercase tracking-wide text-sky-300">
                 {t("pages.serviceDetail.clarificationTitle")}
               </p>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-[#B8C0CC]">
                 {Array.from({ length: extraPointCount }, (_, index) => (
                   <li key={index}>- {t(`pages.serviceDetail.extra.${serviceSlug}.point${index + 1}`)}</li>
                 ))}
               </ul>
             </div>
           ) : null}
-        </div>
+        </GlassCard>
 
         <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground">
+          <GlassCard>
+            <h3 className="text-lg font-semibold text-white">
               {t("pages.serviceDetail.needTitle")}
             </h3>
             <div className="mt-4 space-y-2">
-              <a href="https://wa.me/917015493276" className="block rounded-md bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+              <a href="https://wa.me/917015493276" className="glass-button-primary block rounded-2xl px-4 py-2.5 text-center text-sm font-semibold text-sky-200">
                 {t("common.whatsapp")}
               </a>
-              <Link href="/request-account" className="block rounded-md border border-border px-4 py-2 text-center text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+              <Link href="/request-account" className="glass-button block rounded-2xl px-4 py-2.5 text-center text-sm font-semibold text-[#E5E7EB]">
                 {t("pages.serviceDetail.requestService")}
               </Link>
             </div>
-          </div>
+          </GlassCard>
 
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground">
+          <GlassCard>
+            <h3 className="text-lg font-semibold text-white">
               {t("pages.serviceDetail.chargeTitle")}
             </h3>
             <div className="mt-4 grid gap-3 text-sm">
@@ -356,10 +364,10 @@ export function ServiceDetailContent({
               <ServiceChargeCard icon={ShieldCheck} title={t("pages.serviceDetail.emergencyTitle")} copy={t("pages.serviceDetail.emergencyCopy")} />
               <ServiceChargeCard icon={CircleCheck} title={t("pages.serviceDetail.finalAmountTitle")} copy={t("pages.serviceDetail.finalAmountCopy")} />
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">
+            <p className="mt-4 text-xs text-[#B8C0CC]/60">
               {t("pages.serviceDetail.policyNote")}
             </p>
-          </div>
+          </GlassCard>
         </div>
       </div>
     </section>
@@ -376,11 +384,11 @@ function ServiceChargeCard({
   copy: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/50 p-3">
-      <div className="flex items-center gap-2 text-primary">
+    <div className="glass rounded-xl p-3">
+      <div className="flex items-center gap-2 text-sky-400">
         <Icon className="h-4 w-4" /> {title}
       </div>
-      <p className="mt-1 leading-6 text-muted-foreground">{copy}</p>
+      <p className="mt-1 leading-6 text-[#B8C0CC]">{copy}</p>
     </div>
   );
 }
@@ -395,13 +403,13 @@ export function SimplePolicyContent({
 
   return (
     <section className="container mx-auto px-4 py-12">
-      <div className="rounded-xl border border-border bg-card p-6">
-        <ul className="space-y-3 text-sm leading-6 text-muted-foreground">
+      <GlassCard>
+        <ul className="space-y-3 text-sm leading-6 text-[#B8C0CC]">
           {Array.from({ length: count }, (_, index) => (
             <li key={index}>- {t(`pages.${page}.points.item${index + 1}`)}</li>
           ))}
         </ul>
-      </div>
+      </GlassCard>
     </section>
   );
 }
@@ -413,14 +421,11 @@ export function TermsContent() {
     <section className="container mx-auto px-4 py-12">
       <div className="space-y-6">
         {termsPointCounts.map((count, sectionIndex) => (
-          <article
-            key={sectionIndex}
-            className="rounded-xl border border-border bg-card p-5"
-          >
-            <h2 className="text-lg font-semibold text-foreground">
+          <article key={sectionIndex} className="glass-card p-6">
+            <h2 className="text-lg font-semibold text-white">
               {t(`pages.terms.sections.section${sectionIndex + 1}.title`)}
             </h2>
-            <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#B8C0CC]">
               {Array.from({ length: count }, (_, pointIndex) => (
                 <li key={pointIndex}>
                   -{" "}

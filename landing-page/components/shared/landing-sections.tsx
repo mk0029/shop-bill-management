@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -20,6 +21,27 @@ const hindiSectionHeadingStyle = {
   lineHeight: 1.24,
 } as const;
 
+function useScrollReveal() {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" },
+    );
+
+    document.querySelectorAll(".scroll-reveal").forEach((el) => {
+      observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+}
+
 export function HeroSection({
   support,
 }: {
@@ -36,56 +58,60 @@ export function HeroSection({
 
   return (
     <section className="relative overflow-hidden" id="home">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
-      <div className="container mx-auto px-4 py-14 md:py-28 relative">
-        <div className="grid md:grid-cols-2 gap-10 items-center">
-          <div>
-            <p className={`mb-3 font-semibold uppercase tracking-[0.18em] text-primary ${isHindi ? "text-sm sm:text-[15px]" : "text-xs"}`}>
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-500/5 to-transparent" />
+      <div className="container mx-auto px-4 py-16 md:py-32 relative">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-sky-300/80 animate-fade-up">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse-glow" />
               {t("hero.eyebrow")}
-            </p>
+            </div>
             <h1
-              className={`text-4xl md:text-5xl font-bold tracking-tight ${isHindi ? "" : ""}`}
+              className={`text-4xl md:text-6xl font-bold tracking-tight text-white leading-[1.08] ${isHindi ? "" : ""}`}
               style={isHindi ? hindiHeroHeadingStyle : undefined}
             >
               {t("hero.title")}
             </h1>
-            <p className="mt-4 text-muted-foreground text-lg">
+            <p className="text-lg text-[#B8C0CC] leading-relaxed max-w-lg">
               {t("hero.copy")}
             </p>
-            <div className="mt-6 flex gap-3">
+            <div className="flex gap-3 pt-2">
               <a
                 href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-11 items-center rounded-md bg-primary px-5 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="glass-button-primary inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-sky-200 gap-2"
               >
-                <MessageCircle className="mr-2 h-4 w-4" />
+                <MessageCircle className="h-4 w-4" />
                 {t("hero.whatsapp")}
               </a>
               <a
                 href={`tel:${support.phone}`}
-                className="inline-flex h-11 items-center rounded-md bg-secondary px-5 text-base font-semibold text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                className="glass-button inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-[#E5E7EB] gap-2"
               >
-                <Phone className="mr-2 h-4 w-4" />
+                <Phone className="h-4 w-4" />
                 {t("hero.callNow")}
               </a>
             </div>
-            <div className="mt-6 flex items-center gap-6 text-sm text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-5 text-sm text-[#B8C0CC] flex-wrap pt-2">
               {badges.map((badge) => (
-                <p key={badge.label} className="flex items-center gap-2 text-base">
-                  <badge.icon className="size-6 text-primary" />
+                <p key={badge.label} className="flex items-center gap-2">
+                  <badge.icon className="size-5 text-sky-400/80" />
                   {badge.label}
                 </p>
               ))}
             </div>
           </div>
-          <div className="relative">
-            <div className="aspect-video rounded-xl bg-gray-900 border border-border flex items-center justify-center relative">
+          <div className="relative flex items-center justify-center">
+            <div className="ambient-glow w-72 h-72 bg-sky-500/5 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="glass-card-static aspect-square w-full max-w-md flex items-center justify-center p-8">
               <Image
                 alt="brand"
                 src="/je-p-512.png"
-                fill
-                className="w-full h-auto absolute top-0 left-0 z-10 object-contain"
+                width={320}
+                height={320}
+                className="w-full h-auto object-contain drop-shadow-2xl"
+                priority
               />
             </div>
           </div>
@@ -108,32 +134,48 @@ export function SectionTitle({
   const isHindi = language === "hi";
 
   return (
-    <div className="mx-auto max-w-3xl text-center">
+    <div className="mx-auto max-w-3xl text-center space-y-4">
       {eyebrow ? (
-        <p
-          className={`font-semibold uppercase tracking-[0.16em] text-primary ${isHindi ? "text-sm sm:text-[15px]" : "text-xs"}`}
-        >
+        <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-sky-300/80">
+          <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse-glow" />
           {eyebrow}
-        </p>
+        </div>
       ) : null}
       <h2
-        className={`mt-2 font-bold text-foreground ${isHindi ? "text-3xl md:text-4xl" : "text-3xl leading-[1.18] md:text-4xl"}`}
+        className={`font-bold text-white ${isHindi ? "text-3xl md:text-4xl" : "text-3xl md:text-5xl leading-[1.1]"}`}
         style={isHindi ? hindiSectionHeadingStyle : undefined}
       >
         {title}
       </h2>
       {copy ? (
-        <p className="mt-3 text-base leading-7 text-muted-foreground">{copy}</p>
+        <p className="text-base md:text-lg text-[#B8C0CC] leading-relaxed max-w-2xl mx-auto">
+          {copy}
+        </p>
       ) : null}
     </div>
   );
 }
 
-export function PremiumCard({ children }: { children: React.ReactNode }) {
+export function PremiumCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <article className="h-full rounded-xl border border-border bg-card p-5">
+    <article className={`glass-card h-full p-6 md:p-7 group ${className}`}>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-sky-500/5 to-transparent rounded-bl-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-violet-500/5 to-transparent rounded-tr-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100" />
       {children}
     </article>
+  );
+}
+
+export function IconBox({ children, variant = "primary" }: { children: React.ReactNode; variant?: "primary" | "secondary" | "accent" }) {
+  const colors = {
+    primary: "from-sky-500/15 to-sky-400/5 text-sky-400",
+    secondary: "from-violet-500/15 to-violet-400/5 text-violet-400",
+    accent: "from-indigo-500/15 to-indigo-400/5 text-indigo-400",
+  };
+  return (
+    <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${colors[variant]} flex items-center justify-center ring-1 ring-white/5 group-hover:ring-white/10 transition-all duration-500`}>
+      {children}
+    </div>
   );
 }
 
@@ -146,6 +188,15 @@ export function TranslatedText({
 }) {
   const { t } = useLandingLanguage();
   return <p className={className}>{t(translationKey)}</p>;
+}
+
+export function GlassDivider() {
+  return (
+    <div className="relative py-8 md:py-12">
+      <div className="glass-separator mx-auto max-w-4xl" />
+      <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-sky-400/20" />
+    </div>
+  );
 }
 
 export function FooterSection({
@@ -164,67 +215,70 @@ export function FooterSection({
   ];
 
   return (
-    <footer className="container mx-auto px-4 py-10">
-      <div className="grid md:grid-cols-4 gap-8 text-sm">
-        <div>
-          <div className="text-lg font-semibold">{t("common.brand")}</div>
-          <p className="mt-3 text-muted-foreground">
-            {t("footer.copy")}
-          </p>
+    <footer className="relative overflow-hidden border-t border-white/5">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-500/[0.02] to-transparent pointer-events-none" />
+      <div className="container mx-auto px-4 py-16 relative">
+        <div className="grid md:grid-cols-4 gap-10">
+          <div className="space-y-4">
+            <div className="text-lg font-bold text-white tracking-tight">{t("common.brand")}</div>
+            <p className="text-sm text-[#B8C0CC] leading-relaxed">
+              {t("footer.copy")}
+            </p>
+            <div className="flex gap-3 pt-2">
+              <a href={`tel:${support.phone}`} className="glass-button w-10 h-10 rounded-xl flex items-center justify-center text-[#B8C0CC] hover:text-white">
+                <Phone className="h-4 w-4" />
+              </a>
+              <a href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`} className="glass-button w-10 h-10 rounded-xl flex items-center justify-center text-[#B8C0CC] hover:text-white">
+                <MessageCircle className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">{t("footer.quickLinks")}</div>
+            <ul className="space-y-3">
+              {[
+                { label: t("nav.about"), href: "/about" },
+                { label: t("nav.services"), href: "/services" },
+                { label: t("nav.products"), href: "/products" },
+                { label: t("nav.pricing"), href: "/pricing" },
+                { label: t("nav.contact"), href: "/contact" },
+              ].map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className="text-sm text-[#B8C0CC] hover:text-white transition-colors">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">{t("footer.services")}</div>
+            <ul className="space-y-3">
+              {serviceLinks.map((item) => (
+                <li key={item} className="text-sm text-[#B8C0CC]">{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-white/60 uppercase tracking-wider mb-4">{t("footer.contactPolicies")}</div>
+            <ul className="space-y-3 text-sm text-[#B8C0CC]">
+              <li><a href={`tel:${support.phone}`} className="hover:text-white transition-colors">{support.phone}</a></li>
+              <li><a href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`} className="hover:text-white transition-colors">{support.whatsapp}</a></li>
+              <li><a href={`mailto:${support.email}`} className="hover:text-white transition-colors">{support.email}</a></li>
+              <li className="text-[#B8C0CC]/70">{t("footer.workingHours")}</li>
+              <li className="pt-2 space-x-2">
+                <Link href="/terms" className="hover:text-white transition-colors">{t("footer.terms")}</Link>
+                <span className="text-white/20">·</span>
+                <Link href="/privacy-policy" className="hover:text-white transition-colors">{t("footer.privacy")}</Link>
+                <span className="text-white/20">·</span>
+                <Link href="/refund-policy" className="hover:text-white transition-colors">{t("footer.refund")}</Link>
+              </li>
+            </ul>
+          </div>
         </div>
-        <div>
-          <div className="font-semibold">{t("footer.quickLinks")}</div>
-          <ul className="mt-3 space-y-2 text-muted-foreground">
-            <li className="text-base font-normal">
-              <Link href="/about" className="hover:text-foreground">{t("nav.about")}</Link>
-            </li>
-            <li className="text-base font-normal">
-              <Link href="/services" className="hover:text-foreground">{t("nav.services")}</Link>
-            </li>
-            <li className="text-base font-normal">
-              <Link href="/products" className="hover:text-foreground">{t("nav.products")}</Link>
-            </li>
-            <li className="text-base font-normal">
-              <Link href="/pricing" className="hover:text-foreground">{t("nav.pricing")}</Link>
-            </li>
-            <li className="text-base font-normal">
-              <Link href="/contact" className="hover:text-foreground">{t("nav.contact")}</Link>
-            </li>
-          </ul>
+        <div className="mt-12 pt-6 border-t border-white/5 text-xs text-[#B8C0CC]/50 text-center">
+          &copy; {new Date().getFullYear()} {t("common.brand")}. {t("footer.copyright")}
         </div>
-        <div>
-          <div className="font-semibold">{t("footer.services")}</div>
-          <ul className="mt-3 space-y-2 text-muted-foreground">
-            {serviceLinks.map((item) => (
-              <li key={item} className="text-base font-normal">{item}</li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <div className="font-semibold">{t("footer.contactPolicies")}</div>
-          <ul className="mt-3 space-y-2 text-muted-foreground">
-            <li className="text-base font-normal">
-              <a href={`tel:${support.phone}`} className="hover:text-foreground">{support.phone}</a>
-            </li>
-            <li className="text-base font-normal">
-              <a href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`} className="hover:text-foreground">{t("footer.whatsappLabel")}: {support.whatsapp}</a>
-            </li>
-            <li className="text-base font-normal">
-              <a href={`mailto:${support.email}`} className="hover:text-foreground">{support.email}</a>
-            </li>
-            <li className="text-base font-normal">{t("footer.workingHours")}</li>
-            <li className="pt-2">
-              <Link href="/terms" className="hover:text-foreground">{t("footer.terms")}</Link>
-              {" "}·{" "}
-              <Link href="/privacy-policy" className="hover:text-foreground">{t("footer.privacy")}</Link>
-              {" "}·{" "}
-              <Link href="/refund-policy" className="hover:text-foreground">{t("footer.refund")}</Link>
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div className="mt-8 pt-6 border-t text-xs text-muted-foreground text-center">
-        (c) {new Date().getFullYear()} {t("common.brand")}. {t("footer.copyright")}
       </div>
     </footer>
   );

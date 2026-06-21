@@ -137,7 +137,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       title: "Simple 5-Step Process",
       steps: {
         requestService: "Request service",
-        inspectRequirement: "We inspect or discuss requirement",
+        inspectRequirement: "We inspect requirement",
         estimateShared: "Estimate shared",
         workCompleted: "Work completed safely",
         paymentSupport: "Payment and support",

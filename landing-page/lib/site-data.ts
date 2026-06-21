@@ -117,7 +117,7 @@ export const whyChooseUs = [
 
 export const processSteps = [
   "Request service",
-  "We inspect or discuss requirement",
+  "We inspect requirement",
   "Estimate shared",
   "Work completed safely",
   "Payment and support",
