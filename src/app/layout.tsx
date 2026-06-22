@@ -7,6 +7,7 @@ import AuthBackgroundGate from "../components/providers/auth-background-gate";
 import { Toaster } from "sonner";
 import Script from "next/script";
 import OfflineSync from "../components/pwa/offline-sync";
+import PWAInstaller from "../components/pwa/pwa-installer";
 import OfflineWarning from "../components/pwa/offline-warning";
 import AuthPrehydrate from "../components/providers/auth-prehydrate";
 import AuthRoleSync from "../components/providers/auth-role-sync";
@@ -132,7 +133,7 @@ export default function RootLayout({
             <ServiceWorkerUpdatePrompt />
             <AuthBackgroundGate>
               <BackgroundFeaturesGate />
-              {/* <PWAInstaller /> */}
+              <PWAInstaller />
               <OfflineSync />
               <OfflineWarning />
             </AuthBackgroundGate>

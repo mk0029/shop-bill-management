@@ -3,7 +3,39 @@
 import { useEffect, useState } from "react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 
-// A small unobtrusive install banner that auto-prompts once if app is installable
+const DISMISS_COUNT_KEY = "pwa-install-dismiss-count";
+const DISMISS_TIME_KEY = "pwa-install-dismiss-time";
+const MAX_DISMISS = 3;
+const RE_SHOW_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function getDismissCount(): number {
+  try {
+    return parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || "0", 10);
+  } catch { return 0; }
+}
+
+function getDismissTime(): number {
+  try {
+    return parseInt(localStorage.getItem(DISMISS_TIME_KEY) || "0", 10);
+  } catch { return 0; }
+}
+
+function setDismissMeta() {
+  try {
+    localStorage.setItem(DISMISS_COUNT_KEY, String(getDismissCount() + 1));
+    localStorage.setItem(DISMISS_TIME_KEY, String(Date.now()));
+  } catch {}
+}
+
+function shouldShowBanner(): boolean {
+  const count = getDismissCount();
+  if (count >= MAX_DISMISS) {
+    const last = getDismissTime();
+    if (last && Date.now() - last < RE_SHOW_AFTER_MS) return false;
+  }
+  return true;
+}
+
 export default function PWAInstaller() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [promptEvent, setPromptEvent] = useState<any>(null);
@@ -11,22 +43,14 @@ export default function PWAInstaller() {
   const { setDeferredPrompt, isStandalone } = usePwaInstall();
 
   useEffect(() => {
-    // Already installed? hide
     if (isStandalone) return;
 
     const onBeforeInstallPrompt = (e: any) => {
-      // Prevent the mini-infobar on mobile
       e.preventDefault();
       setPromptEvent(e);
       setIsInstallable(true);
       setDeferredPrompt(e);
-
-      // Auto prompt once per browser (persisted key)
-      const KEY = "pwa-install-auto-prompted";
-      const alreadyPrompted = localStorage.getItem(KEY) === "1";
-      if (!alreadyPrompted) {
-        localStorage.setItem(KEY, "1");
-        // show our banner; prompt must be triggered by user gesture (button click)
+      if (shouldShowBanner()) {
         setVisible(true);
       }
     };
@@ -46,13 +70,28 @@ export default function PWAInstaller() {
     };
   }, []);
 
-  if (!isInstallable) return null;
+  const handleInstall = async () => {
+    if (!promptEvent) return;
+    try {
+      await promptEvent.prompt();
+      // @ts-ignore
+      const outcome = promptEvent.userChoice ? await promptEvent.userChoice : undefined;
+    } catch {}
+    setVisible(false);
+    setPromptEvent(null);
+    setIsInstallable(false);
+  };
+
+  const handleLater = () => {
+    setDismissMeta();
+    setVisible(false);
+  };
+
+  if (!isInstallable || !visible) return null;
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-4 mx-auto w-[92%] max-w-md rounded-xl border border-slate-700 bg-slate-900/90 p-3 shadow-xl backdrop-blur transition-all ${
-        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-      }`}
+      className="fixed inset-x-0 bottom-4 mx-auto w-[92%] max-w-md rounded-xl border border-slate-700 bg-slate-900/90 p-3 shadow-xl backdrop-blur z-50"
       role="dialog"
       aria-label="Install app"
     >
@@ -64,30 +103,13 @@ export default function PWAInstaller() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setVisible(false)}
+            onClick={handleLater}
             className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
           >
             Later
           </button>
           <button
-            onClick={async () => {
-              try {
-                // Must be called in a user gesture handler
-                const ev = promptEvent;
-                if (!ev) return;
-                await ev.prompt();
-                // Optionally read the user's choice (accepted or dismissed)
-                // Some browsers expose a Promise at ev.userChoice
-                // @ts-ignore
-                const outcome = ev.userChoice ? await ev.userChoice : undefined;
-                // hide after interaction in any case
-                setVisible(false);
-                setPromptEvent(null);
-                setIsInstallable(false);
-              } catch {
-                // ignore
-              }
-            }}
+            onClick={handleInstall}
             className="rounded-md bg-sky-600 px-3 py-1 text-xs font-medium text-white hover:bg-sky-500"
           >
             Install

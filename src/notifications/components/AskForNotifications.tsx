@@ -1,65 +1,85 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import FcmRetryPopup from "@/components/notifications/FcmRetryPopup";
 import { useAuthStore } from "../../store/auth-store";
 
-/**
- * AskForNotifications
- * - Shows a custom explanatory prompt before the native OS/browser permission prompt.
- * - Bottom aligned on mobile, centered on desktop to match the app update prompt.
- * - Mount this once globally.
- */
+const NEVER_ASK_KEY = "pwa-never-ask-notifications";
+
+function getNeverAsk(): boolean {
+  try { return localStorage.getItem(NEVER_ASK_KEY) === "1"; } catch { return false; }
+}
+
+function setNeverAsk() {
+  try { localStorage.setItem(NEVER_ASK_KEY, "1"); } catch {}
+}
+
 export default function AskForNotifications() {
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hydrated = useAuthStore((s) => s.hydrated);
-  const [ask, setAsk] = useState<boolean>(true);
   const [showPrompt, setShowPrompt] = useState<boolean>(false);
   const [showBlockedWarning, setShowBlockedWarning] = useState<boolean>(false);
   const [requesting, setRequesting] = useState<boolean>(false);
 
-  function showBlockedInfo() {
-    setShowBlockedWarning(true);
-  }
-
-  useEffect(() => {
-    if (!hydrated || !isAuthenticated || !user) return;
-
-    if (!("Notification" in window)) {
-      setAsk(false);
+  const evaluatePermission = useCallback(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
       setShowPrompt(false);
       return;
     }
 
-    if (Notification.permission === "granted") {
-      setAsk(false);
+    if (getNeverAsk()) {
       setShowPrompt(false);
+      setShowBlockedWarning(false);
+      return;
+    }
+
+    const perm = Notification.permission;
+
+    if (perm === "granted") {
+      setShowPrompt(false);
+      setShowBlockedWarning(false);
       const userId = user?.id ?? null;
       if (userId) {
         import("../../lib/fcm").then(({ autoRegisterFcmToken }) => {
           autoRegisterFcmToken(userId).catch(() => {});
         });
       }
-      setShowBlockedWarning(false);
       return;
     }
 
-    if (
-      ask &&
-      (Notification.permission === "default" ||
-        Notification.permission === "denied")
-    ) {
+    if (perm === "default") {
       setShowPrompt(true);
+      setShowBlockedWarning(false);
+    } else if (perm === "denied") {
+      setShowBlockedWarning(true);
+      setShowPrompt(false);
     }
-  }, [hydrated, isAuthenticated, user, ask]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || !user) return;
+    evaluatePermission();
+  }, [hydrated, isAuthenticated, user, evaluatePermission]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onFocus = () => evaluatePermission();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [evaluatePermission]);
 
   useEffect(() => {
     if (!showBlockedWarning) return;
     const timer = window.setTimeout(() => setShowBlockedWarning(false), 10000);
     return () => window.clearTimeout(timer);
   }, [showBlockedWarning]);
+
+  function closeModals() {
+    setShowPrompt(false);
+    setShowBlockedWarning(false);
+  }
 
   async function allowNotifications() {
     if (requesting || typeof window === "undefined" || !("Notification" in window)) return;
@@ -69,8 +89,7 @@ export default function AskForNotifications() {
       const perm = await Notification.requestPermission();
       if (perm === "granted") {
         toast.success("Notifications enabled!");
-        setAsk(false);
-        setShowPrompt(false);
+        closeModals();
         const userId = user?.id ?? null;
         if (userId) {
           import("../../lib/fcm").then(({ autoRegisterFcmToken }) => {
@@ -78,13 +97,11 @@ export default function AskForNotifications() {
           });
         }
       } else if (perm === "denied") {
-        showBlockedInfo();
-        setAsk(false);
+        setShowBlockedWarning(true);
         setShowPrompt(false);
       }
     } catch {
-      showBlockedInfo();
-      setAsk(false);
+      setShowBlockedWarning(true);
       setShowPrompt(false);
     } finally {
       setRequesting(false);
@@ -92,28 +109,56 @@ export default function AskForNotifications() {
   }
 
   function dismissPrompt() {
-    setAsk(false);
-    setShowPrompt(false);
+    closeModals();
+  }
+
+  function handleNeverAsk() {
+    setNeverAsk();
+    closeModals();
+  }
+
+  function handleRecheck() {
+    setShowBlockedWarning(false);
+    evaluatePermission();
   }
 
   return (
     <>
       <FcmRetryPopup />
       {showBlockedWarning ? (
-        <div className="pointer-events-none fixed inset-0 z-[1100] flex items-center justify-center p-4">
-          <div className="pointer-events-auto w-full max-w-md rounded-lg border border-yellow-400/40 bg-yellow-950 p-4 text-center text-yellow-50 shadow-2xl shadow-yellow-950/30">
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-lg border border-yellow-400/40 bg-yellow-950 p-4 text-center text-yellow-50 shadow-2xl shadow-yellow-950/30">
+            <button
+              type="button"
+              onClick={closeModals}
+              className="absolute right-2 top-2 text-yellow-300/60 hover:text-yellow-100 text-lg leading-none"
+              aria-label="Close"
+            >&times;</button>
             <div className="text-base font-semibold text-yellow-100">
               Enable notifications in browser settings
             </div>
             <div className="mx-auto mt-2 max-w-sm text-sm leading-6 text-yellow-200">
               Notifications are blocked by your browser. Open site settings, set Notifications to Allow, then reload.
             </div>
+            <button
+              type="button"
+              onClick={handleRecheck}
+              className="mt-3 rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-500"
+            >
+              Check again
+            </button>
           </div>
         </div>
       ) : null}
       {showPrompt ? (
-        <div className="fixed inset-0 z-[1000] flex items-end justify-center p-4 sm:items-center sm:p-6">
-          <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-4 rounded-lg border border-slate-700 bg-slate-950 p-4 text-center text-white shadow-2xl sm:p-5">
+        <div className="fixed inset-0 z-[1000] flex items-end justify-center p-4 sm:items-center sm:p-6 bg-slate-950/50 backdrop-blur-sm">
+          <div className="relative mx-auto flex w-full max-w-xl flex-col items-center gap-4 rounded-lg border border-slate-700 bg-slate-950 p-4 text-center text-white shadow-2xl sm:p-5">
+            <button
+              type="button"
+              onClick={closeModals}
+              className="absolute right-3 top-3 text-slate-400 hover:text-white text-xl leading-none"
+              aria-label="Close"
+            >&times;</button>
             <div className="w-full">
               <div className="text-base font-semibold sm:text-base">
                 Stay updated with notifications
@@ -122,7 +167,7 @@ export default function AskForNotifications() {
                 We'll notify you about important updates. You can change this anytime.
               </div>
             </div>
-            <div className="grid w-full max-w-sm grid-cols-2 gap-2">
+            <div className="grid w-full max-w-sm grid-cols-3 gap-2">
               <button
                 type="button"
                 className="w-full rounded-md border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200"
@@ -130,6 +175,14 @@ export default function AskForNotifications() {
                 disabled={requesting}
               >
                 Not now
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-md border border-red-800/50 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-900/20"
+                onClick={handleNeverAsk}
+                disabled={requesting}
+              >
+                Don't ask again
               </button>
               <button
                 type="button"

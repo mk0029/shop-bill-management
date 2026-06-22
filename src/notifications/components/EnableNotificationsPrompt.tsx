@@ -26,10 +26,10 @@ export default function EnableNotificationsPrompt() {
       hydrated &&
       isAuthenticated &&
       supported &&
-      perm === "default" &&
       !dismissed,
-    [user, hydrated, isAuthenticated, supported, perm, dismissed],
+    [user, hydrated, isAuthenticated, supported, dismissed],
   );
+  const isBlocked = perm === "denied";
 
   useEffect(() => {
     let cancelled = false;
@@ -78,10 +78,13 @@ export default function EnableNotificationsPrompt() {
       <div className="flex flex-col items-start gap-3">
         <div className="mt-0.5 h-2.5 w-2.5 rounded-full bg-sky-500" />
         <div className="flex-1 text-sm text-slate-100">
-          <div className="font-medium">Enable notifications</div>
+          <div className="font-medium">
+            {isBlocked ? "Notifications blocked" : "Enable notifications"}
+          </div>
           <div className="text-slate-300/90">
-            Turn on push notifications to receive bill and system updates in
-            real time.
+            {isBlocked
+              ? "Notifications are blocked by your browser. Update site settings to Allow."
+              : "Turn on push notifications to receive bill and system updates in real time."}
           </div>
         </div>
         <div className="flex gap-2">
@@ -89,7 +92,7 @@ export default function EnableNotificationsPrompt() {
             onClick={onEnable}
             className="inline-flex items-center rounded bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
           >
-            Enable
+            {isBlocked ? "Open Settings" : "Enable"}
           </button>
           <button
             onClick={onNeverAsk}

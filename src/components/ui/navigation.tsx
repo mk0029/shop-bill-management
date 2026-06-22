@@ -32,6 +32,7 @@ import { canManageAdmins } from "@/lib/admin-utils";
 import { useAuthStore } from "@/store/auth-store";
 import Image from "next/image";
 import { OnlineStatusToggle } from "@/components/online-status-toggle";
+import InstallButton from "@/components/pwa/install-button";
 import { safeUserName } from "@/lib/display-text";
 import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
 import { SanityImage } from "./sanity-image";
@@ -396,6 +397,9 @@ export function Navigation() {
                 </Link>
               );
             })}
+            <div className="my-1 px-3">
+              <InstallButton className="w-full justify-center" />
+            </div>
             <div className="my-1 h-px bg-white/10" />
             <button
               type="button"

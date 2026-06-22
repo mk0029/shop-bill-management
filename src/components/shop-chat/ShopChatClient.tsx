@@ -194,7 +194,7 @@ function dedupeBillCreatedMessages(messages: ShopChatMessage[]) {
   });
 }
 
-function roleSafeSystemText(text: string, mode: ChatMode) {
+function roleSafeSystemText(text: string, mode: Mode) {
   const adminSafe = text
     .replace(/\bYour bill is created\b/gi, "Bill created")
     .replace(/\bYour bill has been created\b/gi, "Bill created")
@@ -587,11 +587,32 @@ function RoomSidebar({
   );
 }
 
+function MessagesSkeleton() {
+  return (
+    <div className="flex-1 space-y-4 overflow-hidden bg-slate-950/20 p-4">
+      {[0, 1, 2].map((row) => (
+        <div key={row} className={`flex items-end gap-2 ${row % 2 === 0 ? "" : "justify-end"}`}>
+          {row % 2 === 0 && <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20 shrink-0" />}
+          <SkeletonBlock className={`h-14 rounded-2xl ${row % 2 === 0 ? "w-44 rounded-bl-sm" : "w-36 rounded-br-sm bg-slate-500/35"}`} />
+        </div>
+      ))}
+      <div className="flex justify-end">
+        <SkeletonBlock className="h-20 w-56 rounded-2xl rounded-br-sm bg-slate-500/35" />
+      </div>
+      <div className="flex items-end gap-2">
+        <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20 shrink-0" />
+        <SkeletonBlock className="h-12 w-40 rounded-2xl rounded-bl-sm" />
+      </div>
+    </div>
+  );
+}
+
 function ChatPanel({
   mode,
   room,
   messages,
   connected,
+  messagesLoading,
   typingText,
   statusLabel,
   peerOnline,
@@ -614,6 +635,7 @@ function ChatPanel({
   room: ShopChatRoom | null;
   messages: ShopChatMessage[];
   connected: boolean;
+  messagesLoading?: boolean;
   typingText: string;
   statusLabel: string;
   peerOnline: boolean;
@@ -739,21 +761,25 @@ function ChatPanel({
           })),
         }}
       />
-      <MessagesList
-        messages={sourceMessages}
-        initialLoading={false}
-        isLoading={false}
-        typingText={typingText}
-        onMessageReply={setReplyTo}
-        onMessageEdit={setEditingMessage}
-        onMessageDelete={onDeleteMessage}
-        onMessageForward={onForwardMessage}
-        onMessageResend={onResendMessage}
-        onOpenImage={(payload) => {
-          setGalleryActiveId(payload.messageId);
-          setGalleryOpen(true);
-        }}
-      />
+      {messagesLoading ? (
+        <MessagesSkeleton />
+      ) : (
+        <MessagesList
+          messages={sourceMessages}
+          initialLoading={false}
+          isLoading={false}
+          typingText={typingText}
+          onMessageReply={setReplyTo}
+          onMessageEdit={setEditingMessage}
+          onMessageDelete={onDeleteMessage}
+          onMessageForward={onForwardMessage}
+          onMessageResend={onResendMessage}
+          onOpenImage={(payload) => {
+            setGalleryActiveId(payload.messageId);
+            setGalleryOpen(true);
+          }}
+        />
+      )}
       <div className="border-t border-white/10 bg-slate-950/45 backdrop-blur-2xl">
         <MessageInput
           onSendMessage={submitMessage}
@@ -939,6 +965,7 @@ export default function ShopChatClient({
   const [billFilter, setBillFilter] = useState<"all" | "pending" | "paid">("all");
   const [chatBills, setChatBills] = useState<Array<Record<string, any>>>([]);
   const [chatBillsLoading, setChatBillsLoading] = useState(false);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const deliveredRef = useRef<Set<string>>(new Set());
   const readAtRef = useRef<Record<string, number>>({});
   const activeRoomRef = useRef<ShopChatRoom | null>(null);
@@ -947,8 +974,9 @@ export default function ShopChatClient({
   const autoOpenCustomerRef = useRef("");
   const handledReloadParamRef = useRef(false);
   const syncedBillEventsRef = useRef<Set<string>>(new Set());
+  const restoredFromUrlRef = useRef(false);
+  const selectingRoomRef = useRef(false);
   const { socket, connected, sendMessage: sendSocketMessage } = useShopChatSocket(activeRoom?.roomId);
-  const chatParam = searchParams.get("chat") || "";
 
   const activeMessages = activeRoom
     ? dedupeBillCreatedMessages(messagesByRoom[activeRoom.roomId] || [])
@@ -970,53 +998,27 @@ export default function ShopChatClient({
     messagesByRoomRef.current = messagesByRoom;
   }, [messagesByRoom]);
 
-  const pushChatParam = useCallback(
-    (roomId: string) => {
+  const isMobile = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 767px)").matches;
+  }, []);
+
+  const syncUrlToActiveRoom = useCallback(
+    (roomId: string | null, action: "replace" | "push" = "replace") => {
       const params = new URLSearchParams(searchParams.toString());
-      if (params.get("chat") === roomId) return;
-      params.set("chat", roomId);
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      if (roomId) {
+        if (params.get("chat") === roomId) return;
+        params.set("chat", roomId);
+      } else {
+        if (!params.has("chat")) return;
+        params.delete("chat");
+      }
+      const next = params.toString();
+      const url = next ? `${pathname}?${next}` : pathname;
+      router[action](url, { scroll: false });
     },
     [pathname, router, searchParams],
   );
-
-  const clearChatParam = useCallback(() => {
-    setActiveRoom(null);
-    const params = new URLSearchParams(searchParams.toString());
-    if (!params.has("chat")) {
-      return;
-    }
-    params.delete("chat");
-    const next = params.toString();
-    router.push(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
-
-  useEffect(() => {
-    if (handledReloadParamRef.current) return;
-    handledReloadParamRef.current = true;
-    if (mode !== "admin" || !chatParam || typeof window === "undefined") return;
-    const nav = window.performance?.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
-    if (nav?.type !== "reload") return;
-    const params = new URLSearchParams(window.location.search);
-    params.delete("chat");
-    const next = params.toString();
-    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [chatParam, mode, pathname, router]);
-
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("shop-chat:room-state", {
-        detail: { mode, roomOpen: Boolean(activeRoom) },
-      }),
-    );
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent("shop-chat:room-state", {
-          detail: { mode, roomOpen: false },
-        }),
-      );
-    };
-  }, [activeRoom, mode]);
 
   const upsertRoom = useCallback((room: ShopChatRoom) => {
     setRooms((prev) => {
@@ -1097,6 +1099,58 @@ export default function ShopChatClient({
     } catch {}
   }, [mode]);
 
+  const chatParam = searchParams.get("chat") || "";
+
+  const selectRoom = useCallback(
+    async (room: ShopChatRoom, syncUrl = true) => {
+      if (selectingRoomRef.current) return;
+      if (activeRoomRef.current?.roomId === room.roomId) return;
+      selectingRoomRef.current = true;
+      setMessagesLoading(true);
+      try {
+        setActiveRoom(room);
+        if (syncUrl && mode === "admin") {
+          syncUrlToActiveRoom(room.roomId, isMobile ? "push" : "replace");
+        }
+        await loadMessages(room);
+        void syncBillEventsForRoom(room);
+      } finally {
+        setMessagesLoading(false);
+        selectingRoomRef.current = false;
+      }
+    },
+    [mode, isMobile, syncUrlToActiveRoom, loadMessages, syncBillEventsForRoom],
+  );
+
+  const closeChat = useCallback(() => {
+    setActiveRoom(null);
+    syncUrlToActiveRoom(null, "replace");
+  }, [syncUrlToActiveRoom]);
+
+  useEffect(() => {
+    if (handledReloadParamRef.current) return;
+    handledReloadParamRef.current = true;
+    if (mode !== "admin" || !chatParam || typeof window === "undefined") return;
+    const nav = window.performance?.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type !== "reload") return;
+    syncUrlToActiveRoom(null, "replace");
+  }, [chatParam, mode, syncUrlToActiveRoom]);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("shop-chat:room-state", {
+        detail: { mode, roomOpen: Boolean(activeRoom) },
+      }),
+    );
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent("shop-chat:room-state", {
+          detail: { mode, roomOpen: false },
+        }),
+      );
+    };
+  }, [activeRoom, mode]);
+
   useEffect(() => {
     let cancelled = false;
     async function loadInitial() {
@@ -1128,17 +1182,28 @@ export default function ShopChatClient({
   }, [loadMessages, mode, syncBillEventsForRoom]);
 
   useEffect(() => {
+    if (restoredFromUrlRef.current) return;
     if (mode === "customer") return;
     if (loading) return;
-    if (!chatParam) {
-      if (activeRoom) setActiveRoom(null);
-      return;
-    }
-    if (activeRoom?.roomId === chatParam) return;
+    if (!chatParam) return;
     const room = rooms.find((item) => item.roomId === chatParam);
     if (!room) return;
+    restoredFromUrlRef.current = true;
     void selectRoom(room, false);
-  }, [activeRoom, chatParam, loading, mode, rooms]);
+  }, [chatParam, loading, mode, rooms, selectRoom]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const chatId = params.get("chat") || "";
+      if (!chatId && activeRoomRef.current) {
+        setActiveRoom(null);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   useEffect(() => {
     const customerId = searchParams.get("customerId") || "";
@@ -1158,7 +1223,7 @@ export default function ShopChatClient({
         setError(error instanceof Error ? error.message : "Failed to open customer chat");
       }
     })();
-  }, [loading, mode, rooms, searchParams, upsertRoom]);
+  }, [loading, mode, rooms, searchParams, upsertRoom, selectRoom]);
 
   useEffect(() => {
     if (!socket) return;
@@ -1282,13 +1347,6 @@ export default function ShopChatClient({
     clearAppSystemNotifications({ roomId: activeRoom.roomId });
     socket.emit("message:read", { roomId: activeRoom.roomId, messageIds: unread.map((message) => message.messageId) });
   }, [activeMessages, activeRoom, myUserId, socket]);
-
-  const selectRoom = async (room: ShopChatRoom, syncUrl = true) => {
-    if (syncUrl && mode === "admin") pushChatParam(room.roomId);
-    setActiveRoom(room);
-    await loadMessages(room);
-    void syncBillEventsForRoom(room);
-  };
 
   const addCustomerRoom = async () => {
     if (!selectedCustomerId || addingCustomer) return;
@@ -1531,6 +1589,7 @@ export default function ShopChatClient({
             room={activeRoom}
             messages={activeMessages}
             connected={connected}
+            messagesLoading={messagesLoading}
             typingText={activeRoom ? typingByRoom[activeRoom.roomId] || "" : ""}
             statusLabel={
               activeRoom
@@ -1559,7 +1618,7 @@ export default function ShopChatClient({
             customerDetails={activeCustomer}
             canGoBack={mode === "admin"}
             onOpenBills={openBillsPanel}
-            onBack={clearChatParam}
+            onBack={closeChat}
             onSend={sendText}
             onSendFiles={sendFiles}
             onSendVoiceNote={sendVoiceNote}
