@@ -596,7 +596,7 @@ export default function CashbookComposer({
                 <div className="flex items-center justify-between">
                   <h4 className="text-white font-medium">Selected Items</h4>
                 </div>
-                <div className="border border-gray-700 rounded-md max-h-[50vh] overflow-auto p-2">
+                <div className="border border-gray-700 rounded-md max-h-[50dvh] overflow-auto p-2">
                   <SelectedItemsList
                     selectedItems={Object.entries(selectedSaleItems).map(
                       ([id, it]) => ({

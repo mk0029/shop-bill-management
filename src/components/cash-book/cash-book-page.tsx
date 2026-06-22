@@ -2,32 +2,30 @@
 
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
 import { sanityApiService } from "@/lib/sanity-api-service";
-import {
-  syncBillPaymentsToCashBook,
-  getSyncStatistics,
-} from "@/lib/bill-payment-sync";
 import { format } from "date-fns";
 import {
-  DollarSign,
   Plus,
-  Receipt,
-  TrendingDown,
-  TrendingUp,
   XIcon,
   Calendar,
-  RefreshCw,
-  Trash,
+  Receipt,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Wallet,
+  Search,
+  History,
+  ShoppingCart,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { stockApi } from "@/lib/inventory-api";
 import { toast } from "sonner";
-import ResponsiveAccordion from "../ui/responsive-accordion";
 import Link from "next/link";
 import { ItemSelectionSection } from "@/components/billing/item-selection-section";
 import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
@@ -42,24 +40,12 @@ import { useAuthStore } from "@/store/auth-store";
 interface CashBookEntry {
   _id: string;
   _createdAt: string;
-  user?: {
-    _id: string;
-    name: string;
-    phone?: string;
-    email?: string;
-  };
+  user?: { _id: string; name: string; phone?: string; email?: string };
   userName: string;
   amount: number;
   type: "credit" | "debit";
   source: "Manual" | "Bill Payment" | "Inventory" | "Sale";
-  bill?: {
-    _id: string;
-    billNumber: string;
-    customer?: {
-      _id: string;
-      name: string;
-    };
-  };
+  bill?: { _id: string; billNumber: string; customer?: { _id: string; name: string } };
   createdAt: string;
   updatedAt: string;
 }
@@ -83,57 +69,33 @@ export function CashBookPage() {
   const isTechnician = role === "technician";
   const [entries, setEntries] = useState<CashBookEntry[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [summary, setSummary] = useState<CashBookSummary>({
-    totalCredits: 0,
-    totalDebits: 0,
-    balance: 0,
-  });
+  const [summary, setSummary] = useState<CashBookSummary>({ totalCredits: 0, totalDebits: 0, balance: 0 });
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
-  // Inventory sale modal state
   const [showInventorySale, setShowInventorySale] = useState(false);
   const [isAddingSale, setIsAddingSale] = useState(false);
-  const [selectedSaleItems, setSelectedSaleItems] = useState<
-    Record<string, { name: string; price: number; qty: number; maxQty: number }>
-  >({});
+  const [selectedSaleItems, setSelectedSaleItems] = useState<Record<string, { name: string; price: number; qty: number; maxQty: number }>>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Shared item selection (reuse Billing components)
   const { activeProducts, isLoading: productsLoading } = useProducts();
   const { categories } = useCategories();
   const { brands } = useBrands();
-  const {
-    itemSelectionModal,
-    openItemSelectionModal,
-    closeItemSelectionModal,
-    updateSpecificationFilter,
-    filterItemsBySpecifications,
-  } = useItemSelection();
+  const { itemSelectionModal, openItemSelectionModal, closeItemSelectionModal, updateSpecificationFilter, filterItemsBySpecifications } = useItemSelection();
 
-  // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [customUserName, setCustomUserName] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
-  const [transactionType, setTransactionType] = useState<"credit" | "debit">(
-    "credit",
-  );
-
-  // Ref for custom name input
+  const [transactionType, setTransactionType] = useState<"credit" | "debit">("credit");
   const customNameRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus custom name input when "Other" is selected
   useEffect(() => {
     if (selectedUserId === "other" && customNameRef.current) {
-      setTimeout(() => {
-        customNameRef.current?.focus();
-      }, 100);
+      setTimeout(() => customNameRef.current?.focus(), 100);
     }
-  }, [selectedUserId || ""]);
+  }, [selectedUserId]);
 
-  // Load initial data from client
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -142,71 +104,52 @@ export function CashBookPage() {
           sanityApiService.users.getAllUsers(),
           sanityApiService.cashBook.getSummary(),
         ]);
-
-        if (entriesRes.success) {
-          setEntries(entriesRes.data as CashBookEntry[]);
-        }
-        if (usersRes.success) {
-          setUsers(usersRes.data as User[]);
-        }
-        if (summaryRes.success) {
-          setSummary(summaryRes.data as CashBookSummary);
-        }
+        if (entriesRes.success) setEntries(entriesRes.data as CashBookEntry[]);
+        if (usersRes.success) setUsers(usersRes.data as User[]);
+        if (summaryRes.success) setSummary(summaryRes.data as CashBookSummary);
       } catch (error) {
         console.error("Failed to load initial cash book data:", error);
       }
     };
-
     loadInitialData();
   }, []);
 
-  // Pagination - show only 20 entries
-  const displayedEntries = (entries || []).slice(0, 20);
+  const filteredEntries = (entries || []).filter((e) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      e.userName?.toLowerCase().includes(q) ||
+      e.source?.toLowerCase().includes(q) ||
+      e.amount.toString().includes(q)
+    );
+  }).slice(0, 50);
 
-  // Group entries by date for date separators
   const groupEntriesByDate = (entries: CashBookEntry[]) => {
     const groups: { [date: string]: CashBookEntry[] } = {};
-
     entries.forEach((entry) => {
       const date = format(new Date(entry.createdAt), "yyyy-MM-dd");
-      if (!groups[date]) {
-        groups[date] = [];
-      }
+      if (!groups[date]) groups[date] = [];
       groups[date].push(entry);
     });
-
     return groups;
   };
 
-  const groupedEntries = groupEntriesByDate(displayedEntries);
-
+  const groupedEntries = groupEntriesByDate(filteredEntries);
   const filteredItems = filterItemsBySpecifications(activeProducts);
 
-  const saleTotal = Object.values(selectedSaleItems).reduce(
-    (sum, it) => sum + (Number(it.qty) || 0) * (Number(it.price) || 0),
-    0,
-  );
+  const saleTotal = Object.values(selectedSaleItems).reduce((sum, it) => sum + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
 
   const onAddSaleItem = (p: any) => {
     setSelectedSaleItems((prev) => {
-      const next = { ...prev } as typeof prev;
+      const next = { ...prev };
       const available = Number(p?.inventory?.currentStock ?? 0) || 0;
       const defaultPrice = Number(p?.pricing?.sellingPrice || 0) || 0;
-      if (available <= 0) {
-        toast.error(`${p?.name ?? "Item"} is out of stock`);
-        return prev;
-      }
+      if (available <= 0) { toast.error(`${p?.name ?? "Item"} is out of stock`); return prev; }
       const existing = next[p._id];
       if (existing) {
-        const newQty = Math.min(existing.qty + 1, available);
-        next[p._id] = { ...existing, qty: newQty };
+        next[p._id] = { ...existing, qty: Math.min(existing.qty + 1, available) };
       } else {
-        next[p._id] = {
-          name: p.name,
-          price: defaultPrice,
-          qty: 1,
-          maxQty: available,
-        };
+        next[p._id] = { name: p.name, price: defaultPrice, qty: 1, maxQty: available };
       }
       return next;
     });
@@ -216,11 +159,7 @@ export function CashBookPage() {
     setSelectedSaleItems((prev) => {
       const current = prev[itemId];
       if (!current) return prev;
-      const clamped = Math.max(
-        1,
-        Math.min(current.maxQty, Number(quantity) || 1),
-      );
-      return { ...prev, [itemId]: { ...current, qty: clamped } };
+      return { ...prev, [itemId]: { ...current, qty: Math.max(1, Math.min(current.maxQty, Number(quantity) || 1)) } };
     });
   };
 
@@ -237,160 +176,65 @@ export function CashBookPage() {
 
   const submitInventorySale = async () => {
     const items = Object.values(selectedSaleItems);
-    if (items.length === 0) {
-      toast.error("Select at least one item");
-      return;
-    }
-    const total = items.reduce(
-      (s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0),
-      0,
-    );
-    if (!(total > 0)) {
-      toast.error("Total must be greater than 0");
-      return;
-    }
+    if (items.length === 0) { toast.error("Select at least one item"); return; }
+    const total = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+    if (!(total > 0)) { toast.error("Total must be greater than 0"); return; }
     try {
       setIsAddingSale(true);
-      // Validate stock limits before submitting
       for (const [productId, it] of Object.entries(selectedSaleItems)) {
-        if (it.qty > it.maxQty) {
-          toast.error(
-            `Quantity for ${it.name} exceeds available stock (${it.maxQty})`,
-          );
-          setIsAddingSale(false);
-          return;
-        }
-        if (it.qty <= 0) {
-          toast.error(`Quantity for ${it.name} must be at least 1`);
-          setIsAddingSale(false);
-          return;
-        }
-      }
-      // Create one entry + stock transaction per item and cross-link them
-      for (const [productId, it] of Object.entries(selectedSaleItems)) {
+        if (it.qty > it.maxQty) { toast.error(`Quantity for ${it.name} exceeds available stock (${it.maxQty})`); setIsAddingSale(false); return; }
+        if (it.qty <= 0) { toast.error(`Quantity for ${it.name} must be at least 1`); setIsAddingSale(false); return; }
         const amount = (Number(it.qty) || 0) * (Number(it.price) || 0);
         if (!(amount > 0)) continue;
-        // 1) Cash book credit entry
         const createdEntryRes = await sanityApiService.cashBook.createEntry({
-          userName: it.name,
-          amount,
-          type: "credit",
-          source: "Sale",
-          category: "inventory",
+          userName: it.name, amount, type: "credit", source: "Sale", category: "inventory",
           notes: `Cash sale: ${it.name} x${it.qty} @₹${it.price}`,
-          createdAt: new Date().toISOString(),
-          product: { _type: "reference", _ref: productId },
-          quantity: Number(it.qty) || 0,
-          unitPrice: Number(it.price) || 0,
+          createdAt: new Date().toISOString(), product: { _type: "reference", _ref: productId },
+          quantity: Number(it.qty) || 0, unitPrice: Number(it.price) || 0,
         });
-        const createdEntryId = (createdEntryRes as any)?.data?._id as
-          | string
-          | undefined;
-
-        // 2) Inventory deduction via stock transaction (sale)
+        const createdEntryId = (createdEntryRes as any)?.data?._id as string | undefined;
         const stockTxRes = await stockApi.createStockTransaction({
-          productId,
-          type: "sale",
-          quantity: Number(it.qty) || 0,
-          unitPrice: Number(it.price) || 0,
-          notes: "Sold via Cash Book",
-          updateInventory: true,
+          productId, type: "sale", quantity: Number(it.qty) || 0, unitPrice: Number(it.price) || 0,
+          notes: "Sold via Cash Book", updateInventory: true,
         });
-
         const stockTxId = (stockTxRes as any)?.data?._id as string | undefined;
-
-        // 3) Patch only the stock transaction to reference the cash book entry (avoid circular references)
         if (createdEntryId && stockTxId) {
-          try {
-            await sanityClient
-              .patch(stockTxId)
-              .set({
-                cashBookEntry: { _type: "reference", _ref: createdEntryId },
-              })
-              .commit();
-          } catch {}
+          try { await sanityClient.patch(stockTxId).set({ cashBookEntry: { _type: "reference", _ref: createdEntryId } }).commit(); } catch {}
         }
       }
-
       toast.success("Sale items recorded in cash book");
       setShowInventorySale(false);
       setSelectedSaleItems({});
-      // Refresh list to show new entries at top
       const entriesResponse = await sanityApiService.cashBook.getAllEntries();
-      if (entriesResponse.success && entriesResponse.data) {
-        setEntries(entriesResponse.data);
-      }
+      if (entriesResponse.success && entriesResponse.data) setEntries(entriesResponse.data);
     } catch (e) {
       console.error("Failed to add sale record", e);
       toast.error("Failed to add sale record");
-    } finally {
-      setIsAddingSale(false);
-    }
+    } finally { setIsAddingSale(false); }
   };
 
-  // Real-time updates
-  const { isConnected } = useCashBookRealtime({
+  useCashBookRealtime({
     onEntryAdded: (newEntry) => {
       setEntries((prev) => [newEntry, ...prev]);
-      // Update summary
       setSummary((prev) => ({
         ...prev,
-        totalCredits:
-          prev.totalCredits +
-          (newEntry.type === "credit" ? newEntry.amount : 0),
-        totalDebits:
-          prev.totalDebits + (newEntry.type === "debit" ? newEntry.amount : 0),
-        balance:
-          prev.balance +
-          (newEntry.type === "credit" ? newEntry.amount : -newEntry.amount),
+        totalCredits: prev.totalCredits + (newEntry.type === "credit" ? newEntry.amount : 0),
+        totalDebits: prev.totalDebits + (newEntry.type === "debit" ? newEntry.amount : 0),
+        balance: prev.balance + (newEntry.type === "credit" ? newEntry.amount : -newEntry.amount),
       }));
-      toast.success(
-        `Cash book entry added: ${newEntry.type === "credit" ? "+" : "-"}₹${newEntry.amount}`,
-      );
     },
     onEntryUpdated: (updatedEntry) => {
-      setEntries((prev) =>
-        prev.map((entry) =>
-          entry._id === updatedEntry._id ? updatedEntry : entry,
-        ),
-      );
-      // Recalculate summary
-      setEntries((currentEntries) => {
-        const newSummary = (currentEntries || []).reduce(
-          (acc, entry) => {
-            if (entry.type === "credit") {
-              acc.totalCredits += entry.amount;
-            } else if (entry.type === "debit") {
-              acc.totalDebits += entry.amount;
-            }
-            return acc;
-          },
-          { totalCredits: 0, totalDebits: 0, balance: 0 },
-        );
-
-        newSummary.balance = newSummary.totalCredits - newSummary.totalDebits;
-        setSummary(newSummary);
-        return currentEntries;
-      });
+      setEntries((prev) => prev.map((entry) => (entry._id === updatedEntry._id ? updatedEntry : entry)));
     },
     onEntryDeleted: (deletedId) => {
       setEntries((prev) => {
         const deletedEntry = prev.find((entry) => entry._id === deletedId);
         if (deletedEntry) {
-          // Update summary
-          setSummary((summary) => ({
-            ...summary,
-            totalCredits:
-              summary.totalCredits -
-              (deletedEntry.type === "credit" ? deletedEntry.amount : 0),
-            totalDebits:
-              summary.totalDebits -
-              (deletedEntry.type === "debit" ? deletedEntry.amount : 0),
-            balance:
-              summary.balance -
-              (deletedEntry.type === "credit"
-                ? deletedEntry.amount
-                : -deletedEntry.amount),
+          setSummary((s) => ({
+            ...s,
+            totalCredits: s.totalCredits - (deletedEntry.type === "credit" ? deletedEntry.amount : 0),
+            totalDebits: s.totalDebits - (deletedEntry.type === "debit" ? deletedEntry.amount : 0),
+            balance: s.balance - (deletedEntry.type === "credit" ? deletedEntry.amount : -deletedEntry.amount),
           }));
         }
         return prev.filter((entry) => entry._id !== deletedId);
@@ -398,721 +242,282 @@ export function CashBookPage() {
     },
   });
 
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
+  const formatCurrency = (value: number): string =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
-  // Handle bill detail view
   const handleViewBill = async (billId: string) => {
-    if (!billId) {
-      toast.error("Invalid bill ID");
-      return;
-    }
-
+    if (!billId) { toast.error("Invalid bill ID"); return; }
     try {
-      // Fetch the bill details
       const bill = await sanityApiService.bills.getBillById(billId);
-      if (bill.success && bill.data) {
-        setSelectedBill(bill.data);
-        setShowBillModal(true);
-      } else {
-        toast.error("Failed to load bill details");
-      }
-    } catch (error) {
-      console.error("Error viewing bill:", error);
-      toast.error("Error loading bill details");
-    }
+      if (bill.success && bill.data) { setSelectedBill(bill.data); setShowBillModal(true); }
+      else toast.error("Failed to load bill details");
+    } catch { toast.error("Error loading bill details"); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
-    if (!selectedUserId) {
-      toast.error("Please select a user");
-      return;
-    }
-
-    if (selectedUserId === "other" && !customUserName.trim()) {
-      toast.error("Please enter a name");
-      return;
-    }
-
+    if (!amount || parseFloat(amount) <= 0) { toast.error("Please enter a valid amount"); return; }
+    if (!selectedUserId) { toast.error("Please select a user"); return; }
+    if (selectedUserId === "other" && !customUserName.trim()) { toast.error("Please enter a name"); return; }
     setIsSubmitting(true);
-
     try {
-      let entryData: any = {
-        amount: parseFloat(amount),
-        type: transactionType,
-        source: "Manual",
-      };
-
+      const entryData: any = { amount: parseFloat(amount), type: transactionType, source: "Manual" };
       if (selectedUserId === "other") {
-        // Use custom name directly without user reference
         entryData.userName = customUserName.trim();
       } else {
-        // Use existing user reference
         const selectedUser = users.find((u) => u._id === selectedUserId);
-        if (!selectedUser) {
-          toast.error("Selected user not found");
-          return;
-        }
-        entryData.user = {
-          _type: "reference",
-          _ref: selectedUserId,
-        };
+        if (!selectedUser) { toast.error("Selected user not found"); return; }
+        entryData.user = { _type: "reference", _ref: selectedUserId };
         entryData.userName = selectedUser.name;
       }
-
       const result = await sanityApiService.cashBook.createEntry(entryData);
-
       if (result.success) {
-        // Reset form
-        setAmount("");
-        setSelectedUserId("");
-        setCustomUserName("");
-        setTransactionType("credit");
-        setShowAddForm(false);
-
-        toast.success(
-          `Manual ${transactionType} entry of ${formatCurrency(parseFloat(amount))} added successfully`,
-        );
-
-        // Refresh list & summary so UI updates even if realtime misses an event
+        setAmount(""); setSelectedUserId(""); setCustomUserName(""); setTransactionType("credit"); setShowAddForm(false);
+        toast.success(`Manual ${transactionType} entry added`);
         try {
           const [entriesRes, summaryRes] = await Promise.all([
-            sanityApiService.cashBook.getAllEntries(),
-            sanityApiService.cashBook.getSummary(),
+            sanityApiService.cashBook.getAllEntries(), sanityApiService.cashBook.getSummary(),
           ]);
-          if (entriesRes.success && entriesRes.data) {
-            setEntries(entriesRes.data as CashBookEntry[]);
-          }
-          if (summaryRes.success && summaryRes.data) {
-            setSummary(summaryRes.data as CashBookSummary);
-          }
+          if (entriesRes.success && entriesRes.data) setEntries(entriesRes.data);
+          if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
         } catch {}
-      } else {
-        toast.error(result.error || "Failed to add cash book entry");
-      }
-    } catch (error) {
-      console.error("Error adding cash book entry:", error);
-      toast.error("Failed to add cash book entry");
-    } finally {
-      setIsSubmitting(false);
-    }
+      } else toast.error(result.error || "Failed to add cash book entry");
+    } catch { toast.error("Failed to add cash book entry"); }
+    finally { setIsSubmitting(false); }
   };
 
-  const selectedUser = users.find((u) => u._id === selectedUserId);
-
   return (
-    <div className="min-h-screen bg-gray-900 rounded-lg max-md:p-3">
-      <ResponsiveAccordion
-        defaultOpenMobile={false}
-        // removePX
-        title={
-          <CardHeader className="!p-0">
-            <div className="flex items-center justify-between gap-3">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-                Cash Book
-              </h1>
-              <div className="flex items-center gap-2">
-                <Link href="/admin/cashbooks">
-                  <Button size="sm" variant="secondary">
-                    Visit Books
+    <div className="space-y-4 sm:space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Cash Book</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Track all credits and debits</p>
+        </div>
+        <Link href="/admin/cashbooks">
+          <Button size="sm" variant="secondary" className="gap-1.5">
+            <Wallet className="w-4 h-4" />
+            <span className="hidden sm:inline">Books</span>
+          </Button>
+        </Link>
+      </div>
+
+      {/* Summary strip */}
+      {!isTechnician && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-white/[0.06] bg-gradient-to-b from-emerald-500/10 to-emerald-500/05 backdrop-blur-xl p-3 sm:p-4">
+            <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium mb-1.5">
+              <ArrowUpRight className="w-3.5 h-3.5" />
+              Credits
+            </div>
+            <p className="text-lg sm:text-xl font-bold text-white">{formatCurrency(summary.totalCredits)}</p>
+          </div>
+          <div className="rounded-xl border border-white/[0.06] bg-gradient-to-b from-red-500/10 to-red-500/05 backdrop-blur-xl p-3 sm:p-4">
+            <div className="flex items-center gap-2 text-red-400 text-xs font-medium mb-1.5">
+              <ArrowDownRight className="w-3.5 h-3.5" />
+              Debits
+            </div>
+            <p className="text-lg sm:text-xl font-bold text-white">{formatCurrency(summary.totalDebits)}</p>
+          </div>
+          <div className={`rounded-xl border border-white/[0.06] backdrop-blur-xl p-3 sm:p-4 bg-gradient-to-b ${summary.balance >= 0 ? "from-blue-500/10 to-blue-500/05" : "from-orange-500/10 to-orange-500/05"}`}>
+            <div className="flex items-center gap-2 text-xs font-medium mb-1.5 text-blue-400">
+              <Wallet className="w-3.5 h-3.5" />
+              Balance
+            </div>
+            <p className={`text-lg sm:text-xl font-bold ${summary.balance >= 0 ? "text-blue-300" : "text-orange-300"}`}>
+              {formatCurrency(Math.abs(summary.balance))}
+              {summary.balance < 0 && <span className="text-[10px] font-normal text-orange-400 ml-1">(deficit)</span>}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search entries..."
+            className="w-full rounded-lg border border-white/[0.06] bg-white/[0.04] pl-9 pr-3 py-2 text-sm text-slate-100 outline-none backdrop-blur-xl placeholder:text-slate-500 focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20 transition-all"
+          />
+        </div>
+        <div className="flex items-center gap-2 ml-auto">
+          <Button size="sm" variant="secondary" onClick={() => window.location.href = "/admin/cash-book/history"} className="gap-1.5">
+            <History className="w-4 h-4" />
+            <span className="hidden sm:inline">History</span>
+          </Button>
+          <Button size="sm" onClick={() => setShowInventorySale(true)} className="gap-1.5 bg-emerald-600 hover:bg-emerald-500">
+            <ShoppingCart className="w-4 h-4" />
+            <span className="hidden sm:inline">Sale</span>
+          </Button>
+          <Button size="sm" onClick={() => setShowAddForm(true)} className="gap-1.5">
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Record</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Inventory Sale Modal */}
+      {showInventorySale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowInventorySale(false)} />
+          <div className="relative bg-gray-900 border border-white/[0.08] rounded-xl w-full max-w-4xl max-h-[85dvh] flex flex-col shadow-2xl backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-white/[0.06] shrink-0">
+              <h3 className="text-white font-semibold">Add Sale</h3>
+              <button type="button" onClick={() => setShowInventorySale(false)} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
+              <div className="space-y-3">
+                <ItemSelectionSection categories={categories} activeProducts={activeProducts} productsLoading={productsLoading} onOpenItemModal={(category) => openItemSelectionModal(category)} />
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-white font-medium text-sm">Selected Items</h4>
+                  <span className="text-white font-semibold">{formatCurrency(saleTotal)}</span>
+                </div>
+                <div className="border border-white/[0.06] rounded-lg max-h-[40vh] overflow-auto p-2 bg-white/[0.02]">
+                  <SelectedItemsList
+                    selectedItems={Object.entries(selectedSaleItems).map(([id, it]) => ({
+                      id, name: it.name, price: Number(it.price) || 0, quantity: Number(it.qty) || 0,
+                      total: (Number(it.qty) || 0) * (Number(it.price) || 0), category: "", brand: "",
+                      specifications: "", unit: "", maxStock: Number(it.maxQty) || 0,
+                    }))}
+                    onUpdateQuantity={handleUpdateQuantity} onRemoveItem={handleRemoveItem} onClearAll={handleClearAll}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setShowInventorySale(false)}>Cancel</Button>
+                  <Button className="bg-emerald-600 hover:bg-emerald-500" onClick={submitInventorySale} disabled={isAddingSale || Object.keys(selectedSaleItems).length === 0}>
+                    {isAddingSale ? "Adding..." : "Add Sale"}
                   </Button>
-                </Link>
+                </div>
               </div>
             </div>
-          </CardHeader>
-        }
-      >
-        <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"></div>
-
-          {/* Summary Cards */}
-          {!isTechnician && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="bg-gray-800 border-gray-700 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Total Credits</p>
-                  <p className="text-green-400 text-xl font-bold flex items-center gap-1">
-                    <TrendingUp className="w-4 h-4" />
-                    {formatCurrency(summary.totalCredits)}
-                  </p>
-                </div>
-                <div className="bg-green-500/20 p-2 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-green-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-gray-800 border-gray-700 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Total Debits</p>
-                  <p className="text-red-400 text-xl font-bold flex items-center gap-1">
-                    <TrendingDown className="w-4 h-4" />
-                    {formatCurrency(summary.totalDebits)}
-                  </p>
-                </div>
-                <div className="bg-red-500/20 p-2 rounded-lg">
-                  <TrendingDown className="w-6 h-6 text-red-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-gray-800 border-gray-700 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">Balance</p>
-                  <p
-                    className={`text-xl font-bold flex items-center gap-1 ${
-                      summary.balance >= 0 ? "text-blue-400" : "text-orange-400"
-                    }`}
-                  >
-                    <DollarSign className="w-4 h-4" />
-                    {formatCurrency(Math.abs(summary.balance))}
-                    {summary.balance < 0 && " (Deficit)"}
-                  </p>
-                </div>
-                <div
-                  className={`${summary.balance >= 0 ? "bg-blue-500/20" : "bg-orange-500/20"} p-2 rounded-lg`}
-                >
-                  <DollarSign
-                    className={`w-6 h-6 ${summary.balance >= 0 ? "text-blue-500" : "text-orange-500"}`}
-                  />
-                </div>
-              </div>
-            </Card>
-            </div>
-          )}
+            <ItemSelectionModal
+              isOpen={itemSelectionModal.isOpen} onClose={closeItemSelectionModal}
+              selectedCategory={itemSelectionModal.selectedCategory}
+              selectedSpecifications={itemSelectionModal.selectedSpecifications}
+              onUpdateSpecification={updateSpecificationFilter} filteredItems={filteredItems}
+              brands={brands} onAddItem={onAddSaleItem} activeProducts={activeProducts}
+            />
+          </div>
         </div>
-      </ResponsiveAccordion>
-      <div className=" mx-auto space-y-4 sm:space-y-6 pt-6 md:px-3">
-        {/* Add Record, Sync & History Buttons */}
-        <div className="flex w-full gap-2">
-          {/* <Button
-              onClick={handleSyncBillPayments}
-              disabled={isSyncing}
-              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Syncing...' : 'Sync Payments'}
-            </Button> */}
-          {!isTechnician && (
-            <Button
-              onClick={() => (window.location.href = "/admin/cash-book/history")}
-              className="bg-gray-600 hover:bg-gray-700 text-white flex w-full items-center gap-2"
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="max-sm:hidden">View</span> History
-            </Button>
-          )}
-          <Button
-            onClick={() => setShowInventorySale(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white flex w-full items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />{" "}
-            <span className="max-sm:hidden">Add</span> Sale
-          </Button>
-          {/* <Button
-              onClick={handleClearBook}
-              disabled={isClearing}
-              className="bg-red-600 hover:bg-red-700 text-white flex w-full items-center gap-2"
-            >
-              <Trash className={`w-4 h-4 ${isClearing ? 'animate-pulse' : ''}`} />
-              {isClearing ? 'Clearing...' : 'Clear Book'}
-            </Button> */}
-          <Button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white w-full flex items-center gap-2"
-          >
-            {showAddForm ? (
-              <>
-                <XIcon className="w-4 h-4" /> Close
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />{" "}
-                <span className="max-sm:hidden">Add</span> Record
-              </>
-            )}
-          </Button>
-        </div>
+      )}
 
-        {/* Inventory Sale Modal (moved outside of buttons to avoid click bubbling) */}
-        {showInventorySale && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black/60"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowInventorySale(false);
-              }}
-            ></div>
-            <div
-              className="relative bg-gray-800 border border-gray-700 rounded-lg w-[95vw] max-w-4xl max-h-[85vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between p-4 border-b border-gray-700">
-                <h3 className="text-white font-semibold">
-                  Add Sale (Select Items)
-                </h3>
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowInventorySale(false)}
-                  className="text-gray-300"
-                >
-                  Close
-                </Button>
-              </div>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <ItemSelectionSection
-                    categories={categories}
-                    activeProducts={activeProducts}
-                    productsLoading={productsLoading}
-                    onOpenItemModal={(category) =>
-                      openItemSelectionModal(category)
-                    }
-                  />
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-white font-medium">Selected Items</h4>
-                    <div className="text-white font-semibold">
-                      Total: {formatCurrency(saleTotal)}
-                    </div>
-                  </div>
-                  <div className="border border-gray-700 rounded-md max-h-[50vh] overflow-auto p-2">
-                    <SelectedItemsList
-                      selectedItems={Object.entries(selectedSaleItems).map(
-                        ([id, it]) => ({
-                          id,
-                          name: it.name,
-                          price: Number(it.price) || 0,
-                          quantity: Number(it.qty) || 0,
-                          total:
-                            (Number(it.qty) || 0) * (Number(it.price) || 0),
-                          category: "",
-                          brand: "",
-                          specifications: "",
-                          unit: "",
-                          maxStock: Number(it.maxQty) || 0,
-                        }),
-                      )}
-                      onUpdateQuantity={handleUpdateQuantity}
-                      onRemoveItem={handleRemoveItem}
-                      onClearAll={handleClearAll}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      className="bg-gray-700 border-gray-600 text-gray-200"
-                      onClick={() => setShowInventorySale(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className={`bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 ${isAddingSale ? "opacity-80 cursor-not-allowed" : ""}`}
-                      onClick={submitInventorySale}
-                      disabled={
-                        isAddingSale ||
-                        Object.keys(selectedSaleItems).length === 0
-                      }
-                    >
-                      {isAddingSale ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />{" "}
-                          Adding...
-                        </>
-                      ) : (
-                        <>Add Sale</>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              {/* Shared modal to pick items from category */}
-              <ItemSelectionModal
-                isOpen={itemSelectionModal.isOpen}
-                onClose={closeItemSelectionModal}
-                selectedCategory={itemSelectionModal.selectedCategory}
-                selectedSpecifications={
-                  itemSelectionModal.selectedSpecifications
-                }
-                onUpdateSpecification={updateSpecificationFilter}
-                filteredItems={filteredItems}
-                brands={brands}
-                onAddItem={onAddSaleItem}
-                activeProducts={activeProducts}
+      {/* Add Record Modal */}
+      <Modal isOpen={showAddForm} onClose={() => setShowAddForm(false)} title="Add Manual Record">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-gray-300 text-sm">User</Label>
+              <SelectField
+                value={selectedUserId} onValueChange={(value) => { setSelectedUserId(value); if (value !== "other") setCustomUserName(""); }}
+                options={[{ value: "other", label: "Other (Enter custom name)" }, ...users.map((user) => ({ value: user._id, label: user.name }))]}
+                placeholder="Select user"
+                className="bg-gray-800/50 border-gray-700/70 text-white"
               />
             </div>
-          </div>
-        )}
-
-        {/* Add Record Form */}
-        <Modal
-          isOpen={showAddForm}
-          onClose={() => setShowAddForm(false)}
-          title="Add Manual Record"
-        >
-          <form onSubmit={handleSubmit} className="space-y-2 md:space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4">
+            {selectedUserId === "other" && (
               <div>
-                <Label htmlFor="user" className="text-gray-300 text-sm">
-                  User
-                </Label>
-                <SelectField
-                  value={selectedUserId}
-                  onValueChange={(value) => {
-                    setSelectedUserId(value);
-                    if (value !== "other") {
-                      setCustomUserName("");
-                    }
-                  }}
-                  options={[
-                    { value: "other", label: "Other (Enter custom name)" },
-                    ...users.map((user) => ({
-                      value: user._id,
-                      label: user.name,
-                    })),
-                  ]}
-                  placeholder="Select user"
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
+                <Label className="text-gray-300 text-sm">Custom Name</Label>
+                <Input ref={customNameRef} type="text" value={customUserName} onChange={(e) => setCustomUserName(e.target.value)}
+                  placeholder="Enter customer name" className="bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500" />
               </div>
-
-              {selectedUserId === "other" && (
-                <div>
-                  <Label htmlFor="customName" className="text-gray-300 text-sm">
-                    Custom Name
-                  </Label>
-                  <Input
-                    ref={customNameRef}
-                    id="customName"
-                    type="text"
-                    value={customUserName}
-                    onChange={(e) => setCustomUserName(e.target.value)}
-                    placeholder="Enter customer name"
-                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                  />
-                </div>
-              )}
-
-              <div>
-                <Label htmlFor="amount" className="text-gray-300 text-sm">
-                  Amount
-                </Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                />
-              </div>
-            </div>
-
+            )}
             <div>
-              <Label className="text-gray-300 text-sm">Transaction Type</Label>
-              <div className="flex gap-2 mt-2">
-                <Button
-                  type="button"
-                  variant={transactionType === "credit" ? "default" : "outline"}
-                  onClick={() => setTransactionType("credit")}
-                  className={`flex-1 ${
-                    transactionType === "credit"
-                      ? "bg-green-600 hover:bg-green-700 text-white"
-                      : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  Credit
-                </Button>
-                <Button
-                  type="button"
-                  variant={transactionType === "debit" ? "default" : "outline"}
-                  onClick={() => setTransactionType("debit")}
-                  className={`flex-1 ${
-                    transactionType === "debit"
-                      ? "bg-red-600 hover:bg-red-700 text-white"
-                      : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-                  }`}
-                >
-                  Debit
-                </Button>
-              </div>
+              <Label className="text-gray-300 text-sm">Amount</Label>
+              <Input type="number" step="0.01" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00" className="bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500" />
             </div>
+          </div>
+          <div>
+            <Label className="text-gray-300 text-sm">Type</Label>
+            <div className="flex gap-2 mt-1.5">
+              <button type="button" onClick={() => setTransactionType("credit")}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  transactionType === "credit"
+                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/25"
+                    : "bg-white/[0.04] text-gray-400 hover:text-gray-200 border border-white/[0.06]"
+                }`}>Credit</button>
+              <button type="button" onClick={() => setTransactionType("debit")}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  transactionType === "debit"
+                    ? "bg-red-600 text-white shadow-lg shadow-red-600/25"
+                    : "bg-white/[0.04] text-gray-400 hover:text-gray-200 border border-white/[0.06]"
+                }`}>Debit</button>
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2 border-t border-white/[0.06]">
+            <Button type="submit" disabled={isSubmitting} className="flex-1">{isSubmitting ? "Saving..." : "Save Entry"}</Button>
+            <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>Cancel</Button>
+          </div>
+        </form>
+      </Modal>
 
-            <div className="flex gap-2 pt-2 md:pt-4">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
-              >
-                {isSubmitting ? "Saving..." : "Save Entry"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAddForm(false)}
-                className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600"
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Modal>
-
-        {/* Records Table - Desktop View */}
-        {!isTechnician && <div className="hidden lg:block">
-          <Card className="bg-gray-800 border-gray-700">
-            <div className="p-4 border-b border-gray-700">
-              <h3 className="text-lg font-semibold text-white">
-                Cash Book Records (Latest 20)
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              {Object.keys(groupedEntries).length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">No cash book entries found</p>
-                </div>
-              ) : (
-                Object.entries(groupedEntries).map(([date, dateEntries]) => (
-                  <div key={date}>
-                    {/* Date Separator */}
-                    <div className="border-t border-gray-600 my-2"></div>
-                    <div className="px-4 py-2 bg-gray-700/50">
-                      <p className="text-sm font-medium text-gray-300">
-                        {format(new Date(date), "EEEE, MMMM d, yyyy")}
-                      </p>
-                    </div>
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-700">
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            User
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Amount
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Type
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Source
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Time
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dateEntries.map((entry) => (
-                          <tr
-                            key={entry._id}
-                            className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
-                          >
-                            <td className="p-4">
-                              <div>
-                                <p className="text-white font-medium">
-                                  {entry.userName}
-                                </p>
-                                {entry.user?.phone && (
-                                  <p className="text-gray-400 text-sm">
-                                    {entry.user.phone}
-                                  </p>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <p
-                                className={`font-bold ${
-                                  entry.type === "credit"
-                                    ? "text-green-400"
-                                    : "text-red-400"
-                                }`}
-                              >
-                                {entry.type === "credit" ? "+" : "-"}
-                                {formatCurrency(entry.amount)}
-                              </p>
-                            </td>
-                            <td className="p-4">
-                              <Badge
-                                variant={
-                                  entry.type === "credit"
-                                    ? "default"
-                                    : "destructive"
-                                }
-                                className={
-                                  entry.type === "credit"
-                                    ? "bg-green-600 text-white"
-                                    : "bg-red-600 text-white"
-                                }
-                              >
-                                {entry.type === "credit" ? "Credit" : "Debit"}
-                              </Badge>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  variant="outline"
-                                  className="border-gray-600 text-gray-300"
-                                >
-                                  {entry.source}
-                                </Badge>
-                                {entry.bill && (
-                                  <>
-                                    {/* <span className="text-gray-400 text-sm">
-                                      Bill: {entry.bill.billNumber}
-                                    </span> */}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-6 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
-                                    >
-                                      Check Bill
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <p className="text-gray-300">
-                                {format(new Date(entry.createdAt), "hh:mm a")}
-                              </p>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>}
-
-        {/* Records Cards - Mobile View */}
-        {!isTechnician && <div className="lg:hidden">
+      {/* Entries List */}
+      {!isTechnician && (
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden">
           {Object.keys(groupedEntries).length === 0 ? (
-            <Card className="bg-gray-800 border-gray-700 p-8 text-center">
-              <p className="text-gray-400">No cash book entries found</p>
-            </Card>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Wallet className="w-10 h-10 text-gray-600 mb-3" />
+              <p className="text-gray-400 text-sm">No entries found</p>
+            </div>
           ) : (
             Object.entries(groupedEntries).map(([date, dateEntries]) => (
-              <div key={date} className="mb-4">
-                {/* Date Separator */}
-                <div className="border-t border-gray-600 my-2"></div>
-                <div className="px-4 py-2 bg-gray-700/50 rounded-md">
-                  <p className="text-sm font-medium text-gray-300">
+              <div key={date}>
+                <div className="sticky top-0 z-10 px-4 py-2 bg-gray-900/80 backdrop-blur-xl border-b border-white/[0.06]">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
                     {format(new Date(date), "EEEE, MMMM d, yyyy")}
                   </p>
                 </div>
-                <div className="space-y-1 mt-2">
-                  {dateEntries.map((entry, index) => (
-                    <Card
-                      key={entry._id}
-                      className={`bg-gray-800 border-gray-700 p-4 ${index === 0 ? "rounded-none rounded-t-lg" : dateEntries.length - 1 === index ? "rounded-none rounded-b-lg" : "rounded-none "}`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="text-white font-medium">
-                            {entry.userName}
-                          </h4>
-                          {entry.user?.phone && (
-                            <p className="text-gray-400 text-sm">
-                              {entry.user.phone}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p
-                            className={`font-bold text-lg ${
-                              entry.type === "credit"
-                                ? "text-green-400"
-                                : "text-red-400"
-                            }`}
-                          >
-                            {entry.type === "credit" ? "+" : "-"}
-                            {formatCurrency(entry.amount)}
-                          </p>
-                        </div>
+                {dateEntries.map((entry) => (
+                  <div key={entry._id} className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.03] hover:bg-white/[0.03] transition-colors">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                      entry.type === "credit" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+                    }`}>
+                      {entry.type === "credit" ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-white truncate">{entry.userName}</p>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          entry.type === "credit"
+                            ? "bg-emerald-900/30 text-emerald-300"
+                            : "bg-red-900/30 text-red-300"
+                        }`}>{entry.type === "credit" ? "Credit" : "Debit"}</span>
+                        <span className="text-[10px] text-gray-500 bg-white/[0.04] px-1.5 py-0.5 rounded">{entry.source}</span>
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge
-                          variant={
-                            entry.type === "credit" ? "default" : "destructive"
-                          }
-                          className={
-                            entry.type === "credit"
-                              ? "bg-green-600 text-white text-xs"
-                              : "bg-red-600 text-white text-xs"
-                          }
-                        >
-                          {entry.type === "credit" ? "Credit" : "Debit"}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className="border-gray-600 text-gray-300 text-xs"
-                        >
-                          {entry.source}
-                        </Badge>
-                        {entry.bill && (
-                          <>
-                            {/* <span className="text-gray-400 text-xs">
-                              Bill: {entry.bill.billNumber}
-                            </span> */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleViewBill(entry.bill?._id || "")
-                              }
-                              className="h-5 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
-                            >
-                              <Receipt className="w-2 h-2 mr-1" />
-                              View
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      <p className="text-gray-400 text-xs">
-                        {format(new Date(entry.createdAt), "hh:mm a")}
+                      {entry.bill && (
+                        <button type="button" onClick={() => handleViewBill(entry.bill?._id || "")}
+                          className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 mt-0.5 transition-colors">
+                          <Receipt className="w-3 h-3" /> {entry.bill.billNumber || "View Bill"}
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-sm font-semibold ${entry.type === "credit" ? "text-emerald-400" : "text-red-400"}`}>
+                        {entry.type === "credit" ? "+" : "-"}{formatCurrency(entry.amount)}
                       </p>
-                    </Card>
-                  ))}
-                </div>
+                      <p className="text-[10px] text-gray-600">{format(new Date(entry.createdAt), "hh:mm a")}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))
           )}
-        </div>}
+        </div>
+      )}
 
-        {/* Bill Detail Modal */}
-        <BillDetailModal
-          isOpen={showBillModal}
-          onClose={() => setShowBillModal(false)}
-          bill={selectedBill}
-          onDownloadPDF={() => {}}
-          showShareButton={false}
-          showPaymentControls={false}
-        />
-      </div>
+      {/* Bill Detail Modal */}
+      <BillDetailModal
+        isOpen={showBillModal} onClose={() => setShowBillModal(false)} bill={selectedBill}
+        onDownloadPDF={() => {}} showShareButton={false} showPaymentControls={false}
+      />
     </div>
   );
 }

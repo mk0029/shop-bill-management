@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   calculateOverdueExtraCharge,
@@ -18,6 +18,8 @@ import { sanitizeUserText } from "@/constants/defaults";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useAuthStore } from "@/store/auth-store";
 import EmptyState from "@/components/ui/empty-state";
+import AdminRentToolsCreateClient from "@/components/admin/rent-tools-create-client";
+import { X } from "lucide-react";
 import {
   Clock,
   User,
@@ -114,6 +116,7 @@ function overdueReminderMessage(r: ToolRental) {
 
 export default function AdminRentToolsClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const authUser = useAuthStore((state) => state.user) as { id?: string; _id?: string } | null;
   const [tools, setTools] = useState<any[]>([]);
   const [rentals, setRentals] = useState<ToolRental[]>([]);
@@ -129,7 +132,9 @@ export default function AdminRentToolsClient() {
   const [deleteTarget, setDeleteTarget] = useState<ToolRental | null>(null);
   const [deletingRentalId, setDeletingRentalId] = useState<string | null>(null);
 
-  const load = async () => {
+  const isCreateOpen = searchParams.get("create") === "true";
+
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const [toolsData, rentalsData] = await Promise.all([
@@ -148,7 +153,16 @@ export default function AdminRentToolsClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const closeCreateModal = useCallback(() => {
+    router.replace("/admin/rent-tools");
+  }, [router]);
+
+  const handleCreateSuccess = useCallback(() => {
+    closeCreateModal();
+    load();
+  }, [closeCreateModal, load]);
 
   useEffect(() => {
     load();
@@ -158,7 +172,7 @@ export default function AdminRentToolsClient() {
       subA.unsubscribe();
       subB.unsubscribe();
     };
-  }, []);
+  }, [load]);
 
   const filteredRentals = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -285,10 +299,10 @@ export default function AdminRentToolsClient() {
         </h1>
         <button
           type="button"
-          onClick={() => router.push("/admin/rent-tools/create")}
+          onClick={() => router.push("/admin/rent-tools?create=true")}
           className="bg-blue-600 hover:bg-blue-500 text-white rounded px-4 py-2"
         >
-          Rent Tool{" "}
+          Rent Tool
         </button>
       </div>
 
@@ -310,12 +324,12 @@ export default function AdminRentToolsClient() {
             eyebrow="Admin rental desk"
             title="No active rentals found"
             description="When tools are rented from the shop, this area will show customer details, due time, payment status, reminders, and return actions."
-            actions={[
-              {
-                label: "Rent tool",
-                href: "/admin/rent-tools/create",
-              },
-            ]}
+              actions={[
+                {
+                  label: "Rent tool",
+                  href: "/admin/rent-tools?create=true",
+                },
+              ]}
           />
         ) : (
           <div className="space-y-2">
@@ -610,6 +624,24 @@ export default function AdminRentToolsClient() {
         }
         confirmText="Delete Rental"
       />
+
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-4">
+          <div className="relative w-full max-w-2xl mt-4 sm:mt-8 mb-8">
+            <button
+              type="button"
+              onClick={closeCreateModal}
+              className="absolute top-3 right-3 z-10 text-gray-400 hover:text-white bg-gray-800/80 hover:bg-gray-700 rounded-full p-1.5 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <AdminRentToolsCreateClient
+              onClose={closeCreateModal}
+              onSuccess={handleCreateSuccess}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

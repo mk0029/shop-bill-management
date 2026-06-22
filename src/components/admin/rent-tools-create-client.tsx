@@ -18,7 +18,13 @@ function formatINR(value: number) {
   return `Rs ${Number(value || 0).toFixed(2)}`;
 }
 
-export default function AdminRentToolsCreateClient() {
+export default function AdminRentToolsCreateClient({
+  onClose,
+  onSuccess,
+}: {
+  onClose?: () => void;
+  onSuccess?: () => void;
+} = {}) {
   const router = useRouter();
   const [customers, setCustomers] = useState<any[]>([]);
   const [tools, setTools] = useState<ToolItem[]>([]);
@@ -103,7 +109,11 @@ export default function AdminRentToolsCreateClient() {
 
       toast.success("Tool given on rent successfully");
       clearForm();
-      router.push("/admin/rent-tools");
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/admin/rent-tools");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create rental");
     } finally {
@@ -117,7 +127,7 @@ export default function AdminRentToolsCreateClient() {
         <h1 className="text-lg sm:text-2xl font-bold text-white">New Rental</h1>
         <button
           type="button"
-          onClick={() => router.push("/admin/rent-tools")}
+          onClick={() => (onClose ? onClose() : router.push("/admin/rent-tools"))}
           className="bg-gray-700 hover:bg-gray-600 text-white rounded px-3 py-2 text-sm sm:px-4 sm:py-2 transition-colors"
         >
           Back
@@ -356,7 +366,7 @@ export default function AdminRentToolsCreateClient() {
               <div className="flex gap-2 sm:gap-3 order-1 sm:order-2">
                 <button
                   type="button"
-                  onClick={() => router.push("/admin/rent-tools")}
+                  onClick={() => (onClose ? onClose() : router.push("/admin/rent-tools"))}
                   className="w-full sm:w-auto bg-gray-700 hover:bg-gray-600 text-white rounded px-3 sm:px-4 py-2 text-sm transition-colors"
                 >
                   Cancel

@@ -62,17 +62,19 @@ export default function CustomerBillGroup({
       const status = bill.paymentStatus || bill.status;
       const amount = Number(bill.totalAmount ?? 0);
       const paidAmt = Number(bill.paidAmount ?? 0);
+      const discount = Number(bill.discount ?? 0);
+      const netPaid = Math.max(0, paidAmt - discount);
       if (status === "paid") {
-        paid += amount;
+        paid += netPaid;
       } else if (status === "partial") {
-        paid += paidAmt;
+        paid += netPaid;
         pending += bill.balanceAmount != null
           ? Number(bill.balanceAmount)
-          : Math.max(0, amount - paidAmt);
+          : Math.max(0, amount - discount - netPaid);
       } else {
         pending += bill.balanceAmount != null
           ? Number(bill.balanceAmount)
-          : Math.max(0, amount - paidAmt);
+          : Math.max(0, amount - discount);
       }
     });
 
@@ -191,10 +193,11 @@ export default function CustomerBillGroup({
                     const total = Number(bill.totalAmount ?? 0);
                     const discount = Number(bill.discount ?? 0);
                     const paidAmount = Number(bill.paidAmount ?? 0);
+                    const netPaid = Math.max(0, paidAmount - discount);
                     const balance =
                       bill.balanceAmount != null
                         ? Number(bill.balanceAmount)
-                        : Math.max(0, total - discount - paidAmount);
+                        : Math.max(0, total - discount - netPaid);
 
                     return (
                       <Card
@@ -229,14 +232,19 @@ export default function CustomerBillGroup({
                               <p className="text-sm font-semibold text-white">
                                 ₹{total.toLocaleString()}
                               </p>
-                              {status === "partial" && paidAmount > 0 && (
+                              {discount > 0 && (
+                                <p className="text-[10px] text-blue-400">
+                                  -₹{discount.toLocaleString()} discount
+                                </p>
+                              )}
+                              {(status === "partial" || status === "paid") && netPaid > 0 && (
                                 <p className="text-[10px] text-green-400">
-                                  {paidAmount.toLocaleString()} paid
+                                  ₹{netPaid.toLocaleString()} paid
                                 </p>
                               )}
                               {status !== "paid" && balance > 0 && (
                                 <p className="text-[10px] text-orange-400">
-                                  {balance.toLocaleString()} due
+                                  ₹{balance.toLocaleString()} due
                                 </p>
                               )}
                             </div>

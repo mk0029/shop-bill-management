@@ -76,13 +76,14 @@ export function Modal({
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className={cn(
-            "relative my-auto h-fit w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/86 text-slate-100 shadow-2xl shadow-black/45 backdrop-blur-2xl max-h-[calc(var(--app-vh,100dvh)-1.5rem)] sm:max-h-[calc(var(--app-vh,100dvh)-2rem)]",
+            "relative my-auto w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/86 text-slate-100 shadow-2xl shadow-black/45 backdrop-blur-2xl max-h-[85dvh] flex flex-col",
             sizeClasses[size],
-            className
-          )}>
+            className,
+          )}
+        >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.04] px-4 py-2 backdrop-blur-xl sm:p-6">
+            <div className="flex items-center justify-between shrink-0 border-b border-white/10 bg-white/[0.04] px-4 py-2 backdrop-blur-xl sm:p-6">
               {title && (
                 <h2 className="text-lg sm:text-xl font-bold text-white">
                   {title}
@@ -91,9 +92,9 @@ export function Modal({
               {showCloseButton && (
                 <Button
                   variant="ghost"
-                  // size="sm"
                   onClick={onClose}
-                  className="min-h-6 min-w-6 p-0 touch-manipulation hover:bg-white/[0.08] md:min-h-8 md:min-w-8">
+                  className="min-h-6 min-w-6 p-0 touch-manipulation hover:bg-white/[0.08] md:min-h-8 md:min-w-8"
+                >
                   <X className="min-h-6 min-w-6 md:min-h-8 md:min-w-8" />
                 </Button>
               )}
@@ -101,7 +102,7 @@ export function Modal({
           )}
 
           {/* Content */}
-          <div className="overflow-auto p-3 max-h-[calc(var(--app-vh,100dvh)-8rem)] sm:p-4 md:p-6">
+          <div className="overflow-y-auto p-3 sm:p-4 md:p-6">
             {children}
           </div>
         </motion.div>

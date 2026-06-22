@@ -90,7 +90,6 @@ export default function CustomerAutocomplete({
                   onChange(customer._id);
                   setQuery(customerLabel(customer));
                   setOpen(false);
-                  router.push(`/admin/customers?userId=${encodeURIComponent(customer._id)}`);
                 }}
               >
                 <div className="font-medium">

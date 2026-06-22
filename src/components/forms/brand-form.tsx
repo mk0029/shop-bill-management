@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useBrandStore } from "@/store/brand-store";
 import { Brand } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Building2, Mail, Phone, Globe, MapPin, AlertCircle } from "lucide-react";
 
 interface BrandFormProps {
-  brand?: Brand; // For editing existing brand
+  brand?: Brand;
   onSuccess?: (brand?: Brand) => void;
   onCancel: () => void;
 }
@@ -31,7 +32,6 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Populate form when editing existing brand
   useEffect(() => {
     if (brand) {
       setFormData({
@@ -88,10 +88,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent double submission
-    if (isSubmitting || isLoading) {
-      return;
-    }
+    if (isSubmitting || isLoading) return;
 
     setIsSubmitting(true);
     clearError();
@@ -117,16 +114,13 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
 
     try {
       if (brand) {
-        // Update existing brand
         success = await updateBrand(brand._id, brandData);
       } else {
-        // Create new brand
         success = await addBrand(brandData);
       }
 
       if (success) {
         clearForm();
-        // Notify parent to close modal, provide best-effort brand instance
         const updatedBrand = brand
           ? useBrandStore.getState().getBrandById(brand._id)
           : useBrandStore.getState().brands[
@@ -135,7 +129,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
         onSuccess?.(updatedBrand ?? brand);
       }
     } catch (error) {
-      console.error("❌ Error in brand submission:", error);
+      console.error("Error in brand submission:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -143,27 +137,35 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-
-    // Clear error when user starts typing
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
+  const inputClass =
+    "bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500 focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20 transition-all";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4">
       {/* Basic Information */}
       <div className="space-y-4">
+        <div className="flex items-center gap-2 pb-1 border-b border-white/[0.06]">
+          <Building2 className="w-4 h-4 text-blue-400" />
+          <h3 className="text-sm font-semibold text-white tracking-wide uppercase">
+            Basic Information
+          </h3>
+        </div>
+
         <div className="space-y-2">
-          <Label htmlFor="name" className="text-gray-300">
-            Brand Name *
+          <Label htmlFor="name" className="text-gray-300 text-sm font-medium">
+            Brand Name <span className="text-red-400">*</span>
           </Label>
           <Input
             id="name"
             type="text"
             value={formData.name}
             onChange={(e) => handleInputChange("name", e.target.value)}
-            className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+            className={inputClass}
             placeholder="Enter brand name"
             error={formErrors.name}
             disabled={isLoading}
@@ -172,14 +174,14 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description" className="text-gray-300">
+          <Label htmlFor="description" className="text-gray-300 text-sm font-medium">
             Description
           </Label>
           <Textarea
             id="description"
             value={formData.description}
             onChange={(e) => handleInputChange("description", e.target.value)}
-            className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+            className={inputClass}
             placeholder="Enter brand description"
             rows={3}
             disabled={isLoading}
@@ -189,11 +191,16 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
 
       {/* Contact Information */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-white">Contact Information</h3>
+        <div className="flex items-center gap-2 pb-1 border-b border-white/[0.06]">
+          <Mail className="w-4 h-4 text-blue-400" />
+          <h3 className="text-sm font-semibold text-white tracking-wide uppercase">
+            Contact Information
+          </h3>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-300">
+            <Label htmlFor="email" className="text-gray-300 text-sm font-medium">
               Email
             </Label>
             <Input
@@ -201,7 +208,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+              className={inputClass}
               placeholder="Enter email address"
               error={formErrors.email}
               disabled={isLoading}
@@ -209,7 +216,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-gray-300">
+            <Label htmlFor="phone" className="text-gray-300 text-sm font-medium">
               Phone
             </Label>
             <Input
@@ -217,7 +224,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
               type="number"
               value={formData.phone}
               onChange={(e) => handleInputChange("phone", e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+              className={inputClass}
               placeholder="Enter phone number"
               disabled={isLoading}
             />
@@ -225,7 +232,7 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="website" className="text-gray-300">
+          <Label htmlFor="website" className="text-gray-300 text-sm font-medium">
             Website
           </Label>
           <Input
@@ -233,22 +240,22 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
             type="url"
             value={formData.website}
             onChange={(e) => handleInputChange("website", e.target.value)}
-            className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
-            placeholder="Enter website URL (e.g., https://example.com)"
+            className={inputClass}
+            placeholder="https://example.com"
             error={formErrors.website}
             disabled={isLoading}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="address" className="text-gray-300">
+          <Label htmlFor="address" className="text-gray-300 text-sm font-medium">
             Address
           </Label>
           <Textarea
             id="address"
             value={formData.address}
             onChange={(e) => handleInputChange("address", e.target.value)}
-            className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+            className={inputClass}
             placeholder="Enter address"
             rows={2}
             disabled={isLoading}
@@ -257,8 +264,14 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
       </div>
 
       {/* Status */}
-      <div className="space-y-2">
-        <div className="flex items-center space-x-2">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 pb-1 border-b border-white/[0.06]">
+          <AlertCircle className="w-4 h-4 text-blue-400" />
+          <h3 className="text-sm font-semibold text-white tracking-wide uppercase">
+            Status
+          </h3>
+        </div>
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
           <Checkbox
             id="isActive"
             checked={formData.isActive}
@@ -267,29 +280,32 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
             }
             disabled={isLoading}
           />
-          <Label htmlFor="isActive" className="text-gray-300">
-            Active Brand
-          </Label>
+          <div>
+            <Label htmlFor="isActive" className="text-gray-200 text-sm font-medium cursor-pointer">
+              Active Brand
+            </Label>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Inactive brands will not appear in product selection
+            </p>
+          </div>
         </div>
-        <p className="text-sm text-gray-400">
-          Inactive brands will not appear in product selection
-        </p>
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="p-3 bg-red-900/20 border border-red-500 rounded-md">
+        <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg backdrop-blur-sm">
           <p className="text-red-400 text-sm">{error}</p>
         </div>
       )}
 
       {/* Submit Buttons */}
-      <div className="flex gap-4 pt-2 md:pt-4">
+      <div className="flex gap-3 pt-2 border-t border-white/[0.06]">
         <Button
           type="submit"
           loading={isLoading || isSubmitting}
           disabled={isLoading || isSubmitting}
-          className="flex-1">
+          className="flex-1 bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-600/20"
+        >
           {isLoading || isSubmitting
             ? "Saving..."
             : brand
@@ -300,7 +316,8 @@ export function BrandForm({ brand, onSuccess, onCancel }: BrandFormProps) {
           type="button"
           variant="outline"
           onClick={onCancel}
-          disabled={isLoading}>
+          disabled={isLoading}
+        >
           Cancel
         </Button>
       </div>

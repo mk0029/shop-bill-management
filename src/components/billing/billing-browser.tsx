@@ -10,11 +10,16 @@ import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
 import { BillFormData, Customer, Item } from "@/types";
-import {
-  RealtimeBillStats,
-} from "@/components/realtime/realtime-bill-list";
+import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import CustomerBillGroup from "@/components/billing/customer-bill-group";
-import { FileText, Plus, Search, Calculator, FileTextIcon, Users } from "lucide-react";
+import {
+  FileText,
+  Plus,
+  Search,
+  Calculator,
+  FileTextIcon,
+  Users,
+} from "lucide-react";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 import { safeUserName } from "@/lib/display-text";
 
@@ -169,7 +174,9 @@ export function BillingBrowser({
       cleanOpenQuery();
       return;
     }
-    const match = bills.find((b: any) => b._id === openId || b.id === openId || b.billId === openId);
+    const match = bills.find(
+      (b: any) => b._id === openId || b.id === openId || b.billId === openId,
+    );
     if (match) {
       if (consumedOpenRef.current !== openId) {
         consumedOpenRef.current = openId;
@@ -278,16 +285,24 @@ export function BillingBrowser({
 
   // Compute per-group stats used for sorting
   const groupStats = useMemo(() => {
-    const map = new Map<string, { totalPending: number; billCount: number; latestDate: number }>();
+    const map = new Map<
+      string,
+      { totalPending: number; billCount: number; latestDate: number }
+    >();
     initialForList.forEach((bill: any) => {
       const cid = bill.customer?._id || bill.customer?._ref;
       if (!cid) return;
-      const prev = map.get(cid) || { totalPending: 0, billCount: 0, latestDate: 0 };
+      const prev = map.get(cid) || {
+        totalPending: 0,
+        billCount: 0,
+        latestDate: 0,
+      };
       const amount = Number(bill.totalAmount ?? 0);
       if ((bill.paymentStatus || bill.status) !== "paid") {
-        prev.totalPending += bill.balanceAmount != null
-          ? Number(bill.balanceAmount)
-          : Math.max(0, amount - Number(bill.paidAmount ?? 0));
+        prev.totalPending +=
+          bill.balanceAmount != null
+            ? Number(bill.balanceAmount)
+            : Math.max(0, amount - Number(bill.paidAmount ?? 0));
       }
       prev.billCount += 1;
       const d = new Date(bill.createdAt || bill.serviceDate || 0).getTime();
@@ -310,28 +325,38 @@ export function BillingBrowser({
       groups.get(customerId)!.bills.push(bill);
     });
 
-    const raw = Array.from(groups.entries())
-      .map(([id, group]) => ({
-        id,
-        customer: group.customer,
-        bills: group.bills.sort((a: any, b: any) => {
-          const dateA = new Date(a.createdAt || a.serviceDate || 0);
-          const dateB = new Date(b.createdAt || b.serviceDate || 0);
-          return dateB.getTime() - dateA.getTime();
-        }),
-      }));
+    const raw = Array.from(groups.entries()).map(([id, group]) => ({
+      id,
+      customer: group.customer,
+      bills: group.bills.sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt || a.serviceDate || 0);
+        const dateB = new Date(b.createdAt || b.serviceDate || 0);
+        return dateB.getTime() - dateA.getTime();
+      }),
+    }));
 
     // Sort groups based on the selected sort mode
     const st = groupStats;
     switch (sortBy) {
       case "pending-high":
-        return raw.sort((a, b) => (st.get(b.id)?.totalPending ?? 0) - (st.get(a.id)?.totalPending ?? 0));
+        return raw.sort(
+          (a, b) =>
+            (st.get(b.id)?.totalPending ?? 0) -
+            (st.get(a.id)?.totalPending ?? 0),
+        );
       case "pending-low":
         return raw
           .filter((a) => (st.get(a.id)?.totalPending ?? 0) > 0)
-          .sort((a, b) => (st.get(a.id)?.totalPending ?? 0) - (st.get(b.id)?.totalPending ?? 0));
+          .sort(
+            (a, b) =>
+              (st.get(a.id)?.totalPending ?? 0) -
+              (st.get(b.id)?.totalPending ?? 0),
+          );
       case "bills":
-        return raw.sort((a, b) => (st.get(b.id)?.billCount ?? 0) - (st.get(a.id)?.billCount ?? 0));
+        return raw.sort(
+          (a, b) =>
+            (st.get(b.id)?.billCount ?? 0) - (st.get(a.id)?.billCount ?? 0),
+        );
       case "name":
         return raw.sort((a, b) => {
           const na = (a.customer?.name || "").toLowerCase();
@@ -340,7 +365,10 @@ export function BillingBrowser({
         });
       case "latest":
       default:
-        return raw.sort((a, b) => (st.get(b.id)?.latestDate ?? 0) - (st.get(a.id)?.latestDate ?? 0));
+        return raw.sort(
+          (a, b) =>
+            (st.get(b.id)?.latestDate ?? 0) - (st.get(a.id)?.latestDate ?? 0),
+        );
     }
   }, [initialForList, sortBy, groupStats]);
 
@@ -404,7 +432,7 @@ export function BillingBrowser({
         )}
       </div>
 
-      {/* Bill Statistics */}
+      {/* Bill Statistics
       {!isTechnician && (
         <div>
           <ResponsiveAccordion
@@ -422,7 +450,7 @@ export function BillingBrowser({
             />
           </ResponsiveAccordion>
         </div>
-      )}
+      )} */}
 
       {/* Search and Sort */}
       <Card className="sm:p-4 p-3 bg-gray-900 border-gray-800">
@@ -439,7 +467,9 @@ export function BillingBrowser({
 
           {/* Sort controls */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Sort by</span>
+            <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">
+              Sort by
+            </span>
             {[
               { value: "latest", label: "Latest" },
               { value: "pending-high", label: "Pending ↓" },
@@ -493,9 +523,7 @@ export function BillingBrowser({
               group={group}
               open={openGroupId === group.id}
               onToggle={() =>
-                setOpenGroupId(
-                  openGroupId === group.id ? null : group.id,
-                )
+                setOpenGroupId(openGroupId === group.id ? null : group.id)
               }
               onBillClick={(bill) => handleViewBill(buildSelectedBill(bill))}
             />

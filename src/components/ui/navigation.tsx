@@ -49,7 +49,6 @@ interface NavigationItem {
 const adminNavigation: NavigationItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: Home },
   { label: "Cash Book", href: "/admin/cash-book", icon: DollarSign },
-  { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Chat", href: "/admin/chat", icon: MessageCircle },
   { label: "Bills", href: "/admin/billing", icon: FileText },
@@ -67,6 +66,7 @@ const adminNavigation: NavigationItem[] = [
     icon: Settings,
     children: [
       { label: "Settings", href: "/admin/settings", icon: Settings },
+      { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
       {
         label: "Send Notifications",
         href: "/admin/notifications",
