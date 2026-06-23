@@ -29,7 +29,7 @@ export default async function AdminLayout({
         <AdminNavigationShell />
         <AdminWelcomeGate />
       </div>
-      <main className="admin-main hide-scroll relative z-10 h-[calc(var(--app-vh,100dvh)-62px)] overflow-y-auto overflow-x-hidden bg-transparent pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-1.5">
+      <main className="admin-main hide-scroll relative z-10 h-[calc(var(--app-vh,100dvh)-62px)] overflow-y-auto overflow-x-hidden bg-transparent pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-3">
         <div className="min-h-full pb-8 py-1 sm:p-2 sm:pb-10 xl:p-6 xl:pb-12">{children}</div>
       </main>
     </div>

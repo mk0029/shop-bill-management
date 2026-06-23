@@ -11,7 +11,11 @@ export default function OfflinePage() {
   const params = useSearchParams();
   const from = params.get("from") || "/";
   // Stricter thresholds and shorter interval to confirm stability
-  const { online, latencyMs, lastUpdated } = useNetworkMonitor({ intervalMs: 3000, failThreshold: 2, successThreshold: 3 });
+  const { online, latencyMs, lastUpdated } = useNetworkMonitor({
+    intervalMs: 3000,
+    failThreshold: 2,
+    successThreshold: 3,
+  });
   const mountedAtRef = useRef<number>(Date.now());
   const redirectedRef = useRef(false);
   const [checking, setChecking] = useState(false);
@@ -21,7 +25,8 @@ export default function OfflinePage() {
     if (redirectedRef.current) return;
     const minDwellMs = 4000; // stay on offline page for at least this long
     const hasDwelled = Date.now() - mountedAtRef.current >= minDwellMs;
-    const hasRecentPing = typeof lastUpdated === "number" && Date.now() - lastUpdated < 10000;
+    const hasRecentPing =
+      typeof lastUpdated === "number" && Date.now() - lastUpdated < 10000;
     const hasConfirmedSuccess = online && latencyMs !== null && hasRecentPing;
     if (hasDwelled && hasConfirmedSuccess) {
       redirectedRef.current = true;
@@ -35,7 +40,10 @@ export default function OfflinePage() {
       // Immediate ping with short timeout to verify connectivity now
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch("/api/ping", { cache: "no-store", signal: controller.signal });
+      const res = await fetch("/api/ping", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       clearTimeout(id);
       if (res.ok) {
         setConfirmedOnline(true);
@@ -53,7 +61,7 @@ export default function OfflinePage() {
   }, [from, router]);
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+    <div className="h-[var(--app-vh,100dvh)] bg-gray-950 flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-xl p-6 text-center space-y-4">
         <div className="flex justify-center">
           <WifiOff className="w-12 h-12 text-red-400" />
@@ -62,10 +70,18 @@ export default function OfflinePage() {
         <p className="text-gray-400">
           No internet connection detected. Check your connection and try again.
         </p>
-        <div className="text-sm text-gray-500">Last latency: {latencyMs ?? "--"} ms</div>
+        <div className="text-sm text-gray-500">
+          Last latency: {latencyMs ?? "--"} ms
+        </div>
         <div className="flex gap-3 justify-center">
-          <Button variant="secondary" onClick={refreshCheck} disabled={checking}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${checking ? "animate-spin" : ""}`} />
+          <Button
+            variant="secondary"
+            onClick={refreshCheck}
+            disabled={checking}
+          >
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${checking ? "animate-spin" : ""}`}
+            />
             {checking ? "Checking..." : "Refresh"}
           </Button>
           <Button

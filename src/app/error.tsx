@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { logClientError, normalizeUnknownError } from "@/lib/client-error-logger";
+import {
+  logClientError,
+  normalizeUnknownError,
+} from "@/lib/client-error-logger";
 
 export default function AppError({
   error,
@@ -21,11 +24,14 @@ export default function AppError({
   }, [error]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-950 px-4 text-white">
+    <main className="flex h-[var(--app-vh,100dvh)] items-center justify-center bg-gray-950 px-4 text-white">
       <div className="max-w-md rounded-lg border border-gray-800 bg-gray-900 p-6 text-center shadow-xl">
-        <h1 className="text-xl font-semibold">Something did not load correctly</h1>
+        <h1 className="text-xl font-semibold">
+          Something did not load correctly
+        </h1>
         <p className="mt-3 text-sm text-gray-300">
-          We logged the issue for review. Please retry, or continue after refreshing the page.
+          We logged the issue for review. Please retry, or continue after
+          refreshing the page.
         </p>
         <button
           type="button"

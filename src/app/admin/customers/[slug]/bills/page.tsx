@@ -20,7 +20,12 @@ import {
   Search,
   Share2,
 } from "lucide-react";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { sanityApiService } from "@/lib/sanity-api-service";
@@ -56,22 +61,31 @@ export default function CustomerBillsPage() {
   const [showBillModal, setShowBillModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReminderPreview, setShowReminderPreview] = useState(false);
-  const [showReminderSettingsModal, setShowReminderSettingsModal] = useState(false);
+  const [showReminderSettingsModal, setShowReminderSettingsModal] =
+    useState(false);
   const [shareMode, setShareMode] = useState<"pending" | "thank">("pending");
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
-  const [isSavingReminderSettings, setIsSavingReminderSettings] = useState(false);
-  const [isPreparingReminderPreview, setIsPreparingReminderPreview] = useState(false);
+  const [isSavingReminderSettings, setIsSavingReminderSettings] =
+    useState(false);
+  const [isPreparingReminderPreview, setIsPreparingReminderPreview] =
+    useState(false);
   const [isSendingDueReminder, setIsSendingDueReminder] = useState(false);
   const [reminderPreviewMessage, setReminderPreviewMessage] = useState("");
   const [reminderPreviewSummary, setReminderPreviewSummary] = useState<{
     totalPendingAmount: number;
     pendingBillsCount: number;
   }>({ totalPendingAmount: 0, pendingBillsCount: 0 });
-  const [reminderLimit, setReminderLimit] = useState<number>(DEFAULT_REMINDER_LIMIT);
+  const [reminderLimit, setReminderLimit] = useState<number>(
+    DEFAULT_REMINDER_LIMIT,
+  );
   const [dueReminderRepeatDays, setDueReminderRepeatDays] = useState<number>(6);
   const [allowDueReminder, setAllowDueReminder] = useState<boolean>(true);
-  const [lastDueReminderSentAt, setLastDueReminderSentAt] = useState<string | null>(null);
-  const [lastDueReminderAmount, setLastDueReminderAmount] = useState<number | null>(null);
+  const [lastDueReminderSentAt, setLastDueReminderSentAt] = useState<
+    string | null
+  >(null);
+  const [lastDueReminderAmount, setLastDueReminderAmount] = useState<
+    number | null
+  >(null);
   const customer = customers.find(
     (c) => c._id === slug || c.customerId === slug,
   );
@@ -119,7 +133,9 @@ export default function CustomerBillsPage() {
       totalAmount: Number(b?.totalAmount || 0),
       paidAmount: Number(b?.paidAmount || 0),
       balanceAmount:
-        typeof b?.balanceAmount === "number" ? Number(b.balanceAmount) : undefined,
+        typeof b?.balanceAmount === "number"
+          ? Number(b.balanceAmount)
+          : undefined,
       dueDate: b?.dueDate,
     })),
   );
@@ -135,10 +151,14 @@ export default function CustomerBillsPage() {
 
   const getReminderStatusLabel = () => {
     if (reminderEligibility.ok) return "Eligible to send";
-    if (reminderEligibility.reason === "below_limit") return "Skipped: below reminder limit";
-    if (reminderEligibility.reason === "toggle_off") return "Skipped: reminder disabled";
-    if (reminderEligibility.reason === "phone_missing") return "Skipped: phone missing";
-    if (reminderEligibility.reason === "no_pending_bills") return "Skipped: no pending bills";
+    if (reminderEligibility.reason === "below_limit")
+      return "Skipped: below reminder limit";
+    if (reminderEligibility.reason === "toggle_off")
+      return "Skipped: reminder disabled";
+    if (reminderEligibility.reason === "phone_missing")
+      return "Skipped: phone missing";
+    if (reminderEligibility.reason === "no_pending_bills")
+      return "Skipped: no pending bills";
     if (reminderEligibility.reason === "duplicate_recent")
       return `Skipped: recently sent (${reminderEligibility.cooldownRemainingMinutes || 0} min cooldown left)`;
     return "Not eligible";
@@ -174,7 +194,9 @@ export default function CustomerBillsPage() {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("open");
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
   };
 
   const cleanOpenQuery = () => {
@@ -182,13 +204,17 @@ export default function CustomerBillsPage() {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("open");
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
   };
 
   useEffect(() => {
     const openBillId = searchParams.get("open");
     if (!openBillId || billsLoading || !customerBills.length) return;
-    const bill = customerBills.find((item: any) => String(item._id || item.id || item.billId) === openBillId);
+    const bill = customerBills.find(
+      (item: any) => String(item._id || item.id || item.billId) === openBillId,
+    );
     if (bill) {
       if (consumedOpenRef.current !== openBillId) {
         consumedOpenRef.current = openBillId;
@@ -199,7 +225,9 @@ export default function CustomerBillsPage() {
   }, [billsLoading, customerBills, searchParams]);
 
   const syncReminderSettingsFromCustomer = () => {
-    setReminderLimit(getEffectiveReminderLimit((customer as any)?.reminderLimit));
+    setReminderLimit(
+      getEffectiveReminderLimit((customer as any)?.reminderLimit),
+    );
     setAllowDueReminder((customer as any)?.allowDueReminder ?? true);
     const repeatDays = Number((customer as any)?.dueReminderRepeatDays);
     setDueReminderRepeatDays(
@@ -216,14 +244,24 @@ export default function CustomerBillsPage() {
   };
   useEffect(() => {
     syncReminderSettingsFromCustomer();
-  }, [customer?._id, (customer as any)?.reminderLimit, (customer as any)?.allowDueReminder, (customer as any)?.dueReminderRepeatDays, (customer as any)?.lastDueReminderSentAt, (customer as any)?.lastDueReminderAmount]);
+  }, [
+    customer?._id,
+    (customer as any)?.reminderLimit,
+    (customer as any)?.allowDueReminder,
+    (customer as any)?.dueReminderRepeatDays,
+    (customer as any)?.lastDueReminderSentAt,
+    (customer as any)?.lastDueReminderAmount,
+  ]);
 
   const saveReminderSettings = async () => {
     if (!customer?._id) return;
     try {
       setIsSavingReminderSettings(true);
       const safeLimit = getEffectiveReminderLimit(reminderLimit);
-      const safeRepeatDays = Math.min(30, Math.max(1, Number(dueReminderRepeatDays || 6)));
+      const safeRepeatDays = Math.min(
+        30,
+        Math.max(1, Number(dueReminderRepeatDays || 6)),
+      );
       await sanityClient
         .patch(customer._id)
         .set({
@@ -252,7 +290,7 @@ export default function CustomerBillsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerId: customer._id, previewOnly: true }),
       });
-      const json = await res.json().catch(() => ({} as any));
+      const json = await res.json().catch(() => ({}) as any);
       if (!res.ok || !json?.success) {
         throw new Error(json?.error || "Failed to prepare reminder preview");
       }
@@ -278,18 +316,24 @@ export default function CustomerBillsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerId: customer._id, previewOnly: false }),
       });
-      const json = await res.json().catch(() => ({} as any));
+      const json = await res.json().catch(() => ({}) as any);
       if (json?.skipped) {
         if (json?.reason === "below_limit") {
-          toast.info("Reminder skipped because pending amount is below reminder limit.");
+          toast.info(
+            "Reminder skipped because pending amount is below reminder limit.",
+          );
         } else if (json?.reason === "toggle_off") {
           toast.info("Reminder is disabled for this customer.");
         } else if (json?.reason === "no_pending_bills") {
           toast.info("No pending or partial bills found for this customer.");
         } else if (json?.reason === "phone_missing") {
-          toast.info("Customer phone number is required before sending WhatsApp reminder.");
+          toast.info(
+            "Customer phone number is required before sending WhatsApp reminder.",
+          );
         } else if (json?.reason === "duplicate_recent") {
-          toast.info("Reminder skipped because same reminder was sent recently.");
+          toast.info(
+            "Reminder skipped because same reminder was sent recently.",
+          );
         } else {
           toast.info("Reminder skipped.");
         }
@@ -319,7 +363,9 @@ export default function CustomerBillsPage() {
   };
 
   const handleOpenCustomerChat = () => {
-    router.push(`/admin/chat?customerId=${encodeURIComponent(effectiveCustomerId)}`);
+    router.push(
+      `/admin/chat?customerId=${encodeURIComponent(effectiveCustomerId)}`,
+    );
   };
 
   const handleSharePendingBills = () => {
@@ -642,7 +688,7 @@ export default function CustomerBillsPage() {
 
   if (customersLoading || billsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-white">
+      <div className="flex items-center justify-center h-[var(--app-vh,100dvh)] text-white">
         Loading...
       </div>
     );
@@ -650,7 +696,7 @@ export default function CustomerBillsPage() {
 
   if (!customer) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-center">
+      <div className="flex items-center justify-center h-[var(--app-vh,100dvh)] text-center">
         <h1 className="text-2xl font-bold text-white mb-4">
           Customer Not Found
         </h1>
@@ -740,7 +786,6 @@ export default function CustomerBillsPage() {
             className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
           />
         </div>
-
       </ResponsiveAccordion>
 
       <Card className="bg-gray-900 border-gray-800">
@@ -748,15 +793,25 @@ export default function CustomerBillsPage() {
           <div className="space-y-1">
             <p className="text-sm text-gray-300">
               Due Reminder:{" "}
-              <span className={reminderEligibility.ok ? "text-green-400" : "text-yellow-400"}>
+              <span
+                className={
+                  reminderEligibility.ok ? "text-green-400" : "text-yellow-400"
+                }
+              >
                 {getReminderStatusLabel()}
               </span>
             </p>
             <p className="text-xs text-gray-400">
-              Pending: {currency}{pendingSummary.totalPendingAmount.toLocaleString()} • Bills: {pendingSummary.pendingBillsCount} • Limit: {currency}{Number(getEffectiveReminderLimit(reminderLimit)).toLocaleString()}
+              Pending: {currency}
+              {pendingSummary.totalPendingAmount.toLocaleString()} • Bills:{" "}
+              {pendingSummary.pendingBillsCount} • Limit: {currency}
+              {Number(
+                getEffectiveReminderLimit(reminderLimit),
+              ).toLocaleString()}
             </p>
             <p className="text-xs text-gray-500">
-              Auto reminder: first after 6 days from latest pending bill • Repeat every {dueReminderRepeatDays} day(s)
+              Auto reminder: first after 6 days from latest pending bill •
+              Repeat every {dueReminderRepeatDays} day(s)
             </p>
           </div>
           <div className="flex gap-2">
@@ -770,7 +825,9 @@ export default function CustomerBillsPage() {
               onClick={fetchReminderPreview}
               disabled={isPreparingReminderPreview || isSendingDueReminder}
             >
-              {isPreparingReminderPreview ? "Preparing..." : "Send Due Reminder"}
+              {isPreparingReminderPreview
+                ? "Preparing..."
+                : "Send Due Reminder"}
             </Button>
           </div>
         </CardContent>
@@ -823,7 +880,9 @@ export default function CustomerBillsPage() {
         type="confirm"
         title="Preview Due Reminder"
         message={`This will send one combined reminder for ${reminderPreviewSummary.pendingBillsCount} bill(s), total ${currency}${Number(reminderPreviewSummary.totalPendingAmount || 0).toLocaleString()}.`}
-        confirmText={isSendingDueReminder ? "Sending..." : "Send WhatsApp Reminder"}
+        confirmText={
+          isSendingDueReminder ? "Sending..." : "Send WhatsApp Reminder"
+        }
         content={
           <div className="space-y-2">
             <p className="text-xs text-gray-400">Message preview:</p>
@@ -850,13 +909,17 @@ export default function CustomerBillsPage() {
                 value={reminderLimit}
                 onChange={(e) =>
                   setReminderLimit(
-                    Math.max(0, Number(e.target.value || DEFAULT_REMINDER_LIMIT)),
+                    Math.max(
+                      0,
+                      Number(e.target.value || DEFAULT_REMINDER_LIMIT),
+                    ),
                   )
                 }
                 className="bg-gray-800 border-gray-700 text-white"
               />
               <p className="text-xs text-gray-400">
-                Reminder will only be sent when total pending amount is equal or above this limit.
+                Reminder will only be sent when total pending amount is equal or
+                above this limit.
               </p>
             </div>
             <div className="space-y-1">
@@ -893,12 +956,15 @@ export default function CustomerBillsPage() {
             <div className="rounded-md border border-gray-800 bg-gray-950/60 p-3">
               <p className="text-xs text-gray-400">Current Pending</p>
               <p className="text-lg text-orange-400 font-semibold">
-                {currency}{pendingSummary.totalPendingAmount.toLocaleString()}
+                {currency}
+                {pendingSummary.totalPendingAmount.toLocaleString()}
               </p>
               <p className="text-xs text-gray-400">
                 {pendingSummary.pendingBillsCount} pending/partial bill(s)
               </p>
-              <p className={`mt-2 text-xs ${reminderEligibility.ok ? "text-green-400" : "text-yellow-400"}`}>
+              <p
+                className={`mt-2 text-xs ${reminderEligibility.ok ? "text-green-400" : "text-yellow-400"}`}
+              >
                 {getReminderStatusLabel()}
               </p>
               <p className="text-xs text-gray-500 mt-1">
@@ -928,5 +994,3 @@ export default function CustomerBillsPage() {
     </div>
   );
 }
-
-

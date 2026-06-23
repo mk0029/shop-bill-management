@@ -21,7 +21,7 @@ export default function DebugAdminPage() {
   const userCanManageAdmins = canManageAdmins(userEmail);
 
   return (
-    <div className="min-h-screen bg-gray-900 p-3 sm:p-4 md:p-6">
+    <div className="h-[var(--app-vh,100dvh)] bg-gray-900 p-3 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-6 max-md:space-y-4">
         <div className="flex items-center gap-3">
           <Settings className="h-8 w-8 text-blue-500" />
@@ -59,7 +59,8 @@ export default function DebugAdminPage() {
                       adminManagementEnabled
                         ? "text-green-400 border-green-400"
                         : "text-red-400 border-red-400"
-                    }>
+                    }
+                  >
                     {adminManagementEnabled ? "Enabled" : "Disabled"}
                   </Badge>
                 </div>
@@ -79,7 +80,8 @@ export default function DebugAdminPage() {
                       superAdminEmail
                         ? "text-green-400 border-green-400"
                         : "text-red-400 border-red-400"
-                    }>
+                    }
+                  >
                     {superAdminEmail ? "Set" : "Not Set"}
                   </Badge>
                 </div>
@@ -116,7 +118,9 @@ export default function DebugAdminPage() {
               <div className="space-y-2">
                 <p className="text-gray-400 text-sm">User Name</p>
                 <p className="text-white font-medium">
-                  {(user as any)?.name || (user as any)?.email?.split("@")[0] || "Unknown"}
+                  {(user as any)?.name ||
+                    (user as any)?.email?.split("@")[0] ||
+                    "Unknown"}
                 </p>
               </div>
             </div>
@@ -130,7 +134,8 @@ export default function DebugAdminPage() {
                     userIsSuperAdmin
                       ? "text-purple-400 border-purple-400"
                       : "text-gray-400 border-gray-400"
-                  }>
+                  }
+                >
                   {userIsSuperAdmin ? "Yes" : "No"}
                 </Badge>
               </div>
@@ -143,7 +148,8 @@ export default function DebugAdminPage() {
                     userCanManageAdmins
                       ? "text-green-400 border-green-400"
                       : "text-red-400 border-red-400"
-                  }>
+                  }
+                >
                   {userCanManageAdmins ? "Yes" : "No"}
                 </Badge>
               </div>
@@ -152,8 +158,9 @@ export default function DebugAdminPage() {
                 <span className="text-gray-300">User ID</span>
                 <Badge
                   variant="outline"
-                  className="text-blue-400 border-blue-400">
-                  {((user as any)?.id || (user as any)?._id) ? "Set" : "Not Set"}
+                  className="text-blue-400 border-blue-400"
+                >
+                  {(user as any)?.id || (user as any)?._id ? "Set" : "Not Set"}
                 </Badge>
               </div>
             </div>
@@ -216,8 +223,8 @@ export default function DebugAdminPage() {
                       {!adminManagementEnabled
                         ? "Admin management is disabled in environment configuration."
                         : !userIsSuperAdmin
-                        ? "You are not configured as a super admin."
-                        : "Unknown access restriction."}
+                          ? "You are not configured as a super admin."
+                          : "Unknown access restriction."}
                     </p>
                   </div>
                 </div>

@@ -59,7 +59,7 @@ function LandingShellContent({
 
   return (
     <ElectricalBackground>
-      <div className="flex min-h-screen flex-col text-[#E5E7EB]">
+      <div className="flex h-[var(--app-vh,100dvh)] flex-col text-[#E5E7EB]">
         <Header />
         <main className="flex-1">
           <section className="container mx-auto px-4 pt-24 pb-8">

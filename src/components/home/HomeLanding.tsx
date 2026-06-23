@@ -72,7 +72,7 @@ export default function HomeLanding() {
   // While verifying, show a lightweight loader to avoid flashing the landing UI
   if (!hydrated) {
     return (
-      <main className="min-h-screen bg-background text-foreground grid place-items-center">
+      <main className="h-[var(--app-vh,100dvh)] bg-background text-foreground grid place-items-center">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           Verifying...
@@ -89,7 +89,7 @@ export default function HomeLanding() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-background text-foreground">
+      <main className="h-[var(--app-vh,100dvh)] bg-background text-foreground">
         <HeroSection
           support={{ phone: support.phone, whatsapp: support.whatsapp }}
         />

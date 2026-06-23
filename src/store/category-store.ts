@@ -220,7 +220,7 @@ export const useCategoryStore = create<CategoryStore>((set, get) => ({
           }
         },
         error: (error) => {
-          console.error("❌ Category real-time error:", error);
+          console.warn("[realtime] category-store subscription error:", error instanceof Error ? error.message : error);
           set({ isRealtimeConnected: false });
         },
       });

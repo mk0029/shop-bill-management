@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import AttachmentPicker from "./AttachmentPicker";
 import VoiceRecorder from "./VoiceRecorder";
 import CameraCaptureButton from "./CameraCaptureButton";
+import MediaPreviewModal, { PendingFile } from "./MediaPreviewModal";
 import { safeUserName } from "@/lib/display-text";
 
 interface MessageInputProps {
@@ -47,6 +48,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[] | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerRef = useRef<HTMLDivElement | null>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -277,10 +279,36 @@ const MessageInput: React.FC<MessageInputProps> = ({
     kind: "image" | "video" | "audio" | "document" | "contact",
   ) => {
     if (disabled) return;
+    const pending: PendingFile[] = files.map((file) => ({ file, kind }));
+    setPendingFiles(pending);
+  };
+
+  const handlePreviewSend = async (
+    files: File[],
+    kind: "image" | "video" | "audio" | "document" | "contact",
+    caption: string,
+  ) => {
+    setPendingFiles(null);
     try {
       await onSendFiles(files, kind);
+      if (caption) {
+        await onSendMessage(caption);
+      }
     } catch (error) {
       console.error("Failed to send files:", error);
+    }
+  };
+
+  const handlePreviewCancel = () => {
+    setPendingFiles(null);
+  };
+
+  const handleCameraCapture = async (file: File) => {
+    if (disabled) return;
+    try {
+      await onSendFiles([file], "image");
+    } catch (error) {
+      console.error("Failed to send captured photo:", error);
     }
   };
 
@@ -314,6 +342,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const showSendButton = message.trim().length > 0;
 
   return (
+    <>
     <div className="chat-composer-root border-t border-white/10 bg-white/[0.025] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_32px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
       {/* Reply/Edit Preview */}
       {(replyTo || editingMessage) && (
@@ -409,9 +438,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 className="flex h-10 items-center justify-end gap-0.5 pr-0.5"
               >
                 <CameraCaptureButton
-                  onCapture={async (file) => {
-                    await handleFilesSelected([file], "image");
-                  }}
+                  onCapture={handleCameraCapture}
                   onOpenChange={(open) => {
                     setCameraOpen(open);
                     if (open) {
@@ -473,6 +500,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
         </div>
       </div>
     </div>
+
+    {pendingFiles && pendingFiles.length > 0 && (
+      <MediaPreviewModal
+        files={pendingFiles}
+        onSend={handlePreviewSend}
+        onCancel={handlePreviewCancel}
+      />
+    )}
+    </>
   );
 };
 

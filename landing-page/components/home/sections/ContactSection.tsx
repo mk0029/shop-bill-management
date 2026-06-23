@@ -36,7 +36,7 @@ export default function ContactSection({
 }) {
   return (
     <section className="bg-muted/30 border-y border-border">
-      <div className="container mx-auto px-4 py-14 md:py-20 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      <div className="container mx-auto px-4 py-11 md:py-20 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <ContactCard
           icon={Phone}
           title="Phone"

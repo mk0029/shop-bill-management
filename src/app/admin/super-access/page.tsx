@@ -43,6 +43,15 @@ export default async function SuperAccessIndexPage() {
             Delete an incorrect cashbook entry by ID.
           </div>
         </Link>
+        <Link
+          href="/admin/super-access/whatsapp-bot"
+          className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800"
+        >
+          <div className="font-semibold text-white">WhatsApp Bot Status</div>
+          <div className="text-sm text-gray-400">
+            Inspect bot health, status, event logs, wake/restart/test-send. All logs stored locally.
+          </div>
+        </Link>
       </div>
     </div>
   );

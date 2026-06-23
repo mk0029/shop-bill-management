@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { logClientError, normalizeUnknownError } from "@/lib/client-error-logger";
+import {
+  logClientError,
+  normalizeUnknownError,
+} from "@/lib/client-error-logger";
 
 export default function GlobalError({
   error,
@@ -22,12 +25,15 @@ export default function GlobalError({
 
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-gray-950 text-white">
-        <main className="flex min-h-screen items-center justify-center px-4">
+      <body className="h-[var(--app-vh,100dvh)] bg-gray-950 text-white">
+        <main className="flex h-[var(--app-vh,100dvh)] items-center justify-center px-4">
           <div className="max-w-md rounded-lg border border-gray-800 bg-gray-900 p-6 text-center shadow-xl">
-            <h1 className="text-xl font-semibold">We hit a temporary problem</h1>
+            <h1 className="text-xl font-semibold">
+              We hit a temporary problem
+            </h1>
             <p className="mt-3 text-sm text-gray-300">
-              The app logged the error for review. You can retry now, and core features should keep working once the page reloads.
+              The app logged the error for review. You can retry now, and core
+              features should keep working once the page reloads.
             </p>
             <button
               type="button"

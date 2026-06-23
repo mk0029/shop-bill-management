@@ -117,7 +117,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-background text-foreground antialiased">
+      <body className="bg-background text-foreground antialiased">
         {/* Synchronous auth prehydration to speed up startup */}
         <AuthPrehydrate />
         <ClientErrorLogger />

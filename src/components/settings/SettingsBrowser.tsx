@@ -3,7 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronUp, Clock, RotateCcw, Search, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  RotateCcw,
+  Search,
+  Star,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -18,7 +26,11 @@ import { getDeviceInfo } from "@/lib/fcm/device";
 import { APP_VERSION } from "@/lib/app-version";
 import { setNotificationTone } from "@/lib/notification-sound";
 import { useAuthStore } from "@/store/auth-store";
-import { SettingsCategory, SettingsOption, SettingsSection } from "@/components/settings/SettingsRows";
+import {
+  SettingsCategory,
+  SettingsOption,
+  SettingsSection,
+} from "@/components/settings/SettingsRows";
 import {
   findSetting,
   flattenSettings,
@@ -59,49 +71,74 @@ function hrefFor(basePath: string, path: string[]) {
 function defaultValue(control: SettingControl) {
   if (control.type === "toggle") return control.defaultValue ?? false;
   if (control.type === "number") return control.defaultValue ?? 0;
-  if (control.type === "select") return control.defaultValue ?? control.options[0] ?? "";
+  if (control.type === "select")
+    return control.defaultValue ?? control.options[0] ?? "";
   return "";
 }
 
 function valueLabel(control: SettingControl, value: unknown) {
   if (control.type === "toggle") return Boolean(value) ? "Enabled" : "Disabled";
-  if (control.type === "number") return `${Number(value || 0)}${control.suffix ? ` ${control.suffix}` : ""}`;
+  if (control.type === "number")
+    return `${Number(value || 0)}${control.suffix ? ` ${control.suffix}` : ""}`;
   if (control.type === "select") return String(value ?? "");
   if (typeof value === "string" && value) return "Last used";
   return "Ready";
 }
 
-function describeControl(control: SettingControl, value: unknown, changed: boolean) {
+function describeControl(
+  control: SettingControl,
+  value: unknown,
+  changed: boolean,
+) {
   const status = valueLabel(control, value);
   return `${control.title}: ${status}${changed ? " (changed)" : " (default)"}`;
 }
 
-function findControlByKey(nodes: SettingNode[], key: string): { control: SettingControl; path: string[] } | null {
+function findControlByKey(
+  nodes: SettingNode[],
+  key: string,
+): { control: SettingControl; path: string[] } | null {
   for (const item of flattenSettings(nodes)) {
-    const control = item.node.controls?.find((candidate) => candidate.key === key);
+    const control = item.node.controls?.find(
+      (candidate) => candidate.key === key,
+    );
     if (control) return { control, path: item.path };
   }
   return null;
 }
 
 function categoryStatus(node: SettingNode, values: Record<string, unknown>) {
-  const controls = flattenSettings([node]).flatMap((item) => item.node.controls || []);
+  const controls = flattenSettings([node]).flatMap(
+    (item) => item.node.controls || [],
+  );
   if (!controls.length) return "";
-  const changed = controls.filter((control) => Object.prototype.hasOwnProperty.call(values, control.key));
+  const changed = controls.filter((control) =>
+    Object.prototype.hasOwnProperty.call(values, control.key),
+  );
   if (!changed.length) return `${controls.length} settings at default`;
   return `${changed.length} of ${controls.length} settings changed`;
 }
 
-function DetailComponent({ keyName }: { keyName: NonNullable<SettingNode["componentKey"]> }) {
-  if (keyName === "profile") return <PersonalInformationSection mode="profile" />;
-  if (keyName === "password") return <PersonalInformationSection mode="password" />;
+function DetailComponent({
+  keyName,
+}: {
+  keyName: NonNullable<SettingNode["componentKey"]>;
+}) {
+  if (keyName === "profile")
+    return <PersonalInformationSection mode="profile" />;
+  if (keyName === "password")
+    return <PersonalInformationSection mode="password" />;
   if (keyName === "version") {
     return (
       <SettingsSection title="Current Version">
         <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-4">
           <div>
-            <div className="text-sm font-semibold text-slate-100">Jambh Electric</div>
-            <div className="mt-1 text-xs text-slate-400">Installed app version</div>
+            <div className="text-sm font-semibold text-slate-100">
+              Jambh Electric
+            </div>
+            <div className="mt-1 text-xs text-slate-400">
+              Installed app version
+            </div>
           </div>
           <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-sm font-semibold text-blue-200">
             v{APP_VERSION}
@@ -123,10 +160,18 @@ function filterForRole(nodes: SettingNode[], role?: string): SettingNode[] {
   return nodes
     .filter((node) => {
       if (!node.roles?.length) return true;
-      return node.roles.includes(activeRole as "admin" | "super_admin" | "technician" | "customer");
+      return node.roles.includes(
+        activeRole as "admin" | "super_admin" | "technician" | "customer",
+      );
     })
-    .map((node) => ({ ...node, children: node.children ? filterForRole(node.children, role) : undefined }))
-    .filter((node) => node.componentKey || node.controls?.length || node.children?.length);
+    .map((node) => ({
+      ...node,
+      children: node.children ? filterForRole(node.children, role) : undefined,
+    }))
+    .filter(
+      (node) =>
+        node.componentKey || node.controls?.length || node.children?.length,
+    );
 }
 
 function SettingControlRow({
@@ -177,7 +222,9 @@ function SettingControlRow({
             value={Number(value || 0)}
             onChange={(event) => onChange(Number(event.target.value) || 0)}
           />
-          {control.suffix && <span className="text-xs text-slate-400">{control.suffix}</span>}
+          {control.suffix && (
+            <span className="text-xs text-slate-400">{control.suffix}</span>
+          )}
         </div>
       </SettingsOption>
     );
@@ -241,7 +288,9 @@ export default function SettingsBrowser({
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const tree = useMemo(() => filterForRole(settingsTree, role), [role]);
   const all = useMemo(() => flattenSettings(tree), [tree]);
-  const node = slug.length ? all.find((item) => fullPath(item.path) === fullPath(slug))?.node : undefined;
+  const node = slug.length
+    ? all.find((item) => fullPath(item.path) === fullPath(slug))?.node
+    : undefined;
   const crumbs = settingBreadcrumbs(slug, tree);
 
   const visibleHome = tree;
@@ -257,12 +306,18 @@ export default function SettingsBrowser({
       return {
         key,
         title: found.control.title,
-        description: describeControl(found.control, value, Object.prototype.hasOwnProperty.call(values, key)),
+        description: describeControl(
+          found.control,
+          value,
+          Object.prototype.hasOwnProperty.call(values, key),
+        ),
         href: hrefFor(basePath, found.path),
       };
     });
   }, [basePath, recent, tree, values]);
-  const visibleRecentDetails = recentExpanded ? recentDetails : recentDetails.slice(0, 4);
+  const visibleRecentDetails = recentExpanded
+    ? recentDetails
+    : recentDetails.slice(0, 4);
 
   useEffect(() => {
     setFavorites(readJson<string[]>(FAVORITES_KEY, []));
@@ -273,11 +328,17 @@ export default function SettingsBrowser({
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return all.filter(({ node }) => `${node.title} ${node.description}`.toLowerCase().includes(q)).slice(0, 30);
+    return all
+      .filter(({ node }) =>
+        `${node.title} ${node.description}`.toLowerCase().includes(q),
+      )
+      .slice(0, 30);
   }, [all, query]);
 
   const toggleFavorite = (path: string) => {
-    const next = favorites.includes(path) ? favorites.filter((item) => item !== path) : [path, ...favorites].slice(0, 20);
+    const next = favorites.includes(path)
+      ? favorites.filter((item) => item !== path)
+      : [path, ...favorites].slice(0, 20);
     setFavorites(next);
     writeJson(FAVORITES_KEY, next);
   };
@@ -290,11 +351,19 @@ export default function SettingsBrowser({
     setValues(nextValues);
     writeJson(VALUES_KEY, nextValues);
     const entry = `${key} changed`;
-    const nextRecent = [entry, ...recent.filter((item) => item !== entry)].slice(0, 10);
+    const nextRecent = [
+      entry,
+      ...recent.filter((item) => item !== entry),
+    ].slice(0, 10);
     setRecent(nextRecent);
     writeJson(RECENT_KEY, nextRecent);
-    const history = readJson<Array<{ key: string; value: unknown; at: string }>>(HISTORY_KEY, []);
-    writeJson(HISTORY_KEY, [{ key, value, at: new Date().toISOString() }, ...history].slice(0, 50));
+    const history = readJson<
+      Array<{ key: string; value: unknown; at: string }>
+    >(HISTORY_KEY, []);
+    writeJson(
+      HISTORY_KEY,
+      [{ key, value, at: new Date().toISOString() }, ...history].slice(0, 50),
+    );
     toast.success("Setting saved");
   };
 
@@ -303,7 +372,9 @@ export default function SettingsBrowser({
     setActionOutput(output || `${label} completed`);
   };
 
-  const runAction = async (control: Extract<SettingControl, { type: "action" }>) => {
+  const runAction = async (
+    control: Extract<SettingControl, { type: "action" }>,
+  ) => {
     if (control.href) {
       router.push(control.href);
       return;
@@ -311,7 +382,9 @@ export default function SettingsBrowser({
 
     if (control.key === "devices.review") {
       const device = getDeviceInfo();
-      const userId = String(authUser?.id || authUser?._id || authUser?.customerId || "");
+      const userId = String(
+        authUser?.id || authUser?._id || authUser?.customerId || "",
+      );
       let statusText = `${device.deviceName || "This device"} is registered locally.`;
       if (userId && device.deviceId) {
         try {
@@ -322,9 +395,10 @@ export default function SettingsBrowser({
           });
           const json = await response.json();
           if (json?.success) {
-            statusText = json.active === false
-              ? `${device.deviceName || "This device"} is inactive.`
-              : `${device.deviceName || "This device"} is active.`;
+            statusText =
+              json.active === false
+                ? `${device.deviceName || "This device"} is inactive.`
+                : `${device.deviceName || "This device"} is active.`;
           }
         } catch {}
       }
@@ -355,9 +429,17 @@ export default function SettingsBrowser({
         const value = localStorage.getItem(key) || "";
         return total + key.length + value.length;
       }, 0);
-      const estimate = navigator.storage?.estimate ? await navigator.storage.estimate() : null;
-      const used = estimate?.usage ? `${(estimate.usage / 1024 / 1024).toFixed(2)} MB` : `${(localBytes / 1024).toFixed(1)} KB`;
-      recordAction(control.key, control.title, `Estimated browser storage used: ${used}`);
+      const estimate = navigator.storage?.estimate
+        ? await navigator.storage.estimate()
+        : null;
+      const used = estimate?.usage
+        ? `${(estimate.usage / 1024 / 1024).toFixed(2)} MB`
+        : `${(localBytes / 1024).toFixed(1)} KB`;
+      recordAction(
+        control.key,
+        control.title,
+        `Estimated browser storage used: ${used}`,
+      );
       return;
     }
 
@@ -369,7 +451,11 @@ export default function SettingsBrowser({
         recent,
         userAgent: navigator.userAgent,
       };
-      const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        }),
+      );
       const link = document.createElement("a");
       link.href = url;
       link.download = `settings-${new Date().toISOString().slice(0, 10)}.json`;
@@ -385,9 +471,16 @@ export default function SettingsBrowser({
     }
 
     if (control.key === "about.system") {
-      const permission = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
+      const permission =
+        typeof Notification === "undefined"
+          ? "unsupported"
+          : Notification.permission;
       const device = getDeviceInfo();
-      recordAction(control.key, control.title, `${device.deviceName}. Notifications: ${permission}. PWA: ${window.matchMedia("(display-mode: standalone)").matches ? "installed" : "browser"}.`);
+      recordAction(
+        control.key,
+        control.title,
+        `${device.deviceName}. Notifications: ${permission}. PWA: ${window.matchMedia("(display-mode: standalone)").matches ? "installed" : "browser"}.`,
+      );
       return;
     }
 
@@ -412,7 +505,11 @@ export default function SettingsBrowser({
     }
 
     if (control.key === "about.releaseNotes") {
-      recordAction(control.key, control.title, `${control.title} is available as an internal settings page.`);
+      recordAction(
+        control.key,
+        control.title,
+        `${control.title} is available as an internal settings page.`,
+      );
       return;
     }
 
@@ -422,7 +519,11 @@ export default function SettingsBrowser({
   const importSettings = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const parsed = JSON.parse(await file.text()) as { values?: Record<string, unknown>; favorites?: string[]; recent?: string[] };
+      const parsed = JSON.parse(await file.text()) as {
+        values?: Record<string, unknown>;
+        favorites?: string[];
+        recent?: string[];
+      };
       if (parsed.values && typeof parsed.values === "object") {
         setValues(parsed.values);
         writeJson(VALUES_KEY, parsed.values);
@@ -458,20 +559,33 @@ export default function SettingsBrowser({
   };
 
   const pageTitle = node?.title || "Settings";
-  const pageDescription = node?.description || "Manage app behavior, security, notifications, billing, and data.";
+  const pageDescription =
+    node?.description ||
+    "Manage app behavior, security, notifications, billing, and data.";
   const isFocusedPasswordPage = node?.componentKey === "password";
   const activeQuery = isFocusedPasswordPage ? "" : query.trim();
 
   if (slug.length && !node) {
     return (
       <div className="mx-auto max-w-3xl px-0 py-4 sm:px-6">
-        <button type="button" onClick={() => router.back()} className="mb-4 flex items-center gap-2 px-4 text-sm text-slate-300">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="mb-4 flex items-center gap-2 px-4 text-sm text-slate-300"
+        >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <SettingsSection>
           <div className="px-4 py-8 text-center">
-            <div className="text-lg font-semibold text-white">Setting not found</div>
-            <Link href={basePath} className="mt-3 inline-block text-sm text-blue-300">Return to Settings</Link>
+            <div className="text-lg font-semibold text-white">
+              Setting not found
+            </div>
+            <Link
+              href={basePath}
+              className="mt-3 inline-block text-sm text-blue-300"
+            >
+              Return to Settings
+            </Link>
           </div>
         </SettingsSection>
       </div>
@@ -479,17 +593,23 @@ export default function SettingsBrowser({
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl bg-slate-950 pb-8 text-white sm:bg-transparent sm:px-6 sm:py-6">
+    <main className="mx-auto h-[var(--app-vh,100dvh)] max-w-4xl bg-slate-950 pb-8 text-white sm:bg-transparent sm:px-6 sm:py-6">
       <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur sm:static sm:mb-4 sm:rounded-lg sm:border">
         <div className="flex items-center gap-3">
           {slug.length ? (
-            <button type="button" onClick={() => router.back()} className="grid h-10 w-10 place-items-center rounded-md hover:bg-slate-900">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="grid h-10 w-10 place-items-center rounded-md hover:bg-slate-900"
+            >
               <ArrowLeft className="h-5 w-5" />
             </button>
           ) : null}
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-xl font-bold">{pageTitle}</h1>
-            <p className="mt-0.5 text-xs leading-5 text-slate-400">{pageDescription}</p>
+            <p className="mt-0.5 text-xs leading-5 text-slate-400">
+              {pageDescription}
+            </p>
           </div>
           {slug.length ? (
             <button
@@ -498,17 +618,29 @@ export default function SettingsBrowser({
               className="grid h-10 w-10 place-items-center rounded-md hover:bg-slate-900"
               aria-label="Pin setting"
             >
-              <Star className={`h-5 w-5 ${isFavorite ? "fill-amber-300 text-amber-300" : "text-slate-400"}`} />
+              <Star
+                className={`h-5 w-5 ${isFavorite ? "fill-amber-300 text-amber-300" : "text-slate-400"}`}
+              />
             </button>
           ) : null}
         </div>
         {crumbs.length ? (
           <nav className="mt-3 flex flex-wrap items-center gap-1 text-xs text-slate-400">
-            <Link href={basePath} className="text-blue-300">Settings</Link>
+            <Link href={basePath} className="text-blue-300">
+              Settings
+            </Link>
             {crumbs.map((crumb) => (
-              <span key={crumb.path.join("/")} className="flex items-center gap-1">
+              <span
+                key={crumb.path.join("/")}
+                className="flex items-center gap-1"
+              >
                 <span>/</span>
-                <Link href={hrefFor(basePath, crumb.path)} className="hover:text-blue-300">{crumb.title}</Link>
+                <Link
+                  href={hrefFor(basePath, crumb.path)}
+                  className="hover:text-blue-300"
+                >
+                  {crumb.title}
+                </Link>
               </span>
             ))}
           </nav>
@@ -529,9 +661,19 @@ export default function SettingsBrowser({
       <div className="space-y-4 sm:space-y-5">
         {activeQuery ? (
           <SettingsSection title="Search Results">
-            {searchResults.length ? searchResults.map(({ node, path }) => (
-              <SettingsCategory key={path.join("/")} node={node} href={hrefFor(basePath, path)} />
-            )) : <div className="px-4 py-6 text-sm text-slate-400">No settings found.</div>}
+            {searchResults.length ? (
+              searchResults.map(({ node, path }) => (
+                <SettingsCategory
+                  key={path.join("/")}
+                  node={node}
+                  href={hrefFor(basePath, path)}
+                />
+              ))
+            ) : (
+              <div className="px-4 py-6 text-sm text-slate-400">
+                No settings found.
+              </div>
+            )}
           </SettingsSection>
         ) : null}
 
@@ -543,7 +685,13 @@ export default function SettingsBrowser({
                   const parts = path.split("/").filter(Boolean);
                   const favNode = findSetting(parts, tree);
                   return favNode ? (
-                    <SettingsCategory key={path} node={favNode} href={hrefFor(basePath, parts)} favorite onToggleFavorite={() => toggleFavorite(path)} />
+                    <SettingsCategory
+                      key={path}
+                      node={favNode}
+                      href={hrefFor(basePath, parts)}
+                      favorite
+                      onToggleFavorite={() => toggleFavorite(path)}
+                    />
                   ) : null;
                 })}
               </SettingsSection>
@@ -558,18 +706,32 @@ export default function SettingsBrowser({
                       onClick={() => setRecentExpanded((current) => !current)}
                       className="flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200"
                     >
-                      {recentExpanded ? "Show less" : `Show all ${recentDetails.length}`}
-                      {recentExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      {recentExpanded
+                        ? "Show less"
+                        : `Show all ${recentDetails.length}`}
+                      {recentExpanded ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
                     </button>
                   ) : null
                 }
               >
                 {visibleRecentDetails.map((item) => (
-                  <Link key={item.key} href={item.href} className="flex min-h-14 items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-900">
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className="flex min-h-14 items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-900"
+                  >
                     <Clock className="h-4 w-4 shrink-0 text-slate-500" />
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium text-slate-100">{item.title}</span>
-                      <span className="mt-0.5 block text-xs text-slate-400">{item.description}</span>
+                      <span className="block font-medium text-slate-100">
+                        {item.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-400">
+                        {item.description}
+                      </span>
                     </span>
                   </Link>
                 ))}
@@ -577,7 +739,12 @@ export default function SettingsBrowser({
             ) : null}
             <SettingsSection title="Categories">
               {visibleHome.map((item) => (
-                <SettingsCategory key={item.id} node={item} href={hrefFor(basePath, [item.id])} status={categoryStatus(item, values)} />
+                <SettingsCategory
+                  key={item.id}
+                  node={item}
+                  href={hrefFor(basePath, [item.id])}
+                  status={categoryStatus(item, values)}
+                />
               ))}
             </SettingsSection>
           </>
@@ -603,13 +770,16 @@ export default function SettingsBrowser({
               </SettingsSection>
             ) : null}
 
-            {node?.componentKey && !(role === "customer" && node.componentKey === "notifications") ? (
+            {node?.componentKey &&
+            !(role === "customer" && node.componentKey === "notifications") ? (
               <div className="px-4 sm:px-0">
                 <DetailComponent keyName={node.componentKey} />
               </div>
             ) : null}
 
-            {role === "customer" && slug[0] === "notifications" && slug[1] === "in-app" ? (
+            {role === "customer" &&
+            slug[0] === "notifications" &&
+            slug[1] === "in-app" ? (
               <div className="px-4 sm:px-0">
                 <CustomerSettingsClient userId={customerUserId || null} />
               </div>
@@ -619,7 +789,11 @@ export default function SettingsBrowser({
               <SettingsSection
                 title="Configuration"
                 action={
-                  <button type="button" onClick={resetNode} className="flex items-center gap-1 text-xs text-slate-300 hover:text-white">
+                  <button
+                    type="button"
+                    onClick={resetNode}
+                    className="flex items-center gap-1 text-xs text-slate-300 hover:text-white"
+                  >
                     <RotateCcw className="h-3.5 w-3.5" /> Reset
                   </button>
                 }
@@ -629,7 +803,10 @@ export default function SettingsBrowser({
                     key={control.key}
                     control={control}
                     value={values[control.key] ?? defaultValue(control)}
-                    changed={Object.prototype.hasOwnProperty.call(values, control.key)}
+                    changed={Object.prototype.hasOwnProperty.call(
+                      values,
+                      control.key,
+                    )}
                     onChange={(value) => recordChange(control.key, value)}
                     onAction={runAction}
                   />
@@ -639,7 +816,9 @@ export default function SettingsBrowser({
 
             {actionOutput ? (
               <SettingsSection title="Result">
-                <div className="px-4 py-4 text-sm text-slate-300">{actionOutput}</div>
+                <div className="px-4 py-4 text-sm text-slate-300">
+                  {actionOutput}
+                </div>
               </SettingsSection>
             ) : null}
           </>

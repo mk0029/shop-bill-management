@@ -723,7 +723,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
           get().handleRealtimeUpdate(update);
         },
         error: (error) => {
-          console.error("❌ Sanity real-time error:", error);
+          console.warn("[realtime] data-store subscription error:", error instanceof Error ? error.message : error);
           set({ isRealtimeConnected: false });
         },
       });

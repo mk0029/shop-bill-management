@@ -13,7 +13,7 @@ import Image from "next/image";
 
 export default function AboutSection() {
   return (
-    <section id="about" className="container mx-auto px-4 py-14 md:py-20">
+    <section id="about" className="container mx-auto px-4 py-11 md:py-20">
       {/* Section 1: About Us (Split Layout) */}
       <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
         <div>

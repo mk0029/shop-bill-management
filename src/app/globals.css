@@ -145,9 +145,9 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
 
   .glass-strong {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(32px);
-    -webkit-backdrop-filter: blur(32px);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(70px);
+    -webkit-backdrop-filter: blur(70px);
     border: 1px solid rgba(255, 255, 255, 0.12);
   }
 
@@ -176,7 +176,9 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
       rgba(139, 92, 246, 0.1) 60%,
       rgba(255, 255, 255, 0.02) 100%
     );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
@@ -276,7 +278,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
 
   .glass-button-primary {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(139, 92, 246, 0.15));
+    background: linear-gradient(
+      135deg,
+      rgba(56, 189, 248, 0.2),
+      rgba(139, 92, 246, 0.15)
+    );
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(56, 189, 248, 0.25);
@@ -284,7 +290,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
 
   .glass-button-primary:hover {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(139, 92, 246, 0.25));
+    background: linear-gradient(
+      135deg,
+      rgba(56, 189, 248, 0.3),
+      rgba(139, 92, 246, 0.25)
+    );
     box-shadow: 0 8px 32px rgba(56, 189, 248, 0.2);
     transform: translateY(-1px);
   }
@@ -328,14 +338,14 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #38BDF8, #8B5CF6, #A78BFA);
+    background: linear-gradient(135deg, #38bdf8, #8b5cf6, #a78bfa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .text-gradient-warm {
-    background: linear-gradient(135deg, #7DD3FC, #A78BFA, #C4B5FD);
+    background: linear-gradient(135deg, #7dd3fc, #a78bfa, #c4b5fd);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -359,12 +369,24 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     transform: translateY(0);
   }
 
-  .stagger-1 { transition-delay: 0.1s; }
-  .stagger-2 { transition-delay: 0.2s; }
-  .stagger-3 { transition-delay: 0.3s; }
-  .stagger-4 { transition-delay: 0.4s; }
-  .stagger-5 { transition-delay: 0.5s; }
-  .stagger-6 { transition-delay: 0.6s; }
+  .stagger-1 {
+    transition-delay: 0.1s;
+  }
+  .stagger-2 {
+    transition-delay: 0.2s;
+  }
+  .stagger-3 {
+    transition-delay: 0.3s;
+  }
+  .stagger-4 {
+    transition-delay: 0.4s;
+  }
+  .stagger-5 {
+    transition-delay: 0.5s;
+  }
+  .stagger-6 {
+    transition-delay: 0.6s;
+  }
 
   .animate-float {
     animation: float 6s ease-in-out infinite;
@@ -418,7 +440,7 @@ body.landing-page::-webkit-scrollbar-thumb:hover {
   pointer-events: none;
 }
 #nprogress .bar {
-  background: linear-gradient(90deg, #38BDF8, #8B5CF6);
+  background: linear-gradient(90deg, #38bdf8, #8b5cf6);
   position: fixed;
   z-index: 9999;
   top: 0;
@@ -454,7 +476,14 @@ body.landing-page::-webkit-scrollbar-thumb:hover {
   }
 }
 
-.admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) {
+.admin-main
+  :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ) {
   border-color: rgb(255 255 255 / 0.1) !important;
   background-color: rgb(255 255 255 / 0.055) !important;
   color: rgb(241 245 249) !important;
@@ -462,11 +491,25 @@ body.landing-page::-webkit-scrollbar-thumb:hover {
   backdrop-filter: blur(16px);
 }
 
-.admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea)::placeholder {
+.admin-main
+  :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  )::placeholder {
   color: rgb(148 163 184 / 0.85) !important;
 }
 
-.admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea):focus {
+.admin-main
+  :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+        [type="file"]
+      ),
+    select,
+    textarea
+  ):focus {
   border-color: rgb(103 232 249 / 0.35) !important;
   outline: none !important;
   box-shadow:

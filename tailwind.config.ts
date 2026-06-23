@@ -150,6 +150,10 @@ const config: Config = {
           "0%": { transform: "translateY(100%)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        "slide-in-right": {
+          "0%": { transform: "translateX(100%)", opacity: "0" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
         "spin-slow": {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
@@ -169,6 +173,7 @@ const config: Config = {
         shimmer: "shimmer 2s linear infinite",
         "gradient-rotate": "gradient-rotate 8s ease infinite",
         "spin-slow": "spin-slow 20s linear infinite",
+        "slide-in-right": "slide-in-right 0.3s ease-out forwards",
       },
       backgroundImage: {
         "glass-gradient":

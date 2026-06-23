@@ -18,6 +18,7 @@ import PanelLeftOpen from "lucide-react/dist/esm/icons/panel-left-open.js";
 import Plus from "lucide-react/dist/esm/icons/plus.js";
 import Settings from "lucide-react/dist/esm/icons/settings.js";
 import Shield from "lucide-react/dist/esm/icons/shield.js";
+import Smartphone from "lucide-react/dist/esm/icons/smartphone.js";
 import User from "lucide-react/dist/esm/icons/user.js";
 import Users from "lucide-react/dist/esm/icons/users.js";
 import Wrench from "lucide-react/dist/esm/icons/wrench.js";
@@ -98,6 +99,11 @@ const adminNavigation: NavigationItem[] = [
         label: "Delete Cashbook Entry",
         href: "/admin/super-access/delete-cashbook-entry",
         icon: DollarSign,
+      },
+      {
+        label: "WhatsApp Bot",
+        href: "/admin/super-access/whatsapp-bot",
+        icon: Smartphone,
       },
     ],
   },

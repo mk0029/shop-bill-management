@@ -83,7 +83,7 @@ export function useCashBookRealtime({
               }
             },
             error: (error: any) => {
-              console.error('Cash Book realtime subscription error:', error);
+              console.warn('[realtime] cash-book subscription error:', error instanceof Error ? error.message : error);
               setIsConnected(false);
             },
             complete: () => {
@@ -95,7 +95,7 @@ export function useCashBookRealtime({
         setIsConnected(true);
 
       } catch (error) {
-        console.error('Error setting up Cash Book realtime subscription:', error);
+        console.warn('[realtime] cash-book setup error:', error instanceof Error ? error.message : error);
         setIsConnected(false);
       }
     };

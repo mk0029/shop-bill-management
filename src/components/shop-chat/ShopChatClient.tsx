@@ -728,8 +728,8 @@ function ChatPanel({
     return <ChatEmptyState mode={mode} />;
   }
 
-  return (
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
+    return (
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
       <ChatHeader
         peer={{
           id: room.customerId,

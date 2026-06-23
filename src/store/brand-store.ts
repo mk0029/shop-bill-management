@@ -307,7 +307,7 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
         }
       },
       error: (error) => {
-        console.error("❌ Brand real-time error:", error);
+        console.warn("[realtime] brand-store subscription error:", error instanceof Error ? error.message : error);
         set({ isRealtimeConnected: false });
       },
     });

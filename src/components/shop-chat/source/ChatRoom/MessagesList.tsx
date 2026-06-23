@@ -340,11 +340,11 @@ const MessagesList: React.FC<MessagesListProps> = ({
   }
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-x-hidden bg-white/[0.018] backdrop-blur-[2px]">
+    <div className="relative min-h-0 flex-1 overflow-hidden bg-white/[0.018] backdrop-blur-[2px]">
       <div
         ref={scrollRef}
         id="messages-scroll"
-        className="no-scrollbar mx-auto h-full min-h-0 w-full max-w-[1400px] space-y-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3 sm:px-4 sm:py-2"
+        className="no-scrollbar mx-auto flex h-full min-h-0 w-full max-w-[1400px] flex-col space-y-0 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3 sm:px-4 sm:py-2"
       >
         {/* Loading indicator at top */}
         {isLoading && (

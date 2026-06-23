@@ -40,7 +40,7 @@ export default function RequestAccountSection({
   };
 
   return (
-    <section className="container mx-auto px-4 py-14 md:py-20" id="request">
+    <section className="container mx-auto px-4 py-11 md:py-20" id="request">
       <div className="grid  gap-10 items-start">
         <div className="text-center">
           <h2 className="text-2xl md:text-3xl font-semibold">

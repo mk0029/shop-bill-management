@@ -55,7 +55,7 @@ export function AboutContent() {
   const { t } = useLandingLanguage();
 
   return (
-    <section className="container mx-auto px-4 py-12">
+    <section className="container mx-auto px-4 py-11">
       <GlassCard>
         <h2 className="text-xl font-semibold text-white">{t("pages.about.heading")}</h2>
         <ul className="mt-4 space-y-3 text-sm leading-6 text-[#B8C0CC]">
@@ -100,7 +100,7 @@ export function ProductsContent() {
   const { t } = useLandingLanguage();
 
   return (
-    <section className="container mx-auto px-4 py-12">
+    <section className="container mx-auto px-4 py-11">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {productKeys.map((key) => (
           <PremiumCard key={key}>
@@ -158,7 +158,7 @@ export function PricingContent() {
   const { t } = useLandingLanguage();
 
   return (
-    <section className="container mx-auto grid gap-4 px-4 py-12 md:grid-cols-2 lg:grid-cols-4">
+    <section className="container mx-auto grid gap-4 px-4 py-11 md:grid-cols-2 lg:grid-cols-4">
       {pricingHighlights.map((item, index) => (
         <PremiumCard key={item.title}>
           <h2 className="font-semibold text-white text-sm uppercase tracking-wider text-sky-400/80">
@@ -184,7 +184,7 @@ export function RentToolsContent() {
   const support = getSupportContact();
 
   return (
-    <section className="container mx-auto px-4 py-12">
+    <section className="container mx-auto px-4 py-11">
       <div className="grid gap-4 lg:grid-cols-2">
         <GlassCard>
           <div className="flex items-start gap-3">
@@ -265,7 +265,7 @@ export function ContactContent({
   const { t } = useLandingLanguage();
 
   return (
-    <section className="container mx-auto grid gap-4 px-4 py-12 lg:grid-cols-2">
+    <section className="container mx-auto grid gap-4 px-4 py-11 lg:grid-cols-2">
       <GlassCard>
         <p className="text-sm leading-6 text-[#B8C0CC]">{t("pages.contact.phone")}: {support.phone}</p>
         <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.contact.whatsapp")}: {support.whatsapp}</p>
@@ -309,7 +309,7 @@ export function ServiceDetailContent({
   const hasExtra = !extraSummary.startsWith("pages.");
 
   return (
-    <section className="container mx-auto px-4 py-12">
+    <section className="container mx-auto px-4 py-11">
       <div className="grid gap-4 xl:grid-cols-3">
         <GlassCard className="xl:col-span-2">
           <h2 className="text-2xl font-semibold text-white">
@@ -402,7 +402,7 @@ export function SimplePolicyContent({
   const count = simplePolicyCounts[page];
 
   return (
-    <section className="container mx-auto px-4 py-12">
+    <section className="container mx-auto px-4 py-11">
       <GlassCard>
         <ul className="space-y-3 text-sm leading-6 text-[#B8C0CC]">
           {Array.from({ length: count }, (_, index) => (
@@ -418,7 +418,7 @@ export function TermsContent() {
   const { t } = useLandingLanguage();
 
   return (
-    <section className="container mx-auto px-4 py-12">
+    <section className="container mx-auto px-4 py-11">
       <div className="space-y-6">
         {termsPointCounts.map((count, sectionIndex) => (
           <article key={sectionIndex} className="glass-card p-6">

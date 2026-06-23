@@ -83,7 +83,7 @@ export default function Header() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
           scrolled
-            ? "glass-strong shadow-glass"
+            ? "backdrop-blur-sm bg-white/10 shadow-glass"
             : "bg-transparent"
         }`}
       >
@@ -97,7 +97,6 @@ export default function Header() {
                 height={40}
                 className="transition-transform duration-500 group-hover:scale-105"
               />
-              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-sky-400 animate-pulse-glow" />
             </div>
             <span className="hidden text-base font-bold text-white tracking-tight sm:block">
               {t("common.brand")}
@@ -109,7 +108,7 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="glass-button rounded-xl px-3.5 py-2 text-sm font-medium text-[#B8C0CC] hover:text-white"
+                className="glass-button bg-slate-800/30 border-white/20 rounded-xl px-3.5 py-2 text-sm font-medium text-[#B8C0CC] hover:text-white"
               >
                 {t(navKeys[quickLinks.indexOf(link)])}
               </Link>
@@ -142,38 +141,40 @@ export default function Header() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm md:hidden animate-fade-in"
+            className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm md:hidden animate-fade-in"
             onClick={() => setOpen(false)}
           />
-          <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm glass-strong p-6 shadow-2xl md:hidden animate-slide-up">
-            <div className="mb-6 flex items-center justify-between">
-              <span className="text-base font-semibold text-white">{t("common.menu")}</span>
+          <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm p-4 shadow-2xl md:hidden animate-slide-in-right glass-strong">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-base font-semibold text-white">
+                {t("common.menu")}
+              </span>
               <button
                 aria-label={t("common.closeMenu")}
                 onClick={() => setOpen(false)}
-                className="glass-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#E5E7EB]"
+                className="glass-button inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#E5E7EB]"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="flex flex-col gap-1">
-              {quickLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="glass rounded-xl px-4 py-3 text-base text-[#B8C0CC] hover:text-white transition-colors"
-                >
-                  {t(navKeys[quickLinks.indexOf(link)])}
-                </Link>
-              ))}
-              <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className="mt-3"
-              >
-                <Button className="glass-button-primary h-12 w-full rounded-xl text-base font-semibold text-sky-200 shadow-none">
-                  <Sparkles className="h-4 w-4 mr-2" />
+            <div className="flex flex-col gap-1 justify-between h-[90%]">
+              <div className="flex flex-col gap-2">
+                {" "}
+                {quickLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className="glass text-center bg-slate-800/40 border border-solid border-white/20 rounded-lg px-3 py-2.5 text-sm text-[#ffffff] hover:text-white transition-colors hover:bg-white/10"
+                  >
+                    {t(navKeys[quickLinks.indexOf(link)])}
+                  </Link>
+                ))}
+                <div className="my-2 h-px glass-divider" />
+              </div>
+              <Link href="/login" onClick={() => setOpen(false)}>
+                <Button className="glass-button-primary h-10 w-full rounded-lg text-sm font-semibold text-sky-200 shadow-none">
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                   {t("common.login")}
                 </Button>
               </Link>

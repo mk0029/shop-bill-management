@@ -13,7 +13,7 @@ export default function ServicesSection({
 }) {
   return (
     <section className="bg-muted/30 border-y border-border">
-      <div className="container mx-auto px-4 py-14 md:py-20">
+      <div className="container mx-auto px-4 py-11 md:py-20">
         <h2 className="text-2xl md:text-3xl font-semibold text-center">
           What We Offer
         </h2>

@@ -19,7 +19,17 @@ import {
   whyChooseUs,
 } from "@landing/lib/site-data";
 import Link from "next/link";
-import { ArrowRight, MessageCircle, Phone, Zap, Sparkles, Bolt, ShieldCheck, Clock, Star } from "lucide-react";
+import {
+  ArrowRight,
+  MessageCircle,
+  Phone,
+  Zap,
+  Sparkles,
+  Bolt,
+  ShieldCheck,
+  Clock,
+  Star,
+} from "lucide-react";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
 import { useEffect, useRef } from "react";
 
@@ -78,7 +88,13 @@ const serviceIcons: Record<string, string> = {
   "tool-rental": "accent",
 };
 
-function ScrollRevealSection({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function ScrollRevealSection({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -122,14 +138,14 @@ export default function LandingHomeContent({
 
   return (
     <ElectricalBackground>
-      <div className="min-h-screen text-[#E5E7EB]">
+      <div className="h-[var(--app-vh,100dvh)] text-[#E5E7EB]">
         <Header />
         <main>
           <HeroSection
             support={{ phone: support.phone, whatsapp: support.whatsapp }}
           />
 
-          <section className="container mx-auto px-4 -mt-8 relative z-20">
+          <section className="container mx-auto px-4 -mt-8 relative z-20  max-sm:pb-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
               <StatBadge label="Happy Customers" value="500+" />
               <StatBadge label="Services Done" value="1.2K+" />
@@ -140,7 +156,10 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section id="services" className="container mx-auto px-4 py-16 md:py-24">
+          <section
+            id="services"
+            className="container mx-auto px-4 py-11 md:py-24"
+          >
             <ScrollRevealSection>
               <SectionTitle
                 eyebrow={t("services.eyebrow")}
@@ -153,7 +172,14 @@ export default function LandingHomeContent({
                 <ScrollRevealSection key={item.slug}>
                   <PremiumCard>
                     <div className="flex items-start gap-4 mb-4">
-                      <IconBox variant={(serviceIcons[item.slug] || "primary") as "primary" | "secondary" | "accent"}>
+                      <IconBox
+                        variant={
+                          (serviceIcons[item.slug] || "primary") as
+                            | "primary"
+                            | "secondary"
+                            | "accent"
+                        }
+                      >
                         <item.icon className="h-5 w-5" />
                       </IconBox>
                       <div className="flex-1 min-w-0">
@@ -162,16 +188,23 @@ export default function LandingHomeContent({
                         </h3>
                         <div className="flex items-center gap-1.5 mt-1.5">
                           {[1, 2, 3, 4, 5].map((star) => (
-                            <Star key={star} className="h-3 w-3 text-sky-400/60 fill-sky-400/60" />
+                            <Star
+                              key={star}
+                              className="h-3 w-3 text-sky-400/60 fill-sky-400/60"
+                            />
                           ))}
-                          <span className="text-xs text-[#B8C0CC] ml-1">(4.8)</span>
+                          <span className="text-xs text-[#B8C0CC] ml-1">
+                            (4.8)
+                          </span>
                         </div>
                       </div>
                     </div>
                     <div className="relative">
                       <div className="absolute -left-2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-sky-400/30 via-violet-400/20 to-transparent rounded-full" />
                       <p className="text-sm leading-relaxed text-[#B8C0CC] pl-4 border-l border-white/5">
-                        {t(`services.items.${serviceKeys[index]}.shortDescription`)}
+                        {t(
+                          `services.items.${serviceKeys[index]}.shortDescription`,
+                        )}
                       </p>
                     </div>
                     <div className="mt-5 flex items-center justify-between">
@@ -195,7 +228,7 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section id="about" className="py-16 md:py-24">
+          <section id="about" className="py-11 md:py-24">
             <div className="container mx-auto px-4">
               <ScrollRevealSection>
                 <SectionTitle
@@ -212,7 +245,9 @@ export default function LandingHomeContent({
                         <IconBox variant="secondary">
                           <item.icon className="h-5 w-5" />
                         </IconBox>
-                        <h3 className="text-base font-semibold text-white flex-1">{item.title}</h3>
+                        <h3 className="text-base font-semibold text-white flex-1">
+                          {item.title}
+                        </h3>
                       </div>
                       <p className="text-sm text-[#B8C0CC] leading-relaxed pl-1">
                         {item.copy}
@@ -230,7 +265,7 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section className="container mx-auto px-4 py-16 md:py-24">
+          <section className="container mx-auto px-4 py-11 md:py-24">
             <ScrollRevealSection>
               <SectionTitle
                 eyebrow={t("process.eyebrow")}
@@ -239,17 +274,16 @@ export default function LandingHomeContent({
             </ScrollRevealSection>
             <div className="mx-auto mt-10 max-w-6xl relative">
               <div className="absolute top-12 left-8 right-8 h-px bg-gradient-to-r from-sky-500/20 via-violet-500/20 to-transparent hidden lg:block" />
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {processSteps.map((step, index) => (
                   <ScrollRevealSection key={step}>
-                    <div className="glass-card p-6 text-center group relative">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-4 ring-1 ring-white/5 group-hover:ring-sky-400/20 transition-all duration-500">
-                        <span className="text-lg font-bold text-gradient">{index + 1}</span>
+                    <div className="glass-card p-4 text-center group relative">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-2 ring-1 ring-white/5 group-hover:ring-sky-400/20 transition-all duration-500">
+                        <span className="text-sm font-bold text-gradient">
+                          {index + 1}
+                        </span>
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400/10 to-violet-400/10 flex items-center justify-center mx-auto mb-3">
-                        <ArrowRight className="h-3.5 w-3.5 text-sky-400/60" />
-                      </div>
-                      <p className="text-sm leading-relaxed text-[#E5E7EB] font-medium">
+                      <p className="text-sm text-[#E5E7EB] font-medium">
                         {t(`process.steps.${processKeys[index]}`)}
                       </p>
                     </div>
@@ -261,7 +295,7 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section id="pricing" className="py-16 md:py-24">
+          <section id="pricing" className="py-11 md:py-24">
             <div className="container mx-auto px-4">
               <ScrollRevealSection>
                 <SectionTitle
@@ -302,7 +336,10 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section id="rent-tools" className="container mx-auto px-4 py-16 md:py-24">
+          <section
+            id="rent-tools"
+            className="container mx-auto px-4 py-11 md:py-24"
+          >
             <ScrollRevealSection>
               <div className="glass-card p-8 md:p-10 relative overflow-hidden">
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-bl from-sky-500/10 to-transparent rounded-full" />
@@ -316,7 +353,9 @@ export default function LandingHomeContent({
                       <h2 className="text-2xl md:text-3xl font-bold text-white">
                         {t("rentTools.title")}
                       </h2>
-                      <p className="text-sm text-[#B8C0CC]/60 mt-1">Flexible rental plans</p>
+                      <p className="text-sm text-[#B8C0CC]/60 mt-1">
+                        Flexible rental plans
+                      </p>
                     </div>
                   </div>
                   <p className="max-w-2xl text-[#B8C0CC] leading-relaxed">
@@ -346,7 +385,7 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section id="request" className="py-16 md:py-24">
+          <section id="request" className="py-11 md:py-24">
             <div className="container mx-auto px-4">
               <ScrollRevealSection>
                 <SectionTitle
@@ -356,11 +395,14 @@ export default function LandingHomeContent({
                 />
               </ScrollRevealSection>
               <div className="mx-auto mt-10 max-w-4xl">
-                <div className="glass-card p-8 md:p-10">
+                <div className="glass-card p-3 sm:p-5 md:p-8 lg:p-10">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-sky-500/5 to-transparent rounded-bl-full pointer-events-none" />
                   <div className="relative z-10">
                     <RequestAccountForm
-                      support={{ email: support.email, whatsapp: support.whatsapp }}
+                      support={{
+                        email: support.email,
+                        whatsapp: support.whatsapp,
+                      }}
                       compact
                     />
                   </div>
@@ -371,10 +413,13 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section className="py-16 md:py-24">
+          <section className="py-11 md:py-24">
             <div className="container mx-auto px-4">
               <ScrollRevealSection>
-                <SectionTitle eyebrow={t("faq.eyebrow")} title={t("faq.title")} />
+                <SectionTitle
+                  eyebrow={t("faq.eyebrow")}
+                  title={t("faq.title")}
+                />
               </ScrollRevealSection>
               <div className="mx-auto mt-10 max-w-4xl space-y-4">
                 {faqs.map((faq, index) => (
@@ -385,7 +430,9 @@ export default function LandingHomeContent({
                           <span className="w-1.5 h-1.5 rounded-full bg-sky-400/60 group-open:bg-sky-400 transition-colors" />
                           <span>{t(`faq.items.${faqKeys[index]}.q`)}</span>
                         </span>
-                        <span className="text-sky-400/60 group-open:rotate-180 transition-transform duration-300 shrink-0">▾</span>
+                        <span className="text-sky-400/60 group-open:rotate-180 transition-transform duration-300 shrink-0">
+                          ▾
+                        </span>
                       </summary>
                       <div className="mt-3 ml-4 pl-4 border-l border-white/5">
                         <p className="text-sm leading-relaxed text-[#B8C0CC]">
@@ -401,9 +448,12 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section id="contact" className="container mx-auto px-4 py-16 md:py-24">
+          <section
+            id="contact"
+            className="container mx-auto px-4 py-11 md:py-24"
+          >
             <ScrollRevealSection>
-              <div className="glass-card p-8 md:p-12 text-center relative overflow-hidden">
+              <div className="glass-card p-3 sm:p-5 md:p-8 lg:p-12 text-center relative overflow-hidden">
                 <div className="absolute -top-32 -left-32 w-64 h-64 bg-gradient-to-br from-sky-500/8 to-transparent rounded-full" />
                 <div className="absolute -bottom-32 -right-32 w-64 h-64 bg-gradient-to-tl from-violet-500/8 to-transparent rounded-full" />
                 <div className="relative z-10">
@@ -416,7 +466,7 @@ export default function LandingHomeContent({
                   <p className="mt-3 text-[#B8C0CC] max-w-md mx-auto">
                     Reach out for service, product, account, or payment support
                   </p>
-                  <div className="mt-8 flex flex-wrap justify-center gap-4">
+                  <div className="mt-8 flex flex-wrap justify-center gap-3 sm:gap-4">
                     <a
                       href={`tel:${support.phone}`}
                       className="glass-button-primary inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-sky-200 gap-2 hover:scale-105 transition-transform duration-300"

@@ -497,7 +497,7 @@ export function BillingBrowser({
       {/* Bills List - grouped by customer */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
             <Users className="w-5 h-5" />
             All Bills
           </h2>

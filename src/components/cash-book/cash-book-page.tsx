@@ -287,13 +287,9 @@ export function CashBookPage() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Cash Book</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Track all credits and debits</p>
-        </div>
+      <div className="flex items-center justify-end gap-3">
         <Link href="/admin/cashbooks">
           <Button size="sm" variant="secondary" className="gap-1.5">
             <Wallet className="w-4 h-4" />
@@ -304,27 +300,27 @@ export function CashBookPage() {
 
       {/* Summary strip */}
       {!isTechnician && (
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-white/[0.06] bg-gradient-to-b from-emerald-500/10 to-emerald-500/05 backdrop-blur-xl p-3 sm:p-4">
-            <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium mb-1.5">
-              <ArrowUpRight className="w-3.5 h-3.5" />
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="rounded-xl border border-white/[0.06] bg-gradient-to-b from-emerald-500/10 to-emerald-500/05 backdrop-blur-xl p-2.5 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-400 text-[10px] sm:text-xs font-medium mb-1">
+              <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Credits
             </div>
-            <p className="text-lg sm:text-xl font-bold text-white">{formatCurrency(summary.totalCredits)}</p>
+            <p className="text-sm sm:text-lg md:text-xl font-bold text-white truncate">{formatCurrency(summary.totalCredits)}</p>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-gradient-to-b from-red-500/10 to-red-500/05 backdrop-blur-xl p-3 sm:p-4">
-            <div className="flex items-center gap-2 text-red-400 text-xs font-medium mb-1.5">
-              <ArrowDownRight className="w-3.5 h-3.5" />
+          <div className="rounded-xl border border-white/[0.06] bg-gradient-to-b from-red-500/10 to-red-500/05 backdrop-blur-xl p-2.5 sm:p-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-red-400 text-[10px] sm:text-xs font-medium mb-1">
+              <ArrowDownRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Debits
             </div>
-            <p className="text-lg sm:text-xl font-bold text-white">{formatCurrency(summary.totalDebits)}</p>
+            <p className="text-sm sm:text-lg md:text-xl font-bold text-white truncate">{formatCurrency(summary.totalDebits)}</p>
           </div>
-          <div className={`rounded-xl border border-white/[0.06] backdrop-blur-xl p-3 sm:p-4 bg-gradient-to-b ${summary.balance >= 0 ? "from-blue-500/10 to-blue-500/05" : "from-orange-500/10 to-orange-500/05"}`}>
-            <div className="flex items-center gap-2 text-xs font-medium mb-1.5 text-blue-400">
-              <Wallet className="w-3.5 h-3.5" />
+          <div className={`rounded-xl border border-white/[0.06] backdrop-blur-xl p-2.5 sm:p-4 bg-gradient-to-b ${summary.balance >= 0 ? "from-blue-500/10 to-blue-500/05" : "from-orange-500/10 to-orange-500/05"}`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-medium mb-1 text-blue-400">
+              <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               Balance
             </div>
-            <p className={`text-lg sm:text-xl font-bold ${summary.balance >= 0 ? "text-blue-300" : "text-orange-300"}`}>
+            <p className={`text-sm sm:text-lg md:text-xl font-bold truncate ${summary.balance >= 0 ? "text-blue-300" : "text-orange-300"}`}>
               {formatCurrency(Math.abs(summary.balance))}
               {summary.balance < 0 && <span className="text-[10px] font-normal text-orange-400 ml-1">(deficit)</span>}
             </p>
@@ -334,17 +330,17 @@ export function CashBookPage() {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search entries..."
+            placeholder="Search..."
             className="w-full rounded-lg border border-white/[0.06] bg-white/[0.04] pl-9 pr-3 py-2 text-sm text-slate-100 outline-none backdrop-blur-xl placeholder:text-slate-500 focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20 transition-all"
           />
         </div>
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Button size="sm" variant="secondary" onClick={() => window.location.href = "/admin/cash-book/history"} className="gap-1.5">
             <History className="w-4 h-4" />
             <span className="hidden sm:inline">History</span>
@@ -470,40 +466,40 @@ export function CashBookPage() {
           ) : (
             Object.entries(groupedEntries).map(([date, dateEntries]) => (
               <div key={date}>
-                <div className="sticky top-0 z-10 px-4 py-2 bg-gray-900/80 backdrop-blur-xl border-b border-white/[0.06]">
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <div className="sticky top-0 z-10 px-3 sm:px-4 py-2 bg-gray-900/80 backdrop-blur-xl border-b border-white/[0.06]">
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">
                     {format(new Date(date), "EEEE, MMMM d, yyyy")}
                   </p>
                 </div>
                 {dateEntries.map((entry) => (
-                  <div key={entry._id} className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.03] hover:bg-white/[0.03] transition-colors">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div key={entry._id} className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-white/[0.03] hover:bg-white/[0.03] transition-colors">
+                    <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center shrink-0 ${
                       entry.type === "credit" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
                     }`}>
-                      {entry.type === "credit" ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                      {entry.type === "credit" ? <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ArrowDownRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-white truncate">{entry.userName}</p>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <p className="text-xs sm:text-sm font-medium text-white truncate max-w-[120px] sm:max-w-none">{entry.userName}</p>
+                        <span className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded font-medium ${
                           entry.type === "credit"
                             ? "bg-emerald-900/30 text-emerald-300"
                             : "bg-red-900/30 text-red-300"
                         }`}>{entry.type === "credit" ? "Credit" : "Debit"}</span>
-                        <span className="text-[10px] text-gray-500 bg-white/[0.04] px-1.5 py-0.5 rounded">{entry.source}</span>
+                        <span className="text-[9px] sm:text-[10px] text-gray-500 bg-white/[0.04] px-1 sm:px-1.5 py-0.5 rounded hidden xs:inline">{entry.source}</span>
                       </div>
                       {entry.bill && (
                         <button type="button" onClick={() => handleViewBill(entry.bill?._id || "")}
-                          className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 mt-0.5 transition-colors">
-                          <Receipt className="w-3 h-3" /> {entry.bill.billNumber || "View Bill"}
+                          className="flex items-center gap-1 text-[10px] sm:text-[11px] text-blue-400 hover:text-blue-300 mt-0.5 transition-colors">
+                          <Receipt className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> <span className="truncate max-w-[140px] sm:max-w-none">{entry.bill.billNumber || "View Bill"}</span>
                         </button>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className={`text-sm font-semibold ${entry.type === "credit" ? "text-emerald-400" : "text-red-400"}`}>
+                      <p className={`text-xs sm:text-sm font-semibold ${entry.type === "credit" ? "text-emerald-400" : "text-red-400"}`}>
                         {entry.type === "credit" ? "+" : "-"}{formatCurrency(entry.amount)}
                       </p>
-                      <p className="text-[10px] text-gray-600">{format(new Date(entry.createdAt), "hh:mm a")}</p>
+                      <p className="text-[9px] sm:text-[10px] text-gray-600">{format(new Date(entry.createdAt), "hh:mm a")}</p>
                     </div>
                   </div>
                 ))}

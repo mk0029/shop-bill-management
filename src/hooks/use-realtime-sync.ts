@@ -589,7 +589,7 @@ export const useDocumentListener = <T extends SanityDocument>(
                 break;
             }
           } catch (error) {
-            console.error("Error handling realtime update:", error);
+            console.warn("[realtime] update handler error:", error instanceof Error ? error.message : error);
           }
         },
         error: (error) => {
