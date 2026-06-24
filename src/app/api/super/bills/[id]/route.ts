@@ -335,7 +335,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     try {
       const phones = toPhones(prev?.customer?.phone);
       if (phones.length) {
-        const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
+        const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://jambh-ell.vercel.app").replace(/\/+$/, "");
         const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(id))}` : "";
         const billNo = String(prev?.billNumber || id);
 

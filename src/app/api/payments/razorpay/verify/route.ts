@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       })();
 
       const siteUrl =
-        (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
+        (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://jambh-ell.vercel.app').replace(/\/+$/, '');
       const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(billId))}` : '';
 
       const billNo = String(bill.billNumber || billId);

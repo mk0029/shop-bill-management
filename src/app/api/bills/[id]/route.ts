@@ -205,7 +205,7 @@ export async function PATCH(
           const svc = String(bill?.serviceType || prev?.serviceType || '').replace(/_/g, ' ').trim();
 
           const siteUrl =
-            (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
+            (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://jambh-ell.vercel.app').replace(/\/+$/, '');
           const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(id))}` : '';
 
           const header = isPaid

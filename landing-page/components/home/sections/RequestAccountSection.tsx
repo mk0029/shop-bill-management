@@ -1,6 +1,7 @@
 "use client";
 
 import { RequestAccountForm } from "@landing/components/forms/request-account-form";
+import { ShareLoginUrl } from "@landing/components/forms/ShareLoginUrl";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
 import { getSupportContact } from "@/lib/auth-service";
 
@@ -18,8 +19,11 @@ export default function RequestAccountSection() {
           {t("pages.requestAccount.copy")}
         </p>
       </div>
-      <div className="max-w-[880px] w-full mx-auto glass-card p-6">
-        <RequestAccountForm support={support} />
+      <div className="max-w-[880px] w-full mx-auto space-y-6">
+        <div className="glass-card p-6">
+          <RequestAccountForm support={support} />
+        </div>
+        <ShareLoginUrl support={support} />
       </div>
     </section>
   );

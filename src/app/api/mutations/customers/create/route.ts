@@ -6,13 +6,8 @@ import { sendAppEmail } from '@/lib/email/server'
 
 export const runtime = 'nodejs'
 
-function siteUrl(req: NextRequest) {
-  const configured =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    req.nextUrl.origin ||
-    'https://jambh-ell.vercel.app'
-  return configured.replace(/\/+$/, '')
+function siteUrl(_req: NextRequest) {
+  return 'https://jambh-ell.vercel.app'
 }
 
 function supportInfo() {
@@ -134,7 +129,6 @@ async function sendWelcomeEmail(input: {
 }
 
 async function sendWelcomeWhatsApp(input: {
-  req: NextRequest
   userId: string
   phone?: string
   message: string
@@ -151,7 +145,8 @@ async function sendWelcomeWhatsApp(input: {
   }
 
   try {
-    const res = await fetch(new URL('/api/whatsapp/send-bulk', input.req.url), {
+    const base = 'https://jambh-ell.vercel.app'
+    const res = await fetch(new URL('/api/whatsapp/send-bulk', base), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phones: [phone], message: input.message }),
@@ -172,7 +167,7 @@ async function sendWelcomeWhatsApp(input: {
   }
 }
 
-async function runPostCreateDelivery(req: NextRequest, input: {
+async function runPostCreateDelivery(input: {
   actorUserId: string
   created: any
   name: string
@@ -208,7 +203,6 @@ async function runPostCreateDelivery(req: NextRequest, input: {
       message,
     }),
     sendWelcomeWhatsApp({
-      req,
       userId,
       phone: input.phone,
       message,
@@ -271,7 +265,7 @@ export async function POST(req: NextRequest) {
 
     const created = await sanityClient.create(newCustomer as any)
     after(() => {
-      void runPostCreateDelivery(req, {
+      void runPostCreateDelivery({
         actorUserId,
         created,
         name,
