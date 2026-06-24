@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { CircleCheck, ShieldCheck, Truck, WalletCards } from "lucide-react";
+import { useState } from "react";
+import { CircleCheck, ShieldCheck, Truck, WalletCards, MessageCircle, Mail } from "lucide-react";
 import { pricingHighlights, services } from "@landing/lib/site-data";
 import { PremiumCard } from "@landing/components/shared/landing-sections";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
@@ -263,6 +264,56 @@ export function ContactContent({
   support: { phone: string; whatsapp: string; email: string };
 }) {
   const { t } = useLandingLanguage();
+  const [form, setForm] = useState({ name: "", phone: "", email: "", message: "", channel: "whatsapp" as "whatsapp" | "email" });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !form.message.trim()) {
+      setError(t("form.validationRequired"));
+      return;
+    }
+
+    const summary = `${t("pages.contact.formTitle")}\n${t("form.summaryName")}: ${form.name}\n${t("form.summaryPhone")}: ${form.phone}\n${t("form.summaryEmail")}: ${form.email}\n${t("pages.contact.messagePlaceholder")}: ${form.message}`;
+
+    setIsLoading(true);
+    try {
+      if (form.channel === "whatsapp") {
+        const encoded = encodeURIComponent(summary);
+        const phone = support.whatsapp.replace(/\D/g, "");
+        const waLink = phone
+          ? `https://wa.me/${phone}?text=${encoded}`
+          : `https://wa.me/?text=${encoded}`;
+        window.open(waLink, "_blank");
+        setForm({ name: "", phone: "", email: "", message: "", channel: "whatsapp" });
+      } else {
+        const res = await fetch("/api/emails/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: support.email,
+            subject: t("pages.contact.formTitle"),
+            text: summary,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setError(data.error || t("form.channelError"));
+        } else {
+          setSuccess(t("form.emailSuccess"));
+          setForm({ name: "", phone: "", email: "", message: "", channel: "whatsapp" });
+        }
+      }
+    } catch {
+      setError(t("form.channelError"));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <section className="container mx-auto grid gap-4 px-4 py-11 lg:grid-cols-2">
@@ -283,14 +334,77 @@ export function ContactContent({
       </GlassCard>
       <GlassCard>
         <h2 className="text-lg font-semibold text-white">{t("pages.contact.formTitle")}</h2>
-        <div className="mt-4 space-y-3">
-          <input className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50" placeholder={t("pages.contact.namePlaceholder")} />
-          <input className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50" placeholder={t("pages.contact.phonePlaceholder")} />
-          <textarea className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50" rows={5} placeholder={t("pages.contact.messagePlaceholder")} />
-          <button type="button" className="glass-button-primary rounded-2xl px-5 py-2.5 text-sm font-semibold text-sky-200">
-            {t("pages.contact.submit")}
+        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+          <input
+            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+            placeholder={t("pages.contact.namePlaceholder")}
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            required
+          />
+          <input
+            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+            placeholder={t("pages.contact.phonePlaceholder")}
+            value={form.phone}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            required
+          />
+          <input
+            type="email"
+            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+            placeholder={t("pages.contact.emailPlaceholder")}
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            required
+          />
+          <textarea
+            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+            rows={5}
+            placeholder={t("pages.contact.messagePlaceholder")}
+            value={form.message}
+            onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+            required
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, channel: "whatsapp" }))}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                form.channel === "whatsapp"
+                  ? "border-sky-400/30 bg-sky-400/10 text-sky-300"
+                  : "border-white/10 text-[#B8C0CC] hover:text-white"
+              }`}
+            >
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, channel: "email" }))}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                form.channel === "email"
+                  ? "border-sky-400/30 bg-sky-400/10 text-sky-300"
+                  : "border-white/10 text-[#B8C0CC] hover:text-white"
+              }`}
+            >
+              <Mail className="h-4 w-4" />
+              Email
+            </button>
+          </div>
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          {success && <p className="text-sm text-green-400 bg-green-950/40 rounded-lg px-3 py-2 border border-green-500/20">{success}</p>}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="glass-button-primary rounded-2xl px-5 py-2.5 text-sm font-semibold text-sky-200 disabled:opacity-50"
+          >
+            {isLoading
+              ? t("form.submitting")
+              : form.channel === "whatsapp"
+                ? <><MessageCircle className="mr-2 h-4 w-4 inline" />{t("form.sendWhatsapp")}</>
+                : <><Mail className="mr-2 h-4 w-4 inline" />{t("form.sendEmail")}</>}
           </button>
-        </div>
+        </form>
       </GlassCard>
     </section>
   );

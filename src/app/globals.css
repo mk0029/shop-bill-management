@@ -28,6 +28,16 @@
     --radius: 0.75rem;
     --admin-nav-w: 16rem;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
 }
 
 @layer base {
