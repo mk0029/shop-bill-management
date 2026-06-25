@@ -50,7 +50,7 @@ const simplePolicyCounts = {
 const termsPointCounts = [5, 5, 5, 5, 4, 5, 6, 4, 3, 3, 4, 2];
 
 function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`glass-card p-6 ${className}`}>{children}</div>;
+  return <div className={`glass-card p-4 sm:p-6 ${className}`}>{children}</div>;
 }
 
 export function AboutContent() {

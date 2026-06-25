@@ -114,7 +114,7 @@ export default function Header() {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 xl:flex">
             {quickLinks.map((link) => (
               <Link
                 key={link.href}
@@ -130,7 +130,7 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="hidden items-center gap-3 md:flex">
+          <div className="hidden items-center gap-3 xl:flex">
             <LanguageToggle />
             <Link href="/login">
               <Button className="glass-button-primary h-10 rounded-xl px-5 text-sm font-semibold text-sky-200 shadow-none">
@@ -140,7 +140,7 @@ export default function Header() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-2 xl:hidden">
             <LanguageToggle />
             <button
               className="glass-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#E5E7EB]"
@@ -156,10 +156,10 @@ export default function Header() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm md:hidden animate-fade-in"
+            className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm xl:hidden duration-100 ease-linear"
             onClick={() => setOpen(false)}
           />
-          <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm p-4 shadow-2xl md:hidden animate-slide-in-right glass-strong">
+          <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm p-4 shadow-2xl xl:hidden animate-slide-in-right glass-strong">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-base font-semibold text-white">
                 {t("common.menu")}

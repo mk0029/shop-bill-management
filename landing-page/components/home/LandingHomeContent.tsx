@@ -31,12 +31,11 @@ import {
   Clock,
   Zap,
   ArrowUpFromLine,
-  X,
-  Construction,
 } from "lucide-react";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import WelcomeOverlay from "@landing/components/shared/WelcomeOverlay";
 
 type LandingSupport = {
   email: string;
@@ -216,89 +215,44 @@ function BackToTopButton() {
   );
 }
 
-function UnderDevelopmentNotice() {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem("shop_under_dev_notice_seen");
-    if (dismissed === "1") return;
-    const timer = setTimeout(() => setShow(true), 4000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!show) return null;
-
-  const dismiss = () => {
-    localStorage.setItem("shop_under_dev_notice_seen", "1");
-    setShow(false);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={dismiss}
-      />
-      <div className="relative glass-card max-w-lg w-full p-5 sm:p-6 animate-scale-in overflow-hidden">
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={dismiss}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <div className="w-14 h-14 rounded-2xl bg-sky-500/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-sky-400/20">
-          <Construction className="h-7 w-7 text-sky-400" />
-        </div>
-
-        {/* EN */}
-        <div>
-          <h3 className="text-base font-bold text-white">
-            Site Under Development
-          </h3>
-          <p className="mt-2 text-sm text-[#B8C0CC] leading-relaxed">
-            This site is currently under development and some features are being
-            built. If you face any issues while filling forms, navigating pages,
-            or if any UI section is not working correctly, please notify us with
-            a screenshot or media of that part so we can fix it as soon as
-            possible.
-          </p>
-        </div>
-
-        {/* HI */}
-        <div className="mt-4">
-          <h3 className="text-base font-bold text-white">साइट विकासाधीन है</h3>
-          <p className="mt-2 text-sm text-[#B8C0CC] leading-relaxed">
-            यह साइट वर्तमान में विकास के अंतर्गत है और कुछ सुविधाएँ बनाई जा रही
-            हैं। यदि आपको फ़ॉर्म भरने, पेजों पर जाने, या किसी UI भाग में समस्या
-            आती है, तो कृपया उस भाग का स्क्रीनशॉट या मीडिया संलग्न करके हमें
-            सूचित करें ताकि हम इसे जल्द से जल्द ठीक कर सकें।
-          </p>
-        </div>
-
-        <p className="mt-4 text-xs text-white/30 italic text-center">
-          Tap outside or press ✕ to dismiss &nbsp;|&nbsp; बाहर टैप करें या ✕
-          दबाएं
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export default function LandingHomeContent({
   support,
 }: {
   support: LandingSupport;
 }) {
   const { t } = useLandingLanguage();
+  const [showWelcome, setShowWelcome] = useState<boolean | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem("jambh_landing_welcome_seen");
+      setShowWelcome(seen !== "true");
+    } catch {
+      setShowWelcome(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showWelcome) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showWelcome]);
+
+  if (showWelcome === null) return null;
 
   return (
     <ElectricalBackground>
+      {showWelcome && (
+        <WelcomeOverlay onDismiss={() => setShowWelcome(false)} />
+      )}
       <div className="h-[var(--app-vh,100dvh)] text-[#E5E7EB]">
-        <Header />
+        {!showWelcome && <Header />}
         <main>
           <HeroSection
             support={{ phone: support.phone, whatsapp: support.whatsapp }}
@@ -649,7 +603,6 @@ export default function LandingHomeContent({
         <FooterSection support={support} />
       </div>
       <BackToTopButton />
-      <UnderDevelopmentNotice />
     </ElectricalBackground>
   );
 }

@@ -110,13 +110,6 @@ export async function registerFcmToken(input: RegisterFcmTokenInput) {
     });
   }
 
-  await enforceUserFcmTokenLimit(
-    userId,
-    1,
-    deviceInfo.deviceName || deviceInfo.platform || "another device",
-    docId,
-  );
-
   return { userId, tokenId: docId };
 }
 
@@ -387,8 +380,9 @@ async function enforceUserFcmTokenLimit(
     { userId },
   );
   const keep = active.find((doc) => doc._id === keepDocId);
+  if (!keep) return;
   const ordered = [
-    ...(keep ? [keep] : []),
+    keep,
     ...active.filter((doc) => doc._id !== keepDocId),
   ];
   const stale = ordered.slice(allowedDevicesCount);

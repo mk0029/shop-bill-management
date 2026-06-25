@@ -99,7 +99,7 @@ export function RequestAccountForm({ support, compact = false }: { support: { em
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#E5E7EB]">{t("form.location")}</label>
-          <Dropdown options={displayOptions} value={form.location} onValueChange={(value) => setForm((f) => ({ ...f, location: value }))} placeholder={t("form.locationPlaceholder")} />
+          <Dropdown options={displayOptions} value={form.location} onValueChange={(value) => setForm((f) => ({ ...f, location: value }))} placeholder={t("form.locationPlaceholder")} removeSearchForce closeOnOutsideClick={false} />
           {form.location === "other" && (
             <input
               value={form.customLocation}

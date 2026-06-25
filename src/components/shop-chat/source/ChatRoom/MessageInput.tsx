@@ -384,7 +384,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
               allowAutoFocusRef.current = true;
               focusComposerInput();
             }}
-            className="group relative flex min-h-[50px] flex-1 items-center justify-between gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] focus-within:border-emerald-400/70 focus-within:bg-white/[0.065] focus-within:shadow-[0_0_0_3px_rgba(16,185,129,0.12)] "
+            className="group relative flex min-h-[50px] flex-1 items-center justify-between gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] "
           >
             <div
               className={`flex min-w-0 flex-1 items-center gap-2 transition-opacity ${

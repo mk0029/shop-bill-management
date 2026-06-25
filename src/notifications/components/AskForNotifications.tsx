@@ -8,11 +8,17 @@ import { useAuthStore } from "../../store/auth-store";
 const NEVER_ASK_KEY = "pwa-never-ask-notifications";
 
 function getNeverAsk(): boolean {
-  try { return localStorage.getItem(NEVER_ASK_KEY) === "1"; } catch { return false; }
+  try {
+    return localStorage.getItem(NEVER_ASK_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 function setNeverAsk() {
-  try { localStorage.setItem(NEVER_ASK_KEY, "1"); } catch {}
+  try {
+    localStorage.setItem(NEVER_ASK_KEY, "1");
+  } catch {}
 }
 
 export default function AskForNotifications() {
@@ -82,7 +88,12 @@ export default function AskForNotifications() {
   }
 
   async function allowNotifications() {
-    if (requesting || typeof window === "undefined" || !("Notification" in window)) return;
+    if (
+      requesting ||
+      typeof window === "undefined" ||
+      !("Notification" in window)
+    )
+      return;
 
     setRequesting(true);
     try {
@@ -126,27 +137,30 @@ export default function AskForNotifications() {
     <>
       <FcmRetryPopup />
       {showBlockedWarning ? (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-lg border border-yellow-400/40 bg-yellow-950 p-4 text-center text-yellow-50 shadow-2xl shadow-yellow-950/30">
-            <button
-              type="button"
-              onClick={closeModals}
-              className="absolute right-2 top-2 text-yellow-300/60 hover:text-yellow-100 text-lg leading-none"
-              aria-label="Close"
-            >&times;</button>
-            <div className="text-base font-semibold text-yellow-100">
-              Enable notifications in browser settings
+        <div className="fixed inset-0 z-[1000] flex items-end justify-center p-4 sm:items-center sm:p-6 bg-slate-950/40 backdrop-blur-sm">
+          <div className="relative mx-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-white/10 bg-slate-900/95 p-6 text-center shadow-2xl">
+            <div className="text-base sm:text-lg font-semibold text-white">
+              Notifications are off
             </div>
-            <div className="mx-auto mt-2 max-w-sm text-sm leading-6 text-yellow-200">
-              Notifications are blocked by your browser. Open site settings, set Notifications to Allow, then reload.
+            <div className="text-sm sm:text-base leading-6 text-slate-300">
+              You won't receive alerts. You can enable them later in browser settings.
             </div>
-            <button
-              type="button"
-              onClick={handleRecheck}
-              className="mt-3 rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-500"
-            >
-              Check again
-            </button>
+            <div className="flex w-full gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleNeverAsk}
+                className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-white/10"
+              >
+                Ignore
+              </button>
+              <button
+                type="button"
+                onClick={closeModals}
+                className="flex-1 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -158,13 +172,16 @@ export default function AskForNotifications() {
               onClick={closeModals}
               className="absolute right-3 top-3 text-slate-400 hover:text-white text-xl leading-none"
               aria-label="Close"
-            >&times;</button>
+            >
+              &times;
+            </button>
             <div className="w-full">
               <div className="text-base font-semibold sm:text-base">
                 Stay updated with notifications
               </div>
               <div className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-300 sm:text-xs sm:leading-5">
-                We'll notify you about important updates. You can change this anytime.
+                We'll notify you about important updates. You can change this
+                anytime.
               </div>
             </div>
             <div className="grid w-full max-w-sm grid-cols-3 gap-2">

@@ -63,23 +63,23 @@ export function HeroSection({
   return (
     <section className="relative overflow-hidden " id="home">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-500/5 to-transparent" />
-      <div className="container mx-auto px-4 py-8 md:py-32 relative">
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center max-sm:pt-6">
+      <div className="container mx-auto px-4 py-8 md:py-16 lg:py-24 relative">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center max-sm:pt-6">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-sky-300/80 animate-fade-up">
               <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse-glow" />
               {t("hero.eyebrow")}
             </div>
             <h1
-              className={`text-4xl md:text-6xl font-bold tracking-tight text-white leading-[1.08] ${isHindi ? "" : ""}`}
+              className={`text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white leading-[1.08] ${isHindi ? "" : ""}`}
               style={isHindi ? hindiHeroHeadingStyle : undefined}
             >
               {t("hero.title")}
             </h1>
-            <p className="text-lg text-[#B8C0CC] leading-relaxed max-w-lg">
+            <p className="text-base md:text-lg text-[#B8C0CC] leading-relaxed max-w-lg">
               {t("hero.copy")}
             </p>
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 flex-wrap">
               <a
                 href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
@@ -97,7 +97,7 @@ export function HeroSection({
                 {t("hero.callNow")}
               </a>
             </div>
-            <div className="flex items-center gap-5 text-sm text-[#B8C0CC] flex-wrap pt-2">
+            <div className="flex items-center gap-4 sm:gap-5 text-sm text-[#B8C0CC] flex-wrap pt-2">
               {badges.map((badge) => (
                 <p key={badge.label} className="flex items-center gap-2">
                   <badge.icon className="size-5 text-sky-400/80" />
@@ -107,8 +107,8 @@ export function HeroSection({
             </div>
           </div>
           <div className="relative flex items-center justify-center">
-            <div className="ambient-glow w-72 h-72 bg-sky-500/5 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-            <div className="glass-card-static aspect-square w-full max-w-md flex items-center justify-center p-8">
+            <div className="ambient-glow w-48 h-48 sm:w-60 sm:h-60 lg:w-72 lg:h-72 bg-sky-500/5 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            <div className="glass-card-static aspect-square w-full max-w-xs sm:max-w-sm lg:max-w-md flex items-center justify-center p-6 sm:p-8">
               <Image
                 alt="brand"
                 src="/je-p-512.png"

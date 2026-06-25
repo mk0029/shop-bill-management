@@ -77,7 +77,7 @@ export function RequestAccountBlock() {
   const support = getSupportContact();
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="glass-card p-8">
+      <div className="glass-card p-4 sm:p-6 md:p-8">
         <RequestAccountForm
           support={{ email: support.email, whatsapp: support.whatsapp }}
         />

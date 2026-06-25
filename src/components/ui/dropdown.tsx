@@ -29,6 +29,7 @@ interface DropdownProps {
   searchPlaceholder?: string;
   classNameButton?: string;
   scrollLock?: boolean;
+  closeOnOutsideClick?: boolean;
 }
 
 const sizeClasses = {
@@ -61,6 +62,7 @@ export function Dropdown({
   dropTop = false,
   minW = false,
   scrollLock = false,
+  closeOnOutsideClick = true,
 }: DropdownProps) {
   const idRef = React.useRef(getNextDropdownId());
   const [menuState, setMenuState] = React.useState<"closed" | "open" | "closing">("closed");
@@ -100,7 +102,23 @@ export function Dropdown({
 
   // Listen for outside clicks and custom dropdown events (one-at-a-time)
   React.useEffect(() => {
+    let touchStartedInside = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const target = e.target as Node;
+      touchStartedInside =
+        (dropdownRef.current?.contains(target) ||
+         menuRef.current?.contains(target)) ?? false;
+    };
+
     const handleClickOutside = (event: MouseEvent) => {
+      if (!closeOnOutsideClick) return;
+      // On mobile, mousedown is synthetic from touch — ignore it
+      // if the touch started inside the dropdown (user was scrolling, not tapping outside)
+      if (touchStartedInside) {
+        touchStartedInside = false;
+        return;
+      }
       const target = event.target as Node;
       if (
         dropdownRef.current &&
@@ -119,13 +137,15 @@ export function Dropdown({
       }
     };
 
+    document.addEventListener("touchstart", handleTouchStart, { passive: true });
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener(DROPDOWN_EVENT, handleDropdownOpen);
     return () => {
+      document.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener(DROPDOWN_EVENT, handleDropdownOpen);
     };
-  }, [close, menuState]);
+  }, [close, menuState, closeOnOutsideClick]);
 
   // Ensure no orphaned render after unmount
   React.useEffect(() => {
@@ -197,7 +217,11 @@ export function Dropdown({
   // Recalculate position on scroll/resize when open
   React.useEffect(() => {
     if (menuState !== "open") return;
-    const updateRect = () => {
+    const updateRect = (e?: Event) => {
+      // Ignore scroll events from within the menu itself (e.g. scrolling the options list)
+      if (e && menuRef.current && (e.target as Node) !== document && menuRef.current.contains(e.target as Node)) {
+        return;
+      }
       if (!buttonRef.current) return;
       const rect = buttonRef.current.getBoundingClientRect();
       const mnw = minW ? Math.max(rect.width, 250) : rect.width;
@@ -246,7 +270,7 @@ export function Dropdown({
             ref={menuRef}
             style={menuRect}
             className={cn(
-              "overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/92 pb-2 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl transition-all duration-150",
+              "overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/92 pb-2 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl transition-all duration-150 overscroll-contain",
               isAnimatingIn && "opacity-100 scale-100",
               isAnimatingOut && "opacity-0 scale-95 pointer-events-none",
               !isAnimatingIn && !isAnimatingOut && "opacity-0 scale-95",
