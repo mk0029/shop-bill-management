@@ -63,8 +63,8 @@ export function HeroSection({
   return (
     <section className="relative overflow-hidden " id="home">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-500/5 to-transparent" />
-      <div className="container mx-auto px-4 py-11 md:py-32 relative">
-        <div className="grid md:grid-cols-2 gap-12 items-center max-sm:pt-8">
+      <div className="container mx-auto px-4 py-8 md:py-32 relative">
+        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center max-sm:pt-6">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-sky-300/80 animate-fade-up">
               <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse-glow" />
@@ -83,7 +83,7 @@ export function HeroSection({
               <a
                 href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="glass-button-primary inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-sky-200 gap-2"
               >
                 <MessageCircle className="h-4 w-4" />
@@ -168,7 +168,9 @@ export function PremiumCard({
   className?: string;
 }) {
   return (
-    <article className={`glass-card h-full p-6 md:p-7 group ${className}`}>
+    <article
+      className={`glass-card h-full p-4 sm:p-6 md:p-7 group ${className}`}
+    >
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-sky-500/5 to-transparent rounded-bl-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-violet-500/5 to-transparent rounded-tr-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100" />
       {children}
@@ -210,9 +212,9 @@ export function TranslatedText({
 
 export function GlassDivider() {
   return (
-    <div className="relative py-5 md:py-8">
+    <div className="relative py-4 md:py-8">
       <div className="glass-separator mx-auto max-w-4xl" />
-      <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-sky-400/20" />
+      <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-sky-400/30 ring-1 ring-sky-400/10" />
     </div>
   );
 }
@@ -235,24 +237,28 @@ export function FooterSection({
   return (
     <footer className="relative overflow-hidden border-t border-white/5">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-500/[0.02] to-transparent pointer-events-none" />
-      <div className="container mx-auto px-4 py-8 relative">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="col-span-2 md:col-span-1 space-y-3">
-            <div className="text-base font-bold text-white tracking-tight">
+      <div className="mx-auto max-w-7xl px-4 py-10 relative">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-10">
+          <div className="col-span-2 md:col-span-1 space-y-4">
+            <div className="text-base md:text-lg font-bold text-white tracking-tight">
               {t("common.brand")}
             </div>
-            <p className="text-sm text-[#B8C0CC] leading-relaxed hidden md:block">
+            <p className="text-sm md:text-base text-[#B8C0CC] leading-relaxed">
               {t("footer.copy")}
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-1">
               <a
                 href={`tel:${support.phone}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="glass-button w-9 h-9 rounded-lg flex items-center justify-center text-[#B8C0CC] hover:text-white"
               >
                 <Phone className="h-4 w-4" />
               </a>
               <a
                 href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="glass-button w-9 h-9 rounded-lg flex items-center justify-center text-[#B8C0CC] hover:text-white"
               >
                 <MessageCircle className="h-4 w-4" />
@@ -260,21 +266,21 @@ export function FooterSection({
             </div>
           </div>
           <div>
-            <div className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3">
+            <div className="text-xs md:text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 md:mb-5">
               {t("footer.quickLinks")}
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-2.5 md:space-y-3">
               {[
+                { label: t("nav.home"), href: "/" },
                 { label: t("nav.about"), href: "/about" },
                 { label: t("nav.services"), href: "/services" },
-                { label: t("nav.products"), href: "/products" },
                 { label: t("nav.pricing"), href: "/pricing" },
                 { label: t("nav.contact"), href: "/contact" },
               ].map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="text-sm text-[#B8C0CC] hover:text-white transition-colors"
+                    className="text-sm md:text-base text-[#B8C0CC] hover:text-white transition-colors"
                   >
                     {item.label}
                   </Link>
@@ -283,64 +289,73 @@ export function FooterSection({
             </ul>
           </div>
           <div>
-            <div className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3">
+            <div className="text-xs md:text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 md:mb-5">
               {t("footer.services")}
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-2.5 md:space-y-3">
               {serviceLinks.map((item) => (
-                <li key={item} className="text-sm text-[#B8C0CC]">
+                <li
+                  key={item}
+                  className="text-sm md:text-base text-[#B8C0CC] hover:text-white transition-colors"
+                >
                   {item}
                 </li>
               ))}
             </ul>
           </div>
           <div className="col-span-2 md:col-span-1">
-            <div className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3">
+            <div className="text-xs md:text-sm font-semibold text-white/60 uppercase tracking-wider mb-4 md:mb-5">
               {t("footer.contactPolicies")}
             </div>
-            <ul className="space-y-2 text-sm text-[#B8C0CC]">
+            <ul className="space-y-2.5 md:space-y-3 text-sm md:text-base text-[#B8C0CC]">
               <li>
                 <a
                   href={`tel:${support.phone}`}
-                  className="hover:text-white transition-colors flex items-center gap-1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors flex items-center gap-1.5"
                 >
-                  <PhoneIcon className="w-4 h-4" />
+                  <PhoneIcon className="w-4 h-4 shrink-0" />
                   {support.phone}
                 </a>
               </li>
               <li>
                 <a
                   href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
-                  className="hover:text-white transition-colors flex items-center gap-1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors flex items-center gap-1.5"
                 >
-                  <MessageCircleIcon className="w-4 h-4" />
+                  <MessageCircleIcon className="w-4 h-4 shrink-0" />
                   {support.whatsapp}
                 </a>
               </li>
               <li>
                 <a
                   href={`mailto:${support.email}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="hover:text-white transition-colors"
                 >
                   {support.email}
                 </a>
               </li>
               <li className="text-[#B8C0CC]/70">{t("footer.workingHours")}</li>
-              <li className="pt-1 flex flex-wrap gap-x-2">
+              <li className="pt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Link
                   href="/terms"
                   className="hover:text-white transition-colors"
                 >
                   {t("footer.terms")}
                 </Link>
-                <span className="text-white/20">·</span>
+                <span className="text-white/40 text-xs">●</span>
                 <Link
                   href="/privacy-policy"
                   className="hover:text-white transition-colors"
                 >
                   {t("footer.privacy")}
                 </Link>
-                <span className="text-white/20">·</span>
+                <span className="text-white/40 text-xs">●</span>
                 <Link
                   href="/refund-policy"
                   className="hover:text-white transition-colors"
@@ -351,7 +366,7 @@ export function FooterSection({
             </ul>
           </div>
         </div>
-        <div className="mt-6 pt-4 border-t border-white/5 text-xs text-[#B8C0CC]/50 text-center">
+        <div className="mt-8 pt-5 border-t border-white/5 text-xs text-[#B8C0CC]/50 text-center">
           &copy; {new Date().getFullYear()} {t("common.brand")}.{" "}
           {t("footer.copyright")}
         </div>

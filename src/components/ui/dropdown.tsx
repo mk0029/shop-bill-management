@@ -37,6 +37,14 @@ const sizeClasses = {
   lg: "!leading-none h-auto text-base",
 };
 
+const DROPDOWN_EVENT = "dropdown:open";
+let dropdownIdCounter = 0;
+
+function getNextDropdownId() {
+  dropdownIdCounter += 1;
+  return `dropdown-${dropdownIdCounter}`;
+}
+
 export function Dropdown({
   options,
   value,
@@ -54,8 +62,10 @@ export function Dropdown({
   minW = false,
   scrollLock = false,
 }: DropdownProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [isSearchAvialable, setIsSearch] = React.useState(false || searchable); // Default to false if not provided
+  const idRef = React.useRef(getNextDropdownId());
+  const [menuState, setMenuState] = React.useState<"closed" | "open" | "closing">("closed");
+  const isOpen = menuState !== "closed";
+  const [isSearchAvialable, setIsSearch] = React.useState(false || searchable);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [menuRect, setMenuRect] = React.useState<React.CSSProperties | null>(
     null,
@@ -65,10 +75,10 @@ export function Dropdown({
   const menuRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const prevOverflowRef = React.useRef<string | null>(null);
+  const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedOption = options.find((option) => option.value === value);
 
-  // Filter options based on search term
   const filteredOptions = React.useMemo(() => {
     if (!isSearchAvialable || !searchTerm.trim()) {
       return options;
@@ -78,6 +88,17 @@ export function Dropdown({
     );
   }, [options, searchTerm, isSearchAvialable]);
 
+  const close = React.useCallback(() => {
+    if (menuState === "closed") return;
+    setMenuState("closing");
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => {
+      setMenuState("closed");
+      setSearchTerm("");
+    }, 150);
+  }, [menuState]);
+
+  // Listen for outside clicks and custom dropdown events (one-at-a-time)
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -87,16 +108,34 @@ export function Dropdown({
         menuRef.current &&
         !menuRef.current.contains(target)
       ) {
-        setIsOpen(false);
-        setSearchTerm("");
+        close();
+      }
+    };
+
+    const handleDropdownOpen = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail !== idRef.current && menuState !== "closed") {
+        close();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener(DROPDOWN_EVENT, handleDropdownOpen);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(DROPDOWN_EVENT, handleDropdownOpen);
+    };
+  }, [close, menuState]);
+
+  // Ensure no orphaned render after unmount
+  React.useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
   }, []);
 
-  const updateMenuRect = React.useCallback(() => {
+  const open = React.useCallback(() => {
+    if (disabled || menuState !== "closed") return;
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     const minWidth = minW ? Math.max(rect.width, 250) : rect.width;
@@ -118,13 +157,15 @@ export function Dropdown({
       maxWidth: "calc(100vw - 24px)",
       zIndex: 260,
     });
-  }, [dropLeft, dropTop, minW]);
+    setMenuState("open");
+    document.dispatchEvent(new CustomEvent(DROPDOWN_EVENT, { detail: idRef.current }));
+  }, [disabled, menuState, dropLeft, dropTop, minW]);
 
-  // Lock body scroll when requested and dropdown is open
+  // Lock body scroll when requested and menu is open
   React.useEffect(() => {
     if (!scrollLock) return;
     const body = document.body;
-    if (isOpen) {
+    if (menuState === "open") {
       prevOverflowRef.current = body.style.overflow;
       body.style.overflow = "hidden";
     } else {
@@ -133,7 +174,8 @@ export function Dropdown({
     return () => {
       if (scrollLock) body.style.overflow = prevOverflowRef.current ?? "";
     };
-  }, [isOpen, scrollLock]);
+  }, [menuState, scrollLock]);
+
   React.useEffect(() => {
     if (removeSearchForce) {
       setIsSearch(false);
@@ -145,45 +187,70 @@ export function Dropdown({
 
   // Focus search input when dropdown opens
   React.useEffect(() => {
-    if (isOpen && isSearchAvialable && searchInputRef.current) {
+    if (menuState === "open" && isSearchAvialable && searchInputRef.current) {
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
     }
-  }, [isOpen, isSearchAvialable]);
+  }, [menuState, isSearchAvialable]);
 
+  // Recalculate position on scroll/resize when open
   React.useEffect(() => {
-    if (!isOpen) return;
-    updateMenuRect();
-    window.addEventListener("resize", updateMenuRect);
-    window.addEventListener("scroll", updateMenuRect, true);
-    return () => {
-      window.removeEventListener("resize", updateMenuRect);
-      window.removeEventListener("scroll", updateMenuRect, true);
-    };
-  }, [isOpen, updateMenuRect]);
+    if (menuState !== "open") return;
+    const updateRect = () => {
+      if (!buttonRef.current) return;
+      const rect = buttonRef.current.getBoundingClientRect();
+      const mnw = minW ? Math.max(rect.width, 250) : rect.width;
+      const gap = 6;
+      const leftPos = dropLeft
+        ? rect.left
+        : Math.max(12, rect.right - mnw);
 
-  // Handle keyboard navigation
+      setMenuRect((prev) =>
+        prev
+          ? {
+              ...prev,
+              left: Math.min(leftPos, window.innerWidth - mnw - 12),
+              top: undefined,
+              bottom: undefined,
+            }
+          : prev,
+      );
+    };
+    window.addEventListener("resize", updateRect);
+    window.addEventListener("scroll", updateRect, true);
+    return () => {
+      window.removeEventListener("resize", updateRect);
+      window.removeEventListener("scroll", updateRect, true);
+    };
+  }, [menuState, dropLeft, minW]);
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Escape") {
-      setIsOpen(false);
-      setSearchTerm("");
+      close();
     }
   };
 
   const handleSelect = (optionValue: string) => {
     onValueChange(optionValue);
-    setIsOpen(false);
-    setSearchTerm("");
+    close();
   };
 
-  const menu =
-    isOpen && menuRect
+  const showMenu = menuState !== "closed" && menuRect;
+  const isAnimatingIn = menuState === "open";
+  const isAnimatingOut = menuState === "closing";
+
+  const menu = showMenu
       ? createPortal(
           <div
             ref={menuRef}
             style={menuRect}
-            className="overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/92 pb-2 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl"
+            className={cn(
+              "overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/92 pb-2 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl transition-all duration-150",
+              isAnimatingIn && "opacity-100 scale-100",
+              isAnimatingOut && "opacity-0 scale-95 pointer-events-none",
+              !isAnimatingIn && !isAnimatingOut && "opacity-0 scale-95",
+            )}
           >
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.08)_1px,transparent_1px)] bg-[size:22px_22px] opacity-35" />
             <div className="relative">
@@ -252,8 +319,11 @@ export function Dropdown({
         size="icon"
         onClick={() => {
           if (disabled) return;
-          updateMenuRect();
-          setIsOpen(!isOpen);
+          if (menuState === "closed") {
+            open();
+          } else {
+            close();
+          }
         }}
         disabled={disabled}
         className={cn(
@@ -272,7 +342,7 @@ export function Dropdown({
         <ChevronDown
           className={cn(
             "h-4 w-4 transition-transform duration-200",
-            isOpen && "rotate-180",
+            menuState === "open" && "rotate-180",
           )}
         />
       </Button>

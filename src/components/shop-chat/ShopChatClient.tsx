@@ -1123,6 +1123,7 @@ export default function ShopChatClient({
   );
 
   const closeChat = useCallback(() => {
+    typingCleanupRef.current();
     setActiveRoom(null);
     syncUrlToActiveRoom(null, "replace");
   }, [syncUrlToActiveRoom]);
@@ -1507,10 +1508,39 @@ export default function ShopChatClient({
     upsertRoom(response.room);
   };
 
+  const typingCleanupRef = useRef<() => void>(() => {});
+
   const sendTyping = (typing: boolean) => {
     if (!socket || !activeRoom) return;
     socket.emit("typing:update", { roomId: activeRoom.roomId, typing });
+    if (typing) {
+      typingCleanupRef.current = () => {
+        try { socket.emit("typing:update", { roomId: activeRoom.roomId!, typing: false }); } catch {}
+      };
+    } else {
+      typingCleanupRef.current = () => {};
+    }
   };
+
+  useEffect(() => {
+    const cleanup = () => typingCleanupRef.current();
+    const onRouteChange = () => cleanup();
+    const onVisibility = () => { if (document.visibilityState === "hidden") cleanup(); };
+    const onBeforeUnload = () => cleanup();
+    const onOffline = () => cleanup();
+    const onDisconnect = () => cleanup();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", onBeforeUnload);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      cleanup();
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onBeforeUnload);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
 
   const openBillsPanel = async () => {
     if (!activeRoom?.customerId) return;

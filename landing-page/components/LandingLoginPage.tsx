@@ -19,6 +19,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { setCookie } from "@/lib/cookies";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 const floatingIcons = [
   { Icon: Cable, left: "7%", top: "17%", delay: 0, size: "h-8 w-8" },
@@ -146,8 +148,12 @@ export default function LandingLoginPage() {
   }, [hydrated, isAuthenticated, role, router]);
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-6 sm:px-6 lg:px-10">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-3 py-4 sm:px-6 sm:py-6 lg:px-10">
       <ElectricalLoginBackground />
+      <div
+        className="absolute inset-0 z-[5] cursor-pointer"
+        onClick={() => router.push("/")}
+      />
       <ClientOnly>
         <motion.main
           initial={{ opacity: 0, y: 18 }}
@@ -156,6 +162,15 @@ export default function LandingLoginPage() {
           className="relative z-10 w-full max-w-lg overflow-hidden rounded-[1.25rem] glass-strong shadow-2xl"
         >
           <section className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <Link
+                href="/"
+                className="glass-button inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#B8C0CC] hover:text-white transition-colors"
+                aria-label="Back to home"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </div>
             <div className="glass-card-static p-5 sm:p-6">
               <div className="mb-6 text-center">
                 <motion.div
@@ -174,26 +189,23 @@ export default function LandingLoginPage() {
                   />
                 </motion.div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
-                  Welcome back
+                  {t("auth.welcomeBack")}
                 </p>
                 <h2 className="mt-2 text-2xl font-bold tracking-normal text-white">
                   {t("auth.login")}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-[#B8C0CC]">
-                  Sign in to continue to your Jambh Electrics workspace.
+                  {t("auth.signInToContinue")}
                 </p>
               </div>
 
               {error && (
                 <motion.div
-                  initial={{ opacity: 0, x: -14 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="mb-6 rounded-xl border border-red-400/20 bg-red-950/40 px-4 py-3 text-red-200"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-5 rounded-xl border border-red-400/15 bg-red-950/30 px-4 py-2.5"
                 >
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    <span className="text-sm">{error}</span>
-                  </div>
+                  <p className="text-sm text-red-300 leading-relaxed">{error}</p>
                 </motion.div>
               )}
 
@@ -209,8 +221,8 @@ export default function LandingLoginPage() {
             </div>
 
             <div className="mt-6 text-center text-xs text-white/30">
-              <p>{new Date().getFullYear()} Jambh Electrics</p>
-              <p className="mt-1">Professional Jambh Electrics system</p>
+              <p>{new Date().getFullYear()} {t("app.title")}</p>
+              <p className="mt-1">{t("auth.professionalSystem")}</p>
             </div>
           </section>
         </motion.main>

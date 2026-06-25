@@ -59,13 +59,14 @@ export function LoginForm({
 
   const validateForm = (): boolean => {
     const errors: Partial<LoginCredentials> = {};
+    const phoneRaw = formData.phone.trim();
 
-    if (!formData.phone.trim()) {
+    if (!phoneRaw) {
       errors.phone = "Phone number is required";
-    }
-
-    if (!/^\+?[1-9]\d{1,14}$/.test(formData.phone.trim())) {
-      errors.phone = "Please enter a valid phone number";
+    } else if (!/^\d{10}$/.test(phoneRaw)) {
+      errors.phone = "Enter a valid 10-digit mobile number";
+    } else if (!/^[6-9]/.test(phoneRaw)) {
+      errors.phone = "Indian mobile number must start with 6, 7, 8, or 9";
     }
 
     if (!formData.secretKey.trim()) {
@@ -109,10 +110,11 @@ export function LoginForm({
             <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B8C0CC]/50 w-4 h-4 z-10" />
             <Input
               id="phone"
-              type="number"
-              placeholder="Enter your phone number"
+              type="text"
+              inputMode="numeric"
+              placeholder="Enter 10-digit mobile number"
               value={formData.phone}
-              onChange={(e) => handleInputChange("phone", e.target.value)}
+              onChange={(e) => handleInputChange("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
               disabled={isLoading}
               className={`glass-input pl-10 text-white placeholder:text-[#B8C0CC]/50 ${
                 formErrors.phone
@@ -168,7 +170,7 @@ export function LoginForm({
         <input
           id="rememberMe"
           type="checkbox"
-          className="h-4 w-4 rounded border-white/10 bg-white/5 text-sky-500 focus:ring-sky-500/30"
+          className="h-4 w-4 rounded border-white/10 bg-white/5 text-sky-500 focus:ring-white/30"
           checked={!!formData.rememberMe}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, rememberMe: e.target.checked }))

@@ -12,6 +12,12 @@ type TranslationTree = {
 
 export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
   en: {
+    stats: {
+      happyCustomers: "Happy Customers",
+      servicesDone: "Services Done",
+      yearsTrusted: "Years Trusted",
+      toolsAvailable: "Tools Available",
+    },
     common: {
       brand: "Jambh Electrics",
       language: "Language",
@@ -26,6 +32,10 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       requestAccount: "Request Account",
       viewDetails: "View Details",
       step: "Step",
+      underDevelopmentTitle: "Site Under Development",
+      underDevelopmentCopy:
+        "We're working hard to bring you a complete experience. Some features and sections may be under active development. If you don't see what you're looking for, contact us directly.",
+      underDevelopmentHint: "Tap anywhere outside or click ✕ to dismiss",
     },
     nav: {
       home: "Home",
@@ -55,6 +65,10 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       },
     },
     services: {
+      availableNow: "Available now",
+      trustedByLocals: "Trusted by locals",
+      noHiddenCharges: "No hidden charges",
+      flexibleRental: "Flexible rental plans",
       eyebrow: "Services",
       title: "Complete Electrical Services",
       copy: "Clear service options for products, repair, wiring, and rental.",
@@ -200,30 +214,65 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
           switches: {
             title: "Switches",
             details: "Modular and heavy-duty switches for home and shop installations.",
+            pricing: {
+              salePrice: "Rs. 20 ~ Rs. 150 per piece",
+              installPrice: "Rs. 50 ~ Rs. 200 (product + fitting)",
+              labourNote: "Fitting charge includes switch mounting, wiring connection, and safety check. Price varies by type (modular, piano, heavy-duty) and quantity.",
+            },
           },
           sockets: {
             title: "Sockets",
             details: "Multi-amp and appliance sockets with safe fitting support.",
+            pricing: {
+              salePrice: "Rs. 30 ~ Rs. 250 per piece",
+              installPrice: "Rs. 70 ~ Rs. 300 (product + fitting)",
+              labourNote: "Installation includes socket box fitting, wire connection, and load testing. 6A, 16A, and multi-pin options available.",
+            },
           },
           wires: {
             title: "Wires",
             details: "House wiring cables for lighting, power, and load-specific setups.",
+            pricing: {
+              salePrice: "Rs. 500 ~ Rs. 3,000 per roll (depends on gauge)",
+              installPrice: "Rs. 1,000 ~ Rs. 8,000 (wire + laying + fitting)",
+              labourNote: "Laying charge depends on wall type (brick/plaster/concealed), length, and number of points. Wire gauge selection depends on load requirement.",
+            },
           },
           lights: {
             title: "Lights",
             details: "LED bulbs, panels, and fixtures with energy-efficient options.",
+            pricing: {
+              salePrice: "Rs. 30 ~ Rs. 500 per piece",
+              installPrice: "Rs. 60 ~ Rs. 350 (product + fitting)",
+              labourNote: "Fitting includes bracket mounting, wiring, and alignment. Ceiling, wall, and panel light installation priced per point.",
+            },
           },
           mcb: {
-            title: "MCB",
-            details: "Protection devices for overload and short-circuit safety.",
+            title: "MCB / RCCB / DB",
+            details: "Protection devices for overload, short-circuit, and earth leakage safety.",
+            pricing: {
+              salePrice: "Rs. 80 ~ Rs. 1,200 per unit",
+              installPrice: "Rs. 200 ~ Rs. 1,800 (device + installation)",
+              labourNote: "Installation includes DB box mounting, device fixing, busbar connection, and trip testing. Upgrade or replacement pricing depends on existing setup.",
+            },
           },
           boards: {
-            title: "Boards",
+            title: "Distribution Boards",
             details: "Distribution and switch boards for structured electrical points.",
+            pricing: {
+              salePrice: "Rs. 150 ~ Rs. 2,500 per board",
+              installPrice: "Rs. 400 ~ Rs. 4,000 (board + wiring + fitting)",
+              labourNote: "Board installation covers wall mounting, MCB/RCCB wiring, phase balancing, and safety testing. Cost varies by board size and number of ways.",
+            },
           },
           accessories: {
-            title: "Accessories",
+            title: "Accessories & Consumables",
             details: "Clips, holders, connectors, tapes, and fitting accessories.",
+            pricing: {
+              salePrice: "Rs. 5 ~ Rs. 200 per item",
+              installPrice: "Included in service visit charge or point-based",
+              labourNote: "Small accessories are fitted as part of the main service. No separate labour charge for minor accessory replacement. Major accessory work charged per point.",
+            },
           },
         },
         guidance: {
@@ -239,6 +288,42 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
         title: "Transparent Pricing",
         copy: "Exact price is confirmed before work whenever possible.",
         finalNote: "Final price depends on work type, location, material, timing, and additional issues found during inspection.",
+        productSaleTitle: "Product Sale Pricing (Item Only)",
+        productSaleCopy: "These are the estimated price ranges for purchasing electrical items without installation. You can buy the product directly and fit it yourself or arrange your own installation.",
+        productInstallTitle: "Product with Installation Pricing (Item + Labour)",
+        productInstallCopy: "If you need us to install the product, the total includes the item cost plus fitting charges. Labour covers mounting, wiring, connection testing, and safety checks.",
+        generalGuidance: "Pricing Guidance",
+        guidancePoints: {
+          point1: "All prices are estimated ranges. Final price depends on brand preference, quality grade, quantity, and current market rate.",
+          point2: "Installation/labour charges are per point or per unit. Multiple points may qualify for discounted labour.",
+          point3: "A standard visit charge (Rs. 50~150) applies for on-site work within the standard service area.",
+          point4: "Warranty on products depends on manufacturer or supplier policy. Labour warranty is limited to proper fitting.",
+          point5: "Emergency or late-night (after 8 PM) requests may be charged at 2x-3x the standard rate depending on distance, risk, and technician availability.",
+        },
+        servicePricingTitle: "Service Pricing Overview",
+        servicePricingCopy: "Below is a quick reference for common service charges. These are starting estimates and may vary based on actual site conditions.",
+        inspection: {
+          title: "Inspection / Visit",
+          price: "Rs. 50~150 per visit",
+          note: "Charged for technician time and travel within service area.",
+        },
+        homeService: {
+          title: "Home Electrical Service",
+          price: "Starts from Rs. 300",
+          note: "Covers common repairs like switch/socket fix, fan/light repair. Material cost extra.",
+        },
+        wiringFitting: {
+          title: "Wiring & New Fitting",
+          price: "Estimate based",
+          note: "Priced after site inspection. Includes material + labour per point.",
+        },
+        emergency: {
+          title: "Emergency / Late-Night",
+          price: "2x-3x standard rate",
+          note: "After 8 PM. Based on technician availability, distance, and safety risk.",
+        },
+        labourGuidance: "Labour & Visit Charge Policy",
+        labourGuidanceNote: "Labour charges cover technician time, skill, and tools. These are separate from product costs. A standard visit charge is added for each on-site visit unless the work is part of a larger ongoing job. We discuss all charges before starting work whenever possible.",
       },
       requestAccount: {
         title: "Request Customer Account",
@@ -306,10 +391,15 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
         policyNote: "This pricing policy is also defined in our Terms & Conditions.",
         includes: {
           "electrical-product-sales": {
-            item1: "Switches and sockets",
-            item2: "Wires and cables",
-            item3: "MCB and distribution boards",
-            item4: "Lighting and accessories",
+            item1: "Switches and sockets (modular and heavy-duty)",
+            item2: "Wires and cables for all load types",
+            item3: "MCB, RCCB, and distribution / DB boxes",
+            item4: "LED lights, panels, bulbs, and fixtures",
+            item5: "Fans and accessories (ceiling, exhaust, table)",
+            item6: "Holders, plugs, switchboards, extension boards",
+            item7: "Repair and replacement items (switches, sockets, fuses)",
+            item8: "Branded and local options available",
+            item9: "Material availability depends on current stock",
           },
           "home-electrical-services": {
             item1: "Switch and socket fixes",
@@ -358,6 +448,14 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
           },
         },
         extra: {
+          "electrical-product-sales": {
+            summary: "We supply a wide range of electrical products for homes, shops, and small businesses. Browse categories and get fitting support as needed.",
+            point1: "Product price depends on brand, quality, and current market rate.",
+            point2: "Fitting, visiting, and labour charges are separate from product cost.",
+            point3: "Final estimate is confirmed after requirement check and site review.",
+            point4: "Stock availability may vary — please confirm before visiting or ordering.",
+            point5: "We help you choose between branded and local options based on your budget and load needs.",
+          },
           "home-electrical-services": {
             summary: "Reliable home visits for electrical repair, fitting, and appliance-related checks.",
             point1: "We support common home appliances like washing machine, cooler, and refrigerator electrical faults.",
@@ -559,6 +657,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
     },
     contact: {
       title: "Need electrical help today?",
+      copy: "Reach out for service, product, account, or payment support",
     },
     footer: {
       copy: "Trusted electrical products and expert home services with transparent pricing.",
@@ -580,6 +679,11 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
         applianceRepair: "Appliance Repair",
         toolRental: "Tool Rental",
       },
+    },
+    validation: {
+      phoneRequired: "Phone number is required",
+      phoneInvalid: "Enter a valid 10-digit mobile number",
+      phoneStart: "Indian mobile number must start with 6, 7, 8, or 9",
     },
     form: {
       aria: "Request account form",
@@ -630,6 +734,12 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
     },
   },
   hi: {
+    stats: {
+      happyCustomers: "खुश ग्राहक",
+      servicesDone: "सेवाएँ पूर्ण",
+      yearsTrusted: "वर्षों का विश्वास",
+      toolsAvailable: "उपलब्ध टूल",
+    },
     common: {
       brand: "जंभ इलेक्ट्रिकल्स",
       language: "भाषा",
@@ -644,6 +754,11 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       requestAccount: "अकाउंट के लिए अनुरोध करें",
       viewDetails: "विवरण देखें",
       step: "चरण",
+      underDevelopmentTitle: "साइट विकासाधीन है",
+      underDevelopmentCopy:
+        "हम आपके लिए एक संपूर्ण अनुभव लाने के लिए कड़ी मेहनत कर रहे हैं। कुछ सुविधाएँ और अनुभाग सक्रिय विकास के अंतर्गत हो सकते हैं। यदि आपको वह नहीं मिल रहा है जो आप खोज रहे हैं, तो सीधे हमसे संपर्क करें।",
+      underDevelopmentHint:
+        "बाहर कहीं भी टैप करें या ✕ पर क्लिक करके खारिज करें",
     },
     nav: {
       home: "होम",
@@ -673,6 +788,10 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       },
     },
     services: {
+      availableNow: "अभी उपलब्ध",
+      trustedByLocals: "स्थानीय लोगों का विश्वास",
+      noHiddenCharges: "कोई छिपा शुल्क नहीं",
+      flexibleRental: "लचीली किराया योजनाएँ",
       eyebrow: "सेवाएँ",
       title: "एक ही जगह पूरी इलेक्ट्रिकल सेवाएँ",
       copy: "उत्पाद, रिपेयर, वायरिंग, फिटिंग और किराये के टूल के लिए साफ और भरोसेमंद विकल्प।",
@@ -818,30 +937,65 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
           switches: {
             title: "स्विच",
             details: "घर और दुकान की फिटिंग के लिए मॉड्यूलर और मजबूत स्विच।",
+            pricing: {
+              salePrice: "Rs. 20 ~ Rs. 150 प्रति पीस",
+              installPrice: "Rs. 50 ~ Rs. 200 (उत्पाद + फिटिंग)",
+              labourNote: "फिटिंग शुल्क में स्विच माउंटिंग, वायर कनेक्शन और सुरक्षा जांच शामिल है। कीमत टाइप (मॉड्यूलर, पियानो, हैवी-ड्यूटी) और मात्रा के अनुसार बदलती है।",
+            },
           },
           sockets: {
             title: "सॉकेट",
             details: "उपकरणों और अधिक amp उपयोग के लिए सुरक्षित फिटिंग सहायता वाले सॉकेट।",
+            pricing: {
+              salePrice: "Rs. 30 ~ Rs. 250 प्रति पीस",
+              installPrice: "Rs. 70 ~ Rs. 300 (उत्पाद + फिटिंग)",
+              labourNote: "इंस्टॉलेशन में सॉकेट बॉक्स फिटिंग, वायर कनेक्शन और लोड टेस्टिंग शामिल है। 6A, 16A और मल्टी-पिन विकल्प उपलब्ध।",
+            },
           },
           wires: {
             title: "वायर",
             details: "लाइट, पावर और जरूरत के अनुसार सेटअप के लिए घरेलू वायरिंग केबल।",
+            pricing: {
+              salePrice: "Rs. 500 ~ Rs. 3,000 प्रति रोल (गेज के अनुसार)",
+              installPrice: "Rs. 1,000 ~ Rs. 8,000 (वायर + बिछाना + फिटिंग)",
+              labourNote: "बिछाने का शुल्क दीवार के प्रकार (ईंट/प्लास्टर/कंसील्ड), लंबाई और पॉइंट्स की संख्या पर निर्भर करता है। वायर गेज लोड आवश्यकता के अनुसार चुना जाता है।",
+            },
           },
           lights: {
             title: "लाइट्स",
             details: "LED bulbs, panels और energy-efficient fixtures के विकल्प।",
+            pricing: {
+              salePrice: "Rs. 30 ~ Rs. 500 प्रति पीस",
+              installPrice: "Rs. 60 ~ Rs. 350 (उत्पाद + फिटिंग)",
+              labourNote: "फिटिंग में ब्रैकेट माउंटिंग, वायरिंग और अलाइनमेंट शामिल है। छत, दीवार और पैनल लाइट इंस्टॉलेशन प्रति पॉइंट।",
+            },
           },
           mcb: {
-            title: "MCB",
-            details: "ओवरलोड और शॉर्ट-सर्किट सुरक्षा के लिए सुरक्षा उपकरण।",
+            title: "MCB / RCCB / DB",
+            details: "ओवरलोड, शॉर्ट-सर्किट और अर्थ लीकेज सुरक्षा के लिए सुरक्षा उपकरण।",
+            pricing: {
+              salePrice: "Rs. 80 ~ Rs. 1,200 प्रति यूनिट",
+              installPrice: "Rs. 200 ~ Rs. 1,800 (डिवाइस + इंस्टॉलेशन)",
+              labourNote: "इंस्टॉलेशन में DB बॉक्स माउंटिंग, डिवाइस फिक्सिंग, बसबार कनेक्शन और ट्रिप टेस्टिंग शामिल है। अपग्रेड या रिप्लेसमेंट की कीमत मौजूदा सेटअप पर निर्भर।",
+            },
           },
           boards: {
-            title: "बोर्ड",
+            title: "डिस्ट्रीब्यूशन बोर्ड",
             details: "Structured electrical points के लिए distribution और switch boards।",
+            pricing: {
+              salePrice: "Rs. 150 ~ Rs. 2,500 प्रति बोर्ड",
+              installPrice: "Rs. 400 ~ Rs. 4,000 (बोर्ड + वायरिंग + फिटिंग)",
+              labourNote: "बोर्ड इंस्टॉलेशन में दीवार पर लगाना, MCB/RCCB वायरिंग, फेज बैलेंसिंग और सुरक्षा जांच शामिल है। कीमत बोर्ड के आकार और वेज़ की संख्या पर निर्भर।",
+            },
           },
           accessories: {
             title: "सहायक सामान",
             details: "क्लिप, होल्डर, कनेक्टर, टेप और फिटिंग से जुड़ा जरूरी सामान।",
+            pricing: {
+              salePrice: "Rs. 5 ~ Rs. 200 प्रति आइटम",
+              installPrice: "सेवा विजिट शुल्क या पॉइंट-आधारित में शामिल",
+              labourNote: "छोटे सामान मुख्य सेवा के हिस्से के रूप में फिट किए जाते हैं। छोटे एक्सेसरी रिप्लेसमेंट के लिए अलग से मजदूरी नहीं। बड़े काम का शुल्क प्रति पॉइंट।",
+            },
           },
         },
         guidance: {
@@ -857,6 +1011,42 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
         title: "पारदर्शी कीमतें",
         copy: "अंतिम कीमत काम शुरू करने से पहले ही साफ बताई जाती है।",
         finalNote: "अंतिम कीमत काम के प्रकार, स्थान, सामग्री, समय और निरीक्षण के दौरान मिले अतिरिक्त मुद्दों पर निर्भर करती है।",
+        productSaleTitle: "उत्पाद बिक्री मूल्य (केवल सामान)",
+        productSaleCopy: "ये केवल इलेक्ट्रिकल आइटम खरीदने की अनुमानित कीमतें हैं, बिना इंस्टॉलेशन के। आप उत्पाद सीधे खरीद सकते हैं और खुद फिट कर सकते हैं या अपनी व्यवस्था कर सकते हैं।",
+        productInstallTitle: "इंस्टॉलेशन के साथ कीमत (सामान + मजदूरी)",
+        productInstallCopy: "अगर हमसे उत्पाद इंस्टॉल करवाना है तो कुल कीमत में सामान की कीमत और फिटिंग शुल्क शामिल होगा। मजदूरी में माउंटिंग, वायरिंग, कनेक्शन टेस्टिंग और सुरक्षा जांच शामिल है।",
+        generalGuidance: "कीमत संबंधी दिशानिर्देश",
+        guidancePoints: {
+          point1: "सभी कीमतें अनुमानित सीमाएँ हैं। अंतिम कीमत ब्रांड पसंद, गुणवत्ता ग्रेड, मात्रा और बाजार दर पर निर्भर करती है।",
+          point2: "इंस्टॉलेशन/मजदूरी शुल्क प्रति पॉइंट या प्रति यूनिट है। कई पॉइंट्स पर डिस्काउंटेड मजदूरी मिल सकती है।",
+          point3: "सामान्य सेवा क्षेत्र में ऑन-साइट काम के लिए एक मानक विजिट शुल्क (Rs. 50~150) लागू होता है।",
+          point4: "उत्पादों पर वारंटी निर्माता या सप्लायर नीति पर निर्भर करती है। मजदूरी वारंटी सही फिटिंग तक सीमित है।",
+          point5: "आपातकालीन या रात (8 PM के बाद) के अनुरोधों पर दूरी, जोखिम और तकनीशियन उपलब्धता के अनुसार 2x-3x शुल्क लग सकता है।",
+        },
+        servicePricingTitle: "सेवा मूल्य अवलोकन",
+        servicePricingCopy: "सामान्य सेवा शुल्क का त्वरित संदर्भ। ये शुरुआती अनुमान हैं और वास्तविक स्थिति के अनुसार बदल सकते हैं।",
+        inspection: {
+          title: "जांच / विजिट",
+          price: "Rs. 50~150 प्रति विजिट",
+          note: "सेवा क्षेत्र में तकनीशियन के समय और यात्रा के लिए शुल्क।",
+        },
+        homeService: {
+          title: "घरेलू इलेक्ट्रिकल सेवा",
+          price: "Rs. 300 से शुरू",
+          note: "सामान्य मरम्मत जैसे स्विच/सॉकेट फिक्स, पंखा/लाइट रिपेयर शामिल। सामग्री अलग।",
+        },
+        wiringFitting: {
+          title: "वायरिंग और नई फिटिंग",
+          price: "साइट के अनुसार अनुमान",
+          note: "साइट निरीक्षण के बाद मूल्य निर्धारण। सामग्री + मजदूरी प्रति पॉइंट शामिल।",
+        },
+        emergency: {
+          title: "आपातकालीन / रात की सेवा",
+          price: "2x-3x मानक दर",
+          note: "8 PM के बाद। तकनीशियन उपलब्धता, दूरी और सुरक्षा जोखिम पर निर्भर।",
+        },
+        labourGuidance: "मजदूरी और विजिट शुल्क नीति",
+        labourGuidanceNote: "मजदूरी शुल्क तकनीशियन के समय, कौशल और उपकरणों को कवर करता है। यह उत्पाद लागत से अलग है। प्रत्येक ऑन-साइट विजिट के लिए एक मानक विजिट शुल्क जोड़ा जाता है जब तक कि काम किसी बड़े चल रहे काम का हिस्सा न हो। हम संभव होने पर काम शुरू करने से पहले सभी शुल्कों पर चर्चा करते हैं।",
       },
       requestAccount: {
         title: "कस्टमर अकाउंट का अनुरोध करें",
@@ -924,10 +1114,15 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
         policyNote: "यह कीमत नीति हमारी नियम और शर्तों में भी बताई गई है।",
         includes: {
           "electrical-product-sales": {
-            item1: "स्विच और सॉकेट",
-            item2: "वायर और केबल",
-            item3: "MCB और distribution boards",
-            item4: "लाइटिंग और सहायक सामान",
+            item1: "स्विच और सॉकेट (मॉड्यूलर और हैवी-ड्यूटी)",
+            item2: "सभी लोड के लिए वायर और केबल",
+            item3: "MCB, RCCB और डिस्ट्रीब्यूशन / DB बॉक्स",
+            item4: "LED लाइट, पैनल, बल्ब और फिक्स्चर",
+            item5: "पंखे और एक्सेसरीज़ (सीलिंग, एग्ज़ॉस्ट, टेबल)",
+            item6: "होल्डर, प्लग, स्विचबोर्ड, एक्सटेंशन बोर्ड",
+            item7: "रिपेयर और रिप्लेसमेंट आइटम (स्विच, सॉकेट, फ्यूज़)",
+            item8: "ब्रांडेड और लोकल दोनों विकल्प उपलब्ध",
+            item9: "स्टॉक में उपलब्धता के अनुसार सामग्री",
           },
           "home-electrical-services": {
             item1: "स्विच और सॉकेट की मरम्मत",
@@ -976,6 +1171,14 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
           },
         },
         extra: {
+          "electrical-product-sales": {
+            summary: "हम घर, दुकान और छोटे व्यवसायों के लिए इलेक्ट्रिकल उत्पादों की व्यापक रेंज उपलब्ध कराते हैं। जरूरत के अनुसार फिटिंग सहायता भी दी जाती है।",
+            point1: "उत्पाद की कीमत ब्रांड, गुणवत्ता और बाजार के वर्तमान रेट पर निर्भर करती है।",
+            point2: "फिटिंग, विजिट और मजदूरी के शुल्क उत्पाद की कीमत से अलग हैं।",
+            point3: "जरूरत की जांच और साइट देखने के बाद अंतिम अनुमान बताया जाता है।",
+            point4: "स्टॉक में उपलब्धता अलग हो सकती है — विजिट या ऑर्डर करने से पहले पुष्टि कर लें।",
+            point5: "हम आपके बजट और लोड जरूरत के अनुसार ब्रांडेड और लोकल विकल्पों में चुनने में मदद करते हैं।",
+          },
           "home-electrical-services": {
             summary: "इलेक्ट्रिकल रिपेयर, फिटिंग और उपकरणों से जुड़ी जांच के लिए भरोसेमंद home visit।",
             point1: "वॉशिंग मशीन, कूलर और रेफ्रिजरेटर जैसे सामान्य उपकरणों के electrical faults में सहायता।",
@@ -1177,6 +1380,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
     },
     contact: {
       title: "आज ही इलेक्ट्रिकल सहायता चाहिए?",
+      copy: "सेवा, उत्पाद, अकाउंट या भुगतान के लिए हमसे संपर्क करें",
     },
     footer: {
       copy: "विश्वसनीय इलेक्ट्रिकल उत्पाद, सुरक्षित काम और उचित कीमत के साथ स्थानीय सेवा।",
@@ -1198,6 +1402,11 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
         applianceRepair: "उपकरण रिपेयर",
         toolRental: "किराये पर टूल",
       },
+    },
+    validation: {
+      phoneRequired: "फोन नंबर जरूरी है",
+      phoneInvalid: "कृपया 10 अंकों का मोबाइल नंबर दर्ज करें",
+      phoneStart: "भारतीय मोबाइल नंबर 6, 7, 8 या 9 से शुरू होना चाहिए",
     },
     form: {
       aria: "अकाउंट अनुरोध फॉर्म",

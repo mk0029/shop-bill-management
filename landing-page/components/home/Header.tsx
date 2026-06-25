@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Languages, Menu, X, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { quickLinks } from "@landing/lib/site-data";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
 
@@ -47,6 +49,15 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const prevOverflowRef = useRef<string | null>(null);
   const { t } = useLandingLanguage();
+  const pathname = usePathname();
+
+  const getLinkClass = (href: string) =>
+    cn(
+      "transition-colors",
+      pathname === href
+        ? "text-white bg-white/10"
+        : "text-[#B8C0CC] hover:text-white",
+    );
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -108,7 +119,11 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="glass-button bg-slate-800/30 border-white/20 rounded-xl px-3.5 py-2 text-sm font-medium text-[#B8C0CC] hover:text-white"
+                suppressHydrationWarning
+                className={cn(
+                  "glass-button rounded-xl px-3.5 py-2 text-sm font-medium",
+                  getLinkClass(link.href),
+                )}
               >
                 {t(navKeys[quickLinks.indexOf(link)])}
               </Link>
@@ -165,7 +180,11 @@ export default function Header() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setOpen(false)}
-                    className="glass text-center bg-slate-800/40 border border-solid border-white/20 rounded-lg px-3 py-2.5 text-sm text-[#ffffff] hover:text-white transition-colors hover:bg-white/10"
+                    suppressHydrationWarning
+                    className={cn(
+                      "glass text-center bg-slate-800/40 border border-solid border-white/20 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-white/10",
+                      getLinkClass(link.href),
+                    )}
                   >
                     {t(navKeys[quickLinks.indexOf(link)])}
                   </Link>

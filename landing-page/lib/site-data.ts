@@ -43,7 +43,17 @@ export const services = [
     icon: PlugZap,
     title: "Electrical Product Sales",
     shortDescription: "Trusted brands for switches, sockets, lights, MCBs, and accessories.",
-    includes: ["Switches and sockets", "Wires and cables", "MCB and distribution boards", "Lighting and accessories"],
+    includes: [
+      "Switches and sockets (modular and heavy-duty)",
+      "Wires and cables for all load types",
+      "MCB, RCCB, and distribution / DB boxes",
+      "LED lights, panels, bulbs, and fixtures",
+      "Fans and accessories (ceiling, exhaust, table)",
+      "Holders, plugs, switchboards, extension boards",
+      "Repair and replacement items (switches, sockets, fuses)",
+      "Branded and local options available",
+      "Material availability depends on current stock",
+    ],
   },
   {
     slug: "home-electrical-services",

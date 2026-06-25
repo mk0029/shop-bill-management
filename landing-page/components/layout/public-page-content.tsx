@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CircleCheck, ShieldCheck, Truck, WalletCards, MessageCircle, Mail } from "lucide-react";
+import { CircleCheck, ShieldCheck, Truck, WalletCards, MessageCircle, Mail, IndianRupee, Wrench, Info } from "lucide-react";
 import { pricingHighlights, services } from "@landing/lib/site-data";
 import { PremiumCard } from "@landing/components/shared/landing-sections";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
@@ -35,6 +35,7 @@ const productKeys = [
 ];
 
 const serviceExtraPointCount: Record<string, number> = {
+  "electrical-product-sales": 5,
   "home-electrical-services": 3,
   "appliance-repair": 2,
   "new-wiring-fitting": 2,
@@ -101,8 +102,8 @@ export function ProductsContent() {
   const { t } = useLandingLanguage();
 
   return (
-    <section className="container mx-auto px-4 py-11">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <section className="container mx-auto px-4 py-11 space-y-8">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {productKeys.map((key) => (
           <PremiumCard key={key}>
             <h2 className="text-xl font-semibold text-white">
@@ -111,6 +112,26 @@ export function ProductsContent() {
             <p className="mt-2 text-sm leading-relaxed text-[#B8C0CC]">
               {t(`pages.products.categories.${key}.details`)}
             </p>
+            <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+              <div className="flex items-start gap-2 text-sm">
+                <IndianRupee className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-sky-300 font-medium">{t("pages.pricing.productSaleTitle")}:</span>
+                  <p className="text-[#B8C0CC] mt-0.5">{t(`pages.products.categories.${key}.pricing.salePrice`)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <Wrench className="h-4 w-4 text-violet-400 mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-violet-300 font-medium">{t("pages.pricing.productInstallTitle")}:</span>
+                  <p className="text-[#B8C0CC] mt-0.5">{t(`pages.products.categories.${key}.pricing.installPrice`)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-[#B8C0CC]/70">
+                <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                <p>{t(`pages.products.categories.${key}.pricing.labourNote`)}</p>
+              </div>
+            </div>
           </PremiumCard>
         ))}
       </div>
@@ -131,6 +152,18 @@ export function ProductsContent() {
           title={t("pages.products.guidance.fitmentTitle")}
           copy={t("pages.products.guidance.fitmentCopy")}
         />
+      </div>
+
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-semibold text-white">{t("pages.pricing.generalGuidance")}</h2>
+        <ul className="mt-4 space-y-2 text-sm text-[#B8C0CC]">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <li key={i} className="flex items-start gap-2">
+              <CircleCheck className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
+              <span>{t(`pages.pricing.guidancePoints.point${i}`)}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -159,21 +192,78 @@ export function PricingContent() {
   const { t } = useLandingLanguage();
 
   return (
-    <section className="container mx-auto grid gap-4 px-4 py-11 md:grid-cols-2 lg:grid-cols-4">
-      {pricingHighlights.map((item, index) => (
-        <PremiumCard key={item.title}>
-          <h2 className="font-semibold text-white text-sm uppercase tracking-wider text-sky-400/80">
-            {t(`pricing.items.${pricingKeys[index]}.title`)}
-          </h2>
-          <p className="mt-2 text-xl font-bold text-gradient">
-            {t(`pricing.items.${pricingKeys[index]}.price`)}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-[#B8C0CC]">
-            {t(`pricing.items.${pricingKeys[index]}.note`)}
-          </p>
-        </PremiumCard>
-      ))}
-      <p className="text-sm leading-6 text-[#B8C0CC] md:col-span-2 lg:col-span-4">
+    <section className="container mx-auto px-4 py-11 space-y-8">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {pricingHighlights.map((item, index) => (
+          <PremiumCard key={item.title}>
+            <h2 className="font-semibold text-white text-sm uppercase tracking-wider text-sky-400/80">
+              {t(`pricing.items.${pricingKeys[index]}.title`)}
+            </h2>
+            <p className="mt-2 text-xl font-bold text-gradient">
+              {t(`pricing.items.${pricingKeys[index]}.price`)}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[#B8C0CC]">
+              {t(`pricing.items.${pricingKeys[index]}.note`)}
+            </p>
+          </PremiumCard>
+        ))}
+      </div>
+
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-semibold text-white">{t("pages.pricing.servicePricingTitle")}</h2>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.pricing.servicePricingCopy")}</p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {(["inspection", "homeService", "wiringFitting", "emergency"] as const).map((key) => (
+            <div key={key} className="glass rounded-xl p-4">
+              <p className="text-sm font-semibold text-white">{t(`pages.pricing.${key}.title`)}</p>
+              <p className="mt-1 text-lg font-bold text-gradient">{t(`pages.pricing.${key}.price`)}</p>
+              <p className="mt-1 text-xs text-[#B8C0CC]">{t(`pages.pricing.${key}.note`)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-semibold text-white">{t("pages.pricing.productSaleTitle")}</h2>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.pricing.productSaleCopy")}</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {productKeys.map((key) => (
+            <div key={key} className="glass rounded-xl p-3">
+              <p className="text-sm font-medium text-white">{t(`pages.products.categories.${key}.title`)}</p>
+              <p className="mt-1 text-xs text-sky-400">{t(`pages.products.categories.${key}.pricing.salePrice`)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-semibold text-white">{t("pages.pricing.productInstallTitle")}</h2>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.pricing.productInstallCopy")}</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {productKeys.map((key) => (
+            <div key={key} className="glass rounded-xl p-3">
+              <p className="text-sm font-medium text-white">{t(`pages.products.categories.${key}.title`)}</p>
+              <p className="mt-1 text-xs text-violet-400">{t(`pages.products.categories.${key}.pricing.installPrice`)}</p>
+              <p className="mt-1 text-xs text-[#B8C0CC]/70">{t(`pages.products.categories.${key}.pricing.labourNote`)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-semibold text-white">{t("pages.pricing.labourGuidance")}</h2>
+        <p className="mt-2 text-sm text-[#B8C0CC]">{t("pages.pricing.labourGuidanceNote")}</p>
+        <div className="mt-4 space-y-2 text-sm text-[#B8C0CC]">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <p key={i} className="flex items-start gap-2">
+              <CircleCheck className="h-4 w-4 text-sky-400 mt-0.5 shrink-0" />
+              <span>{t(`pages.pricing.guidancePoints.point${i}`)}</span>
+            </p>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-sm text-[#B8C0CC]/60">
         {t("pages.pricing.finalNote")}
       </p>
     </section>
@@ -278,6 +368,16 @@ export function ContactContent({
       return;
     }
 
+    const phoneDigits = form.phone.replace(/\D/g, "");
+    if (phoneDigits.length !== 10) {
+      setError(t("validation.phoneInvalid"));
+      return;
+    }
+    if (!/^[6-9]/.test(phoneDigits)) {
+      setError(t("validation.phoneStart"));
+      return;
+    }
+
     const summary = `${t("pages.contact.formTitle")}\n${t("form.summaryName")}: ${form.name}\n${t("form.summaryPhone")}: ${form.phone}\n${t("form.summaryEmail")}: ${form.email}\n${t("pages.contact.messagePlaceholder")}: ${form.message}`;
 
     setIsLoading(true);
@@ -344,9 +444,11 @@ export function ContactContent({
           />
           <input
             className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+            type="text"
+            inputMode="numeric"
             placeholder={t("pages.contact.phonePlaceholder")}
             value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
             required
           />
           <input
@@ -358,7 +460,7 @@ export function ContactContent({
             required
           />
           <textarea
-            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50 resize-none"
             rows={5}
             placeholder={t("pages.contact.messagePlaceholder")}
             value={form.message}
@@ -423,7 +525,7 @@ export function ServiceDetailContent({
   const hasExtra = !extraSummary.startsWith("pages.");
 
   return (
-    <section className="container mx-auto px-4 py-11">
+    <section className="container mx-auto px-4 py-6 md:py-11">
       <div className="grid gap-4 xl:grid-cols-3">
         <GlassCard className="xl:col-span-2">
           <h2 className="text-2xl font-semibold text-white">
@@ -481,6 +583,12 @@ export function ServiceDetailContent({
             <p className="mt-4 text-xs text-[#B8C0CC]/60">
               {t("pages.serviceDetail.policyNote")}
             </p>
+            <Link
+              href="/pricing"
+              className="mt-3 inline-block text-xs text-sky-400 hover:text-sky-300 transition-colors"
+            >
+              {t("common.viewDetails")} → {t("nav.pricing")}
+            </Link>
           </GlassCard>
         </div>
       </div>

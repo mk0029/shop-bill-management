@@ -94,11 +94,16 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
         nextSocket.emit("chat:active", { roomId: activeRoomRef.current });
       }
     });
-    nextSocket.on("disconnect", () => setConnected(false));
+    nextSocket.on("disconnect", () => {
+      setConnected(false);
+    });
 
     setSocket(nextSocket);
     const goOffline = () => {
       if (nextSocket.connected) {
+        if (activeRoomRef.current) {
+          nextSocket.emit("typing:update", { roomId: activeRoomRef.current, typing: false });
+        }
         nextSocket.emit("presence:offline");
       }
       if (nextSocket.connected || nextSocket.active) nextSocket.disconnect();
@@ -128,6 +133,12 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
       window.removeEventListener("focus", goOnline);
       document.removeEventListener("freeze", goOffline);
       window.clearInterval(presencePingTimer);
+      if (nextSocket.connected) {
+        if (activeRoomRef.current) {
+          nextSocket.emit("typing:update", { roomId: activeRoomRef.current, typing: false });
+        }
+        nextSocket.emit("presence:offline");
+      }
       nextSocket.disconnect();
       setConnected(false);
       setSocket(null);

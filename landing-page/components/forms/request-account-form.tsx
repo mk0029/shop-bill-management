@@ -27,6 +27,16 @@ export function RequestAccountForm({ support, compact = false }: { support: { em
       return;
     }
 
+    const phoneDigits = form.phone.replace(/\D/g, "");
+    if (phoneDigits.length !== 10) {
+      setError(t("validation.phoneInvalid"));
+      return;
+    }
+    if (!/^[6-9]/.test(phoneDigits)) {
+      setError(t("validation.phoneStart"));
+      return;
+    }
+
     const summary = `${t("form.summaryTitle")}\n${t("form.summaryName")}: ${form.name}\n${t("form.summaryPhone")}: ${form.phone}\n${t("form.summaryEmail")}: ${form.email}\n${t("form.summaryLocation")}: ${resolvedLocation}\n${t("form.summaryContactPreference")}: ${form.channel}\n${t("form.summaryRequirement")}: ${form.requirement || "-"}`;
 
     setIsLoading(true);
@@ -75,7 +85,7 @@ export function RequestAccountForm({ support, compact = false }: { support: { em
         </div>
         <div>
           <label htmlFor="ra-phone" className="mb-1.5 block text-sm font-medium text-[#E5E7EB]">{t("form.phoneNumber")}</label>
-          <input id="ra-phone" inputMode="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder={t("form.phonePlaceholder")} required
+          <input id="ra-phone" type="text" inputMode="numeric" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder={t("form.phonePlaceholder")} required
             className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-[#B8C0CC]/50"
           />
         </div>

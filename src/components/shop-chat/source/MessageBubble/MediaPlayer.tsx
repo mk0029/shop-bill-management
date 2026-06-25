@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Portal from "@/lib/ui/Portal";
 
@@ -11,22 +11,33 @@ interface MediaPlayerProps {
   onOpenImage?: (src: string) => void;
 }
 
-// Video Player Component
+// Video Player Component — shows CSS skeleton until video metadata loads
 const VideoPlayer: React.FC<{ src: string; timeLabel?: string }> = ({
   src,
   timeLabel,
 }) => {
+  const [loaded, setLoaded] = useState(false);
   return (
     <div
       className="relative w-[min(62vw,320px)] max-w-full overflow-hidden rounded-xl border border-gray-700 bg-black aspect-video">
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-10 w-10 animate-pulse rounded-full bg-slate-600/50" />
+            <div className="h-1.5 w-24 animate-pulse rounded-full bg-slate-600/40" />
+          </div>
+        </div>
+      )}
       <video
         src={src}
         className="w-full h-full object-contain"
         controls
         preload="metadata"
+        onLoadedData={() => setLoaded(true)}
+        style={{ opacity: loaded ? 1 : 0, position: loaded ? "relative" : "absolute" }}
       />
       {timeLabel && (
-        <div className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white/90">
+        <div className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white/90 z-10">
           {timeLabel}
         </div>
       )}
@@ -34,80 +45,93 @@ const VideoPlayer: React.FC<{ src: string; timeLabel?: string }> = ({
   );
 };
 
-// Audio Player Component
+// Audio Player Component — loads audio efficiently, shows waveform, handles failed audio
 const AudioPlayer: React.FC<{ src: string }> = ({ src }) => {
   const aRef = useRef<HTMLAudioElement | null>(null);
   const waveRef = useRef<HTMLDivElement | null>(null);
-  const [ready, setReady] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const objUrlRef = useRef<string>("");
+  const [state, setState] = useState<"loading" | "ready" | "playing" | "paused" | "failed">("loading");
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
-  const bars = useMemo(
-    () =>
-      Array.from({ length: 46 }, (_, i) => {
-        const seed = (i * 23 + 17) % 31;
-        return 18 + ((seed * 19) % 62);
-      }),
-    []
+  const [bars, setBars] = useState<number[]>(() =>
+    Array.from({ length: 46 }, (_, i) => {
+      const seed = (i * 23 + 17) % 31;
+      return 18 + ((seed * 19) % 62);
+    })
   );
+  const initRef = useRef(false);
 
   const fmt = (s: number) => {
     if (!isFinite(s) || s < 0) s = 0;
     const m = Math.floor(s / 60);
-    const ss = Math.floor(s % 60)
-      .toString()
-      .padStart(2, "0");
+    const ss = Math.floor(s % 60).toString().padStart(2, "0");
     return `${m}:${ss}`;
   };
 
   useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
     const a = aRef.current;
-    if (!a) return;
-    const onLoaded = () => {
-      setDur(a.duration || 0);
-      setReady(true);
+    if (!a || !src) return;
+
+    a.src = src;
+    a.preload = "auto";
+    a.load();
+
+    const onMeta = () => {
+      let d = a.duration;
+      if (!isFinite(d) || d <= 0 || Number.isNaN(d)) {
+        d = 0;
+      }
+      setDur(d);
+      setState(d > 0 ? "ready" : "loading");
     };
     const onTime = () => setCur(a.currentTime || 0);
-    const onEnded = () => setPlaying(false);
-    a.addEventListener("loadedmetadata", onLoaded);
-    a.addEventListener("durationchange", onLoaded);
+    const onEnded = () => setState("ready");
+    const onPlay = () => setState("playing");
+    const onPause = () => { if (a.currentTime > 0) setState("paused"); };
+    const onError = () => {
+      if (initRef.current) {
+        setState("failed");
+      }
+    };
+    a.addEventListener("loadedmetadata", onMeta);
+    a.addEventListener("durationchange", onMeta);
     a.addEventListener("timeupdate", onTime);
     a.addEventListener("ended", onEnded);
-    if (a.readyState >= 1) onLoaded();
+    a.addEventListener("play", onPlay);
+    a.addEventListener("pause", onPause);
+    a.addEventListener("error", onError);
+
+    if (a.readyState >= 2) {
+      onMeta();
+    }
+
     return () => {
-      a.removeEventListener("loadedmetadata", onLoaded);
-      a.removeEventListener("durationchange", onLoaded);
+      a.removeEventListener("loadedmetadata", onMeta);
+      a.removeEventListener("durationchange", onMeta);
       a.removeEventListener("timeupdate", onTime);
       a.removeEventListener("ended", onEnded);
+      a.removeEventListener("play", onPlay);
+      a.removeEventListener("pause", onPause);
+      a.removeEventListener("error", onError);
+      a.pause();
+      a.removeAttribute("src");
+      a.load();
+      const objUrl = objUrlRef.current;
+      if (objUrl) { URL.revokeObjectURL(objUrl); objUrlRef.current = ""; }
     };
-  }, [src]);
-
-  useEffect(() => {
-    const a = aRef.current;
-    if (!a) return;
-    setPlaying(false);
-    setCur(0);
-    setDur(0);
-    setReady(false);
   }, [src]);
 
   const toggle = () => {
     const a = aRef.current;
-    if (!a) return;
+    if (!a || state === "loading" || state === "failed") return;
     if (a.paused) {
-      a.play();
-      setPlaying(true);
+      a.play().then(() => setState("playing")).catch(() => setState("paused"));
     } else {
       a.pause();
-      setPlaying(false);
+      setState("paused");
     }
-  };
-
-  const onSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Number(e.target.value);
-    const a = aRef.current;
-    if (!a) return;
-    a.currentTime = (dur || 0) * (v / 100);
   };
 
   const pct = dur > 0 ? Math.min(100, Math.max(0, (cur / dur) * 100)) : 0;
@@ -124,14 +148,59 @@ const AudioPlayer: React.FC<{ src: string }> = ({ src }) => {
     setCur(a.currentTime || 0);
   };
 
+  const isPlaying = state === "playing";
+
+  if (state === "loading") {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-slate-600/60 bg-slate-900/70 px-3 py-2.5 shadow-inner">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-500/30 bg-slate-700/50 text-slate-400">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-pulse">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex h-7 items-end gap-[2px] animate-pulse">
+            {Array.from({ length: 20 }, (_, i) => (
+              <span key={i} className="w-[3px] rounded-full bg-slate-600/60" style={{ height: `${18 + (i % 7) * 8}%` }} />
+            ))}
+          </div>
+          <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+            <span>0:00</span>
+            <span>0:00</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "failed") {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-red-600/40 bg-red-900/30 px-3 py-2.5 shadow-inner">
+        <button
+          type="button"
+          onClick={() => { initRef.current = false; setState("loading"); setDur(0); setCur(0); }}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-400/30 bg-red-500/15 text-red-300 transition-colors hover:bg-red-500/25"
+          aria-label="Retry">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] text-red-300">Could not load audio</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-slate-600/60 bg-slate-900/70 px-3 py-2.5 shadow-inner">
       <button
         type="button"
         onClick={toggle}
-        className="grid h-9 w-9 place-items-center rounded-full border border-emerald-400/30 bg-emerald-500/15 text-emerald-300 transition-colors hover:bg-emerald-500/25"
-        aria-label={playing ? "Pause" : "Play"}>
-        {playing ? (
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-emerald-400/30 bg-emerald-500/15 text-emerald-300 transition-colors hover:bg-emerald-500/25"
+        aria-label={isPlaying ? "Pause" : "Play"}>
+        {isPlaying ? (
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
           </svg>
@@ -175,7 +244,7 @@ const AudioPlayer: React.FC<{ src: string }> = ({ src }) => {
                       20,
                       Math.min(
                         100,
-                        h * (playing ? 0.72 + Math.abs(Math.sin(cur * 4.3 + i * 0.28)) * 0.38 : 1)
+                        h * (isPlaying ? 0.72 + Math.abs(Math.sin(cur * 4.3 + i * 0.28)) * 0.38 : 1)
                       )
                     )}%`,
                   }}
@@ -186,26 +255,17 @@ const AudioPlayer: React.FC<{ src: string }> = ({ src }) => {
         </div>
 
         <div className="mt-1 flex items-center justify-between text-[11px] tabular-nums text-slate-300">
-          <span>{ready ? fmt(cur) : "0:00"}</span>
-          <span>{ready ? fmt(dur) : "0:00"}</span>
+          <span>{fmt(cur)}</span>
+          <span>{dur > 0 ? fmt(dur) : "0:00"}</span>
         </div>
       </div>
 
-      <input
-        type="range"
-        min={0}
-        max={100}
-        step={0.1}
-        value={pct}
-        onChange={onSeek}
-        className="sr-only"
-      />
-      <audio ref={aRef} src={src} preload="metadata" />
+      <audio ref={aRef} />
     </div>
   );
 };
 
-// Image Player Component
+// Image Player Component — loads image lazily, shows pure CSS skeleton (no duplicate img load)
 const ImagePlayer: React.FC<{
   src: string;
   timeLabel?: string;
@@ -230,6 +290,16 @@ const ImagePlayer: React.FC<{
     return () => document.removeEventListener("keydown", onKey);
   }, [imgOpen]);
 
+  const startLoad = useRef(false);
+  useEffect(() => {
+    if (startLoad.current) return;
+    startLoad.current = true;
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => setImgLoaded(true);
+    img.src = src;
+  }, [src]);
+
   return (
     <>
       <button
@@ -244,27 +314,18 @@ const ImagePlayer: React.FC<{
         className="relative flex w-[min(62vw,320px)] max-w-full items-center justify-center overflow-hidden rounded-xl border border-gray-700 bg-black aspect-square"
         style={{ maxHeight: "320px" }}>
         {!imgLoaded && (
-          <>
-            <img
-              src={src}
-              alt="preview"
-              className="absolute top-0 left-0 h-full w-full scale-105 object-cover blur-xl opacity-45"
-              loading="eager"
-            />
-            <div className="absolute inset-0 animate-pulse bg-slate-700/35" />
-          </>
+          <div className="absolute inset-0 animate-pulse bg-slate-700/40 rounded-xl" />
         )}
-        <img
-          src={src}
-          alt="image"
-          className="absolute top-0 left-0 h-full w-full transition-opacity duration-200 object-contain"
-          style={{ opacity: imgLoaded ? 1 : 0 }}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setImgLoaded(true)}
-        />
+        {imgLoaded && (
+          <img
+            src={src}
+            alt="image"
+            className="absolute top-0 left-0 h-full w-full object-contain"
+            decoding="async"
+          />
+        )}
         {uploading && (
-          <div className="absolute left-0 right-0 bottom-0 h-1 bg-black/60">
+          <div className="absolute left-0 right-0 bottom-0 h-1 bg-black/60 z-10">
             {typeof uploadProgress === "number" ? (
               <div
                 className="h-full bg-emerald-500"
@@ -278,7 +339,7 @@ const ImagePlayer: React.FC<{
           </div>
         )}
         {timeLabel && (
-          <div className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white/90">
+          <div className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white/90 z-10">
             {timeLabel}
           </div>
         )}
