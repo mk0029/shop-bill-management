@@ -3,6 +3,7 @@ import { Message } from "@/lib/types";
 import MessageStatus from "./MessageStatus";
 import { safeUserName } from "@/lib/display-text";
 import { markMediaLoaded, isMediaLoaded } from "@/lib/loaded-media-cache";
+import { getCachedMediaBlob } from "@/lib/chat-cache";
 
 interface MediaCollageBubbleProps {
   messages: Message[];
@@ -33,6 +34,31 @@ const MediaCell: React.FC<{
   const uploading = message.uploading;
   const uploadProgress = message.uploadProgress;
   const isFailed = !uploading && message.status === "failed";
+  const [cacheSrc, setCacheSrc] = useState("");
+  const cacheBlobUrlRef = useRef("");
+
+  useEffect(() => {
+    if (!src || src.startsWith("blob:") || src.startsWith("data:")) { setCacheSrc(src); return; }
+    let cancelled = false;
+    (async () => {
+      const cached = await getCachedMediaBlob(src);
+      if (cancelled) return;
+      if (cached) {
+        const blobUrl = URL.createObjectURL(new Blob([cached.data], { type: cached.mimeType }));
+        cacheBlobUrlRef.current = blobUrl;
+        setCacheSrc(blobUrl);
+      } else {
+        setCacheSrc(src);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [src]);
+
+  useEffect(() => {
+    return () => {
+      if (cacheBlobUrlRef.current) { URL.revokeObjectURL(cacheBlobUrlRef.current); cacheBlobUrlRef.current = ""; }
+    };
+  }, []);
 
   useEffect(() => {
     if (imgLoaded || !src) { setVisible(true); return; }
@@ -72,12 +98,12 @@ const MediaCell: React.FC<{
       {!imgLoaded && !isFailed && (
         <div className="absolute inset-0 animate-pulse bg-slate-700/40 rounded-lg" />
       )}
-      {visible && (
+      {visible && cacheSrc && (
         isVideo ? (
-          <video src={src} muted playsInline className="absolute inset-0 h-full w-full object-cover" onLoadedData={onLoad} />
+          <video src={cacheSrc} muted playsInline className="absolute inset-0 h-full w-full object-cover" onLoadedData={onLoad} />
         ) : (
           <img
-            src={src}
+            src={cacheSrc}
             alt="media"
             className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"

@@ -439,7 +439,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         onContextMenu={onContextMenu}
         className={`group relative min-w-[3.5rem] px-2.5 pt-[5px] pb-[5px] ${grouping.samePrev ? "mt-px" : "mt-1"} ${grouping.sameNext ? "mb-px" : "mb-1"} ${hasReactions ? "!mb-[14px]" : ""} max-w-[min(66%,23rem)] text-[0.82rem] leading-[1.28] shadow-[0_6px_18px_rgba(2,8,23,0.24)] ring-1 ring-inset transition-all duration-200
         ${isCurrentUser ? "bg-gradient-to-b from-slate-600/95 to-slate-700/95 text-slate-100 ring-slate-400/20" : "bg-gradient-to-b from-slate-700/95 to-slate-800/95 text-slate-100 ring-slate-500/25"}
-        ${isDeletedForEveryone ? "overflow-hidden" : ""}
         ${shapeClasses}
         ${isSelected ? "ring-2 ring-emerald-500/60 ring-offset-2 ring-offset-gray-900" : ""}
         ${isSelected ? (isCurrentUser ? "bg-gray-700/90" : "bg-gray-800/90") : ""}
@@ -671,6 +670,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               mediaHeight={message.media?.height}
               mediaMimeType={message.media?.mimeType}
               mediaFileName={message.media?.fileName}
+              message={message}
             />
           </div>
         )}

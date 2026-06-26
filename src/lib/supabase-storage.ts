@@ -34,7 +34,8 @@ export function validateFile(file: File): string | null {
   if (file.size > MAX_FILE_SIZE) {
     return `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB`;
   }
-  if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith("image/")) {
+  const baseType = file.type.split(";")[0].trim();
+  if (!ALLOWED_TYPES.includes(baseType) && !baseType.startsWith("image/")) {
     return `File type ${file.type} is not supported`;
   }
   return null;

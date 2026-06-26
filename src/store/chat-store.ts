@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ShopChatRoom, ShopChatMessage } from "@/lib/shop-chat/types";
 import { cacheRooms, cacheRoom, cacheMessages, cacheMessage, getCachedRooms, getCachedMessages } from "@/lib/chat-cache";
+import { preloadMediaFromMessages } from "@/lib/preload-media-blob";
 
 interface ChatState {
   // Normalized rooms
@@ -117,6 +118,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       hasMoreMessages: { ...state.hasMoreMessages, [roomId]: hasMore },
     }));
     cacheMessages(roomId, messages);
+    preloadMediaFromMessages(messages);
   },
 
   prependMessages: (roomId, messages, cursor = null, hasMore = true) => {
@@ -133,6 +135,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         hasMoreMessages: { ...state.hasMoreMessages, [roomId]: hasMore },
       };
     });
+    preloadMediaFromMessages(messages);
   },
 
   mergeMessage: (roomId, message) => {
@@ -160,6 +163,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     });
     cacheMessage(message);
+    preloadMediaFromMessages([message]);
   },
 
   mergeMessages: (roomId, messages) => {
@@ -181,6 +185,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     });
     cacheMessages(roomId, messages);
+    preloadMediaFromMessages(messages);
   },
 
   setRoomsLoading: (loading) => set({ roomsLoading: loading }),

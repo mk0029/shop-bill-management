@@ -202,14 +202,42 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Default: try cache, then network with proper error handling
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
+  // API requests: network-first with cache fallback (never serve stale data)
+  if (url.pathname.startsWith("/chat/") || url.pathname.startsWith("/api/")) {
+    event.respondWith(
+      (async () => {
+        try {
+          const response = await fetch(request);
+          const copy = response.clone();
+          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+          return response;
+        } catch {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response(JSON.stringify({ error: "Offline" }), {
+            status: 503,
+            statusText: "Service Unavailable",
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      })(),
+    );
+    return;
+  }
 
-      // If not in cache, try network with error handling
-      return fetch(request).catch((error) => {
+  // Default: network-first with cache fallback for other requests
+  event.respondWith(
+    (async () => {
+      try {
+        const response = await fetch(request);
+        const copy = response.clone();
+        caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+        return response;
+      } catch (error) {
         console.warn("Network request failed:", request.url, error);
+
+        const cached = await caches.match(request);
+        if (cached) return cached;
 
         // For navigation requests, return offline page or basic response
         if (request.mode === "navigate") {
@@ -219,13 +247,12 @@ self.addEventListener("fetch", (event) => {
           });
         }
 
-        // For other requests, return appropriate error response
         return new Response("Network request failed", {
           status: 503,
           statusText: "Service Unavailable",
         });
-      });
-    }),
+      }
+    })(),
   );
 });
 

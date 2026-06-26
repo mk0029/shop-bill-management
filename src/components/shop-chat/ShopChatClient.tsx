@@ -1681,20 +1681,49 @@ export default function ShopChatClient({
 
     for (const task of tasks) {
       try {
-        setMessagesByRoom((prev) => ({
-          ...prev,
-          [activeRoom.roomId]: (prev[activeRoom.roomId] || []).map((msg) =>
-            msg.clientMessageId === task.tempId ? { ...msg, uploadProgress: 10 } : msg,
-          ),
-        }));
         const formData = new FormData();
         formData.append("file", task.file);
         formData.append("roomId", activeRoom.roomId);
         formData.append("messageId", task.tempId);
         formData.append("userId", myUserId);
-        const uploadRes = await fetch("/api/upload/chat", { method: "POST", body: formData });
-        if (!uploadRes.ok) throw new Error("Upload failed");
-        const uploadData = await uploadRes.json();
+
+        const uploadData = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/upload/chat");
+
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable && e.total > 0) {
+              const pct = Math.round((e.loaded / e.total) * 99);
+              setMessagesByRoom((prev) => ({
+                ...prev,
+                [activeRoom.roomId]: (prev[activeRoom.roomId] || []).map((msg) =>
+                  msg.clientMessageId === task.tempId ? { ...msg, uploadProgress: pct } : msg,
+                ),
+              }));
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              setMessagesByRoom((prev) => ({
+                ...prev,
+                [activeRoom.roomId]: (prev[activeRoom.roomId] || []).map((msg) =>
+                  msg.clientMessageId === task.tempId ? { ...msg, uploadProgress: 100 } : msg,
+                ),
+              }));
+              try {
+                resolve(JSON.parse(xhr.responseText));
+              } catch {
+                reject(new Error("Invalid JSON response"));
+              }
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network error"));
+          xhr.send(formData);
+        });
         const meta = uploadData.metadata || {};
         const media: ChatMedia = {
           type: task.type,

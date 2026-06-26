@@ -65,7 +65,6 @@ export function useGlobalShopChat(
   const { socket, connected } = useShopChatSocket(undefined, enabled);
   const chatStore = useChatStore();
   const [localRooms, setLocalRooms] = useState<ShopChatRoom[]>([]);
-  const loadedRef = useRef(false);
   const notifiedMessageIdsRef = useRef(new Set<string>());
   const chatPath = role === "customer" ? "/customer/chat" : "/admin/chat";
   const isChatRoute = pathname === "/chat" || pathname === chatPath || pathname.startsWith(`${chatPath}/`);
@@ -168,16 +167,12 @@ export function useGlobalShopChat(
     [userId],
   );
 
-  // Initial load: try cache first, then network (ONCE per enable cycle)
+  // Initial load: try cache first, then network
   useEffect(() => {
     if (!enabled) {
       setLocalRooms([]);
-      loadedRef.current = false;
       return;
     }
-    // Guard: only fetch rooms once. Subsequent updates come via socket.
-    if (loadedRef.current) return;
-    loadedRef.current = true;
 
     let cancelled = false;
     async function loadInitial() {
@@ -185,7 +180,7 @@ export function useGlobalShopChat(
         // Load from cache first for instant display
         await chatStore.loadFromCache();
 
-        // Then fetch from network (once)
+        // Then fetch from network
         if (isSupportRole(role)) {
           const response = await listShopChatRooms({ limit: 0 });
           if (!cancelled) {

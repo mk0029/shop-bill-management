@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Send, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { LiveWaveform } from "@/components/ui/live-waveform";
 
 interface VoiceRecorderProps {
   onSend: (audioBlob: Blob) => Promise<void>;
@@ -13,12 +14,6 @@ interface VoiceRecorderProps {
 type Phase = "idle" | "starting" | "recording" | "sending" | "cancelled";
 
 const MIN_DURATION_MS = 1000;
-const BAR_COUNT = 50;
-
-function seededRandom(seed: number) {
-  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
-  return x - Math.floor(x);
-}
 
 const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   onSend,
@@ -36,21 +31,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef<number>(0);
   const isFinishingRef = useRef(false);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const [waveAmplitudes, setWaveAmplitudes] = useState<number[]>(() =>
-    Array.from({ length: BAR_COUNT }, () => 0)
-  );
-
-  const bars = useMemo(
-    () =>
-      Array.from({ length: BAR_COUNT }, (_, i) => ({
-        baseHeight: 8 + seededRandom(i) * 28,
-        speed: 0.6 + seededRandom(i + 100) * 1.4,
-        phase: seededRandom(i + 200) * Math.PI * 2,
-      })),
-    []
-  );
+  const recorderStartedRef = useRef(false);
 
   const formatDuration = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
@@ -64,7 +45,6 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       streamRef.current?.getTracks().forEach((track) => track.stop());
     } catch {}
     streamRef.current = null;
-    analyserRef.current = null;
   };
 
   const stopTimer = () => {
@@ -74,24 +54,16 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     }
   };
 
-  const stopAnimFrame = () => {
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
-  };
-
   const resetIdle = () => {
     stopStreams();
     stopTimer();
-    stopAnimFrame();
     audioChunksRef.current = [];
     startedAtRef.current = 0;
     isFinishingRef.current = false;
+    recorderStartedRef.current = false;
     setLocked(false);
     setDurationMs(0);
     setPhase("idle");
-    setWaveAmplitudes(Array.from({ length: BAR_COUNT }, () => 0));
     onRecordingChange?.(false);
   };
 
@@ -120,7 +92,6 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     await stopRecorder();
     stopStreams();
     stopTimer();
-    stopAnimFrame();
 
     if (!keep) {
       setPhase("cancelled");
@@ -155,106 +126,45 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     }
   };
 
-  const startWaveAnimation = () => {
-    stopAnimFrame();
+  const handleStreamReady = useCallback((stream: MediaStream) => {
+    if (recorderStartedRef.current) return;
+    recorderStartedRef.current = true;
 
-    const analyser = analyserRef.current;
-    if (analyser) {
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const animate = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const step = Math.max(1, Math.floor(dataArray.length / BAR_COUNT));
-        const newAmps: number[] = [];
-        for (let i = 0; i < BAR_COUNT; i++) {
-          const idx = Math.min(i * step, dataArray.length - 1);
-          const raw = dataArray[idx] / 255;
-          newAmps.push(Math.pow(raw, 0.5));
-        }
-        setWaveAmplitudes(newAmps);
-        animFrameRef.current = requestAnimationFrame(animate);
-      };
-      animFrameRef.current = requestAnimationFrame(animate);
-    } else {
-      const t0 = Date.now();
-      const animate = () => {
-        const elapsed = (Date.now() - t0) / 1000;
-        const newAmps: number[] = Array.from({ length: BAR_COUNT }, (_, i) => {
-          const wave =
-            Math.sin(elapsed * 3.5 + i * 0.45) * 0.3 +
-            Math.sin(elapsed * 5.2 + i * 0.28) * 0.2 +
-            Math.sin(elapsed * 1.8 + i * 0.7) * 0.15 +
-            0.35;
-          return Math.max(0.05, Math.min(1, wave));
-        });
-        setWaveAmplitudes(newAmps);
-        animFrameRef.current = requestAnimationFrame(animate);
-      };
-      animFrameRef.current = requestAnimationFrame(animate);
-    }
-  };
+    streamRef.current = stream;
 
-  const startRecording = async () => {
-    if (phase !== "idle") return;
-    try {
-      setPhase("starting");
-      onRecordingChange?.(true);
-      startedAtRef.current = Date.now();
-      setDurationMs(0);
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/ogg";
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: { ideal: 2 },
-          sampleRate: { ideal: 48000 },
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        } as any,
-      });
-      streamRef.current = stream;
-
-      try {
-        const audioCtx = new AudioContext();
-        const source = audioCtx.createMediaStreamSource(stream);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.7;
-        source.connect(analyser);
-        analyserRef.current = analyser;
-      } catch {
-        // fallback: no real audio analysis, animated bars will still work
+    const recorder = new MediaRecorder(stream, mimeType ? ({ mimeType } as any) : undefined);
+    mediaRecorderRef.current = recorder;
+    audioChunksRef.current = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        audioChunksRef.current.push(event.data);
       }
+    };
+    recorder.start(100);
 
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : MediaRecorder.isTypeSupported("audio/webm")
-          ? "audio/webm"
-          : "audio/ogg";
+    startedAtRef.current = Date.now();
+    setDurationMs(0);
+    setLocked(true);
+    setPhase("recording");
 
-      const recorder = new MediaRecorder(stream, mimeType ? ({ mimeType } as any) : undefined);
-      mediaRecorderRef.current = recorder;
-      audioChunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      recorder.start(100);
+    timerRef.current = window.setInterval(() => {
+      setDurationMs(Math.max(0, Date.now() - startedAtRef.current));
+    }, 100);
+  }, []);
 
-      startedAtRef.current = Date.now();
-      setDurationMs(0);
-      setLocked(true);
-      setPhase("recording");
-
-      timerRef.current = window.setInterval(() => {
-        setDurationMs(Math.max(0, Date.now() - startedAtRef.current));
-      }, 100);
-
-      startWaveAnimation();
-    } catch (error) {
-      console.warn("Voice recorder start failed", error);
-      toast.error("Microphone permission required");
-      resetIdle();
-    }
+  const startRecording = () => {
+    if (phase !== "idle") return;
+    setPhase("starting");
+    onRecordingChange?.(true);
+    startedAtRef.current = Date.now();
+    setDurationMs(0);
+    recorderStartedRef.current = false;
   };
 
   useEffect(() => {
@@ -360,31 +270,19 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
                 )}
               </div>
 
-              {/* Waveform — dots that grow into bars based on voice intensity */}
-              <div className="flex h-6 w-full items-center justify-center gap-[2px]">
-                {bars.map((bar, i) => {
-                  const amp = waveAmplitudes[i] || 0;
-                  const isSilent = amp < 0.08;
-                  const barHeight = Math.max(3, amp * 100);
-                  return (
-                    <motion.div
-                      key={i}
-                      className="rounded-full bg-emerald-400"
-                      animate={{
-                        width: isSilent ? 3.5 : 2.5,
-                        height: isSilent ? 3.5 : `${barHeight}%`,
-                        opacity: isSilent ? 0.35 : 0.35 + amp * 0.65,
-                        borderRadius: isSilent ? "9999px" : "2px",
-                      }}
-                      transition={{
-                        height: { duration: 0.05, ease: "easeOut" },
-                        width: { duration: 0.2, ease: "easeInOut" },
-                        opacity: { duration: 0.05 },
-                        borderRadius: { duration: 0.2 },
-                      }}
-                    />
-                  );
-                })}
+              {/* Waveform */}
+              <div className="flex h-6 w-full items-center justify-center">
+                <LiveWaveform
+                  active={isRecording}
+                  onStreamReady={handleStreamReady}
+                  barWidth={3}
+                  barGap={1}
+                  barRadius={2}
+                  barColor="#34d399"
+                  height={24}
+                  fadeEdges={false}
+                  mode="static"
+                />
               </div>
             </div>
 

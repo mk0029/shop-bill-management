@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing file, roomId, or messageId" }, { status: 400 });
     }
 
-    if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith("image/")) {
+    const baseType = file.type.split(";")[0].trim();
+    if (!ALLOWED_TYPES.includes(baseType) && !baseType.startsWith("image/")) {
       return NextResponse.json({ error: `File type ${file.type} not supported` }, { status: 400 });
     }
 
