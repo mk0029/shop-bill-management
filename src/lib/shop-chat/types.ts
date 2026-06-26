@@ -46,6 +46,18 @@ export type ShopChatReceipt = {
   at: string;
 };
 
+export type ChatMedia = {
+  type: "image" | "video" | "audio" | "file";
+  url: string;
+  path: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  width?: number;
+  height?: number;
+  uploadedAt: string;
+};
+
 export type ShopChatMessage = {
   messageId: string;
   roomId: string;
@@ -53,6 +65,9 @@ export type ShopChatMessage = {
   type: "text" | "image" | "video" | "audio" | "file";
   text: string;
   attachments: unknown[];
+  media?: ChatMedia | null;
+  uploading?: boolean;
+  uploadProgress?: number;
   senderId: string;
   senderRole: ShopChatRole;
   senderName: string;

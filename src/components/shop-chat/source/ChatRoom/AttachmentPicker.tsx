@@ -202,9 +202,8 @@ const AttachmentPicker: React.FC<AttachmentPickerProps> = ({
   const onFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    for (const file of files) {
-      onFilesSelected([file], inferKind(file));
-    }
+    const kind = inferKind(files[0]);
+    onFilesSelected(files, kind);
   };
 
   return (

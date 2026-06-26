@@ -192,18 +192,19 @@ export default function PersonalInformationSection({
       });
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch("/api/upload-image", {
+      formData.append("userId", (authUser as any)?._id || (authUser as any)?.id || "");
+      const response = await fetch("/api/upload/profile", {
         method: "POST",
         body: formData,
       });
       const json = await response.json();
-      if (!response.ok || !json?.success)
+      if (!response.ok)
         throw new Error(json?.error || "Image upload failed");
 
       const saveResponse = await fetch("/api/users/me/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileImageAssetId: json.assetId }),
+        body: JSON.stringify({ profileImage: json.url }),
       });
       const saveJson = await saveResponse.json();
       if (!saveResponse.ok || !saveJson?.success)

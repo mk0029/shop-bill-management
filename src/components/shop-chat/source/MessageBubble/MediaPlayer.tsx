@@ -1,6 +1,7 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Portal from "@/lib/ui/Portal";
+import { markMediaLoaded, isMediaLoaded } from "@/lib/loaded-media-cache";
 
 interface MediaPlayerProps {
   type: "image" | "video" | "audio" | "file";
@@ -9,17 +10,52 @@ interface MediaPlayerProps {
   uploading?: boolean;
   uploadProgress?: number;
   onOpenImage?: (src: string) => void;
+  mediaWidth?: number;
+  mediaHeight?: number;
+  mediaMimeType?: string;
+  mediaFileName?: string;
 }
 
 // Video Player Component — shows CSS skeleton until video metadata loads
-const VideoPlayer: React.FC<{ src: string; timeLabel?: string }> = ({
+const VideoPlayer: React.FC<{ src: string; timeLabel?: string; mediaWidth?: number; mediaHeight?: number }> = ({
   src,
   timeLabel,
+  mediaWidth,
+  mediaHeight,
 }) => {
   const [loaded, setLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const aspectRatio = useMemo(() => {
+    if (mediaWidth && mediaHeight) return `${mediaWidth} / ${mediaHeight}`;
+    return "16 / 9";
+  }, [mediaWidth, mediaHeight]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true);
+      return;
+    }
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShouldLoad(true);
+          observerRef.current?.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    if (videoRef.current) observerRef.current.observe(videoRef.current);
+    return () => observerRef.current?.disconnect();
+  }, []);
+
   return (
     <div
-      className="relative w-[min(62vw,320px)] max-w-full overflow-hidden rounded-xl border border-gray-700 bg-black aspect-video">
+      ref={videoRef as any}
+      className="relative w-[min(62vw,320px)] max-w-full overflow-hidden rounded-xl border border-gray-700 bg-black"
+      style={{ aspectRatio, maxHeight: "min(60vh, 400px)" }}>
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80">
           <div className="flex flex-col items-center gap-2">
@@ -28,14 +64,16 @@ const VideoPlayer: React.FC<{ src: string; timeLabel?: string }> = ({
           </div>
         </div>
       )}
-      <video
-        src={src}
-        className="w-full h-full object-contain"
-        controls
-        preload="metadata"
-        onLoadedData={() => setLoaded(true)}
-        style={{ opacity: loaded ? 1 : 0, position: loaded ? "relative" : "absolute" }}
-      />
+      {shouldLoad && (
+        <video
+          src={src}
+          className="w-full h-full object-contain"
+          controls
+          preload="metadata"
+          onLoadedData={() => setLoaded(true)}
+          style={{ opacity: loaded ? 1 : 0, position: loaded ? "relative" : "absolute" }}
+        />
+      )}
       {timeLabel && (
         <div className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white/90 z-10">
           {timeLabel}
@@ -431,16 +469,25 @@ const AudioPlayer: React.FC<{ src: string }> = ({ src }) => {
   );
 };
 
-// Image Player Component — loads image lazily, shows pure CSS skeleton (no duplicate img load)
+// Image Player Component — loads image lazily via IntersectionObserver, no double download
 const ImagePlayer: React.FC<{
   src: string;
   timeLabel?: string;
   uploading?: boolean;
   uploadProgress?: number;
   onOpenImage?: (src: string) => void;
-}> = ({ src, timeLabel, uploading, uploadProgress, onOpenImage }) => {
-  const [imgLoaded, setImgLoaded] = useState(false);
+  mediaWidth?: number;
+  mediaHeight?: number;
+}> = ({ src, timeLabel, uploading, uploadProgress, onOpenImage, mediaWidth, mediaHeight }) => {
+  const [visible, setVisible] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(isMediaLoaded(src));
   const [imgOpen, setImgOpen] = useState(false);
+  const containerRef = useRef<HTMLButtonElement | null>(null);
+
+  const aspectRatio = useMemo(() => {
+    if (mediaWidth && mediaHeight) return `${mediaWidth} / ${mediaHeight}`;
+    return "1 / 1";
+  }, [mediaWidth, mediaHeight]);
 
   useEffect(() => {
     if (!onOpenImage) return;
@@ -456,19 +503,34 @@ const ImagePlayer: React.FC<{
     return () => document.removeEventListener("keydown", onKey);
   }, [imgOpen]);
 
-  const startLoad = useRef(false);
   useEffect(() => {
-    if (startLoad.current) return;
-    startLoad.current = true;
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => setImgLoaded(true);
-    img.src = src;
-  }, [src]);
+    if (imgLoaded) { setVisible(true); return; }
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [src, imgLoaded]);
+
+  const onLoad = () => {
+    setImgLoaded(true);
+    markMediaLoaded(src);
+  };
 
   return (
     <>
       <button
+        ref={containerRef}
         type="button"
         onClick={() => {
           if (onOpenImage) {
@@ -477,17 +539,20 @@ const ImagePlayer: React.FC<{
           }
           setImgOpen(true);
         }}
-        className="relative flex w-[min(62vw,320px)] max-w-full items-center justify-center overflow-hidden rounded-xl border border-gray-700 bg-black aspect-square"
-        style={{ maxHeight: "320px" }}>
+        className="relative flex w-[min(62vw,320px)] max-w-full items-center justify-center overflow-hidden rounded-xl border border-gray-700 bg-black"
+        style={{ aspectRatio, maxHeight: "min(60vh, 400px)" }}>
         {!imgLoaded && (
           <div className="absolute inset-0 animate-pulse bg-slate-700/40 rounded-xl" />
         )}
-        {imgLoaded && (
+        {visible && (
           <img
             src={src}
             alt="image"
             className="absolute top-0 left-0 h-full w-full object-contain"
             decoding="async"
+            loading="lazy"
+            onLoad={onLoad}
+            onError={onLoad}
           />
         )}
         {uploading && (
@@ -571,6 +636,10 @@ const MediaPlayer: React.FC<MediaPlayerProps> = ({
   uploading,
   uploadProgress,
   onOpenImage,
+  mediaWidth,
+  mediaHeight,
+  mediaMimeType,
+  mediaFileName,
 }) => {
   switch (type) {
     case "image":
@@ -581,12 +650,14 @@ const MediaPlayer: React.FC<MediaPlayerProps> = ({
           uploading={uploading}
           uploadProgress={uploadProgress}
           onOpenImage={onOpenImage}
+          mediaWidth={mediaWidth}
+          mediaHeight={mediaHeight}
         />
       );
     case "video":
       return (
         <div className="relative w-[min(62vw,320px)] max-w-full">
-          <VideoPlayer src={src} timeLabel={timeLabel} />
+          <VideoPlayer src={src} timeLabel={timeLabel} mediaWidth={mediaWidth} mediaHeight={mediaHeight} />
           {uploading && (
             <div className="absolute left-0 right-0 bottom-1 h-1 bg-black/60">
               {typeof uploadProgress === "number" ? (

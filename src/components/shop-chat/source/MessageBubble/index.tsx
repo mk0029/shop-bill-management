@@ -134,6 +134,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   }, [contentText]);
 
   const media = useMemo(() => {
+    if (message.media?.url) {
+      return { type: message.media.type, url: message.media.url } as const;
+    }
+
     let t: "image" | "video" | "audio" | "file" | null = null;
     const url =
       firstUrl ||
@@ -655,14 +659,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               type={media.type}
               src={media.url}
               timeLabel={time}
-              uploading={(message as any).uploading}
-              uploadProgress={(message as any).uploadProgress}
+              uploading={message.uploading}
+              uploadProgress={message.uploadProgress}
               onOpenImage={
                 media.type === "image"
                   ? (src) =>
                       onOpenImage?.({ src, messageId: String(message.id) })
                   : undefined
               }
+              mediaWidth={message.media?.width}
+              mediaHeight={message.media?.height}
+              mediaMimeType={message.media?.mimeType}
+              mediaFileName={message.media?.fileName}
             />
           </div>
         )}

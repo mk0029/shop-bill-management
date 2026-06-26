@@ -22,10 +22,11 @@ import {
   getMyShopChatRoom,
   listShopChatMessages,
   listShopChatRooms,
+  markShopChatRoomSeen,
   sendShopChatMessage,
 } from "@/lib/shop-chat/api";
 import { useShopChatSocket } from "@/lib/shop-chat/socket";
-import type { ShopChatMessage, ShopChatRoom } from "@/lib/shop-chat/types";
+import type { ChatMedia, ShopChatMessage, ShopChatRoom } from "@/lib/shop-chat/types";
 import type { Message } from "@/lib/types";
 import { useDynamicViewportHeight } from "@/hooks/use-dynamic-viewport-height";
 import { useNotificationStore } from "@/store/notification-store";
@@ -35,6 +36,7 @@ import {
   setActiveChatId,
 } from "@/lib/notifications/dedupe";
 import { safeInitial, safeUserName } from "@/lib/display-text";
+import { getCachedRooms, getCachedMessages, cacheMessage, cacheMessages, cacheRoom } from "@/lib/chat-cache";
 
 type Mode = "admin" | "customer";
 
@@ -355,6 +357,9 @@ function mapShopMessageToSourceMessage(message: ShopChatMessage): Message {
     timestamp: effectiveMessageTimestamp(message),
     status: message.status,
     type: message.type === "file" ? "document" : message.type,
+    uploading: message.uploading,
+    uploadProgress: message.uploadProgress,
+    media: message.media || null,
     replyTo: message.replyTo
       ? {
           messageId: message.replyTo.messageId,
@@ -536,22 +541,22 @@ function RoomSidebar({
                   name: mode === "customer" ? "Shop Support" : safeUserName(room.customerName, "Customer"),
                   avatar:
                     mode === "customer"
-                      ? imageFromProfileLike(room.admins[0])
-                      : imageFromProfileLike(room.participants.find((participant) => participant.userId === room.customerId)),
+                      ? imageFromProfileLike(room.admins?.[0])
+                      : imageFromProfileLike(room.participants?.find((participant: any) => participant.userId === room.customerId)),
                   online:
                     mode === "customer"
-                      ? room.admins.some((admin) => onlineUserIds.has(admin.userId))
+                      ? room.admins?.some((admin) => onlineUserIds.has(admin.userId))
                       : onlineUserIds.has(room.customerId),
                   lastSeen:
                     mode === "customer"
-                      ? room.admins
+                      ? (room.admins || [])
                           .map((admin) => lastSeenByUser[admin.userId])
                           .filter(Boolean)
                           .sort((a, b) => Date.parse(b) - Date.parse(a))[0]
                       : lastSeenByUser[room.customerId],
                   statusText: presenceText,
                   isGroup: true,
-                  memberCount: room.participants.length,
+                  memberCount: room.participants?.length || 0,
                   rawGroupId: room.roomId,
                 }}
                 lastMessage={last}
@@ -588,6 +593,32 @@ function RoomSidebar({
 }
 
 function MessagesSkeleton() {
+  const [phase, setPhase] = useState<"skeleton" | "light" | "text">("skeleton");
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase("light"), 2000);
+    const t2 = setTimeout(() => setPhase("text"), 4000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  if (phase === "text") {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/70 px-4 py-2 text-sm text-slate-400">
+          <span className="h-3 w-3 animate-spin rounded-full border border-emerald-400/40 border-t-emerald-400" />
+          Still loading messages...
+        </div>
+      </div>
+    );
+  }
+  if (phase === "light") {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/70 px-4 py-2 text-sm text-slate-400">
+          <span className="h-3 w-3 animate-spin rounded-full border border-emerald-400/40 border-t-emerald-400" />
+          Loading messages...
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex-1 space-y-4 overflow-hidden bg-slate-950/20 p-4">
       {[0, 1, 2].map((row) => (
@@ -613,6 +644,8 @@ function ChatPanel({
   messages,
   connected,
   messagesLoading,
+  hasMore,
+  onLoadMore,
   typingText,
   statusLabel,
   peerOnline,
@@ -636,6 +669,8 @@ function ChatPanel({
   messages: ShopChatMessage[];
   connected: boolean;
   messagesLoading?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => Promise<void>;
   typingText: string;
   statusLabel: string;
   peerOnline: boolean;
@@ -695,10 +730,10 @@ function ChatPanel({
   const galleryItems = useMemo(
     () =>
       sourceMessages
-        .filter((message) => message.type === "image" && !message.deletedForEveryone)
+        .filter((message) => (message.type === "image" || message.media?.type === "image") && !message.deletedForEveryone)
         .map((message) => ({
           id: message.id,
-          src: message.content,
+          src: message.media?.url || message.content,
           senderName: safeUserName(message.senderName, message.senderId === room?.customerId ? "Customer" : "Support"),
           timestamp: message.timestamp,
         })),
@@ -761,24 +796,36 @@ function ChatPanel({
           })),
         }}
       />
-      {messagesLoading ? (
+      {messagesLoading && sourceMessages.length === 0 ? (
         <MessagesSkeleton />
       ) : (
-        <MessagesList
-          messages={sourceMessages}
-          initialLoading={false}
-          isLoading={false}
-          typingText={typingText}
-          onMessageReply={setReplyTo}
-          onMessageEdit={setEditingMessage}
-          onMessageDelete={onDeleteMessage}
-          onMessageForward={onForwardMessage}
-          onMessageResend={onResendMessage}
-          onOpenImage={(payload) => {
-            setGalleryActiveId(payload.messageId);
-            setGalleryOpen(true);
-          }}
-        />
+        <>
+          {messagesLoading && sourceMessages.length > 0 && (
+            <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/70 bg-slate-900/80 px-2.5 py-0.5 text-[10px] text-slate-400 backdrop-blur">
+                <span className="h-2 w-2 animate-spin rounded-full border border-emerald-400/40 border-t-emerald-400" />
+                Updating...
+              </div>
+            </div>
+          )}
+          <MessagesList
+            messages={sourceMessages}
+            initialLoading={false}
+            isLoading={messagesLoading && hasMore === true}
+            hasMore={hasMore ?? true}
+            onLoadMore={onLoadMore}
+            typingText={typingText}
+            onMessageReply={setReplyTo}
+            onMessageEdit={setEditingMessage}
+            onMessageDelete={onDeleteMessage}
+            onMessageForward={onForwardMessage}
+            onMessageResend={onResendMessage}
+            onOpenImage={(payload) => {
+              setGalleryActiveId(payload.messageId);
+              setGalleryOpen(true);
+            }}
+          />
+        </>
       )}
       <div className="border-t border-white/10 bg-slate-950/45 backdrop-blur-2xl">
         <MessageInput
@@ -967,11 +1014,15 @@ export default function ShopChatClient({
   const [billFilter, setBillFilter] = useState<"all" | "pending" | "paid">("all");
   const [chatBills, setChatBills] = useState<Array<Record<string, any>>>([]);
   const [chatBillsLoading, setChatBillsLoading] = useState(false);
-  const [messagesLoading, setMessagesLoading] = useState(false);
+  // Per-room loading state instead of global boolean
+  const [roomLoadingState, setRoomLoadingState] = useState<Record<string, boolean>>({});
+  const abortRef = useRef<AbortController | null>(null);
   const deliveredRef = useRef<Set<string>>(new Set());
   const readAtRef = useRef<Record<string, number>>({});
   const activeRoomRef = useRef<ShopChatRoom | null>(null);
   const messagesByRoomRef = useRef<Record<string, ShopChatMessage[]>>({});
+  const hasMoreRef = useRef<Record<string, boolean>>({});
+  const cursorRef = useRef<Record<string, string | null>>({});
   const refreshAtRef = useRef<Record<string, number>>({});
   const autoOpenCustomerRef = useRef("");
   const handledReloadParamRef = useRef(false);
@@ -1031,12 +1082,40 @@ export default function ShopChatClient({
     setActiveRoom((prev) => (prev?.roomId === room.roomId ? room : prev));
   }, []);
 
-  const loadMessages = useCallback(async (room: ShopChatRoom) => {
-    const response = await listShopChatMessages(room.roomId, { limit: 80 });
+  const loadMessages = useCallback(async (room: ShopChatRoom, signal?: AbortSignal) => {
+    const response = await listShopChatMessages(room.roomId, { limit: 30, signal });
+    if (signal?.aborted) return;
+    hasMoreRef.current[room.roomId] = response.hasMore;
+    cursorRef.current[room.roomId] = response.nextCursor;
     setMessagesByRoom((prev) => ({
       ...prev,
       [room.roomId]: dedupeBillCreatedMessages(response.messages),
     }));
+    cacheMessages(room.roomId, response.messages);
+    // Update throttle timestamp so refreshRoomMessages won't double-fetch
+    refreshAtRef.current[room.roomId] = Date.now();
+  }, []);
+
+  const loadOlderMessages = useCallback(async () => {
+    const room = activeRoomRef.current;
+    if (!room) return;
+    const cursor = cursorRef.current[room.roomId];
+    if (!cursor) return;
+    const response = await listShopChatMessages(room.roomId, { cursor, limit: 30 });
+    hasMoreRef.current[room.roomId] = response.hasMore;
+    cursorRef.current[room.roomId] = response.nextCursor;
+    setMessagesByRoom((prev) => {
+      const existing = prev[room.roomId] || [];
+      const existingIds = new Set(existing.map((m) => m.messageId));
+      const newMessages = dedupeBillCreatedMessages(response.messages).filter(
+        (m) => !existingIds.has(m.messageId) && !(m.clientMessageId && existing.some((e) => e.clientMessageId === m.clientMessageId)),
+      );
+      return {
+        ...prev,
+        [room.roomId]: [...newMessages, ...existing],
+      };
+    });
+    cacheMessages(room.roomId, response.messages);
   }, []);
 
   const refreshRoomMessages = useCallback(
@@ -1107,21 +1186,34 @@ export default function ShopChatClient({
     async (room: ShopChatRoom, syncUrl = true) => {
       if (selectingRoomRef.current) return;
       if (activeRoomRef.current?.roomId === room.roomId) return;
+      // Abort any in-flight request
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       selectingRoomRef.current = true;
-      setMessagesLoading(true);
+      const hasCached = (messagesByRoom[room.roomId] || []).length > 0;
+      if (!hasCached) {
+        setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: true }));
+      }
+      setActiveRoom(room);
+      if (syncUrl && mode === "admin") {
+        syncUrlToActiveRoom(room.roomId, isMobile ? "push" : "replace");
+      }
       try {
-        setActiveRoom(room);
-        if (syncUrl && mode === "admin") {
-          syncUrlToActiveRoom(room.roomId, isMobile ? "push" : "replace");
+        await loadMessages(room, controller.signal);
+        if (!controller.signal.aborted) {
+          void syncBillEventsForRoom(room);
         }
-        await loadMessages(room);
-        void syncBillEventsForRoom(room);
+      } catch (err: any) {
+        if (err?.name !== "AbortError") throw err;
       } finally {
-        setMessagesLoading(false);
+        if (!controller.signal.aborted) {
+          setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: false }));
+        }
         selectingRoomRef.current = false;
       }
     },
-    [mode, isMobile, syncUrlToActiveRoom, loadMessages, syncBillEventsForRoom],
+    [messagesByRoom, mode, isMobile, syncUrlToActiveRoom, loadMessages, syncBillEventsForRoom],
   );
 
   const closeChat = useCallback(() => {
@@ -1157,25 +1249,66 @@ export default function ShopChatClient({
   useEffect(() => {
     let cancelled = false;
     async function loadInitial() {
-      setLoading(true);
       setError("");
+      const isAdmin = mode === "admin";
+      let cached: any[] = [];
+
+      // ── 1. Load cached rooms immediately ──
       try {
-        if (mode === "admin") {
-          const response = await listShopChatRooms();
-          if (cancelled) return;
-          setRooms(sortRoomsByLatestMessage(response.rooms));
-          setActiveRoom(null);
+        cached = await getCachedRooms();
+        if (cancelled) return;
+        if (cached.length > 0) {
+          setRooms(sortRoomsByLatestMessage(cached));
+          if (!isAdmin) {
+            setActiveRoom(cached[0]);
+            const cachedMsgs = await getCachedMessages(cached[0].roomId);
+            if (cachedMsgs.length > 0 && !cancelled) {
+              setMessagesByRoom((prev) => ({
+                ...prev,
+                [cached[0].roomId]: dedupeBillCreatedMessages(cachedMsgs),
+              }));
+            }
+          }
+          // Show list immediately (no skeleton)
+          if (!cancelled) setLoading(false);
         } else {
-          const response = await getMyShopChatRoom();
-          if (cancelled) return;
-          setRooms(sortRoomsByLatestMessage([response.room]));
-          setActiveRoom(response.room);
-          await loadMessages(response.room);
+          // No cache — show skeleton until first API response
+          setLoading(true);
         }
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load chat");
-      } finally {
-        if (!cancelled) setLoading(false);
+      } catch {
+        setLoading(true);
+      }
+
+      // ── 2. Fetch fresh data from API in background ──
+      // Skip full background refresh for admin when cache exists — socket keeps list fresh
+      if (cached.length === 0 || !isAdmin) {
+        try {
+          if (isAdmin) {
+            const response = await listShopChatRooms({ limit: 0 });
+            if (cancelled) return;
+            setRooms(sortRoomsByLatestMessage(response.rooms));
+            cacheRooms(response.rooms);
+          } else {
+            const response = await getMyShopChatRoom();
+            if (cancelled) return;
+            const room = response.room;
+            setRooms(sortRoomsByLatestMessage([room]));
+            setActiveRoom((prev) => (prev?.roomId === room.roomId ? prev : room));
+            cacheRoom(room);
+            const msgRes = await listShopChatMessages(room.roomId, { limit: 30 });
+            if (cancelled) return;
+            setMessagesByRoom((prev) => ({
+              ...prev,
+              [room.roomId]: dedupeBillCreatedMessages(msgRes.messages),
+            }));
+            cacheMessages(room.roomId, msgRes.messages);
+            void syncBillEventsForRoom(room);
+          }
+        } catch {
+          // Cache data already rendered — silent fail
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
       }
     }
     void loadInitial();
@@ -1232,12 +1365,14 @@ export default function ShopChatClient({
     if (!socket) return;
     const onRoomUpdated = (room: ShopChatRoom) => {
       upsertRoom(room);
+      cacheRoom(room);
       if (activeRoomRef.current?.roomId === room.roomId) {
         refreshRoomIfMissingLastMessage(room);
       }
     };
     const onRoomJoined = ({ room }: { room: ShopChatRoom }) => {
       upsertRoom(room);
+      cacheRoom(room);
       if (activeRoomRef.current?.roomId === room.roomId) {
         refreshRoomIfMissingLastMessage(room);
       }
@@ -1251,6 +1386,7 @@ export default function ShopChatClient({
         deliveredRef.current.add(message.messageId);
         socket.emit("message:delivered", { messageIds: [message.messageId] });
       }
+      cacheMessage(message);
     };
     const onMessageCleared = ({ roomId, message }: { roomId: string; message: ShopChatMessage }) => {
       setMessagesByRoom((prev) => ({
@@ -1270,6 +1406,22 @@ export default function ShopChatClient({
     const onTyping = (payload: { roomId: string; userId: string; name: string; typing: boolean }) => {
       if (payload.userId === myUserId) return;
       setTypingByRoom((prev) => ({ ...prev, [payload.roomId]: payload.typing ? `${payload.name} is typing...` : "" }));
+    };
+    const onMessageRead = (payload: { roomId: string; userId: string; messageIds: string[] }) => {
+      if (payload.userId === myUserId) return;
+      setMessagesByRoom((prev) => {
+        const existing = prev[payload.roomId];
+        if (!existing) return prev;
+        const now = new Date().toISOString();
+        return {
+          ...prev,
+          [payload.roomId]: existing.map((msg) =>
+            msg.senderId === payload.userId && msg.status !== "read"
+              ? { ...msg, status: "read" as const, readBy: [...msg.readBy, { userId: payload.userId, role: "", name: "", at: now }] }
+              : msg,
+          ) as ShopChatMessage[],
+        };
+      });
     };
     const onPresence = (payload: {
       users: Array<{ userId: string; lastSeen?: string }>;
@@ -1296,6 +1448,7 @@ export default function ShopChatClient({
     socket.on("message:new", onMessageNew);
     socket.on("message:cleared", onMessageCleared);
     socket.on("message:status", onStatus);
+    socket.on("message:read", onMessageRead);
     socket.on("typing:update", onTyping);
     socket.on("presence:snapshot", onPresence);
     return () => {
@@ -1304,6 +1457,7 @@ export default function ShopChatClient({
       socket.off("message:new", onMessageNew);
       socket.off("message:cleared", onMessageCleared);
       socket.off("message:status", onStatus);
+      socket.off("message:read", onMessageRead);
       socket.off("typing:update", onTyping);
       socket.off("presence:snapshot", onPresence);
     };
@@ -1311,7 +1465,14 @@ export default function ShopChatClient({
 
   useEffect(() => {
     if (!connected) return;
-    refreshRoomMessages(activeRoomRef.current);
+    const room = activeRoomRef.current;
+    if (!room) return;
+    // Skip refresh if messages already exist in state (e.g. from cache or URL restore).
+    // This avoids duplicate loadMessages on initial page load when socket connects
+    // after the room was already selected.
+    const existing = messagesByRoomRef.current[room.roomId];
+    if (existing && existing.length > 0) return;
+    refreshRoomMessages(room);
   }, [connected, refreshRoomMessages]);
 
   useEffect(() => {
@@ -1348,7 +1509,9 @@ export default function ShopChatClient({
     });
     unread.forEach((message) => markNotificationHandled(message.messageId));
     clearAppSystemNotifications({ roomId: activeRoom.roomId });
-    socket.emit("message:read", { roomId: activeRoom.roomId, messageIds: unread.map((message) => message.messageId) });
+    // Use bulk seen endpoint
+    markShopChatRoomSeen(activeRoom.roomId).catch(() => {});
+    socket.emit("message:seen", { roomId: activeRoom.roomId });
   }, [activeMessages, activeRoom, myUserId, socket]);
 
   const addCustomerRoom = async () => {
@@ -1374,6 +1537,7 @@ export default function ShopChatClient({
       replyTo?: ShopChatMessage["replyTo"];
       type?: ShopChatMessage["type"];
       attachments?: unknown[];
+      media?: ChatMedia | null;
     },
   ) => {
     if (!activeRoom || !myUserId) return;
@@ -1386,6 +1550,7 @@ export default function ShopChatClient({
       type,
       text,
       attachments: options?.attachments || [],
+      media: options?.media || null,
       senderId: myUserId,
       senderRole: mode === "admin" ? (myRole === "technician" ? "technician" : "admin") : "customer",
       senderName: safeUserName((user as any)?.name, mode === "admin" ? "Admin" : "Customer"),
@@ -1409,6 +1574,7 @@ export default function ShopChatClient({
             text,
             type,
             attachments: options?.attachments || [],
+            media: options?.media || null,
             replyTo: options?.replyTo || null,
             clientMessageId: tempId,
           })
@@ -1417,10 +1583,11 @@ export default function ShopChatClient({
             text,
             type,
             attachments: options?.attachments || [],
+            media: options?.media || null,
             replyTo: options?.replyTo || null,
             clientMessageId: tempId,
       });
-      setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], response.message) }));
+      setMessagesByRoom((prev) => ({ ...prev, [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], { ...response.message, media: options?.media || null }) }));
       if (response.room) upsertRoom(response.room);
     } catch {
       setMessagesByRoom((prev) => ({
@@ -1465,17 +1632,120 @@ export default function ShopChatClient({
   };
 
   const resendMessage = async (message: Message) => {
-    await sendText(message.content, { type: (message.type as ShopChatMessage["type"]) || "text" });
+    const media = message.media ? { type: message.media.type as ChatMedia["type"], url: message.media.url, path: message.media.path, fileName: message.media.fileName, mimeType: message.media.mimeType, size: message.media.size, uploadedAt: message.media.uploadedAt } : undefined;
+    await sendText(message.content, { type: (message.type as ShopChatMessage["type"]) || "text", media });
   };
 
   const sendFiles = async (files: File[], kind: "image" | "video" | "audio" | "document" | "contact") => {
-    for (const file of files) {
-      const dataUrl = await readFileAsDataUrl(file);
-      const type: ShopChatMessage["type"] = kind === "document" || kind === "contact" ? "file" : inferMediaType(file);
-      await sendText(dataUrl, {
+    if (!activeRoom) return;
+
+    const tasks = files.map((file) => {
+      const type: ChatMedia["type"] = kind === "document" || kind === "contact" ? "file" : inferMediaType(file) as ChatMedia["type"];
+      const tempId = buildTempId();
+      const localUrl = type !== "file" ? URL.createObjectURL(file) : null;
+      const optimistic: ShopChatMessage = {
+        messageId: tempId,
+        clientMessageId: tempId,
+        roomId: activeRoom.roomId,
         type,
-        attachments: [{ name: file.name, type: file.type, size: file.size }],
-      });
+        text: "",
+        attachments: [],
+        uploading: true,
+        uploadProgress: 0,
+        media: localUrl ? { type, url: localUrl, path: "", fileName: file.name, mimeType: file.type, size: file.size, uploadedAt: new Date().toISOString() } : null,
+        senderId: myUserId,
+        senderRole: mode === "admin" ? (myRole === "technician" ? "technician" : "admin") : "customer",
+        senderName: safeUserName((user as any)?.name, mode === "admin" ? "Admin" : "Customer"),
+        status: "sending",
+        deliveredTo: [],
+        readBy: [],
+        replyTo: null,
+        forwarded: false,
+        forwardedFrom: null,
+        reactions: [],
+        editedAt: null,
+        deletedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      return { file, type, tempId, localUrl, optimistic };
+    });
+
+    setMessagesByRoom((prev) => {
+      let list = prev[activeRoom.roomId] || [];
+      for (const task of tasks) {
+        list = mergeMessage(list, task.optimistic);
+      }
+      return { ...prev, [activeRoom.roomId]: list };
+    });
+
+    for (const task of tasks) {
+      try {
+        setMessagesByRoom((prev) => ({
+          ...prev,
+          [activeRoom.roomId]: (prev[activeRoom.roomId] || []).map((msg) =>
+            msg.clientMessageId === task.tempId ? { ...msg, uploadProgress: 10 } : msg,
+          ),
+        }));
+        const formData = new FormData();
+        formData.append("file", task.file);
+        formData.append("roomId", activeRoom.roomId);
+        formData.append("messageId", task.tempId);
+        formData.append("userId", myUserId);
+        const uploadRes = await fetch("/api/upload/chat", { method: "POST", body: formData });
+        if (!uploadRes.ok) throw new Error("Upload failed");
+        const uploadData = await uploadRes.json();
+        const meta = uploadData.metadata || {};
+        const media: ChatMedia = {
+          type: task.type,
+          url: uploadData.url,
+          path: uploadData.path,
+          fileName: task.file.name,
+          mimeType: task.file.type,
+          size: task.file.size,
+          width: meta.width || undefined,
+          height: meta.height || undefined,
+          uploadedAt: new Date().toISOString(),
+        };
+        const caption = kind === "document" ? task.file.name : "";
+        const response = socket?.connected
+          ? await sendSocketMessage({
+              roomId: activeRoom.roomId,
+              text: caption,
+              type: task.type,
+              attachments: [media],
+              media,
+              replyTo: null,
+              clientMessageId: task.tempId,
+            })
+          : await sendShopChatMessage({
+              roomId: activeRoom.roomId,
+              text: caption,
+              type: task.type,
+              attachments: [media],
+              media,
+              replyTo: null,
+              clientMessageId: task.tempId,
+            });
+
+        setMessagesByRoom((prev) => ({
+          ...prev,
+          [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], {
+            ...response.message,
+            media,
+          }),
+        }));
+
+        if (task.localUrl) URL.revokeObjectURL(task.localUrl);
+      } catch {
+        setMessagesByRoom((prev) => ({
+          ...prev,
+          [activeRoom.roomId]: (prev[activeRoom.roomId] || []).map((msg) =>
+            msg.clientMessageId === task.tempId ? { ...msg, uploading: false, status: "failed" } : msg,
+          ),
+        }));
+        if (task.localUrl) URL.revokeObjectURL(task.localUrl);
+      }
     }
   };
 
@@ -1621,7 +1891,9 @@ export default function ShopChatClient({
             room={activeRoom}
             messages={activeMessages}
             connected={connected}
-            messagesLoading={messagesLoading}
+            messagesLoading={roomLoadingState[activeRoom?.roomId || ""] ?? false}
+            hasMore={hasMoreRef.current[activeRoom?.roomId || ""] ?? true}
+            onLoadMore={loadOlderMessages}
             typingText={activeRoom ? typingByRoom[activeRoom.roomId] || "" : ""}
             statusLabel={
               activeRoom

@@ -1,0 +1,188 @@
+
+> shop-2@2.0.4 build
+> next build
+
+   ▲ Next.js 16.0.7 (Turbopack)
+   - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 20.1s
+   Skipping validation of types
+   Collecting page data using 11 workers ...
+   Generating static pages using 11 workers (0/101) ...
+   Generating static pages using 11 workers (25/101) 
+   Generating static pages using 11 workers (50/101) 
+   Generating static pages using 11 workers (75/101) 
+ ✓ Generating static pages using 11 workers (101/101) in 4.9s
+   Finalizing page optimization ...
+
+Route (app)                                                   Revalidate  Expire
+┌ ƒ /
+├ ○ /_not-found                                                       1m      1y
+├ ○ /about                                                            1m      1y
+├ ƒ /admin/billing
+├ ƒ /admin/billing/create
+├ ƒ /admin/billing/drafts
+├ ƒ /admin/billing/fitting-wiring
+├ ƒ /admin/billing/history
+├ ƒ /admin/bills/edit/[billId]
+├ ƒ /admin/bills/override
+├ ƒ /admin/cash-book
+├ ƒ /admin/cash-book/history
+├ ƒ /admin/cashbooks
+├ ƒ /admin/cashbooks/[id]
+├ ƒ /admin/chat
+├ ƒ /admin/client-error-logs
+├ ƒ /admin/customers
+├ ƒ /admin/customers/[slug]/bills
+├ ƒ /admin/customers/[slug]/edit
+├ ƒ /admin/customers/add
+├ ƒ /admin/dashboard
+├ ƒ /admin/debug-admin
+├ ƒ /admin/inventory
+├ ƒ /admin/inventory/add
+├ ƒ /admin/inventory/brands
+├ ƒ /admin/inventory/edit/[id]
+├ ƒ /admin/inventory/history
+├ ƒ /admin/manage-admins
+├ ƒ /admin/notifications
+├ ƒ /admin/rent-tools
+├ ƒ /admin/rent-tools/create
+├ ƒ /admin/sales-report
+├ ƒ /admin/settings
+├ ƒ /admin/settings/[...slug]
+├ ƒ /admin/settings/shop-status-messages
+├ ƒ /admin/settings/toolslist
+├ ƒ /admin/specifications
+├ ƒ /admin/super-access
+├ ƒ /admin/super-access/blacklist-customer
+├ ƒ /admin/super-access/delete-cashbook-entry
+├ ƒ /admin/super-access/update-bills
+├ ƒ /admin/super-access/whatsapp-bot
+├ ƒ /admin/test
+├ ƒ /admin/test-stores
+├ ƒ /admin/token-generator
+├ ƒ /admin/tools
+├ ƒ /admin/tools/create
+├ ƒ /admin/tools/edit/[id]
+├ ƒ /admin/tools/fitting-items
+├ ƒ /admin/welcome
+├ ƒ /api/bill-book/bill/[billId]/messages
+├ ƒ /api/bill-book/bill/[billId]/messages/[messageId]
+├ ƒ /api/bill-book/bill/[billId]/messages/[messageId]/status
+├ ƒ /api/bill-book/message-activity
+├ ƒ /api/bill-book/user/[userId]/list
+├ ƒ /api/bill-book/user/[userId]/messages
+├ ƒ /api/bill-book/user/[userId]/summary
+├ ƒ /api/bills/[id]
+├ ƒ /api/bills/by-customer/[identifier]
+├ ƒ /api/cash-book
+├ ƒ /api/clear-tokens
+├ ƒ /api/client-error-logs
+├ ƒ /api/customer/[secretKey]
+├ ƒ /api/debug/create-customer
+├ ƒ /api/debug/user-info
+├ ƒ /api/emails/send
+├ ƒ /api/fcm/send
+├ ƒ /api/fitting-config
+├ ƒ /api/fitting-rates
+├ ƒ /api/mutations/bills/create
+├ ƒ /api/mutations/cashbook/add-item
+├ ƒ /api/mutations/cashbook/convert-to-bill
+├ ƒ /api/mutations/cashbook/create-entry
+├ ƒ /api/mutations/customers/create
+├ ƒ /api/mutations/inventory/create-product
+├ ƒ /api/notifications/cleanup-tokens
+├ ƒ /api/notifications/clear
+├ ƒ /api/notifications/custom-broadcast
+├ ƒ /api/notifications/device-status
+├ ƒ /api/notifications/list
+├ ƒ /api/notifications/persist
+├ ƒ /api/notifications/preferences
+├ ƒ /api/notifications/register-device
+├ ƒ /api/notifications/register-token
+├ ƒ /api/notifications/scheduled-greetings
+├ ƒ /api/notifications/send
+├ ƒ /api/notifications/send-reminder
+├ ƒ /api/notifications/status
+├ ƒ /api/notifications/test-send
+├ ƒ /api/notifications/unregister-token
+├ ƒ /api/online
+├ ƒ /api/payments/razorpay/order
+├ ƒ /api/payments/razorpay/payment-link
+├ ƒ /api/payments/razorpay/verify
+├ ƒ /api/ping
+├ ƒ /api/repair-requests
+├ ƒ /api/repair-requests/[id]
+├ ƒ /api/repair-requests/options
+├ ƒ /api/sales-report/export
+├ ƒ /api/sanity-webhooks/cashbook-deleted
+├ ƒ /api/sendNotification
+├ ƒ /api/shop-status
+├ ƒ /api/shop-status-messages
+├ ƒ /api/specifications
+├ ƒ /api/super/bills/[id]
+├ ƒ /api/super/cashbook/[id]
+├ ƒ /api/super/users/[id]/blacklist
+├ ƒ /api/upload-image
+├ ƒ /api/upload/chat
+├ ƒ /api/upload/health
+├ ƒ /api/upload/profile
+├ ƒ /api/users/[userId]/regenerate-secret
+├ ƒ /api/users/me/password-otp
+├ ƒ /api/users/me/profile
+├ ƒ /api/users/search
+├ ƒ /api/whatsapp/bot-manage
+├ ƒ /api/whatsapp/due-reminder/customer
+├ ƒ /api/whatsapp/send-bulk
+├ ƒ /api/work-tasks
+├ ƒ /api/work-tasks/[id]
+├ ○ /auto-logout                                                      1m      1y
+├ ○ /contact                                                          1m      1y
+├ ƒ /customer
+├ ○ /customer-not-found                                               1m      1y
+├ ƒ /customer/bills
+├ ƒ /customer/book
+├ ƒ /customer/chat
+├ ƒ /customer/estimate-fitting
+├ ƒ /customer/fitting-estimator
+├ ƒ /customer/notifications
+├ ƒ /customer/profile
+├ ƒ /customer/rentd-items
+├ ƒ /customer/rented-items
+├ ƒ /customer/request-repair
+├ ƒ /customer/settings
+├ ƒ /customer/settings/[...slug]
+├ ƒ /customer/welcome
+├ ○ /dashboard/realtime                                               1m      1y
+├ ƒ /dashboard/work-list
+├ ƒ /dashboard/work-list/history
+├ ○ /help-payment-policy                                              1m      1y
+├ ○ /login                                                            1m      1y
+├ ○ /offline                                                          1m      1y
+├ ○ /pricing                                                          1m      1y
+├ ○ /privacy                                                          1m      1y
+├ ○ /privacy-policy                                                   1m      1y
+├ ○ /products                                                         1m      1y
+├ ○ /refund-policy                                                    1m      1y
+├ ○ /rent-tools                                                       1m      1y
+├ ○ /request-account                                                  1m      1y
+├ ○ /robots.txt
+├ ○ /sanity-realtime-demo                                             1m      1y
+├ ○ /services                                                         1m      1y
+├ ƒ /services/[slug]
+├ ƒ /settings
+├ ƒ /settings/[...slug]
+├ ƒ /settings/notifications
+├ ○ /sitemap.xml
+├ ○ /terms                                                            1m      1y
+├ ○ /test-deploy                                                      1m      1y
+├ ○ /unauthorized                                                     1m      1y
+└ ○ /welcome                                                          1m      1y
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

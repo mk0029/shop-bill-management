@@ -14,6 +14,7 @@ import { BasicInfoSection } from "@/components/inventory/basic-info-section";
 import { PricingSection } from "@/components/inventory/pricing-section";
 import { StaticInfoSection } from "@/components/inventory/static-info-section";
 import { ResponsiveAccordion } from "@/components/ui/responsive-accordion";
+import { ProductImageUpload } from "@/components/inventory/product-image-upload";
 
 export default function BulkAddInventoryPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function BulkAddInventoryPage() {
     products,
     successfulProducts,
     handleInputChange,
+    handleImagesChange,
     handleSpecificationChange,
     handleExistingProductSelect,
     handleSubmit,
@@ -217,6 +219,17 @@ export default function BulkAddInventoryPage() {
                     }
                   />
                 </div>
+              </div>
+
+              {/* Product Images Section */}
+              <div className="mt-6">
+                <ProductImageUpload
+                  images={formData.images}
+                  onImagesChange={(images) =>
+                    handleImagesChange(formData.id, images)
+                  }
+                  disabled={!!formData.selectedExistingProduct}
+                />
               </div>
             </ResponsiveAccordion>
           </div>

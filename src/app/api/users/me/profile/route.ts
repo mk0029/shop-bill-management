@@ -25,8 +25,10 @@ type HomeAddress = {
 };
 
 function imageUrl(source: unknown) {
+  if (!source) return "";
+  if (typeof source === "string") return source;
   try {
-    return source ? urlFor(source).width(240).height(240).fit("crop").url() : "";
+    return urlFor(source).width(240).height(240).fit("crop").url();
   } catch {
     return "";
   }
@@ -103,6 +105,7 @@ export async function PATCH(request: NextRequest) {
       typeof body?.email === "string" ? body.email.trim().toLowerCase().slice(0, 180) : undefined;
     const address = body?.homeAddress && typeof body.homeAddress === "object" ? body.homeAddress as HomeAddress : undefined;
     const profileImageAssetId = typeof body?.profileImageAssetId === "string" ? body.profileImageAssetId.trim() : "";
+    const profileImageUrl = typeof body?.profileImage === "string" ? body.profileImage.trim() : "";
     const removeProfileImage = body?.removeProfileImage === true;
 
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -114,7 +117,9 @@ export async function PATCH(request: NextRequest) {
     };
     if (location !== undefined) safePatch.location = location;
     if (email) safePatch.email = email;
-    if (profileImageAssetId) {
+    if (profileImageUrl) {
+      safePatch.profileImage = profileImageUrl;
+    } else if (profileImageAssetId) {
       safePatch.profileImage = {
         _type: "image",
         asset: { _type: "reference", _ref: profileImageAssetId },

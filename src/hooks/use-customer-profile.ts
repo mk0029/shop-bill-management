@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { sanityClient } from "@/lib/sanity";
 
 interface ProfileFormData {
   name: string;
@@ -116,16 +115,16 @@ export const useCustomerProfile = () => {
 
     setIsUploading(true);
     try {
-      const imageAsset = await sanityClient.assets.upload(
-        "image",
-        profileImage,
-        {
-          filename: `profile-${user?.id}-${Date.now()}.${
-            profileImage.type.split("/")[1]
-          }`,
-        }
-      );
-      return imageAsset._id;
+      const formData = new FormData();
+      formData.append("file", profileImage);
+      formData.append("userId", user?.id || user?._id || "");
+      const res = await fetch("/api/upload/profile", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error || "Upload failed");
+      }
+      const data = await res.json();
+      return data.url;
     } catch (error) {
       console.error("Error uploading image:", error);
       setErrors((prev) => ({ ...prev, image: "Failed to upload image" }));
@@ -139,23 +138,21 @@ export const useCustomerProfile = () => {
     if (!validateForm()) return;
 
     try {
-      let imageId = null;
+      let imageUrl: string | null = null;
       if (profileImage) {
-        imageId = await uploadImage();
-        if (!imageId) return; // Upload failed
+        imageUrl = await uploadImage();
+        if (!imageUrl) return;
       }
 
       const updateData: any = {
-        // name is not updatable by customer; omit from payload
         phone: formData.phone,
         location: formData.location,
       };
 
-      if (imageId) {
-        updateData.profileImage = imageId;
+      if (imageUrl) {
+        updateData.profileImage = imageUrl;
       }
 
-      // Handle password change
       if (formData.newPassword) {
         updateData.currentPassword = formData.currentPassword;
         updateData.newPassword = formData.newPassword;
@@ -166,7 +163,6 @@ export const useCustomerProfile = () => {
       setSuccess("Profile updated successfully!");
       setIsEditing(false);
 
-      // Clear password fields
       setFormData((prev) => ({
         ...prev,
         currentPassword: "",
@@ -174,11 +170,9 @@ export const useCustomerProfile = () => {
         confirmPassword: "",
       }));
 
-      // Clear image states
       setProfileImage(null);
       setImagePreview(null);
 
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(""), 3000);
     } catch (error: any) {
       setErrors((prev) => ({

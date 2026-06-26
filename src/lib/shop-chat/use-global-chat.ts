@@ -6,6 +6,7 @@ import { getMyShopChatRoom, listShopChatRooms } from "./api";
 import { useShopChatSocket } from "./socket";
 import type { ShopChatMessage, ShopChatRoom } from "./types";
 import { useNotificationStore } from "@/store/notification-store";
+import { useChatStore } from "@/store/chat-store";
 import {
   clearAppSystemNotifications,
   getActiveChatId,
@@ -18,11 +19,7 @@ function isSupportRole(role?: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
 }
 
-type LastMessageType = NonNullable<ShopChatRoom["lastMessage"]>["type"];
-
-function messageTypeLabel(
-  type?: ShopChatMessage["type"] | LastMessageType | null,
-) {
+function messageTypeLabel(type?: ShopChatMessage["type"] | string | null) {
   if (type === "audio") return "audio";
   if (type === "video") return "video";
   if (type === "image") return "image";
@@ -31,19 +28,14 @@ function messageTypeLabel(
   return "message";
 }
 
-function messageTypePhrase(
-  type?: ShopChatMessage["type"] | LastMessageType | null,
-) {
+function messageTypePhrase(type?: ShopChatMessage["type"] | string | null) {
   const label = messageTypeLabel(type);
-  return label === "audio" || label === "image"
-    ? `an ${label}`
-    : `a ${label}`;
+  return label === "audio" || label === "image" ? `an ${label}` : `a ${label}`;
 }
 
 function messagePreview(last: NonNullable<ShopChatRoom["lastMessage"]>) {
   const text = String(last.text || "").trim();
   if (last.type === "text") return text || "Open chat to reply";
-
   const prefix = `Sent ${messageTypePhrase(last.type)}`;
   return text ? `${prefix}: ${text}` : prefix;
 }
@@ -55,12 +47,7 @@ function chatNotificationId(messageId: string) {
 function ownActionActorId(last: NonNullable<ShopChatRoom["lastMessage"]>) {
   const data = last.systemEventData;
   if (!data || typeof data !== "object") return "";
-  const candidates = [
-    data.actorUserId,
-    data.createdById,
-    data.updatedById,
-    data.clearedById,
-  ];
+  const candidates = [data.actorUserId, data.createdById, data.updatedById, data.clearedById];
   for (const candidate of candidates) {
     const value = String(candidate || "").trim();
     if (value) return value;
@@ -74,23 +61,31 @@ export function useGlobalShopChat(
   const pathname = usePathname() || "";
   const userId = String(user?.id || user?._id || "");
   const role = String(user?.role || "");
-  const enabled = Boolean(
-    userId && (isSupportRole(role) || role === "customer"),
-  );
+  const enabled = Boolean(userId && (isSupportRole(role) || role === "customer"));
   const { socket, connected } = useShopChatSocket(undefined, enabled);
-  const [rooms, setRooms] = useState<ShopChatRoom[]>([]);
-  const roomsRef = useRef<ShopChatRoom[]>([]);
+  const chatStore = useChatStore();
+  const [localRooms, setLocalRooms] = useState<ShopChatRoom[]>([]);
   const loadedRef = useRef(false);
   const notifiedMessageIdsRef = useRef(new Set<string>());
   const chatPath = role === "customer" ? "/customer/chat" : "/admin/chat";
-  const isChatRoute =
-    pathname === "/chat" ||
-    pathname === chatPath ||
-    pathname.startsWith(`${chatPath}/`);
+  const isChatRoute = pathname === "/chat" || pathname === chatPath || pathname.startsWith(`${chatPath}/`);
 
-  useEffect(() => {
-    roomsRef.current = rooms;
-  }, [rooms]);
+  // Derive sorted rooms from store
+  const rooms = useMemo(() => {
+    const ids = chatStore.roomIds;
+    const byId = chatStore.roomsById;
+    if (ids.length === 0) return localRooms;
+    return ids.map((id) => byId[id]).filter(Boolean);
+  }, [chatStore.roomIds, chatStore.roomsById, localRooms]);
+
+  const upsertRoom = useCallback((room: ShopChatRoom) => {
+    chatStore.upsertRoom(room);
+    setLocalRooms((prev) => {
+      const exists = prev.some((item) => item.roomId === room.roomId);
+      const next = exists ? prev.map((item) => (item.roomId === room.roomId ? room : item)) : [room, ...prev];
+      return next.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+    });
+  }, [chatStore]);
 
   const maybeNotifyFromRoom = useCallback(
     (room: ShopChatRoom) => {
@@ -98,16 +93,11 @@ export function useGlobalShopChat(
       if (!last) return;
 
       if (Number(room.unreadBy?.[userId] || 0) <= 0) {
-        useNotificationStore.getState().removeWhere((notification) => {
-          const meta = notification.meta;
-          return meta?.type === "shop_chat" && meta?.roomId === room.roomId;
-        });
+        useNotificationStore.getState().removeWhere((n) => n.meta?.type === "shop_chat" && n.meta?.roomId === room.roomId);
         clearAppSystemNotifications({ roomId: room.roomId });
       }
 
-      const previous = roomsRef.current.find(
-        (item) => item.roomId === room.roomId,
-      );
+      const previous = (chatStore.roomsById[room.roomId] || localRooms.find((r) => r.roomId === room.roomId));
       if (previous?.lastMessage?.messageId === last.messageId) return;
 
       const activeChatId = getActiveChatId();
@@ -140,39 +130,19 @@ export function useGlobalShopChat(
             senderName,
             actorUserId: actorUserId || undefined,
             userId: role === "customer" ? userId : room.customerId,
-            route: {
-              pathname: chatPath,
-              query:
-                role === "customer"
-                  ? undefined
-                  : { customerId: room.customerId },
-            },
+            route: { pathname: chatPath, query: role === "customer" ? undefined : { customerId: room.customerId } },
           },
         });
       }
-
     },
-    [chatPath, isChatRoute, role, userId],
+    [chatPath, chatStore.roomsById, isChatRoute, localRooms, role, userId],
   );
-
-  const upsertRoom = useCallback((room: ShopChatRoom) => {
-    setRooms((prev) => {
-      const exists = prev.some((item) => item.roomId === room.roomId);
-      const next = exists
-        ? prev.map((item) => (item.roomId === room.roomId ? room : item))
-        : [room, ...prev];
-      return next.sort(
-        (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
-      );
-    });
-  }, []);
 
   const clearChatRoomNotifications = useCallback((roomId?: string | null) => {
     useNotificationStore.getState().removeWhere((notification) => {
-      const meta = notification.meta;
-      if (notification.type !== "chat" && meta?.type !== "shop_chat") return false;
+      if (notification.type !== "chat" && notification.meta?.type !== "shop_chat") return false;
       if (!roomId) return true;
-      return String(meta?.roomId || "") === roomId;
+      return String(notification.meta?.roomId || "") === roomId;
     });
     if (roomId) clearAppSystemNotifications({ roomId });
     else clearAppSystemNotifications();
@@ -191,63 +161,58 @@ export function useGlobalShopChat(
   );
 
   const markRoomSeenLocally = useCallback(
-    (room: ShopChatRoom) => {
-      return {
-        ...room,
-        unreadBy: {
-          ...(room.unreadBy || {}),
-          ...(userId ? { [userId]: 0 } : {}),
-        },
-      };
-    },
+    (room: ShopChatRoom) => ({
+      ...room,
+      unreadBy: { ...(room.unreadBy || {}), ...(userId ? { [userId]: 0 } : {}) },
+    }),
     [userId],
   );
 
+  // Initial load: try cache first, then network (ONCE per enable cycle)
   useEffect(() => {
     if (!enabled) {
-      setRooms([]);
-      roomsRef.current = [];
+      setLocalRooms([]);
       loadedRef.current = false;
       return;
     }
+    // Guard: only fetch rooms once. Subsequent updates come via socket.
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+
     let cancelled = false;
-    async function loadUnreadRooms() {
+    async function loadInitial() {
       try {
+        // Load from cache first for instant display
+        await chatStore.loadFromCache();
+
+        // Then fetch from network (once)
         if (isSupportRole(role)) {
-          const response = await listShopChatRooms();
+          const response = await listShopChatRooms({ limit: 0 });
           if (!cancelled) {
-            if (isChatRoute) response.rooms.forEach(clearSeenRoomNotifications);
-            const nextRooms = isChatRoute ? response.rooms.map(markRoomSeenLocally) : response.rooms;
-            setRooms(nextRooms);
-            roomsRef.current = nextRooms;
-            loadedRef.current = true;
+            const rooms = isChatRoute ? response.rooms.map(markRoomSeenLocally) : response.rooms;
+            chatStore.setRooms(rooms, response.nextCursor, response.hasMore);
+            setLocalRooms(rooms);
+            if (isChatRoute) rooms.forEach(clearSeenRoomNotifications);
           }
-          return;
-        }
-        if (role === "customer") {
+        } else if (role === "customer") {
           const response = await getMyShopChatRoom();
           if (!cancelled) {
+            const room = isChatRoute ? markRoomSeenLocally(response.room) : response.room;
+            chatStore.setRooms([room]);
+            setLocalRooms([room]);
             if (isChatRoute) clearSeenRoomNotifications(response.room);
-            const nextRooms = [isChatRoute ? markRoomSeenLocally(response.room) : response.room];
-            setRooms(nextRooms);
-            roomsRef.current = nextRooms;
-            loadedRef.current = true;
           }
         }
       } catch {
-        if (!cancelled) {
-          setRooms([]);
-          roomsRef.current = [];
-          loadedRef.current = true;
-        }
+        // Cache data already rendered
       }
     }
-    void loadUnreadRooms();
-    return () => {
-      cancelled = true;
-    };
-  }, [clearSeenRoomNotifications, enabled, isChatRoute, markRoomSeenLocally, role]);
+    void loadInitial();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, role, isChatRoute]);
 
+  // Socket room updates
   useEffect(() => {
     if (!socket || !enabled) return;
     const onRoomUpdated = (room: ShopChatRoom) => {
@@ -269,35 +234,19 @@ export function useGlobalShopChat(
       socket.off("room:updated", onRoomUpdated);
       socket.off("room:joined", onRoomJoined);
     };
-  }, [
-    clearSeenRoomNotifications,
-    enabled,
-    isChatRoute,
-    markRoomSeenLocally,
-    maybeNotifyFromRoom,
-    socket,
-    upsertRoom,
-  ]);
+  }, [clearSeenRoomNotifications, enabled, isChatRoute, markRoomSeenLocally, maybeNotifyFromRoom, socket, upsertRoom]);
 
+  // Clear notifications when on chat route
   useEffect(() => {
     if (!enabled || !isChatRoute) return;
-    roomsRef.current.forEach(clearSeenRoomNotifications);
-    setRooms((prev) => {
-      const next = prev.map(markRoomSeenLocally);
-      roomsRef.current = next;
-      return next;
-    });
-  }, [clearSeenRoomNotifications, enabled, isChatRoute, markRoomSeenLocally]);
+    Object.values(chatStore.roomsById).forEach(clearSeenRoomNotifications);
+    localRooms.forEach(clearSeenRoomNotifications);
+    chatStore.markRoomSeen("", userId);
+  }, [clearSeenRoomNotifications, enabled, isChatRoute, userId, chatStore, localRooms]);
 
   const unreadCount = useMemo(
-    () =>
-      isChatRoute
-        ? 0
-        : rooms.reduce(
-            (sum, room) => sum + Number(room.unreadBy?.[userId] || 0),
-            0,
-          ),
-    [isChatRoute, rooms, userId],
+    () => (isChatRoute ? 0 : chatStore.getUnreadCount(userId)),
+    [isChatRoute, chatStore, userId],
   );
 
   return {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { getShopAuthHeader } from "./auth";
 import { SHOP_CHAT_URL } from "./api";
-import type { ShopChatMessage, ShopChatRoom } from "./types";
+import type { ShopChatMessage, ShopChatRoom, ChatMedia } from "./types";
 
 type ServerToClientEvents = {
   "room:joined": (payload: { room: ShopChatRoom }) => void;
@@ -38,6 +38,7 @@ type ClientToServerEvents = {
   "typing:update": (payload: { roomId: string; typing: boolean }) => void;
   "message:delivered": (payload: { messageIds: string[] }) => void;
   "message:read": (payload: { roomId: string; messageIds?: string[] }) => void;
+  "message:seen": (payload: { roomId: string }) => void;
   "chat:active": (payload: { roomId?: string | null }) => void;
   "presence:ping": () => void;
   "presence:offline": () => void;
@@ -161,6 +162,7 @@ export function useShopChatSocket(activeRoomId?: string | null, enabled = true) 
       text: string;
       type?: ShopChatMessage["type"];
       attachments?: unknown[];
+      media?: ChatMedia | null;
       clientMessageId: string;
       replyTo?: ShopChatMessage["replyTo"];
     }) =>

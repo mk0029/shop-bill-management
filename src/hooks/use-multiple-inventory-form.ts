@@ -8,6 +8,7 @@ import { initFieldRegistry } from "@/lib/field-registry-init";
 import { inventoryApi, stockApi } from "@/lib/inventory-api";
 import { useInventoryStore } from "@/store/inventory-store";
 import type { Specification } from "@/store/inventory-store";
+import type { ImageItem } from "@/components/inventory/product-image-upload";
 
 export interface InventoryFormData {
   id: string;
@@ -23,6 +24,7 @@ export interface InventoryFormData {
   description: string;
   specifications: Specification;
   selectedExistingProduct: string;
+  images: ImageItem[];
 }
 
 export const useMultipleInventoryForm = () => {
@@ -57,6 +59,7 @@ export const useMultipleInventoryForm = () => {
     description: "",
     specifications: {} as Specification,
     selectedExistingProduct: "",
+    images: [],
   });
 
   const [formDataList, setFormDataList] = useState<InventoryFormData[]>([createEmptyForm()]);
@@ -139,6 +142,43 @@ export const useMultipleInventoryForm = () => {
         )
       );
     }
+  };
+
+  const handleImagesChange = (formId: string, images: ImageItem[]) => {
+    setFormDataList((prev) =>
+      prev.map((form) => (form.id === formId ? { ...form, images } : form))
+    );
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.url || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const uploadProductImages = async (images: ImageItem[]): Promise<ImageItem[]> => {
+    const updated = await Promise.all(
+      images.map(async (img) => {
+        if (img.status !== "local") return img;
+        const result = { ...img, status: "uploading" as const };
+        const url = await uploadImage(img.file);
+        if (url) {
+          return { ...result, status: "uploaded" as const, uploadedUrl: url };
+        }
+        return { ...result, status: "error" as const };
+      })
+    );
+    return updated;
   };
 
   const handleSpecificationChange = (formId: string, field: string, value: string | number | boolean | string[]) => {
@@ -238,6 +278,30 @@ export const useMultipleInventoryForm = () => {
           continue;
         }
 
+        // Upload pending images for this product
+        let imageUrls: string[] = [];
+        const pendingImages = formData.images.filter((img) => img.status === "local");
+        if (pendingImages.length > 0) {
+          const updated = await uploadProductImages(pendingImages);
+          imageUrls = updated.filter((img) => img.status === "uploaded" && img.uploadedUrl).map((img) => img.uploadedUrl!);
+          // Update form state with upload results
+          setFormDataList((prev) =>
+            prev.map((f) =>
+              f.id === formData.id
+                ? {
+                    ...f,
+                    images: f.images.map((existingImg) => {
+                      const uploaded = updated.find((u) => u.id === existingImg.id);
+                      return uploaded || existingImg;
+                    }),
+                  }
+                : f
+            )
+          );
+        } else {
+          imageUrls = formData.images.filter((img) => img.status === "uploaded" && img.uploadedUrl).map((img) => img.uploadedUrl!);
+        }
+
         const brand = brands.find((b) => b._id === formData.brand);
         creations.push({
           name: formData.productName || generateProductName(formData),
@@ -257,6 +321,7 @@ export const useMultipleInventoryForm = () => {
           },
           description: formData.description,
           tags: [],
+          images: imageUrls,
           initialStockTransaction: {
             type: "purchase" as const,
             quantity: qty,
@@ -341,6 +406,7 @@ export const useMultipleInventoryForm = () => {
     products,
     successfulProducts,
     handleInputChange,
+    handleImagesChange,
     handleSpecificationChange,
     handleExistingProductSelect,
     handleSubmit,

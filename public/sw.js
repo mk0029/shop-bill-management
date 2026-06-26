@@ -128,6 +128,13 @@ self.addEventListener("fetch", (event) => {
     return; // let the browser handle it
   }
 
+  // Bypass Next.js RSC data fetches (used for client-side navigation via router.replace/push).
+  // These are identified by the `RSC` request header. Intercepting them causes 503 errors
+  // when the dev server restarts during hot reload.
+  if (request.headers.get("RSC") === "1" || request.headers.get("Next-Router-Prefetch") === "1") {
+    return;
+  }
+
   // Network-first for navigations (HTML) with offline fallback to cached page or '/'
   if (isNavigationRequest(request)) {
     event.respondWith(

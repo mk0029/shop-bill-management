@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       specifications: (productData as any).specifications,
       pricing: { ...(productData as any).pricing },
       inventory: (productData as any).inventory,
-      images: [],
+      images: (productData as any).images || [],
       isActive: true,
       isFeatured: false,
       tags: Array.isArray((productData as any).tags) ? (productData as any).tags : [],

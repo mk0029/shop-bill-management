@@ -407,4 +407,4 @@ const ChatItem: React.FC<ChatItemProps> = ({
   );
 };
 
-export default ChatItem;
+export default React.memo(ChatItem);

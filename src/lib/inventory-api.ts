@@ -577,7 +577,7 @@ export const inventoryApi = {
               taxRate: TAX_RATE,
             },
             inventory: productData.inventory,
-            images: [],
+            images: productData.images || [],
             isActive: true,
             isFeatured: false,
             tags: productData.tags,

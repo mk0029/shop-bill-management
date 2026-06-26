@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   SendHorizonal,
@@ -56,6 +57,7 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
   const [caption, setCaption] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [localFiles, setLocalFiles] = useState<PendingFile[]>(files);
+  const [loadedMap, setLoadedMap] = useState<Record<number, boolean>>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewUrlsRef = useRef<Map<File, string>>(new Map());
 
@@ -102,26 +104,49 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
 
   const activeFile = localFiles[activeIndex];
 
+  const markLoaded = (index: number) => {
+    setLoadedMap((prev) => ({ ...prev, [index]: true }));
+  };
+
   const renderPreview = (pf: PendingFile, index: number) => {
     const url = getPreviewUrl(pf);
+    const loaded = loadedMap[index];
 
     if (pf.kind === "image") {
       return (
-        <img
-          src={url}
-          alt={pf.file.name}
-          className="max-h-[50vh] w-full rounded-lg object-contain"
-        />
+        <div className="relative w-full">
+          {!loaded && (
+            <div className="flex h-64 w-full items-center justify-center rounded-lg bg-slate-800/80">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400/35 border-t-emerald-400" />
+            </div>
+          )}
+          <img
+            src={url}
+            alt={pf.file.name}
+            className={`max-h-[50vh] w-full rounded-lg object-contain ${loaded ? "block" : "hidden"}`}
+            onLoad={() => markLoaded(index)}
+            onError={() => markLoaded(index)}
+          />
+        </div>
       );
     }
 
     if (pf.kind === "video") {
       return (
-        <video
-          src={url}
-          controls
-          className="max-h-[50vh] w-full rounded-lg object-contain"
-        />
+        <div className="relative w-full">
+          {!loaded && (
+            <div className="flex h-64 w-full items-center justify-center rounded-lg bg-slate-800/80">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400/35 border-t-emerald-400" />
+            </div>
+          )}
+          <video
+            src={url}
+            controls
+            className={`max-h-[50vh] w-full rounded-lg object-contain ${loaded ? "block" : "hidden"}`}
+            onLoadedData={() => markLoaded(index)}
+            onError={() => markLoaded(index)}
+          />
+        </div>
       );
     }
 
@@ -155,14 +180,14 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
 
   if (!localFiles.length) return null;
 
-  return (
+  const modal = (
     <AnimatePresence>
       <motion.div
         key="media-preview-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+        className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-md"
         onClick={(e) => {
           if (e.target === e.currentTarget) onCancel();
         }}
@@ -173,24 +198,24 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 40, scale: 0.97 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="relative mx-2 mb-4 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl shadow-black/50 backdrop-blur-xl sm:mb-0"
+          className="relative mx-2 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/15 bg-slate-900/90 shadow-2xl shadow-black/60 backdrop-blur-2xl"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <h3 className="text-sm font-semibold text-slate-100">
-              Preview ({localFiles.length} {localFiles.length === 1 ? "file" : "files"})
+          <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-white/[0.03] to-transparent px-5 py-3.5">
+            <h3 className="text-sm font-medium text-slate-200">
+              Preview <span className="text-slate-500">({localFiles.length} {localFiles.length === 1 ? "file" : "files"})</span>
             </h3>
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+              className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-white/[0.1] hover:text-white"
             >
               <X size={18} />
             </button>
           </div>
 
           {/* Preview Area */}
-          <div className="relative flex min-h-[200px] flex-1 items-center justify-center overflow-auto px-4 py-4">
+          <div className="relative flex min-h-[220px] flex-1 items-center justify-center overflow-auto bg-white/[0.015] px-4 py-4">
             {activeFile && renderPreview(activeFile, activeIndex)}
 
             {/* Navigation arrows for multiple files */}
@@ -200,7 +225,7 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveIndex((i) => i - 1)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/80 backdrop-blur-sm transition-colors hover:bg-black/70 hover:text-white"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white/80 backdrop-blur-md transition-all hover:bg-black/80 hover:text-white hover:scale-110"
                   >
                     <ChevronLeft size={20} />
                   </button>
@@ -209,7 +234,7 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveIndex((i) => i + 1)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/80 backdrop-blur-sm transition-colors hover:bg-black/70 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white/80 backdrop-blur-md transition-all hover:bg-black/80 hover:text-white hover:scale-110"
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -220,7 +245,7 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
 
           {/* Thumbnail strip for multiple files */}
           {localFiles.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto border-t border-white/10 px-4 py-2">
+            <div className="flex gap-2 overflow-x-auto border-t border-white/10 bg-white/[0.02] px-4 py-2.5">
               {localFiles.map((pf, i) => (
                 <button
                   key={i}
@@ -257,7 +282,7 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
                       e.stopPropagation();
                       handleRemove(i);
                     }}
-                    className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white shadow-md transition-transform hover:scale-110"
+                    className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/30 transition-all hover:scale-110 hover:bg-red-400"
                   >
                     <X size={10} />
                   </button>
@@ -267,14 +292,14 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
           )}
 
           {/* Caption + Send */}
-          <div className="flex items-end gap-2 border-t border-white/10 px-4 py-3">
+          <div className="flex items-end gap-2 border-t border-white/10 bg-gradient-to-r from-transparent to-white/[0.02] px-5 py-3.5">
             <textarea
               ref={textareaRef}
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Add a caption..."
               rows={1}
-              className="no-scrollbar max-h-20 min-h-[36px] flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400/70 focus:border-emerald-400/50 focus:outline-none focus:ring-1 focus:ring-emerald-400/20"
+              className="no-scrollbar max-h-20 min-h-[38px] flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2 text-sm text-slate-100 placeholder:text-slate-500 transition-colors focus:border-emerald-500/40 focus:bg-white/[0.08] focus:outline-none focus:ring-1 focus:ring-emerald-500/20"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -284,10 +309,10 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
             />
             <motion.button
               type="button"
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.93 }}
               onClick={handleSend}
-              className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full border border-emerald-400/35 bg-emerald-500/95 text-slate-50 shadow-sm transition-colors hover:bg-emerald-400"
+              className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 hover:shadow-emerald-400/25"
               title="Send"
             >
               <SendHorizonal size={18} />
@@ -297,6 +322,8 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
       </motion.div>
     </AnimatePresence>
   );
+
+  return typeof document !== "undefined" ? createPortal(modal, document.body) : null;
 };
 
 export default MediaPreviewModal;
