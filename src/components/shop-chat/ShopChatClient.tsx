@@ -36,7 +36,7 @@ import {
   setActiveChatId,
 } from "@/lib/notifications/dedupe";
 import { safeInitial, safeUserName } from "@/lib/display-text";
-import { getCachedRooms, getCachedMessages, cacheMessage, cacheMessages, cacheRoom } from "@/lib/chat-cache";
+import { getCachedRooms, getCachedMessages, cacheMessage, cacheMessages, cacheRoom, cacheRooms } from "@/lib/chat-cache";
 
 type Mode = "admin" | "customer";
 
@@ -1028,6 +1028,7 @@ export default function ShopChatClient({
   const handledReloadParamRef = useRef(false);
   const syncedBillEventsRef = useRef<Set<string>>(new Set());
   const restoredFromUrlRef = useRef(false);
+  const fetchedOnceRef = useRef(false);
   const selectingRoomRef = useRef(false);
   const { socket, connected, sendMessage: sendSocketMessage } = useShopChatSocket(activeRoom?.roomId);
 
@@ -1280,35 +1281,35 @@ export default function ShopChatClient({
       }
 
       // ── 2. Fetch fresh data from API in background ──
-      // Skip full background refresh for admin when cache exists — socket keeps list fresh
-      if (cached.length === 0 || !isAdmin) {
-        try {
-          if (isAdmin) {
-            const response = await listShopChatRooms({ limit: 0 });
-            if (cancelled) return;
-            setRooms(sortRoomsByLatestMessage(response.rooms));
-            cacheRooms(response.rooms);
-          } else {
-            const response = await getMyShopChatRoom();
-            if (cancelled) return;
-            const room = response.room;
-            setRooms(sortRoomsByLatestMessage([room]));
-            setActiveRoom((prev) => (prev?.roomId === room.roomId ? prev : room));
-            cacheRoom(room);
-            const msgRes = await listShopChatMessages(room.roomId, { limit: 30 });
-            if (cancelled) return;
-            setMessagesByRoom((prev) => ({
-              ...prev,
-              [room.roomId]: dedupeBillCreatedMessages(msgRes.messages),
-            }));
-            cacheMessages(room.roomId, msgRes.messages);
-            void syncBillEventsForRoom(room);
-          }
-        } catch {
-          // Cache data already rendered — silent fail
-        } finally {
-          if (!cancelled) setLoading(false);
+      // For admin: always fetch all rooms once to keep the full list
+      if (fetchedOnceRef.current) { if (!cancelled) setLoading(false); return; }
+      fetchedOnceRef.current = true;
+      try {
+        if (isAdmin) {
+          const response = await listShopChatRooms({ limit: 0 });
+          if (cancelled) return;
+          setRooms(sortRoomsByLatestMessage(response.rooms));
+          cacheRooms(response.rooms);
+        } else {
+          const response = await getMyShopChatRoom();
+          if (cancelled) return;
+          const room = response.room;
+          setRooms(sortRoomsByLatestMessage([room]));
+          setActiveRoom((prev) => (prev?.roomId === room.roomId ? prev : room));
+          cacheRoom(room);
+          const msgRes = await listShopChatMessages(room.roomId, { limit: 30 });
+          if (cancelled) return;
+          setMessagesByRoom((prev) => ({
+            ...prev,
+            [room.roomId]: dedupeBillCreatedMessages(msgRes.messages),
+          }));
+          cacheMessages(room.roomId, msgRes.messages);
+          void syncBillEventsForRoom(room);
         }
+      } catch {
+        // Cache data already rendered — silent fail
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     void loadInitial();
