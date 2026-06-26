@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Mic, Send, X } from "lucide-react";
-import { motion } from "framer-motion";
+import { Mic, Send, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
 interface VoiceRecorderProps {
@@ -13,6 +13,12 @@ interface VoiceRecorderProps {
 type Phase = "idle" | "starting" | "recording" | "sending" | "cancelled";
 
 const MIN_DURATION_MS = 1000;
+const BAR_COUNT = 50;
+
+function seededRandom(seed: number) {
+  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
 
 const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   onSend,
@@ -23,7 +29,6 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const [phase, setPhase] = useState<Phase>("idle");
   const [durationMs, setDurationMs] = useState(0);
   const [locked, setLocked] = useState(false);
-  const [waveBarCount, setWaveBarCount] = useState(48);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
@@ -31,32 +36,20 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef<number>(0);
   const isFinishingRef = useRef(false);
-  const waveWrapRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const el = waveWrapRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-
-    const computeCount = () => {
-      const width = Math.max(120, el.clientWidth || 0);
-      // Each bar takes roughly 4px (2px bar + 2px gap).
-      const count = Math.max(24, Math.floor(width / 4));
-      setWaveBarCount(count);
-    };
-
-    computeCount();
-    const observer = new ResizeObserver(() => computeCount());
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const [waveAmplitudes, setWaveAmplitudes] = useState<number[]>(() =>
+    Array.from({ length: BAR_COUNT }, () => 0)
+  );
 
   const bars = useMemo(
     () =>
-      Array.from({ length: waveBarCount }, (_, i) => {
-        const seed = (i * 19 + 11) % 31;
-        return 24 + ((seed * 13) % 54);
-      }),
-    [waveBarCount]
+      Array.from({ length: BAR_COUNT }, (_, i) => ({
+        baseHeight: 8 + seededRandom(i) * 28,
+        speed: 0.6 + seededRandom(i + 100) * 1.4,
+        phase: seededRandom(i + 200) * Math.PI * 2,
+      })),
+    []
   );
 
   const formatDuration = (ms: number) => {
@@ -71,6 +64,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       streamRef.current?.getTracks().forEach((track) => track.stop());
     } catch {}
     streamRef.current = null;
+    analyserRef.current = null;
   };
 
   const stopTimer = () => {
@@ -80,19 +74,24 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     }
   };
 
-  const resetGesture = () => {
+  const stopAnimFrame = () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
   };
 
   const resetIdle = () => {
     stopStreams();
     stopTimer();
+    stopAnimFrame();
     audioChunksRef.current = [];
     startedAtRef.current = 0;
     isFinishingRef.current = false;
-    resetGesture();
     setLocked(false);
     setDurationMs(0);
     setPhase("idle");
+    setWaveAmplitudes(Array.from({ length: BAR_COUNT }, () => 0));
     onRecordingChange?.(false);
   };
 
@@ -121,17 +120,18 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     await stopRecorder();
     stopStreams();
     stopTimer();
+    stopAnimFrame();
 
     if (!keep) {
       setPhase("cancelled");
-      setTimeout(() => resetIdle(), 220);
+      setTimeout(() => resetIdle(), 300);
       return;
     }
 
     if (elapsed < MIN_DURATION_MS) {
       toast("Recording too short");
       setPhase("cancelled");
-      setTimeout(() => resetIdle(), 220);
+      setTimeout(() => resetIdle(), 300);
       return;
     }
 
@@ -140,7 +140,7 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     });
     if (!blob.size) {
       setPhase("cancelled");
-      setTimeout(() => resetIdle(), 220);
+      setTimeout(() => resetIdle(), 300);
       return;
     }
 
@@ -149,9 +149,47 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       await onSend(blob);
     } catch (error) {
       console.error("Failed to send voice note:", error);
-      toast.error("Voice note send failed, retrying in queue if offline.");
+      toast.error("Failed to send voice note");
     } finally {
       resetIdle();
+    }
+  };
+
+  const startWaveAnimation = () => {
+    stopAnimFrame();
+
+    const analyser = analyserRef.current;
+    if (analyser) {
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const animate = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const step = Math.max(1, Math.floor(dataArray.length / BAR_COUNT));
+        const newAmps: number[] = [];
+        for (let i = 0; i < BAR_COUNT; i++) {
+          const idx = Math.min(i * step, dataArray.length - 1);
+          const raw = dataArray[idx] / 255;
+          newAmps.push(Math.pow(raw, 0.5));
+        }
+        setWaveAmplitudes(newAmps);
+        animFrameRef.current = requestAnimationFrame(animate);
+      };
+      animFrameRef.current = requestAnimationFrame(animate);
+    } else {
+      const t0 = Date.now();
+      const animate = () => {
+        const elapsed = (Date.now() - t0) / 1000;
+        const newAmps: number[] = Array.from({ length: BAR_COUNT }, (_, i) => {
+          const wave =
+            Math.sin(elapsed * 3.5 + i * 0.45) * 0.3 +
+            Math.sin(elapsed * 5.2 + i * 0.28) * 0.2 +
+            Math.sin(elapsed * 1.8 + i * 0.7) * 0.15 +
+            0.35;
+          return Math.max(0.05, Math.min(1, wave));
+        });
+        setWaveAmplitudes(newAmps);
+        animFrameRef.current = requestAnimationFrame(animate);
+      };
+      animFrameRef.current = requestAnimationFrame(animate);
     }
   };
 
@@ -173,6 +211,18 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         } as any,
       });
       streamRef.current = stream;
+
+      try {
+        const audioCtx = new AudioContext();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.7;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+      } catch {
+        // fallback: no real audio analysis, animated bars will still work
+      }
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
@@ -197,7 +247,9 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
       timerRef.current = window.setInterval(() => {
         setDurationMs(Math.max(0, Date.now() - startedAtRef.current));
-      }, 120);
+      }, 100);
+
+      startWaveAnimation();
     } catch (error) {
       console.warn("Voice recorder start failed", error);
       toast.error("Microphone permission required");
@@ -209,8 +261,6 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     const onVisibility = async () => {
       if (phase !== "recording" && phase !== "starting") return;
       if (document.visibilityState === "hidden") {
-        // Safe fallback for browsers that stop capture on background:
-        // finalize as cancel to avoid stuck recorder UI.
         await finalizeRecording(false);
       }
     };
@@ -227,96 +277,132 @@ const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     };
   }, []);
 
-  if (phase === "idle") {
-    return (
-      <button
-        type="button"
-        onClick={() => void startRecording()}
-        className={`grid h-11 w-11 place-items-center rounded-full border border-emerald-400/30 bg-gradient-to-br from-emerald-500 to-teal-600 text-white transition-colors hover:from-emerald-400 hover:to-teal-500 active:scale-95 ${className}`}
-        title="Record voice note"
-      >
-        <Mic size={18} />
-      </button>
-    );
-  }
-
-  if (phase === "sending") {
-    return (
-      <div
-        className={`flex min-w-0 items-center gap-2 rounded-2xl border border-slate-600/70 bg-slate-800/95 px-3 py-2 ${className}`}
-      >
-        <Loader2 size={16} className="animate-spin text-emerald-300" />
-        <span className="text-sm text-slate-200">Sending voice note...</span>
-      </div>
-    );
-  }
+  const isRecording = phase === "recording" || phase === "starting";
 
   return (
-    <div
-      className={`relative flex min-w-0 items-center gap-2 rounded-2xl border border-slate-600/70 bg-slate-800/95 px-3 py-2 ${className}`}
-    >
-      <button
-        type="button"
-        onClick={() => {
-          void finalizeRecording(false);
-        }}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-700/95 text-slate-200 transition-colors hover:bg-slate-600"
-        title="Delete recording"
-      >
-        <X size={14} />
-      </button>
+    <div className={`relative shrink-0 ${className}`}>
+      <AnimatePresence mode="wait">
+        {phase === "idle" && (
+          <motion.button
+            key="mic"
+            type="button"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.6, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            onClick={() => void startRecording()}
+            className="grid h-11 w-11 place-items-center rounded-full border border-white/15 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 transition-all hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-400/30 hover:scale-105 active:scale-95"
+            title="Record voice note"
+          >
+            <Mic size={18} />
+          </motion.button>
+        )}
 
-      <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center gap-2 text-xs text-rose-300">
-          <motion.span
-            className="h-2 w-2 rounded-full bg-rose-400"
-            animate={{ scale: [1, 1.45, 1] }}
-            transition={{ repeat: Infinity, duration: 1.1, ease: "easeInOut" }}
-          />
-          <span>{phase === "starting" ? "Starting..." : "Recording..."}</span>
-          <span className="tabular-nums text-slate-200">
-            {phase === "starting" ? "0:00" : formatDuration(durationMs)}
-          </span>
-          {locked ? (
-            <span className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-200">
-              Locked
-            </span>
-          ) : null}
-        </div>
-        <div
-          ref={waveWrapRef}
-          className="relative overflow-hidden rounded-full bg-slate-700/55 px-1.5 py-1"
-        >
-          <div className="flex h-5 items-end gap-[2px]">
-            {bars.map((h, i) => (
-              <span
-                key={`bar-${i}`}
-                className="w-[2px] rounded-full bg-emerald-300/85"
-                style={{
-                  height: `${Math.max(18, Math.min(100, h * (0.35 + Math.sin((durationMs / 240) + i * 0.35) * 0.08)))}%`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="mt-1 text-[11px] text-slate-300/80">
-          {phase === "starting"
-            ? "Preparing microphone..."
-            : locked
-            ? "Tap send when ready"
-            : "Recording..."}
-        </div>
-      </div>
+        {phase === "sending" && (
+          <motion.div
+            key="sending"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.6, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-4 backdrop-blur-xl"
+          >
+            <motion.div
+              className="h-4 w-4 rounded-full border-2 border-emerald-400 border-t-transparent"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+            />
+            <span className="text-sm text-slate-200">Sending...</span>
+          </motion.div>
+        )}
 
-      <button
-        type="button"
-        onClick={() => void finalizeRecording(true)}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-500 text-white transition-colors hover:bg-emerald-400"
-        title="Send voice note"
-      >
-        <Send size={14} />
-      </button>
+        {isRecording && (
+          <motion.div
+            key="recorder"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="flex h-14 w-full items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.06] px-3.5 backdrop-blur-2xl shadow-lg shadow-black/20"
+          >
+            {/* Delete button */}
+            <motion.button
+              type="button"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.2 }}
+              onClick={() => void finalizeRecording(false)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.08] text-slate-300 transition-colors hover:bg-red-500/20 hover:text-red-300 active:scale-90"
+              title="Delete recording"
+            >
+              <Trash2 size={15} />
+            </motion.button>
 
+            {/* Waveform + timer */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <motion.span
+                  className="h-2 w-2 rounded-full bg-red-400"
+                  animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
+                />
+                <span className="text-xs font-medium text-slate-200 tabular-nums">
+                  {formatDuration(durationMs)}
+                </span>
+                {locked && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-medium text-emerald-300"
+                  >
+                    LOCKED
+                  </motion.span>
+                )}
+              </div>
+
+              {/* Waveform — dots that grow into bars based on voice intensity */}
+              <div className="flex h-6 w-full items-center justify-center gap-[2px]">
+                {bars.map((bar, i) => {
+                  const amp = waveAmplitudes[i] || 0;
+                  const isSilent = amp < 0.08;
+                  const barHeight = Math.max(3, amp * 100);
+                  return (
+                    <motion.div
+                      key={i}
+                      className="rounded-full bg-emerald-400"
+                      animate={{
+                        width: isSilent ? 3.5 : 2.5,
+                        height: isSilent ? 3.5 : `${barHeight}%`,
+                        opacity: isSilent ? 0.35 : 0.35 + amp * 0.65,
+                        borderRadius: isSilent ? "9999px" : "2px",
+                      }}
+                      transition={{
+                        height: { duration: 0.05, ease: "easeOut" },
+                        width: { duration: 0.2, ease: "easeInOut" },
+                        opacity: { duration: 0.05 },
+                        borderRadius: { duration: 0.2 },
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Send button */}
+            <motion.button
+              type="button"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.15, duration: 0.2 }}
+              onClick={() => void finalizeRecording(true)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-500 text-white shadow-md shadow-emerald-500/25 transition-all hover:bg-emerald-400 hover:shadow-emerald-400/30 active:scale-90"
+              title="Send voice note"
+            >
+              <Send size={14} />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -859,26 +859,28 @@ function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
       <div className="flex h-full min-h-0">
         {mode === "admin" && (
           <aside className="hidden h-full w-80 shrink-0 flex-col border-r border-white/10 bg-slate-950/55 backdrop-blur-2xl md:flex">
-            <div className="border-b border-white/10 bg-white/[0.035] p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="border-b border-white/10 bg-white/[0.035] px-4 pb-3 pt-4">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <SkeletonBlock className="h-5 w-5 rounded-full bg-blue-500/25" />
-                  <SkeletonBlock className="h-5 w-36" />
+                  <SkeletonBlock className="h-5 w-32" />
                 </div>
-                <SkeletonBlock className="h-9 w-9 rounded-xl bg-blue-500/20" />
+                <div className="flex items-center gap-2">
+                  <SkeletonBlock className="h-9 w-9 rounded-full bg-white/[0.06]" />
+                  <SkeletonBlock className="h-9 w-9 rounded-full bg-white/[0.06]" />
+                </div>
               </div>
-              <SkeletonBlock className="h-11 w-full rounded-xl" />
             </div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-hidden p-3">
-              {[0, 1, 2, 3, 4].map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-xl px-2 py-3">
-                  <SkeletonBlock className="h-11 w-11 rounded-full bg-emerald-500/20" />
+            <div className="min-h-0 flex-1 divide-y divide-white/10 overflow-hidden">
+              {[0, 1, 2, 3, 4, 5].map((item) => (
+                <div key={item} className="flex items-center gap-3 px-4 py-3">
+                  <SkeletonBlock className="h-11 w-11 shrink-0 rounded-full bg-emerald-500/20" />
                   <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2">
                       <SkeletonBlock className="h-4 w-28" />
-                      <SkeletonBlock className="h-3 w-9" />
+                      <SkeletonBlock className="h-3 w-10" />
                     </div>
-                    <SkeletonBlock className="h-3 w-40" />
+                    <SkeletonBlock className="h-3 w-44" />
                   </div>
                 </div>
               ))}

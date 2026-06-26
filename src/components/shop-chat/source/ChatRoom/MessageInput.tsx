@@ -204,12 +204,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
     };
     document.addEventListener(
       "chat:focus-composer" as any,
-      onFocusFromNotification as any
+      onFocusFromNotification as any,
     );
     return () =>
       document.removeEventListener(
         "chat:focus-composer" as any,
-        onFocusFromNotification as any
+        onFocusFromNotification as any,
       );
   }, [disabled, mediaModeActive]);
 
@@ -343,171 +343,164 @@ const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <>
-    <div className="chat-composer-root border-t border-white/10 bg-white/[0.025] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_32px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
-      {/* Reply/Edit Preview */}
-      {(replyTo || editingMessage) && (
-        <div className="mx-auto w-full max-w-4xl px-2.5 md:px-4">
-          <div className="mb-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 shadow-lg shadow-black/15 backdrop-blur-xl">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 text-xs text-emerald-300">
-                  {editingMessage
-                    ? "Editing message"
-                    : `Replying to ${safeUserName(replyTo?.senderName, "message")}`}
+      <div className="chat-composer-root border-t border-white/10 bg-white/[0.025] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_32px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+        {/* Reply/Edit Preview */}
+        {(replyTo || editingMessage) && (
+          <div className="mx-auto w-full max-w-4xl px-2.5 md:px-4">
+            <div className="mb-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 shadow-lg shadow-black/15 backdrop-blur-xl">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 text-xs text-emerald-300">
+                    {editingMessage
+                      ? "Editing message"
+                      : `Replying to ${safeUserName(replyTo?.senderName, "message")}`}
+                  </div>
+                  <div className="truncate text-sm text-slate-200">
+                    {editingMessage ? editingMessage.content : replyTo?.text}
+                  </div>
                 </div>
-                <div className="truncate text-sm text-slate-200">
-                  {editingMessage ? editingMessage.content : replyTo?.text}
-                </div>
+                <button
+                  type="button"
+                  onClick={editingMessage ? onCancelEdit : onCancelReply}
+                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+                  title="Cancel"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={editingMessage ? onCancelEdit : onCancelReply}
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
-                title="Cancel"
-              >
-                <X size={16} />
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Input Area */}
-      <div className="mx-auto w-full  max-w-[1400px]  px-2.5 md:px-4">
-        <div className="relative flex items-end gap-2">
-          <div
-            ref={composerRef}
-            onClick={(e) => {
-              const target = e.target as HTMLElement | null;
-              if (target?.closest("[data-composer-no-focus]")) return;
-              if (mediaModeActive) return;
-              allowAutoFocusRef.current = true;
-              focusComposerInput();
-            }}
-            className="group relative flex min-h-[50px] flex-1 items-center justify-between gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] "
-          >
+        {/* Input Area */}
+        <div className="mx-auto w-full  max-w-[1400px]  px-2.5 md:px-4">
+          <div className="relative flex items-end gap-2">
             <div
-              className={`flex min-w-0 flex-1 items-center gap-2 transition-opacity ${
-                isRecording ? "pointer-events-none opacity-0" : "opacity-100"
-              }`}
+              ref={composerRef}
+              onClick={(e) => {
+                const target = e.target as HTMLElement | null;
+                if (target?.closest("[data-composer-no-focus]")) return;
+                if (mediaModeActive) return;
+                allowAutoFocusRef.current = true;
+                focusComposerInput();
+              }}
+              className="group relative flex min-h-[50px] flex-1 items-center gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06]"
             >
-              <div data-composer-no-focus>
-                <AttachmentPicker
-                  onFilesSelected={handleFilesSelected}
-                  className="h-9 w-9 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white"
-                />
-              </div>
+              {!isRecording && (
+                <div data-composer-no-focus className="shrink-0">
+                  <AttachmentPicker
+                    onFilesSelected={handleFilesSelected}
+                    className="h-9 w-9 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white"
+                  />
+                </div>
+              )}
 
-              <textarea
-                ref={textareaRef}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onFocus={() => {
-                  if (mediaModeActive) {
-                    suppressRefocusOnBlurRef.current = true;
-                    try {
-                      textareaRef.current?.blur();
-                    } catch {}
-                    return;
-                  }
-                  allowAutoFocusRef.current = true;
-                }}
-                onBlur={() => {
-                  if (suppressRefocusOnBlurRef.current) {
-                    suppressRefocusOnBlurRef.current = false;
-                    return;
-                  }
-                  if (mediaModeActive) return;
-                  if (
-                    pointerInsideComposerRef.current &&
-                    allowAutoFocusRef.current
-                  ) {
-                    focusComposerInput();
-                  }
-                }}
-                placeholder={disabled ? "Cannot send messages" : placeholder}
-                disabled={disabled}
-                className="no-scrollbar w-full resize-none bg-transparent px-1 py-[0.46rem] text-[15px] leading-[1.33] text-slate-100 placeholder:text-slate-400/85 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                rows={1}
-                style={{ minHeight: "", maxHeight: "85px" }}
-              />
-
-              <div
-                data-composer-no-focus
-                className="flex h-10 items-center justify-end gap-0.5 pr-0.5"
-              >
-                <CameraCaptureButton
-                  onCapture={handleCameraCapture}
-                  onOpenChange={(open) => {
-                    setCameraOpen(open);
-                    if (open) {
-                      allowAutoFocusRef.current = false;
+              {!isRecording && (
+                <textarea
+                  ref={textareaRef}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => {
+                    if (mediaModeActive) {
                       suppressRefocusOnBlurRef.current = true;
                       try {
                         textareaRef.current?.blur();
                       } catch {}
+                      return;
+                    }
+                    allowAutoFocusRef.current = true;
+                  }}
+                  onBlur={() => {
+                    if (suppressRefocusOnBlurRef.current) {
+                      suppressRefocusOnBlurRef.current = false;
+                      return;
+                    }
+                    if (mediaModeActive) return;
+                    if (
+                      pointerInsideComposerRef.current &&
+                      allowAutoFocusRef.current
+                    ) {
+                      focusComposerInput();
                     }
                   }}
+                  placeholder={disabled ? "Cannot send messages" : placeholder}
                   disabled={disabled}
-                  className="h-9 w-9 scale-125 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white"
+                  className="no-scrollbar min-w-0 flex-1 resize-none bg-transparent px-1 py-[0.46rem] text-[15px] leading-[1.33] text-slate-100 placeholder:text-slate-400/85 focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                  rows={1}
+                  style={{ minHeight: "", maxHeight: "85px" }}
                 />
+              )}
+
+              {!isRecording && (
+                <div
+                  data-composer-no-focus
+                  className="flex shrink-0 items-center gap-0.5"
+                >
+                  <CameraCaptureButton
+                    onCapture={handleCameraCapture}
+                    onOpenChange={(open) => {
+                      setCameraOpen(open);
+                      if (open) {
+                        allowAutoFocusRef.current = false;
+                        suppressRefocusOnBlurRef.current = true;
+                        try {
+                          textareaRef.current?.blur();
+                        } catch {}
+                      }
+                    }}
+                    disabled={disabled}
+                    className="h-9 w-9 scale-125 rounded-full border border-transparent bg-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white"
+                  />
+                </div>
+              )}
+
+              <div
+                data-composer-no-focus
+                className={isRecording ? "flex-1" : "shrink-0 pb-0.5"}
+              >
+                {showSendButton && !isRecording ? (
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, scale: 0.72, y: 2 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.14, ease: "easeOut" }}
+                    onMouseDown={(e) => {
+                      allowAutoFocusRef.current = true;
+                      e.preventDefault();
+                    }}
+                    onTouchStart={(e) => {
+                      allowAutoFocusRef.current = true;
+                      e.preventDefault();
+                    }}
+                    onClick={handleSend}
+                    disabled={isSending || disabled}
+                    className="grid h-11 w-11 place-items-center overflow-hidden rounded-full border border-emerald-400/35 bg-emerald-500/95 text-slate-50 shadow-sm transition-colors hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    title="Send message"
+                  >
+                    <SendHorizonal size={18} />
+                  </motion.button>
+                ) : (
+                  <VoiceRecorder
+                    onSend={handleVoiceNote}
+                    onRecordingChange={handleRecordingChange}
+                    inline={isRecording}
+                    className={isRecording ? "w-full" : ""}
+                  />
+                )}
               </div>
             </div>
-
-          </div>
-
-          <div
-            data-composer-no-focus
-            className={
-              isRecording
-                ? "absolute inset-x-0 bottom-0 z-20 pb-0.5"
-                : "pb-0.5"
-            }
-          >
-            {showSendButton && !isRecording ? (
-              <motion.button
-                type="button"
-                initial={{ opacity: 0, scale: 0.72, y: 2 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.14, ease: "easeOut" }}
-                onMouseDown={(e) => {
-                  allowAutoFocusRef.current = true;
-                  e.preventDefault();
-                }}
-                onTouchStart={(e) => {
-                  allowAutoFocusRef.current = true;
-                  e.preventDefault();
-                }}
-                onClick={handleSend}
-                disabled={isSending || disabled}
-                className="grid h-11 w-11 place-items-center overflow-hidden rounded-full border border-emerald-400/35 bg-emerald-500/95 text-slate-50 shadow-sm transition-colors hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                title="Send message"
-              >
-                <SendHorizonal size={18} />
-              </motion.button>
-            ) : (
-              <div className={isRecording ? "w-full" : "h-11 w-11"}>
-                <VoiceRecorder
-                  onSend={handleVoiceNote}
-                  onRecordingChange={handleRecordingChange}
-                  inline={isRecording}
-                  className={isRecording ? "w-full" : "h-11 w-11"}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>
-    </div>
 
-    {pendingFiles && pendingFiles.length > 0 && (
-      <MediaPreviewModal
-        files={pendingFiles}
-        onSend={handlePreviewSend}
-        onCancel={handlePreviewCancel}
-      />
-    )}
+      {pendingFiles && pendingFiles.length > 0 && (
+        <MediaPreviewModal
+          files={pendingFiles}
+          onSend={handlePreviewSend}
+          onCancel={handlePreviewCancel}
+        />
+      )}
     </>
   );
 };
