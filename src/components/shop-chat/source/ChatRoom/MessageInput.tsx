@@ -346,7 +346,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       <div className="chat-composer-root border-t border-white/10 bg-white/[0.025] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_32px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
         {/* Reply/Edit Preview */}
         {(replyTo || editingMessage) && (
-          <div className="mx-auto w-full max-w-4xl px-2.5 md:px-4">
+          <div className="w-full px-2.5 md:px-4">
             <div className="mb-2 rounded-lg border border-white/10 bg-white/[0.055] px-3 py-2 shadow-lg shadow-black/15 backdrop-blur-xl">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
@@ -373,7 +373,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         )}
 
         {/* Input Area */}
-        <div className="mx-auto w-full  max-w-[1400px]  px-2.5 md:px-4">
+        <div className="w-full px-2.5 md:px-4">
           <div className="relative flex items-end gap-2">
             <div
               ref={composerRef}

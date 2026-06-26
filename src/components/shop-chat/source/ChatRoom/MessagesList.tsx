@@ -625,10 +625,10 @@ const MessagesList: React.FC<MessagesListProps> = ({
   }
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden bg-white/[0.018] backdrop-blur-[2px] px-1  sm:px-2">
+    <div className="relative min-h-0 flex-1 overflow-hidden overscroll-contain bg-white/[0.018] backdrop-blur-[2px] px-1 sm:px-2">
       <Virtuoso
         ref={virtuosoRef}
-        className="no-scrollbar mx-auto h-full w-full max-w-[1400px]"
+        className="no-scrollbar h-full w-full"
         totalCount={itemCount}
         itemContent={itemContent}
         components={{
@@ -645,7 +645,7 @@ const MessagesList: React.FC<MessagesListProps> = ({
         initialTopMostItemIndex={renderItems.length - 1}
         increaseViewportBy={{ top: 800, bottom: 400 }}
         overscan={500}
-        style={{ height: "100%", width: "100%", overflowX: "hidden" as const }}
+        style={{ height: "100%", width: "100%", overflowX: "hidden" as const, overscrollBehavior: "contain" as unknown as "auto" | "contain" | "none" }}
       />
       {(!atBottom || showScrollButton) && (
         <button

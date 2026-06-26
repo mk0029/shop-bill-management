@@ -55,13 +55,17 @@ export default function ShopChatRouteFrame({
 
   const frame = (
     <div
-      className="fixed right-0 z-[30] overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
+      className="fixed right-0 z-[30] flex flex-col overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
       style={{
         top,
         left,
-        height: showMobileHeaderSpace
+        bottom: 0,
+        maxHeight: showMobileHeaderSpace
           ? `calc(var(--app-vh, 100dvh) - ${MOBILE_HEADER_HEIGHT})`
           : "var(--app-vh, 100dvh)",
+        width: left === "0px"
+          ? "100%"
+          : `calc(100% - ${left})`,
       }}
     >
       {children}

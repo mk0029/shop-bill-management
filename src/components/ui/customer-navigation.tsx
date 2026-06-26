@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Building2,
   FileText,
+  Home,
   LogOut,
   Menu,
   MessageCircle,
@@ -356,6 +357,18 @@ export function CustomerNavigation() {
                 </Link>
               );
             })}
+            <div className="my-1 h-px bg-white/10" />
+            <Link
+              href="/?manual_home=1"
+              onClick={() => {
+                setAccountMenuOpen(false);
+                setIsMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-cyan-300/10 hover:text-white"
+            >
+              <Home className="h-4 w-4 text-cyan-100/70" />
+              <span>Go to Homepage</span>
+            </Link>
             <div className="my-1 h-px bg-white/10" />
             <button
               type="button"

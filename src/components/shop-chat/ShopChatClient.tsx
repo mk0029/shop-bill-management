@@ -900,8 +900,7 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
 function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
   return (
     <div
-      className="min-h-0 overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
-      style={{ height: "var(--app-vh, 100dvh)" }}
+      className="flex h-full min-h-0 overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
     >
       <div className="flex h-full min-h-0">
         {mode === "admin" && (
@@ -937,7 +936,7 @@ function ChatLoadingSkeleton({ mode }: { mode: Mode }) {
 
         <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white/[0.018] backdrop-blur-xl">
           <div className="border-b border-white/10 bg-slate-950/45 px-3 py-3 backdrop-blur-2xl">
-            <div className="mx-auto flex max-w-5xl items-center gap-3 rounded-lg border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-xl">
+            <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-xl">
               <SkeletonBlock className="h-11 w-11 rounded-full bg-emerald-500/20" />
               <div className="min-w-0 flex-1 space-y-2">
                 <SkeletonBlock className="h-4 w-36" />
@@ -1886,91 +1885,78 @@ export default function ShopChatClient({
 
   return (
     <div
-      className="min-h-0 overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
-      style={{ height: "var(--app-vh, 100dvh)" }}
+      className="flex h-full min-h-0 overflow-hidden bg-[linear-gradient(135deg,#020617_0%,#08111f_34%,#061b17_66%,#160a18_100%)]"
     >
-      <div className="relative flex h-full min-h-0 overflow-hidden">
-        {mode === "admin" && (
-          <div
-            className={`absolute inset-y-0 left-0 z-20 h-full w-full shrink-0 transition-transform duration-300 ease-out md:static md:w-80 md:translate-x-0 ${
-              activeRoom ? "-translate-x-full pointer-events-none md:pointer-events-auto" : "translate-x-0"
-            }`}
-          >
-            <RoomSidebar
-              mode={mode}
-              rooms={rooms}
-              activeRoomId={activeRoom?.roomId}
-              myUserId={myUserId}
-              onSelect={selectRoom}
-              onAddClick={() => setAddOpen(true)}
-              typingByRoom={typingByRoom}
-              onlineUserIds={onlineUserIds}
-              lastSeenByUser={lastSeenByUser}
-            />
-          </div>
-        )}
-        <div
-          className={`absolute inset-0 z-10 flex min-w-0 flex-1 transition-transform duration-300 ease-out md:static md:z-auto md:translate-x-0 ${
-            !activeRoom
-              ? "translate-x-full pointer-events-none md:pointer-events-auto"
-              : "translate-x-0 pointer-events-auto"
-          }`}
-        >
-          <ChatPanel
+      {mode === "admin" && (
+        <div className={`${activeRoom ? "hidden md:flex" : "flex"} w-full flex-col overflow-hidden md:w-80 md:shrink-0`}>
+          <RoomSidebar
             mode={mode}
-            room={activeRoom}
-            messages={activeMessages}
-            connected={connected}
-            messagesLoading={roomLoadingState[activeRoom?.roomId || ""] ?? false}
-            hasMore={hasMoreRef.current[activeRoom?.roomId || ""] ?? true}
-            onLoadMore={loadOlderMessages}
-            typingText={activeRoom ? typingByRoom[activeRoom.roomId] || "" : ""}
-            statusLabel={
-              activeRoom
-                ? mode === "admin"
-                    ? customerStatusText(activeRoom.customerId, onlineUserIds, lastSeenByUser)
-                    : supportStatusText(activeRoom.admins, onlineUserIds, lastSeenByUser)
-                : ""
-            }
-            peerOnline={
-              activeRoom
-                ? mode === "admin"
-                  ? onlineUserIds?.has(activeRoom.customerId)
-                  : activeRoom.admins.some((admin) => onlineUserIds?.has(admin.userId))
-                : false
-            }
-            peerLastSeen={
-              activeRoom
-                ? mode === "admin"
-                  ? lastSeenByUser[activeRoom.customerId]
-                  : activeRoom.admins
-                      .map((admin) => lastSeenByUser[admin.userId])
-                      .filter(Boolean)
-                      .sort((a, b) => Date.parse(b) - Date.parse(a))[0]
-                : undefined
-            }
-            customerDetails={activeCustomer}
-            canGoBack={mode === "admin"}
-            onOpenBills={openBillsPanel}
-            onBack={closeChat}
-            onSend={sendText}
-            onSendFiles={sendFiles}
-            onSendVoiceNote={sendVoiceNote}
-            onTyping={sendTyping}
-            onEditMessage={editMessage}
-            onDeleteMessage={deleteMessage}
-            onForwardMessage={
-              mode === "admin"
-                ? (message) => {
-                    setForwardMessage(message);
-                    setForwardingRoomId(activeRoom?.roomId || "");
-                  }
-                : undefined
-            }
-            onResendMessage={resendMessage}
-            onClearChat={canClearActiveChat ? clearActiveChat : undefined}
+            rooms={rooms}
+            activeRoomId={activeRoom?.roomId}
+            myUserId={myUserId}
+            onSelect={selectRoom}
+            onAddClick={() => setAddOpen(true)}
+            typingByRoom={typingByRoom}
+            onlineUserIds={onlineUserIds}
+            lastSeenByUser={lastSeenByUser}
           />
         </div>
+      )}
+      <div className={`${!activeRoom ? "hidden md:flex" : "flex"} min-w-0 flex-1 flex-col overflow-hidden`}>
+        <ChatPanel
+          mode={mode}
+          room={activeRoom}
+          messages={activeMessages}
+          connected={connected}
+          messagesLoading={roomLoadingState[activeRoom?.roomId || ""] ?? false}
+          hasMore={hasMoreRef.current[activeRoom?.roomId || ""] ?? true}
+          onLoadMore={loadOlderMessages}
+          typingText={activeRoom ? typingByRoom[activeRoom.roomId] || "" : ""}
+          statusLabel={
+            activeRoom
+              ? mode === "admin"
+                  ? customerStatusText(activeRoom.customerId, onlineUserIds, lastSeenByUser)
+                  : supportStatusText(activeRoom.admins, onlineUserIds, lastSeenByUser)
+              : ""
+          }
+          peerOnline={
+            activeRoom
+              ? mode === "admin"
+                ? onlineUserIds?.has(activeRoom.customerId)
+                : activeRoom.admins.some((admin) => onlineUserIds?.has(admin.userId))
+              : false
+          }
+          peerLastSeen={
+            activeRoom
+              ? mode === "admin"
+                ? lastSeenByUser[activeRoom.customerId]
+                : activeRoom.admins
+                    .map((admin) => lastSeenByUser[admin.userId])
+                    .filter(Boolean)
+                    .sort((a, b) => Date.parse(b) - Date.parse(a))[0]
+              : undefined
+          }
+          customerDetails={activeCustomer}
+          canGoBack={mode === "admin"}
+          onOpenBills={openBillsPanel}
+          onBack={closeChat}
+          onSend={sendText}
+          onSendFiles={sendFiles}
+          onSendVoiceNote={sendVoiceNote}
+          onTyping={sendTyping}
+          onEditMessage={editMessage}
+          onDeleteMessage={deleteMessage}
+          onForwardMessage={
+            mode === "admin"
+              ? (message) => {
+                  setForwardMessage(message);
+                  setForwardingRoomId(activeRoom?.roomId || "");
+                }
+              : undefined
+          }
+          onResendMessage={resendMessage}
+          onClearChat={canClearActiveChat ? clearActiveChat : undefined}
+        />
       </div>
       {mode === "admin" && (
         <Modal

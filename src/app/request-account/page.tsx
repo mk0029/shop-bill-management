@@ -1,4 +1,9 @@
 ﻿import { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getServerAuth } from "@/lib/server-auth";
+import { getAuthenticatedHomeRoute } from "@/lib/auth-routes";
+
+export const dynamic = "force-dynamic";
 import {
   LandingShell,
   RequestAccountBlock,
@@ -9,7 +14,12 @@ export const metadata: Metadata = {
   description: "Request a customer account with Jambh Electrics.",
 };
 
-export default function RequestAccountPage() {
+export default async function RequestAccountPage() {
+  const auth = await getServerAuth();
+  if (auth.isAuthenticated) {
+    redirect(getAuthenticatedHomeRoute(auth.role));
+  }
+
   return (
     <LandingShell
       titleKey="pages.requestAccount.title"

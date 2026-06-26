@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useLocaleStore } from "@/store/locale-store";
@@ -5,7 +6,8 @@ import { formatCustomerActivity } from "@/lib/customer-utils";
 import type { CustomerWithStats } from "@/types/customer";
 import Link from "next/link";
 import { safeInitial, safeUserName } from "@/lib/display-text";
-import { Phone, MapPin, Receipt, Calendar, CreditCard, Hash } from "lucide-react";
+import { Phone, MapPin, Receipt, Calendar, CreditCard, Copy, Check } from "lucide-react";
+import { toast } from "sonner";
 
 interface CustomerDetailModalProps {
   customer: CustomerWithStats | null;
@@ -30,6 +32,7 @@ export default function CustomerDetailModal({
   onEditCustomer,
 }: CustomerDetailModalProps) {
   const { currency } = useLocaleStore();
+  const [copied, setCopied] = useState(false);
 
   if (!customer) return null;
   const customerDisplayName = safeUserName(customer.name, "Customer");
@@ -54,6 +57,23 @@ export default function CustomerDetailModal({
   const activity = formatCustomerActivity(customer, currency);
   const isAllPaid = activity === "All Paid";
 
+  const secretKey = (customer as any).secretKey;
+  const loginUrl = secretKey && customer.phone
+    ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(customer.phone.replace(/\s+/g, ""))}&passKey=${encodeURIComponent(secretKey)}`
+    : null;
+
+  const handleCopyLoginUrl = async () => {
+    if (!loginUrl) return;
+    try {
+      await navigator.clipboard.writeText(loginUrl);
+      setCopied(true);
+      toast.success("Login URL copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+
   const detailItems = [
     {
       icon: Phone,
@@ -69,13 +89,6 @@ export default function CustomerDetailModal({
       value: customer.location,
       color: "text-amber-400",
       bg: "bg-amber-500/10",
-    },
-    {
-      icon: Hash,
-      label: "Customer ID",
-      value: customer.customerId,
-      color: "text-purple-400",
-      bg: "bg-purple-500/10",
     },
     {
       icon: Receipt,
@@ -176,6 +189,29 @@ export default function CustomerDetailModal({
             return <div key={index}>{content}</div>;
           })}
         </div>
+
+        {/* Login URL */}
+        {loginUrl && (
+          <div className="p-3 rounded-xl border border-gray-800 bg-indigo-500/10 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-gray-500 mb-0.5">Login URL</p>
+                <p className="text-sm font-medium text-white truncate">{loginUrl}</p>
+              </div>
+              <button
+                onClick={handleCopyLoginUrl}
+                className="ml-3 w-8 h-8 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 flex items-center justify-center shrink-0 transition-colors"
+                title="Copy login URL"
+              >
+                {copied ? (
+                  <Check className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <Copy className="w-4 h-4 text-indigo-400" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-2">

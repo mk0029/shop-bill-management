@@ -97,7 +97,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       style={{ willChange: "transform, opacity" }}
       className="border-b border-white/10 bg-white/[0.018] px-2 pb-2 pt-[max(0.58rem,env(safe-area-inset-top))] backdrop-blur-2xl md:px-3"
     >
-      <div className="mx-auto flex min-h-[62px] w-full max-w-5xl items-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] px-2.5 shadow-[0_14px_34px_rgba(0,0,0,0.24)] backdrop-blur-xl md:min-h-[60px] md:px-3">
+      <div className="flex min-h-[62px] w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] px-2.5 shadow-[0_14px_34px_rgba(0,0,0,0.24)] backdrop-blur-xl md:min-h-[60px] md:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           {onBack && (
             <button

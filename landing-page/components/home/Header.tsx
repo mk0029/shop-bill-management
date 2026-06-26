@@ -3,12 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Languages, Menu, X, Sparkles } from "lucide-react";
+import { Languages, LayoutDashboard, Menu, X, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { quickLinks } from "@landing/lib/site-data";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
+import { useAuthStore } from "@/store/auth-store";
+import { getAuthenticatedHomeRoute } from "@/lib/auth-routes";
 
 const navKeys = [
   "nav.home",
@@ -50,6 +52,11 @@ export default function Header() {
   const prevOverflowRef = useRef<string | null>(null);
   const { t } = useLandingLanguage();
   const pathname = usePathname();
+  const { isAuthenticated, role } = useAuthStore();
+
+  const filteredLinks = isAuthenticated
+    ? quickLinks.filter((link) => link.href !== "/request-account")
+    : quickLinks;
 
   const getLinkClass = (href: string) =>
     cn(
@@ -115,7 +122,7 @@ export default function Header() {
           </Link>
 
           <nav className="hidden items-center gap-1 xl:flex">
-            {quickLinks.map((link) => (
+            {filteredLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -132,12 +139,21 @@ export default function Header() {
 
           <div className="hidden items-center gap-3 xl:flex">
             <LanguageToggle />
-            <Link href="/login">
-              <Button className="glass-button-primary h-10 rounded-xl px-5 text-sm font-semibold text-sky-200 shadow-none">
-                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                {t("common.login")}
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href={getAuthenticatedHomeRoute(role)}>
+                <Button className="glass-button-primary h-10 rounded-xl px-5 text-sm font-semibold text-sky-200 shadow-none">
+                  <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+                  {t("common.dashboard")}
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/login">
+                <Button className="glass-button-primary h-10 rounded-xl px-5 text-sm font-semibold text-sky-200 shadow-none">
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  {t("common.login")}
+                </Button>
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center gap-2 xl:hidden">
@@ -174,8 +190,7 @@ export default function Header() {
             </div>
             <div className="flex flex-col gap-1 justify-between h-[90%]">
               <div className="flex flex-col gap-2">
-                {" "}
-                {quickLinks.map((link) => (
+                {filteredLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -191,12 +206,21 @@ export default function Header() {
                 ))}
                 <div className="my-2 h-px glass-divider" />
               </div>
-              <Link href="/login" onClick={() => setOpen(false)}>
-                <Button className="glass-button-primary h-10 w-full rounded-lg text-sm font-semibold text-sky-200 shadow-none">
-                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                  {t("common.login")}
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link href={getAuthenticatedHomeRoute(role)} onClick={() => setOpen(false)}>
+                  <Button className="glass-button-primary h-10 w-full rounded-lg text-sm font-semibold text-sky-200 shadow-none">
+                    <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+                    {t("common.dashboard")}
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/login" onClick={() => setOpen(false)}>
+                  <Button className="glass-button-primary h-10 w-full rounded-lg text-sm font-semibold text-sky-200 shadow-none">
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    {t("common.login")}
+                  </Button>
+                </Link>
+              )}
             </div>
           </aside>
         </>

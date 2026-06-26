@@ -3,16 +3,20 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, MessageCircle, Phone } from "lucide-react";
+import { Menu, X, MessageCircle, Phone, LayoutDashboard } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getSupportContact } from "@/lib/auth-service";
 import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
+import { useAuthStore } from "@/store/auth-store";
+import { getAuthenticatedHomeRoute } from "@/lib/auth-routes";
 import Image from "next/image";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
   const prevOverflowRef = useRef<string | null>(null);
   const support = getSupportContact();
+  const { isAuthenticated, role } = useAuthStore();
+  const dashboardHref = getAuthenticatedHomeRoute(role);
 
   useEffect(() => {
     const body = document.body;
@@ -66,18 +70,29 @@ export default function Header() {
           >
             About
           </Link>
-          <Link
-            href="/#request"
-            className="hover:text-foreground text-base text-muted-foreground"
-          >
-            Request Account
-          </Link>
+          {!isAuthenticated && (
+            <Link
+              href="/#request"
+              className="hover:text-foreground text-base text-muted-foreground"
+            >
+              Request Account
+            </Link>
+          )}
         </nav>
 
         <div className="hidden md:block">
-          <Link href="/login">
-            <Button size="sm">Login</Button>
-          </Link>
+          {isAuthenticated ? (
+            <Link href={dashboardHref}>
+              <Button size="sm">
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/login">
+              <Button size="sm">Login</Button>
+            </Link>
+          )}
         </div>
 
         <button
@@ -134,13 +149,15 @@ export default function Header() {
                 >
                   <span className="font-medium">About</span>
                 </Link>
-                <Link
-                  href="/#request"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center justify-between w-full px-3 py-2 rounded-md text-base text-gray-300 hover:bg-gray-800"
-                >
-                  <span className="font-medium">Request Account</span>
-                </Link>
+                {!isAuthenticated && (
+                  <Link
+                    href="/#request"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-between w-full px-3 py-2 rounded-md text-base text-gray-300 hover:bg-gray-800"
+                  >
+                    <span className="font-medium">Request Account</span>
+                  </Link>
+                )}
 
                 <div className="pt-3" />
 
@@ -173,11 +190,20 @@ export default function Header() {
               </div>
 
               <div className="p-4 border-t border-gray-800">
-                <Link href="/login" onClick={() => setOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    Login
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <Link href={dashboardHref} onClick={() => setOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/login" onClick={() => setOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      Login
+                    </Button>
+                  </Link>
+                )}
               </div>
             </motion.div>
           </>

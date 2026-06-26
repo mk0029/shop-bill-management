@@ -2,8 +2,10 @@ import Link from "next/link";
 
 export default function FooterSection({
   support,
+  isAuthenticated = false,
 }: {
   support: { phone: string; whatsapp: string; email: string };
+  isAuthenticated?: boolean;
 }) {
   return (
     <footer className="container mx-auto px-4 py-10">
@@ -28,11 +30,13 @@ export default function FooterSection({
                 About
               </Link>
             </li>
-            <li className="text-base font-normal">
-              <Link href="/#request" className="hover:text-foreground">
-                Request Account
-              </Link>
-            </li>
+            {!isAuthenticated && (
+              <li className="text-base font-normal">
+                <Link href="/#request" className="hover:text-foreground">
+                  Request Account
+                </Link>
+              </li>
+            )}
             <li className="text-base font-normal">
               <Link href="/privacy" className="hover:text-foreground">
                 Privacy Policy

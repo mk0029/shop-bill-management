@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { getSupportContact } from "@/lib/auth-service";
+import { useAuthStore } from "@/store/auth-store";
+import { getAuthenticatedHomeRoute } from "@/lib/auth-routes";
+import { useRouter } from "next/navigation";
 import Header from "./Header";
 import HeroSection from "./sections/HeroSection";
 import AboutSection from "./sections/AboutSection";
@@ -9,8 +12,6 @@ import ServicesSection from "./sections/ServicesSection";
 import RequestAccountSection from "./sections/RequestAccountSection";
 import ContactSection from "./sections/ContactSection";
 import FooterSection from "./sections/FooterSection";
-import { useAuthStore } from "@/store/auth-store";
-import { useRouter } from "next/navigation";
 import {
   PlugZap,
   Wrench,
@@ -20,10 +21,34 @@ import {
   BadgeCheck,
 } from "lucide-react";
 
+const MANUAL_HOME_KEY = "manual_home";
+
 export default function HomeLanding() {
   const support = getSupportContact();
-  const router = useRouter();
   const { isAuthenticated, role, hydrated } = useAuthStore();
+  const router = useRouter();
+  const decidedRef = useRef(false);
+
+  useEffect(() => {
+    if (decidedRef.current) return;
+    if (!hydrated) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const isManual = params.has(MANUAL_HOME_KEY);
+
+    if (isManual) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete(MANUAL_HOME_KEY);
+      window.history.replaceState(null, "", url.pathname + url.search);
+      decidedRef.current = true;
+      return;
+    }
+
+    if (isAuthenticated) {
+      decidedRef.current = true;
+      router.replace(getAuthenticatedHomeRoute(role));
+    }
+  }, [hydrated, isAuthenticated, role, router]);
 
   const services = useMemo(
     () => [
@@ -61,31 +86,6 @@ export default function HomeLanding() {
     [],
   );
 
-  // Verify auth first, then render or redirect
-  useEffect(() => {
-    if (!hydrated) return;
-    if (isAuthenticated) {
-      router.replace(role === "admin" ? "/admin/dashboard" : "/customer/bills");
-    }
-  }, [hydrated, isAuthenticated, role, router]);
-
-  // While verifying, show a lightweight loader to avoid flashing the landing UI
-  if (!hydrated) {
-    return (
-      <main className="h-[var(--app-vh,100dvh)] bg-background text-foreground grid place-items-center">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          Verifying...
-        </div>
-      </main>
-    );
-  }
-
-  // If authenticated, redirect effect will run; render nothing
-  if (isAuthenticated) {
-    return null;
-  }
-
   return (
     <>
       <Header />
@@ -95,11 +95,13 @@ export default function HomeLanding() {
         />
         <AboutSection />
         <ServicesSection services={services} />
-        <RequestAccountSection
-          support={{ email: support.email, whatsapp: support.whatsapp }}
-        />
+        {!isAuthenticated && (
+          <RequestAccountSection
+            support={{ email: support.email, whatsapp: support.whatsapp }}
+          />
+        )}
         <ContactSection support={support} />
-        <FooterSection support={support} />
+        <FooterSection support={support} isAuthenticated={isAuthenticated} />
       </main>
     </>
   );

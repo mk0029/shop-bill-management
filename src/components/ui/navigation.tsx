@@ -8,6 +8,7 @@ import FileText from "lucide-react/dist/esm/icons/file-text.js";
 import History from "lucide-react/dist/esm/icons/history.js";
 import Home from "lucide-react/dist/esm/icons/home.js";
 import LogOut from "lucide-react/dist/esm/icons/log-out.js";
+import HomeIcon from "lucide-react/dist/esm/icons/home.js";
 import Menu from "lucide-react/dist/esm/icons/menu.js";
 import MessageCircle from "lucide-react/dist/esm/icons/message-circle.js";
 import Megaphone from "lucide-react/dist/esm/icons/megaphone.js";
@@ -343,15 +344,39 @@ export function Navigation() {
   const accountMenuItems =
     role === "admin" || role === "super_admin" || role === "technician"
       ? [
-          { label: "Update Profile", href: "/admin/settings/personal-information/profile", icon: User },
-          { label: "Update Password", href: "/admin/settings/personal-information/password", icon: Shield },
-          { label: "Notifications", href: "/admin/settings/notifications/in-app", icon: Megaphone },
+          {
+            label: "Update Profile",
+            href: "/admin/settings/personal-information/profile",
+            icon: User,
+          },
+          {
+            label: "Update Password",
+            href: "/admin/settings/personal-information/password",
+            icon: Shield,
+          },
+          {
+            label: "Notifications",
+            href: "/admin/settings/notifications/in-app",
+            icon: Megaphone,
+          },
           { label: "Security", href: "/admin/settings/security", icon: Shield },
         ]
       : [
-          { label: "Update Profile", href: "/customer/settings/personal-information/profile", icon: User },
-          { label: "Update Password", href: "/customer/settings/personal-information/password", icon: Shield },
-          { label: "Notifications", href: "/customer/settings/notifications/in-app", icon: Megaphone },
+          {
+            label: "Update Profile",
+            href: "/customer/settings/personal-information/profile",
+            icon: User,
+          },
+          {
+            label: "Update Password",
+            href: "/customer/settings/personal-information/password",
+            icon: Shield,
+          },
+          {
+            label: "Notifications",
+            href: "/customer/settings/notifications/in-app",
+            icon: Megaphone,
+          },
           { label: "Guide", href: "/customer/welcome", icon: FileText },
         ];
 
@@ -403,6 +428,18 @@ export function Navigation() {
                 </Link>
               );
             })}
+            <div className="my-1 h-px bg-white/10" />
+            <Link
+              href="/?manual_home=1"
+              onClick={() => {
+                setAccountMenuOpen(false);
+                setIsMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-cyan-300/10 hover:text-white"
+            >
+              <HomeIcon className="h-4 w-4 text-cyan-100/70" />
+              <span>Go to Homepage</span>
+            </Link>
             <div className="my-1 px-3">
               <InstallButton className="w-full justify-center" />
             </div>
@@ -650,7 +687,7 @@ export function Navigation() {
                             ? "Administrator"
                             : role === "technician"
                               ? "Technician"
-                        : "User"}
+                              : "User"}
                       </p>
                     </div>
                     {renderAccountMenu()}
@@ -663,9 +700,7 @@ export function Navigation() {
         document.body,
       )}
 
-      <nav
-        className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] overflow-y-auto border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:block"
-      >
+      <nav className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] overflow-y-auto border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:block">
         <div className="p-4 border-b border-gray-800">
           <div
             className={`flex items-center ${isDesktopNavMinimized ? "justify-center" : "gap-3"}`}
@@ -688,11 +723,6 @@ export function Navigation() {
                     Jambh
                     <span className="block text-blue-200">Electrics</span>
                   </h1>
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    {role === "admin" || role === "super_admin"
-                      ? "Admin Panel"
-                      : "Customer Portal"}
-                  </p>
                 </div>
                 <button
                   type="button"

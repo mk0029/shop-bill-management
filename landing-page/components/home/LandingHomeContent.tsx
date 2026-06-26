@@ -19,6 +19,7 @@ import {
   whyChooseUs,
 } from "@landing/lib/site-data";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   MessageCircle,
@@ -35,6 +36,8 @@ import {
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
+import { getAuthenticatedHomeRoute } from "@/lib/auth-routes";
 import WelcomeOverlay from "@landing/components/shared/WelcomeOverlay";
 
 type LandingSupport = {
@@ -221,8 +224,30 @@ export default function LandingHomeContent({
   support: LandingSupport;
 }) {
   const { t } = useLandingLanguage();
+  const { isAuthenticated, role, hydrated } = useAuthStore();
+  const router = useRouter();
+  const decidedRedirectRef = useRef(false);
   const [showWelcome, setShowWelcome] = useState<boolean | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (decidedRedirectRef.current) return;
+    if (!hydrated) return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("manual_home")) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("manual_home");
+      window.history.replaceState(null, "", url.pathname + url.search);
+      decidedRedirectRef.current = true;
+      return;
+    }
+
+    if (isAuthenticated) {
+      decidedRedirectRef.current = true;
+      router.replace(getAuthenticatedHomeRoute(role));
+    }
+  }, [hydrated, isAuthenticated, role, router]);
 
   useEffect(() => {
     try {
@@ -498,33 +523,36 @@ export default function LandingHomeContent({
 
           <GlassDivider />
 
-          <section id="request" className="py-8 md:py-24">
-            <div className="container mx-auto px-4">
-              <ScrollRevealSection>
-                <SectionTitle
-                  eyebrow={t("account.eyebrow")}
-                  title={t("account.title")}
-                  copy={t("account.copy")}
-                />
-              </ScrollRevealSection>
-              <div className="mx-auto mt-6 md:mt-10 max-w-4xl">
-                <div className="glass-card p-3 sm:p-5 md:p-8 lg:p-10">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-sky-500/5 to-transparent rounded-bl-full pointer-events-none" />
-                  <div className="relative z-10">
-                    <RequestAccountForm
-                      support={{
-                        email: support.email,
-                        whatsapp: support.whatsapp,
-                      }}
-                      compact
+          {!isAuthenticated && (
+            <>
+              <section id="request" className="py-8 md:py-24">
+                <div className="container mx-auto px-4">
+                  <ScrollRevealSection>
+                    <SectionTitle
+                      eyebrow={t("account.eyebrow")}
+                      title={t("account.title")}
+                      copy={t("account.copy")}
                     />
+                  </ScrollRevealSection>
+                  <div className="mx-auto mt-6 md:mt-10 max-w-4xl">
+                    <div className="glass-card p-3 sm:p-5 md:p-8 lg:p-10">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-sky-500/5 to-transparent rounded-bl-full pointer-events-none" />
+                      <div className="relative z-10">
+                        <RequestAccountForm
+                          support={{
+                            email: support.email,
+                            whatsapp: support.whatsapp,
+                          }}
+                          compact
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </section>
-
-          <GlassDivider />
+              </section>
+              <GlassDivider />
+            </>
+          )}
 
           <section className="py-8 md:py-24">
             <div className="container mx-auto px-4">
@@ -587,12 +615,14 @@ export default function LandingHomeContent({
                       <MessageCircle className="h-4 w-4" />
                       {t("common.whatsapp")}
                     </a>
-                    <Link
-                      href="/request-account"
-                      className="glass-button inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-[#E5E7EB] gap-2 hover:scale-105 transition-transform duration-300"
-                    >
-                      {t("common.requestAccount")}
-                    </Link>
+                    {!isAuthenticated && (
+                      <Link
+                        href="/request-account"
+                        className="glass-button inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-[#E5E7EB] gap-2 hover:scale-105 transition-transform duration-300"
+                      >
+                        {t("common.requestAccount")}
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
