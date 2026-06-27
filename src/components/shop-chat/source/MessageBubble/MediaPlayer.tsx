@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Play } from "lucide-react";
 import Portal from "@/lib/ui/Portal";
 import { markMediaLoaded, isMediaLoaded } from "@/lib/loaded-media-cache";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { getCachedMediaBlob } from "@/lib/chat-cache";
 import { Message } from "@/lib/types";
+import VideoViewerModal from "./VideoViewerModal";
 
 interface MediaPlayerProps {
   type: "image" | "video" | "audio" | "file";
@@ -13,6 +15,7 @@ interface MediaPlayerProps {
   uploading?: boolean;
   uploadProgress?: number;
   onOpenImage?: (src: string) => void;
+  onOpenVideo?: (src: string) => void;
   mediaWidth?: number;
   mediaHeight?: number;
   mediaMimeType?: string;
@@ -20,14 +23,27 @@ interface MediaPlayerProps {
   message?: Message;
 }
 
-// Video Player Component — shows CSS skeleton until video metadata loads
-const VideoPlayer: React.FC<{ src: string; timeLabel?: string; mediaWidth?: number; mediaHeight?: number }> = ({
+const VideoPlayer: React.FC<{
+  src: string;
+  timeLabel?: string;
+  mediaWidth?: number;
+  mediaHeight?: number;
+  mediaFileName?: string;
+  onOpenVideo?: (src: string) => void;
+  uploading?: boolean;
+  uploadProgress?: number;
+}> = ({
   src,
   timeLabel,
   mediaWidth,
   mediaHeight,
+  mediaFileName,
+  onOpenVideo,
+  uploading,
+  uploadProgress,
 }) => {
   const [loaded, setLoaded] = useState(false);
+  const [showPlayOverlay, setShowPlayOverlay] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -58,6 +74,20 @@ const VideoPlayer: React.FC<{ src: string; timeLabel?: string; mediaWidth?: numb
   }, []);
 
   useEffect(() => {
+    if (shouldLoad) return;
+    const el = videoRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setShouldLoad(true);
+        obs.disconnect();
+      }
+    }, { rootMargin: "200px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [shouldLoad]);
+
+  useEffect(() => {
     if (src.startsWith("blob:") || src.startsWith("data:")) { setCacheSrc(src); return; }
     let cancelled = false;
     (async () => {
@@ -80,41 +110,80 @@ const VideoPlayer: React.FC<{ src: string; timeLabel?: string; mediaWidth?: numb
     };
   }, []);
 
+  const handleVideoClick = () => {
+    if (!loaded) return;
+    if (onOpenVideo) {
+      onOpenVideo(src);
+    }
+  };
+
   return (
-    <div
-      ref={videoRef as any}
-      className="relative w-[min(62vw,320px)] max-w-full overflow-hidden rounded-xl border border-gray-700 bg-black"
-      style={{ aspectRatio, maxHeight: "min(60vh, 400px)" }}>
-      {!loaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80">
-          <div className="flex flex-col items-center gap-2">
-            <div className="h-10 w-10 animate-pulse rounded-full bg-slate-600/50" />
-            <div className="h-1.5 w-24 animate-pulse rounded-full bg-slate-600/40" />
+    <div className="flex flex-col">
+      <button
+        type="button"
+        ref={videoRef as any}
+        onClick={handleVideoClick}
+        className="relative w-[min(92vw,420px)] max-w-full overflow-hidden rounded-xl border border-gray-700 bg-black text-left"
+        style={{ aspectRatio, maxHeight: "min(70vh, 500px)" }}
+      >
+        {!loaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-10 w-10 animate-pulse rounded-full bg-slate-600/50" />
+              <div className="h-1.5 w-24 animate-pulse rounded-full bg-slate-600/40" />
+            </div>
           </div>
-        </div>
-      )}
-      {shouldLoad && cacheSrc && (
-        <video
-          src={cacheSrc}
-          className="w-full h-full object-contain"
-          controls
-          preload="metadata"
-          onLoadedData={() => setLoaded(true)}
-          style={{ opacity: loaded ? 1 : 0, position: loaded ? "relative" : "absolute" }}
-        />
-      )}
-      {timeLabel && (
-        <div className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white/90 z-10">
-          {timeLabel}
-        </div>
-      )}
+        )}
+        {shouldLoad && cacheSrc && (
+          <video
+            src={cacheSrc}
+            className="pointer-events-none h-full w-full object-contain"
+            preload="metadata"
+            muted
+            playsInline
+            onLoadedData={() => {
+              setLoaded(true);
+              setShowPlayOverlay(true);
+            }}
+            style={{ opacity: loaded ? 1 : 0, position: loaded ? "relative" : "absolute" }}
+          />
+        )}
+
+        {/* Play button overlay */}
+        {loaded && showPlayOverlay && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-black/50 backdrop-blur-sm transition-transform hover:scale-105">
+              <Play size={28} className="ml-1 text-white/90" />
+            </div>
+          </div>
+        )}
+
+        {timeLabel && (
+          <div className="absolute bottom-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white/90 z-10">
+            {timeLabel}
+          </div>
+        )}
+
+        {/* Upload progress */}
+        {uploading && (
+          <div className="absolute left-0 right-0 bottom-0 h-1 bg-black/60 z-10">
+            {typeof uploadProgress === "number" ? (
+              <div
+                className="h-full bg-emerald-500"
+                style={{
+                  width: `${Math.max(0, Math.min(100, uploadProgress))}%`,
+                }}
+              />
+            ) : (
+              <div className="h-full w-1/2 bg-emerald-500 animate-pulse" />
+            )}
+          </div>
+        )}
+      </button>
     </div>
   );
 };
 
-
-
-// Image Player Component — loads image lazily via IntersectionObserver, no double download
 const ImagePlayer: React.FC<{
   src: string;
   timeLabel?: string;
@@ -271,7 +340,6 @@ const ImagePlayer: React.FC<{
   );
 };
 
-// File Player Component
 const FilePlayer: React.FC<{ src: string }> = ({ src }) => {
   const mime = src.startsWith("data:") ? src.slice(5, src.indexOf(";") > 0 ? src.indexOf(";") : src.indexOf(",")).toLowerCase() : "";
   const label = mime.includes("markdown")
@@ -306,6 +374,7 @@ const MediaPlayer: React.FC<MediaPlayerProps> = ({
   uploading,
   uploadProgress,
   onOpenImage,
+  onOpenVideo,
   mediaWidth,
   mediaHeight,
   mediaMimeType,
@@ -326,23 +395,16 @@ const MediaPlayer: React.FC<MediaPlayerProps> = ({
       );
     case "video":
       return (
-        <div className="relative w-[min(62vw,320px)] max-w-full">
-          <VideoPlayer src={src} timeLabel={timeLabel} mediaWidth={mediaWidth} mediaHeight={mediaHeight} />
-          {uploading && (
-            <div className="absolute left-0 right-0 bottom-1 h-1 bg-black/60">
-              {typeof uploadProgress === "number" ? (
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{
-                    width: `${Math.max(0, Math.min(100, uploadProgress))}%`,
-                  }}
-                />
-              ) : (
-                <div className="h-full w-1/2 bg-emerald-500 animate-pulse" />
-              )}
-            </div>
-          )}
-        </div>
+        <VideoPlayer
+          src={src}
+          timeLabel={timeLabel}
+          mediaWidth={mediaWidth}
+          mediaHeight={mediaHeight}
+          mediaFileName={mediaFileName}
+          onOpenVideo={onOpenVideo}
+          uploading={uploading}
+          uploadProgress={uploadProgress}
+        />
       );
     case "audio":
       return (

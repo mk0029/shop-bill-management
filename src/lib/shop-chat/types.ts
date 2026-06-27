@@ -55,6 +55,9 @@ export type ChatMedia = {
   size: number;
   width?: number;
   height?: number;
+  aspectRatio?: number;
+  duration?: number;
+  thumbnailUrl?: string;
   uploadedAt: string;
 };
 

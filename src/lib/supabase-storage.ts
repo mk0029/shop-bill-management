@@ -114,6 +114,7 @@ export function buildMediaObject(
   uploadResult: UploadResult,
   width?: number,
   height?: number,
+  duration?: number,
 ) {
   return {
     type: getMediaType(file.type),
@@ -122,8 +123,10 @@ export function buildMediaObject(
     fileName: file.name,
     mimeType: file.type,
     size: file.size,
+    ...(width !== undefined && height !== undefined ? { width, height, aspectRatio: width / height } : {}),
     ...(width !== undefined ? { width } : {}),
     ...(height !== undefined ? { height } : {}),
+    ...(duration !== undefined ? { duration } : {}),
     uploadedAt: new Date().toISOString(),
   };
 }

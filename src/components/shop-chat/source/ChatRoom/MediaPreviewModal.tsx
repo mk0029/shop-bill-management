@@ -9,6 +9,7 @@ import {
   Contact,
   Image as ImageIcon,
   Video,
+  Play,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -133,19 +134,27 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
 
     if (pf.kind === "video") {
       return (
-        <div className="relative w-full">
+        <div className="relative flex w-full items-center justify-center">
           {!loaded && (
             <div className="flex h-64 w-full items-center justify-center rounded-lg bg-slate-800/80">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400/35 border-t-emerald-400" />
             </div>
           )}
-          <video
-            src={url}
-            controls
-            className={`max-h-[50vh] w-full rounded-lg object-contain ${loaded ? "block" : "hidden"}`}
-            onLoadedData={() => markLoaded(index)}
-            onError={() => markLoaded(index)}
-          />
+          <div className={`relative w-full max-w-lg ${loaded ? "block" : "hidden"}`}>
+            <video
+              src={url}
+              className="max-h-[60vh] w-full rounded-lg object-contain"
+              preload="metadata"
+              playsInline
+              onLoadedData={() => markLoaded(index)}
+              onError={() => markLoaded(index)}
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-black/40 backdrop-blur-sm">
+                <Play size={32} className="ml-1 text-white/90" />
+              </div>
+            </div>
+          </div>
         </div>
       );
     }

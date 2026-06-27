@@ -1765,7 +1765,10 @@ export default function ShopChatClient({
           }),
         }));
 
-        if (task.localUrl) URL.revokeObjectURL(task.localUrl);
+        // Delay revoke to ensure React has committed the new CDN URL
+        requestAnimationFrame(() => {
+          if (task.localUrl) { URL.revokeObjectURL(task.localUrl); task.localUrl = null; }
+        });
       } catch {
         setMessagesByRoom((prev) => ({
           ...prev,
@@ -1773,7 +1776,6 @@ export default function ShopChatClient({
             msg.clientMessageId === task.tempId ? { ...msg, uploading: false, status: "failed" } : msg,
           ),
         }));
-        if (task.localUrl) URL.revokeObjectURL(task.localUrl);
       }
     }
   };

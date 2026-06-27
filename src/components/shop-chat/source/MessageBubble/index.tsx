@@ -11,6 +11,7 @@ import { toast } from "react-hot-toast";
 import { ClipboardList, Receipt } from "lucide-react";
 import { useRouter } from "next/navigation";
 import MediaPlayer from "./MediaPlayer";
+import VideoViewerModal from "./VideoViewerModal";
 import MessageContent from "./MessageContent";
 import MessageStatus from "./MessageStatus";
 import MessageReactions from "./reactionsPicker";
@@ -95,6 +96,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     hour: "2-digit",
     minute: "2-digit",
   });
+  const [videoModalSrc, setVideoModalSrc] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ open: boolean; x: number; y: number }>({
     open: false,
     x: 0,
@@ -386,7 +388,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       return;
     }
     const customerId = encodeURIComponent(
-      String(billEventData.customerId || ""),
+      String(billEventData?.customerId || ""),
     );
     if (customerId) {
       router.push(
@@ -666,6 +668,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       onOpenImage?.({ src, messageId: String(message.id) })
                   : undefined
               }
+              onOpenVideo={
+                media.type === "video"
+                  ? (src) => setVideoModalSrc(src)
+                  : undefined
+              }
               mediaWidth={message.media?.width}
               mediaHeight={message.media?.height}
               mediaMimeType={message.media?.mimeType}
@@ -674,6 +681,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             />
           </div>
         )}
+
+        {/* Full-screen video viewer */}
+        <VideoViewerModal
+          open={!!videoModalSrc}
+          src={videoModalSrc || ""}
+          mediaFileName={message.media?.fileName}
+          onClose={() => setVideoModalSrc(null)}
+        />
 
         {/* Text content (hide if media detected) */}
         {isDeletedForEveryone ? (

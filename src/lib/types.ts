@@ -27,7 +27,7 @@ export interface Message {
   type?: string;
   uploading?: boolean;
   uploadProgress?: number;
-  media?: { type: "image" | "video" | "audio" | "file"; url: string; path: string; fileName: string; mimeType: string; size: number; width?: number; height?: number; uploadedAt: string } | null;
+  media?: { type: "image" | "video" | "audio" | "file"; url: string; path: string; fileName: string; mimeType: string; size: number; width?: number; height?: number; aspectRatio?: number; duration?: number; thumbnailUrl?: string; uploadedAt: string } | null;
   receiverId?: string;
   groupId?: string;
   messageKind?: "user" | "system";
