@@ -384,7 +384,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                 allowAutoFocusRef.current = true;
                 focusComposerInput();
               }}
-              className="group relative flex min-h-[50px] flex-1 items-center gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06]"
+              className={`group relative flex min-h-[50px] flex-1 items-center gap-2 rounded-full border border-white/12 px-3 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl transition-all duration-200 ${disabled ? "cursor-not-allowed opacity-50" : "bg-white/[0.045] hover:border-white/20 hover:bg-white/[0.06]"}`}
             >
               {!isRecording && (
                 <div data-composer-no-focus className="shrink-0">
@@ -424,7 +424,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
                       focusComposerInput();
                     }
                   }}
-                  placeholder={disabled ? "Cannot send messages" : placeholder}
+                  placeholder={placeholder}
                   disabled={disabled}
                   className="no-scrollbar min-w-0 flex-1 resize-none bg-transparent px-1 py-[0.46rem] text-[15px] leading-[1.33] text-slate-100 placeholder:text-slate-400/85 focus:outline-none focus-visible:!shadow-none disabled:cursor-not-allowed disabled:opacity-50"
                   rows={1}

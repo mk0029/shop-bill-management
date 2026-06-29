@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { getSupportContact, createCustomerAccount } from "@/lib/auth-service";
 import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
+import { confirmDialog } from "@/store/confirm-store";
 import {
   UserX,
   Phone,
@@ -83,9 +84,13 @@ export default function CustomerNotFoundPage() {
       if (result.success && result.user) {
         setRequestStatus("success");
         // Show success with credentials
-        alert(
-          `Account created successfully!\n\nCustomer ID: ${result.user.customerId}\nSecret Key: ${result.user.secretKey}\n\nPlease save these credentials safely.`,
-        );
+        await confirmDialog({
+          title: "Account Created Successfully",
+          description: `Customer ID: ${result.user.customerId}\nSecret Key: ${result.user.secretKey}\n\nPlease save these credentials safely.`,
+          confirmText: "OK, I Saved It",
+          variant: "primary",
+          hideCancel: true,
+        });
 
         // Redirect to login after a delay
         setTimeout(() => {

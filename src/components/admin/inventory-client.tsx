@@ -85,19 +85,25 @@ export default function AdminInventoryClient() {
         isTechnician={isTechnician}
       />
 
-      <InventoryFilters
-        searchTerm={searchTerm}
-        selectedCategory={selectedCategory}
-        categories={effectiveCategories}
-        onSearchChange={setSearchTerm}
-        onCategoryChange={setSelectedCategory}
-      />
-
+      <div
+        className="py-2 px-1 z-40 -top-3 sticky bg-slate-900
+    "
+      >
+        {" "}
+        <InventoryFilters
+          searchTerm={searchTerm}
+          selectedCategory={selectedCategory}
+          categories={effectiveCategories}
+          onSearchChange={setSearchTerm}
+          onCategoryChange={setSelectedCategory}
+        />
+      </div>
       {/* Products grouped by category */}
       <div className="space-y-2">
         <div className="flex items-center justify-between px-0.5">
           <span className="text-[10px] sm:text-xs text-gray-500">
-            {sortedCategories.length} categories · {effectiveProducts.length} items
+            {sortedCategories.length} categories · {effectiveProducts.length}{" "}
+            items
           </span>
         </div>
 

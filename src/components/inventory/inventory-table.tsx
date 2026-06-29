@@ -61,7 +61,7 @@ export const InventoryTable = ({
     <div className="bg-background border border-gray-800 rounded-lg overflow-hidden md:p-6">
       <div className="hide-scroll overflow-x-auto">
         <table className="w-full min-w-[900px]">
-          <thead className="bg-gray-800 sticky top-0 z-10 rounded-t-lg">
+          <thead className="sticky top-0 z-10 rounded-t-lg bg-slate-950/75 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                 Product

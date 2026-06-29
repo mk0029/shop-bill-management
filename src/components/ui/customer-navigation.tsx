@@ -17,6 +17,7 @@ import {
   Calculator,
   HelpCircle,
   X,
+  ShoppingBag,
 } from "lucide-react";
 // removed Bell route link; notifications are accessed via header popover
 import Link from "next/link";
@@ -52,7 +53,11 @@ const customerNavigation: NavigationItem[] = [
     href: "/customer/chat",
     icon: MessageCircle,
   },
-
+  {
+    label: "Purchase",
+    href: "/customer/purchase",
+    icon: ShoppingBag,
+  },
   {
     label: "Settings",
     href: "/customer/settings",
@@ -742,7 +747,7 @@ export function CustomerNavigation() {
       {!isChatRoute && (
         <div className="lg:ml-64 min-h-fit">
           {/* Top Bar */}
-          <div className="border-b border-gray-800/80 bg-gray-900/78 px-4 py-2 backdrop-blur-xl xl:px-6 xl:py-6">
+          <div className="border-b border-white/10 bg-slate-950/75 px-4 py-2 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55 xl:px-6 xl:py-6">
             <div className="flex items-center justify-between">
               <div className="max-md:hidden">
                 <h1 className="text-xl font-bold !leading-[120%] text-white">

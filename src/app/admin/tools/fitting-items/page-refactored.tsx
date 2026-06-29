@@ -361,7 +361,7 @@ export default function FittingItemsListPage() {
           defaultOpenMobile
           className="bg-gray-900 border-gray-800"
           title={
-            <CardHeader className="!p-0 sticky top-0 z-10 bg-gray-900">
+            <CardHeader className="!p-0 sticky top-0 z-10 bg-slate-950/75 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55">
               <CardTitle className="text-white">
                 Add by Categories (Fixed Items)
               </CardTitle>

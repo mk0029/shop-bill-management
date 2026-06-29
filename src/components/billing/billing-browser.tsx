@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useRef, useState, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, ReactNode, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { BillForm } from "@/components/forms/bill-form";
 import { useBills, useCustomers, useProducts } from "@/hooks/use-sanity-data";
+import { useDataStore } from "@/store/data-store";
 import { BillFormData, Customer, Item } from "@/types";
 import { RealtimeBillStats } from "@/components/realtime/realtime-bill-list";
 import CustomerBillGroup from "@/components/billing/customer-bill-group";
@@ -66,6 +67,33 @@ export function BillingBrowser({
   );
 
   // All initial data load and realtime setup is handled globally in `DataProvider`
+
+  // Realtime refresh: refetch bills on mount, visibility change, and periodically
+  const syncWithSanity = useDataStore((s) => s.syncWithSanity);
+
+  useEffect(() => {
+    console.log("[BillsPage] mounted, triggering fresh bills fetch");
+    syncWithSanity();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        console.log("[BillsPage] page became visible, refetching bills");
+        syncWithSanity();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [syncWithSanity]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log("[BillsPage] periodic refresh");
+      syncWithSanity();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [syncWithSanity]);
 
   // Transform customers data (users with customer role)
   const transformedCustomers: Customer[] = customers.map((customer) => ({

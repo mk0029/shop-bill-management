@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { X, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { useProducts } from "@/hooks/use-sanity-data";
 
 interface RewindingKitFormProps {
@@ -242,7 +243,7 @@ export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormPro
     );
 
     if (!validForms.length) {
-      alert("Please fill in at least one complete service.");
+      toast.error("Please fill in at least one complete service.");
       return;
     }
 

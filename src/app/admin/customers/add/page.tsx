@@ -16,6 +16,7 @@ import { createCustomer } from "@/lib/form-service";
 import { useRouter } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
+import { toast } from "sonner";
 import { locationOptions as baseLocationOptions } from "../../tools/fitting-items/constants";
 
 const locationOptions = [...baseLocationOptions, { value: "__custom__", label: "Other (custom)" }];
@@ -77,16 +78,16 @@ export default function AddCustomerPage() {
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      alert("Please enter customer name");
+      toast.error("Please enter customer name");
       return false;
     }
     if (!formData.phone.trim()) {
-      alert("Please enter phone number");
+      toast.error("Please enter phone number");
       return false;
     }
     const loc = formData.location === "__custom__" ? formData.customLocation : formData.location;
     if (!loc.trim()) {
-      alert("Please enter location");
+      toast.error("Please enter location");
       return false;
     }
     return true;
@@ -121,12 +122,11 @@ export default function AddCustomerPage() {
 
         setSuccessData(createCustomerSuccessPopup(result.data, resetForm));
       } else {
-        // Show error alert
-        alert(result.error || "An error occurred while creating the customer.");
+        toast.error(result.error || "An error occurred while creating the customer.");
       }
     } catch (error) {
       console.error("Error adding customer:", error);
-      alert("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

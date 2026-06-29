@@ -16,10 +16,10 @@ export default function CustomerMainShell({
 
   return (
     <main
-      className={`relative z-10 bg-transparent backdrop-blur-[1.5px] max-md:px-3 max-sm:px-1 lg:ml-64 ${
+      className={`relative z-10 bg-transparent backdrop-blur-[1.5px] max-md:px-3 max-sm:px-3 lg:ml-64 ${
         isChatRoute
           ? "h-[var(--app-vh,100dvh)] overflow-hidden p-0"
-          : "h-[calc(var(--app-vh,100dvh)-var(--customer-topbar-h,57px))] overflow-y-auto overscroll-contain pt-3"
+          : "h-[calc(var(--app-vh,100dvh)-var(--customer-topbar-h,57px))] overflow-y-scroll  pt-3"
       }`}
     >
       <div className={isChatRoute ? "h-full" : "py-1 sm:p-2"}>{children}</div>

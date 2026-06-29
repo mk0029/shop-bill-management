@@ -160,16 +160,19 @@ export default function AdminWelcomePageClient() {
   };
 
   return (
-    <section className="relative min-h-[var(--app-vh,100dvh)] overflow-hidden bg-slate-950/80">
-      <StaffBackground />
-      <div className="relative z-10 flex min-h-[var(--app-vh,100dvh)] items-center px-3 py-5 sm:px-6 lg:px-10">
-        <motion.div
-          className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-white/10 bg-slate-950/82 shadow-2xl shadow-black/45 backdrop-blur-2xl"
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        >
-          <div className="relative overflow-hidden p-5 sm:p-8 lg:p-10">
+    <section className="fixed inset-0 z-50">
+      <div className="pointer-events-none absolute inset-0">
+        <StaffBackground />
+      </div>
+      <div className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="flex min-h-full flex-col items-center justify-start px-3 py-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] sm:justify-center sm:px-6 lg:px-10">
+          <motion.div
+            className="w-full max-w-5xl overflow-hidden rounded-xl border border-white/10 bg-slate-950/82 shadow-2xl shadow-black/45 backdrop-blur-2xl"
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 26 }}
+          >
+            <div className="relative overflow-hidden p-5 sm:p-8 lg:p-10">
             <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-400/15 blur-3xl" />
             <div className="absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-sky-400/15 blur-3xl" />
             <div className="relative grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
@@ -247,6 +250,7 @@ export default function AdminWelcomePageClient() {
             </div>
           </div>
         </motion.div>
+        </div>
       </div>
     </section>
   );

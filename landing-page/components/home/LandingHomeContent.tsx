@@ -11,6 +11,7 @@ import {
 } from "@landing/components/shared/landing-sections";
 import ElectricalBackground from "@landing/components/shared/ElectricalBackground";
 import { RequestAccountForm } from "@landing/components/forms/request-account-form";
+import { LandingShopSections } from "@/components/shop/LandingShopSections";
 import {
   faqs,
   pricingHighlights,
@@ -430,6 +431,8 @@ export default function LandingHomeContent({
               </div>
             </div>
           </section>
+
+          <LandingShopSections />
 
           <GlassDivider />
 

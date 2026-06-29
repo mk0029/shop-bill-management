@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play } from "lucide-react";
+import { Play, Loader2 } from "lucide-react";
 import Portal from "@/lib/ui/Portal";
 import { markMediaLoaded, isMediaLoaded } from "@/lib/loaded-media-cache";
 import { AudioPlayer } from "@/components/ui/audio-player";
@@ -126,27 +126,25 @@ const VideoPlayer: React.FC<{
         className="relative w-[min(92vw,420px)] max-w-full overflow-hidden rounded-xl border border-gray-700 bg-black text-left"
         style={{ aspectRatio, maxHeight: "min(70vh, 500px)" }}
       >
-        {!loaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80">
-            <div className="flex flex-col items-center gap-2">
-              <div className="h-10 w-10 animate-pulse rounded-full bg-slate-600/50" />
-              <div className="h-1.5 w-24 animate-pulse rounded-full bg-slate-600/40" />
-            </div>
-          </div>
-        )}
         {shouldLoad && cacheSrc && (
           <video
             src={cacheSrc}
-            className="pointer-events-none h-full w-full object-contain"
-            preload="metadata"
+            className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+            preload="auto"
             muted
             playsInline
             onLoadedData={() => {
               setLoaded(true);
               setShowPlayOverlay(true);
             }}
-            style={{ opacity: loaded ? 1 : 0, position: loaded ? "relative" : "absolute" }}
           />
+        )}
+
+        {/* Loading spinner (non-blocking overlay) */}
+        {!loaded && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <Loader2 size={28} className="animate-spin text-white/70" />
+          </div>
         )}
 
         {/* Play button overlay */}

@@ -12,10 +12,14 @@ export async function POST(req: NextRequest) {
   try {
     const WA_BOT_URL = process.env.WA_BOT_URL
     const WA_BOT_TOKEN = process.env.WA_BOT_TOKEN
+    const AUTO_WA = String(process.env.AUTO_WA_BILL_EVENTS || '').trim()
 
     const waBotBaseUrl = (WA_BOT_URL || '').replace(/\/+$/, '')
 
+    console.log('[WA/send-bulk] WA_BOT_URL present:', !!waBotBaseUrl, 'WA_BOT_TOKEN present:', !!WA_BOT_TOKEN, 'AUTO_WA:', AUTO_WA)
+
     if (!waBotBaseUrl || !WA_BOT_TOKEN) {
+      console.warn('[WA/send-bulk] Config missing')
       return NextResponse.json(
         { ok: false, error: 'WhatsApp bot config missing (WA_BOT_URL/WA_BOT_TOKEN)' },
         { status: 500 }

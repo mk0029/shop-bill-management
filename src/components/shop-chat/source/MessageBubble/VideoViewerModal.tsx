@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Download, Play, Pause } from "lucide-react";
+import { X, Download, Play, Pause, Loader2 } from "lucide-react";
 import Portal from "@/lib/ui/Portal";
+import { useModalQuery } from "@/components/shop-chat/useModalQuery";
 
 interface VideoViewerModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
   const [seeking, setSeeking] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -37,6 +39,7 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
       setPlaying(false);
       setCur(0);
       setDur(0);
+      setVideoLoaded(false);
       document.body.style.overflow = "";
       return;
     }
@@ -52,12 +55,35 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
     };
   }, [open]);
 
+  const { currentModal, openModal, closeModal } = useModalQuery();
+
+  // Sync open state with URL query
+  useEffect(() => {
+    if (open) {
+      openModal("video", mediaFileName);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Back button via URL query change
+  useEffect(() => {
+    if (!open) return;
+    if (currentModal === null) {
+      onClose();
+    }
+  }, [currentModal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close button: clean up URL query
+  const handleClose = useCallback(() => {
+    closeModal();
+    onClose();
+  }, [closeModal, onClose]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        handleClose();
         return;
       }
       if (e.key === " " || e.key === "Space") {
@@ -67,20 +93,7 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPopState = () => onClose();
-    window.addEventListener("popstate", onPopState);
-    window.history.pushState({ videoModal: true }, "");
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-      if (window.history.state?.videoModal) {
-        window.history.back();
-      }
-    };
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
@@ -129,7 +142,7 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) handleClose();
   };
 
   const progress = dur > 0 ? cur / dur : 0;
@@ -161,7 +174,7 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
                 </span>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-white/[0.12] hover:text-white"
                   title="Close"
                 >
@@ -175,15 +188,22 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
                   ref={videoRef}
                   src={src}
                   className="absolute inset-0 h-full w-full object-contain"
-                  preload="metadata"
+                  preload="auto"
                   playsInline
                   onClick={togglePlay}
                   onTimeUpdate={onTimeUpdate}
                   onLoadedMetadata={onLoadedMeta}
+                  onLoadedData={() => setVideoLoaded(true)}
                   onPlay={() => setPlaying(true)}
                   onPause={() => setPlaying(false)}
                   onEnded={() => setPlaying(false)}
                 />
+
+                {!videoLoaded && (
+                  <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                    <Loader2 size={32} className="animate-spin text-white/60" />
+                  </div>
+                )}
 
                 {/* Play/pause overlay icon */}
                 <motion.div

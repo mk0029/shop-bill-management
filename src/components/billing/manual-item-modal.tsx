@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Plus, Package } from "lucide-react";
+import { toast } from "sonner";
 
 interface ManualItemModalProps {
   isOpen: boolean;
@@ -52,17 +53,17 @@ export const ManualItemModal = ({
 
   const handleSubmit = () => {
     if (!formData.productName.trim()) {
-      alert("Please enter a product name");
+      toast.error("Please enter a product name");
       return;
     }
 
     if (formData.quantity <= 0) {
-      alert("Please enter a valid quantity");
+      toast.error("Please enter a valid quantity");
       return;
     }
 
     if (formData.unitPrice < 0) {
-      alert("Please enter a valid unit price");
+      toast.error("Please enter a valid unit price");
       return;
     }
 

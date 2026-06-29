@@ -13,6 +13,8 @@ import MediaGalleryViewer from "@/components/shop-chat/source/ChatRoom/MediaGall
 import MessageInput from "@/components/shop-chat/source/ChatRoom/MessageInput";
 import MessagesList from "@/components/shop-chat/source/ChatRoom/MessagesList";
 import ChatItem from "@/components/shop-chat/source/ChatSidebar/ChatItem";
+import ChatLoadingOverlay from "@/components/shop-chat/ChatLoadingOverlay";
+import { useModalQuery } from "@/components/shop-chat/useModalQuery";
 import {
   clearShopChatRoom,
   deleteShopChatMessage,
@@ -37,6 +39,7 @@ import {
 } from "@/lib/notifications/dedupe";
 import { safeInitial, safeUserName } from "@/lib/display-text";
 import { getCachedRooms, getCachedMessages, cacheMessage, cacheMessages, cacheRoom, cacheRooms } from "@/lib/chat-cache";
+import { confirmDialog } from "@/store/confirm-store";
 
 type Mode = "admin" | "customer";
 
@@ -592,51 +595,7 @@ function RoomSidebar({
   );
 }
 
-function MessagesSkeleton() {
-  const [phase, setPhase] = useState<"skeleton" | "light" | "text">("skeleton");
-  useEffect(() => {
-    const t1 = setTimeout(() => setPhase("light"), 2000);
-    const t2 = setTimeout(() => setPhase("text"), 4000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
-  if (phase === "text") {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/70 px-4 py-2 text-sm text-slate-400">
-          <span className="h-3 w-3 animate-spin rounded-full border border-emerald-400/40 border-t-emerald-400" />
-          Still loading messages...
-        </div>
-      </div>
-    );
-  }
-  if (phase === "light") {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/70 px-4 py-2 text-sm text-slate-400">
-          <span className="h-3 w-3 animate-spin rounded-full border border-emerald-400/40 border-t-emerald-400" />
-          Loading messages...
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="flex-1 space-y-4 overflow-hidden bg-slate-950/20 p-4">
-      {[0, 1, 2].map((row) => (
-        <div key={row} className={`flex items-end gap-2 ${row % 2 === 0 ? "" : "justify-end"}`}>
-          {row % 2 === 0 && <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20 shrink-0" />}
-          <SkeletonBlock className={`h-14 rounded-2xl ${row % 2 === 0 ? "w-44 rounded-bl-sm" : "w-36 rounded-br-sm bg-slate-500/35"}`} />
-        </div>
-      ))}
-      <div className="flex justify-end">
-        <SkeletonBlock className="h-20 w-56 rounded-2xl rounded-br-sm bg-slate-500/35" />
-      </div>
-      <div className="flex items-end gap-2">
-        <SkeletonBlock className="h-8 w-8 rounded-full bg-emerald-500/20 shrink-0" />
-        <SkeletonBlock className="h-12 w-40 rounded-2xl rounded-bl-sm" />
-      </div>
-    </div>
-  );
-}
+
 
 function ChatPanel({
   mode,
@@ -663,6 +622,7 @@ function ChatPanel({
   onForwardMessage,
   onResendMessage,
   onClearChat,
+  onRetryLoad,
 }: {
   mode: Mode;
   room: ShopChatRoom | null;
@@ -688,6 +648,7 @@ function ChatPanel({
   onForwardMessage?: (message: Message) => void;
   onResendMessage: (message: Message) => Promise<void>;
   onClearChat?: () => void;
+  onRetryLoad?: () => void;
 }) {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -695,6 +656,7 @@ function ChatPanel({
   const [galleryActiveId, setGalleryActiveId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { currentModal, currentMediaId, openModal, closeModal, hasModalQuery } = useModalQuery();
   const sourceMessages = useMemo(
     () =>
       messages
@@ -740,6 +702,31 @@ function ChatPanel({
     [room?.customerId, room?.customerName, sourceMessages],
   );
 
+  // Sync gallery state with URL query (for back button)
+  const prevModalRef = useRef(currentModal);
+  useEffect(() => {
+    if (currentModal === prevModalRef.current) return;
+    prevModalRef.current = currentModal;
+    if (!currentModal && galleryOpen) {
+      setGalleryOpen(false);
+      setGalleryActiveId(null);
+    } else if (currentModal === "gallery" && !galleryOpen) {
+      setGalleryOpen(true);
+      if (currentMediaId) setGalleryActiveId(currentMediaId);
+    }
+  }, [currentModal, currentMediaId, galleryOpen]);
+
+  // When gallery opens via image click, update URL mediaId
+  const prevActiveIdRef = useRef(galleryActiveId);
+  useEffect(() => {
+    if (!galleryOpen || !galleryActiveId) return;
+    if (galleryActiveId === prevActiveIdRef.current) return;
+    prevActiveIdRef.current = galleryActiveId;
+    if (currentModal === "gallery" && currentMediaId !== galleryActiveId) {
+      openModal("gallery", galleryActiveId);
+    }
+  }, [galleryOpen, galleryActiveId, currentModal, currentMediaId, openModal]);
+
   const submitMessage = async (text: string) => {
     if (editingMessage) {
       await onEditMessage(editingMessage.id, text);
@@ -780,7 +767,10 @@ function ChatPanel({
         connected={connected}
         onBack={canGoBack ? onBack : undefined}
         onSearch={() => setSearchOpen(true)}
-        onOpenMedia={() => setGalleryOpen(true)}
+        onOpenMedia={() => {
+          setGalleryOpen(true);
+          openModal("gallery");
+        }}
         onOpenBills={onOpenBills}
         onClearChat={mode === "admin" ? onClearChat : undefined}
         profileDetails={detailItems}
@@ -797,7 +787,12 @@ function ChatPanel({
         }}
       />
       {messagesLoading && sourceMessages.length === 0 ? (
-        <MessagesSkeleton />
+        <ChatLoadingOverlay
+          loading
+          connected={connected}
+          onRetry={() => onRetryLoad?.()}
+          onGoBack={canGoBack ? onBack : undefined}
+        />
       ) : (
         <>
           {messagesLoading && sourceMessages.length > 0 && (
@@ -823,6 +818,7 @@ function ChatPanel({
             onOpenImage={(payload) => {
               setGalleryActiveId(payload.messageId);
               setGalleryOpen(true);
+              openModal("gallery", payload.messageId);
             }}
           />
         </>
@@ -845,7 +841,8 @@ function ChatPanel({
           onCancelReply={() => setReplyTo(null)}
           editingMessage={editingMessage ? { id: editingMessage.id, content: editingMessage.content } : null}
           onCancelEdit={() => setEditingMessage(null)}
-          placeholder="Type a message..."
+          placeholder={messagesLoading && sourceMessages.length === 0 ? "Loading conversation..." : "Type a message..."}
+          disabled={messagesLoading && sourceMessages.length === 0}
           focusKey={room.roomId}
         />
       </div>
@@ -853,7 +850,11 @@ function ChatPanel({
         open={galleryOpen}
         items={galleryItems}
         activeId={galleryActiveId}
-        onClose={() => setGalleryOpen(false)}
+        onClose={() => {
+          setGalleryOpen(false);
+          setGalleryActiveId(null);
+          closeModal();
+        }}
       />
       {searchOpen && (
         <div className="fixed inset-0 z-[2600] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm" onClick={() => setSearchOpen(false)}>
@@ -1220,7 +1221,14 @@ export default function ShopChatClient({
     typingCleanupRef.current();
     setActiveRoom(null);
     syncUrlToActiveRoom(null, "replace");
-  }, [syncUrlToActiveRoom]);
+    if (mode === "customer" && typeof window !== "undefined") {
+      if (window.history.length > 1) {
+        router.back();
+      } else {
+        router.push("/customer");
+      }
+    }
+  }, [syncUrlToActiveRoom, mode, router]);
 
   useEffect(() => {
     if (handledReloadParamRef.current) return;
@@ -1296,13 +1304,18 @@ export default function ShopChatClient({
           setRooms(sortRoomsByLatestMessage([room]));
           setActiveRoom((prev) => (prev?.roomId === room.roomId ? prev : room));
           cacheRoom(room);
+          setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: true }));
           const msgRes = await listShopChatMessages(room.roomId, { limit: 30 });
-          if (cancelled) return;
+          if (cancelled) {
+            setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: false }));
+            return;
+          }
           setMessagesByRoom((prev) => ({
             ...prev,
             [room.roomId]: dedupeBillCreatedMessages(msgRes.messages),
           }));
           cacheMessages(room.roomId, msgRes.messages);
+          setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: false }));
           void syncBillEventsForRoom(room);
         }
       } catch {
@@ -1613,7 +1626,8 @@ export default function ShopChatClient({
     if (!activeRoom) return;
     const scope = message.senderId === myUserId ? "everyone" : "me";
     const label = scope === "everyone" ? "delete this message for everyone" : "delete this message for you";
-    if (!window.confirm(`Are you sure you want to ${label}?`)) return;
+    const ok = await confirmDialog({ title: "Delete Message?", description: `Are you sure you want to ${label}? This action cannot be undone.`, confirmText: scope === "everyone" ? "Delete for Everyone" : "Delete for Me", variant: "destructive" });
+    if (!ok) return;
     const response = await deleteShopChatMessage(message.id, scope);
     if (response.localOnly) {
       setMessagesByRoom((prev) => ({
@@ -1804,7 +1818,8 @@ export default function ShopChatClient({
 
   const clearActiveChat = async () => {
     if (!activeRoom) return;
-    if (!window.confirm("Clear this chat for both admin and customer?")) return;
+    const ok = await confirmDialog({ title: "Clear Chat?", description: "Are you sure you want to clear this chat for both admin and customer? This action cannot be undone.", confirmText: "Clear Chat", variant: "destructive" });
+    if (!ok) return;
     const roomId = activeRoom.roomId;
     const response = await clearShopChatRoom(roomId);
     setMessagesByRoom((prev) => ({ ...prev, [roomId]: [response.message] }));
@@ -1939,7 +1954,7 @@ export default function ShopChatClient({
               : undefined
           }
           customerDetails={activeCustomer}
-          canGoBack={mode === "admin"}
+          canGoBack={true}
           onOpenBills={openBillsPanel}
           onBack={closeChat}
           onSend={sendText}
@@ -1958,6 +1973,15 @@ export default function ShopChatClient({
           }
           onResendMessage={resendMessage}
           onClearChat={canClearActiveChat ? clearActiveChat : undefined}
+          onRetryLoad={() => {
+            const room = activeRoomRef.current;
+            if (room) {
+              setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: true }));
+              void loadMessages(room).finally(() => {
+                setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: false }));
+              });
+            }
+          }}
         />
       </div>
       {mode === "admin" && (

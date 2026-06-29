@@ -14,6 +14,7 @@ import { getAuthenticatedHomeRoute } from "@/lib/auth-routes";
 
 const navKeys = [
   "nav.home",
+  "nav.shopItems",
   "nav.about",
   "nav.services",
   "nav.products",

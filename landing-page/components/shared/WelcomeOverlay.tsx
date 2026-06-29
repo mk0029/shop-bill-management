@@ -72,8 +72,10 @@ export default function WelcomeOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10 bg-[#0B0D12]">
-      <div className="glass-card max-w-lg w-full p-4 sm:p-6 md:p-8 animate-scale-in">
+    <div className="fixed inset-0 z-50 bg-[#0B0D12]">
+      <div className="h-full overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="flex min-h-full flex-col items-center justify-start px-4 py-[max(2.5rem,env(safe-area-inset-top,0px))] pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:justify-center">
+          <div className="glass-card w-full max-w-lg p-4 sm:p-6 md:p-8">
         <div className="flex justify-center mb-6">
           <Image
             src="/je-p-48.png"
@@ -214,8 +216,10 @@ export default function WelcomeOverlay({
           >
             Continue
           </button>
+          </div>
         </div>
       </div>
     </div>
+  </div>
   );
 }

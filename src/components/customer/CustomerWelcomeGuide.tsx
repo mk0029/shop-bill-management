@@ -268,10 +268,11 @@ export default function CustomerWelcomeGuide({
 
   if (!mounted || !show) return null;
 
-  const wrapperClasses =
-    mode === "gate"
-      ? "fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/95"
-      : "relative min-h-[var(--app-vh,100dvh)] overflow-hidden bg-slate-950";
+  const isGate = mode === "gate";
+
+  const wrapperClasses = isGate
+    ? "fixed inset-0 z-[9999]"
+    : "relative min-h-[var(--app-vh,100dvh)]";
 
   const content = (
     <motion.section
@@ -280,12 +281,14 @@ export default function CustomerWelcomeGuide({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="relative min-h-[var(--app-vh,100dvh)] overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-slate-950/95">
         <FloatingBackground />
-        <div className="relative z-10 flex min-h-[var(--app-vh,100dvh)] items-center px-3 py-5 sm:px-6 lg:px-10">
+      </div>
+      <div className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="flex min-h-full flex-col items-center justify-start px-3 py-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] sm:justify-center sm:px-6 lg:px-10">
           <motion.div
             key={step}
-            className="mx-auto w-full max-w-6xl overflow-hidden rounded-lg border border-white/10 bg-slate-950/84 shadow-2xl shadow-black/45 backdrop-blur-2xl"
+            className="w-full max-w-6xl overflow-hidden rounded-lg border border-white/10 bg-slate-950/84 shadow-2xl shadow-black/45 backdrop-blur-2xl"
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 26 }}

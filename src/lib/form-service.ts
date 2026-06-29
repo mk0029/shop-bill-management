@@ -969,16 +969,39 @@ export async function createBill(billData: {
               });
 
               if (phones.length) {
+                console.log("[WA] Sending bill WhatsApp to phones:", phones);
                 void fetch("/api/whatsapp/send-bulk", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ phones, message }),
-                }).catch(() => {});
+                })
+                  .then((r) => r.json().catch(() => null))
+                  .then((json) => {
+                    if (json?.ok) {
+                      console.log("[WA] Bill WhatsApp sent OK:", json.sent, "sent,", json.failed, "failed");
+                    } else {
+                      console.warn("[WA] Bill WhatsApp send failed:", json?.error || "unknown");
+                    }
+                  })
+                  .catch((err) => {
+                    console.error("[WA] Bill WhatsApp fetch error:", err);
+                  });
+              } else {
+                console.warn("[WA] No phones resolved for customer", customerId, "raw phone:", rawPhone);
               }
             } catch {}
           }
         } catch {}
       })();
+
+      // Force a refresh of the bills store so all admins see the new bill immediately
+      try {
+        if (typeof window !== "undefined") {
+          const { useDataStore } = await import("@/store/data-store");
+          useDataStore.getState().refreshBillsOnly();
+          console.log("[BillCreate] Triggered bills store refresh");
+        }
+      } catch {}
 
       return {
         success: true,

@@ -383,7 +383,7 @@ export default function ElectricalBackground({
   return (
     <div className="relative h-[var(--app-vh,100dvh)]">
       <div
-        className="fixed inset-0 z-0 overflow-hidden pointer-events-none"
+        className="fixed inset-0 z-0 overflow-auto pointer-events-none"
         style={{ background: "#0B0D12" }}
       >
         <div

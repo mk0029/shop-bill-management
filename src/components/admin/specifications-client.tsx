@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useSpecificationsStore } from "@/store/specifications-store";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Plus,
@@ -95,7 +96,7 @@ export default function SpecificationsClient() {
 
   const addNewOption = async () => {
     if (!newOption.value || !newOption.label) {
-      alert("Please fill in both value and label");
+      toast.error("Please fill in both value and label");
       return;
     }
 
@@ -123,12 +124,12 @@ export default function SpecificationsClient() {
         description: "",
       });
 
-      alert(
+      toast.success(
         `New ${selectedType} option "${newOption.label}" added successfully!`,
       );
     } catch (error) {
       console.error("Error adding option:", error);
-      alert("Failed to add option. Please try again.");
+      toast.error("Failed to add option. Please try again.");
     }
   };
 

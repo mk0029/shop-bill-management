@@ -303,7 +303,7 @@ export default function CashBookHistoryPage() {
               <div key={date} className="mb-4">
                 {/* Date Separator */}
                 <div className="border-t border-gray-600 my-2"></div>
-                <div className="px-4 py-2 bg-gray-700 rounded-md sticky top-1 z-10">
+                <div className="px-4 py-2 bg-slate-950/75 rounded-md sticky top-1 z-10 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55">
                   <p className="text-sm font-medium text-gray-300">
                     {format(new Date(date), "EEEE, MMMM d, yyyy")}
                   </p>
@@ -390,7 +390,7 @@ export default function CashBookHistoryPage() {
         {/* Desktop Table */}
         <div className="hidden lg:block max-h-[88dvh] overflow-auto">
           <Card className="bg-gray-800 border-gray-700">
-            <div className="p-4 border-b border-gray-700 sticky top-0 z-10 bg-gray-800">
+            <div className="p-4 border-b border-white/10 sticky top-0 z-10 bg-slate-950/75 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55">
               <h3 className="text-lg font-semibold text-white">
                 All Records ({filteredEntries.length})
               </h3>

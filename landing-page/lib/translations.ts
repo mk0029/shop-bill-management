@@ -40,6 +40,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
     },
     nav: {
       home: "Home",
+      shopItems: "Shop Items",
       about: "About",
       services: "Services",
       products: "Products",
@@ -764,6 +765,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
     },
     nav: {
       home: "होम",
+      shopItems: "खरीदें",
       about: "हमारे बारे में",
       services: "सेवाएँ",
       products: "उत्पाद",

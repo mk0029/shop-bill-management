@@ -78,7 +78,7 @@ export default function CustomerTable({
 
   return (
     <Card className="bg-gray-900/80 border-gray-800 backdrop-blur-sm max-h-[75vh] overflow-y-auto">
-      <div className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
+      <div className="sticky top-0 z-10 bg-slate-950/75 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55 border-b border-white/10">
         <div className="px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-white">Customers</h2>

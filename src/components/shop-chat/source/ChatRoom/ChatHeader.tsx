@@ -95,7 +95,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: isMobile ? 0.2 : 0.14, ease: [0.22, 0.61, 0.36, 1] }}
       style={{ willChange: "transform, opacity" }}
-      className="border-b border-white/10 bg-white/[0.018] px-2 pb-2 pt-[max(0.58rem,env(safe-area-inset-top))] backdrop-blur-2xl md:px-3"
+      className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/75 px-2 pb-2 pt-[max(0.58rem,env(safe-area-inset-top))] shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55 md:px-3"
     >
       <div className="flex min-h-[62px] w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.045] px-2.5 shadow-[0_14px_34px_rgba(0,0,0,0.24)] backdrop-blur-xl md:min-h-[60px] md:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">

@@ -466,7 +466,7 @@ export function CashBookPage() {
           ) : (
             Object.entries(groupedEntries).map(([date, dateEntries]) => (
               <div key={date}>
-                <div className="sticky top-0 z-10 px-3 sm:px-4 py-2 bg-gray-900/80 backdrop-blur-xl border-b border-white/[0.06]">
+                <div className="sticky top-0 z-10 px-3 sm:px-4 py-2 bg-slate-950/75 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55 border-b border-white/10">
                   <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">
                     {format(new Date(date), "EEEE, MMMM d, yyyy")}
                   </p>

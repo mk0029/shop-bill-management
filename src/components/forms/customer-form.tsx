@@ -10,6 +10,7 @@ import {
   type SuccessPopupData,
 } from "@/components/ui/success-popup";
 import { createCustomer } from "@/lib/form-service";
+import { toast } from "sonner";
 import { CreateCustomerData, Customer } from "@/types";
 
 interface CustomerFormProps {
@@ -112,12 +113,11 @@ export function CustomerForm({
           onSuccess(result.data);
         }
       } else {
-        // Show error alert
-        alert(result.error || "An error occurred while creating the customer.");
+        toast.error(result.error || "An error occurred while creating the customer.");
       }
     } catch (error) {
       console.error("Form submission failed:", error);
-      alert("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

@@ -793,7 +793,7 @@ export function Navigation() {
 
       {!hideChatHeader && <div className="h-[62px]" />}
       {!hideChatHeader && (
-        <div className="admin-topbar fixed left-0 top-0 z-40 min-h-fit w-full backdrop-blur-lg transition-[left,width] duration-200">
+        <div className="admin-topbar fixed left-0 top-0 z-40 min-h-fit w-full border-b border-white/10 bg-slate-950/75 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55 transition-[left,width] duration-200">
           <div className="border-b border-gray-800 py-2.5 px-4 sm:p-4 xl:p-6">
             <div className="flex items-center justify-between">
               <h1 className="text-xl sm:text-2xl font-bold !leading-[125%] text-white">

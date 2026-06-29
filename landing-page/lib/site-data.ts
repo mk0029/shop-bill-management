@@ -21,6 +21,7 @@ export const siteName = "Jambh Electrics";
 
 export const quickLinks = [
   { label: "Home", href: "/" },
+  { label: "Shop Items", href: "/shop-items" },
   { label: "About", href: "/about" },
   { label: "Services", href: "/services" },
   { label: "Products", href: "/products" },

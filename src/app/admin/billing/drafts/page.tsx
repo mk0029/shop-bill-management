@@ -19,6 +19,8 @@ import {
   type LocalBillDraft,
 } from "@/lib/local-draft-service";
 import { useCustomers } from "@/hooks/use-sanity-data";
+import { toast } from "sonner";
+import { confirmDialog } from "@/store/confirm-store";
 
 export default function DraftBillsPage() {
   const router = useRouter();
@@ -133,10 +135,8 @@ export default function DraftBillsPage() {
   }, [drafts, details, searchTerm]);
 
   const handleDeleteDraft = useCallback(
-    (id: string) => {
-      const ok = window.confirm(
-        "Delete this draft permanently from this browser?",
-      );
+    async (id: string) => {
+      const ok = await confirmDialog({ title: "Delete Draft?", description: "Delete this draft permanently from this browser?", confirmText: "Delete", variant: "destructive" });
       if (!ok) return;
       try {
         setDeletingId(id);
@@ -166,7 +166,7 @@ export default function DraftBillsPage() {
         startTransition(() => router.push("/admin/billing/create"));
       } catch (e) {
         console.error("Failed to open draft", e);
-        alert("Failed to open draft");
+        toast.error("Failed to open draft");
         setNavigatingId(null);
       }
     },

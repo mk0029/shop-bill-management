@@ -148,20 +148,22 @@ export default function LandingLoginPage() {
   }, [hydrated, isAuthenticated, role, router]);
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-3 py-4 sm:px-6 sm:py-6 lg:px-10">
+    <div className="relative min-h-[100dvh]">
       <ElectricalLoginBackground />
       <div
         className="absolute inset-0 z-[5] cursor-pointer"
         onClick={() => router.push("/")}
       />
-      <ClientOnly>
-        <motion.main
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-lg overflow-hidden rounded-[1.25rem] glass-strong shadow-2xl"
-        >
-          <section className="p-4 sm:p-5">
+      <div className="absolute inset-0 z-[6] overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div className="flex min-h-full flex-col items-center justify-start px-3 py-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:justify-center sm:px-6 sm:py-6 lg:px-10">
+          <ClientOnly>
+            <motion.main
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: "easeOut" }}
+              className="w-full max-w-lg overflow-hidden rounded-[1.25rem] glass-strong shadow-2xl"
+            >
+              <section className="p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
               <Link
                 href="/"
@@ -227,6 +229,8 @@ export default function LandingLoginPage() {
           </section>
         </motion.main>
       </ClientOnly>
+        </div>
+      </div>
     </div>
   );
 }

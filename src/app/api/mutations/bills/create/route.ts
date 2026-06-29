@@ -30,39 +30,56 @@ export async function POST(req: NextRequest) {
       ...(actorUserId ? { technician: { _type: 'reference', _ref: actorUserId } } : {}),
     } as any)
 
+    console.log('[BillCreate] Bill created in Sanity:', (created as any)?._id, (created as any)?.billNumber)
+
     const customerId = (() => {
       const c = (created as any)?.customer
       if (c && typeof c === 'object' && typeof c._ref === 'string') return c._ref
       return ''
     })()
 
-    try {
-      if (customerId) {
-        const user = await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(
-          `*[_type=="user" && _id==$id][0]{ phone, name }`,
-          { id: String(customerId) }
-        )
-        const rawPhone = String(user?.phone || '').trim()
-        const phones = (() => {
-          const p = rawPhone
-          if (!p) return [] as string[]
-          if (p.startsWith('+')) return [p]
-          if (p.startsWith('0')) return [`+91${p.substring(1)}`]
-          return [`+91${p}`]
-        })()
+    // Fire-and-forget WhatsApp + notifications (non-blocking)
+    void (async () => {
+      try {
+        if (customerId) {
+          const user = await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(
+            `*[_type=="user" && _id==$id][0]{ phone, name }`,
+            { id: String(customerId) }
+          )
+          const rawPhone = String(user?.phone || '').trim()
+          const phones = (() => {
+            const p = rawPhone
+            if (!p) return [] as string[]
+            const digits = p.replace(/[^0-9+]/g, '')
+            if (!digits) return [] as string[]
+            if (digits.startsWith('+')) return [digits]
+            if (digits.startsWith('0')) return [`+91${digits.substring(1)}`]
+            return [`+91${digits}`]
+          })()
 
-        const billNo = String((created as any)?.billNumber || '').trim()
-        const amount = Number((created as any)?.totalAmount || 0)
-        const payStatus = String((created as any)?.paymentStatus || (created as any)?.status || 'pending')
-        const message = `Bill ${billNo || String((created as any)?._id || '')} created. Amount: ₹${amount}. Status: ${payStatus}`
+          const billNo = String((created as any)?.billNumber || '').trim()
+          const amount = Number((created as any)?.totalAmount || 0)
+          const payStatus = String((created as any)?.paymentStatus || (created as any)?.status || 'pending')
+          const message = `Bill ${billNo || String((created as any)?._id || '')} created. Amount: ₹${amount}. Status: ${payStatus}`
 
-        if (phones.length) {
-          await sendViaWaBotServer({ phones, message })
+          if (phones.length) {
+            console.log('[WA] Sending bill WhatsApp (API route) to phones:', phones)
+            const waResult = await sendViaWaBotServer({ phones, message })
+            console.log('[WA] Bill WhatsApp result:', waResult.ok ? 'OK' : 'FAILED', `sent=${waResult.sent} failed=${waResult.failed}`, waResult.error || '')
+          } else {
+            console.warn('[WA] No phones resolved for customer:', customerId, 'raw phone:', rawPhone)
+          }
         }
+      } catch (e) {
+        console.error('[WA] bill_created send failed', e)
       }
-    } catch (e) {
-      console.error('[WA] bill_created send failed', e)
-    }
+    })()
+
+    // Emit realtime event through Sanity's listen system
+    try {
+      await sanityClient.patch(String((created as any)._id)).set({ updatedAt: new Date().toISOString() }).commit()
+      console.log('[BillCreate] Triggered realtime sync for bill:', (created as any)._id)
+    } catch {}
 
     try {
       // Split notifications:

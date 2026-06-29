@@ -9,6 +9,7 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
 import { useRouter, useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/use-sanity-data";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Save,
@@ -79,15 +80,15 @@ export default function EditCustomerPage() {
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      alert("Please enter customer name");
+      toast.error("Please enter customer name");
       return false;
     }
     if (!formData.phone.trim()) {
-      alert("Please enter phone number");
+      toast.error("Please enter phone number");
       return false;
     }
     if (!resolvedLocation.trim()) {
-      alert("Please enter location");
+      toast.error("Please enter location");
       return false;
     }
     return true;
@@ -108,7 +109,7 @@ export default function EditCustomerPage() {
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Error updating customer:", error);
-      alert("Failed to update customer. Please try again.");
+      toast.error("Failed to update customer. Please try again.");
     } finally {
       setIsLoading(false);
     }

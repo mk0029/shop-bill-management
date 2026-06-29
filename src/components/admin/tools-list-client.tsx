@@ -8,6 +8,7 @@ import {
   listenTools,
 } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
+import { confirmDialog } from "@/store/confirm-store";
 
 export default function AdminToolsListClient() {
   const router = useRouter();
@@ -45,7 +46,8 @@ export default function AdminToolsListClient() {
   }, [query, tools]);
 
   const onDisable = async (tool: ToolItem) => {
-    if (!confirm(`Disable tool ${tool.toolName}?`)) return;
+    const ok = await confirmDialog({ title: "Disable Tool?", description: `Are you sure you want to disable "${tool.toolName}"? This will remove it permanently.`, confirmText: "Disable", variant: "destructive" });
+    if (!ok) return;
     try {
       await toolRentalService.deleteTool(tool._id);
       toast.success("Tool disabled");

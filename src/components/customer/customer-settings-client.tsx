@@ -2,7 +2,6 @@
 
 import NotificationSoundToggle from "@/components/notifications/notification-sound-toggle";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   ensureFcmToken,
@@ -42,7 +41,6 @@ export default function CustomerSettingsClient({
       setPaused(getDeviceNotificationsPaused());
     } catch {}
 
-    // Initialize foreground notifications
     initForegroundNotifications();
   }, []);
 
@@ -110,46 +108,48 @@ export default function CustomerSettingsClient({
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-        Settings
-      </h1>
-
-      <Card className="bg-gray-900 border-gray-800">
-        <CardHeader>
-          <CardTitle className="text-white">Notifications</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm text-gray-300">
-          <p className="text-gray-400">
+    <div className="space-y-4">
+      {/* Notifications card */}
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="border-b border-white/5 px-4 py-3 sm:px-5">
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            Notifications
+          </h2>
+        </div>
+        <div className="space-y-3 p-4 sm:p-5">
+          <p className="text-xs text-slate-400">
             Control push notifications and foreground sound.
           </p>
-          <div className="flex items-center justify-between gap-3 rounded-md bg-gray-800 p-3">
+
+          {/* Permission row */}
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3.5">
             <div className="space-y-0.5">
-              <div className="text-gray-200 font-medium">Permission</div>
-              <div className="text-gray-400">
+              <div className="text-sm font-medium text-slate-100">Permission</div>
+              <div className="text-xs text-slate-400">
                 Your current browser permission status
               </div>
             </div>
             <Badge
               className={
                 perm === "granted"
-                  ? "bg-emerald-600 border-transparent"
+                  ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200 shadow-[0_0_12px_rgba(52,211,153,0.10)]"
                   : perm === "denied"
-                    ? "bg-rose-600 border-transparent"
+                    ? "border-rose-400/30 bg-rose-500/10 text-rose-200"
                     : perm === "unsupported"
-                      ? "bg-gray-600 border-transparent"
-                      : "bg-amber-600 border-transparent"
+                      ? "border-white/10 bg-white/[0.04] text-slate-400"
+                      : "border-amber-400/30 bg-amber-500/10 text-amber-200"
               }
             >
               {perm}
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex items-center justify-between gap-3 rounded-md bg-gray-800 p-3">
+          {/* Toggle and sound */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3.5">
               <div className="space-y-0.5">
-                <div className="text-gray-200 font-medium">Notifications</div>
-                <div className="text-gray-400">
+                <div className="text-sm font-medium text-slate-100">Notifications</div>
+                <div className="text-xs text-slate-400">
                   Enable OS push and in-app delivery
                 </div>
               </div>
@@ -162,7 +162,7 @@ export default function CustomerSettingsClient({
               />
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-md bg-gray-800 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3.5">
               <div className="flex items-center gap-2">
                 <NotificationSoundToggle />
               </div>
@@ -170,19 +170,28 @@ export default function CustomerSettingsClient({
           </div>
 
           {status && (
-            <div className="rounded-md border border-gray-700 bg-gray-800/60 p-3 text-sm text-gray-200">
-              {status}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3.5 text-sm text-slate-200 backdrop-blur-xl">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                {status}
+              </div>
             </div>
           )}
-          <div className="space-y-3 rounded-md border border-gray-800 bg-gray-900/60 p-3">
+
+          {/* Scheduled greetings */}
+          <div className="space-y-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3.5">
             <div>
-              <div className="text-gray-200 font-medium">Scheduled greetings</div>
-              <div className="text-gray-400">Daily and festival greetings keep notifications healthy and useful.</div>
+              <div className="text-sm font-medium text-slate-100">
+                Scheduled greetings
+              </div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                Daily and festival greetings keep notifications healthy and useful.
+              </div>
             </div>
             <ScheduledNotificationPreferences role="customer" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }
