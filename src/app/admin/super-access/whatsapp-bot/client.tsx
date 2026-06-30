@@ -86,7 +86,12 @@ export default function WhatsAppBotClient() {
   const [sortNewest, setSortNewest] = useState(true);
   const [showTestForm, setShowTestForm] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [qrData, setQrData] = useState<string | null>(null);
+  const [qrStatus, setQrStatus] = useState<string>("");
+  const [qrLoading, setQrLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const intRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qrIntRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshLogs = useCallback(() => setLogs(getWaBotLocalLogs()), []);
   useEffect(() => { refreshLogs(); }, [refreshLogs]);
@@ -169,6 +174,59 @@ export default function WhatsAppBotClient() {
       setLoading(false);
     }
   }, [refreshLogs]);
+
+  /* ================================
+     QR FETCH
+  ================================ */
+
+  const fetchQr = useCallback(async () => {
+    if (qrLoading) return;
+    setQrLoading(true);
+    try {
+      const res = await fetch("/api/whatsapp/qr", { signal: AbortSignal.timeout(10_000) });
+      const json = await res.json();
+      if (json?.ok && json.qrImageDataUrl) {
+        setQrData(json.qrImageDataUrl);
+        setQrStatus(json.status || "qr_ready");
+      } else {
+        setQrData(null);
+        setQrStatus(json.status || json.botStatus || "unavailable");
+      }
+    } catch {
+      setQrData(null);
+      setQrStatus("unreachable");
+    } finally {
+      setQrLoading(false);
+    }
+  }, []);
+
+  /* ── fetch QR on mount and poll while QR is needed ── */
+  useEffect(() => {
+    // Only start QR polling if not connected or not authenticated
+    const needsQr = !status?.connected || !status?.authenticated;
+    if (needsQr) {
+      fetchQr();
+      qrIntRef.current = setInterval(() => fetchQr(), 5_000);
+    }
+    return () => { if (qrIntRef.current) { clearInterval(qrIntRef.current); qrIntRef.current = null; } };
+  }, [status?.connected, status?.authenticated, fetchQr]);
+
+  /* ── restart QR polling when status changes to disconnected ── */
+  useEffect(() => {
+    if (status && (!status.connected || !status.authenticated)) {
+      fetchQr();
+      if (!qrIntRef.current) {
+        qrIntRef.current = setInterval(() => fetchQr(), 5_000);
+      }
+    } else {
+      if (qrIntRef.current) {
+        clearInterval(qrIntRef.current);
+        qrIntRef.current = null;
+      }
+      setQrData(null);
+      setQrStatus("");
+    }
+  }, [status?.connected, status?.authenticated, status?.botState, fetchQr]);
 
   useEffect(() => {
     fetchStatus(true);
@@ -352,16 +410,77 @@ export default function WhatsAppBotClient() {
         ))}
       </div>
 
+      {/* ── QR CODE SECTION ── */}
+      {!status?.connected && (
+        <Card className="!border-gray-800/60">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-6">
+              <div className="shrink-0">
+                {qrLoading && !qrData ? (
+                  <div className="w-48 h-48 md:w-56 md:h-56 rounded-xl bg-gray-800/50 flex items-center justify-center">
+                    <span className="text-gray-500 text-sm">Loading QR...</span>
+                  </div>
+                ) : qrData ? (
+                  <div className="relative">
+                    <img src={qrData} alt="WhatsApp QR Code"
+                      className="w-48 h-48 md:w-56 md:h-56 rounded-xl border border-gray-700/50 bg-white p-2" />
+                    {qrLoading && (
+                      <div className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center">
+                        <span className="text-white text-sm">Refreshing...</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-48 h-48 md:w-56 md:h-56 rounded-xl bg-gray-800/30 border border-dashed border-gray-700/50 flex flex-col items-center justify-center gap-2">
+                    <span className="text-3xl">📱</span>
+                    <span className="text-gray-500 text-xs text-center px-2">
+                      {qrStatus === "unreachable" ? "Bot unreachable" : qrStatus === "connected" || qrStatus === "authenticated" ? "Already connected" : "No QR available"}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base md:text-lg font-semibold text-white mb-1">Link WhatsApp</h3>
+                <p className="text-sm text-gray-400 mb-3">
+                  {qrData
+                    ? "Scan the QR code with WhatsApp on your phone: Menu → Linked Devices → Link a Device"
+                    : qrStatus === "connected" || qrStatus === "authenticated"
+                      ? "Bot is already connected to WhatsApp."
+                      : status?.botState === "reconnecting"
+                        ? "Bot is reconnecting with stored credentials. If this persists, use Force Reset."
+                        : status?.botState === "starting" || status?.botState === "waking"
+                          ? "Bot is starting up. QR will appear shortly."
+                          : "Bot is offline. Try Wake or Force Reset."}
+                </p>
+                {qrData && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => {
+                      const w = window.open("", "_blank");
+                      if (w) { w.document.write(`<img src="${qrData}" style="width:100%;max-width:400px;margin:auto;display:block"/>`); }
+                    }} size="sm" variant="outline">Open QR in Tab</Button>
+                    <Button onClick={fetchQr} loading={qrLoading} disabled={qrLoading} size="sm" variant="outline">
+                      Refresh QR
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── CONTROLS ── */}
       <Card className="!border-gray-800/60">
         <CardContent className="p-3 md:p-5">
           <div className="flex flex-wrap gap-2 md:gap-3">
-            <Button onClick={handleWake} loading={waking} disabled={waking || restarting} size="sm">Wake Bot</Button>
+            <Button onClick={handleWake} loading={waking} disabled={waking || restarting || resetting} size="sm">Wake Bot</Button>
             <Button onClick={handleRefresh} loading={loading} disabled={loading} size="sm" variant="outline">Refresh</Button>
             <Button onClick={() => setShowTestForm(!showTestForm)} size="sm"
               variant={showTestForm ? "default" : "outline"}>{showTestForm ? "Hide Test" : "Test Send"}</Button>
-            <Button onClick={handleRestart} loading={restarting} disabled={restarting || waking} size="sm" variant="secondary">Safe Restart</Button>
-            <Button onClick={handleClearLogs} size="sm" variant="destructive">Clear Logs</Button>
+            <Button onClick={handleRestart} loading={restarting} disabled={restarting || waking || resetting} size="sm" variant="secondary">Safe Restart</Button>
+            <Button onClick={() => act("force-reset", setResetting)} loading={resetting} disabled={resetting || waking || restarting}
+              size="sm" variant="destructive">Force Reset & QR</Button>
+            <Button onClick={handleClearLogs} size="sm" variant="outline">Clear Logs</Button>
           </div>
 
           {showTestForm && (

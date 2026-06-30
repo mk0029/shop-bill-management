@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
       case "restart-safe":
         return proxyToBot("/wa-bot/restart-safe", { method: "POST" });
 
+      case "force-reset":
+        return proxyToBot("/wa-bot/force-reset", { method: "POST" });
+
       default:
         return NextResponse.json(
           { ok: false, error: `Unknown action: ${action}` },
