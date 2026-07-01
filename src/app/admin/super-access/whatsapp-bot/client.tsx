@@ -36,6 +36,9 @@ interface BotStatus {
   lastDisconnect: string | null;
   lastDisconnectReason: string | null;
   reconnectAttempts: number;
+  botHostname?: string;
+  lastConflictTime?: string | null;
+  stateTransitionTime?: string | null;
 }
 
 type LogLevel = WaBotLog["level"];
@@ -47,6 +50,10 @@ const STATE_META: Record<string, { color: string; label: string }> = {
   sleeping: { color: "text-blue-400 border-blue-500/30 bg-blue-500/8", label: "Sleeping" },
   waking: { color: "text-purple-400 border-purple-500/30 bg-purple-500/8", label: "Waking" },
   disconnected: { color: "text-red-400 border-red-500/30 bg-red-500/8", label: "Disconnected" },
+  conflict: { color: "text-red-500 border-red-600/40 bg-red-600/10", label: "Conflict" },
+  qr_required: { color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/8", label: "QR Required" },
+  reconnecting: { color: "text-orange-400 border-orange-500/30 bg-orange-500/8", label: "Reconnecting" },
+  logged_out: { color: "text-gray-400 border-gray-500/30 bg-gray-500/8", label: "Logged Out" },
   error: { color: "text-orange-400 border-orange-500/30 bg-orange-500/8", label: "Error" },
 };
 
@@ -90,8 +97,7 @@ export default function WhatsAppBotClient() {
   const [qrStatus, setQrStatus] = useState<string>("");
   const [qrLoading, setQrLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const intRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const qrIntRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastQrFetch = useRef(0);
 
   const refreshLogs = useCallback(() => setLogs(getWaBotLocalLogs()), []);
   useEffect(() => { refreshLogs(); }, [refreshLogs]);
@@ -179,8 +185,9 @@ export default function WhatsAppBotClient() {
      QR FETCH
   ================================ */
 
-  const fetchQr = useCallback(async () => {
-    if (qrLoading) return;
+  const QR_INTERVAL = 35_000;
+
+  const doFetchQr = useCallback(async () => {
     setQrLoading(true);
     try {
       const res = await fetch("/api/whatsapp/qr", { signal: AbortSignal.timeout(10_000) });
@@ -200,39 +207,35 @@ export default function WhatsAppBotClient() {
     }
   }, []);
 
-  /* ── fetch QR on mount and poll while QR is needed ── */
-  useEffect(() => {
-    // Only start QR polling if not connected or not authenticated
-    const needsQr = !status?.connected || !status?.authenticated;
-    if (needsQr) {
-      fetchQr();
-      qrIntRef.current = setInterval(() => fetchQr(), 5_000);
+  /* throttled auto-fetch: max once per QR_INTERVAL */
+  const autoFetchQr = useCallback(() => {
+    const now = Date.now();
+    if (now - lastQrFetch.current >= QR_INTERVAL) {
+      lastQrFetch.current = now;
+      doFetchQr();
     }
-    return () => { if (qrIntRef.current) { clearInterval(qrIntRef.current); qrIntRef.current = null; } };
-  }, [status?.connected, status?.authenticated, fetchQr]);
+  }, [doFetchQr]);
 
-  /* ── restart QR polling when status changes to disconnected ── */
-  useEffect(() => {
-    if (status && (!status.connected || !status.authenticated)) {
-      fetchQr();
-      if (!qrIntRef.current) {
-        qrIntRef.current = setInterval(() => fetchQr(), 5_000);
-      }
-    } else {
-      if (qrIntRef.current) {
-        clearInterval(qrIntRef.current);
-        qrIntRef.current = null;
-      }
-      setQrData(null);
-      setQrStatus("");
-    }
-  }, [status?.connected, status?.authenticated, status?.botState, fetchQr]);
+  /* manual fetch (always allowed, resets throttle timer) */
+  const handleRefreshQr = useCallback(() => {
+    lastQrFetch.current = Date.now();
+    doFetchQr();
+  }, [doFetchQr]);
 
   useEffect(() => {
     fetchStatus(true);
-    intRef.current = setInterval(() => fetchStatus(false), 5_000);
-    return () => { if (intRef.current) clearInterval(intRef.current); };
+    return () => {};
   }, [fetchStatus]);
+
+  /* ── throttled QR auto-fetch when disconnected ── */
+  useEffect(() => {
+    if (status && !status.connected) {
+      autoFetchQr();
+    } else if (status?.connected) {
+      setQrData(null);
+      setQrStatus("");
+    }
+  }, [status?.connected, autoFetchQr]);
 
   /* ================================
      ACTIONS
@@ -360,23 +363,29 @@ export default function WhatsAppBotClient() {
 
       {/* ── WARNING ── */}
       {isBad && (
-        <div className="rounded-xl border border-orange-500/25 bg-orange-500/8 px-4 md:px-6 py-3 md:py-4">
-          <p className="text-sm md:text-base font-semibold text-orange-300">
-            ⚠ Bot is <strong>{status?.botState}</strong>.
+        <div className={cn("rounded-xl border px-4 md:px-6 py-3 md:py-4",
+          status?.botState === "conflict" ? "border-red-500/40 bg-red-500/10" : "border-orange-500/25 bg-orange-500/8")}>
+          <p className={cn("text-sm md:text-base font-semibold",
+            status?.botState === "conflict" ? "text-red-300" : "text-orange-300")}>
+            {status?.botState === "conflict" ? "⚠ WhatsApp Session Conflict" : `⚠ Bot is <strong>${status?.botState}</strong>.`}
           </p>
-          {status?.lastError && <p className="text-sm text-orange-400/80 mt-1">{status.lastError}</p>}
+          {status?.botState === "conflict" && (
+            <p className="text-sm text-red-400/80 mt-1">
+              Another connection is using the same WhatsApp credentials. Go to your phone → WhatsApp → Linked Devices → remove all sessions, then click <strong>Force Reset & QR</strong> below.
+            </p>
+          )}
+          {status?.lastError && status?.botState !== "conflict" && <p className="text-sm text-orange-400/80 mt-1">{status.lastError}</p>}
           {status?.lastDisconnectReason && <p className="text-sm text-orange-400/60 mt-0.5">{status.lastDisconnectReason}</p>}
         </div>
       )}
 
       {/* ── STAT CARDS ── */}
-      {/* Desktop: 6-column grid. Mobile: 2-column grid with compact labels */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
         {([
           ["Bot State", () => (loading && !status ? <span className="text-gray-500 text-sm">...</span> : (
             <div className="flex items-center gap-2">
               <span className={cn("h-3 w-3 rounded-full shrink-0",
-                status?.connected ? "bg-green-400" : status?.botState === "sleeping" ? "bg-blue-400" : "bg-red-400")} />
+                status?.connected ? "bg-green-400" : status?.botState === "sleeping" ? "bg-blue-400" : status?.botState === "conflict" ? "bg-red-500" : "bg-red-400")} />
               <span className={cn("rounded-md border px-2.5 py-0.5 text-xs md:text-sm font-semibold",
                 meta?.color || "text-gray-400 border-gray-500/30 bg-gray-500/8")}>
                 {meta?.label || status?.botState || "?"}
@@ -405,6 +414,23 @@ export default function WhatsAppBotClient() {
             <CardContent className="p-3 md:p-5">
               <p className="text-xs md:text-sm uppercase tracking-wider text-gray-500 mb-1.5 md:mb-2 font-medium">{label}</p>
               {render()}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* ── DETAIL ROW ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+        {[
+          ["Instance", status?.botHostname || "—"],
+          ["Reconnects", String(status?.reconnectAttempts ?? "—")],
+          ["Last Conflict", status?.lastConflictTime ? rel(status.lastConflictTime) : "None"],
+          ["State Since", status?.stateTransitionTime ? rel(status.stateTransitionTime) : "—"],
+        ].map(([label, value]) => (
+          <Card key={label} className="!border-gray-800/60">
+            <CardContent className="p-3 md:p-5">
+              <p className="text-xs uppercase tracking-wider text-gray-500 mb-1 font-medium">{label}</p>
+              <p className="text-sm text-gray-300 truncate">{value}</p>
             </CardContent>
           </Card>
         ))}
@@ -458,7 +484,7 @@ export default function WhatsAppBotClient() {
                       const w = window.open("", "_blank");
                       if (w) { w.document.write(`<img src="${qrData}" style="width:100%;max-width:400px;margin:auto;display:block"/>`); }
                     }} size="sm" variant="outline">Open QR in Tab</Button>
-                    <Button onClick={fetchQr} loading={qrLoading} disabled={qrLoading} size="sm" variant="outline">
+                    <Button onClick={handleRefreshQr} loading={qrLoading} disabled={qrLoading} size="sm" variant="outline">
                       Refresh QR
                     </Button>
                   </div>

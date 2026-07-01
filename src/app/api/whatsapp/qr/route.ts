@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch(`${WA_BOT_URL}/wa-bot/qr`, {
+    const res = await fetch(`${WA_BOT_URL}/api/wa/qr`, {
       headers: { "x-api-key": WA_BOT_TOKEN },
       signal: AbortSignal.timeout(10_000),
     });

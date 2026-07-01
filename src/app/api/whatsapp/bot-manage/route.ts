@@ -40,7 +40,7 @@ async function proxyToBot(
 }
 
 export async function GET() {
-  return proxyToBot("/wa-bot/status");
+  return proxyToBot("/api/wa/status");
 }
 
 export async function POST(req: NextRequest) {
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case "wake":
-        return proxyToBot("/wa-bot/wake", { method: "POST" });
+        return proxyToBot("/api/wa/wake", { method: "POST" });
 
       case "test-send": {
         if (!phone || !message) {
@@ -59,17 +59,17 @@ export async function POST(req: NextRequest) {
             { status: 400 },
           );
         }
-        return proxyToBot("/wa-bot/test-send", {
+        return proxyToBot("/api/wa/send-test", {
           method: "POST",
           body: JSON.stringify({ phone, message }),
         });
       }
 
       case "restart-safe":
-        return proxyToBot("/wa-bot/restart-safe", { method: "POST" });
+        return proxyToBot("/api/wa/safe-restart", { method: "POST" });
 
       case "force-reset":
-        return proxyToBot("/wa-bot/force-reset", { method: "POST" });
+        return proxyToBot("/api/wa/force-reset", { method: "POST" });
 
       default:
         return NextResponse.json(
