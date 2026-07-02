@@ -73,21 +73,18 @@ export function useCustomers() {
     useDataStore();
 
   const customerList = useMemo(() => {
-    const roleIsCustomer = (role?: string) =>
-      typeof role === "string" && role.toLowerCase() === "customer";
-    const roleIsAdmin = (role?: string) =>
-      typeof role === "string" && role.toLowerCase() === "admin";
+    const customerRoles = new Set(["customer"]);
+    const forbiddenRoles = new Set([
+      "admin", "super_admin", "owner", "developer", "staff", "manager",
+    ]);
 
     return Array.from(users.values()).filter((user) => {
-      // Never include admins in customer lists
-      if (roleIsAdmin(user.role)) return false;
-      if (roleIsCustomer(user.role)) return true;
-      if (user.customerId) return true;
-      // If we have bills indexed for this user, they are effectively a customer
-      if (billsByCustomer?.has(user._id)) return true;
+      const role = String(user.role || user.userRole || user.accountType || user.type || "").toLowerCase();
+      if (forbiddenRoles.has(role)) return false;
+      if (customerRoles.has(role)) return true;
       return false;
     });
-  }, [users, billsByCustomer]);
+  }, [users]);
 
   const isCustomersLoading = isLoading && customerList.length === 0;
 

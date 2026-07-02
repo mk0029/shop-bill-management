@@ -26,6 +26,7 @@ import {
   Settings,
   UserRound,
   MapPin,
+  Send,
 } from "lucide-react";
 
 const notificationToneOptions = ["Default", "Soft", "Alert", "Chime", "Urgent", "Silent"];
@@ -134,6 +135,11 @@ export const settingsTree: SettingNode[] = [
       ], ClipboardList),
       option("tool-rent", "Tool Rent Notifications", "Rental, payment, and return alerts", [{ type: "toggle", key: "notify.toolRent.enabled", title: "Enable Rental Alerts", defaultValue: true }], Wrench),
       option("reminders", "Reminder Notifications", "Due and overdue reminder behavior", [{ type: "toggle", key: "notify.reminders.enabled", title: "Enable Reminders", defaultValue: true }], Clock),
+      option("whatsapp-reminders", "WhatsApp Reminders", "Manual and automatic WhatsApp reminder settings", [
+        { type: "toggle", key: "notify.whatsapp.manualReminder", title: "Allow Manual Reminders", defaultValue: true },
+        { type: "number", key: "notify.whatsapp.reminderCooldown", title: "Reminder Cooldown", defaultValue: 5, suffix: "min" },
+        { type: "action", key: "notify.whatsapp.settings", title: "Reminder Settings", label: "Configure", href: "/admin/customers" },
+      ], Send, ["admin", "super_admin"]),
       option("quiet-hours", "Quiet Hours", "Mute non-urgent alerts during selected hours", [
         { type: "toggle", key: "quiet.enabled", title: "Enable Quiet Hours", defaultValue: false },
         { type: "select", key: "quiet.start", title: "Start", defaultValue: "10 PM", options: ["8 PM", "9 PM", "10 PM", "11 PM"] },

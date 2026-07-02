@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dropdown } from "@/components/ui/dropdown";
 import { User, MapPin } from "lucide-react";
 import { Customer } from "@/types";
@@ -10,12 +10,22 @@ interface CustomerSelectionProps {
   onCustomerChange: (customerId: string) => void;
 }
 
+function isCustomer(user: Customer): boolean {
+  const role = String(
+    (user as any).role || (user as any).userRole || (user as any).accountType || (user as any).type || "",
+  ).toLowerCase();
+  if (role === "customer") return true;
+  if ((user as any).isAdmin === true || (user as any).isSuperAdmin === true) return false;
+  return false;
+}
+
 export function CustomerSelection({
   customers,
   selectedCustomerId,
   onCustomerChange,
 }: CustomerSelectionProps) {
-  const selectedCustomer = customers.find((c) => c._id === selectedCustomerId);
+  const validCustomers = useMemo(() => customers.filter(isCustomer), [customers]);
+  const selectedCustomer = validCustomers.find((c) => c._id === selectedCustomerId);
 
   return (
     <div>
@@ -23,7 +33,7 @@ export function CustomerSelection({
         Customer
       </label>
       <Dropdown
-        options={customers.map((c) => ({
+        options={validCustomers.map((c) => ({
           value: c._id,
           label: `${safeUserName(c.name, "Customer")} - ${c.phone}`,
         }))}

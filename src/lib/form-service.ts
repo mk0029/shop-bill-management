@@ -10,6 +10,7 @@ import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 import { TAX_RATE } from "../constants/defaults";
 import { syncSingleBillPayment } from "./bill-payment-sync";
 import { createBillCreatedShopChatEvent } from "@/lib/shop-chat/api";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 export interface FormSubmissionResult {
   success: boolean;
@@ -602,6 +603,23 @@ export async function createBill(billData: {
   balanceAmount?: number;
 }): Promise<FormSubmissionResult> {
   try {
+    const customerId = String(billData.customerId || "").trim();
+    if (customerId) {
+      const customerDoc = await sanityClient.fetch<{ role?: string } | null>(
+        `*[_type == "user" && _id == $id][0]{ role }`,
+        { id: customerId },
+      );
+      const role = String(
+        customerDoc?.role || (customerDoc as any)?.userRole || "",
+      ).toLowerCase();
+      if (role && role !== "customer") {
+        return {
+          success: false,
+          error: "Bills can only be created for customer accounts.",
+        };
+      }
+    }
+
     // Step 1: Map and deduplicate bill items (if any). Support service-only bills with zero items.
     const hasItems = Array.isArray(billData.items) && billData.items.length > 0;
     const mappedItems = hasItems
@@ -791,6 +809,24 @@ export async function createBill(billData: {
               console.error("❌ Background stock update error:", error);
             });
         }
+
+        // WhatsApp bill-created event (server-side, non-blocking)
+        void emitWaEventServer("billing.created", {
+          billId: String(createdId || ""),
+          billNumber: String(billNumber || ""),
+          customerId: String(billData.customerId || ""),
+          customerName: "",
+          customerPhone: "",
+          totalAmount: Number(grossTotal || 0),
+          paidAmount: Number(billData.paidAmount || 0),
+          balanceAmount: Number(billData.balanceAmount ?? netPayable),
+          paymentStatus: String(billData.paymentStatus || "pending"),
+          dueDate: billData.dueDate,
+          updatedAt: new Date().toISOString(),
+          idempotencyKey: `billing.created:${String(createdId || "")}`,
+        }).catch((e) => {
+          console.warn("[WA] billing.created event failed (non-blocking):", e);
+        });
 
         // Notifications + WhatsApp
         try {

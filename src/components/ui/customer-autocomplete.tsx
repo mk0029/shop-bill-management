@@ -11,6 +11,12 @@ interface Customer {
   name: string;
   phone?: string;
   location?: string;
+  role?: string;
+  userRole?: string;
+  accountType?: string;
+  type?: string;
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 interface Props {
@@ -18,6 +24,15 @@ interface Props {
   value: string;
   onChange: (id: string) => void;
   placeholder?: string;
+}
+
+function isCustomer(user: Customer): boolean {
+  const role = String(
+    user.role || user.userRole || user.accountType || user.type || "",
+  ).toLowerCase();
+  if (role === "customer") return true;
+  if (user.isAdmin === true || user.isSuperAdmin === true) return false;
+  return false;
 }
 
 function customerLabel(customer: Customer) {
@@ -35,9 +50,14 @@ export default function CustomerAutocomplete({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
+  const validCustomers = useMemo(
+    () => customers.filter(isCustomer),
+    [customers],
+  );
+
   const selected = useMemo(
-    () => customers.find((customer) => customer._id === value) || null,
-    [customers, value],
+    () => validCustomers.find((customer) => customer._id === value) || null,
+    [validCustomers, value],
   );
   const selectedLabel = useMemo(
     () => (selected ? customerLabel(selected) : ""),
@@ -55,14 +75,14 @@ export default function CustomerAutocomplete({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [] as Customer[];
-    return customers
+    return validCustomers
       .filter((customer) =>
         `${customer.name} ${customer.phone || ""} ${customer.location || ""}`
           .toLowerCase()
           .includes(q),
       )
       .slice(0, 10);
-  }, [customers, query]);
+  }, [validCustomers, query]);
 
   return (
     <div className="relative">

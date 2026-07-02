@@ -2,7 +2,7 @@
 
 import { memo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Smartphone, Copy, Link, Share2 } from "lucide-react";
+import { MessageSquare, Smartphone, Copy, Link } from "lucide-react";
 import { toast } from "sonner";
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ interface ShareAction {
   label: string;
   icon: React.ElementType;
   onClick: () => void;
+  loadingLabel?: string;
   primary?: boolean;
   disabled?: boolean;
   loading?: boolean;
@@ -129,6 +130,7 @@ export const CentralShareModal = memo(function CentralShareModal({
         <div className="space-y-2">
           {actions.map((action, i) => {
             const Icon = action.icon;
+            const loading = action.loading || isLoading;
             return (
               <motion.div
                 key={action.label}
@@ -145,12 +147,12 @@ export const CentralShareModal = memo(function CentralShareModal({
                       : "border border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white"
                   }`}
                 >
-                  {action.loading || isLoading ? (
+                  {loading ? (
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <Icon className="w-5 h-5" />
                   )}
-                  {action.loading || isLoading ? "Please wait..." : action.label}
+                  {loading ? action.loadingLabel || "Please wait..." : action.label}
                 </Button>
               </motion.div>
             );

@@ -7,11 +7,12 @@ export type Permission =
   | "EDIT_BILL"
   | "OVERRIDE_BILL_STATUS"
   | "VIEW_AUDIT_LOGS"
-  | "ACCESS_SUPER_SETTINGS";
+  | "ACCESS_SUPER_SETTINGS"
+  | "SEND_MANUAL_REMINDER";
 
 const rolePermissions: Record<Role, readonly Permission[]> = {
   customer: [],
-  admin: ["VIEW_BILL", "CREATE_BILL", "UPDATE_BILL_STATUS"],
+  admin: ["VIEW_BILL", "CREATE_BILL", "UPDATE_BILL_STATUS", "SEND_MANUAL_REMINDER"],
   technician: ["VIEW_BILL", "CREATE_BILL", "UPDATE_BILL_STATUS"],
   super_admin: [
     "VIEW_BILL",
@@ -21,6 +22,7 @@ const rolePermissions: Record<Role, readonly Permission[]> = {
     "OVERRIDE_BILL_STATUS",
     "VIEW_AUDIT_LOGS",
     "ACCESS_SUPER_SETTINGS",
+    "SEND_MANUAL_REMINDER",
   ],
 };
 

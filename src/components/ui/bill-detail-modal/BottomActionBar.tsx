@@ -15,6 +15,8 @@ import {
   X,
   UserPlus,
   History,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +34,9 @@ interface BottomActionBarProps {
   onPrintBill?: (bill: any) => void;
   onAssignTechnician?: (bill: any) => void;
   onViewAudit?: (bill: any) => void;
+  onSendWhatsAppReminder?: () => void;
+  isSendingReminder?: boolean;
+  isSendingWhatsApp?: boolean;
 }
 
 export const BottomActionBar = memo(function BottomActionBar({
@@ -48,6 +53,9 @@ export const BottomActionBar = memo(function BottomActionBar({
   onPrintBill,
   onAssignTechnician,
   onViewAudit,
+  onSendWhatsAppReminder,
+  isSendingReminder,
+  isSendingWhatsApp,
 }: BottomActionBarProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -85,10 +93,11 @@ export const BottomActionBar = memo(function BottomActionBar({
     ...(onWhatsAppCustomer
       ? [
           {
-            icon: MessageSquare,
-            label: "WhatsApp",
+            icon: isSendingWhatsApp ? Loader2 : MessageSquare,
+            label: isSendingWhatsApp ? "Sending..." : "WhatsApp",
             onClick: onWhatsAppCustomer,
             color: "text-emerald-300",
+            highlight: isSendingWhatsApp,
           },
         ]
       : []),
@@ -112,6 +121,17 @@ export const BottomActionBar = memo(function BottomActionBar({
             label: "Remind",
             onClick: onRemindCustomer,
             color: "text-rose-300",
+          },
+        ]
+      : []),
+    ...(onSendWhatsAppReminder
+      ? [
+          {
+            icon: isSendingReminder ? Loader2 : Send,
+            label: isSendingReminder ? "Sending..." : "Send Reminder",
+            onClick: onSendWhatsAppReminder,
+            color: "text-emerald-300",
+            highlight: true,
           },
         ]
       : []),
@@ -213,7 +233,7 @@ export const BottomActionBar = memo(function BottomActionBar({
                   : "glass-dock-btn text-white/70",
               )}
             >
-              <action.icon className="w-5 h-5 sm:w-5 sm:h-5" />
+              <action.icon className={cn("w-5 h-5 sm:w-5 sm:h-5", (isSendingReminder || isSendingWhatsApp) && action.label === "Sending..." && "animate-spin")} />
               <span className="leading-tight">{action.label}</span>
             </button>
           ))}

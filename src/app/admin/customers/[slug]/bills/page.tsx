@@ -4,7 +4,6 @@
 import { RealtimeBillList } from "@/components/realtime/realtime-bill-list";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { CentralShareModal } from "@/components/ui/central-share-modal";
-import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,12 +38,12 @@ import {
 import { sanitizeUserText } from "@/constants/defaults";
 import {
   calculateCustomerPendingSummary,
-  canSendDueReminder,
   DEFAULT_REMINDER_LIMIT,
   getEffectiveReminderLimit,
 } from "@/lib/due-reminder";
 import { sanityClient } from "@/lib/sanity";
-import { formatDayDateTime } from "@/lib/date-time";
+import { sendManualWhatsApp } from "@/lib/manual-whatsapp";
+import { useAuthStore } from "@/store/auth-store";
 
 export default function CustomerBillsPage() {
   const params = useParams();
@@ -62,32 +61,20 @@ export default function CustomerBillsPage() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [showBillModal, setShowBillModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showReminderPreview, setShowReminderPreview] = useState(false);
   const [showReminderSettingsModal, setShowReminderSettingsModal] =
     useState(false);
   const [shareMode, setShareMode] = useState<"pending" | "thank">("pending");
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [isSavingReminderSettings, setIsSavingReminderSettings] =
     useState(false);
-  const [isPreparingReminderPreview, setIsPreparingReminderPreview] =
-    useState(false);
-  const [isSendingDueReminder, setIsSendingDueReminder] = useState(false);
-  const [reminderPreviewMessage, setReminderPreviewMessage] = useState("");
-  const [reminderPreviewSummary, setReminderPreviewSummary] = useState<{
-    totalPendingAmount: number;
-    pendingBillsCount: number;
-  }>({ totalPendingAmount: 0, pendingBillsCount: 0 });
   const [reminderLimit, setReminderLimit] = useState<number>(
     DEFAULT_REMINDER_LIMIT,
   );
   const [dueReminderRepeatDays, setDueReminderRepeatDays] = useState<number>(6);
   const [allowDueReminder, setAllowDueReminder] = useState<boolean>(true);
-  const [lastDueReminderSentAt, setLastDueReminderSentAt] = useState<
-    string | null
-  >(null);
-  const [lastDueReminderAmount, setLastDueReminderAmount] = useState<
-    number | null
-  >(null);
+
+  const role = useAuthStore((s) => s.role);
+  const isAdmin = role === "admin" || role === "super_admin";
   const customer = customers.find(
     (c) => c._id === slug || c.customerId === slug,
   );
@@ -141,30 +128,6 @@ export default function CustomerBillsPage() {
       dueDate: b?.dueDate,
     })),
   );
-  const reminderEligibility = canSendDueReminder({
-    allowDueReminder,
-    reminderLimit,
-    totalPendingAmount: pendingSummary.totalPendingAmount,
-    pendingBillsCount: pendingSummary.pendingBillsCount,
-    phone: customer?.phone,
-    lastDueReminderSentAt,
-    lastDueReminderAmount,
-  });
-
-  const getReminderStatusLabel = () => {
-    if (reminderEligibility.ok) return "Eligible to send";
-    if (reminderEligibility.reason === "below_limit")
-      return "Skipped: below reminder limit";
-    if (reminderEligibility.reason === "toggle_off")
-      return "Skipped: reminder disabled";
-    if (reminderEligibility.reason === "phone_missing")
-      return "Skipped: phone missing";
-    if (reminderEligibility.reason === "no_pending_bills")
-      return "Skipped: no pending bills";
-    if (reminderEligibility.reason === "duplicate_recent")
-      return `Skipped: recently sent (${reminderEligibility.cooldownRemainingMinutes || 0} min cooldown left)`;
-    return "Not eligible";
-  };
 
   const statCards = [
     { label: "Total Bills", value: stats.totalBills, color: "text-white" },
@@ -237,12 +200,6 @@ export default function CustomerBillsPage() {
         ? Math.min(30, Math.max(1, repeatDays))
         : 6,
     );
-    setLastDueReminderSentAt((customer as any)?.lastDueReminderSentAt || null);
-    setLastDueReminderAmount(
-      typeof (customer as any)?.lastDueReminderAmount === "number"
-        ? Number((customer as any).lastDueReminderAmount)
-        : null,
-    );
   };
   useEffect(() => {
     syncReminderSettingsFromCustomer();
@@ -251,8 +208,6 @@ export default function CustomerBillsPage() {
     (customer as any)?.reminderLimit,
     (customer as any)?.allowDueReminder,
     (customer as any)?.dueReminderRepeatDays,
-    (customer as any)?.lastDueReminderSentAt,
-    (customer as any)?.lastDueReminderAmount,
   ]);
 
   const saveReminderSettings = async () => {
@@ -283,78 +238,6 @@ export default function CustomerBillsPage() {
     }
   };
 
-  const fetchReminderPreview = async () => {
-    if (!customer?._id) return;
-    try {
-      setIsPreparingReminderPreview(true);
-      const res = await fetch("/api/whatsapp/due-reminder/customer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customer._id, previewOnly: true }),
-      });
-      const json = await res.json().catch(() => ({}) as any);
-      if (!res.ok || !json?.success) {
-        throw new Error(json?.error || "Failed to prepare reminder preview");
-      }
-      setReminderPreviewMessage(String(json?.message || ""));
-      setReminderPreviewSummary({
-        totalPendingAmount: Number(json?.summary?.totalPendingAmount || 0),
-        pendingBillsCount: Number(json?.summary?.pendingBillsCount || 0),
-      });
-      setShowReminderPreview(true);
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to prepare reminder preview");
-    } finally {
-      setIsPreparingReminderPreview(false);
-    }
-  };
-
-  const sendDueReminderNow = async () => {
-    if (!customer?._id) return;
-    try {
-      setIsSendingDueReminder(true);
-      const res = await fetch("/api/whatsapp/due-reminder/customer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: customer._id, previewOnly: false }),
-      });
-      const json = await res.json().catch(() => ({}) as any);
-      if (json?.skipped) {
-        if (json?.reason === "below_limit") {
-          toast.info(
-            "Reminder skipped because pending amount is below reminder limit.",
-          );
-        } else if (json?.reason === "toggle_off") {
-          toast.info("Reminder is disabled for this customer.");
-        } else if (json?.reason === "no_pending_bills") {
-          toast.info("No pending or partial bills found for this customer.");
-        } else if (json?.reason === "phone_missing") {
-          toast.info(
-            "Customer phone number is required before sending WhatsApp reminder.",
-          );
-        } else if (json?.reason === "duplicate_recent") {
-          toast.info(
-            "Reminder skipped because same reminder was sent recently.",
-          );
-        } else {
-          toast.info("Reminder skipped.");
-        }
-        return;
-      }
-      if (!res.ok || !json?.success) {
-        throw new Error(json?.error || "Failed to send due reminder");
-      }
-      toast.success("Combined due reminder sent on WhatsApp.");
-      setLastDueReminderSentAt(new Date().toISOString());
-      setLastDueReminderAmount(Number(json?.summary?.totalPendingAmount || 0));
-      setShowReminderPreview(false);
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to send due reminder");
-    } finally {
-      setIsSendingDueReminder(false);
-    }
-  };
-
   const handleCreateBill = () => {
     try {
       localStorage.setItem("bill_create_skip_restore", "1");
@@ -368,6 +251,17 @@ export default function CustomerBillsPage() {
     router.push(
       `/admin/chat?customerId=${encodeURIComponent(effectiveCustomerId)}`,
     );
+  };
+
+  const buildShareMessage = (mode: "pending" | "thank" = shareMode) => {
+    const pendingData = getPendingBillsShareData();
+    return mode === "pending"
+      ? generatePendingBillsMessage(pendingData)
+      : generateThankYouMessage({
+          name: customer?.name || "Customer",
+          phone: customer?.phone || "",
+          secretKey: customer?.secretKey || "",
+        });
   };
 
   const handleSharePendingBills = () => {
@@ -434,20 +328,47 @@ export default function CustomerBillsPage() {
       pendingBills: pendingBillsDetailed,
     };
   };
-  const handleShareOnWhatsApp = () => {
-    toast.info("WhatsApp reminders are sent by backend bill events/reminder jobs.");
-    setShowShareModal(false);
+
+  const handleShareOnWhatsApp = async () => {
+    if (!isAdmin) {
+      toast.error("Only Admin and Super Admin can send WhatsApp messages");
+      return;
+    }
+    if (!customer?._id) {
+      toast.error("Customer ID is required");
+      return;
+    }
+
+    try {
+      setIsSendingWhatsApp(true);
+      const result = await sendManualWhatsApp({
+        shareType: shareMode === "pending" ? "reminder" : "customer",
+        customerId: customer._id,
+      });
+
+      if (result.rateLimited) {
+        toast.error(
+          result.error ||
+            "One manual WhatsApp message per customer/bill is allowed every 5 minutes",
+        );
+        return;
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || "Unable to send WhatsApp message");
+      }
+
+      toast.success("WhatsApp message sent successfully");
+      setShowShareModal(false);
+    } catch (e: any) {
+      const msg = e?.message || "Unable to send WhatsApp message";
+      toast.error(msg);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
   };
   const handleNativeShare = () => {
-    const pendingData = getPendingBillsShareData();
-    const message =
-      shareMode === "pending"
-        ? generatePendingBillsMessage(pendingData)
-        : generateThankYouMessage({
-            name: customer?.name || "Customer",
-            phone: customer?.phone || "",
-            secretKey: customer?.secretKey || "",
-          });
+    const message = buildShareMessage();
 
     try {
       if (typeof navigator !== "undefined" && (navigator as any).share) {
@@ -455,25 +376,17 @@ export default function CustomerBillsPage() {
         setShowShareModal(false);
       }
     } catch {
-      toast.info("WhatsApp reminders are sent by backend bill events/reminder jobs.");
+      toast.error("Unable to send WhatsApp message");
     }
   };
 
   const handleCopyToClipboard = () => {
-    const pendingData = getPendingBillsShareData();
-    const message =
-      shareMode === "pending"
-        ? generatePendingBillsMessage(pendingData).replace(
-            `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(
-              customer?.phone || "",
-            )}&passKey=${encodeURIComponent(customer?.secretKey || "")}`,
-            "https://jambh-ell.vercel.app/#request",
-          )
-        : generateThankYouMessage({
-            name: customer?.name || "Customer",
-            phone: customer?.phone || "",
-            secretKey: customer?.secretKey || "",
-          });
+    const message = buildShareMessage().replace(
+      `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(
+        customer?.phone || "",
+      )}&passKey=${encodeURIComponent(customer?.secretKey || "")}`,
+      "https://jambh-ell.vercel.app/#request",
+    );
 
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard
@@ -752,27 +665,10 @@ export default function CustomerBillsPage() {
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="py-3 px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-sm text-gray-300">
-              Due Reminder:{" "}
-              <span
-                className={
-                  reminderEligibility.ok ? "text-green-400" : "text-yellow-400"
-                }
-              >
-                {getReminderStatusLabel()}
-              </span>
-            </p>
             <p className="text-xs text-gray-400">
               Pending: {currency}
               {pendingSummary.totalPendingAmount.toLocaleString()} • Bills:{" "}
-              {pendingSummary.pendingBillsCount} • Limit: {currency}
-              {Number(
-                getEffectiveReminderLimit(reminderLimit),
-              ).toLocaleString()}
-            </p>
-            <p className="text-xs text-gray-500">
-              Auto reminder: first after 6 days from latest pending bill •
-              Repeat every {dueReminderRepeatDays} day(s)
+              {pendingSummary.pendingBillsCount}
             </p>
           </div>
           <div className="flex gap-2">
@@ -782,14 +678,6 @@ export default function CustomerBillsPage() {
             >
               Reminder Settings
             </Button>
-            <Button
-              onClick={fetchReminderPreview}
-              disabled={isPreparingReminderPreview || isSendingDueReminder}
-            >
-              {isPreparingReminderPreview
-                ? "Preparing..."
-                : "Send Due Reminder"}
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -797,10 +685,12 @@ export default function CustomerBillsPage() {
       {/* Bills List */}
       <Card className="bg-gray-900 border-gray-800">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Bills ({customerBills.length})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-white flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Bills ({customerBills.length})
+            </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <RealtimeBillList
@@ -831,7 +721,8 @@ export default function CustomerBillsPage() {
         title="Share"
         actions={[
           {
-            label: "WhatsApp",
+            label: "Send WhatsApp Message",
+            loadingLabel: "Sending...",
             icon: MessageSquare,
             onClick: handleShareOnWhatsApp,
             primary: true,
@@ -850,26 +741,6 @@ export default function CustomerBillsPage() {
         ]}
       />
 
-      <ConfirmationModal
-        isOpen={showReminderPreview}
-        onClose={() => setShowReminderPreview(false)}
-        onConfirm={sendDueReminderNow}
-        type="confirm"
-        title="Preview Due Reminder"
-        message={`This will send one combined reminder for ${reminderPreviewSummary.pendingBillsCount} bill(s), total ${currency}${Number(reminderPreviewSummary.totalPendingAmount || 0).toLocaleString()}.`}
-        confirmText={
-          isSendingDueReminder ? "Sending..." : "Send WhatsApp Reminder"
-        }
-        content={
-          <div className="space-y-2">
-            <p className="text-xs text-gray-400">Message preview:</p>
-            <pre className="whitespace-pre-wrap text-xs text-gray-200 bg-gray-950 p-2 rounded border border-gray-800 max-h-64 overflow-auto">
-              {reminderPreviewMessage}
-            </pre>
-          </div>
-        }
-      />
-
       <Modal
         isOpen={showReminderSettingsModal}
         onClose={() => setShowReminderSettingsModal(false)}
@@ -877,81 +748,73 @@ export default function CustomerBillsPage() {
         size="md"
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm text-gray-300">Reminder Limit</label>
-              <Input
-                type="number"
-                min={0}
-                value={reminderLimit}
-                onChange={(e) =>
-                  setReminderLimit(
-                    Math.max(
-                      0,
-                      Number(e.target.value || DEFAULT_REMINDER_LIMIT),
-                    ),
-                  )
-                }
-                className="bg-gray-800 border-gray-700 text-white"
-              />
-              <p className="text-xs text-gray-400">
-                Reminder will only be sent when total pending amount is equal or
-                above this limit.
-              </p>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm text-gray-300">Send Reminder</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={allowDueReminder}
-                  onChange={(e) => setAllowDueReminder(e.target.checked)}
+          {/* Automatic Reminders Section */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-gray-300 border-b border-gray-800 pb-2">
+              Automatic Reminders
+            </h3>
+            <p className="text-xs text-gray-500">
+              These settings control when automatic reminders are sent based on
+              backend events and scheduled jobs.
+            </p>
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm text-gray-300">Reminder Limit</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={reminderLimit}
+                  onChange={(e) =>
+                    setReminderLimit(
+                      Math.max(
+                        0,
+                        Number(e.target.value || DEFAULT_REMINDER_LIMIT),
+                      ),
+                    )
+                  }
+                  className="bg-gray-800 border-gray-700 text-white"
                 />
-                <span className="text-sm text-gray-200">
-                  {allowDueReminder ? "Enabled" : "Disabled"}
-                </span>
+                <p className="text-xs text-gray-400">
+                  Reminder will only be sent when total pending amount is equal
+                  or above this limit.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-300">Send Reminder</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={allowDueReminder}
+                    onChange={(e) => setAllowDueReminder(e.target.checked)}
+                  />
+                  <span className="text-sm text-gray-200">
+                    {allowDueReminder ? "Enabled" : "Disabled"}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-300">
+                  Repeat Gap (Days)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={dueReminderRepeatDays}
+                  onChange={(e) =>
+                    setDueReminderRepeatDays(
+                      Math.min(30, Math.max(1, Number(e.target.value || 6))),
+                    )
+                  }
+                  className="bg-gray-800 border-gray-700 text-white"
+                />
+                <p className="text-xs text-gray-400">
+                  Auto reminders repeat after this gap (1 to 30 days).
+                </p>
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm text-gray-300">Repeat Gap (Days)</label>
-              <Input
-                type="number"
-                min={1}
-                max={30}
-                value={dueReminderRepeatDays}
-                onChange={(e) =>
-                  setDueReminderRepeatDays(
-                    Math.min(30, Math.max(1, Number(e.target.value || 6))),
-                  )
-                }
-                className="bg-gray-800 border-gray-700 text-white"
-              />
-              <p className="text-xs text-gray-400">
-                Auto reminders repeat after this gap (1 to 30 days).
-              </p>
-            </div>
-            <div className="rounded-md border border-gray-800 bg-gray-950/60 p-3">
-              <p className="text-xs text-gray-400">Current Pending</p>
-              <p className="text-lg text-orange-400 font-semibold">
-                {currency}
-                {pendingSummary.totalPendingAmount.toLocaleString()}
-              </p>
-              <p className="text-xs text-gray-400">
-                {pendingSummary.pendingBillsCount} pending/partial bill(s)
-              </p>
-              <p
-                className={`mt-2 text-xs ${reminderEligibility.ok ? "text-green-400" : "text-yellow-400"}`}
-              >
-                {getReminderStatusLabel()}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Last reminder:{" "}
-                {lastDueReminderSentAt
-                  ? `${formatDayDateTime(lastDueReminderSentAt)} (Rs ${Number(lastDueReminderAmount || 0).toFixed(2)})`
-                  : "Never"}
-              </p>
-            </div>
           </div>
+
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"

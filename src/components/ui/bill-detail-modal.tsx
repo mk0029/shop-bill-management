@@ -23,6 +23,8 @@ import { PaymentUpdateModal } from "@/components/ui/payment-update-modal";
 
 import { useLocaleStore } from "@/store/locale-store";
 import { BillDetails, generateWhatsAppMessage } from "@/lib/whatsapp-share";
+import { sendManualReminder } from "@/lib/manual-reminder";
+import { sendManualWhatsApp } from "@/lib/manual-whatsapp";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -74,6 +76,7 @@ export const BillDetailModal = ({
   const [showEditSheet, setShowEditSheet] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -106,11 +109,45 @@ export const BillDetailModal = ({
   );
 
   const handleShareOnWhatsApp = useCallback(async () => {
-    toast.info(
-      "WhatsApp bill messages are sent automatically from backend events.",
-    );
-    setShowShareModal(false);
-  }, []);
+    if (!bill) return;
+    if (role !== "admin") {
+      toast.error("Only Admin and Super Admin can send WhatsApp messages");
+      return;
+    }
+
+    const customerId =
+      bill.customer?._id || bill.customer?._ref || bill.customerId || bill.userId;
+    if (!customerId) {
+      toast.error("Customer ID is required");
+      return;
+    }
+
+    try {
+      setIsSendingWhatsApp(true);
+      const result = await sendManualWhatsApp({
+        shareType: "bill",
+        customerId: String(customerId),
+        billId: String(bill._id || bill.id || bill.billId || ""),
+      });
+
+      if (result.rateLimited) {
+        toast.error(result.error || "One manual WhatsApp message per customer/bill is allowed every 5 minutes");
+        return;
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || "Unable to send WhatsApp message");
+      }
+
+      toast.success("WhatsApp message sent successfully");
+      setShowShareModal(false);
+    } catch (e: any) {
+      const msg = e?.message || "Unable to send WhatsApp message";
+      toast.error(msg);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  }, [bill, role]);
   const handleNativeShare = useCallback(() => {
     if (!bill) return;
     const details = buildBillDetails(bill);
@@ -122,7 +159,7 @@ export const BillDetailModal = ({
       }
     } catch {
       toast.info(
-        "WhatsApp bill messages are sent automatically from backend events.",
+        "Use 'Send Reminder' to manually send a WhatsApp reminder for this bill.",
       );
     }
   }, [bill, currency, buildBillDetails]);
@@ -158,6 +195,36 @@ export const BillDetailModal = ({
   const handleOpenPayment = useCallback(() => {
     setShowPaymentModal(true);
   }, []);
+
+  const handleSendWhatsAppReminder = useCallback(async () => {
+    if (!bill) return;
+    try {
+      setIsSendingReminder(true);
+      const result = await sendManualReminder({
+        billId: bill._id || bill.id || bill.billId,
+        customerId: bill.customer?._id || bill.customerId,
+      });
+
+      if (result.rateLimited) {
+        toast.info(
+          "Reminder was already sent recently. Please wait a few minutes before trying again."
+        );
+        return;
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to send reminder");
+      }
+
+      toast.success("WhatsApp reminder sent successfully!");
+    } catch (e: any) {
+      toast.error(
+        e?.message || "Unable to send WhatsApp reminder. Please try again."
+      );
+    } finally {
+      setIsSendingReminder(false);
+    }
+  }, [bill]);
 
   const handlePaymentUpdateWrapper = useCallback(
     async (billId: string, paymentData: any) => {
@@ -214,6 +281,13 @@ export const BillDetailModal = ({
               onDuplicateBill={() => onDuplicateBill?.(bill)}
               onPayOnline={undefined}
               onPrintBill={onPrintBill}
+              onSendWhatsAppReminder={
+                bill.paymentStatus !== "paid"
+                  ? handleSendWhatsAppReminder
+                  : undefined
+              }
+              isSendingReminder={isSendingReminder}
+              isSendingWhatsApp={isSendingWhatsApp}
             />
           )}
 

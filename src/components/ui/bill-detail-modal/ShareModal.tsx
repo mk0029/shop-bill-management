@@ -27,7 +27,8 @@ export function ShareModal({
       title="Share Bill"
       actions={[
         {
-          label: "WhatsApp",
+          label: "Send WhatsApp Message",
+          loadingLabel: "Sending...",
           icon: MessageSquare,
           onClick: onShareOnWhatsApp,
           primary: true,

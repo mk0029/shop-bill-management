@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { sanitizeUserText } from "@/constants/defaults";
 import { Modal } from "@/components/ui/modal";
 import { toast } from "sonner";
+import { sendManualWhatsApp } from "@/lib/manual-whatsapp";
 
 // Import sub-components
 import HeaderSection from "./components/HeaderSection";
@@ -276,10 +277,40 @@ export default function FittingItemsListPage() {
     return message;
   };
 
-  const onShareOnWhatsApp = () => {
-    toast.info("WhatsApp sending is handled by backend event routes only.");
-    setShowShareModal(false);
-    setShowSharePopup(false);
+  const onShareOnWhatsApp = async () => {
+    const selectedCustomer = customers.find(
+      (c) => c._id === selectedCustomerId,
+    );
+    if (!selectedCustomer?._id) {
+      toast.error("Customer ID is required");
+      return;
+    }
+
+    try {
+      setIsSendingWhatsApp(true);
+      const result = await sendManualWhatsApp({
+        shareType: "customer",
+        customerId: selectedCustomer._id,
+      });
+
+      if (result.rateLimited) {
+        toast.error(result.error || "One manual WhatsApp message per customer/bill is allowed every 5 minutes");
+        return;
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || "Unable to send WhatsApp message");
+      }
+
+      toast.success("WhatsApp message sent successfully");
+      setShowShareModal(false);
+      setShowSharePopup(false);
+    } catch (e: any) {
+      const msg = e?.message || "Unable to send WhatsApp message";
+      toast.error(msg);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
   };
   const onNativeShare = () => {
     const message = formatWhatsAppMessage();
@@ -311,7 +342,6 @@ export default function FittingItemsListPage() {
   const onSharePopupShare = () => {
     setShowShareModal(true);
   };
-
   return (
     <div className="space-y-4">
       <HeaderSection onPrint={printList} onClearAll={clearAll} />
@@ -389,7 +419,8 @@ export default function FittingItemsListPage() {
         title="Share"
         actions={[
           {
-            label: "WhatsApp",
+            label: "Send WhatsApp Message",
+            loadingLabel: "Sending...",
             icon: MessageSquare,
             onClick: onShareOnWhatsApp,
             primary: true,

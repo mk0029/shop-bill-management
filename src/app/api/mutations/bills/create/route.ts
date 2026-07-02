@@ -21,6 +21,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing bill payload' }, { status: 400 })
     }
 
+    const customerId = (() => {
+      const c = (bill as any)?.customer
+      if (c && typeof c === 'object' && typeof c._ref === 'string') return c._ref
+      return ''
+    })()
+    if (customerId) {
+      const customerDoc = await sanityClient.fetch<{ role?: string } | null>(
+        `*[_type == "user" && _id == $id][0]{ role }`,
+        { id: customerId },
+      )
+      const role = String(
+        customerDoc?.role || (customerDoc as any)?.userRole || '',
+      ).toLowerCase()
+      if (role && role !== 'customer') {
+        return NextResponse.json(
+          { success: false, error: 'Bills can only be created for customer accounts.' },
+          { status: 403 },
+        )
+      }
+    }
+
     // bill is expected to already contain proper Sanity references
     const created = await sanityClient.create({
       ...(bill as any),
@@ -32,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     console.log('[BillCreate] Bill created in Sanity:', (created as any)?._id, (created as any)?.billNumber)
 
-    const customerId = (() => {
+    const createdCustomerId = (() => {
       const c = (created as any)?.customer
       if (c && typeof c === 'object' && typeof c._ref === 'string') return c._ref
       return ''

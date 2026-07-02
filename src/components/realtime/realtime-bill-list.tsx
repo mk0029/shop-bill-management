@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useBills } from "@/hooks/use-sanity-data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   CheckCircle,
   Clock,
@@ -13,6 +14,7 @@ import {
   Receipt,
   Sparkles,
 } from "lucide-react";
+import { useAuthStore } from "@/store/auth-store";
 
 interface Bill {
   locationType: string;
@@ -46,13 +48,12 @@ interface Bill {
 
 interface RealtimeBillListProps {
   initialBills: any[];
-  customerId?: string; // If provided, only show bills for this customer
+  customerId?: string;
   onBillClick?: (bill: any) => void;
   showNewBillAnimation?: boolean;
   maxItems?: number;
   searchTerm?: string;
   filterStatus?: string;
-  // Optional action handlers
   onDeleteBill?: (bill: any) => void;
   onCompleteDraft?: (bill: any) => void;
 }
@@ -68,6 +69,8 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
   onDeleteBill,
   onCompleteDraft,
 }) => {
+  const role = useAuthStore((s) => s.role);
+  const isAdmin = role === "admin" || role === "super_admin";
   // State for bills and new bill animations
   const [bills, setBills] = useState<Bill[]>([]);
   const [newBillIds, setNewBillIds] = useState<Set<string>>(new Set());
@@ -317,6 +320,9 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                           </Badge>
                         </div>
                       </div>
+                      {isAdmin && bill.paymentStatus !== "paid" && (
+                        <div className="flex items-center gap-2 mt-2 sm:mt-0" />
+                      )}
                     </div>
                   </div>
                 </CardContent>
