@@ -221,7 +221,7 @@ export default function SuperBillUpdateModal(props: {
     <Modal isOpen={isOpen} onClose={onClose} size="full" title="Update Bill">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6 max-md:space-y-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 sm:p-4">
+          <div className="bg-white/[0.04] border border-white/10 rounded-xl p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
               <div className="text-white font-medium">Optional Sections</div>
               <div className="flex flex-wrap gap-4">

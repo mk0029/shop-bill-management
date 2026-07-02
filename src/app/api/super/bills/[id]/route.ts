@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
-import { sendViaWaBotServer } from "@/lib/wa-bot-server";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { updateStockForBill } from "@/lib/inventory-management";
 
 async function resolveBillDocumentId(identifier: string): Promise<string | null> {
@@ -79,7 +79,33 @@ function calcTotals(input: {
   return { subtotal, grossTotal, netPayable, homeVisitFee, repairFee, discount };
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+
+function resolveBillPaymentEventType(input: {
+  previousPaid: number;
+  nextPaid: number;
+  grandTotal: number;
+  previousStatus?: string;
+  nextStatus?: string;
+  paymentChanged: boolean;
+}) {
+  if (!input.paymentChanged) return null;
+  const previousStatus = String(input.previousStatus || "").toLowerCase();
+  const nextStatus = String(input.nextStatus || "").toLowerCase();
+  const delta = input.nextPaid - input.previousPaid;
+  if (delta < 0) return "billing.payment.removed";
+  if (input.nextPaid <= 0) return null;
+  if (delta === 0) return previousStatus !== nextStatus ? "billing.payment.updated" : null;
+  if (input.nextPaid >= input.grandTotal) return previousStatus === "paid" ? null : "billing.payment.paid";
+  return "billing.payment.partial";
+}
+
+function emitBillPaymentWaEventInBackground(eventType: string, payload: Record<string, unknown>) {
+  void emitWaEventServer(eventType, payload).then((result) => {
+    if (!result.ok) console.warn("[WA] bill payment event failed", result.error);
+  }).catch((error) => {
+    console.error("[WA] bill payment event dispatch failed", error);
+  });
+}export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
     // Derive bill id from params or fallback to URL path as a safety net (handles trailing slashes)
     const fromParams = (params as any)?.id as string | undefined;
@@ -331,23 +357,48 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     };
 
     const updated = await sanityClient.patch(id).set(patch).commit();
-
+    // Central WhatsApp event: super payment update (fire-and-forget)
     try {
-      const phones = toPhones(prev?.customer?.phone);
-      if (phones.length) {
-        const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://jambh-ell.vercel.app").replace(/\/+$/, "");
-        const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(id))}` : "";
-        const billNo = String(prev?.billNumber || id);
-
-        const message =
-          `Your bill has been updated.\n\n` +
-          `Bill Id: ${billNo}\n` +
-          (billLink ? `\n🔐 Click below to view your updated bill safely:\n${billLink}` : "");
-
-        await sendViaWaBotServer({ phones, message });
+      const previousPaid = Number(prev?.paidAmount || 0);
+      const totalPaid = Number(paidAmount || 0);
+      const paymentChanged = previousPaid !== totalPaid || String(prev?.paymentStatus || "") !== String(paymentStatus || "") || Number(prev?.balanceAmount || 0) !== Number(nextBalance || 0);
+      const eventType = resolveBillPaymentEventType({
+        previousPaid,
+        nextPaid: totalPaid,
+        grandTotal: totals.netPayable,
+        previousStatus: prev?.paymentStatus,
+        nextStatus: paymentStatus,
+        paymentChanged,
+      });
+      if (eventType) {
+        const updatedAt = patch.updatedAt;
+        const paymentDelta = totalPaid - previousPaid;
+        const paymentId = String((body as any)?.paymentId || (body as any)?.transactionId || `super-bill-update:${id}:${Math.abs(paymentDelta) || totalPaid}:${updatedAt}`);
+        emitBillPaymentWaEventInBackground(eventType, {
+          billId: id,
+          billNumber: prev?.billNumber || id,
+          paymentId,
+          customerId: prev?.customer?._id,
+          customerName: prev?.customer?.name || "",
+          customerPhone: prev?.customer?.phone || "",
+          grandTotal: totals.netPayable,
+          totalAmount: totals.netPayable,
+          paidNow: Math.max(0, paymentDelta),
+          paidAmount: totalPaid,
+          totalPaid,
+          balance: nextBalance,
+          balanceAmount: nextBalance,
+          paymentMode: (body as any)?.paymentMode || (body as any)?.paymentMethod || "manual",
+          paymentDate: updatedAt,
+          updatedAt,
+          eventId: `${eventType}.${id}.${paymentId}`,
+          idempotencyKey: eventType === "billing.payment.updated"
+            ? `${eventType}:${id}:${paymentId}:${updatedAt}`
+            : `${eventType}:${id}:${paymentId}`,
+        });
       }
-    } catch {
-      // best-effort
+    } catch (e) {
+      console.error("[WA] bill payment event dispatch failed", e);
     }
 
     return NextResponse.json({ success: true, data: updated }, { status: 200 });
@@ -454,24 +505,20 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
     await tx.commit();
 
-    // Best-effort WhatsApp notification
+    // Central WhatsApp event: bill deleted (fire-and-forget)
     try {
-      const rawPhone = String(bill?.customer?.phone || '').trim();
-      const phones = (() => {
-        if (!rawPhone) return [] as string[];
-        if (rawPhone.startsWith('+')) return [rawPhone];
-        if (rawPhone.startsWith('0')) return [`+91${rawPhone.substring(1)}`];
-        return [`+91${rawPhone}`];
-      })();
-      if (phones.length) {
-        const billNo = String(bill?.billNumber || id);
-        const message = `Your bill ${billNo} has been deleted. If you have any questions, please contact Jambh Electrical Services.`;
-        await sendViaWaBotServer({ phones, message });
-      }
+      void emitWaEventServer("bill-deleted", {
+        billId: id,
+        billNumber: bill?.billNumber || id,
+        customerPhone: bill?.customer?.phone || "",
+        eventId: id,
+        idempotencyKey: `billDeleted:${id}`,
+      }).then((result) => {
+        if (!result.ok) console.warn("[WA] bill deleted event failed", result.error);
+      });
     } catch {
       // best-effort
     }
-
     return NextResponse.json({ success: true, message: "Bill deleted" });
   } catch (error: any) {
     console.error("API: Failed to delete bill", error);

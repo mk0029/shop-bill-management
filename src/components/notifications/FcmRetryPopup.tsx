@@ -56,7 +56,7 @@ export default function FcmRetryPopup() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-4 flex flex-col gap-3">
+    <div className="fixed bottom-4 right-4 z-50 max-w-sm bg-white/[0.08] border border-white/[0.12] rounded-[18px] shadow-[0_8px_40px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)_inset] backdrop-blur-2xl p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
           <h4 className="text-white font-medium text-sm">Finish notification setup</h4>
@@ -77,7 +77,7 @@ export default function FcmRetryPopup() {
         type="button"
         onClick={handleRetry}
         disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white text-sm font-medium py-2 px-3 rounded transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-blue-600/80 hover:bg-blue-500/90 disabled:bg-blue-800/50 text-white text-sm font-medium py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 backdrop-blur-xl border border-blue-400/20"
       >
         {loading ? (
           <>

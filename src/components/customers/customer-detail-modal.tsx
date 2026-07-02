@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal } from "@/components/ui/modal";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Button } from "@/components/ui/button";
 import { useLocaleStore } from "@/store/locale-store";
 import { formatCustomerActivity } from "@/lib/customer-utils";
@@ -134,7 +134,7 @@ export default function CustomerDetailModal({
   ];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Customer Details" size="lg">
+    <BaseGlassModal isOpen={isOpen} onClose={onClose} title="Customer Details" size="lg" mobileType="modal" zIndex={220}>
       <div className="space-y-6">
         {/* Header with gradient avatar */}
         <div className="flex items-center gap-4">
@@ -232,6 +232,6 @@ export default function CustomerDetailModal({
           )}
         </div>
       </div>
-    </Modal>
+    </BaseGlassModal>
   );
 }

@@ -108,7 +108,7 @@ export default function ServiceWorkerUpdatePrompt() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[1000] px-4 pb-4 sm:bottom-5 sm:px-6">
-      <div className="mx-auto flex max-w-xl flex-col gap-3 rounded-lg border border-slate-700 bg-slate-950 p-4 text-white shadow-2xl sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-xl flex-col gap-3 rounded-[18px] border border-white/[0.12] bg-white/[0.08] p-4 text-white shadow-[0_8px_40px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)_inset] backdrop-blur-2xl sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-semibold">App update ready</div>
           <div className="mt-1 text-xs text-slate-300">
@@ -118,7 +118,7 @@ export default function ServiceWorkerUpdatePrompt() {
         <div className="flex gap-2">
           <button
             type="button"
-            className="rounded-md border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200"
+            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white/60 hover:bg-white/[0.08] transition-all"
             onClick={() => setWaiting(null)}
           >
             Later

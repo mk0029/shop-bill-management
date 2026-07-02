@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const WA_BOT_URL = String(process.env.WA_BOT_URL || "").replace(/\/+$/, "");
-const WA_BOT_TOKEN = String(process.env.WA_BOT_TOKEN || "").trim();
+const WA_BOT_URL = String(process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || "").replace(/\/+$/, "");
+const WA_BOT_TOKEN = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || "").trim();
 
 async function proxyToBot(
   path: string,
-  options?: { method?: string; body?: string },
+  options?: { method?: string; body?: string; timeoutMs?: number },
 ) {
   if (!WA_BOT_URL || !WA_BOT_TOKEN) {
     return NextResponse.json(
@@ -25,7 +25,7 @@ async function proxyToBot(
         "x-api-key": WA_BOT_TOKEN,
       },
       body: options?.body,
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(options?.timeoutMs || 15_000),
     });
 
     const json = await res.json().catch(() => ({}));
@@ -39,7 +39,11 @@ async function proxyToBot(
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const logType = req.nextUrl.searchParams.get("logType");
+  const limit = req.nextUrl.searchParams.get("limit") || "200";
+  if (logType === "bill-payment") return proxyToBot(`/api/wa/bill-payment/logs?limit=${encodeURIComponent(limit)}`);
+  if (logType === "tool-rent") return proxyToBot(`/api/wa/tool-rent/logs?limit=${encodeURIComponent(limit)}`);
   return proxyToBot("/api/wa/status");
 }
 
@@ -62,14 +66,15 @@ export async function POST(req: NextRequest) {
         return proxyToBot("/api/wa/send-test", {
           method: "POST",
           body: JSON.stringify({ phone, message }),
+          timeoutMs: 120_000,
         });
       }
 
       case "restart-safe":
-        return proxyToBot("/api/wa/safe-restart", { method: "POST" });
+        return proxyToBot("/api/wa/safe-restart", { method: "POST", timeoutMs: 60_000 });
 
       case "force-reset":
-        return proxyToBot("/api/wa/force-reset", { method: "POST" });
+        return proxyToBot("/api/wa/force-reset", { method: "POST", timeoutMs: 60_000 });
 
       default:
         return NextResponse.json(

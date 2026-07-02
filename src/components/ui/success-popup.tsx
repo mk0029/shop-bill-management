@@ -1,15 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 import { Button } from "./button";
-import { Card } from "./card";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import {
   CheckCircle,
   Copy,
   CheckCircle2,
-  X,
   User,
   Package,
   FileText,
@@ -38,7 +36,7 @@ interface SuccessPopupProps {
   isOpen: boolean;
   onClose: () => void;
   data: SuccessPopupData;
-  autoClose?: number; // Auto close after X milliseconds
+  autoClose?: number;
 }
 
 export function SuccessPopup({
@@ -48,18 +46,10 @@ export function SuccessPopup({
   autoClose,
 }: SuccessPopupProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (isOpen && autoClose) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, autoClose);
-
+      const timer = setTimeout(() => onClose(), autoClose);
       return () => clearTimeout(timer);
     }
   }, [isOpen, autoClose, onClose]);
@@ -88,7 +78,6 @@ export function SuccessPopup({
   };
 
   const handleCreateAnother = () => {
-    // Reset form if reset function is provided
     if (data.onReset) {
       data.onReset();
     }
@@ -99,149 +88,114 @@ export function SuccessPopup({
     onClose();
   };
 
-  if (!mounted) return null;
-
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[220] flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-y-auto bg-slate-950/68 p-4 backdrop-blur-md"
+  return (
+    <BaseGlassModal isOpen={isOpen} onClose={onClose} showCloseButton={false} mobileType="modal" size="sm" zIndex={220}>
+      <div className="p-3 md:p-6">
+        {/* Close Button */}
+        <div className="flex justify-end mb-4">
+          <button
             onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
           >
-            {/* Modal */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md"
-            >
-              <Card className="bg-gray-900 border-green-500/30 border shadow-2xl">
-                <div className="p-3 md:p-6">
-                  {/* Close Button */}
-                  <div className="flex justify-end mb-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={onClose}
-                      className="hover:bg-gray-800 p-1"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
+            <div className="w-4 h-4" />
+          </button>
+        </div>
 
-                  {/* Icon and Title */}
-                  <div className="text-center mb-6">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{
-                        delay: 0.2,
-                        type: "spring",
-                        stiffness: 200,
-                      }}
-                      className="flex justify-center mb-4"
-                    >
-                      {getIcon()}
-                    </motion.div>
-
-                    <h2 className="text-xl font-bold text-green-200 mb-2">
-                      {data.title}
-                    </h2>
-
-                    <p className="text-gray-300 text-sm">{data.message}</p>
-                  </div>
-
-                  {/* Details */}
-                  {data.details && data.details.length > 0 && (
-                    <div className="space-y-3 mb-6">
-                      {data.details.map((detail, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg border border-gray-700"
-                        >
-                          <div>
-                            <p className="text-gray-400 text-xs">
-                              {detail.label}
-                            </p>
-                            <p className="text-white font-medium">
-                              {detail.value}
-                            </p>
-                          </div>
-
-                          {detail.copyable && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleCopy(detail.value, detail.label)
-                              }
-                              className="hover:bg-gray-700 p-2"
-                            >
-                              {copiedField === detail.label ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    {data.actions && data.actions.length > 0 ? (
-                      data.actions.map((action, index) => (
-                        <Button
-                          key={index}
-                          variant={action.variant || "default"}
-                          onClick={action.action}
-                          className="flex-1"
-                        >
-                          {action.label}
-                        </Button>
-                      ))
-                    ) : (
-                      <>
-                        <Button
-                          onClick={handleCreateAnother}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          Create Another
-                        </Button>
-                        <Button onClick={handleDone} className="flex-1">
-                          Done
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Auto close indicator */}
-                  {autoClose && (
-                    <div className="mt-4 text-center">
-                      <p className="text-gray-400 text-xs">
-                        This popup will close automatically in{" "}
-                        {Math.ceil(autoClose / 1000)} seconds
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </motion.div>
+        {/* Icon and Title */}
+        <div className="text-center mb-6">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{
+              delay: 0.2,
+              type: "spring",
+              stiffness: 200,
+            }}
+            className="flex justify-center mb-4"
+          >
+            {getIcon()}
           </motion.div>
-        </>
-      )}
-    </AnimatePresence>,
-    document.body,
+
+          <h2 className="text-xl font-bold text-white mb-2">
+            {data.title}
+          </h2>
+
+          <p className="text-gray-300 text-sm">{data.message}</p>
+        </div>
+
+        {/* Details */}
+        {data.details && data.details.length > 0 && (
+          <div className="space-y-3 mb-6">
+            {data.details.map((detail, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.04] border border-white/10"
+              >
+                <div>
+                  <p className="text-gray-400 text-xs">
+                    {detail.label}
+                  </p>
+                  <p className="text-white font-medium">
+                    {detail.value}
+                  </p>
+                </div>
+
+                {detail.copyable && (
+                  <button
+                    onClick={() => handleCopy(detail.value, detail.label)}
+                    className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
+                  >
+                    {copiedField === detail.label ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-white/40" />
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          {data.actions && data.actions.length > 0 ? (
+            data.actions.map((action, index) => (
+              <Button
+                key={index}
+                variant={action.variant || "default"}
+                onClick={action.action}
+                className="flex-1"
+              >
+                {action.label}
+              </Button>
+            ))
+          ) : (
+            <>
+              <Button
+                onClick={handleCreateAnother}
+                variant="outline"
+                className="flex-1"
+              >
+                Create Another
+              </Button>
+              <Button onClick={handleDone} className="flex-1">
+                Done
+              </Button>
+            </>
+          )}
+        </div>
+
+        {/* Auto close indicator */}
+        {autoClose && (
+          <div className="mt-4 text-center">
+            <p className="text-gray-400 text-xs">
+              This popup will close automatically in {Math.ceil(autoClose / 1000)} seconds
+            </p>
+          </div>
+        )}
+      </div>
+    </BaseGlassModal>
   );
 }
 
@@ -254,24 +208,10 @@ export const createCustomerSuccessPopup = (
   message: "The customer has been successfully added to your system.",
   type: "customer",
   details: [
-    {
-      label: "Customer Name",
-      value: safeUserName(customerData.name, "Customer"),
-    },
-    {
-      label: "Phone Number",
-      value: customerData.phone,
-    },
-    {
-      label: "Customer ID",
-      value: customerData.customerId,
-      copyable: true,
-    },
-    {
-      label: "Secret Key",
-      value: customerData.secretKey,
-      copyable: true,
-    },
+    { label: "Customer Name", value: safeUserName(customerData.name, "Customer") },
+    { label: "Phone Number", value: customerData.phone },
+    { label: "Customer ID", value: customerData.customerId, copyable: true },
+    { label: "Secret Key", value: customerData.secretKey, copyable: true },
   ],
   onReset,
 });
@@ -281,73 +221,26 @@ export const createProductSuccessPopup = (
   onReset?: () => void,
   isUpdate: boolean = false
 ): SuccessPopupData => {
-  // Create a product object for intelligent naming
   const productForNaming = {
-    category: {
-      name:
-        typeof productData.category === "string"
-          ? productData.category
-          : productData.category?.name,
-    },
-    brand: {
-      name:
-        typeof productData.brand === "string"
-          ? productData.brand
-          : productData.brand?.name,
-    },
+    category: { name: typeof productData.category === "string" ? productData.category : productData.category?.name },
+    brand: { name: typeof productData.brand === "string" ? productData.brand : productData.brand?.name },
     specifications: productData.specifications || {},
   };
-
-  // Generate intelligent product name
   const intelligentName = generateEnhancedProductName(productForNaming);
 
   return {
-    title: isUpdate
-      ? "Product Updated Successfully!"
-      : "Product Added Successfully!",
+    title: isUpdate ? "Product Updated Successfully!" : "Product Added Successfully!",
     message: isUpdate
       ? "The existing product has been updated with new stock and latest pricing."
       : "The product has been successfully added to your inventory.",
     type: "product",
     details: [
-      {
-        label: "Product Name",
-        value: intelligentName,
-      },
-      {
-        label: "Category",
-        value:
-          typeof productData.category === "string"
-            ? productData.category
-            : productData.category?.name || "N/A",
-      },
-      {
-        label: "Brand",
-        value:
-          typeof productData.brand === "string"
-            ? productData.brand
-            : productData.brand?.name || "N/A",
-      },
-      {
-        label: isUpdate ? "Updated Selling Price" : "Selling Price",
-        value: `₹${
-          productData.pricing?.sellingPrice || productData.sellingPrice || 0
-        }`,
-      },
-      {
-        label: isUpdate ? "Total Stock" : "Current Stock",
-        value: `${
-          productData.inventory?.currentStock || productData.currentStock || 0
-        } ${productData.pricing?.unit || productData.unit || "pcs"}`,
-      },
-      ...(isUpdate
-        ? [
-            {
-              label: "Status",
-              value: "Stock increased with latest price applied to all items",
-            },
-          ]
-        : []),
+      { label: "Product Name", value: intelligentName },
+      { label: "Category", value: typeof productData.category === "string" ? productData.category : productData.category?.name || "N/A" },
+      { label: "Brand", value: typeof productData.brand === "string" ? productData.brand : productData.brand?.name || "N/A" },
+      { label: isUpdate ? "Updated Selling Price" : "Selling Price", value: `₹${productData.pricing?.sellingPrice || productData.sellingPrice || 0}` },
+      { label: isUpdate ? "Total Stock" : "Current Stock", value: `${productData.inventory?.currentStock || productData.currentStock || 0} ${productData.pricing?.unit || productData.unit || "pcs"}` },
+      ...(isUpdate ? [{ label: "Status", value: "Stock increased with latest price applied to all items" }] : []),
     ],
     onReset,
   };
@@ -361,23 +254,10 @@ export const createBillSuccessPopup = (
   message: "The bill has been successfully generated and saved.",
   type: "bill",
   details: [
-    {
-      label: "Bill Number",
-      value: billData.billNumber,
-      copyable: true,
-    },
-    {
-      label: "Customer",
-      value: safeUserName(billData.customerName, "Customer"),
-    },
-    {
-      label: "Total Amount",
-      value: `₹${billData.totalAmount}`,
-    },
-    {
-      label: "Items",
-      value: `${billData.itemsCount} items`,
-    },
+    { label: "Bill Number", value: billData.billNumber, copyable: true },
+    { label: "Customer", value: safeUserName(billData.customerName, "Customer") },
+    { label: "Total Amount", value: `₹${billData.totalAmount}` },
+    { label: "Items", value: `${billData.itemsCount} items` },
   ],
   onReset,
 });

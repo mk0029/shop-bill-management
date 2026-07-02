@@ -6,12 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Trash2, Plus, Printer, ShoppingCart, Share, Copy } from "lucide-react";
+import { Trash2, Plus, Printer, ShoppingCart, Share, MessageSquare, Smartphone, Copy } from "lucide-react";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { useCustomers } from "@/hooks/use-sanity-data";
-import { ShareModal } from "@/components/ui/bill-detail-modal/ShareModal";
-import { sendViaWaBot } from "@/lib/wa-bot-send";
+import { CentralShareModal } from "@/components/ui/central-share-modal";
 import { AnimatePresence, motion } from "framer-motion";
 import { sanitizeUserText } from "@/constants/defaults";
 import { Modal } from "@/components/ui/modal";
@@ -278,47 +277,10 @@ export default function FittingItemsListPage() {
   };
 
   const onShareOnWhatsApp = () => {
-    const message = formatWhatsAppMessage();
-    const selectedCustomer = customers.find(
-      (c) => c._id === selectedCustomerId,
-    );
-    const phoneNumber = selectedCustomer?.phone || "";
-
-    const rawPhone = String(phoneNumber || "");
-    const phones = (() => {
-      const p = rawPhone.trim();
-      if (!p) return [] as string[];
-      if (p.startsWith("+")) return [p];
-      if (p.startsWith("0")) return [`+91${p.substring(1)}`];
-      return [`+91${p}`];
-    })();
-
-    if (!phones.length) {
-      toast.error("Customer phone number not found");
-      return;
-    }
-
-    setIsSendingWhatsApp(true);
-    sendViaWaBot({ phones, message })
-      .then((r) => {
-        if (r.ok) {
-          toast.success(
-            `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
-          );
-          setShowShareModal(false);
-          setShowSharePopup(false);
-        } else {
-          toast.error(r.error || "Failed to send WhatsApp");
-        }
-      })
-      .catch(() => {
-        toast.error("Failed to send WhatsApp");
-      })
-      .finally(() => {
-        setIsSendingWhatsApp(false);
-      });
+    toast.info("WhatsApp sending is handled by backend event routes only.");
+    setShowShareModal(false);
+    setShowSharePopup(false);
   };
-
   const onNativeShare = () => {
     const message = formatWhatsAppMessage();
 
@@ -421,13 +383,29 @@ export default function FittingItemsListPage() {
         onShareClick={onSharePopupShare}
       />
 
-      <ShareModal
-        showShareModal={showShareModal}
-        setShowShareModal={setShowShareModal}
-        onShareOnWhatsApp={onShareOnWhatsApp}
-        onNativeShare={onNativeShare}
-        onCopyToClipboard={onCopyToClipboard}
-        isSending={isSendingWhatsApp}
+      <CentralShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title="Share"
+        actions={[
+          {
+            label: "WhatsApp",
+            icon: MessageSquare,
+            onClick: onShareOnWhatsApp,
+            primary: true,
+            loading: isSendingWhatsApp,
+          },
+          {
+            label: "Native Share",
+            icon: Smartphone,
+            onClick: onNativeShare,
+          },
+          {
+            label: "Copy to Clipboard",
+            icon: Copy,
+            onClick: onCopyToClipboard,
+          },
+        ]}
       />
     </div>
   );

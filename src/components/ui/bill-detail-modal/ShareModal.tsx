@@ -1,8 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { AnimatePresence, motion } from "framer-motion";
 import { MessageSquare, Smartphone, Copy } from "lucide-react";
+import { CentralShareModal } from "@/components/ui/central-share-modal";
 
 interface ShareModalProps {
   showShareModal: boolean;
@@ -13,88 +12,41 @@ interface ShareModalProps {
   isSending?: boolean;
 }
 
-export const ShareModal = ({
+export function ShareModal({
   showShareModal,
   setShowShareModal,
   onShareOnWhatsApp,
   onNativeShare,
   onCopyToClipboard,
   isSending,
-}: ShareModalProps) => {
+}: ShareModalProps) {
   return (
-    <AnimatePresence>
-      {showShareModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => {
-            if (isSending) return;
-            setShowShareModal(false);
-          }}
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ type: "spring", duration: 0.2 }}
-            className="bg-gray-800 rounded-lg p-6 max-w-sm w-full border border-gray-700"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-white mb-4">Share To</h3>
-            <div className="space-y-3">
-              <Button
-                onClick={onShareOnWhatsApp}
-                disabled={!!isSending}
-                className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-3"
-              >
-                {isSending ? (
-                  <span
-                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <MessageSquare className="w-5 h-5" />
-                )}
-                {isSending ? "Sending..." : "WhatsApp"}
-              </Button>
-
-              <Button
-                onClick={onNativeShare}
-                disabled={!!isSending}
-                variant="outline"
-                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
-              >
-                <Smartphone className="w-5 h-5" />
-                Native Share
-              </Button>
-
-              <Button
-                onClick={onCopyToClipboard}
-                disabled={!!isSending}
-                variant="outline"
-                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-3"
-              >
-                <Copy className="w-5 h-5" />
-                Or Copy to Clipboard
-              </Button>
-
-              <Button
-                onClick={() => {
-                  if (isSending) return;
-                  setShowShareModal(false);
-                }}
-                disabled={!!isSending}
-                variant="outline"
-                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <CentralShareModal
+      isOpen={showShareModal}
+      onClose={() => setShowShareModal(false)}
+      title="Share Bill"
+      actions={[
+        {
+          label: "WhatsApp",
+          icon: MessageSquare,
+          onClick: onShareOnWhatsApp,
+          primary: true,
+          disabled: isSending,
+          loading: isSending,
+        },
+        {
+          label: "Native Share",
+          icon: Smartphone,
+          onClick: onNativeShare,
+          disabled: isSending,
+        },
+        {
+          label: "Copy to Clipboard",
+          icon: Copy,
+          onClick: onCopyToClipboard,
+          disabled: isSending,
+        },
+      ]}
+    />
   );
-};
+}

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
-import { formatApproachTime, formatDayDate, formatDayDateTime, formatRelativeDayDateTime } from "@/lib/date-time";
+import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent } from "@/lib/shop-chat/server-events";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -20,28 +21,6 @@ function isAllowedDueTime(input: string) {
   }).formatToParts(d).find((part) => part.type === "hour")?.value;
   const hour = Number(hourText);
   return Number.isFinite(hour) && hour >= 7;
-}
-
-async function sendViaWaBotServer(phone: string, message: string) {
-  const WA_BOT_URL = process.env.WA_BOT_URL;
-  const WA_BOT_TOKEN = process.env.WA_BOT_TOKEN;
-  const waBotBaseUrl = (WA_BOT_URL || "").replace(/\/+$/, "");
-  if (!waBotBaseUrl || !WA_BOT_TOKEN) {
-    throw new Error("WhatsApp bot config missing (WA_BOT_URL/WA_BOT_TOKEN)");
-  }
-
-  const res = await fetch(`${waBotBaseUrl}/send-message`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": WA_BOT_TOKEN,
-    },
-    body: JSON.stringify({ phone, message }),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || !json?.ok) {
-    throw new Error(json?.error || `WhatsApp send failed (${res.status})`);
-  }
 }
 
 async function notifyWorkTaskEvent(args: {
@@ -80,25 +59,17 @@ async function sendTechnicianTaskAssigned(args: {
   taskTitle: string;
   dueAt: string;
   priority?: string;
+  taskId?: string;
 }) {
-  const phone = String(args.technicianPhone || "").trim();
-  if (!phone) return;
-  const safeTechnicianName =
-    sanitizeUserText(String(args.technicianName || "")).trim() || "Technician";
-  const msg = `? New Work Assigned
-
-Hello ${safeTechnicianName},
-
-You have a new task assigned.
-
-Task: ${args.taskTitle}
-Priority: ${String(args.priority || "medium").toUpperCase()}
-Due: ${formatRelativeDayDateTime(args.dueAt)}
-
-Please check Work List in app and update status on time.
-
-Jambh Electrical Services`;
-  await sendViaWaBotServer(phone, msg);
+  await emitWaEventServer("workTask.created", {
+    taskId: args.taskId || "",
+    title: args.taskTitle,
+    assignedTechnicianName: args.technicianName || "Technician",
+    technicianPhone: args.technicianPhone || "",
+    dueAt: args.dueAt,
+    priority: args.priority || "medium",
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -256,22 +227,7 @@ export async function POST(req: NextRequest) {
           },
           skipActor: true,
         });
-        if (!customer?.phone) return;
-        const requestDate = formatDayDate(now);
-        const approachTime = formatApproachTime(dueAt, now);
-        const msg = `? Service Request Registered
-
-Dear ${safeCustomerName},
-
-Your request for *${title}* has been registered successfully.
-
-??? Assigned Technician: ${safeTechnicianName}
-?? Request Date: ${requestDate}
-
-We will approach approximately by *${approachTime}* for inspection/service.
-
-Thank you for trusting Jambh Electrical Services ?`;
-        await sendViaWaBotServer(String(customer.phone), msg);
+        await emitWaEventServer("workTask.created", { taskId: String(created?._id || ""), customerId: String(body.customerRefId), customerName: safeCustomerName, customerPhone: String(customer?.phone || ""), title, description: String(body?.description || "").trim(), status: String(doc.status || "pending"), priority: String(doc.priority || "medium"), dueAt, assignedTechnicianName: safeTechnicianName, technicianPhone: String(tech?.phone || ""), updatedAt: now, idempotencyKey: `workTask.created:${String(created?._id || "")}` });
       })(),
     );
   }
@@ -293,6 +249,7 @@ Thank you for trusting Jambh Electrical Services ?`;
       taskTitle: title,
       dueAt,
       priority: String(body?.priority || "medium"),
+      taskId: String(created?._id || ""),
     }),
   );
 
@@ -304,4 +261,3 @@ Thank you for trusting Jambh Electrical Services ?`;
   ]);
   return NextResponse.json({ success: true, data: created });
 }
-

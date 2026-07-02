@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { notificationService } from "@/lib/notification-service";
-import { sendViaWaBotServer } from "@/lib/wa-bot-server";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { getServerAuth } from "@/lib/server-auth";
 import { updateStockForBill } from "@/lib/inventory-management";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
@@ -26,7 +26,33 @@ async function getRemainingBillReferences(billId: string): Promise<Array<{ _id: 
   );
 }
 
-export async function PATCH(
+
+function resolveBillPaymentEventType(input: {
+  previousPaid: number;
+  nextPaid: number;
+  grandTotal: number;
+  previousStatus?: string;
+  nextStatus?: string;
+  paymentChanged: boolean;
+}) {
+  if (!input.paymentChanged) return null;
+  const previousStatus = String(input.previousStatus || "").toLowerCase();
+  const nextStatus = String(input.nextStatus || "").toLowerCase();
+  const delta = input.nextPaid - input.previousPaid;
+  if (delta < 0) return "billing.payment.removed";
+  if (input.nextPaid <= 0) return null;
+  if (delta === 0) return previousStatus !== nextStatus ? "billing.payment.updated" : null;
+  if (input.nextPaid >= input.grandTotal) return previousStatus === "paid" ? null : "billing.payment.paid";
+  return "billing.payment.partial";
+}
+
+function emitBillPaymentWaEventInBackground(eventType: string, payload: Record<string, unknown>) {
+  void emitWaEventServer(eventType, payload).then((result) => {
+    if (!result.ok) console.warn("[WA] bill payment event failed", result.error);
+  }).catch((error) => {
+    console.error("[WA] bill payment event dispatch failed", error);
+  });
+}export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
@@ -36,6 +62,13 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    if (auth.role !== "admin" && auth.role !== "super_admin" && auth.role !== "technician") {
+      return NextResponse.json(
+        { success: false, error: "Forbidden: Only admin can update bills" },
+        { status: 403 }
       );
     }
 
@@ -104,8 +137,8 @@ export async function PATCH(
 
     const body = await req.json().catch(() => ({}));
 
-    // Super Admin can send broader updates, but this endpoint is also used by normal admins.
-    // For safety, block any attempts by non-super-admin to mutate fields outside the admin-safe list.
+    // Admins can update payment fields + bill edit fields (items, charges, etc.)
+    // Only truly dangerous fields (customer ref, createdBy, billId) remain super_admin-only.
     const adminSafeKeys = new Set([
       "paymentStatus",
       "paidAmount",
@@ -114,6 +147,19 @@ export async function PATCH(
       "notes",
       "internalNotes",
       "discount",
+      "items",
+      "homeVisitFee",
+      "transportationFee",
+      "repairFee",
+      "repairCharges",
+      "serviceType",
+      "locationType",
+      "subtotal",
+      "totalAmount",
+      "taxAmount",
+      "dueDate",
+      "priority",
+      "technician",
     ]);
     const requestedKeys = Object.keys(body || {});
     const hasUnsafeKeys = requestedKeys.some((k) => !adminSafeKeys.has(k));
@@ -132,6 +178,19 @@ export async function PATCH(
       "notes",
       "internalNotes",
       "discount",
+      "items",
+      "homeVisitFee",
+      "transportationFee",
+      "repairFee",
+      "repairCharges",
+      "serviceType",
+      "locationType",
+      "subtotal",
+      "totalAmount",
+      "taxAmount",
+      "dueDate",
+      "priority",
+      "technician",
     ]);
     const updates: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(body || {})) {
@@ -145,95 +204,64 @@ export async function PATCH(
     const updated = await sanityClient.patch(id).set(updates).commit();
     console.log(`updateBill->commit: ${Date.now() - startTime} ms`);
 
-    // WhatsApp via WA bot: payment updates (best-effort)
+    // Central WhatsApp event: payment updates (fire-and-forget)
     try {
       const nextPayStatus = (updates as any)?.paymentStatus;
-      const nextPaid = (updates as any)?.paidAmount;
-      const nextBal = (updates as any)?.balanceAmount;
-
-      const payChanged = typeof nextPayStatus !== 'undefined' && String(prev?.paymentStatus ?? '') !== String(nextPayStatus ?? '');
-      const paidChanged = typeof nextPaid !== 'undefined' && Number(prev?.paidAmount ?? 0) !== Number(nextPaid ?? 0);
-      const balChanged = typeof nextBal !== 'undefined' && Number(prev?.balanceAmount ?? 0) !== Number(nextBal ?? 0);
-
-      // Only send WA payment templates when payment related fields change
+      const nextPaidRaw = (updates as any)?.paidAmount;
+      const nextBalRaw = (updates as any)?.balanceAmount;
+      const payChanged = typeof nextPayStatus !== "undefined" && String(prev?.paymentStatus ?? "") !== String(nextPayStatus ?? "");
+      const paidChanged = typeof nextPaidRaw !== "undefined" && Number(prev?.paidAmount ?? 0) !== Number(nextPaidRaw ?? 0);
+      const balChanged = typeof nextBalRaw !== "undefined" && Number(prev?.balanceAmount ?? 0) !== Number(nextBalRaw ?? 0);
       if (payChanged || paidChanged || balChanged) {
-        const bill = await (async () => {
-          try {
-            return await sanityClient.fetch(
-              `*[_type == "bill" && _id == $id][0]{
-                _id,
-                billNumber,
-                paymentStatus,
-                totalAmount,
-                discount,
-                paidAmount,
-                balanceAmount,
-                serviceType,
-                technician->{name},
-                customer->{phone}
-              }`,
-              { id },
-            )
-          } catch {
-            return null
-          }
-        })()
-
-        const rawPhone = String(bill?.customer?.phone || prev?.customer?.phone || '').trim();
-        const phones = (() => {
-          const p = rawPhone;
-          if (!p) return [] as string[];
-          if (p.startsWith('+')) return [p];
-          if (p.startsWith('0')) return [`+91${p.substring(1)}`];
-          return [`+91${p}`];
-        })();
-
-        const effectivePayStatus = String(bill?.paymentStatus || nextPayStatus || prev?.paymentStatus || '').trim();
-        const isPaid = effectivePayStatus === 'paid';
-        const isPartial = effectivePayStatus === 'partial';
-
-        // Only send for partial/paid
-        if ((isPaid || isPartial) && phones.length) {
-          const gross = Number(bill?.totalAmount ?? prev?.totalAmount ?? 0);
-          const discount = Number(bill?.discount ?? prev?.discount ?? 0);
-          const total = Math.max(0, gross - discount);
-          const paid = Number(bill?.paidAmount ?? nextPaid ?? prev?.paidAmount ?? 0);
-          const balance = Number(bill?.balanceAmount ?? nextBal ?? prev?.balanceAmount ?? Math.max(0, total - paid));
-
-          const billNo = String(bill?.billNumber || prev?.billNumber || id);
-          const techName = safeUserName(bill?.technician?.name || prev?.technician?.name, "");
-          const svc = String(bill?.serviceType || prev?.serviceType || '').replace(/_/g, ' ').trim();
-
-          const siteUrl =
-            (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://jambh-ell.vercel.app').replace(/\/+$/, '');
-          const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(id))}` : '';
-
-          const header = isPaid
-            ? '✅ Payment Successful — Bill Fully Paid'
-            : '✅ Payment Received — Bill is Partial'
-
-          const message =
-            `${header}\n\n` +
-            `Bill ID: ${billNo}\n` +
-            (techName ? `Technician: ${techName}\n` : '') +
-            (svc ? `Service: ${svc}\n` : '') +
-            `\nPricing Summary:\n` +
-            `• Total: ₹${gross.toFixed(2)}\n` +
-            (discount > 0 ? `• Discount: ₹${discount.toFixed(2)}\n` : '') +
-            `• Paid: ₹${paid.toFixed(2)}\n` +
-            `• Balance: ₹${Math.max(0, balance).toFixed(2)}\n\n` +
-            `Payment Status: ${isPaid ? 'PAID' : 'PARTIAL'}\n\n` +
-            `Thank you for your payment! 🙏  \n` +
-            `Your bill has been successfully settled.\n\n` +
-            (billLink ? `🔐 Your secure receipt is ready. Click below to view it safely:\n${billLink}` : '')
-
-          await sendViaWaBotServer({ phones, message });
+        const bill = await sanityClient.fetch(
+          `*[_type == "bill" && _id == $id][0]{_id,billNumber,paymentStatus,totalAmount,discount,paidAmount,balanceAmount,paymentMethod,paymentDate,customer->{_id,name,phone}}`,
+          { id }
+        );
+        const gross = Number(bill?.totalAmount ?? prev?.totalAmount ?? 0);
+        const discount = Number(bill?.discount ?? prev?.discount ?? 0);
+        const grandTotal = Math.max(0, gross - discount);
+        const previousPaid = Number(prev?.paidAmount || 0);
+        const totalPaid = Number(bill?.paidAmount ?? nextPaidRaw ?? previousPaid);
+        const balance = Number(bill?.balanceAmount ?? nextBalRaw ?? Math.max(0, grandTotal - totalPaid));
+        const eventType = resolveBillPaymentEventType({
+          previousPaid,
+          nextPaid: totalPaid,
+          grandTotal,
+          previousStatus: prev?.paymentStatus,
+          nextStatus: bill?.paymentStatus || nextPayStatus,
+          paymentChanged: payChanged || paidChanged || balChanged,
+        });
+        if (eventType) {
+          const updatedAt = String((updates as any).updatedAt || new Date().toISOString());
+          const paymentDelta = totalPaid - previousPaid;
+          const paymentId = String((body as any)?.paymentId || (body as any)?.transactionId || `bill-update:${id}:${Math.abs(paymentDelta) || totalPaid}:${updatedAt}`);
+          emitBillPaymentWaEventInBackground(eventType, {
+            billId: id,
+            billNumber: bill?.billNumber || prev?.billNumber || id,
+            paymentId,
+            customerId: bill?.customer?._id || prev?.customer?._id,
+            customerName: bill?.customer?.name || prev?.customer?.name || "",
+            customerPhone: bill?.customer?.phone || prev?.customer?.phone || "",
+            grandTotal,
+            totalAmount: grandTotal,
+            paidNow: Math.max(0, paymentDelta),
+            paidAmount: totalPaid,
+            totalPaid,
+            balance,
+            balanceAmount: balance,
+            paymentMode: (body as any)?.paymentMode || (body as any)?.paymentMethod || bill?.paymentMethod || "manual",
+            paymentDate: bill?.paymentDate || updatedAt,
+            updatedAt,
+            eventId: `${eventType}.${id}.${paymentId}`,
+            idempotencyKey: eventType === "billing.payment.updated"
+              ? `${eventType}:${id}:${paymentId}:${updatedAt}`
+              : `${eventType}:${id}:${paymentId}`,
+          });
         }
       }
     } catch (e) {
-      console.error('[WA] bill_payment_update send failed', e)
+      console.error("[WA] bill payment event dispatch failed", e);
     }
-
     // Unified notification: bill status/payment update.
     try {
       const actorUserId = String(auth.userId || req.headers.get('x-user-id') || '').trim()
@@ -319,7 +347,7 @@ export async function PATCH(
           const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, billNumber, paidAmount, customer->{_id, name} }`, { id });
           
           if (bill && bill.customer) {
-            console.log('💰 Creating cash book entry for bill payment via API:', { billId: id, amount: paymentDelta, prevPaid, nextPaid });
+            console.log('Ã°Å¸â€™Â° Creating cash book entry for bill payment via API:', { billId: id, amount: paymentDelta, prevPaid, nextPaid });
             
             const result = await sanityApiService.cashBook.createEntryFromBillPayment({
               billId: id,
@@ -330,7 +358,7 @@ export async function PATCH(
             });
             
             if (result.success) {
-              console.log('✅ Cash book entry created via bill API');
+              console.log('Ã¢Å“â€¦ Cash book entry created via bill API');
 
               // Unified notification: cashbook entry (admins except actor)
               try {
@@ -345,7 +373,7 @@ export async function PATCH(
                       route: '/admin/cash-book/history',
                       extra: {
                         title: 'Cashbook entry',
-                        body: `Payment received • ₹${Number(paymentDelta)}`,
+                        body: `Payment received Ã¢â‚¬Â¢ Ã¢â€šÂ¹${Number(paymentDelta)}`,
                       },
                     },
                   })
@@ -354,11 +382,11 @@ export async function PATCH(
                 console.error('[Notify] cashbook_entry emit failed', notifyErr)
               }
             } else {
-              console.error('❌ Failed to create cash book entry via bill API:', result.error);
+              console.error('Ã¢ÂÅ’ Failed to create cash book entry via bill API:', result.error);
             }
           }
         } catch (cashBookError) {
-          console.error('❌ Error creating cash book entry in bill API:', cashBookError);
+          console.error('Ã¢ÂÅ’ Error creating cash book entry in bill API:', cashBookError);
           // Don't fail the bill update if cash book entry fails
         }
       })(); // Execute async function without awaiting
@@ -472,24 +500,20 @@ export async function DELETE(
 
     await tx.commit();
 
-    // Best-effort WhatsApp notification
+    // Central WhatsApp event: bill deleted (fire-and-forget)
     try {
-      const rawPhone = String(bill?.customer?.phone || '').trim();
-      const phones = (() => {
-        if (!rawPhone) return [] as string[];
-        if (rawPhone.startsWith('+')) return [rawPhone];
-        if (rawPhone.startsWith('0')) return [`+91${rawPhone.substring(1)}`];
-        return [`+91${rawPhone}`];
-      })();
-      if (phones.length) {
-        const billNo = String(bill?.billNumber || id);
-        const message = `Bill ${billNo} has been deleted. If you have any questions, please contact Jambh Electrical Services.`;
-        await sendViaWaBotServer({ phones, message });
-      }
+      void emitWaEventServer("bill-deleted", {
+        billId: id,
+        billNumber: bill?.billNumber || id,
+        customerPhone: bill?.customer?.phone || "",
+        eventId: id,
+        idempotencyKey: `billDeleted:${id}`,
+      }).then((result) => {
+        if (!result.ok) console.warn("[WA] bill deleted event failed", result.error);
+      });
     } catch {
       // best-effort
     }
-
     return NextResponse.json({ success: true, message: "Bill deleted" });
   } catch (error: any) {
     console.error("API: Failed to delete bill", error);

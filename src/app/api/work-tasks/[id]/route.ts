@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
-import { formatDayDateTime, formatRelativeDayDateTime, formatApproachTime } from "@/lib/date-time";
+import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent, type WorkTaskShopChatEventInput } from "@/lib/shop-chat/server-events";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -20,28 +21,6 @@ function isAllowedDueTime(input: string) {
   }).formatToParts(d).find((part) => part.type === "hour")?.value;
   const hour = Number(hourText);
   return Number.isFinite(hour) && hour >= 7;
-}
-
-async function sendViaWaBotServer(phone: string, message: string) {
-  const WA_BOT_URL = process.env.WA_BOT_URL;
-  const WA_BOT_TOKEN = process.env.WA_BOT_TOKEN;
-  const waBotBaseUrl = (WA_BOT_URL || "").replace(/\/+$/, "");
-  if (!waBotBaseUrl || !WA_BOT_TOKEN) {
-    throw new Error("WhatsApp bot config missing (WA_BOT_URL/WA_BOT_TOKEN)");
-  }
-
-  const res = await fetch(`${waBotBaseUrl}/send-message`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": WA_BOT_TOKEN,
-    },
-    body: JSON.stringify({ phone, message }),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || !json?.ok) {
-    throw new Error(json?.error || `WhatsApp send failed (${res.status})`);
-  }
 }
 
 async function notify(
@@ -81,75 +60,46 @@ async function sendCustomerWorkUpdate(args: {
   technicianName: string;
   type: "completed" | "cancelled" | "deleted" | "back_in_progress" | "hold";
   holdReason?: string;
+  taskId?: string;
+  status?: string;
+  updatedAt?: string;
 }) {
   if (!args.customerRefId) return;
-  const customer = await sanityClient.fetch<any>(
-    `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
-    { id: args.customerRefId },
-  );
-  if (!customer?.phone) return;
-
-  let message = "";
-  const customerName =
-    sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
-  const safeTechnicianName =
-    sanitizeUserText(String(args.technicianName || "")).trim() || "Technician";
-  if (args.type === "completed") {
-    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been completed successfully.\n\nAssigned Technician: ${safeTechnicianName}\n\nThank you for trusting Jambh Electrical Services.`;
-  } else if (args.type === "cancelled") {
-    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been marked as cancelled.\n\nAssigned Technician: ${safeTechnicianName}\n\nFor help, please contact Jambh Electrical Services.`;
-  } else if (args.type === "back_in_progress") {
-    message = `⚡ Service Status Updated\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been moved back to *In Progress* status.\n\n🛠️ Technician: ${safeTechnicianName}\n\nOur team is continuing the work/checking process and will update you once the service is completed.\n\nThank you for your patience and support.\n\n📞 Jambh Electrical Services`;
-  } else if (args.type === "hold") {
-    message = `⏸️ Service Temporarily On Hold\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* is currently placed on *Hold* status.\n\nReason: ${args.holdReason || "Temporarily paused"}\n\n🛠️ Technician: ${safeTechnicianName}\n\nOur team will resume the work as soon as possible and keep you updated.\n\nThank you for your understanding.\n\n📞 Jambh Electrical Services`;
-  } else {
-    message = `Service Update\n\nDear ${customerName},\n\nYour service request for *${args.taskTitle}* has been closed by admin.\n\nAssigned Technician: ${safeTechnicianName}\n\nFor help, please contact Jambh Electrical Services.`;
-  }
-  await sendViaWaBotServer(String(customer.phone), message);
+  const customer = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,phone}`, { id: args.customerRefId });
+  const mappedEvent = args.type === "completed" ? "workTask.completed" : args.type === "cancelled" || args.type === "deleted" ? "workTask.cancelled" : "workTask.updated";
+  await emitWaEventServer(mappedEvent, {
+    taskId: args.taskId || "",
+    customerId: args.customerRefId,
+    customerName: sanitizeUserText(String(customer?.name || "")).trim() || "Customer",
+    customerPhone: String(customer?.phone || ""),
+    title: args.taskTitle,
+    assignedTechnicianName: args.technicianName,
+    status: args.status || args.type,
+    holdReason: args.holdReason || "",
+    updatedAt: args.updatedAt || new Date().toISOString(),
+  });
 }
 
 async function sendCustomerDueTimeUpdate(args: {
   customerRefId?: string;
   previousDueAt?: string;
   nextDueAt?: string;
+  taskId?: string;
+  taskTitle?: string;
 }) {
   if (!args.customerRefId || !args.previousDueAt || !args.nextDueAt) return;
-  const customer = await sanityClient.fetch<any>(
-    `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
-    { id: args.customerRefId },
-  );
-  if (!customer?.phone) return;
-
-  const customerName =
-    sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
-  const prevTs = new Date(args.previousDueAt).getTime();
-  const nextTs = new Date(args.nextDueAt).getTime();
-  if (!Number.isFinite(prevTs) || !Number.isFinite(nextTs) || prevTs === nextTs)
-    return;
-
-  const formattedDue = formatApproachTime(args.nextDueAt);
-  const isDelayed = nextTs > prevTs;
-  const message = isDelayed
-    ? `✅ Service Time Update
-
-Dear ${customerName}
-
-We sincerely apologize for the delay in schedule.
-
-We will now approach approximately by ${formattedDue} for inspection/service.
-
-Thank you for your patience and for trusting Jambh Electrical Services ⚡`
-    : `✅ Service Request Update
-
-Dear ${customerName}
-
-Good news — our team may reach earlier than the expected time.
-
-We will try to approach before ${formattedDue} for inspection/service.
-
-Thank you for trusting Jambh Electrical Services ⚡`;
-
-  await sendViaWaBotServer(String(customer.phone), message);
+  const customer = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,phone}`, { id: args.customerRefId });
+  await emitWaEventServer("workTask.updated", {
+    taskId: args.taskId || "",
+    customerId: args.customerRefId,
+    customerName: sanitizeUserText(String(customer?.name || "")).trim() || "Customer",
+    customerPhone: String(customer?.phone || ""),
+    title: args.taskTitle || "Work task",
+    dueAt: args.nextDueAt,
+    previousDueAt: args.previousDueAt,
+    status: "due_changed",
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 async function sendTechnicianTaskAssigned(args: {
@@ -157,30 +107,21 @@ async function sendTechnicianTaskAssigned(args: {
   taskTitle: string;
   dueAt?: string;
   priority?: string;
+  taskId?: string;
 }) {
   const technicianId = String(args.technicianId || "").trim();
   if (!technicianId) return;
-  const tech = await sanityClient.fetch<any>(
-    `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
-    { id: technicianId },
-  );
-  if (!tech?.phone) return;
-  const safeTechnicianName =
-    sanitizeUserText(String(tech?.name || "")).trim() || "Technician";
-  const msg = `✅ Task Assignment Updated
-
-Hello ${safeTechnicianName},
-
-A task has been assigned to you.
-
-Task: ${args.taskTitle}
-Priority: ${String(args.priority || "medium").toUpperCase()}
-Due: ${args.dueAt ? formatRelativeDayDateTime(args.dueAt) : "-"}
-
-Please check Work List in app and continue updates.
-
-Jambh Electrical Services`;
-  await sendViaWaBotServer(String(tech.phone), msg);
+  const tech = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,phone}`, { id: technicianId });
+  await emitWaEventServer("workTask.updated", {
+    taskId: args.taskId || "",
+    title: args.taskTitle,
+    assignedTechnicianName: sanitizeUserText(String(tech?.name || "")).trim() || "Technician",
+    technicianPhone: String(tech?.phone || ""),
+    dueAt: args.dueAt || "",
+    priority: args.priority || "medium",
+    status: "assigned",
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -311,6 +252,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         taskTitle: updated?.title || existing?.title || "Work",
         technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
         type: "completed",
+        taskId: id,
+        status: "completed",
+        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
       });
     } catch {
       // Do not fail completion if WhatsApp message fails
@@ -323,6 +267,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         taskTitle: updated?.title || existing?.title || "Work",
         technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
         type: "cancelled",
+        taskId: id,
+        status: "cancelled",
+        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
       });
     } catch {
       // Do not fail cancellation if WhatsApp message fails
@@ -335,6 +282,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         taskTitle: updated?.title || existing?.title || "Work",
         technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
         type: "hold",
+        taskId: id,
+        status: "hold",
+        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
         holdReason: String(updated?.holdReason || patch.holdReason || ""),
       });
     } catch {}
@@ -349,6 +299,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         taskTitle: updated?.title || existing?.title || "Work",
         technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
         type: "back_in_progress",
+        taskId: id,
+        status: "in-progress",
+        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
       });
     } catch {}
   }
@@ -467,6 +420,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       taskTitle: existing?.title || "Work",
       technicianName: sanitizeUserText(String(existing?.assignedTechnicianName || existing?.assignedTechnician?.name || "")).trim() || "Technician",
       type: "deleted",
+      taskId: id,
+      status: "deleted",
+      updatedAt: now,
     });
   } catch {
     // Do not fail delete if WhatsApp message fails

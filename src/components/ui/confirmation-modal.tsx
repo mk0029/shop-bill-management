@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Modal } from "./modal";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Button } from "./button";
 import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
 
@@ -14,8 +14,8 @@ interface ConfirmationModalProps {
   type?: "confirm" | "alert" | "success" | "error";
   confirmText?: string;
   cancelText?: string;
-  content?: React.ReactNode; // optional rich content area
-  size?: "sm" | "md" | "lg" | "xl" | "full"; // forwarded to Modal
+  content?: React.ReactNode;
+  size?: "sm" | "md" | "lg" | "xl" | "full";
 }
 
 export function ConfirmationModal({
@@ -37,28 +37,24 @@ export function ConfirmationModal({
     switch (type) {
       case "alert":
       case "confirm":
-        return (
-          <AlertTriangle className=" h-6 w-6 sm:w-8 sm:h-8  text-yellow-500" />
-        );
+        return <AlertTriangle className="h-6 w-6 sm:w-8 sm:h-8 text-yellow-500" />;
       case "success":
-        return (
-          <CheckCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-green-500" />
-        );
+        return <CheckCircle className="h-6 w-6 sm:w-8 sm:h-8 text-green-500" />;
       case "error":
-        return <XCircle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-500" />;
+        return <XCircle className="h-6 w-6 sm:w-8 sm:h-8 text-red-500" />;
       default:
-        return <Info className=" h-6 w-6 sm:w-8 sm:h-8  text-blue-500" />;
+        return <Info className="h-6 w-6 sm:w-8 sm:h-8 text-blue-500" />;
     }
   };
 
   const getButtonVariant = () => {
     switch (type) {
       case "success":
-        return "default";
+        return "default" as const;
       case "error":
-        return "destructive";
+        return "destructive" as const;
       default:
-        return "default";
+        return "default" as const;
     }
   };
 
@@ -83,8 +79,8 @@ export function ConfirmationModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size={size} title="">
-      <div className="text-center space-y-4">
+    <BaseGlassModal isOpen={isOpen} onClose={handleClose} size={size} showCloseButton={false} mobileType="modal">
+      <div className="text-center space-y-4 p-4">
         <div className="flex justify-center">{getIcon()}</div>
 
         <div>
@@ -93,7 +89,7 @@ export function ConfirmationModal({
         </div>
 
         {content && (
-          <div className="text-left bg-gray-900/50 border border-gray-800 rounded-md p-3">
+          <div className="text-left bg-white/[0.04] border border-white/10 rounded-xl p-4">
             {content}
           </div>
         )}
@@ -119,6 +115,6 @@ export function ConfirmationModal({
           </Button>
         </div>
       </div>
-    </Modal>
+    </BaseGlassModal>
   );
 }

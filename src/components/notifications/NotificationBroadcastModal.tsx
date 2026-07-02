@@ -242,48 +242,13 @@ export default function NotificationBroadcastModal({
         }
       }
 
-      // Send WhatsApp messages if enabled or if audience is whatsapp
+      // WhatsApp delivery is intentionally centralized in the backend wa-t event service.
       let whatsappSent = 0;
       let whatsappFailed = 0;
-      if (
-        (sendWhatsApp && selectedPhones.length > 0) ||
-        audience === "whatsapp"
-      ) {
-        try {
-          const phones = selectedPhones.map((phone) => {
-            if (!phone.startsWith("+")) {
-              return phone.startsWith("0")
-                ? `+91${phone.substring(1)}`
-                : `+91${phone}`;
-            }
-            return phone;
-          });
-
-          const message =
-            whatsappMessage ||
-            `${title.trim()}\n\n${body.trim()}${link.trim() ? `\n\n${link.trim()}` : ""}`;
-
-          const waRes = await fetch("/api/whatsapp/send-bulk", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ phones, message }),
-          });
-
-          const waJson = await waRes.json().catch(() => ({}));
-          if (waRes.ok && waJson.ok) {
-            whatsappSent = Number(waJson.sent || 0);
-            whatsappFailed = Number(waJson.failed || 0);
-          } else {
-            whatsappFailed = selectedPhones.length;
-          }
-        } catch (error) {
-          console.error("WhatsApp send error:", error);
-          whatsappFailed = selectedPhones.length;
-        }
+      if ((sendWhatsApp && selectedPhones.length > 0) || audience === "whatsapp") {
+        whatsappFailed = selectedPhones.length;
+        console.warn("[Notifications] WhatsApp broadcast skipped: backend event route required");
       }
-
       const totalMessages = totalSent + whatsappSent;
       const totalFailures = totalFailed + whatsappFailed;
 

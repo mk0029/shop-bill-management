@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Modal } from "@/components/ui/modal";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Package, Trash2, X, RefreshCw } from "lucide-react";
 import { Product } from "@/store/inventory-store";
@@ -76,8 +76,8 @@ export function DeleteConfirmation({
   const canDelete = references?.canDelete ?? true;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="md" title="">
-      <div className="space-y-6 max-md:space-y-4">
+    <BaseGlassModal isOpen={isOpen} onClose={onClose} size="md" title="" mobileType="modal" zIndex={220} showCloseButton={false}>
+      <div className="p-4 space-y-6 max-md:space-y-4">
         {/* Header */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-red-600/20 rounded-lg flex items-center justify-center">
@@ -308,7 +308,7 @@ export function DeleteConfirmation({
           </p>
         </div>
       </div>
-    </Modal>
+    </BaseGlassModal>
   );
 }
 
@@ -331,8 +331,8 @@ export function QuickDeleteConfirmation({
   isDeleting: boolean;
 }) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm" title="Confirm Deletion">
-      <div className="space-y-4">
+    <BaseGlassModal isOpen={isOpen} onClose={onClose} size="sm" title="" mobileType="modal" zIndex={220} showCloseButton={false}>
+      <div className="p-4 space-y-4">
         <div className="flex items-center gap-3">
           <AlertTriangle className=" h-6 w-6 sm:w-8 sm:h-8  text-red-400" />
           <div>
@@ -383,6 +383,6 @@ export function QuickDeleteConfirmation({
           </Button>
         </div>
       </div>
-    </Modal>
+    </BaseGlassModal>
   );
 }

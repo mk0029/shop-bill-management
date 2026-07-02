@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 import { Button } from "./button";
-import { Card } from "./card";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import {
   CheckCircle,
   XCircle,
@@ -12,7 +11,6 @@ import {
   Info,
   Copy,
   CheckCircle2,
-  X,
 } from "lucide-react";
 
 export interface ConfirmationData {
@@ -38,7 +36,7 @@ interface ConfirmationPopupProps {
   isOpen: boolean;
   onClose: () => void;
   data: ConfirmationData;
-  autoClose?: number; // Auto close after X milliseconds
+  autoClose?: number;
 }
 
 export function ConfirmationPopup({
@@ -48,18 +46,10 @@ export function ConfirmationPopup({
   autoClose,
 }: ConfirmationPopupProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (isOpen && autoClose) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, autoClose);
-
+      const timer = setTimeout(() => onClose(), autoClose);
       return () => clearTimeout(timer);
     }
   }, [isOpen, autoClose, onClose]);
@@ -89,180 +79,112 @@ export function ConfirmationPopup({
     }
   };
 
-  const getColorClasses = () => {
-    switch (data.type) {
-      case "success":
-        return {
-          border: "border-green-500/30",
-          bg: "bg-gray-900",
-          text: "text-green-200",
-        };
-      case "error":
-        return {
-          border: "border-red-500/30",
-          bg: "bg-gray-900",
-          text: "text-red-200",
-        };
-      case "warning":
-        return {
-          border: "border-yellow-500/30",
-          bg: "bg-gray-900",
-          text: "text-yellow-200",
-        };
-      case "info":
-        return {
-          border: "border-blue-500/30",
-          bg: "bg-gray-900",
-          text: "text-blue-200",
-        };
-      default:
-        return {
-          border: "border-gray-500/30",
-          bg: "bg-gray-900",
-          text: "text-gray-200",
-        };
-    }
-  };
+  return (
+    <BaseGlassModal isOpen={isOpen} onClose={onClose} showCloseButton={false} mobileType="modal" size="sm" zIndex={220}>
+      <div className="p-3 md:p-6">
+        {/* Close Button */}
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-white/40 hover:text-white/70"
+          >
+            <div className="w-4 h-4" />
+          </button>
+        </div>
 
-  const colorClasses = getColorClasses();
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
+        {/* Icon and Title */}
+        <div className="text-center mb-6">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[220] flex h-[var(--app-vh,100dvh)] items-center justify-center overflow-y-auto bg-slate-950/68 p-4 backdrop-blur-md"
-            onClick={onClose}>
-            {/* Modal */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md">
-              <Card
-                className={`${colorClasses.bg} ${colorClasses.border} border shadow-2xl`}>
-                <div className="p-3 md:p-6">
-                  {/* Close Button */}
-                  <div className="flex justify-end mb-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={onClose}
-                      className="hover:bg-gray-800 p-1">
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  {/* Icon and Title */}
-                  <div className="text-center mb-6">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{
-                        delay: 0.2,
-                        type: "spring",
-                        stiffness: 200,
-                      }}
-                      className="flex justify-center mb-4">
-                      {getIcon()}
-                    </motion.div>
-
-                    <h2
-                      className={`text-xl font-bold ${colorClasses.text} mb-2`}>
-                      {data.title}
-                    </h2>
-
-                    <p className="text-gray-300 text-sm">{data.message}</p>
-                  </div>
-
-                  {/* Details */}
-                  {data.details && data.details.length > 0 && (
-                    <div className="space-y-3 mb-6">
-                      {data.details.map((detail, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
-                          <div>
-                            <p className="text-gray-400 text-xs">
-                              {detail.label}
-                            </p>
-                            <p className="text-white font-medium">
-                              {detail.value}
-                            </p>
-                          </div>
-
-                          {detail.copyable && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleCopy(detail.value, detail.label)
-                              }
-                              className="hover:bg-gray-700 p-2">
-                              {copiedField === detail.label ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    {data.actions && data.actions.length > 0 ? (
-                      data.actions.map((action, index) => (
-                        <Button
-                          key={index}
-                          variant={action.variant || "default"}
-                          onClick={action.action}
-                          disabled={action.disabled}
-                          className="flex-1 flex items-center justify-center gap-2">
-                          {action.loading && (
-                            <span className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
-                          )}
-                          {action.label}
-                        </Button>
-                      ))
-                    ) : (
-                      <Button
-                        onClick={onClose}
-                        className="w-full"
-                        variant={
-                          data.type === "error" ? "destructive" : "default"
-                        }>
-                        {data.type === "success" ? "Great!" : "OK"}
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Auto close indicator */}
-                  {autoClose && (
-                    <div className="mt-4 text-center">
-                      <p className="text-gray-400 text-xs">
-                        This popup will close automatically in{" "}
-                        {Math.ceil(autoClose / 1000)} seconds
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </motion.div>
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{
+              delay: 0.2,
+              type: "spring",
+              stiffness: 200,
+            }}
+            className="flex justify-center mb-4"
+          >
+            {getIcon()}
           </motion.div>
-        </>
-      )}
-    </AnimatePresence>,
-    document.body,
+
+          <h2 className="text-xl font-bold text-white mb-2">
+            {data.title}
+          </h2>
+
+          <p className="text-gray-300 text-sm">{data.message}</p>
+        </div>
+
+        {/* Details */}
+        {data.details && data.details.length > 0 && (
+          <div className="space-y-3 mb-6">
+            {data.details.map((detail, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 rounded-xl bg-white/[0.04] border border-white/10"
+              >
+                <div>
+                  <p className="text-gray-400 text-xs">
+                    {detail.label}
+                  </p>
+                  <p className="text-white font-medium">
+                    {detail.value}
+                  </p>
+                </div>
+
+                {detail.copyable && (
+                  <button
+                    onClick={() => handleCopy(detail.value, detail.label)}
+                    className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
+                  >
+                    {copiedField === detail.label ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-white/40" />
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          {data.actions && data.actions.length > 0 ? (
+            data.actions.map((action, index) => (
+              <Button
+                key={index}
+                variant={action.variant || "default"}
+                onClick={action.action}
+                disabled={action.disabled}
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                {action.loading && (
+                  <span className="w-4 h-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+                )}
+                {action.label}
+              </Button>
+            ))
+          ) : (
+            <Button
+              onClick={onClose}
+              className="w-full"
+              variant={data.type === "error" ? "destructive" : "default"}
+            >
+              {data.type === "success" ? "Great!" : "OK"}
+            </Button>
+          )}
+        </div>
+
+        {/* Auto close indicator */}
+        {autoClose && (
+          <div className="mt-4 text-center">
+            <p className="text-gray-400 text-xs">
+              This popup will close automatically in {Math.ceil(autoClose / 1000)} seconds
+            </p>
+          </div>
+        )}
+      </div>
+    </BaseGlassModal>
   );
 }

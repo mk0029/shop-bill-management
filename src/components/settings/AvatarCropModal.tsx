@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 
 type AvatarCropModalProps = {
   open: boolean;
@@ -58,49 +59,6 @@ export default function AvatarCropModal({ open, imageSrc, onClose, onConfirm }: 
     img.src = imageSrc;
   }, [imageSrc, open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const canvas = canvasRef.current;
-    const img = imgRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !img || !ctx) return;
-    ctx.clearRect(0, 0, FRAME, FRAME);
-    ctx.fillStyle = "#020617";
-    ctx.fillRect(0, 0, FRAME, FRAME);
-    ctx.drawImage(img, cropPx.sx, cropPx.sy, cropPx.sw, cropPx.sh, 0, 0, FRAME, FRAME);
-  }, [cropPx, imgSize, open]);
-
-  if (!open || !imageSrc) return null;
-
-  const startDrag = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
-    dragRef.current = { x: event.clientX, y: event.clientY, cx: centerX, cy: centerY };
-  };
-
-  const moveDrag = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!dragging || !dragRef.current) return;
-    const dx = event.clientX - dragRef.current.x;
-    const dy = event.clientY - dragRef.current.y;
-    setCenterX(clamp(dragRef.current.cx - (dx / FRAME) * (cropPx.sw / imgSize.w), 0, 1));
-    setCenterY(clamp(dragRef.current.cy - (dy / FRAME) * (cropPx.sh / imgSize.h), 0, 1));
-  };
-
-  const endDrag = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    setDragging(false);
-    dragRef.current = null;
-  };
-
   const handleConfirm = async () => {
     const img = imgRef.current;
     if (!img) return;
@@ -122,57 +80,76 @@ export default function AvatarCropModal({ open, imageSrc, onClose, onConfirm }: 
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <button type="button" aria-label="Close cropper" className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-slate-100 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+    <BaseGlassModal isOpen={open} onClose={onClose} showCloseButton={false} mobileType="modal" size="md" zIndex={80}>
+      {/* Ambient glass highlight */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-[60px] bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
+
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3 bg-white/[0.02]">
+        <div>
+          <div className="text-sm font-semibold text-white/90">Crop Profile Photo</div>
+          <div className="mt-0.5 text-xs text-white/40">HD square output, drag to position</div>
+        </div>
+        <button type="button" onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.12] transition-all text-white/40 hover:text-white/80">
+          <X size={14} />
+        </button>
+      </div>
+
+      <div className="space-y-4 p-4">
+        <canvas
+          ref={canvasRef}
+          width={FRAME}
+          height={FRAME}
+          className="mx-auto h-[min(320px,78vw)] w-[min(320px,78vw)] cursor-grab rounded-2xl bg-black/80 ring-1 ring-white/10 active:cursor-grabbing"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setDragging(true);
+            dragRef.current = { x: e.clientX, y: e.clientY, cx: centerX, cy: centerY };
+          }}
+          onPointerMove={(e) => {
+            if (!dragging || !dragRef.current) return;
+            const dx = e.clientX - dragRef.current.x;
+            const dy = e.clientY - dragRef.current.y;
+            setCenterX(clamp(dragRef.current.cx - (dx / FRAME) * (cropPx.sw / imgSize.w), 0, 1));
+            setCenterY(clamp(dragRef.current.cy - (dy / FRAME) * (cropPx.sh / imgSize.h), 0, 1));
+          }}
+          onPointerUp={(e) => {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+            setDragging(false);
+            dragRef.current = null;
+          }}
+          onPointerCancel={(e) => {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+            setDragging(false);
+            dragRef.current = null;
+          }}
+        />
+        <div className="space-y-3">
           <div>
-            <div className="text-sm font-semibold">Crop Profile Photo</div>
-            <div className="mt-0.5 text-xs text-slate-500">HD square output, drag to position</div>
+            <label className="mb-1 block text-xs text-white/50">Zoom</label>
+            <input type="range" min={MIN_ZOOM} max={MAX_ZOOM} step={0.01} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="w-full accent-emerald-500" />
+            <div className="mt-1 text-right text-[11px] text-white/30">{zoom.toFixed(2)}x</div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1.5 text-slate-300 hover:bg-slate-800 hover:text-white">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="space-y-4 p-4">
-          <canvas
-            ref={canvasRef}
-            width={FRAME}
-            height={FRAME}
-            className="mx-auto h-[min(320px,78vw)] w-[min(320px,78vw)] cursor-grab rounded-2xl bg-black ring-1 ring-slate-700 active:cursor-grabbing"
-            onPointerDown={startDrag}
-            onPointerMove={moveDrag}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-          />
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">Zoom</label>
-              <input type="range" min={MIN_ZOOM} max={MAX_ZOOM} step={0.01} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="w-full accent-emerald-500" />
-              <div className="mt-1 text-right text-[11px] text-slate-500">{zoom.toFixed(2)}x</div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">Horizontal Position</label>
-              <input type="range" min={0} max={1} step={0.001} value={centerX} onChange={(event) => setCenterX(Number(event.target.value))} className="w-full accent-emerald-500" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-300">Vertical Position</label>
-              <input type="range" min={0} max={1} step={0.001} value={centerY} onChange={(event) => setCenterY(Number(event.target.value))} className="w-full accent-emerald-500" />
-            </div>
+          <div>
+            <label className="mb-1 block text-xs text-white/50">Horizontal Position</label>
+            <input type="range" min={0} max={1} step={0.001} value={centerX} onChange={(event) => setCenterX(Number(event.target.value))} className="w-full accent-emerald-500" />
           </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-4 py-3">
-          <button type="button" onClick={onClose} className="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800">
-            Cancel
-          </button>
-          <button type="button" disabled={saving} onClick={handleConfirm} className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-500 disabled:opacity-60">
-            <Check size={15} />
-            {saving ? "Saving..." : "Use Photo"}
-          </button>
+          <div>
+            <label className="mb-1 block text-xs text-white/50">Vertical Position</label>
+            <input type="range" min={0} max={1} step={0.001} value={centerY} onChange={(event) => setCenterY(Number(event.target.value))} className="w-full accent-emerald-500" />
+          </div>
         </div>
       </div>
-    </div>
+
+      <div className="flex items-center justify-end gap-2 border-t border-white/[0.08] px-4 py-3 bg-white/[0.02]">
+        <button type="button" onClick={onClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/60 hover:bg-white/[0.08] transition-all">
+          Cancel
+        </button>
+        <button type="button" disabled={saving} onClick={handleConfirm} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600/80 px-3 py-2 text-sm text-white hover:bg-emerald-500/90 disabled:opacity-60 backdrop-blur-xl border border-emerald-400/20 transition-all">
+          <Check size={15} />
+          {saving ? "Saving..." : "Use Photo"}
+        </button>
+      </div>
+    </BaseGlassModal>
   );
 }

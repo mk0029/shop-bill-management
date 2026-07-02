@@ -35,10 +35,12 @@ export default function OfflineStatusOverlay() {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/70" />
-      <div className="relative z-[71] w-full max-w-sm mx-auto rounded-lg border border-gray-800 bg-gray-900 p-6 shadow-xl text-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+      <div className="relative z-[71] w-full max-w-sm mx-auto rounded-[22px] border border-white/[0.12] bg-white/[0.08] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)_inset,0_1px_0_rgba(255,255,255,0.1)_inset] backdrop-blur-2xl text-center">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-[50px] bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none rounded-t-[22px]" />
         <div className="mb-3">
-          <div className="mx-auto mb-2 w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
+          <div className="mx-auto mb-2 w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
             <WifiOff className="w-6 h-6 text-red-400" />
           </div>
           <h3 className="text-lg font-semibold">You are Offline</h3>

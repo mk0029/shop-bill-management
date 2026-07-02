@@ -9,10 +9,7 @@ import { CustomerBillStats } from "@/components/customer/customer-bill-stats";
 import { BillItem } from "@/components/customer/bill-item";
 import { BillFilters } from "@/components/customer/bill-filters";
 import { BillDetailsModal } from "@/components/customer/bill-details-modal";
-import {
-  formatCurrency,
-  getStatusColor,
-} from "@/components/customer/bill-utils";
+
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { sanitizeUserText } from "@/constants/defaults";
 import { useBills } from "@/hooks/use-sanity-data";
@@ -78,25 +75,26 @@ export default function CustomerBillsClient() {
     setShowBillModal(true);
   }, []);
 
+  const cleanQueryParams = useCallback(() => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    const had = nextParams.has("open") || nextParams.has("billId") || nextParams.has("modal");
+    if (!had) return;
+    nextParams.delete("open");
+    nextParams.delete("billId");
+    nextParams.delete("modal");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
   const closeBillModal = useCallback(() => {
     setShowBillModal(false);
-    if (!searchParams.has("open")) return;
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete("open");
-    const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
-
-  const cleanOpenQuery = useCallback(() => {
-    if (!searchParams.has("open")) return;
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete("open");
-    const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams]);
+    cleanQueryParams();
+  }, [cleanQueryParams]);
 
   useEffect(() => {
-    const openBillId = searchParams.get("open");
+    const openBillId = searchParams.get("open") || searchParams.get("billId");
+    const modalParam = searchParams.get("modal");
+    if (modalParam && modalParam !== "billDetails") return;
     if (!openBillId || isLoading || !customerBills.length) return;
     const bill = customerBills.find((item: any) => String(item._id || item.id || item.billId) === openBillId);
     if (bill) {
@@ -104,9 +102,9 @@ export default function CustomerBillsClient() {
         consumedOpenRef.current = openBillId;
         viewBillDetails(bill);
       }
-      cleanOpenQuery();
+      cleanQueryParams();
     }
-  }, [cleanOpenQuery, customerBills, isLoading, searchParams, viewBillDetails]);
+  }, [cleanQueryParams, customerBills, isLoading, searchParams, viewBillDetails]);
 
   return (
     <div
@@ -181,8 +179,6 @@ export default function CustomerBillsClient() {
         isOpen={showBillModal}
         onClose={closeBillModal}
         selectedBill={selectedBill}
-        formatCurrency={formatCurrency}
-        getStatusColor={getStatusColor}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
-import { sendViaWaBotServer } from '@/lib/wa-bot-server'
+import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { getActiveAdminUserIds, createAndDispatchNotification } from '@/services/notifications/notification-events.server'
 import { safeUserName } from '@/lib/display-text'
 import {
@@ -38,43 +38,30 @@ export async function POST(req: NextRequest) {
       return ''
     })()
 
-    // Fire-and-forget WhatsApp + notifications (non-blocking)
+    // Fire-and-forget WhatsApp event (non-blocking)
     void (async () => {
       try {
-        if (customerId) {
-          const user = await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(
-            `*[_type=="user" && _id==$id][0]{ phone, name }`,
-            { id: String(customerId) }
-          )
-          const rawPhone = String(user?.phone || '').trim()
-          const phones = (() => {
-            const p = rawPhone
-            if (!p) return [] as string[]
-            const digits = p.replace(/[^0-9+]/g, '')
-            if (!digits) return [] as string[]
-            if (digits.startsWith('+')) return [digits]
-            if (digits.startsWith('0')) return [`+91${digits.substring(1)}`]
-            return [`+91${digits}`]
-          })()
-
-          const billNo = String((created as any)?.billNumber || '').trim()
-          const amount = Number((created as any)?.totalAmount || 0)
-          const payStatus = String((created as any)?.paymentStatus || (created as any)?.status || 'pending')
-          const message = `Bill ${billNo || String((created as any)?._id || '')} created. Amount: ₹${amount}. Status: ${payStatus}`
-
-          if (phones.length) {
-            console.log('[WA] Sending bill WhatsApp (API route) to phones:', phones)
-            const waResult = await sendViaWaBotServer({ phones, message })
-            console.log('[WA] Bill WhatsApp result:', waResult.ok ? 'OK' : 'FAILED', `sent=${waResult.sent} failed=${waResult.failed}`, waResult.error || '')
-          } else {
-            console.warn('[WA] No phones resolved for customer:', customerId, 'raw phone:', rawPhone)
-          }
-        }
+        const user = customerId
+          ? await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(`*[_type=="user" && _id==$id][0]{ phone, name }`, { id: String(customerId) })
+          : null
+        await emitWaEventServer('billing.created', {
+          billId: String((created as any)?._id || ''),
+          billNumber: String((created as any)?.billNumber || ''),
+          customerId,
+          customerName: safeUserName(user?.name, 'Customer'),
+          customerPhone: String(user?.phone || ''),
+          totalAmount: Number((created as any)?.totalAmount || 0),
+          paidAmount: Number((created as any)?.paidAmount || 0),
+          balanceAmount: Number((created as any)?.balanceAmount || 0),
+          paymentStatus: String((created as any)?.paymentStatus || 'pending'),
+          dueDate: (created as any)?.dueDate,
+          updatedAt: (created as any)?.updatedAt || new Date().toISOString(),
+          idempotencyKey: `billing.created:${String((created as any)?._id || '')}`,
+        })
       } catch (e) {
-        console.error('[WA] bill_created send failed', e)
+        console.error('[WA] billing.created event failed', e)
       }
     })()
-
     // Emit realtime event through Sanity's listen system
     try {
       await sanityClient.patch(String((created as any)._id)).set({ updatedAt: new Date().toISOString() }).commit()

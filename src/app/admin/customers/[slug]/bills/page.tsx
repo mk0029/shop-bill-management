@@ -3,10 +3,9 @@
 
 import { RealtimeBillList } from "@/components/realtime/realtime-bill-list";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
-import { ShareModal } from "@/components/ui/bill-detail-modal/ShareModal";
+import { CentralShareModal } from "@/components/ui/central-share-modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { Modal } from "@/components/ui/modal";
-import { sendViaWaBot } from "@/lib/wa-bot-send";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,9 @@ import {
   ArrowLeft,
   FileText,
   MessageCircle,
+  MessageSquare,
+  Smartphone,
+  Copy,
   Search,
   Share2,
 } from "lucide-react";
@@ -433,50 +435,9 @@ export default function CustomerBillsPage() {
     };
   };
   const handleShareOnWhatsApp = () => {
-    const pendingData = getPendingBillsShareData();
-    const message =
-      shareMode === "pending"
-        ? generatePendingBillsMessage(pendingData)
-        : generateThankYouMessage({
-            name: customer?.name || "Customer",
-            phone: customer?.phone || "",
-            secretKey: customer?.secretKey || "",
-          });
-
-    const rawPhone = String(customer?.phone || "");
-    const phones = (() => {
-      const p = rawPhone.trim();
-      if (!p) return [] as string[];
-      if (p.startsWith("+")) return [p];
-      if (p.startsWith("0")) return [`+91${p.substring(1)}`];
-      return [`+91${p}`];
-    })();
-
-    if (!phones.length) {
-      toast.error("Customer phone number not found");
-      return;
-    }
-
-    setIsSendingWhatsApp(true);
-    sendViaWaBot({ phones, message })
-      .then((r) => {
-        if (r.ok) {
-          toast.success(
-            `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
-          );
-          setShowShareModal(false);
-        } else {
-          toast.error(r.error || "Failed to send WhatsApp");
-        }
-      })
-      .catch(() => {
-        toast.error("Failed to send WhatsApp");
-      })
-      .finally(() => {
-        setIsSendingWhatsApp(false);
-      });
+    toast.info("WhatsApp reminders are sent by backend bill events/reminder jobs.");
+    setShowShareModal(false);
   };
-
   const handleNativeShare = () => {
     const pendingData = getPendingBillsShareData();
     const message =
@@ -494,7 +455,7 @@ export default function CustomerBillsPage() {
         setShowShareModal(false);
       }
     } catch {
-      handleShareOnWhatsApp();
+      toast.info("WhatsApp reminders are sent by backend bill events/reminder jobs.");
     }
   };
 
@@ -864,13 +825,29 @@ export default function CustomerBillsPage() {
       />
 
       {/* Share Modal */}
-      <ShareModal
-        showShareModal={showShareModal}
-        setShowShareModal={setShowShareModal}
-        onShareOnWhatsApp={handleShareOnWhatsApp}
-        onNativeShare={handleNativeShare}
-        onCopyToClipboard={handleCopyToClipboard}
-        isSending={isSendingWhatsApp}
+      <CentralShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title="Share"
+        actions={[
+          {
+            label: "WhatsApp",
+            icon: MessageSquare,
+            onClick: handleShareOnWhatsApp,
+            primary: true,
+            loading: isSendingWhatsApp,
+          },
+          {
+            label: "Native Share",
+            icon: Smartphone,
+            onClick: handleNativeShare,
+          },
+          {
+            label: "Copy to Clipboard",
+            icon: Copy,
+            onClick: handleCopyToClipboard,
+          },
+        ]}
       />
 
       <ConfirmationModal

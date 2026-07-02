@@ -14,12 +14,12 @@ type NotificationResult = {
   code?: string
 }
 
-function normalizeWaBotBaseUrl(raw?: string): string {
+function normalizeBackendBaseUrl(raw?: string): string {
   return String(raw || '').replace(/\/+$/, '')
 }
 
 let idempotencyCache = new Map<string, number>()
-const IDEMPOTENCY_TTL = 86_400_000 // 24h
+const IDEMPOTENCY_TTL = 86_400_000
 const MAX_CACHE_SIZE = 10_000
 
 function checkIdempotency(key: string): boolean {
@@ -29,13 +29,11 @@ function checkIdempotency(key: string): boolean {
     if (now - ts < IDEMPOTENCY_TTL) return true
     idempotencyCache.delete(key)
   }
-
   if (idempotencyCache.size >= MAX_CACHE_SIZE) {
     const entries = [...idempotencyCache.entries()]
     const toDelete = entries.slice(0, entries.length - MAX_CACHE_SIZE)
     for (const [k] of toDelete) idempotencyCache.delete(k)
   }
-
   idempotencyCache.set(key, now)
   return false
 }
@@ -45,82 +43,42 @@ function generateIdempotencyKey(input: NotificationInput): string {
   return `${input.eventType}:${entityId}:${input.phone || 'none'}`
 }
 
-/**
- * Unified function that all backend events use to send WhatsApp messages.
- *
- * Supported event types:
- * - bill_created
- * - customer_created
- * - work_request_created
- * - work_request_updated
- * - repair_request
- * - tool_rent
- * - admin_broadcast
- * - welcome_message
- * - customer_due_reminder
- * - bill_overdue_reminder
- * - tool_rental_overdue
- * - work_task_reminder
- * - test_send
- */
-export async function sendWhatsAppNotification(
-  input: NotificationInput,
-): Promise<NotificationResult> {
+export async function sendWhatsAppNotification(input: NotificationInput): Promise<NotificationResult> {
   try {
-    // 1. Validate input
-    if (!input.eventType) {
-      return { ok: false, error: 'eventType is required' }
-    }
-    if (!input.message) {
-      return { ok: false, error: 'message is required' }
-    }
-    if (!input.phone && !input.customerId) {
-      return { ok: false, error: 'phone or customerId is required' }
-    }
+    if (!input.eventType) return { ok: false, error: 'eventType is required' }
+    if (!input.message) return { ok: false, error: 'message is required' }
+    if (!input.phone && !input.customerId) return { ok: false, error: 'phone or customerId is required' }
 
-    // 2. Check if WA bot is enabled
     const enabled = String(process.env.AUTO_WA_BILL_EVENTS || '').trim()
-    if (enabled && enabled !== '1' && enabled.toLowerCase() !== 'true') {
-      return { ok: false, error: 'AUTO_WA_BILL_EVENTS disabled' }
-    }
+    if (enabled && enabled !== '1' && enabled.toLowerCase() !== 'true') return { ok: false, error: 'AUTO_WA_BILL_EVENTS disabled' }
 
-    // 3. Resolve URL/token
-    const WA_BOT_URL = normalizeWaBotBaseUrl(process.env.WA_BOT_URL)
-    const WA_BOT_TOKEN = String(process.env.WA_BOT_TOKEN || '').trim()
-    if (!WA_BOT_URL || !WA_BOT_TOKEN) {
-      return { ok: false, error: 'Missing WA_BOT_URL/WA_BOT_TOKEN' }
-    }
+    const backendUrl = normalizeBackendBaseUrl(process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL)
+    const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
+    if (!backendUrl || !secret) return { ok: false, error: 'Missing central WhatsApp backend config' }
 
-    // 4. Duplicate protection
     const idempotencyKey = generateIdempotencyKey(input)
-    if (checkIdempotency(idempotencyKey)) {
-      return { ok: true, skipped: true, reason: 'duplicate' }
-    }
+    if (checkIdempotency(idempotencyKey)) return { ok: true, skipped: true, reason: 'duplicate' }
 
-    // 5. Send via WA bot
-    const res = await fetch(`${WA_BOT_URL}/send-notification`, {
+    const res = await fetch(`${backendUrl}/api/wa/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': WA_BOT_TOKEN,
+        authorization: `Bearer ${secret}`,
       },
       body: JSON.stringify({
-        eventType: input.eventType,
-        phone: input.phone || '',
-        customerId: input.customerId || '',
+        to: input.phone || '',
         message: input.message,
+        eventType: input.eventType,
+        eventId: idempotencyKey,
+        idempotencyKey,
         metadata: input.metadata || {},
       }),
     })
-
     const json = await res.json().catch(() => ({} as any))
-
-    if (!res.ok || !json?.ok) {
-      // Clear idempotency so retry can happen
+    if (!res.ok || !(json?.success || json?.ok || json?.queued)) {
       idempotencyCache.delete(idempotencyKey)
-      return { ok: false, error: json?.error || `${res.status} ${res.statusText}` }
+      return { ok: false, error: json?.error || json?.message || `${res.status} ${res.statusText}` }
     }
-
     return { ok: true, skipped: json.skipped, reason: json.reason }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -128,21 +86,11 @@ export async function sendWhatsAppNotification(
   }
 }
 
-/**
- * Sends to multiple phones using the unified notification function.
- */
-export async function sendBulkWhatsAppNotification(
-  inputs: NotificationInput[],
-): Promise<{ ok: boolean; sent: number; failed: number; results: NotificationResult[] }> {
+export async function sendBulkWhatsAppNotification(inputs: NotificationInput[]): Promise<{ ok: boolean; sent: number; failed: number; results: NotificationResult[] }> {
   const results: NotificationResult[] = []
-
-  for (const input of inputs) {
-    const r = await sendWhatsAppNotification(input)
-    results.push(r)
-  }
-
+  for (const input of inputs) results.push(await sendWhatsAppNotification(input))
   const sent = results.filter((r) => r.ok).length
   const failed = results.length - sent
-
   return { ok: true, sent, failed, results }
 }
+

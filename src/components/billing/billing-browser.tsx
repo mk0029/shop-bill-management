@@ -1,7 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useRef, useState, ReactNode, useCallback } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +71,9 @@ export function BillingBrowser({
       : defaultFilterStatus && defaultFilterStatus !== "all"
         ? [defaultFilterStatus]
         : [],
+  );
+  const [groupBy, setGroupBy] = useState<"day" | "week" | "month" | "none">(
+    "none",
   );
 
   // All initial data load and realtime setup is handled globally in `DataProvider`
@@ -416,6 +426,117 @@ export function BillingBrowser({
     });
   }, [groupedBills, searchTerm]);
 
+  // Time separator utilities
+  const getLatestBillDate = (group: any): Date => {
+    const bills = group.bills || [];
+    let latest = 0;
+    for (const b of bills) {
+      const d = new Date(b.createdAt || b.serviceDate || 0).getTime();
+      if (d > latest) latest = d;
+    }
+    return new Date(latest);
+  };
+
+  const getDayLabel = (date: Date): string => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    if (d.getTime() === today.getTime()) return "Today";
+    if (d.getTime() === yesterday.getTime()) return "Yesterday";
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getWeekLabel = (date: Date): string => {
+    const now = new Date();
+    const startOfWeek = (d: Date) => {
+      const s = new Date(d);
+      s.setDate(s.getDate() - s.getDay());
+      s.setHours(0, 0, 0, 0);
+      return s;
+    };
+    const endOfWeek = (d: Date) => {
+      const e = new Date(d);
+      e.setDate(e.getDate() + (6 - e.getDay()));
+      e.setHours(23, 59, 59, 999);
+      return e;
+    };
+    const thisWeekStart = startOfWeek(now);
+    const thisWeekEnd = endOfWeek(now);
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekEnd);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 7);
+    if (date >= thisWeekStart && date <= thisWeekEnd) return "This Week";
+    if (date >= lastWeekStart && date <= lastWeekEnd) return "Last Week";
+    const ws = startOfWeek(date);
+    const we = endOfWeek(date);
+    const fmt = (d: Date) =>
+      d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    return `${fmt(ws)} – ${fmt(we)} ${date.getFullYear()}`;
+  };
+
+  const getMonthLabel = (date: Date): string => {
+    const now = new Date();
+    if (
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    )
+      return "This Month";
+    const lastMonth = new Date(now);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    if (
+      date.getMonth() === lastMonth.getMonth() &&
+      date.getFullYear() === lastMonth.getFullYear()
+    )
+      return "Last Month";
+    return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  };
+
+  const getTimeKey = (date: Date, mode: string): string => {
+    if (mode === "day")
+      return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    if (mode === "week") {
+      const s = new Date(date);
+      s.setDate(s.getDate() - s.getDay());
+      return `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}`;
+    }
+    if (mode === "month") return `${date.getFullYear()}-${date.getMonth()}`;
+    return "";
+  };
+
+  const getTimeLabel = (date: Date, mode: string): string => {
+    if (mode === "day") return getDayLabel(date);
+    if (mode === "week") return getWeekLabel(date);
+    if (mode === "month") return getMonthLabel(date);
+    return "";
+  };
+
+  // Group visible groups by time period
+  const groupedByTime = useMemo(() => {
+    if (groupBy === "none") return [{ label: null, groups: visibleGroups }];
+
+    const map = new Map<
+      string,
+      { label: string; groups: any[]; sortKey: number }
+    >();
+    for (const group of visibleGroups) {
+      const date = getLatestBillDate(group);
+      const key = getTimeKey(date, groupBy);
+      const label = getTimeLabel(date, groupBy);
+      if (!map.has(key)) {
+        map.set(key, { label, groups: [], sortKey: date.getTime() });
+      }
+      map.get(key)!.groups.push(group);
+    }
+    return Array.from(map.values()).sort((a, b) => b.sortKey - a.sortKey);
+  }, [visibleGroups, groupBy]);
+
   const filterOptionsAll = [
     { value: "all", label: "All Bills" },
     { value: "paid", label: "Paid" },
@@ -524,14 +645,34 @@ export function BillingBrowser({
 
       {/* Bills List - grouped by customer */}
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
             <Users className="w-5 h-5" />
             All Bills
           </h2>
-          <span className="text-xs text-gray-500 ml-1">
-            {visibleGroups.length} cust · {initialForList.length} bill
-          </span>
+          <div className="flex justify-between items-center gap-3">
+            <span className="text-xs text-gray-500">
+              {visibleGroups.length} cust · {initialForList.length} bill
+            </span>
+            <div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-0.5">
+              {(["day", "week", "month", "none"] as const).map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setGroupBy(opt)}
+                  className={`px-2.5 py-1 text-[10px] sm:text-[11px] rounded-full font-medium transition-all ${
+                    groupBy === opt
+                      ? "bg-white/10 text-white shadow-sm"
+                      : "text-white/40 hover:text-white/60"
+                  }`}
+                >
+                  {opt === "none"
+                    ? "None"
+                    : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {visibleGroups.length === 0 ? (
@@ -545,16 +686,33 @@ export function BillingBrowser({
             </CardContent>
           </Card>
         ) : (
-          visibleGroups.map((group) => (
-            <CustomerBillGroup
-              key={group.id}
-              group={group}
-              open={openGroupId === group.id}
-              onToggle={() =>
-                setOpenGroupId(openGroupId === group.id ? null : group.id)
-              }
-              onBillClick={(bill) => handleViewBill(buildSelectedBill(bill))}
-            />
+          groupedByTime.map((section, si) => (
+            <div key={section.label || `all-${si}`}>
+              {section.label && (
+                <div className="my-3 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-white/10" />
+                  <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-white/55 backdrop-blur-xl">
+                    {section.label}
+                  </span>
+                  <div className="h-px flex-1 bg-white/10" />
+                </div>
+              )}
+              <div className="space-y-3">
+                {section.groups.map((group) => (
+                  <CustomerBillGroup
+                    key={group.id}
+                    group={group}
+                    open={openGroupId === group.id}
+                    onToggle={() =>
+                      setOpenGroupId(openGroupId === group.id ? null : group.id)
+                    }
+                    onBillClick={(bill) =>
+                      handleViewBill(buildSelectedBill(bill))
+                    }
+                  />
+                ))}
+              </div>
+            </div>
           ))
         )}
       </div>
@@ -588,6 +746,12 @@ export function BillingBrowser({
         bill={selectedBill}
         onDownloadPDF={handleDownloadPDF}
         onUpdatePayment={handleUpdatePayment}
+        onEditBill={async (updatedBill: any) => {
+          const billId =
+            updatedBill?._id || updatedBill?.id || updatedBill?.billId;
+          if (!billId) return;
+          await updateBill(billId, updatedBill);
+        }}
         showShareButton={true}
         showPaymentControls={true}
       />

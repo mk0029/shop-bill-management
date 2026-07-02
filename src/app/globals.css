@@ -272,6 +272,96 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     border-radius: 20px;
   }
 
+  /* ── Glass Modal System ─────────────────────────────────────── */
+
+  .glass-modal {
+    overflow: hidden;
+  }
+
+  .glass-modal * {
+    min-width: 0;
+  }
+
+  .glass-modal-scroll {
+    scrollbar-gutter: stable both-edges;
+    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .glass-modal-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .glass-modal-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .glass-modal-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+  }
+
+  .glass-modal-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-modal-header {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* ── Glass Bottom Sheet (mobile) ────────────────────────────── */
+
+  .glass-bottom-sheet {
+    border-top-left-radius: 28px;
+    border-top-right-radius: 28px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* ── Glass Floating Dock ────────────────────────────────────── */
+
+  .glass-dock {
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .glass-dock-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.2s ease;
+  }
+
+  .glass-dock-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-dock-btn:active {
+    background: rgba(255, 255, 255, 0.14);
+    transform: scale(0.95);
+  }
+
+  .glass-dock-btn-highlight {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.75), rgba(5, 150, 105, 0.75));
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+  }
+
+  .glass-dock-btn-highlight:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.85), rgba(5, 150, 105, 0.85));
+  }
+
+  .glass-dock-btn-danger {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+  }
+
+  .glass-dock-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+  }
+
   .glass-card-shine {
     position: relative;
     overflow: hidden;

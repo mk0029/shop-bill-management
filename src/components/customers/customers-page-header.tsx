@@ -1,12 +1,14 @@
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CustomersPageHeaderProps {
   onAddCustomer: () => void;
+  onSmartCreate?: () => void;
 }
 
 export default function CustomersPageHeader({
   onAddCustomer,
+  onSmartCreate,
 }: CustomersPageHeaderProps) {
   return (
     <div className="flex items-center justify-between">
@@ -23,10 +25,23 @@ export default function CustomersPageHeader({
           </p>
         </div>
       </div>
-      <Button size="sm" onClick={onAddCustomer} className="shadow-lg shadow-blue-600/20">
-        <Plus className="w-4 h-4 sm:mr-2" />
-        <span className="max-sm:hidden">Add Customer</span>
-      </Button>
+      <div className="flex items-center gap-2">
+        {onSmartCreate && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onSmartCreate}
+            className="flex items-center gap-1.5"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span className="max-sm:hidden">Smart Create</span>
+          </Button>
+        )}
+        <Button size="sm" onClick={onAddCustomer} className="shadow-lg shadow-blue-600/20">
+          <Plus className="w-4 h-4 sm:mr-2" />
+          <span className="max-sm:hidden">Add Customer</span>
+        </Button>
+      </div>
     </div>
   );
 }

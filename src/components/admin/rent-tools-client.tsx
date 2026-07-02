@@ -12,7 +12,6 @@ import {
   type ToolRental,
 } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
-import { sendViaWaBot } from "@/lib/wa-bot-send";
 import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -261,12 +260,7 @@ export default function AdminRentToolsClient() {
   const onReminder = async (r: ToolRental) => {
     try {
       if (!r.customerPhone) return toast.error("Customer phone missing");
-      const res = await sendViaWaBot({
-        phones: [r.customerPhone],
-        message: overdueReminderMessage(r),
-      });
-      if (!res.ok) throw new Error(res.error || "Failed to send reminder");
-      fetch("/api/notifications/send", {
+      await fetch("/api/notifications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -285,12 +279,11 @@ export default function AdminRentToolsClient() {
           },
         }),
       }).catch(() => {});
-      toast.success("Reminder sent on WhatsApp");
+      toast.info("WhatsApp rent reminders are sent by backend overdue events.");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send reminder");
+      toast.error(e instanceof Error ? e.message : "Failed to queue reminder");
     }
   };
-
   return (
     <div className="space-y-5 pb-6">
       <div className="flex items-center justify-between gap-3">

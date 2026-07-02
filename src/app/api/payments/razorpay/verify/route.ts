@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
-import { sendViaWaBotServer } from "@/lib/wa-bot-server";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 export const runtime = "nodejs";
 
@@ -91,50 +91,35 @@ export async function POST(req: Request) {
       })
       .commit();
 
-    // WhatsApp via WA bot: payment update (best-effort)
+    // Central WhatsApp event: payment update (fire-and-forget)
     try {
-      const rawPhone = String(bill.customer?.phone || '').trim();
-      const phones = (() => {
-        const p = rawPhone;
-        if (!p) return [] as string[];
-        if (p.startsWith('+')) return [p];
-        if (p.startsWith('0')) return [`+91${p.substring(1)}`];
-        return [`+91${p}`];
-      })();
-
-      const siteUrl =
-        (process.env.NEXT_PUBLIC_WEBSITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://jambh-ell.vercel.app').replace(/\/+$/, '');
-      const billLink = siteUrl ? `${siteUrl}/customer/bills?open=${encodeURIComponent(String(billId))}` : '';
-
-      const billNo = String(bill.billNumber || billId);
-      const techName = String(bill.technician?.name || '').trim();
-      const svc = String(bill.serviceType || '').replace(/_/g, ' ').trim();
-
-      const header =
-        paymentStatus === 'paid'
-          ? '✅ Payment Successful — Bill Fully Paid'
-          : '✅ Payment Received — Bill is Partial';
-
-      const message =
-        `${header}\n\n` +
-        `Bill ID: ${billNo}\n` +
-        (techName ? `Technician: ${techName}\n` : '') +
-        (svc ? `Service: ${svc}\n` : '') +
-        `\nPricing Summary:\n` +
-        `• Total: ₹${grossTotal.toFixed(2)}\n` +
-        (discount > 0 ? `• Discount: ₹${discount.toFixed(2)}\n` : '') +
-        `• Paid: ₹${paidNext.toFixed(2)}\n` +
-        `• Balance: ₹${balance.toFixed(2)}\n\n` +
-        `Payment Status: ${String(paymentStatus).toUpperCase()}\n\n` +
-        `Thank you for your payment! 🙏  \n` +
-        `Your bill has been successfully settled.\n\n` +
-        (billLink ? `🔐 Your secure receipt is ready. Click below to view it safely:\n${billLink}` : '');
-
-      if (phones.length) {
-        await sendViaWaBotServer({ phones, message });
-      }
-    } catch {}
-
+      const eventType = paymentStatus === "paid" ? "billing.payment.paid" : "billing.payment.partial";
+      const updatedAt = new Date().toISOString();
+      void emitWaEventServer(eventType, {
+        billId,
+        billNumber: bill.billNumber || billId,
+        paymentId: razorpay_payment_id,
+        customerId: bill.customer?._id,
+        customerName: bill.customer?.name || "",
+        customerPhone: bill.customer?.phone || "",
+        grandTotal: total,
+        totalAmount: total,
+        paidNow: add,
+        paidAmount: paidNext,
+        totalPaid: paidNext,
+        balance,
+        balanceAmount: balance,
+        paymentMode: "razorpay",
+        paymentDate: updatedAt,
+        updatedAt,
+        eventId: `billing.payment.${paymentStatus}.${billId}.${razorpay_payment_id}`,
+        idempotencyKey: `billing.payment.${paymentStatus === "paid" ? "paid" : "partial"}:${billId}:${razorpay_payment_id}`,
+      }).then((result) => {
+        if (!result.ok) console.warn("[WA] bill payment event failed", result.error);
+      });
+    } catch (e) {
+      console.error("[WA] bill payment event dispatch failed", e);
+    }
     // Create cash book entry for this payment
     try {
       console.log('Creating cash book entry for payment:', {

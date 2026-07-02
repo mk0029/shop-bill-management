@@ -26,6 +26,10 @@ export default function AdminCustomersClient() {
     deleteCustomer,
   } = useCustomerActions();
 
+  const navigateToSmartCreate = () => {
+    router.push("/admin/customers/smart-create");
+  };
+
   const [selectedCustomer, setSelectedCustomer] =
     useState<CustomerWithStats | null>(null);
 
@@ -43,15 +47,21 @@ export default function AdminCustomersClient() {
 
   const handleCloseModal = () => {
     setSelectedCustomer(null);
-    if (!searchParams.has("userId")) return;
+    const hasUserId = searchParams.has("userId");
+    const hasCustomerId = searchParams.has("customerId");
+    if (!hasUserId && !hasCustomerId) return;
     const next = new URLSearchParams(searchParams.toString());
-    next.delete("userId");
+    if (hasUserId) next.delete("userId");
+    if (hasCustomerId) next.delete("customerId");
+    next.delete("modal");
     const qs = next.toString();
     router.replace(qs ? `/admin/customers?${qs}` : "/admin/customers");
   };
 
   useEffect(() => {
-    const userId = searchParams.get("userId");
+    const userId = searchParams.get("userId") || searchParams.get("customerId");
+    const modalParam = searchParams.get("modal");
+    if (modalParam && modalParam !== "customerDetails") return;
     if (!userId || !customersWithStats.length) return;
     const customer = customersWithStats.find((c) => c._id === userId);
     if (customer) setSelectedCustomer(customer);
@@ -59,7 +69,7 @@ export default function AdminCustomersClient() {
 
   return (
     <div className="space-y-6 max-md:space-y-4 max-md:pb-3">
-      <CustomersPageHeader onAddCustomer={navigateToAddCustomer} />
+      <CustomersPageHeader onAddCustomer={navigateToAddCustomer} onSmartCreate={navigateToSmartCreate} />
 
       {/* <CustomerStatsCards stats={stats} isLoading={isLoadingStats} /> */}
 

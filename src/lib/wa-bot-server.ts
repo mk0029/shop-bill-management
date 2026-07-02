@@ -15,13 +15,12 @@ type SendBulkResult = {
   error?: string
 }
 
-function normalizeWaBotBaseUrl(raw?: string): string {
+function normalizeBackendBaseUrl(raw?: string): string {
   return String(raw || '').replace(/\/+$/, '')
 }
 
-// In-memory idempotency cache for duplicate protection
 let idempotencyCache = new Map<string, number>()
-const IDEMPOTENCY_TTL = 86_400_000 // 24h
+const IDEMPOTENCY_TTL = 86_400_000
 const MAX_CACHE_SIZE = 10_000
 
 function checkIdempotency(key: string): boolean {
@@ -40,10 +39,6 @@ function checkIdempotency(key: string): boolean {
   return false
 }
 
-function makeIdempotencyKey(phone: string, message: string): string {
-  return `send:${phone}:${hashString(message)}`
-}
-
 function hashString(s: string): string {
   let hash = 0
   for (let i = 0; i < s.length; i++) {
@@ -54,6 +49,10 @@ function hashString(s: string): string {
   return Math.abs(hash).toString(36)
 }
 
+function makeIdempotencyKey(phone: string, message: string, eventType?: string): string {
+  return `${eventType || 'api_send'}:${phone}:${hashString(message)}`
+}
+
 export async function sendViaWaBotServer(input: { phones?: string[]; phone?: string; message: string; eventType?: string }): Promise<SendBulkResult> {
   try {
     const enabled = String(process.env.AUTO_WA_BILL_EVENTS || '').trim()
@@ -61,68 +60,76 @@ export async function sendViaWaBotServer(input: { phones?: string[]; phone?: str
       return { ok: false, sent: 0, failed: input.phones?.length || (input.phone ? 1 : 0) || 0, results: [], error: 'AUTO_WA_BILL_EVENTS disabled' }
     }
 
-    const WA_BOT_URL = normalizeWaBotBaseUrl(process.env.WA_BOT_URL)
-    const WA_BOT_TOKEN = String(process.env.WA_BOT_TOKEN || '').trim()
-
-    if (!WA_BOT_URL || !WA_BOT_TOKEN) {
-      return { ok: false, sent: 0, failed: input.phones?.length || (input.phone ? 1 : 0) || 0, results: [], error: 'Missing WA_BOT_URL/WA_BOT_TOKEN' }
+    const backendUrl = normalizeBackendBaseUrl(process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL)
+    const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
+    if (!backendUrl || !secret) {
+      return { ok: false, sent: 0, failed: input.phones?.length || (input.phone ? 1 : 0) || 0, results: [], error: 'Missing central WhatsApp backend config' }
     }
 
     const phones = Array.isArray(input.phones) ? input.phones.map(String).filter(Boolean) : (input.phone ? [String(input.phone)] : [])
     const message = String(input.message || '').trim()
-
-    if (!phones.length) {
-      return { ok: false, sent: 0, failed: 0, results: [], error: 'phone or phones is required' }
-    }
-    if (!message) {
-      return { ok: false, sent: 0, failed: phones.length, results: [], error: 'message is required' }
-    }
+    if (!phones.length) return { ok: false, sent: 0, failed: 0, results: [], error: 'phone or phones is required' }
+    if (!message) return { ok: false, sent: 0, failed: phones.length, results: [], error: 'message is required' }
 
     const results: SendResult[] = []
-
     for (const phone of phones) {
-      try {
-        // Idempotency check
-        const idKey = makeIdempotencyKey(phone, message)
-        if (checkIdempotency(idKey)) {
-          results.push({ ok: true, phone, skipped: true })
-          continue
-        }
-
-        // Use the new /send-notification endpoint for proper event handling
-        const res = await fetch(`${WA_BOT_URL}/send-notification`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': WA_BOT_TOKEN,
-          },
-          body: JSON.stringify({
-            eventType: input.eventType || 'api_send',
-            phone,
-            message,
-            metadata: { source: 'wa-bot-server' },
-          }),
-        })
-
-        const json = await res.json().catch(() => ({} as any))
-        if (!res.ok || !json?.ok) {
-          results.push({ ok: false, phone, error: json?.error || `${res.status} ${res.statusText}` })
-          continue
-        }
-
-        results.push({ ok: true, phone, jid: json?.jid, messageId: json?.messageId, skipped: json?.skipped })
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e)
-        results.push({ ok: false, phone, error: msg })
+      const idempotencyKey = makeIdempotencyKey(phone, message, input.eventType)
+      if (checkIdempotency(idempotencyKey)) {
+        results.push({ ok: true, phone, skipped: true })
+        continue
       }
+      const res = await fetch(`${backendUrl}/api/wa/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${secret}`,
+        },
+        body: JSON.stringify({
+          to: phone,
+          message,
+          eventType: input.eventType || 'api_send',
+          eventId: idempotencyKey,
+          idempotencyKey,
+          metadata: { source: 'frontend-wa-bot-server-proxy' },
+        }),
+      })
+      const json = await res.json().catch(() => ({} as any))
+      if (!res.ok || !(json?.success || json?.ok || json?.queued)) {
+        idempotencyCache.delete(idempotencyKey)
+        results.push({ ok: false, phone, error: json?.error || json?.message || `${res.status} ${res.statusText}` })
+        continue
+      }
+      results.push({ ok: true, phone, jid: json?.results?.[0]?.jid, messageId: json?.results?.[0]?.messageId, skipped: json?.skipped })
     }
 
     const sent = results.filter(r => r.ok).length
     const failed = results.length - sent
-
     return { ok: true, sent, failed, results }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     return { ok: false, sent: 0, failed: input.phones?.length || (input.phone ? 1 : 0) || 0, results: [], error: msg }
+  }
+}
+export async function emitWaEventServer(eventName: string, payload: Record<string, unknown>): Promise<{ ok: boolean; queued?: boolean; skipped?: boolean; error?: string }> {
+  try {
+    const backendUrl = normalizeBackendBaseUrl(process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL)
+    const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
+    if (!backendUrl || !secret) return { ok: false, error: 'Missing central WhatsApp backend config' }
+    const res = await fetch(`${backendUrl}/api/wa/events/${eventName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        authorization: `Bearer ${secret}`,
+        'x-api-key': secret,
+      },
+      body: JSON.stringify(payload || {}),
+    })
+    const json = await res.json().catch(() => ({} as any))
+    if (!res.ok || json?.ok === false || json?.success === false) {
+      return { ok: false, error: json?.error || json?.message || `${res.status} ${res.statusText}` }
+    }
+    return { ok: true, queued: Boolean(json?.queued), skipped: Boolean(json?.skipped) }
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 }

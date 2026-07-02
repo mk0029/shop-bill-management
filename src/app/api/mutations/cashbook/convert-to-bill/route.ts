@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
-import { sendViaWaBotServer } from '@/lib/wa-bot-server'
+import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { safeUserName } from '@/lib/display-text'
 import { getActiveAdminUserIds, createAndDispatchNotification } from '@/services/notifications/notification-events.server'
 import {
@@ -90,31 +90,38 @@ export async function POST(req: NextRequest) {
     patchTx.patch(cashbookId, (p: any) => p.set({ updatedAt: new Date().toISOString() }))
     await patchTx.commit()
 
-    try {
-      const user = await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(
-        `*[_type=="user" && _id==$id][0]{ phone, name }`,
-        { id: String(customerId) }
-      )
-      const rawPhone = String(user?.phone || '').trim()
-      const phones = (() => {
-        const p = rawPhone
-        if (!p) return [] as string[]
-        if (p.startsWith('+')) return [p]
-        if (p.startsWith('0')) return [`+91${p.substring(1)}`]
-        return [`+91${p}`]
-      })()
+    void (async () => {
+      try {
+        const user = await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(
+          `*[_type=="user" && _id==$id][0]{ phone, name }`,
+          { id: String(customerId) }
+        )
+        const rawPhone = String(user?.phone || '').trim()
+        if (!rawPhone) {
+          console.warn('[WA] billing.created(convert) skipped: missing customer phone', { billId: createdBillId, customerId })
+          return
+        }
 
-      const billNo = String((billDoc as any)?.billNumber || '').trim()
-      const payStatus = String((billDoc as any)?.paymentStatus || 'pending')
-      const message = `Bill ${billNo || String(createdBillId)} created. Amount: ₹${Number(totalAmount || 0)}. Status: ${payStatus}`
-
-      if (phones.length) {
-        await sendViaWaBotServer({ phones, message })
+        const billId = String(createdBillId)
+        const result = await emitWaEventServer('billing.created', {
+          billId,
+          billNo: String((billDoc as any)?.billNumber || billId),
+          customerId: String(customerId),
+          customerName: safeUserName(user?.name, 'Customer'),
+          customerPhone: rawPhone,
+          grandTotal: totalAmount,
+          totalPaid: paidAmount,
+          balance: balanceAmount,
+          paymentStatus: String((billDoc as any)?.paymentStatus || 'pending'),
+          idempotencyKey: `billing.created:${billId}`,
+        })
+        if (!result.ok) {
+          console.error('[WA] billing.created(convert) event failed', { billId, error: result.error })
+        }
+      } catch (e) {
+        console.error('[WA] billing.created(convert) event failed', e)
       }
-    } catch (e) {
-      console.error('[WA] bill_created(convert) send failed', e)
-    }
-
+    })()
     try {
       const billId = String(createdBillId)
       const customerName = await (async () => {

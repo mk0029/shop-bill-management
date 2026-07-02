@@ -34,6 +34,7 @@ import { useBrands, useCategories, useProducts } from "@/hooks/use-sanity-data";
 import { SelectedItemsList } from "@/components/billing/selected-items-list";
 import { Badge } from "../ui/badge";
 import { sanityClient } from "@/lib/sanity";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Modal } from "@/components/ui/modal";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -357,53 +358,48 @@ export function CashBookPage() {
       </div>
 
       {/* Inventory Sale Modal */}
-      {showInventorySale && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowInventorySale(false)} />
-          <div className="relative bg-gray-900 border border-white/[0.08] rounded-xl w-full max-w-4xl max-h-[85dvh] flex flex-col shadow-2xl backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-white/[0.06] shrink-0">
-              <h3 className="text-white font-semibold">Add Sale</h3>
-              <button type="button" onClick={() => setShowInventorySale(false)} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors">
-                <XIcon className="w-5 h-5" />
-              </button>
+      <BaseGlassModal isOpen={showInventorySale} onClose={() => setShowInventorySale(false)} showCloseButton={false} size="xl" mobileType="modal" zIndex={50}>
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] shrink-0">
+          <h3 className="text-white font-semibold">Add Sale</h3>
+          <button type="button" onClick={() => setShowInventorySale(false)} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors">
+            <XIcon className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
+          <div className="space-y-3">
+            <ItemSelectionSection categories={categories} activeProducts={activeProducts} productsLoading={productsLoading} onOpenItemModal={(category) => openItemSelectionModal(category)} />
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-white font-medium text-sm">Selected Items</h4>
+              <span className="text-white font-semibold">{formatCurrency(saleTotal)}</span>
             </div>
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
-              <div className="space-y-3">
-                <ItemSelectionSection categories={categories} activeProducts={activeProducts} productsLoading={productsLoading} onOpenItemModal={(category) => openItemSelectionModal(category)} />
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-white font-medium text-sm">Selected Items</h4>
-                  <span className="text-white font-semibold">{formatCurrency(saleTotal)}</span>
-                </div>
-                <div className="border border-white/[0.06] rounded-lg max-h-[40vh] overflow-auto p-2 bg-white/[0.02]">
-                  <SelectedItemsList
-                    selectedItems={Object.entries(selectedSaleItems).map(([id, it]) => ({
-                      id, name: it.name, price: Number(it.price) || 0, quantity: Number(it.qty) || 0,
-                      total: (Number(it.qty) || 0) * (Number(it.price) || 0), category: "", brand: "",
-                      specifications: "", unit: "", maxStock: Number(it.maxQty) || 0,
-                    }))}
-                    onUpdateQuantity={handleUpdateQuantity} onRemoveItem={handleRemoveItem} onClearAll={handleClearAll}
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" onClick={() => setShowInventorySale(false)}>Cancel</Button>
-                  <Button className="bg-emerald-600 hover:bg-emerald-500" onClick={submitInventorySale} disabled={isAddingSale || Object.keys(selectedSaleItems).length === 0}>
-                    {isAddingSale ? "Adding..." : "Add Sale"}
-                  </Button>
-                </div>
-              </div>
+            <div className="border border-white/[0.06] rounded-lg max-h-[40vh] overflow-auto p-2 bg-white/[0.02]">
+              <SelectedItemsList
+                selectedItems={Object.entries(selectedSaleItems).map(([id, it]) => ({
+                  id, name: it.name, price: Number(it.price) || 0, quantity: Number(it.qty) || 0,
+                  total: (Number(it.qty) || 0) * (Number(it.price) || 0), category: "", brand: "",
+                  specifications: "", unit: "", maxStock: Number(it.maxQty) || 0,
+                }))}
+                onUpdateQuantity={handleUpdateQuantity} onRemoveItem={handleRemoveItem} onClearAll={handleClearAll}
+              />
             </div>
-            <ItemSelectionModal
-              isOpen={itemSelectionModal.isOpen} onClose={closeItemSelectionModal}
-              selectedCategory={itemSelectionModal.selectedCategory}
-              selectedSpecifications={itemSelectionModal.selectedSpecifications}
-              onUpdateSpecification={updateSpecificationFilter} filteredItems={filteredItems}
-              brands={brands} onAddItem={onAddSaleItem} activeProducts={activeProducts}
-            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowInventorySale(false)}>Cancel</Button>
+              <Button className="bg-emerald-600 hover:bg-emerald-500" onClick={submitInventorySale} disabled={isAddingSale || Object.keys(selectedSaleItems).length === 0}>
+                {isAddingSale ? "Adding..." : "Add Sale"}
+              </Button>
+            </div>
           </div>
         </div>
-      )}
+        <ItemSelectionModal
+          isOpen={itemSelectionModal.isOpen} onClose={closeItemSelectionModal}
+          selectedCategory={itemSelectionModal.selectedCategory}
+          selectedSpecifications={itemSelectionModal.selectedSpecifications}
+          onUpdateSpecification={updateSpecificationFilter} filteredItems={filteredItems}
+          brands={brands} onAddItem={onAddSaleItem} activeProducts={activeProducts}
+        />
+      </BaseGlassModal>
 
       {/* Add Record Modal */}
       <Modal isOpen={showAddForm} onClose={() => setShowAddForm(false)} title="Add Manual Record">

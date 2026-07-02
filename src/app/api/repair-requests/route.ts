@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { safeUserName } from "@/lib/display-text";
-import { sendViaWaBotServer } from "@/lib/wa-bot-server";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 export const dynamic = "force-dynamic";
@@ -176,17 +176,29 @@ export async function POST(req: NextRequest) {
 
   if (priority === "high") {
     postCreateJobs.push(
-      (async () => {
-        const adminPhones = await sanityClient.fetch<string[]>(
-          `*[_type=="user" && _id==$technicianId && isActive != false && defined(phone)].phone`,
-          { technicianId: selectedTechnicianId },
-        );
-        const message = `High priority repair request\n\nRequest: ${requestId}\nCustomer: ${safeCustomerName}\nPreferred technician: ${safeTechnicianName}\nDetails: ${details}\n\nOpen Repair Requests in the app to review, assign time, or add it to the work list.`;
-        return sendViaWaBotServer({ phones: adminPhones || [], message });
-      })(),
+      emitWaEventServer("workTask.created", {
+        requestId,
+        taskId: String(created._id),
+        title: "High priority repair request",
+        description: details,
+        status: "pending",
+        customerId: customer._id,
+        customerName: safeCustomerName,
+        customerPhone: customer.phone || "",
+        technicianId: selectedTechnicianId,
+        technicianName: safeTechnicianName,
+        technicianPhone: technician.phone || "",
+        priority,
+        source: "repairRequest",
+        idempotencyKey: `workTask.created:${String(created._id)}:${now}`,
+      }).then((result) => {
+        if (!result.ok) {
+          console.error("[RepairRequest] WhatsApp event failed", { requestId, error: result.error });
+        }
+        return result;
+      }),
     );
   }
-
   void Promise.allSettled(postCreateJobs).catch((error) => {
     console.error("[RepairRequest] post-create notification jobs failed", error);
   });

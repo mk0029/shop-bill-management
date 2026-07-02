@@ -1,7 +1,5 @@
 import { sanityClient } from "@/lib/sanity";
 import { notifyAdmins } from "@/lib/admin-notifier";
-import { sendViaWaBot } from "@/lib/wa-bot-send";
-import { sanitizeUserText } from "@/constants/defaults";
 
 export type DurationType = "hour" | "day";
 export type RentalStatus = "active" | "overdue" | "returned" | "cancelled";
@@ -94,40 +92,7 @@ function formatDateTime(iso: string) {
   });
 }
 
-function getSafeCustomerName(name?: string) {
-  return sanitizeUserText(String(name || "")).trim() || "Customer";
-}
 
-function buildRentStartMessage(rental: ToolRental) {
-  const safeCustomerName = getSafeCustomerName(rental.customerName);
-  return `~ Tool Rent Details ~
-
-Hello ${safeCustomerName},
-
-Thank you for renting from Jambh Electrical Services.
-
-Tool: ${rental.toolName}
-Duration: ${rental.durationValue} ${rental.durationType}
-Start Time: ${formatDateTime(rental.rentStartTime)}
-Return Time: ${formatDateTime(rental.expectedReturnTime)}
-Rent Amount: ?${rental.rentAmount.toFixed(2)}
-Payment Status: ${rental.paymentStatus}
-
-Please return the tool on time to avoid extra charges.
-
-Best regards,
-Jambh Electrical Services`;
-}
-
-function buildPaymentReceivedMessage(rental: ToolRental, amount: number, total: number) {
-  const safeCustomerName = getSafeCustomerName(rental.customerName);
-  return `━━━━━━━━━━━━━━━━\n💳 Rent Payment Received\n━━━━━━━━━━━━━━━━\n\nHello ${safeCustomerName},\n\nWe received your tool rent payment.\n\nTool: ${rental.toolName}\nPaid Amount: Rs ${amount.toFixed(2)}\nTotal Amount: Rs ${total.toFixed(2)}\nPayment Status: ${rental.paymentStatus}\n\nThank you,\nJambh Electrical Services`;
-}
-
-function buildToolReturnedMessage(rental: ToolRental, finalTotal: number) {
-  const safeCustomerName = getSafeCustomerName(rental.customerName);
-  return `Tool Return Update\n\nHello ${safeCustomerName},\n\nYour rented tool has been returned successfully.\n\nTool: ${rental.toolName}\nReturn Time: ${formatDateTime(rental.actualReturnTime || new Date().toISOString())}\nFinal Total: Rs ${finalTotal.toFixed(2)}\nPaid Amount: Rs ${Number(rental.paidAmount || 0).toFixed(2)}\nPayment Status: ${rental.paymentStatus}\n\nThank you,\nJambh Electrical Services`;
-}
 
 function getActorUserIdFromAuthCookie(): string {
   if (typeof window === "undefined") return "";
@@ -262,10 +227,6 @@ async function createOutstandingRentalBill(args: {
   });
 }
 
-export async function sendToolRentMessage(rental: ToolRental) {
-  if (!rental.customerPhone) return { ok: false, error: "Missing customer phone" };
-  return sendViaWaBot({ phones: [rental.customerPhone], message: buildRentStartMessage(rental) });
-}
 
 export const toolRentalService = {
   async getTools() {
@@ -416,7 +377,6 @@ export const toolRentalService = {
     if (rental) {
       const actorUserId = getActorUserIdFromAuthCookie() || String(rental.createdBy || "");
       Promise.allSettled([
-        sendToolRentMessage(rental),
         createCashBookCreditEntry({
           customerRefId: rental.customerRefId || rental.customerId,
           customerName: rental.customerName,
@@ -565,34 +525,6 @@ export const toolRentalService = {
       finalTotal,
       paidAmount: resolvedPaidAmount,
     });
-    if (rental.customerPhone) {
-      await sendViaWaBot({
-        phones: [rental.customerPhone],
-        message: buildToolReturnedMessage(
-          {
-            ...rental,
-            paidAmount: resolvedPaidAmount,
-            paymentStatus,
-            actualReturnTime: now,
-          },
-          finalTotal
-        ),
-      });
-    }
-    if (newReceivedAmount > 0 && rental.customerPhone) {
-      await sendViaWaBot({
-        phones: [rental.customerPhone],
-        message: buildPaymentReceivedMessage(
-          {
-            ...rental,
-            paymentStatus,
-          },
-          newReceivedAmount,
-          finalTotal
-        ),
-      });
-    }
-
     notifyAdmins({
       title: "Tool returned",
       body: `${rental.customerName} returned ${rental.toolName}${overdueUnits > 0 ? ` with Rs ${extraChargeAmount.toFixed(2)} extra charges` : ""}`,
@@ -641,19 +573,6 @@ export const toolRentalService = {
         notes: `Tool rent payment: ${rental.toolName}`,
         actorUserId,
       });
-      if (deltaReceived > 0 && rental.customerPhone) {
-        sendViaWaBot({
-          phones: [rental.customerPhone],
-          message: buildPaymentReceivedMessage(
-            {
-              ...rental,
-              paymentStatus,
-            },
-            deltaReceived,
-            currentTotalAmount
-          ),
-        }).catch(() => {});
-      }
       notifyAdmins({
         title: "Tool rental payment updated",
         body: `${rental.customerName} paid Rs ${normalizedPaid} for ${rental.toolName}. Status: ${paymentStatus}`,

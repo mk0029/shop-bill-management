@@ -3,10 +3,11 @@ import { sanityClient } from '@/lib/sanity'
 import { notificationService } from '@/lib/notification-service'
 import { sanitizeUserText } from '@/constants/defaults'
 import { sendAppEmail } from '@/lib/email/server'
+import { emitWaEventServer } from '@/lib/wa-bot-server'
 
 export const runtime = 'nodejs'
 
-function siteUrl(_req: NextRequest) {
+function siteUrl() {
   return 'https://jambh-ell.vercel.app'
 }
 
@@ -18,15 +19,6 @@ function supportInfo() {
     process.env.SUPPORT_EMAIL ||
     'Contact the shop/admin from the app chat'
   )
-}
-
-function normalizeIndianPhone(phone: string) {
-  const digits = String(phone || '').replace(/[^0-9+]/g, '')
-  if (!digits) return ''
-  if (digits.startsWith('+')) return digits
-  if (digits.startsWith('0')) return `+91${digits.slice(1)}`
-  if (digits.startsWith('91') && digits.length >= 12) return `+${digits}`
-  return `+91${digits}`
 }
 
 function welcomeMessage(input: {
@@ -131,9 +123,11 @@ async function sendWelcomeEmail(input: {
 async function sendWelcomeWhatsApp(input: {
   userId: string
   phone?: string
-  message: string
+  customerName: string
+  loginUrl: string
+  secretKey: string
 }) {
-  const phone = normalizeIndianPhone(String(input.phone || ''))
+  const phone = String(input.phone || '').trim()
   if (!phone) {
     console.warn('[WelcomeDelivery] whatsapp skipped: missing phone', { userId: input.userId })
     return
@@ -145,23 +139,24 @@ async function sendWelcomeWhatsApp(input: {
   }
 
   try {
-    const base = 'https://jambh-ell.vercel.app'
-    const res = await fetch(new URL('/api/whatsapp/send-bulk', base), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phones: [phone], message: input.message }),
+    const result = await emitWaEventServer('customer.created', {
+      customerId: input.userId,
+      customerName: input.customerName,
+      customerPhone: phone,
+      loginUrl: input.loginUrl,
+      secretKey: input.secretKey,
+      idempotencyKey: `customer.created:${input.userId}`,
     })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok || json?.ok === false || Number(json?.failed || 0) > 0) {
-      const reason = json?.error || json?.results?.[0]?.error || `WhatsApp send failed (${res.status})`
+    if (!result.ok) {
+      const reason = result.error || 'WhatsApp event dispatch failed'
       console.error('[WelcomeDelivery] whatsapp failed', { userId: input.userId, reason })
       await finishDelivery(key, 'failed', reason)
       return
     }
-    console.log('[WelcomeDelivery] whatsapp sent', { userId: input.userId, phone })
+    console.log('[WelcomeDelivery] whatsapp event queued', { userId: input.userId, phone, queued: result.queued, skipped: result.skipped })
     await finishDelivery(key, 'sent')
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'WhatsApp send failed'
+    const reason = error instanceof Error ? error.message : 'WhatsApp event dispatch failed'
     console.error('[WelcomeDelivery] whatsapp failed', { userId: input.userId, reason })
     await finishDelivery(key, 'failed', reason)
   }
@@ -178,7 +173,7 @@ async function runPostCreateDelivery(input: {
 }) {
   const userId = String(input.created?._id || '').trim()
   const safeName = sanitizeUserText(input.name || 'Customer') || 'Customer'
-  const loginUrl = `${siteUrl(req)}/login?phone=${encodeURIComponent(input.phone)}&passKey=${encodeURIComponent(input.secretKey)}`
+  const loginUrl = `${siteUrl()}/login?phone=${encodeURIComponent(input.phone)}&passKey=${encodeURIComponent(input.secretKey)}`
   const contact = supportInfo()
   const message = welcomeMessage({ customerName: safeName, loginUrl, contact })
 
@@ -205,7 +200,9 @@ async function runPostCreateDelivery(input: {
     sendWelcomeWhatsApp({
       userId,
       phone: input.phone,
-      message,
+      customerName: safeName,
+      loginUrl,
+      secretKey: input.secretKey,
     }),
   ]).then((results) => {
     results.forEach((result, index) => {
@@ -215,7 +212,6 @@ async function runPostCreateDelivery(input: {
     })
   })
 }
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))

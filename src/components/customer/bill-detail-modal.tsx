@@ -19,10 +19,10 @@ export const BillDetailModal = ({
   isOpen,
   onClose,
   bill,
-  currency,
-  getBillStatusColor,
-  getTotalAmount,
-  getServiceTypeLabel,
+  currency: _currency,
+  getBillStatusColor: _getBillStatusColor,
+  getTotalAmount: _getTotalAmount,
+  getServiceTypeLabel: _getServiceTypeLabel,
   onDownloadBill,
 }: BillDetailModalProps) => {
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,6 @@ export const BillDetailModal = ({
         return;
       }
 
-      // 1) Create order on server
       const orderRes = await fetch("/api/payments/razorpay/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,7 +102,7 @@ export const BillDetailModal = ({
             }
             toast.success("Payment successful");
             onClose();
-          } catch (e) {
+          } catch {
             toast.error("Verification failed");
           }
         },
@@ -117,21 +116,22 @@ export const BillDetailModal = ({
 
       const rz = new (window as any).Razorpay(options);
       rz.open();
-    } catch (e) {
+    } catch {
       toast.error("Payment failed to start");
     } finally {
       setLoading(false);
     }
   }, [loadRazorpay, onClose]);
+
   return (
     <BaseBillDetailModal
       isOpen={isOpen}
       onClose={onClose}
       bill={bill}
       onDownloadPDF={onDownloadBill}
-      showShareButton={false}
-      // Pay button is rendered by the shared modal when this prop is provided and bill is unpaid
       onPayOnline={onPayOnline}
+      showShareButton={false}
+      role="customer"
     />
   );
 };

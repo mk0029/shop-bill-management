@@ -1,52 +1,28 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { X, MessageSquare, Copy, Phone, Share2 } from "lucide-react";
+import { toast } from "sonner";
 
-import { Modal } from "@/components/ui/modal";
-import {
-  BillHeader,
-  BillItems,
-  BillCharges,
-  BillTotals,
-  PaymentControls,
-  BillActions,
-  ShareModal,
-} from "./bill-detail-modal/index";
-
-import { useState, useEffect } from "react";
-
-import { useRouter } from "next/navigation";
-
-// Switch not needed after redesign of payment UI
-import { BillDetails, generateWhatsAppMessage } from "@/lib/whatsapp-share";
-
-import { sendViaWaBot } from "@/lib/wa-bot-send";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
+import { PremiumBillHeader } from "./bill-detail-modal/PremiumBillHeader";
+import { TechnicianCard } from "./bill-detail-modal/TechnicianCard";
+import { BillSummary } from "./bill-detail-modal/BillSummary";
+import { ItemsCard } from "./bill-detail-modal/ItemsCard";
+import { ChargesCard } from "./bill-detail-modal/ChargesCard";
+import { PaymentCard } from "./bill-detail-modal/PaymentCard";
+import { NotesCard } from "./bill-detail-modal/NotesCard";
+import { ActivityTimeline } from "./bill-detail-modal/ActivityTimeline";
+import { BottomActionBar } from "./bill-detail-modal/BottomActionBar";
+import { EditBillSheet } from "./bill-detail-modal/EditBillSheet";
+import { BillSkeleton } from "./bill-detail-modal/SkeletonLoader";
+import { ShareModal } from "./bill-detail-modal/ShareModal";
+import { PaymentUpdateModal } from "@/components/ui/payment-update-modal";
 
 import { useLocaleStore } from "@/store/locale-store";
-import { safeUserName } from "@/lib/display-text";
-
-import { AnimatePresence, motion } from "framer-motion";
-
-import {
-  Calendar,
-  CreditCard,
-  Download,
-  Edit3,
-  FileText,
-  MapPin,
-  Save,
-  Share2,
-  MessageSquare,
-  CheckCircle2,
-  Copy,
-  Smartphone,
-} from "lucide-react";
-import { toast } from "sonner";
-import Link from "next/link";
+import { BillDetails, generateWhatsAppMessage } from "@/lib/whatsapp-share";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -63,467 +39,324 @@ interface BillDetailModalProps {
       discount?: number;
     },
   ) => Promise<void>;
+  onEditBill?: (bill: any) => void;
+  onDeleteBill?: (billId: string) => void;
+  onDuplicateBill?: (bill: any) => void;
+  onRemindCustomer?: (bill: any) => void;
+  onWhatsAppCustomer?: (bill: any) => void;
+  onPrintBill?: (bill: any) => void;
   showShareButton?: boolean;
   showPaymentControls?: boolean;
+  role?: "admin" | "customer";
 }
 
 export const BillDetailModal = ({
   isOpen,
   onClose,
   bill,
-  onPayOnline,
   onDownloadPDF,
+  onPayOnline,
   onUpdatePayment,
+  onEditBill,
+  onDeleteBill,
+  onDuplicateBill,
+  onRemindCustomer,
+  onWhatsAppCustomer: onWhatsAppCustomerProp,
+  onPrintBill,
   showShareButton = true,
   showPaymentControls = true,
+  role = "admin",
 }: BillDetailModalProps) => {
-  const router = useRouter();
   const { currency } = useLocaleStore();
-
-  // Payment state management (redesigned)
-  const [isEditingPayment, setIsEditingPayment] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<"partial" | "paid">("partial");
-  const [partialAmount, setPartialAmount] = useState("");
-  const [discountAmount, setDiscountAmount] = useState("");
-  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
-  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showEditSheet, setShowEditSheet] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
-  // Ensure hooks are called unconditionally: reset form when modal closes
   useEffect(() => {
-    if (!isOpen) {
-      setIsEditingPayment(false);
-      setPaymentMode("partial");
-      setPartialAmount("");
-      setDiscountAmount("");
-      setShowShareModal(false);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && bill) {
+      setLoading(true);
+      const t = setTimeout(() => setLoading(false), 400);
+      return () => clearTimeout(t);
     }
-  }, [isOpen]);
+  }, [isOpen, bill?._id]);
 
-  if (!bill) return null;
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "paid":
-        return "bg-green-900 text-green-300 border-green-700";
-      case "partial":
-        return "bg-orange-900 text-orange-300 border-orange-700";
-      case "pending":
-        return "bg-yellow-900 text-yellow-300 border-yellow-700";
-      case "overdue":
-        return "bg-red-900 text-red-300 border-red-700";
-      default:
-        return "bg-gray-900 text-gray-300 border-gray-700";
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const itemsTotal =
-    bill.items?.reduce(
-      (total: number, item: any) => total + (item.totalPrice || 0),
-      0,
-    ) || 0;
-
-  // Helper to coerce possibly string numeric fields to number
-  const toNum = (v: any): number => {
-    if (typeof v === "number" && isFinite(v)) return v;
-    const n = parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  // Normalize charge fields to numbers and coalesce keys
-  const transportationFee = toNum(bill.transportationFee);
-  const homeVisitFee = toNum(bill.homeVisitFee);
-  const repairChargeValue = toNum(
-    bill.repairCharges ?? bill.repairFee ?? (bill as any).repairCharge ?? 0,
-  );
-
-  const additionalCharges =
-    homeVisitFee + transportationFee + repairChargeValue;
-
-  // Show Additional Charges section if any charge field is present on the bill
-  const hasAnyCharge =
-    bill.homeVisitFee !== undefined ||
-    bill.transportationFee !== undefined ||
-    bill.repairCharges !== undefined ||
-    (bill as any).repairCharge !== undefined ||
-    bill.repairFee !== undefined;
-
-  // Prefer explicit totals from bill to match list cards
-  const explicitTotal = toNum((bill as any).totalAmount ?? (bill as any).total);
-  const grandTotal =
-    explicitTotal > 0 ? explicitTotal : itemsTotal + additionalCharges;
-  const existingDiscountTotal = toNum(
-    (bill as any)?.discount ??
-      (bill as any)?.discountAmount ??
-      (bill as any)?.customerDiscount ??
-      (bill as any)?.appliedDiscount ??
-      0,
-  );
-  const getEffectiveGrandTotal = () => {
-    const addDiscount = Math.max(Number(discountAmount || 0), 0);
-    return Math.max(0, grandTotal - (existingDiscountTotal + addDiscount));
-  };
-  // Payment calculation logic
-  const calculatePaymentDetails = () => {
-    const alreadyPaid = toNum(bill.paidAmount || 0);
-    if (paymentMode === "paid") {
-      return {
-        paymentStatus: "paid" as const,
-        paidAmount: getEffectiveGrandTotal(),
-        balanceAmount: 0,
-      };
-    }
-    if (paymentMode === "partial") {
-      const add = Math.max(Number(partialAmount || 0), 0);
-      const effectiveGrand = getEffectiveGrandTotal();
-      const newPaid = Math.min(alreadyPaid + add, effectiveGrand);
-      const balanceAmount = Math.max(0, effectiveGrand - newPaid);
-      return {
-        paymentStatus:
-          balanceAmount > 0 ? ("partial" as const) : ("paid" as const),
-        paidAmount: newPaid,
-        balanceAmount,
-      };
-    }
-    return null;
-  };
-
-  // Handle payment update
-  const handlePaymentUpdate = async () => {
-    if (!onUpdatePayment) return;
-    const paymentDetails = calculatePaymentDetails();
-    if (!paymentDetails) return;
-    setIsUpdatingPayment(true);
-    try {
-      const id =
-        (bill as any)?._id ??
-        (bill as any)?.id ??
-        (bill as any)?.billId ??
-        (bill as any)?._ref;
-      if (!id) throw new Error("Missing bill id");
-      await onUpdatePayment(String(id), {
-        ...paymentDetails,
-        // Send discount only if provided and > 0
-        ...(discountAmount !== "" && Number(discountAmount) > 0
-          ? { discount: Number(discountAmount) }
-          : {}),
-      });
-      // Removed forced global refetch; rely on optimistic update + realtime
-      if (bill) {
-        bill.paymentStatus = paymentDetails.paymentStatus;
-        bill.paidAmount = paymentDetails.paidAmount;
-        bill.balanceAmount = paymentDetails.balanceAmount;
-        // Optimistically update discount to cumulative value (only 'discount' key)
-        const add = Math.max(Number(discountAmount || 0), 0);
-        if (add > 0) {
-          const prevDiscount =
-            Number(
-              (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0,
-            ) || 0;
-          const totalDiscount = prevDiscount + add;
-          (bill as any).discount = totalDiscount;
-        }
-      }
-      setIsEditingPayment(false);
-      setPaymentMode("partial");
-      setPartialAmount("");
-      setDiscountAmount("");
-      const isFull = paymentDetails.paymentStatus === "paid";
-      const added = Math.max(Number(partialAmount || 0), 0);
-      toast.success(
-        isFull
-          ? "✅ Bill marked as fully paid!"
-          : `✅ Payment of ₹${added.toFixed(2)} recorded successfully!`,
-      );
-      onClose();
-    } catch (error) {
-      console.error("Failed to update payment:", error);
-      toast.error("❌ Failed to update payment. Please try again.");
-    } finally {
-      setIsUpdatingPayment(false);
-    }
-  };
-
-  // Quick amount helpers removed per UX request
-
-  // Reset payment state when modal closes
-  const handleClose = () => {
-    setIsEditingPayment(false);
-    setPaymentMode("partial");
-    setPartialAmount("");
-    setDiscountAmount("");
+  const handleClose = useCallback(() => {
     setShowShareModal(false);
+    setShowEditSheet(false);
+    setShowPaymentModal(false);
     onClose();
-  };
+  }, [onClose]);
 
-  const getCustomerId = (c: any) =>
-    typeof c === "string" ? c : c?._id || c?._ref;
-  const resolveCustomerIdFromBill = (b: any) => {
-    const c = b?.customer;
-    if (typeof c === "string" && c) return c;
-    const direct = c?._id || c?.id || c?._ref;
-    if (direct) return direct;
-    const viaField =
-      b?.customerId || b?.customer_id || b?.customerRef || b?.customer_ref;
-    return viaField || null;
-  };
+  const buildBillDetails = useCallback(
+    (b: any): BillDetails => ({
+      ...b,
+      repairFee: b?.repairFee ?? b?.repairCharges ?? 0,
+      grandTotal: b?.totalAmount ?? 0,
+      technician: b?.technician,
+      customerAuth: { secretKey: b?.customer?.secretKey || undefined },
+    }),
+    [],
+  );
 
-  const additionalChargesF = [
-    {
-      label: "Transportation Fee",
-      value: transportationFee,
-    },
-    {
-      label: "Home Visit Fee",
-      value: homeVisitFee,
-    },
-    {
-      label: "Repair Charges",
-      value: repairChargeValue,
-    },
-  ];
-
-  // Handle share functionality
-  const handleShare = () => {
-    setShowShareModal(true);
-  };
-
-  const handleShareOnWhatsApp = () => {
-    const billDetails: BillDetails = {
-      ...bill,
-      repairFee: (bill as any).repairFee ?? (bill as any).repairCharges ?? 0,
-      grandTotal: grandTotal,
-      technician: bill.technician,
-      customerAuth: {
-        secretKey: bill.customer?.secretKey || undefined,
-      },
-    };
-
-    const rawPhone = String(bill.customer?.phone || "");
-    const phones = (() => {
-      const p = rawPhone.trim();
-      if (!p) return [] as string[];
-      if (p.startsWith("+")) return [p];
-      if (p.startsWith("0")) return [`+91${p.substring(1)}`];
-      return [`+91${p}`];
-    })();
-
-    if (!phones.length) {
-      toast.error("Customer phone number not found");
-      return;
-    }
-
-    const message = generateWhatsAppMessage(billDetails, currency);
-    setIsSendingWhatsApp(true);
-    sendViaWaBot({ phones, message })
-      .then((r) => {
-        if (r.ok) {
-          toast.success(
-            `WhatsApp sent: ${Number(r.sent || 0)} | Failed: ${Number(r.failed || 0)}`,
-          );
-          setShowShareModal(false);
-        } else {
-          toast.error(r.error || "Failed to send WhatsApp");
-        }
-      })
-      .catch(() => {
-        toast.error("Failed to send WhatsApp");
-      })
-      .finally(() => {
-        setIsSendingWhatsApp(false);
-      });
-  };
-
-  const handleNativeShare = () => {
-    const billDetails: BillDetails = {
-      ...bill,
-      repairFee: (bill as any).repairFee ?? (bill as any).repairCharges ?? 0,
-      grandTotal: grandTotal,
-      technician: bill.technician,
-      customerAuth: {
-        secretKey: bill.customer?.secretKey || undefined,
-      },
-    };
-    const message = generateWhatsAppMessage(billDetails, currency);
-
+  const handleShareOnWhatsApp = useCallback(async () => {
+    toast.info(
+      "WhatsApp bill messages are sent automatically from backend events.",
+    );
+    setShowShareModal(false);
+  }, []);
+  const handleNativeShare = useCallback(() => {
+    if (!bill) return;
+    const details = buildBillDetails(bill);
+    const message = generateWhatsAppMessage(details, currency);
     try {
       if (typeof navigator !== "undefined" && (navigator as any).share) {
         (navigator as any).share({ text: message }).catch(() => {});
         setShowShareModal(false);
       }
     } catch {
-      // Fallback to WhatsApp if native share fails
-      handleShareOnWhatsApp();
+      toast.info(
+        "WhatsApp bill messages are sent automatically from backend events.",
+      );
     }
-  };
+  }, [bill, currency, buildBillDetails]);
 
-  const handleCopyToClipboard = () => {
-    const billDetails: BillDetails = {
-      ...bill,
-      repairFee: (bill as any).repairFee ?? (bill as any).repairCharges ?? 0,
-      grandTotal: grandTotal,
-      technician: bill.technician,
-      customerAuth: {
-        secretKey: bill.customer?.secretKey || undefined,
-      },
-    };
-    const message = generateWhatsAppMessage(billDetails, currency);
-
+  const handleCopyToClipboard = useCallback(() => {
+    if (!bill) return;
+    const details = buildBillDetails(bill);
+    const message = generateWhatsAppMessage(details, currency);
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard
         .writeText(
           message.replace(
-            `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(
-              bill.customer?.phone || "",
-            )}&passKey=${encodeURIComponent(bill.customer?.secretKey || "")}`,
+            `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(bill.customer?.phone || "")}&passKey=${encodeURIComponent(bill.customer?.secretKey || "")}`,
             "https://jambh-ell.vercel.app/#request",
           ),
         )
-
         .then(() => {
           toast.success("Bill details copied to clipboard!");
           setShowShareModal(false);
         })
-        .catch(() => {
-          toast.error("Failed to copy to clipboard");
-        });
+        .catch(() => toast.error("Failed to copy to clipboard"));
     }
-  };
+  }, [bill, currency, buildBillDetails]);
 
-  return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="lg">
+  const handleShare = useCallback(() => {
+    setShowShareModal(true);
+  }, []);
+
+  const handleEditBill = useCallback(() => {
+    if (role === "admin") setShowEditSheet(true);
+  }, [role]);
+
+  const handleOpenPayment = useCallback(() => {
+    setShowPaymentModal(true);
+  }, []);
+
+  const handlePaymentUpdateWrapper = useCallback(
+    async (billId: string, paymentData: any) => {
+      if (onUpdatePayment) {
+        await onUpdatePayment(billId, paymentData);
+      }
+      setShowPaymentModal(false);
+    },
+    [onUpdatePayment],
+  );
+
+  const modalContent = useMemo(() => {
+    if (!bill) return null;
+
+    return (
       <div className="relative">
-        <div className="space-y-6 max-md:space-y-3 md:p-6">
-          {/* Header */}
-          <BillHeader
+        <div className="space-y-5 sm:space-y-6">
+          <PremiumBillHeader bill={bill} role={role} currency={currency} />
+
+          <TechnicianCard bill={bill} />
+
+          <ItemsCard bill={bill} currency={currency} />
+
+          <ChargesCard bill={bill} currency={currency} />
+
+          <BillSummary bill={bill} currency={currency} />
+
+          <PaymentCard
             bill={bill}
-            getStatusColor={getStatusColor}
-            formatDate={formatDate}
+            currency={currency}
+            role={role}
+            onOpenPaymentModal={
+              role === "admin" && showPaymentControls
+                ? handleOpenPayment
+                : undefined
+            }
+            onPayOnline={undefined}
           />
 
-          {/* Customer Info */}
-          {bill.customer && (
-            <div className="bg-gray-800/50 rounded-lg p-2 sm:p-4 border border-gray-700">
-              <div className="text-sm text-gray-300 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-medium">{safeUserName(bill.customer.name, "Customer")}</p>
-                  {bill.customer.phone && (
-                    <p className="text-gray-400">{bill.customer.phone}</p>
+          <NotesCard bill={bill} />
+
+          <ActivityTimeline bill={bill} />
+
+          {role === "admin" && (
+            <BottomActionBar
+              role={role}
+              bill={bill}
+              onEditBill={handleEditBill}
+              onUpdatePayment={handleOpenPayment}
+              onShare={showShareButton ? handleShare : undefined}
+              onWhatsAppCustomer={handleShareOnWhatsApp}
+              onRemindCustomer={() => onRemindCustomer?.(bill)}
+              onDeleteBill={(id) => onDeleteBill?.(id)}
+              onDuplicateBill={() => onDuplicateBill?.(bill)}
+              onPayOnline={undefined}
+              onPrintBill={onPrintBill}
+            />
+          )}
+
+          {role === "customer" && (
+            <div className="sticky -bottom-4 sm:bottom-0 z-30 -mx-5 sm:-mx-5 md:-mx-6 mt-6">
+              <div className="glass-dock px-4 py-3 max-sm:mx-4 sm:px-5 flex-1 bg-black/50">
+                <div className="flex items-center justify-between gap-2.5 overflow-x-visible no-scrollbar">
+                  {showShareButton && (
+                    <button
+                      onClick={handleShare}
+                      className="flex flex-col items-center gap-1 min-w-[72px] sm:min-w-[80px] px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200 shrink-0 glass-dock-btn text-white/70"
+                    >
+                      <Share2 className="w-5 h-5 sm:w-5 sm:h-5" />
+                      <span className="leading-tight">Share</span>
+                    </button>
                   )}
-                  {bill.customer.phone && (
-                    <>
-                      &nbsp; | &nbsp;
-                      <Link
-                        href={`tel:${bill.customer.phone}`}
-                        className="text-blue-400 hover:underline text-base"
-                      >
-                        Call
-                      </Link>
-                    </>
+                  <button
+                    onClick={handleShareOnWhatsApp}
+                    className="flex flex-col items-center gap-1 min-w-[72px] sm:min-w-[80px] px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200 shrink-0 glass-dock-btn text-white/70"
+                  >
+                    <MessageSquare className="w-5 h-5 sm:w-5 sm:h-5" />
+                    <span className="leading-tight">WhatsApp</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const id = bill.billNumber || bill._id || bill.billId;
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(String(id));
+                        toast.success("Bill ID copied");
+                      }
+                    }}
+                    className="flex flex-col items-center gap-1 min-w-[72px] sm:min-w-[80px] px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200 shrink-0 glass-dock-btn text-white/70"
+                  >
+                    <Copy className="w-5 h-5 sm:w-5 sm:h-5" />
+                    <span className="leading-tight">Copy ID</span>
+                  </button>
+                  {bill.customer?.phone && (
+                    <a
+                      href={`tel:${bill.customer.phone}`}
+                      className="flex flex-col items-center gap-1 min-w-[72px] sm:min-w-[80px] px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200 shrink-0 glass-dock-btn text-white/70"
+                    >
+                      <Phone className="w-5 h-5 sm:w-5 sm:h-5" />
+                      <span className="leading-tight">Call Shop</span>
+                    </a>
                   )}
                 </div>
-                {bill.customer.email && (
-                  <p className="text-gray-400">{bill.customer.email}</p>
-                )}
-                {(bill.customerAddress || bill.customer.location) && (
-                  <p className="text-gray-400">
-                    {bill.customerAddress?.addressLine1 ||
-                      bill.customer.location}
-                    {bill.customerAddress?.city &&
-                      `, ${bill.customerAddress.city}`}
-                  </p>
-                )}
               </div>
             </div>
           )}
+        </div>
 
-          {/* Items */}
-          <BillItems bill={bill} currency={currency} />
+        <ShareModal
+          showShareModal={showShareModal}
+          setShowShareModal={setShowShareModal}
+          onShareOnWhatsApp={handleShareOnWhatsApp}
+          onNativeShare={handleNativeShare}
+          onCopyToClipboard={handleCopyToClipboard}
+          isSending={isSendingWhatsApp}
+        />
+      </div>
+    );
+  }, [
+    bill,
+    role,
+    currency,
+    showPaymentControls,
+    showShareModal,
+    isSendingWhatsApp,
+    onUpdatePayment,
+    onPayOnline,
+    onDownloadPDF,
+    onDeleteBill,
+    onDuplicateBill,
+    onRemindCustomer,
+    onPrintBill,
+    handleEditBill,
+    handleOpenPayment,
+    handleShare,
+    handleShareOnWhatsApp,
+    handleNativeShare,
+    handleCopyToClipboard,
+  ]);
 
-          {/* Additional Charges */}
-          <BillCharges
-            bill={bill}
-            currency={currency}
-            transportationFee={transportationFee}
-            homeVisitFee={homeVisitFee}
-            repairChargeValue={repairChargeValue}
-          />
+  if (!mounted) return null;
 
-          {/* Total Section */}
-          <BillTotals
-            bill={bill}
-            currency={currency}
-            grandTotal={grandTotal}
-            existingDiscountTotal={existingDiscountTotal}
-            discountAmount={discountAmount}
-            toNum={toNum}
-          />
-
-          {/* Notes */}
-          {bill.notes && (
-            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-              <h3 className="font-medium text-white mb-2">Notes</h3>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                {bill.notes}
-              </p>
-            </div>
+  return (
+    <>
+      <BaseGlassModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        size="lg"
+        mobileType="modal"
+        zIndex={220}
+      >
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <BillSkeleton />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {modalContent}
+            </motion.div>
           )}
+        </AnimatePresence>
+      </BaseGlassModal>
 
-          {/* Payment Controls */}
-          {showPaymentControls &&
-            onUpdatePayment &&
-            bill.paymentStatus !== "paid" && (
-              <PaymentControls
-                isEditingPayment={isEditingPayment}
-                setIsEditingPayment={setIsEditingPayment}
-                paymentMode={paymentMode}
-                setPaymentMode={setPaymentMode}
-                partialAmount={partialAmount}
-                setPartialAmount={setPartialAmount}
-                discountAmount={discountAmount}
-                setDiscountAmount={setDiscountAmount}
-                isUpdatingPayment={isUpdatingPayment}
-                grandTotal={grandTotal}
-                getEffectiveGrandTotal={getEffectiveGrandTotal}
-                toNum={toNum}
-                bill={bill}
-                handlePaymentUpdate={handlePaymentUpdate}
-                currency={currency}
-              />
-            )}
-
-          {/* Action Buttons */}
-          <BillActions
-            showShareButton={showShareButton}
-            onShare={handleShare}
-            onCheckAllBills={() => {
-              const id = resolveCustomerIdFromBill(bill);
-              if (!id) {
-                toast.error("Customer ID not available for this bill.");
-                return;
+      {role === "admin" && (
+        <>
+          <EditBillSheet
+            isOpen={showEditSheet}
+            onClose={() => setShowEditSheet(false)}
+            bill={bill}
+            onSave={async (updatedBill) => {
+              if (onEditBill) {
+                onEditBill(updatedBill);
               }
-              router.push(`/admin/customers/${id}/bills`);
+              setShowEditSheet(false);
+              toast.success("Bill updated successfully");
             }}
           />
-          {/* Share Modal */}
-          <ShareModal
-            showShareModal={showShareModal}
-            setShowShareModal={setShowShareModal}
-            onShareOnWhatsApp={handleShareOnWhatsApp}
-            onNativeShare={handleNativeShare}
-            onCopyToClipboard={handleCopyToClipboard}
-            isSending={isSendingWhatsApp}
+
+          <PaymentUpdateModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            bill={bill}
+            currency={currency}
+            onUpdatePayment={handlePaymentUpdateWrapper}
           />
-        </div>
-      </div>
-    </Modal>
+        </>
+      )}
+    </>
   );
 };
