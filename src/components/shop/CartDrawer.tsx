@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useBackClose } from "@/hooks/useBackClose";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -118,16 +118,12 @@ export function CartDrawer() {
     return sum + (orig - item.price) * item.quantity;
   }, 0);
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isOpen]);
+
+  useBackClose({
+    isOpen,
+    onClose: closeCart,
+    id: "shop-cart-drawer",
+  });
 
   const handleWhatsApp = () => {
     const supportWhatsApp =

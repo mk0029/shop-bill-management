@@ -7,10 +7,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Bell, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBackClose } from "@/hooks/useBackClose";
 import CustomerNotificationsPage from "./CustomerNotificationPage";
 import { isCustomerNotificationVisible } from "@/lib/notifications/customer";
-
-const QUERY_PARAM = "notifications=1";
 
 export default function CustomerNotifications() {
   const { items } = useNotificationStore();
@@ -32,51 +31,25 @@ export default function CustomerNotifications() {
     setMounted(true);
   }, []);
 
-  // On mount, clear stale notification param from a full page refresh
-  useEffect(() => {
-    if (window.location.search.includes(QUERY_PARAM)) {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-  }, []);
-
-  // Sync open state with browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      if (openRef.current && !window.location.search.includes(QUERY_PARAM)) {
-        setOpen(false);
-        openRef.current = false;
-      }
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+  const handleClose = useCallback(() => {
+    if (!openRef.current) return;
+    setOpen(false);
+    openRef.current = false;
   }, []);
 
   const handleToggle = useCallback(() => {
     if (openRef.current) {
       handleClose();
     } else {
-      window.history.pushState({ notifications: true }, "", `?${QUERY_PARAM}`);
       setOpen(true);
       openRef.current = true;
     }
-  }, []);
-
-  const handleClose = useCallback(() => {
-    if (!openRef.current) return;
-    setOpen(false);
-    openRef.current = false;
-    if (window.location.search.includes(QUERY_PARAM)) {
-      window.history.back();
-    }
-  }, []);
+  }, [handleClose]);
 
   const handleCloseSilent = useCallback(() => {
     if (!openRef.current) return;
     setOpen(false);
     openRef.current = false;
-    if (window.location.search.includes(QUERY_PARAM)) {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
   }, []);
 
   // Filter notifications for customers to get accurate unread count
@@ -94,6 +67,12 @@ export default function CustomerNotifications() {
     return filteredItems.filter((n) => !n.read).length;
   }, [filteredItems]);
 
+  useBackClose({
+    isOpen: open,
+    onClose: handleClose,
+    id: "notifications-popover",
+  });
+
   // Close on outside click
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -109,19 +88,6 @@ export default function CustomerNotifications() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const bodyOverflow = document.body.style.overflow;
-    const htmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = bodyOverflow;
-      document.documentElement.style.overflow = htmlOverflow;
-    };
-  }, [open]);
 
   return (
     <div className="relative">

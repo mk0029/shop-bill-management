@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BatteryCharging, Cable, Fan, Lightbulb, Loader2, MessageCircle, Plug, Plus, Search, UserPlus, Wrench, X, Zap } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
@@ -14,7 +14,6 @@ import MessageInput from "@/components/shop-chat/source/ChatRoom/MessageInput";
 import MessagesList from "@/components/shop-chat/source/ChatRoom/MessagesList";
 import ChatItem from "@/components/shop-chat/source/ChatSidebar/ChatItem";
 import ChatLoadingOverlay from "@/components/shop-chat/ChatLoadingOverlay";
-import { useModalQuery } from "@/components/shop-chat/useModalQuery";
 import {
   clearShopChatRoom,
   deleteShopChatMessage,
@@ -31,6 +30,7 @@ import { useShopChatSocket } from "@/lib/shop-chat/socket";
 import type { ChatMedia, ShopChatMessage, ShopChatRoom } from "@/lib/shop-chat/types";
 import type { Message } from "@/lib/types";
 import { useDynamicViewportHeight } from "@/hooks/use-dynamic-viewport-height";
+import { useBackClose } from "@/hooks/useBackClose";
 import { useNotificationStore } from "@/store/notification-store";
 import {
   clearAppSystemNotifications,
@@ -656,7 +656,6 @@ function ChatPanel({
   const [galleryActiveId, setGalleryActiveId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const { currentModal, currentMediaId, openModal, closeModal, hasModalQuery } = useModalQuery();
   const sourceMessages = useMemo(
     () =>
       messages
@@ -701,32 +700,22 @@ function ChatPanel({
         })),
     [room?.customerId, room?.customerName, sourceMessages],
   );
+  const closeGallery = () => {
+    setGalleryOpen(false);
+    setGalleryActiveId(null);
+  };
 
-  // Sync gallery state with URL query (for back button)
-  const prevModalRef = useRef(currentModal);
-  useEffect(() => {
-    if (currentModal === prevModalRef.current) return;
-    prevModalRef.current = currentModal;
-    if (!currentModal && galleryOpen) {
-      setGalleryOpen(false);
-      setGalleryActiveId(null);
-    } else if (currentModal === "gallery" && !galleryOpen) {
-      setGalleryOpen(true);
-      if (currentMediaId) setGalleryActiveId(currentMediaId);
-    }
-  }, [currentModal, currentMediaId, galleryOpen]);
+  useBackClose({
+    isOpen: galleryOpen,
+    onClose: closeGallery,
+    id: `chat-gallery-${room?.roomId || "room"}`,
+  });
 
-  // When gallery opens via image click, update URL mediaId
-  const prevActiveIdRef = useRef(galleryActiveId);
-  useEffect(() => {
-    if (!galleryOpen || !galleryActiveId) return;
-    if (galleryActiveId === prevActiveIdRef.current) return;
-    prevActiveIdRef.current = galleryActiveId;
-    if (currentModal === "gallery" && currentMediaId !== galleryActiveId) {
-      openModal("gallery", galleryActiveId);
-    }
-  }, [galleryOpen, galleryActiveId, currentModal, currentMediaId, openModal]);
-
+  useBackClose({
+    isOpen: searchOpen,
+    onClose: () => setSearchOpen(false),
+    id: `chat-search-${room?.roomId || "room"}`,
+  });
   const submitMessage = async (text: string) => {
     if (editingMessage) {
       await onEditMessage(editingMessage.id, text);
@@ -769,7 +758,6 @@ function ChatPanel({
         onSearch={() => setSearchOpen(true)}
         onOpenMedia={() => {
           setGalleryOpen(true);
-          openModal("gallery");
         }}
         onOpenBills={onOpenBills}
         onClearChat={mode === "admin" ? onClearChat : undefined}
@@ -818,7 +806,6 @@ function ChatPanel({
             onOpenImage={(payload) => {
               setGalleryActiveId(payload.messageId);
               setGalleryOpen(true);
-              openModal("gallery", payload.messageId);
             }}
           />
         </>
@@ -850,11 +837,7 @@ function ChatPanel({
         open={galleryOpen}
         items={galleryItems}
         activeId={galleryActiveId}
-        onClose={() => {
-          setGalleryOpen(false);
-          setGalleryActiveId(null);
-          closeModal();
-        }}
+        onClose={closeGallery}
       />
       {searchOpen && (
         <div className="fixed inset-0 z-[2600] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm" onClick={() => setSearchOpen(false)}>
@@ -990,7 +973,6 @@ export default function ShopChatClient({
   useDynamicViewportHeight();
 
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const myUserId = String((user as any)?.id || (user as any)?._id || "");
@@ -1025,9 +1007,7 @@ export default function ShopChatClient({
   const cursorRef = useRef<Record<string, string | null>>({});
   const refreshAtRef = useRef<Record<string, number>>({});
   const autoOpenCustomerRef = useRef("");
-  const handledReloadParamRef = useRef(false);
   const syncedBillEventsRef = useRef<Set<string>>(new Set());
-  const restoredFromUrlRef = useRef(false);
   const fetchedOnceRef = useRef(false);
   const selectingRoomRef = useRef(false);
   const { socket, connected, sendMessage: sendSocketMessage } = useShopChatSocket(activeRoom?.roomId);
@@ -1052,27 +1032,17 @@ export default function ShopChatClient({
     messagesByRoomRef.current = messagesByRoom;
   }, [messagesByRoom]);
 
-  const isMobile = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 767px)").matches;
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
   }, []);
 
-  const syncUrlToActiveRoom = useCallback(
-    (roomId: string | null, action: "replace" | "push" = "replace") => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (roomId) {
-        if (params.get("chat") === roomId) return;
-        params.set("chat", roomId);
-      } else {
-        if (!params.has("chat")) return;
-        params.delete("chat");
-      }
-      const next = params.toString();
-      const url = next ? `${pathname}?${next}` : pathname;
-      router[action](url, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
 
   const upsertRoom = useCallback((room: ShopChatRoom) => {
     setRooms((prev) => {
@@ -1181,10 +1151,9 @@ export default function ShopChatClient({
     } catch {}
   }, [mode]);
 
-  const chatParam = searchParams.get("chat") || "";
 
   const selectRoom = useCallback(
-    async (room: ShopChatRoom, syncUrl = true) => {
+    async (room: ShopChatRoom) => {
       if (selectingRoomRef.current) return;
       if (activeRoomRef.current?.roomId === room.roomId) return;
       // Abort any in-flight request
@@ -1197,9 +1166,6 @@ export default function ShopChatClient({
         setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: true }));
       }
       setActiveRoom(room);
-      if (syncUrl && mode === "admin") {
-        syncUrlToActiveRoom(room.roomId, isMobile ? "push" : "replace");
-      }
       try {
         await loadMessages(room, controller.signal);
         if (!controller.signal.aborted) {
@@ -1214,13 +1180,16 @@ export default function ShopChatClient({
         selectingRoomRef.current = false;
       }
     },
-    [messagesByRoom, mode, isMobile, syncUrlToActiveRoom, loadMessages, syncBillEventsForRoom],
+    [messagesByRoom, loadMessages, syncBillEventsForRoom],
   );
 
-  const closeChat = useCallback(() => {
+  const closeChatOverlay = useCallback(() => {
     typingCleanupRef.current();
     setActiveRoom(null);
-    syncUrlToActiveRoom(null, "replace");
+  }, []);
+
+  const closeChat = useCallback(() => {
+    closeChatOverlay();
     if (mode === "customer" && typeof window !== "undefined") {
       if (window.history.length > 1) {
         router.back();
@@ -1228,16 +1197,14 @@ export default function ShopChatClient({
         router.push("/customer");
       }
     }
-  }, [syncUrlToActiveRoom, mode, router]);
+  }, [closeChatOverlay, mode, router]);
 
-  useEffect(() => {
-    if (handledReloadParamRef.current) return;
-    handledReloadParamRef.current = true;
-    if (mode !== "admin" || !chatParam || typeof window === "undefined") return;
-    const nav = window.performance?.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
-    if (nav?.type !== "reload") return;
-    syncUrlToActiveRoom(null, "replace");
-  }, [chatParam, mode, syncUrlToActiveRoom]);
+  useBackClose({
+    isOpen: Boolean(activeRoom) && isMobile,
+    onClose: closeChatOverlay,
+    id: `shop-chat-room-${mode}`,
+  });
+
 
   useEffect(() => {
     window.dispatchEvent(
@@ -1330,29 +1297,7 @@ export default function ShopChatClient({
     };
   }, [loadMessages, mode, syncBillEventsForRoom]);
 
-  useEffect(() => {
-    if (restoredFromUrlRef.current) return;
-    if (mode === "customer") return;
-    if (loading) return;
-    if (!chatParam) return;
-    const room = rooms.find((item) => item.roomId === chatParam);
-    if (!room) return;
-    restoredFromUrlRef.current = true;
-    void selectRoom(room, false);
-  }, [chatParam, loading, mode, rooms, selectRoom]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onPopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const chatId = params.get("chat") || "";
-      if (!chatId && activeRoomRef.current) {
-        setActiveRoom(null);
-      }
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
 
   useEffect(() => {
     const customerId = searchParams.get("customerId") || "";

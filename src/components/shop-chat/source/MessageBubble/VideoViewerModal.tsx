@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Download, Play, Pause, Loader2 } from "lucide-react";
 import Portal from "@/lib/ui/Portal";
-import { useModalQuery } from "@/components/shop-chat/useModalQuery";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface VideoViewerModalProps {
   open: boolean;
@@ -40,10 +40,8 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
       setCur(0);
       setDur(0);
       setVideoLoaded(false);
-      document.body.style.overflow = "";
       return;
     }
-    document.body.style.overflow = "hidden";
     requestAnimationFrame(() => {
       const v = videoRef.current;
       if (v) v.play().catch(() => {});
@@ -51,32 +49,18 @@ const VideoViewerModal: React.FC<VideoViewerModalProps> = ({
     return () => {
       const v = videoRef.current;
       if (v) { v.pause(); v.removeAttribute("src"); v.load(); }
-      document.body.style.overflow = "";
     };
   }, [open]);
 
-  const { currentModal, openModal, closeModal } = useModalQuery();
-
-  // Sync open state with URL query
-  useEffect(() => {
-    if (open) {
-      openModal("video", mediaFileName);
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Back button via URL query change
-  useEffect(() => {
-    if (!open) return;
-    if (currentModal === null) {
-      onClose();
-    }
-  }, [currentModal]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Close button: clean up URL query
   const handleClose = useCallback(() => {
-    closeModal();
     onClose();
-  }, [closeModal, onClose]);
+  }, [onClose]);
+
+  useBackClose({
+    isOpen: open,
+    onClose: handleClose,
+    id: `chat-video-viewer-${mediaFileName || src}`,
+  });
 
   useEffect(() => {
     if (!open) return;

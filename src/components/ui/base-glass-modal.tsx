@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface BaseGlassModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface BaseGlassModalProps {
   mobileType?: "modal" | "bottom-sheet";
   className?: string;
   hideBackdrop?: boolean;
+  backCloseId?: string;
 }
 
 const sizeClasses = {
@@ -38,8 +40,10 @@ export function BaseGlassModal({
   mobileType = "bottom-sheet",
   className,
   hideBackdrop,
+  backCloseId,
 }: BaseGlassModalProps) {
   const [mounted, setMounted] = useState(false);
+  const generatedId = useId();
 
   useEffect(() => {
     setMounted(true);
@@ -53,6 +57,12 @@ export function BaseGlassModal({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, onClose]);
+
+  useBackClose({
+    isOpen,
+    onClose,
+    id: backCloseId || title || `glass-modal-${generatedId}`,
+  });
 
   if (!mounted) return null;
 

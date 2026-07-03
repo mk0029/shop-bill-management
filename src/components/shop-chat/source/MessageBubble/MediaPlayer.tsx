@@ -7,6 +7,7 @@ import { AudioPlayer } from "@/components/ui/audio-player";
 import { getCachedMediaBlob } from "@/lib/chat-cache";
 import { Message } from "@/lib/types";
 import VideoViewerModal from "./VideoViewerModal";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface MediaPlayerProps {
   type: "image" | "video" | "audio" | "file";
@@ -230,6 +231,12 @@ const ImagePlayer: React.FC<{
     if (!onOpenImage) return;
     setImgOpen(false);
   }, [onOpenImage, src]);
+
+  useBackClose({
+    isOpen: imgOpen,
+    onClose: () => setImgOpen(false),
+    id: `chat-image-viewer-${src}`,
+  });
 
   useEffect(() => {
     if (!imgOpen) return;

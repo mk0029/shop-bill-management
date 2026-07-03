@@ -11,6 +11,7 @@ interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl" | "full";
   showCloseButton?: boolean;
   className?: string;
+  backCloseId?: string;
 }
 
 export function Modal({
@@ -21,6 +22,7 @@ export function Modal({
   size = "md",
   showCloseButton = true,
   className,
+  backCloseId,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -28,18 +30,6 @@ export function Modal({
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (isOpen) {
-      const bodyOverflow = document.body.style.overflow;
-      const htmlOverflow = document.documentElement.style.overflow;
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = bodyOverflow;
-        document.documentElement.style.overflow = htmlOverflow;
-      };
-    }
-  }, [isOpen]);
 
   if (!mounted || !isOpen) return null;
 
@@ -53,6 +43,7 @@ export function Modal({
       className={className}
       mobileType="modal"
       zIndex={220}
+      backCloseId={backCloseId || title}
     >
       {children}
     </BaseGlassModal>

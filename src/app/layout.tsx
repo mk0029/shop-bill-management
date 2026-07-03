@@ -14,6 +14,7 @@ import AuthRoleSync from "../components/providers/auth-role-sync";
 import BackgroundFeaturesGate from "../components/providers/background-features-gate";
 import ServiceWorkerUpdatePrompt from "@/components/providers/service-worker-update-prompt";
 import { ConfirmModalProvider } from "@/components/providers/confirm-modal-provider";
+import { ModalStackProvider } from "@/providers/ModalStackProvider";
 
 import "./globals.css";
 import RouteProgress from "../components/ui/route-progress";
@@ -128,18 +129,20 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <RouteProgress />
         </Suspense>
-        <DataProvider>
-          <SanityRealtimeProvider>
-            {children}
-            <ServiceWorkerUpdatePrompt />
-            <AuthBackgroundGate>
-              <BackgroundFeaturesGate />
-              <PWAInstaller />
-              <OfflineSync />
-              <OfflineWarning />
-            </AuthBackgroundGate>
-          </SanityRealtimeProvider>
-        </DataProvider>
+        <ModalStackProvider>
+          <DataProvider>
+            <SanityRealtimeProvider>
+              {children}
+              <ServiceWorkerUpdatePrompt />
+              <AuthBackgroundGate>
+                <BackgroundFeaturesGate />
+                <PWAInstaller />
+                <OfflineSync />
+                <OfflineWarning />
+              </AuthBackgroundGate>
+            </SanityRealtimeProvider>
+          </DataProvider>
+        </ModalStackProvider>
 
         <ConfirmModalProvider />
 

@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface PendingFile {
   file: File;
@@ -103,6 +104,11 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
     onSend(allFiles, primaryKind, caption.trim());
   };
 
+  useBackClose({
+    isOpen: localFiles.length > 0,
+    onClose: onCancel,
+    id: "chat-media-preview",
+  });
   const activeFile = localFiles[activeIndex];
 
   const markLoaded = (index: number) => {
