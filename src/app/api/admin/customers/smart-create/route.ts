@@ -127,7 +127,34 @@ async function sendWelcomeWhatsApp(input: {
     return
   }
 
-  const msg = `🔐 Your Account Login\n\nClick the link below to securely access your account:\n${input.loginUrl}`
+  const safeName = sanitizeUserText(input.customerName || 'Customer') || 'Customer'
+  const msg = [
+    `Account Created`,
+    '',
+    `Dear ${safeName},`,
+    '',
+    'Your customer account has been created successfully.',
+    '',
+    'From your account you can:',
+    '',
+    '* View all invoices and payment history',
+    '* Make secure payments online',
+    '* Track service requests and orders',
+    '* Update your profile and preferences',
+    '',
+    '🔐 Your Secure Account',
+    '',
+    'Click the link below to log in and securely access your account.',
+    '',
+    input.loginUrl,
+    '',
+    'Thank you for choosing Jambh Electricals.',
+    '',
+    'If you have any questions, simply reply to this message and our team will be happy to assist you.',
+    '',
+    'Regards,',
+    'Jambh Electricals',
+  ].join('\n')
 
   try {
     const result = await sendWhatsAppNotification({
