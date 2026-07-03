@@ -30,6 +30,7 @@ export function CustomerForm({
 }: CustomerFormProps) {
   const [formData, setFormData] = useState<CreateCustomerData>({
     name: "",
+    nickname: "",
     phone: "",
     location: "",
   });
@@ -42,6 +43,7 @@ export function CustomerForm({
     if (customer) {
       setFormData({
         name: customer.name,
+        nickname: customer.nickname || "",
         phone: customer.phone,
         location: customer.location,
       });
@@ -72,7 +74,7 @@ export function CustomerForm({
   };
 
   const clearForm = () => {
-    setFormData({ name: "", phone: "", location: "" });
+    setFormData({ name: "", nickname: "", phone: "", location: "" });
     setFormErrors({});
   };
 
@@ -93,6 +95,7 @@ export function CustomerForm({
       // Otherwise, create new customer in Sanity
       const result = await createCustomer({
         name: formData.name,
+        nickname: formData.nickname?.trim() || undefined,
         phone: formData.phone,
         location: formData.location,
       });
@@ -151,6 +154,22 @@ export function CustomerForm({
             error={formErrors.name}
             disabled={loading || isSubmitting}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="nickname">Nickname</Label>
+          <Input
+            id="nickname"
+            type="text"
+            placeholder="Preferred display name (optional)"
+            value={formData.nickname || ""}
+            onChange={(e) => handleInputChange("nickname", e.target.value)}
+            error={formErrors.nickname}
+            disabled={loading || isSubmitting}
+          />
+          <p className="text-xs text-gray-500">
+            Used for reminders, WhatsApp messages, invoices, and throughout the application. If left blank, the customer's full name will be used.
+          </p>
         </div>
 
         <div className="space-y-2">

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { safeUserName } from "@/lib/display-text";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 import { GlassCard } from "./GlassCard";
 
 interface CustomerCardProps {
@@ -28,7 +29,7 @@ export const CustomerCard = memo(function CustomerCard({
   const customer = bill?.customer;
   if (!customer) return null;
 
-  const name = safeUserName(customer.name, "Customer");
+  const name = safeUserName(getAdminCustomerDisplayName(customer), "Customer");
   const phone = customer.phone || "";
   const address = bill.customerAddress?.addressLine1 || customer.location || "";
   const initials = useMemo(

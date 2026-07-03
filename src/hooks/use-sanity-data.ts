@@ -226,6 +226,7 @@ export function useSearch() {
       (user) =>
         user.role === "customer" &&
         (user.name.toLowerCase().includes(searchTerm) ||
+          user.nickname?.toLowerCase().includes(searchTerm) ||
           user.phone.includes(searchTerm) ||
           user.email?.toLowerCase().includes(searchTerm) ||
           user.location.toLowerCase().includes(searchTerm))

@@ -7,6 +7,7 @@ export interface User {
   customerId: string;
   secretKey: string;
   name: string;
+  nickname?: string;
   email: string;
   phone?: string;
   location?: string;
@@ -21,6 +22,7 @@ export interface Customer {
   _id: string;
   customerId: string;
   name: string;
+  nickname?: string;
   phone: string;
   location: string;
   isActive: boolean;
@@ -180,6 +182,7 @@ export interface CreateBrandData {
 
 export interface CreateCustomerData {
   name: string;
+  nickname?: string;
   phone: string;
   location: string;
 }

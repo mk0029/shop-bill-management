@@ -49,6 +49,7 @@ Requirement: avxv`;
 
 interface ParsedFields {
   name: string;
+  nickname: string;
   phone: string;
   email: string;
   location: string;
@@ -58,6 +59,7 @@ interface ParsedFields {
 
 interface FieldConfidence {
   name: boolean;
+  nickname: boolean;
   phone: boolean;
   email: boolean;
   location: boolean;
@@ -132,7 +134,7 @@ export default function SmartCustomerCreatorClient() {
         return;
       }
       const result = json.data;
-      setParsedFields(result.parsedFields);
+      setParsedFields({ nickname: "", ...result.parsedFields });
       setConfidence(result.confidence);
       if (result.missingRequired?.length > 0) {
         toast.warning(
@@ -182,6 +184,7 @@ export default function SmartCustomerCreatorClient() {
           mode: "create",
           actorUserId,
           name: parsedFields.name,
+          nickname: parsedFields.nickname || undefined,
           phone: parsedFields.phone,
           email: parsedFields.email || undefined,
           location: resolvedLocation || undefined,
@@ -399,6 +402,19 @@ export default function SmartCustomerCreatorClient() {
                       />
                     </div>
 
+                    <div className="space-y-1.5">
+                      <Label className="text-gray-300 text-xs flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5" />
+                        Nickname
+                      </Label>
+                      <Input
+                        value={parsedFields.nickname}
+                        onChange={(e) => updateField("nickname", e.target.value)}
+                        className="bg-white/[0.04] border-white/[0.08] text-white placeholder-white/30"
+                        placeholder="Preferred display name (optional)"
+                      />
+                      <p className="text-[11px] text-white/40">Used for reminders, WhatsApp messages, invoices, and throughout the application.</p>
+                    </div>
                     <div className="space-y-1.5">
                       <Label className="text-gray-300 text-xs flex items-center gap-1.5">
                         <Phone className="w-3.5 h-3.5" />

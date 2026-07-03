@@ -248,12 +248,9 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-medium text-white truncate capitalize">
-                          {bill.customer?.name
-                            ? bill.customer.name.replace(
-                                /\s*\([^)]*\)|\s*\[[^\]]*\]|\s*\{[^}]*\}/g,
-                                "",
-                              )
-                            : `Bill #${bill.billNumber}`}
+                          {(bill.customer?.name && bill.customer?.nickname)
+                            ? `${bill.customer.name} (${bill.customer.nickname})`
+                            : bill.customer?.name || `Bill #${bill.billNumber}`}
                         </h3>
                         <p className="text-sm text-gray-400 truncate capitalize">
                           {bill.serviceType.replace(/_/g, " ") || "Service"}

@@ -35,6 +35,7 @@ export default function AddCustomerPage() {
 
   const [formData, setFormData] = useState({
     name: "",
+    nickname: "",
     phone: "",
     email: "",
     location: "",
@@ -64,6 +65,7 @@ export default function AddCustomerPage() {
   const clearForm = () => {
     setFormData({
       name: "",
+      nickname: "",
       phone: "",
       email: "",
       location: "",
@@ -107,6 +109,7 @@ export default function AddCustomerPage() {
       // Create customer in Sanity using the actual API
       const result = await createCustomer({
         name: formData.name,
+        nickname: formData.nickname.trim() || undefined,
         phone: formData.phone,
         location: resolvedLocation,
         email: formData.email || undefined,
@@ -177,6 +180,23 @@ export default function AddCustomerPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="nickname" className="text-gray-300">
+                  Nickname
+                </Label>
+                <Input
+                  id="nickname"
+                  type="text"
+                  value={formData.nickname}
+                  onChange={(e) => handleInputChange("nickname", e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                  placeholder="Preferred display name (optional)"
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-gray-500">
+                  Used for reminders, WhatsApp messages, invoices, and throughout the application. If left blank, the customer's full name will be used.
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-gray-300">
                   Phone Number *

@@ -7,6 +7,7 @@ import { ChevronDown, MessageSquare, Phone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PayAllBillsModal } from "./pay-all-bills-modal";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 interface CustomerGroup {
   id: string;
@@ -86,11 +87,7 @@ export default function CustomerBillGroup({
     return { pending, paid, totalBills };
   }, [group.bills]);
 
-  const customerName =
-    group.customer?.name?.replace(
-      /\s*\([^)]*\)|\s*\[[^\]]*\]|\s*\{[^}]*\}/g,
-      "",
-    ) || "Unknown Customer";
+  const customerName = getAdminCustomerDisplayName(group.customer || {});
 
   const phone = group.customer?.phone || "";
   const cleanPhone = phone.replace(/\D/g, "").slice(-10);

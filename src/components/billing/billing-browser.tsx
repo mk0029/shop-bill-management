@@ -172,6 +172,7 @@ export function BillingBrowser({
       discount: (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0,
       customer: {
         name: safeUserName(bill.customer?.name, "Unknown Customer"),
+        nickname: bill.customer?.nickname || undefined,
         phone: bill.customer?.phone || "",
         email: bill.customer?.email || "",
         location: bill.customer?.location || "",

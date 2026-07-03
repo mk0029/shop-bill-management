@@ -2,7 +2,7 @@ import { useState } from "react";
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Button } from "@/components/ui/button";
 import { useLocaleStore } from "@/store/locale-store";
-import { formatCustomerActivity } from "@/lib/customer-utils";
+import { formatCustomerActivity, getAdminCustomerDisplayName } from "@/lib/customer-utils";
 import type { CustomerWithStats } from "@/types/customer";
 import Link from "next/link";
 import { safeInitial, safeUserName } from "@/lib/display-text";
@@ -35,7 +35,7 @@ export default function CustomerDetailModal({
   const [copied, setCopied] = useState(false);
 
   if (!customer) return null;
-  const customerDisplayName = safeUserName(customer.name, "Customer");
+  const customerDisplayName = safeUserName(getAdminCustomerDisplayName(customer), "Customer");
   const gradient = accentGradients[customer.totalBills % accentGradients.length];
 
   const formatDate = (iso: string) => {
@@ -140,7 +140,7 @@ export default function CustomerDetailModal({
         <div className="flex items-center gap-4">
           <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl shrink-0`}>
             <span className="text-white font-bold text-xl">
-              {safeInitial(customer.name)}
+              {safeInitial(customerDisplayName)}
             </span>
           </div>
           <div className="min-w-0">

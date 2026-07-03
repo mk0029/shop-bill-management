@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { safeUserName } from "@/lib/display-text";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
@@ -58,7 +59,7 @@ export const PremiumBillHeader = memo(function PremiumBillHeader({
   const router = useRouter();
   const status = getStatus(bill.paymentStatus || bill.status);
   const customer = bill?.customer || {};
-  const customerName = safeUserName(customer.name, "Customer");
+  const customerName = safeUserName(getAdminCustomerDisplayName(customer), "Customer");
   const customerPhone = customer.phone || "";
   const address = bill.customerAddress?.addressLine1 || customer.location || customer.address || "";
   const initials = customerName

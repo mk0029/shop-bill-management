@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { useAuthStore } from "@/store/auth-store";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 const StatCard = ({
   title,
@@ -393,7 +394,7 @@ export default function SalesReportPage() {
                       {idx + 1}
                     </div>
                     <div>
-                      <p className="text-white font-medium">{c.name}</p>
+                      <p className="text-white font-medium">{getAdminCustomerDisplayName(c)}</p>
                       <p className="text-gray-400 text-xs">
                         {c.billCount} bills
                       </p>
@@ -696,7 +697,7 @@ export default function SalesReportPage() {
                         </div>
                         <div>
                           <p className="text-white font-medium">
-                            {customer.name}
+                            {getAdminCustomerDisplayName(customer)}
                           </p>
                           <p className="text-gray-400 text-sm">
                             {customer.billCount} bills

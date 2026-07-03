@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 interface CustomerDetailsModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export const CustomerDetailsModal = memo(function CustomerDetailsModal({
 
   if (!customer) return null;
 
-  const name = customer?.name || "Unknown";
+  const name = getAdminCustomerDisplayName(customer);
   const phone = customer?.phone || "";
   const address = customer?.address || customer?.location || "";
   const initials = name
@@ -173,5 +174,3 @@ export const CustomerDetailsModal = memo(function CustomerDetailsModal({
     </BaseGlassModal>
   );
 });
-
-

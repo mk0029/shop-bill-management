@@ -1,23 +1,50 @@
 import type { Customer, CustomerWithStats } from "@/types/customer";
 
-/**
- * Formats customer display name with fallback
- */
-export function formatCustomerName(customer: Customer): string {
-  return customer.name || "Unknown Customer";
+const BRACKET_REGEX = /\s*[\[({]([^\]})]+)[\]})]\s*$/;
+
+export function cleanCustomerNameInput(name: string) {
+  return name
+    .replace(/\s*\([^)]*\)\s*/g, "")
+    .replace(/\s*\{[^}]*\}\s*/g, "")
+    .replace(/\s*\[[^\]]*\]\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-/**
- * Formats customer phone number
- */
+export function extractNicknameFromBrackets(name: string) {
+  const match = name.match(BRACKET_REGEX);
+  return match ? match[1].trim() : "";
+}
+
+export function splitNameAndNickname(name: string) {
+  const nickname = extractNicknameFromBrackets(name);
+  const cleanName = nickname ? cleanCustomerNameInput(name) : name.trim();
+  return { cleanName, nickname };
+}
+
+export function getAdminCustomerDisplayName(customer: {
+  name?: string;
+  nickname?: string;
+}): string {
+  const name = customer?.name?.trim() || "Unknown Customer";
+  const nickname = customer?.nickname?.trim();
+  return nickname ? `${name} (${nickname})` : name;
+}
+
+export function getCustomerDisplayName(customer: {
+  name?: string;
+}): string {
+  return customer?.name?.trim() || "Unknown Customer";
+}
+
+export function formatCustomerName(customer: Customer): string {
+  return customer.nickname?.trim() || customer.name || "Unknown Customer";
+}
+
 export function formatCustomerPhone(phone: string): string {
-  // Basic phone formatting - can be enhanced based on locale
   return phone.replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3");
 }
 
-/**
- * Gets customer initials for avatar display
- */
 export function getCustomerInitials(name: string): string {
   return name
     .split(" ")
@@ -27,9 +54,6 @@ export function getCustomerInitials(name: string): string {
     .slice(0, 2);
 }
 
-/**
- * Determines customer status color
- */
 export function getCustomerStatusColor(isActive: boolean): {
   bg: string;
   text: string;
@@ -39,9 +63,6 @@ export function getCustomerStatusColor(isActive: boolean): {
     : { bg: "bg-red-900", text: "text-red-300" };
 }
 
-/**
- * Formats customer activity summary
- */
 export function formatCustomerActivity(
   customer: CustomerWithStats,
   currency: string
@@ -53,57 +74,41 @@ export function formatCustomerActivity(
   return `All Paid`;
 }
 
-/**
- * Formats last bill date
- */
 export function formatLastBillDate(lastBillDate: string | null): string {
   if (!lastBillDate) return "No bills yet";
-
   const date = new Date(lastBillDate);
   const now = new Date();
   const diffTime = Math.abs(now.getTime() - date.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return `${diffDays} days ago`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-
   return lastBillDate;
 }
 
-/**
- * Validates customer data
- */
 export function validateCustomerData(customer: Partial<Customer>): {
   isValid: boolean;
   errors: Record<string, string>;
 } {
   const errors: Record<string, string> = {};
-
   if (!customer.name?.trim()) {
     errors.name = "Customer name is required";
   }
-
   if (!customer.phone?.trim()) {
     errors.phone = "Phone number is required";
   } else if (!/^\d{10}$/.test(customer.phone.replace(/\D/g, ""))) {
     errors.phone = "Please enter a valid 10-digit phone number";
   }
-
   if (!customer.location?.trim()) {
     errors.location = "Location is required";
   }
-
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
   };
 }
 
-/**
- * Sorts customers by various criteria
- */
 export function sortCustomers(
   customers: CustomerWithStats[],
   sortBy: "name" | "totalBills" | "totalSpent" | "lastBill" | "createdAt",
@@ -111,7 +116,6 @@ export function sortCustomers(
 ): CustomerWithStats[] {
   return [...customers].sort((a, b) => {
     let comparison = 0;
-
     switch (sortBy) {
       case "name":
         comparison = a.name.localeCompare(b.name);
@@ -132,7 +136,6 @@ export function sortCustomers(
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         break;
     }
-
     return order === "desc" ? -comparison : comparison;
   });
 }

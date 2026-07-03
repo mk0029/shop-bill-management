@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Plus, Phone, MapPin } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 
 export function CustomersOverview() {
@@ -165,7 +166,7 @@ export function CustomersOverview() {
                         </div>
                         <div>
                           <h3 className="font-medium text-white">
-                            {customer.name}
+                            {getAdminCustomerDisplayName(customer)}
                           </h3>
                           <div className="flex  items-center gap-3 sm:gap-4 text-sm text-gray-400">
                             <span className="flex items-center gap-1">

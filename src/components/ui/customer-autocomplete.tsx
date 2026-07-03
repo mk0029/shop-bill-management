@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { safeUserName } from "@/lib/display-text";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 interface Customer {
   _id: string;
@@ -36,7 +37,7 @@ function isCustomer(user: Customer): boolean {
 }
 
 function customerLabel(customer: Customer) {
-  const name = safeUserName(customer.name, "Customer");
+  const name = safeUserName(getAdminCustomerDisplayName(customer), "Customer");
   return `${name}${customer.phone ? ` • ${customer.phone}` : ""}`;
 }
 
@@ -113,7 +114,7 @@ export default function CustomerAutocomplete({
                 }}
               >
                 <div className="font-medium">
-                  {safeUserName(customer.name, "Customer")}
+                  {safeUserName(getAdminCustomerDisplayName(customer), "Customer")}
                 </div>
                 <div className="text-xs text-gray-400">
                   {customer.phone || ""}{" "}

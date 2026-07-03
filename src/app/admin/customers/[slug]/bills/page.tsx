@@ -36,6 +36,7 @@ import {
   PendingBillShareInput,
 } from "@/lib/pending-bill-share";
 import { sanitizeUserText } from "@/constants/defaults";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 import {
   calculateCustomerPendingSummary,
   DEFAULT_REMINDER_LIMIT,
@@ -421,7 +422,7 @@ export default function CustomerBillsPage() {
     )}&passKey=${encodeURIComponent(passKey)}`;
 
     return (
-      `Dear ${sanitizeUserText(name || "Customer")},\n\n` +
+      `Dear ${(name || "Customer").trim()},\n\n` +
       `We're happy to let you know that all your bills have been successfully paid ✅\n` +
       `Thank you so much for clearing everything on time — we really appreciate it.\n\n` +
       `🔐 Your bills are ready to view. Click below to access your account safely:\n` +
@@ -592,7 +593,7 @@ export default function CustomerBillsPage() {
           </Button>
           <div className="flex-1">
             <h1 className="text-base md:text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-              {customer.name}&apos;s Bills
+              {getAdminCustomerDisplayName(customer)}&apos;s Bills
             </h1>
             <p className="text-gray-400 mt-1 text-sm md:text-base">
               {customer.phone} • {customer.location}

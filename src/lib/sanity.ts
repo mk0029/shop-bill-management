@@ -205,6 +205,7 @@ export const queries = {
     customerId,
     secretKey,
     name,
+    nickname,
     email,
     phone,
     location,
@@ -238,6 +239,7 @@ export const queries = {
     customerId,
     secretKey,
     name,
+    nickname,
     email,
     phone,
     location,
@@ -269,6 +271,7 @@ export const queries = {
     customer->{
       _id,
       name,
+      nickname,
       phone,
       email,
       location,
@@ -277,6 +280,7 @@ export const queries = {
     technician->{
       _id,
       name,
+      nickname,
       phone,
       email
     },
@@ -341,6 +345,7 @@ export const queries = {
     technician->{
       _id,
       name,
+      nickname,
       phone,
       email
     },
@@ -387,6 +392,7 @@ export const queries = {
     product->{
       _id,
       name,
+      nickname,
       productId,
       pricing,
       inventory

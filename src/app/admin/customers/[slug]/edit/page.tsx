@@ -20,6 +20,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { locationOptions as baseLocationOptions } from "../../../tools/fitting-items/constants";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 const locationOptions = [
   ...baseLocationOptions,
@@ -39,6 +40,7 @@ export default function EditCustomerPage() {
 
   const [formData, setFormData] = useState({
     name: "",
+    nickname: "",
     phone: "",
     email: "",
     location: "",
@@ -63,6 +65,7 @@ export default function EditCustomerPage() {
 
       setFormData({
         name: customer.name || "",
+        nickname: customer.nickname || "",
         phone: customer.phone || "",
         email: (customer as any).email || "",
         location: isCustomLocation ? "__custom__" : customer.location || "",
@@ -102,6 +105,7 @@ export default function EditCustomerPage() {
     try {
       await updateUser(customer._id, {
         name: formData.name.trim(),
+        nickname: formData.nickname.trim() || undefined,
         phone: formData.phone.trim(),
         email: formData.email.trim() || undefined,
         location: resolvedLocation.trim(),
@@ -177,7 +181,7 @@ export default function EditCustomerPage() {
             Edit Customer
           </h1>
           <p className="text-gray-400 mt-1 text-sm">
-            {customer.name} • {customer.customerId}
+            {getAdminCustomerDisplayName(customer)} • {customer.customerId}
           </p>
         </div>
       </div>
@@ -213,6 +217,23 @@ export default function EditCustomerPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="nickname" className="text-gray-300">
+                  Nickname
+                </Label>
+                <Input
+                  id="nickname"
+                  type="text"
+                  value={formData.nickname}
+                  onChange={(e) => handleInputChange("nickname", e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                  placeholder="Preferred display name (optional)"
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-gray-500">
+                  Used for reminders, WhatsApp messages, invoices, and throughout the application. If left blank, the customer's full name will be used.
+                </p>
+              </div>
               {/* Phone */}
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-gray-300">

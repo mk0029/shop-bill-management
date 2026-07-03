@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
@@ -24,6 +24,11 @@ function getDueAmount(bill: any): number {
   const discount = Number(bill.discount || 0);
   const grandTotal = Math.max(0, total - discount);
   return Math.max(0, grandTotal - paid);
+}
+
+
+function customerDisplayName(customer: any) {
+  return String(customer?.nickname || customer?.name || 'Customer').trim() || 'Customer';
 }
 
 export async function POST(req: Request) {
@@ -71,7 +76,7 @@ export async function POST(req: Request) {
       `*[_type == "bill" && _id in $billIds]{
         _id, billNumber, paymentStatus, paidAmount, balanceAmount,
         totalAmount, discount, serviceDate, createdAt,
-        customer->{_id, name, phone}
+        customer->{_id, name, nickname, phone}
       }`,
       { billIds }
     );
@@ -144,11 +149,11 @@ export async function POST(req: Request) {
 
       if (isFullyPaid) {
         fullyPaidBills.push(bill.billNumber || bill._id);
-        notes.push(`Fully paid ${bill.billNumber || bill._id} with ₹${applied.toLocaleString()}`);
+        notes.push(`Fully paid ${bill.billNumber || bill._id} with \u20b9${applied.toLocaleString()}`);
       } else {
         partialBillNumber = bill.billNumber || bill._id;
         partialApplied = applied;
-        notes.push(`Partially paid ${bill.billNumber || bill._id} with ₹${applied.toLocaleString()} (₹${newDue.toLocaleString()} remaining)`);
+        notes.push(`Partially paid ${bill.billNumber || bill._id} with \u20b9${applied.toLocaleString()} (\u20b9${newDue.toLocaleString()} remaining)`);
       }
 
       totalApplied += applied;
@@ -164,11 +169,11 @@ export async function POST(req: Request) {
 
     // Generate smart note
     const smartNote = note || [
-      `Received ₹${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()} from customer.`,
+      `Received \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()} from customer.`,
       `Auto-adjusted against oldest pending bills.`,
       fullyPaidBills.length > 0 ? `Fully paid: ${fullyPaidBills.join(", ")}.` : "",
-      partialBillNumber ? `Partially paid ${partialBillNumber} with ₹${partialApplied.toLocaleString()}.` : "",
-      remainingAmount > 0.01 ? `₹${remainingAmount.toLocaleString()} unapplied (exceeds total pending).` : "",
+      partialBillNumber ? `Partially paid ${partialBillNumber} with \u20b9${partialApplied.toLocaleString()}.` : "",
+      remainingAmount > 0.01 ? `\u20b9${remainingAmount.toLocaleString()} unapplied (exceeds total pending).` : "",
     ].filter(Boolean).join(" ");
 
     // Execute in Sanity transaction
@@ -205,7 +210,7 @@ export async function POST(req: Request) {
     // ONE combined WhatsApp event (fire-and-forget)
     void emitWaEventServer("billing.multiPaid", {
       customerId,
-      customerName: customerDoc.name || "",
+      customerName: customerDisplayName(customerDoc),
       customerPhone: customerDoc.phone || "",
       billNumbersFullyPaid: fullyPaidBills,
       billNumberPartiallyPaid: partialBillNumber,
@@ -229,14 +234,14 @@ export async function POST(req: Request) {
       const adminUserIds = await getActiveAdminUserIds();
       if (adminUserIds.length > 0) {
         const adminRoute = `/admin/billing`;
-        const partialText = partialBillNumber ? ` Partial: ${partialBillNumber} (₹${partialApplied.toLocaleString()}).` : "";
+        const partialText = partialBillNumber ? ` Partial: ${partialBillNumber} (\u20b9${partialApplied.toLocaleString()}).` : "";
         await createAndDispatchNotification({
           eventId: `billing.multiPaid.${customerId}.${makeHash(sortedIds)}.${receivedAmount}`,
           type: "billing.updated",
           actorUserId,
           userIds: adminUserIds,
           title: "Payment Applied Across Bills",
-          body: `${customerDoc.name || "Customer"} — ₹${totalApplied.toLocaleString()} applied across ${patchOps.length} bill(s). Fully paid: ${fullyPaidBills.join(", ") || "none"}.${partialText}`,
+          body: `${customerDisplayName(customerDoc)} \u2014 \u20b9${totalApplied.toLocaleString()} applied across ${patchOps.length} bill(s). Fully paid: ${fullyPaidBills.join(", ") || "none"}.${partialText}`,
           data: {
             customerId,
             billNumbersFullyPaid: fullyPaidBills.join(","),
@@ -257,15 +262,15 @@ export async function POST(req: Request) {
     try {
       if (customerId) {
         const customerRoute = `/customer/bills`;
-        const partialText = partialBillNumber ? `Partially paid: ${partialBillNumber} — ₹${partialApplied.toLocaleString()} applied.` : "";
-        const remainingText = remainingBalance > 0 ? `Remaining balance: ₹${remainingBalance.toLocaleString()}.` : "";
+        const partialText = partialBillNumber ? `Partially paid: ${partialBillNumber} \u2014 \u20b9${partialApplied.toLocaleString()} applied.` : "";
+        const remainingText = remainingBalance > 0 ? `Remaining balance: \u20b9${remainingBalance.toLocaleString()}.` : "";
         await createAndDispatchNotification({
           eventId: `billing.multiPaid.${customerId}.customer.${makeHash(sortedIds)}.${receivedAmount}`,
           type: "billing.updated",
           actorUserId,
           userIds: [customerId],
           title: "Payment Adjusted",
-          body: `Namaste ${customerDoc.name || ""}, we received ₹${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. Adjusted against your pending bills. Fully paid: ${fullyPaidBills.join(", ") || "none"}. ${partialText} ${remainingText} Payment mode: ${paymentMode}. Thank you!`,
+          body: `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. It has been adjusted against your pending bills. Fully Paid: ${fullyPaidBills.join(", ") || "None"}. ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment. Regards, Jambh Electricals`,
           data: {
             customerId,
             billNumbersFullyPaid: fullyPaidBills.join(","),

@@ -13,6 +13,7 @@ import { buildEventHref, shouldOpenAsModal } from "@/lib/event-navigation";
 import Link from "next/link";
 import { useDataStore } from "@/store/data-store";
 import { safeUserName } from "@/lib/display-text";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 export default function AdminNotificationsPage({
   composerOpen,
@@ -78,7 +79,7 @@ export default function AdminNotificationsPage({
               n?.meta?.user || customerFromBill || customerFromUsers;
 
             const customerName = derivedUser?.name
-              ? safeUserName(derivedUser.name, "Customer")
+              ? safeUserName(getAdminCustomerDisplayName(derivedUser), "Customer")
               : "";
             const lowerTitle = (n.title || "").toLowerCase();
             const action =
@@ -110,7 +111,7 @@ export default function AdminNotificationsPage({
                 {(derivedUser || n.meta?.userId) && (
                   <p className="text-gray-400 text-xs mt-1">
                     {derivedUser?.name && (
-                      <span className="mr-2">{safeUserName(derivedUser.name, "Customer")}</span>
+                      <span className="mr-2">{safeUserName(getAdminCustomerDisplayName(derivedUser), "Customer")}</span>
                     )}
                     {derivedUser?.email && (
                       <span className="mr-2">({derivedUser.email})</span>

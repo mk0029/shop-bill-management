@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import {
   formatCustomerActivity,
+  getAdminCustomerDisplayName,
   formatLastBillDate,
   getCustomerStatusColor,
 } from "@/lib/customer-utils";
@@ -40,7 +41,7 @@ export default function CustomerTableRow({
   const { currency } = useLocaleStore();
   const statusColors = getCustomerStatusColor(customer.isActive);
   const [isMobile, setIsMobile] = useState(true);
-  const customerDisplayName = safeUserName(customer.name, "Customer");
+  const customerDisplayName = safeUserName(getAdminCustomerDisplayName(customer), "Customer");
   const gradient = avatarGradients[index % avatarGradients.length];
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function CustomerTableRow({
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-lg`}>
             <span className="text-white font-semibold text-xs sm:text-sm">
-              {safeInitial(customer.name)}
+              {safeInitial(customerDisplayName)}
             </span>
           </div>
           <div className="min-w-0 flex-1">

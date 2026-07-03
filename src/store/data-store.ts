@@ -89,6 +89,7 @@ interface User {
   customerId: string;
   secretKey: string;
   name: string;
+  nickname?: string;
   email?: string;
   phone: string;
   location: string;

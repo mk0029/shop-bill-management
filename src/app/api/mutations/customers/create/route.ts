@@ -23,26 +23,27 @@ function supportInfo() {
 
 function welcomeMessage(input: {
   customerName: string
+  displayName?: string
   loginUrl: string
   contact: string
 }) {
-  const safeName = sanitizeUserText(input.customerName || 'Customer') || 'Customer'
+  const safeName = sanitizeUserText(input.displayName || input.customerName || 'Customer') || 'Customer'
   return [
-    `🎉 Welcome, ${safeName}!`,
-    'Your account is ready. Explore products, request services, track updates, and connect with our team—all in one place.',
+    `Welcome to Jambh Electricals, ${safeName}.`,
     '',
-    `🎉 स्वागत है, ${safeName}!`,
-    'आपका अकाउंट तैयार है। अब आप उत्पाद देख सकते हैं, सेवाओं का अनुरोध कर सकते हैं, अपडेट ट्रैक कर सकते हैं और हमारी टीम से जुड़ सकते हैं — सब कुछ एक ही जगह पर।',
+    'Your customer account has been created successfully.',
     '',
-    '🔐 Your Secure Account:',
-    'Click the link below to log in and view your bills, service requests, and account info safely:',
+    'Account Access',
     input.loginUrl,
     '',
-    'Your account is password-protected and private. Only you can access it.',
+    'You can use this link to view your bills, service requests, payments, and account information securely.',
     '',
-    `Need help? Contact us: ${input.contact}`,
+    `For assistance, please contact us at ${input.contact}.`,
     '',
-    'Thank you for choosing Jambh Electrical Services ⚡',
+    'Thank you for choosing Jambh Electricals.',
+    '',
+    'Regards,',
+    'Jambh Electricals',
   ].join('\n')
 }
 
@@ -69,15 +70,20 @@ async function claimDelivery(key: string, channel: 'email' | 'whatsapp') {
   if (existing?.status === 'sent' || sendingIsFresh) {
     return false
   }
-  await sanityClient.createOrReplace({
-    _id: key,
-    _type: 'deliveryLog',
-    channel,
-    status: 'sending',
-    idempotencyKey: key,
-    updatedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-  })
+
+  try {
+    await sanityClient.create({
+      _id: key,
+      _type: 'deliveryLog',
+      channel,
+      status: 'sending',
+      idempotencyKey: key,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    })
+  } catch {
+    return false
+  }
   return true
 }
 
@@ -99,6 +105,7 @@ async function sendWelcomeEmail(input: {
   userId: string
   email?: string
   customerName: string
+  displayName?: string
   message: string
 }) {
   const email = String(input.email || '').trim()
@@ -124,6 +131,7 @@ async function sendWelcomeWhatsApp(input: {
   userId: string
   phone?: string
   customerName: string
+  displayName?: string
   loginUrl: string
   secretKey: string
 }) {
@@ -141,7 +149,8 @@ async function sendWelcomeWhatsApp(input: {
   try {
     const result = await emitWaEventServer('customer.created', {
       customerId: input.userId,
-      customerName: input.customerName,
+      customerName: input.displayName || input.customerName,
+      customer: { name: input.customerName, nickname: input.displayName },
       customerPhone: phone,
       loginUrl: input.loginUrl,
       secretKey: input.secretKey,
@@ -166,16 +175,17 @@ async function runPostCreateDelivery(input: {
   actorUserId: string
   created: any
   name: string
+  nickname?: string
   phone: string
   email?: string
   customerId: string
   secretKey: string
 }) {
   const userId = String(input.created?._id || '').trim()
-  const safeName = sanitizeUserText(input.name || 'Customer') || 'Customer'
+  const safeName = sanitizeUserText(input.nickname || input.name || 'Customer') || 'Customer'
   const loginUrl = `${siteUrl()}/login?phone=${encodeURIComponent(input.phone)}&passKey=${encodeURIComponent(input.secretKey)}`
   const contact = supportInfo()
-  const message = welcomeMessage({ customerName: safeName, loginUrl, contact })
+  const message = welcomeMessage({ customerName: input.name, displayName: safeName, loginUrl, contact })
 
   await Promise.allSettled([
     notificationService.emit({
@@ -194,13 +204,15 @@ async function runPostCreateDelivery(input: {
     sendWelcomeEmail({
       userId,
       email: input.email,
-      customerName: safeName,
+      customerName: input.name,
+      displayName: safeName,
       message,
     }),
     sendWelcomeWhatsApp({
       userId,
       phone: input.phone,
-      customerName: safeName,
+      customerName: input.name,
+      displayName: safeName,
       loginUrl,
       secretKey: input.secretKey,
     }),
@@ -223,19 +235,20 @@ export async function POST(req: NextRequest) {
     const name = String(body?.name || '').trim()
     const phone = String(body?.phone || '').trim()
     const location = String(body?.location || '').trim()
+    const nickname = String(body?.nickname || '').trim()
     const email = body?.email ? String(body.email) : undefined
 
     if (!name || !phone || !location) {
       return NextResponse.json({ success: false, error: 'Missing name/phone/location' }, { status: 400 })
     }
 
-    const userExists = await sanityClient.fetch(
-      `*[_type=="user" && phone==$phone][0]{ _id }`,
-      { phone }
-    )
-    if (userExists?._id) {
-      return NextResponse.json({ success: false, error: 'Account already exists with this phone number' }, { status: 409 })
+    const normalizedPhone = phone.replace(/[^0-9]/g, '')
+    if (normalizedPhone.length < 10) {
+      return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 })
     }
+
+    // Use phone-based _id for atomic duplicate prevention
+    const docId = `user_c_${normalizedPhone}`
 
     const customerId = Buffer.from(Date.now().toString() + Math.random().toString())
       .toString('base64')
@@ -245,11 +258,13 @@ export async function POST(req: NextRequest) {
       .substring(0, 16)
 
     const newCustomer = {
+      _id: docId,
       _type: 'user',
       clerkId: `customer_${Date.now()}`,
       customerId,
       secretKey,
       name,
+      nickname: nickname || undefined,
       email,
       phone,
       location,
@@ -259,19 +274,27 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }
 
-    const created = await sanityClient.create(newCustomer as any)
-    after(() => {
-      void runPostCreateDelivery({
-        actorUserId,
-        created,
-        name,
-        phone,
-        email,
-        customerId,
-        secretKey,
-      }).catch((e) => {
-        console.error('[WelcomeDelivery] post-create delivery failed', e)
-      })
+    let created: any
+    try {
+      created = await sanityClient.create(newCustomer as any)
+    } catch (err: any) {
+      if (err?.statusCode === 409) {
+        return NextResponse.json({ success: false, error: 'Account already exists with this phone number' }, { status: 409 })
+      }
+      throw err
+    }
+// Fire delivery tasks — no after() to avoid Next.js 16 reliability issues
+    runPostCreateDelivery({
+      actorUserId,
+      created,
+      name,
+      nickname,
+      phone,
+      email,
+      customerId,
+      secretKey,
+    }).catch((e) => {
+      console.error('[WelcomeDelivery] post-create delivery failed', e)
     })
 
     return NextResponse.json({ success: true, data: { ...(created as any), customerId, secretKey } }, { status: 200 })

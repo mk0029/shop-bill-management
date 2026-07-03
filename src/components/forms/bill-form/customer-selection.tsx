@@ -3,6 +3,7 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { User, MapPin } from "lucide-react";
 import { Customer } from "@/types";
 import { safeUserName } from "@/lib/display-text";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 interface CustomerSelectionProps {
   customers: Customer[];
@@ -35,7 +36,7 @@ export function CustomerSelection({
       <Dropdown
         options={validCustomers.map((c) => ({
           value: c._id,
-          label: `${safeUserName(c.name, "Customer")} - ${c.phone}`,
+          label: `${safeUserName(getAdminCustomerDisplayName(c), "Customer")} - ${c.phone}`,
         }))}
         value={selectedCustomerId}
         onValueChange={onCustomerChange}
@@ -45,7 +46,7 @@ export function CustomerSelection({
         <div className="mt-3 p-3 bg-gray-800 rounded border border-gray-700">
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
             <User className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">{safeUserName(selectedCustomer.name, "Customer")}</span>
+            <span className="truncate">{safeUserName(getAdminCustomerDisplayName(selectedCustomer), "Customer")}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <MapPin className="w-4 h-4 flex-shrink-0" />

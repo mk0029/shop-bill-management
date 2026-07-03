@@ -295,6 +295,7 @@ export async function updateDraftBill(
  */
 export async function createCustomer(customerData: {
   name: string;
+  nickname?: string;
   phone: string;
   location: string;
   email?: string;

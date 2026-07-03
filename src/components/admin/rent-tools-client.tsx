@@ -13,7 +13,7 @@ import {
 } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
 import { formatDayDateTime } from "@/lib/date-time";
-import { sanitizeUserText } from "@/constants/defaults";
+import { safeUserName } from "@/lib/display-text";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useAuthStore } from "@/store/auth-store";
 import EmptyState from "@/components/ui/empty-state";
@@ -109,7 +109,7 @@ function getRemainingText(r: ToolRental) {
 
 function overdueReminderMessage(r: ToolRental) {
   const safeCustomerName =
-    sanitizeUserText(String(r.customerName || "")).trim() || "Customer";
+    safeUserName(String(r.customerName || ""), "Customer");
   return `Tool Return Reminder\n\nHello ${safeCustomerName},\n\nTool: ${r.toolName}\nExpected Return: ${formatDayDateTime(r.expectedReturnTime)}\nStatus: Overdue\n\nExtra charges may apply for next ${r.durationType}.\nPlease return as soon as possible.\n\nJambh Electrical Services`;
 }
 

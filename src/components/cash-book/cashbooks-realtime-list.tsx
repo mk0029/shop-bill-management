@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Wallet, MoreVertical, Pencil, Trash2, Search, ExternalLink, Clock } from "lucide-react";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 interface Book {
   _id: string;
@@ -87,13 +88,13 @@ export default function CashbooksRealtimeList({ initial }: Props) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-white font-semibold text-sm truncate">{b.name || b.customer?.name || "Cashbook"}</h3>
+                  <h3 className="text-white font-semibold text-sm truncate">{b.name || getAdminCustomerDisplayName(b.customer || {}) || "Cashbook"}</h3>
                   <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${
                     b.status === "open" ? "bg-emerald-900/30 text-emerald-300" : "bg-gray-700/50 text-gray-400"
                   }`}>{b.status || "open"}</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  {b.customer?.name || "Unknown"}{b.customer?.phone ? ` • ${b.customer.phone}` : ""}
+                  {getAdminCustomerDisplayName(b.customer || {}) || "Unknown"}{b.customer?.phone ? ` • ${b.customer.phone}` : ""}
                 </p>
                 {b.notes && <p className="text-[11px] text-gray-500 mt-1 line-clamp-1">{b.notes}</p>}
                 <div className="flex items-center gap-1 mt-2 text-[10px] text-gray-600">

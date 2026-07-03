@@ -5,6 +5,7 @@ import { sanityClient } from "@/lib/sanity";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import CashbookActions from "@/components/cash-book/cashbook-actions";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 interface Props {
   id: string;
@@ -87,7 +88,7 @@ export default function CashbookDetailClient({ id }: Props) {
             {book?.name || "Cashbook"}
           </h1>
           <p className="text-gray-400 text-sm">
-            Customer: {book?.customer?.name || "Unknown"}
+            Customer: {getAdminCustomerDisplayName(book?.customer || {}) || "Unknown"}
           </p>
         </div>
         <div className="flex gap-2 items-center">

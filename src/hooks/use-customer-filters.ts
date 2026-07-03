@@ -18,6 +18,9 @@ export function useCustomerFilters(customers: CustomerWithStats[]) {
         (customer.name ?? "")
           .toLowerCase()
           .includes(normalizedSearchTerm) ||
+        (customer.nickname ?? "")
+          .toLowerCase()
+          .includes(normalizedSearchTerm) ||
         (customer.phone ?? "").includes(filters.searchTerm ?? "") ||
         (customer.location ?? "")
           .toLowerCase()

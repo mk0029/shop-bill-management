@@ -3,6 +3,7 @@ export interface Customer {
   clerkId: string;
   customerId: string;
   name: string;
+  nickname?: string;
   phone: string;
   email?: string;
   location: string;

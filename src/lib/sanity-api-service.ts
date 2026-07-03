@@ -41,6 +41,7 @@ export const userApiService = {
         customerId,
         secretKey,
         name,
+        nickname,
         email,
         phone,
         location,
@@ -69,6 +70,7 @@ export const userApiService = {
         customerId,
         secretKey,
         name,
+        nickname,
         email,
         phone,
         location,
@@ -97,6 +99,7 @@ export const userApiService = {
         customerId,
         secretKey,
         name,
+        nickname,
         email,
         phone,
         location,
@@ -128,6 +131,7 @@ export const userApiService = {
         customerId,
         secretKey,
         name,
+        nickname,
         email,
         phone,
         location,
@@ -153,6 +157,7 @@ export const userApiService = {
    */
   async createUser(userData: {
     name: string;
+    nickname?: string;
     email?: string;
     phone: string;
     location: string;
@@ -182,6 +187,7 @@ export const userApiService = {
         customerId,
         secretKey,
         name: userData.name,
+        nickname: userData.nickname?.trim() || undefined,
         email: userData.email,
         phone: formattedPhone, // Use formatted phone number
         location: userData.location,
@@ -220,6 +226,7 @@ export const userApiService = {
     userId: string,
     userData: Partial<{
       name: string;
+      nickname: string;
       email: string;
       phone: string;
       location: string;

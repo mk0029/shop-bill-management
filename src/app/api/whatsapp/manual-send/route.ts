@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/server-auth";
 import { sanityClient } from "@/lib/sanity";
 import { sendViaWaBotServer } from "@/lib/wa-bot-server";
+import { notificationTemplates, formatCustomerName } from "@/lib/notifications/template-engine";
 
 const RATE_LIMIT_MS = 5 * 60 * 1000;
 const manualSendTimestamps = new Map<string, number>();
@@ -13,6 +14,7 @@ type CustomerDoc = {
   _id: string;
   customerId?: string;
   name?: string;
+  nickname?: string;
   phone?: string;
   mobile?: string;
   whatsapp?: string;
@@ -30,6 +32,12 @@ type BillDoc = {
   dueDate?: string;
   createdAt?: string;
   serviceType?: string;
+  technicianName?: string;
+  technician?: string;
+  serviceName?: string;
+  notes?: string;
+  note?: string;
+  items?: Array<{ name?: string; description?: string; price?: number }>;
 };
 
 type WorkRequestDoc = {
@@ -48,16 +56,6 @@ function normalizePhone(value?: string | null) {
   return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
-function money(value: unknown) {
-  return `Rs. ${Number(value || 0).toLocaleString("en-IN")}`;
-}
-
-function dateText(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
 
 function eventTypeForShareType(shareType: ShareType) {
   const map: Record<ShareType, string> = {
@@ -125,7 +123,7 @@ async function createAuditLog(input: {
     _type: "whatsAppEventLog",
     eventType,
     templateName: eventType,
-    recipientName: input.customer?.name || "Customer",
+    recipientName: input.customer ? formatCustomerName(input.customer) : "Customer",
     recipientPhone: normalizePhone(
       input.customer?.whatsappNumber ||
         input.customer?.whatsapp ||
@@ -160,7 +158,7 @@ async function createAuditLog(input: {
 async function getCustomer(customerId: string) {
   return sanityClient.fetch<CustomerDoc | null>(
     `*[_type == "user" && role == "customer" && (_id == $customerId || customerId == $customerId)][0]{
-      _id, customerId, name, phone, mobile, whatsapp, whatsappNumber, location
+      _id, customerId, name, nickname, phone, mobile, whatsapp, whatsappNumber, location
     }`,
     { customerId },
   );
@@ -171,7 +169,7 @@ async function getBill(billId: string, customerId: string) {
     `*[_type == "bill" && (_id == $billId || billId == $billId) && (
       customer._ref == $customerId || customerId == $customerId || customer._id == $customerId
     )][0]{
-      _id, billNumber, totalAmount, paidAmount, balanceAmount, paymentStatus, dueDate, createdAt, serviceType
+      _id, billNumber, totalAmount, paidAmount, balanceAmount, paymentStatus, dueDate, createdAt, serviceType, technicianName, notes, items
     }`,
     { billId, customerId },
   );
@@ -189,7 +187,7 @@ async function getBillById(billId: string) {
 async function getCustomerPendingBills(customerId: string) {
   return sanityClient.fetch<BillDoc[]>(
     `*[_type == "bill" && (customer._ref == $customerId || customerId == $customerId || customer._id == $customerId) && paymentStatus != "paid"] | order(createdAt desc)[0...10]{
-      _id, billNumber, totalAmount, paidAmount, balanceAmount, paymentStatus, dueDate, createdAt, serviceType
+      _id, billNumber, totalAmount, paidAmount, balanceAmount, paymentStatus, dueDate, createdAt, serviceType, technicianName, notes, items
     }`,
     { customerId },
   );
@@ -207,88 +205,24 @@ async function getWorkRequest(workRequestId: string, customerId: string) {
 }
 
 function renderBillShareTemplate(customer: CustomerDoc, bill: BillDoc) {
-  const billLabel = bill.billNumber || bill._id;
-  const balance = Number(bill.balanceAmount ?? Math.max(Number(bill.totalAmount || 0) - Number(bill.paidAmount || 0), 0));
-  return [
-    `Namaste ${customer.name || "Customer"},`,
-    "",
-    `Your bill ${billLabel} has been shared by Jambh Electrical Services.`,
-    `Total: ${money(bill.totalAmount)}`,
-    `Paid: ${money(bill.paidAmount)}`,
-    `Balance: ${money(balance)}`,
-    bill.dueDate ? `Due date: ${dateText(bill.dueDate)}` : "",
-    "",
-    "Please contact us for any questions.",
-    "- Jambh Electrical Services",
-  ].filter(Boolean).join("\n");
+  return notificationTemplates.paymentReminder({ customer, bills: [bill] });
 }
 
 function renderPaymentShareTemplate(customer: CustomerDoc, bill: BillDoc) {
-  const billLabel = bill.billNumber || bill._id;
-  const balance = Number(bill.balanceAmount ?? Math.max(Number(bill.totalAmount || 0) - Number(bill.paidAmount || 0), 0));
-  return [
-    `Namaste ${customer.name || "Customer"},`,
-    "",
-    `Payment details for bill ${billLabel} have been shared by Jambh Electrical Services.`,
-    `Paid: ${money(bill.paidAmount)}`,
-    `Balance: ${money(balance)}`,
-    `Status: ${bill.paymentStatus || "updated"}`,
-    "",
-    "Thank you.",
-    "- Jambh Electrical Services",
-  ].join("\n");
+  return notificationTemplates.paymentReceived({ customer, bill });
 }
 
 function renderCustomerShareTemplate(customer: CustomerDoc) {
-  return [
-    `Namaste ${customer.name || "Customer"},`,
-    "",
-    "Your customer details have been shared by Jambh Electrical Services.",
-    customer.location ? `Location: ${customer.location}` : "",
-    "Please contact us if any information needs to be updated.",
-    "",
-    "- Jambh Electrical Services",
-  ].filter(Boolean).join("\n");
+  return notificationTemplates.customerDetails({ customer });
 }
 
 function renderReminderShareTemplate(customer: CustomerDoc, bills: BillDoc[]) {
-  const totalPending = bills.reduce((sum, bill) => {
-    const balance = Number(bill.balanceAmount ?? Math.max(Number(bill.totalAmount || 0) - Number(bill.paidAmount || 0), 0));
-    return sum + balance;
-  }, 0);
-  const billLines = bills.slice(0, 5).map((bill) => {
-    const balance = Number(bill.balanceAmount ?? Math.max(Number(bill.totalAmount || 0) - Number(bill.paidAmount || 0), 0));
-    return `- ${bill.billNumber || bill._id}: ${money(balance)}`;
-  });
-
-  return [
-    `Namaste ${customer.name || "Customer"},`,
-    "",
-    "This is a payment reminder from Jambh Electrical Services.",
-    `Pending bills: ${bills.length}`,
-    `Total pending: ${money(totalPending)}`,
-    ...billLines,
-    "",
-    "Please clear the pending amount at your convenience.",
-    "- Jambh Electrical Services",
-  ].join("\n");
+  return notificationTemplates.paymentReminder({ customer, bills });
 }
 
 function renderWorkRequestShareTemplate(customer: CustomerDoc, request: WorkRequestDoc) {
-  return [
-    `Namaste ${customer.name || "Customer"},`,
-    "",
-    "Your work request details have been shared by Jambh Electrical Services.",
-    `Request: ${request.requestId || request._id}`,
-    request.title || request.serviceType ? `Work: ${request.title || request.serviceType}` : "",
-    request.status ? `Status: ${request.status}` : "",
-    request.priority ? `Priority: ${request.priority}` : "",
-    "",
-    "We will keep you updated.",
-    "- Jambh Electrical Services",
-  ].filter(Boolean).join("\n");
+  return notificationTemplates.workRequest({ customer, request });
 }
-
 async function buildTemplate(input: {
   shareType: ShareType;
   customer: CustomerDoc;
@@ -368,7 +302,7 @@ export async function POST(req: NextRequest) {
     }
 
     const customer = await getCustomer(customerId);
-    console.log("[manual-whatsapp] Customer Found:", customer ? { _id: customer._id, name: customer.name } : null);
+    console.log("[manual-whatsapp] Customer Found:", customer ? { _id: customer._id, name: formatCustomerName(customer) } : null);
 
     if (!customer?._id) {
       return NextResponse.json({ success: false, error: "Customer not found." }, { status: 404 });

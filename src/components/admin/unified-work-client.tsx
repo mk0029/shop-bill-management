@@ -21,6 +21,7 @@ import { SelectField } from "@/components/ui/select-field";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName, safeInitial } from "@/lib/display-text";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { workTaskService, listenWorkTasks, type WorkTask } from "@/lib/work-task-service";
@@ -398,7 +399,7 @@ export default function UnifiedWorkClient() {
                       const busy = Boolean(updatingAction?.startsWith(`${r._id}:`));
                       const hasTask = Boolean(r.workTask?._id);
                       const isClosed = hasTask || ["added_to_work_list", "cancelled", "rejected"].includes(String(r.status));
-                      const custName = safeUserName(r.customerName || r.customer?.name, "Customer");
+                      const custName = safeUserName(r.customer?.name ? getAdminCustomerDisplayName(r.customer) : (r.customerName || "Customer"), "Customer");
                       const techName = safeUserName(r.technicianName || r.technician?.name, "Technician");
                       const cancelText = (() => {
                         if (!["cancelled", "rejected"].includes(String(r.status))) return "";

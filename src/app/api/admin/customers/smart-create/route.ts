@@ -29,25 +29,19 @@ function welcomeMessage(input: {
   contact: string
 }) {
   const safeName = sanitizeUserText(input.customerName || 'Customer') || 'Customer'
-  return [
-    `Welcome, ${safeName}!`,
-    'Your account is ready. Explore products, request services, track updates, and connect with our team—all in one place.',
+return [
+    `Welcome to Jambh Electricals, ${safeName}.`,
     '',
-    `स्वागत है, ${safeName}!`,
-    'आपका अकाउंट तैयार है। अब आप उत्पाद देख सकते हैं, सेवाओं का अनुरोध कर सकते हैं, अपडेट ट्रैक कर सकते हैं और हमारी टीम से जुड़ सकते हैं — सब कुछ एक ही जगह पर।',
+    'Your customer account has been created successfully.',
     '',
-    '🔐 Your Secure Account:',
-    'Click the link below to log in and view your bills, service requests, and account info safely:',
-    input.loginUrl,
+    `For assistance, please contact us at ${input.contact}.`,
     '',
-    'Your account is password-protected and private. Only you can access it.',
+    'Thank you for choosing Jambh Electricals.',
     '',
-    `Need help? Contact us: ${input.contact}`,
-    '',
-    'Thank you for choosing Jambh Electrical Services ⚡',
+    'Regards,',
+    'Jambh Electricals',
   ].join('\n')
 }
-
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -71,15 +65,20 @@ async function claimDelivery(key: string, channel: 'email' | 'whatsapp') {
   if (existing?.status === 'sent' || sendingIsFresh) {
     return false
   }
-  await sanityClient.createOrReplace({
-    _id: key,
-    _type: 'deliveryLog',
-    channel,
-    status: 'sending',
-    idempotencyKey: key,
-    updatedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-  })
+
+  try {
+    await sanityClient.create({
+      _id: key,
+      _type: 'deliveryLog',
+      channel,
+      status: 'sending',
+      idempotencyKey: key,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    })
+  } catch {
+    return false
+  }
   return true
 }
 
@@ -225,13 +224,9 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const actorUserId = String(body?.actorUserId || '').trim()
-    if (!actorUserId) {
-      return NextResponse.json({ success: false, error: 'Missing actorUserId' }, { status: 400 })
-    }
-
     const mode = body?.mode as 'parse' | 'create' | undefined
 
+    // actorUserId only required for create mode
     if (mode === 'parse') {
       const rawText = String(body?.rawText || '').trim()
       if (!rawText) {
@@ -241,7 +236,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, data: result }, { status: 200 })
     }
 
+    const actorUserId = String(body?.actorUserId || '').trim()
+    if (!actorUserId) {
+      return NextResponse.json({ success: false, error: 'Missing actorUserId' }, { status: 400 })
+    }
+
     const name = String(body?.name || '').trim()
+  const nickname = String(body?.nickname || '').trim()
     const phone = String(body?.phone || '').trim()
     const email = body?.email ? String(body.email).trim() : undefined
     const location = String(body?.location || '').trim()
@@ -257,13 +258,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 })
     }
 
-    const userExists = await sanityClient.fetch(
-      `*[_type=="user" && phone==$phone][0]{ _id }`,
-      { phone }
-    )
-    if (userExists?._id) {
-      return NextResponse.json({ success: false, error: 'Account already exists with this phone number' }, { status: 409 })
-    }
+    // Use phone-based _id for atomic duplicate prevention
+    const docId = `user_c_${normalizedPhone}`
 
     const customerId = Buffer.from(Date.now().toString() + Math.random().toString())
       .toString('base64')
@@ -275,6 +271,7 @@ export async function POST(req: NextRequest) {
     const notes = [requirement, contactPreference ? `Preferred: ${contactPreference}` : ''].filter(Boolean).join('\n') || undefined
 
     const newCustomer: Record<string, unknown> = {
+      _id: docId,
       _type: 'user',
       clerkId: `customer_${Date.now()}`,
       customerId,
@@ -290,19 +287,27 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }
 
-    const created = await sanityClient.create(newCustomer as any)
-    after(() => {
-      void runPostCreateDelivery({
-        actorUserId,
-        created,
-        name,
-        phone,
-        email,
-        customerId,
-        secretKey,
-      }).catch((e) => {
-        console.error('[WelcomeDelivery] post-create delivery failed', e)
-      })
+    let created: any
+    try {
+      created = await sanityClient.create(newCustomer as any)
+    } catch (err: any) {
+      if (err?.statusCode === 409) {
+        return NextResponse.json({ success: false, error: 'Account already exists with this phone number' }, { status: 409 })
+      }
+      throw err
+    }
+// Fire delivery tasks — no after() to avoid Next.js 16 reliability issues
+    runPostCreateDelivery({
+      actorUserId,
+      created,
+      name,
+      nickname,
+      phone,
+      email,
+      customerId,
+      secretKey,
+    }).catch((e) => {
+      console.error('[WelcomeDelivery] post-create delivery failed', e)
     })
 
     return NextResponse.json(

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
@@ -16,6 +16,11 @@ function makeHash(str: string): string {
     hash |= 0;
   }
   return Math.abs(hash).toString(36);
+}
+
+
+function customerDisplayName(customer: any) {
+  return String(customer?.nickname || customer?.name || 'Customer').trim() || 'Customer';
 }
 
 export async function POST(req: Request) {
@@ -62,7 +67,7 @@ export async function POST(req: Request) {
     const bills = await sanityClient.fetch(
       `*[_type == "bill" && _id in $billIds]{
         _id, billNumber, paymentStatus, paidAmount, balanceAmount,
-        totalAmount, discount, customer->{_id, name, phone}
+        totalAmount, discount, customer->{_id, name, nickname, phone}
       }`,
       { billIds }
     );
@@ -195,7 +200,7 @@ export async function POST(req: Request) {
     // ONE combined WhatsApp event (fire-and-forget)
     void emitWaEventServer("billing.bulkPaid", {
       customerId,
-      customerName: customerDoc.name || "",
+      customerName: customerDisplayName(customerDoc),
       customerPhone: customerDoc.phone || "",
       billNumbers,
       totalPaidAmount,
@@ -218,14 +223,14 @@ export async function POST(req: Request) {
       const adminUserIds = await getActiveAdminUserIds();
       if (adminUserIds.length > 0) {
         const adminRoute = `/admin/billing`;
-        const discountText = discountApplied > 0 ? ` (₹${discountApplied.toLocaleString()} discount applied)` : "";
+        const discountText = discountApplied > 0 ? ` (\u20b9${discountApplied.toLocaleString()} discount applied)` : "";
         await createAndDispatchNotification({
           eventId: `billing.bulkPaid.${customerId}.${makeHash(sortedIds)}`,
           type: "billing.updated",
           actorUserId,
           userIds: adminUserIds,
           title: "Bills Paid in Bulk",
-          body: `${customerDoc.name || "Customer"} paid ${billNumbers.length} bill(s): ${billNumbers.join(", ")}. Total: ₹${totalPaidAmount.toLocaleString()}${discountText}.`,
+          body: `${customerDisplayName(customerDoc)} paid ${billNumbers.length} bill(s): ${billNumbers.join(", ")}. Total: \u20b9${totalPaidAmount.toLocaleString()}${discountText}.`,
           data: {
             customerId,
             billNumbers: billNumbers.join(","),
@@ -247,14 +252,14 @@ export async function POST(req: Request) {
     try {
       if (customerId) {
         const customerRoute = `/customer/bills`;
-        const discountText = discountApplied > 0 ? ` A discount of ₹${discountApplied.toLocaleString()} has been applied${discountReason ? ` (${discountReason})` : ""}.` : "";
+        const discountText = discountApplied > 0 ? ` A discount of \u20b9${discountApplied.toLocaleString()} has been applied${discountReason ? ` (${discountReason})` : ""}.` : "";
         await createAndDispatchNotification({
           eventId: `billing.bulkPaid.${customerId}.customer.${makeHash(sortedIds)}`,
           type: "billing.updated",
           actorUserId,
           userIds: [customerId],
           title: "All Bills Paid",
-          body: `Namaste ${customerDoc.name || ""}, your bills ${billNumbers.join(", ")} have been marked as fully paid. Total paid: ₹${totalPaidAmount.toLocaleString()}.${discountText} Payment mode: ${paymentMode}. Thank you!`,
+          body: `Dear ${customerDisplayName(customerDoc)}, your payment has been received for ${billNumbers.length} bill(s): ${billNumbers.join(", ")}. Total Paid: \u20b9${totalPaidAmount.toLocaleString()}.${discountText} Payment Mode: ${paymentMode}. Thank you for your payment. Regards, Jambh Electricals`,
           data: {
             customerId,
             billNumbers: billNumbers.join(","),

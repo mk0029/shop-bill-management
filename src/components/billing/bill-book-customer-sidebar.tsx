@@ -5,6 +5,7 @@ import { useCustomerStats } from "@/hooks/use-customer-stats";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { safeInitial, safeUserName } from "@/lib/display-text";
+import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
 
 type Props = {
   selectedUserId?: string;
@@ -134,7 +135,7 @@ export default function BillBookCustomerSidebar({ selectedUserId, onSelect }: Pr
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium truncate">{safeUserName(c.name || c.phone, "Customer")}</p>
+                        <p className="font-medium truncate">{safeUserName(getAdminCustomerDisplayName(c), "Customer")}</p>
                         {c.lastBillDate && (
                           <span className="text-xs opacity-70 whitespace-nowrap">{c.lastBillDate}</span>
                         )}
