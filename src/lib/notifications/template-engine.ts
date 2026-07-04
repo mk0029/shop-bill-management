@@ -229,30 +229,36 @@ export const notificationTemplates = {
 
   paymentReceived(input: { customer: NotificationCustomer; bill: BillLike; loginUrl?: string }) {
     const bill = input.bill;
-    return composeMessage({
-      title: "\u2705 Payment Successful",
-      greeting: greetingText(input.customer),
-      bodyParts: [
-        "We have successfully received your payment.",
-        "",
-        "Bill Details",
-        "",
-        `\u2022 Bill ID: ${billLabel(bill)}`,
-        bill.serviceName ? `\u2022 Service: ${bill.serviceName}` : null,
-        bill.technicianName || bill.technician ? `\u2022 Technician: ${bill.technicianName || bill.technician}` : null,
-        "",
-        "Payment Summary",
-        "",
-        `\u2022 Total Amount: ${formatCurrency(bill.totalAmount)}`,
-        `\u2022 Amount Paid: ${formatCurrency(bill.paidAmount || bill.totalAmount)}`,
-        `\u2022 Remaining Balance: ${formatCurrency(pendingAmount(bill))}`,
-        "",
-        "Status: PAID",
-        "",
-        "Thank you for your prompt payment. We appreciate your trust in Jambh Electricals.",
-      ],
-      loginUrl: input.loginUrl,
-    });
+    const customerDisplay = formatCustomerName(input.customer);
+    const paid = formatCurrency(bill.paidAmount || bill.totalAmount || 0);
+    const total = formatCurrency(bill.totalAmount || 0);
+    const remaining = formatCurrency(pendingAmount(bill));
+    return [
+      "✅ Payment Received Successfully",
+      "",
+      `Dear ${customerDisplay},`,
+      "",
+      "We have successfully received your payment. Thank you for choosing Jambh Electricals.",
+      "",
+      "🧾 Bill Details",
+      `• Bill ID: ${billLabel(bill)}`,
+      "",
+      "💳 Payment Summary",
+      `• Total Amount: ${total}`,
+      `• Amount Paid: ${paid}`,
+      `• Remaining Balance: ${remaining}`,
+      "",
+      "✅ Bill Status: PAID",
+      "",
+      "Your payment has been successfully recorded. We appreciate your prompt payment and value the trust you place in us.",
+      "",
+      "If you have any questions or need assistance, simply reply to this message. Our team will be happy to help.",
+      "",
+      "Thank you for your business. We look forward to serving you again.",
+      "",
+      "Regards,",
+      "Jambh Electricals",
+    ].join("\n");
   },
 
   customerDetails(input: { customer: NotificationCustomer & { location?: string } }) {
@@ -374,30 +380,36 @@ export const notificationTemplates = {
 
   paymentPartial(input: { customer: NotificationCustomer; bill: BillLike; loginUrl?: string }) {
     const bill = input.bill;
-    return composeMessage({
-      title: "\u2705 Partial Payment Received",
-      greeting: greetingText(input.customer),
-      bodyParts: [
-        "Thank you for your recent payment. We have received a partial payment towards your outstanding bill.",
-        "",
-        "Bill Details",
-        "",
-        `\u2022 Bill ID: ${billLabel(bill)}`,
-        bill.serviceName ? `\u2022 Service: ${bill.serviceName}` : null,
-        bill.technicianName || bill.technician ? `\u2022 Technician: ${bill.technicianName || bill.technician}` : null,
-        "",
-        "Payment Summary",
-        "",
-        `\u2022 Total Amount: ${formatCurrency(bill.totalAmount)}`,
-        `\u2022 Amount Paid: ${formatCurrency(bill.paidAmount || 0)}`,
-        `\u2022 Remaining Balance: ${formatCurrency(pendingAmount(bill))}`,
-        "",
-        "Status: PARTIALLY PAID",
-        "",
-        "We kindly request you to complete the remaining balance at your earliest convenience.",
-      ],
-      loginUrl: input.loginUrl,
-    });
+    const customerDisplay = formatCustomerName(input.customer);
+    const paid = formatCurrency(bill.paidAmount || 0);
+    const total = formatCurrency(bill.totalAmount || 0);
+    const remaining = formatCurrency(pendingAmount(bill));
+    return [
+      "✅ Partial Payment Received",
+      "",
+      `Dear ${customerDisplay},`,
+      "",
+      "We have successfully received your partial payment. Thank you for choosing Jambh Electricals.",
+      "",
+      "🧾 Bill Details",
+      `• Bill ID: ${billLabel(bill)}`,
+      "",
+      "💳 Payment Summary",
+      `• Total Amount: ${total}`,
+      `• Amount Paid: ${paid}`,
+      `• Remaining Balance: ${remaining}`,
+      "",
+      "⚠️ Bill Status: PARTIALLY PAID",
+      "",
+      "Your payment has been successfully recorded. The remaining balance is still due. We kindly request you to complete the payment at your earliest convenience.",
+      "",
+      "If you have any questions or need assistance, simply reply to this message. Our team will be happy to help.",
+      "",
+      "Thank you for your business. We look forward to serving you again.",
+      "",
+      "Regards,",
+      "Jambh Electricals",
+    ].join("\n");
   },
 
   paymentDueToday(input: { customer: NotificationCustomer; bill: BillLike; bills?: BillLike[]; dueDate?: string; loginUrl?: string }) {

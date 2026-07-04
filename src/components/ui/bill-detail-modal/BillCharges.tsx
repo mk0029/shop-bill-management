@@ -4,7 +4,7 @@ interface BillChargesProps {
   bill: any;
   currency: string;
   transportationFee: number;
-  homeVisitFee: number;
+  visitingCharges: number;
   repairChargeValue: number;
 }
 
@@ -12,12 +12,12 @@ export const BillCharges = ({
   bill,
   currency,
   transportationFee,
-  homeVisitFee,
+  visitingCharges,
   repairChargeValue,
 }: BillChargesProps) => {
   // Show Additional Charges section if any charge field is present on the bill
   const hasAnyCharge =
-    bill.homeVisitFee !== undefined ||
+    bill.visitingCharges !== undefined ||
     bill.transportationFee !== undefined ||
     bill.repairCharges !== undefined ||
     (bill as any).repairCharge !== undefined ||
@@ -33,8 +33,8 @@ export const BillCharges = ({
       value: transportationFee,
     },
     {
-      label: "Home Visit Fee",
-      value: homeVisitFee,
+      label: "Visiting Charges",
+      value: visitingCharges,
     },
     {
       label: "Repair Charges",

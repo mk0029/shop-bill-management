@@ -274,7 +274,7 @@ export default function CashbookComposer({
         customerId,
         paymentStatus: "pending",
         notes: notes || "",
-        homeVisitFee: 0,
+        visitingCharges: 0,
         repairFee: 0,
         paidAmount: 0,
       });

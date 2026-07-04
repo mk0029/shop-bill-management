@@ -45,8 +45,7 @@ export const BillHeader = ({
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
               <span className="capitalize">
-                Location:{" "}
-                {bill.locationType === "shop" ? "Shop" : "Not At Shop"}
+                Location: {bill.locationType.replace(/_/g, " ")}
               </span>
             </div>
           )}

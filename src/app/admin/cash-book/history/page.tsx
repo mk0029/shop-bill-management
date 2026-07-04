@@ -178,14 +178,14 @@ export default function CashBookHistoryPage() {
 
   if (loading) {
     return (
-      <div className="h-[var(--app-vh,100dvh)] bg-gray-900 flex items-center justify-center">
+      <div className="min-h-full bg-gray-900 flex items-center justify-center">
         <p className="text-gray-400">Loading cash book history...</p>
       </div>
     );
   }
 
   return (
-    <div className="h-[var(--app-vh,100dvh)] rounded-lg max-md:p-4">
+    <div className="min-h-full rounded-lg max-md:p-4">
       <div className="flex items-center gap-4 md:pb-6">
         <Button
           variant="ghost"

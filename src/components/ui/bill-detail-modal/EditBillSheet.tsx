@@ -58,7 +58,7 @@ interface FormState {
 const emptyFormState: FormState = {
   items: [],
   charges: [
-    { label: "Home Visit Fee", amount: 0 },
+    { label: "Visiting Charges", amount: 0 },
     { label: "Transportation Fee", amount: 0 },
     { label: "Repair Charges", amount: 0 },
   ],
@@ -88,9 +88,18 @@ function mapBillToEditFormState(bill: any): FormState {
       price: toNum(i.price || i.rate || i.unitPrice || 0),
     })),
     charges: [
-      { label: "Home Visit Fee", amount: toNum(bill?.homeVisitFee || bill?.visitFee || 0) },
-      { label: "Transportation Fee", amount: toNum(bill?.transportationFee || bill?.transportFee || 0) },
-      { label: "Repair Charges", amount: toNum(bill?.repairFee || bill?.repairCharges || 0) },
+      {
+        label: "Visiting Chargeses",
+        amount: toNum(bill?.visitingCharges || bill?.visitFee || 0),
+      },
+      {
+        label: "Transportation Fee",
+        amount: toNum(bill?.transportationFee || bill?.transportFee || 0),
+      },
+      {
+        label: "Repair Charges",
+        amount: toNum(bill?.repairFee || bill?.repairCharges || 0),
+      },
     ],
     discount: toNum(bill?.discount || 0),
     paymentStatus: bill?.paymentStatus || "pending",
@@ -99,7 +108,11 @@ function mapBillToEditFormState(bill: any): FormState {
     customerName: bill?.customer?.name || bill?.customerName || "",
     customerPhone: bill?.customer?.phone || bill?.customerPhone || "",
     customerEmail: bill?.customer?.email || bill?.customerEmail || "",
-    customerAddress: bill?.customer?.address || bill?.customer?.location || bill?.customerAddress || "",
+    customerAddress:
+      bill?.customer?.address ||
+      bill?.customer?.location ||
+      bill?.customerAddress ||
+      "",
   };
 }
 
@@ -111,7 +124,9 @@ export const EditBillSheet = memo(function EditBillSheet({
 }: EditBillSheetProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const [form, setForm] = useState<FormState>(() => mapBillToEditFormState(bill));
+  const [form, setForm] = useState<FormState>(() =>
+    mapBillToEditFormState(bill),
+  );
   const [hydrated, setHydrated] = useState(false);
   const [hydrating, setHydrating] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -168,9 +183,12 @@ export const EditBillSheet = memo(function EditBillSheet({
     lastBillIdRef.current = null;
   }, []);
 
-  const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const updateField = useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
   const handleNext = useCallback(() => {
     if (currentStep < steps.length - 1) setCurrentStep((s) => s + 1);
@@ -196,7 +214,7 @@ export const EditBillSheet = memo(function EditBillSheet({
           unitPrice: i.price,
           totalPrice: i.qty * i.price,
         })),
-        homeVisitFee: form.charges[0]?.amount || 0,
+        visitingCharges: form.charges[0]?.amount || 0,
         transportationFee: form.charges[1]?.amount || 0,
         repairFee: form.charges[2]?.amount || 0,
         subtotal: itemTotal,
@@ -231,22 +249,31 @@ export const EditBillSheet = memo(function EditBillSheet({
   const grandTotal = Math.max(0, itemTotal + chargeTotal - form.discount);
 
   const customer = bill?.customer || {};
-  const cName = customer?.name || bill?.customerName || form.customerName || "Unknown";
-  const cPhone = customer?.phone || bill?.customerPhone || form.customerPhone || "";
-  const cAddress = customer?.address || customer?.location || bill?.customerAddress || "";
+  const cName =
+    customer?.name || bill?.customerName || form.customerName || "Unknown";
+  const cPhone =
+    customer?.phone || bill?.customerPhone || form.customerPhone || "";
+  const cAddress =
+    customer?.address || customer?.location || bill?.customerAddress || "";
 
   const customerMenuItems = [
     {
       label: "Edit Customer Details",
       icon: User,
-      onClick: () => { setEditingCustomer(true); setShowCustomerMenu(false); },
+      onClick: () => {
+        setEditingCustomer(true);
+        setShowCustomerMenu(false);
+      },
     },
     {
       label: "View Customer",
       icon: ExternalLink,
       onClick: () => {
         const cid = customer?._id || customer?.customerId;
-        if (cid) router.push(`/admin/customers?customerId=${encodeURIComponent(cid)}&modal=customerDetails`);
+        if (cid)
+          router.push(
+            `/admin/customers?customerId=${encodeURIComponent(cid)}&modal=customerDetails`,
+          );
         setShowCustomerMenu(false);
       },
     },
@@ -265,7 +292,11 @@ export const EditBillSheet = memo(function EditBillSheet({
       label: "WhatsApp Customer",
       icon: MessageSquare,
       onClick: () => {
-        if (cPhone) window.open(`https://wa.me/91${cPhone.replace(/\D/g, "").slice(-10)}`, "_blank");
+        if (cPhone)
+          window.open(
+            `https://wa.me/91${cPhone.replace(/\D/g, "").slice(-10)}`,
+            "_blank",
+          );
         setShowCustomerMenu(false);
       },
     },
@@ -288,9 +319,14 @@ export const EditBillSheet = memo(function EditBillSheet({
       <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
         <AlertTriangle className="w-8 h-8 text-red-400" />
       </div>
-      <h3 className="text-lg font-semibold text-white mb-2">Failed to Load Bill</h3>
+      <h3 className="text-lg font-semibold text-white mb-2">
+        Failed to Load Bill
+      </h3>
       <p className="text-sm text-white/50 mb-5 max-w-xs">{loadError}</p>
-      <Button onClick={handleRetry} className="!rounded-xl bg-white/[0.08] border border-white/10 text-white hover:bg-white/[0.12]">
+      <Button
+        onClick={handleRetry}
+        className="!rounded-xl bg-white/[0.08] border border-white/10 text-white hover:bg-white/[0.12]"
+      >
         <RefreshCw className="w-4 h-4 mr-2" />
         Retry
       </Button>
@@ -300,7 +336,10 @@ export const EditBillSheet = memo(function EditBillSheet({
   return (
     <BaseGlassModal
       isOpen={isOpen}
-      onClose={() => { setEditingCustomer(false); onClose(); }}
+      onClose={() => {
+        setEditingCustomer(false);
+        onClose();
+      }}
       title={showSuccess ? undefined : steps[currentStep].label}
       size="xl"
       zIndex={350}
@@ -326,14 +365,26 @@ export const EditBillSheet = memo(function EditBillSheet({
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400/30 to-violet-500/30 border border-white/10 flex items-center justify-center shrink-0">
                   <span className="text-sm font-bold text-white/80">
-                    {cName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                    {cName
+                      .split(" ")
+                      .map((n: string) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{cName}</p>
+                  <p className="text-sm font-medium text-white truncate">
+                    {cName}
+                  </p>
                   <div className="flex items-center gap-2 text-xs text-white/40">
                     {cPhone && <span>{cPhone}</span>}
-                    {cAddress && <><span className="text-white/20">|</span><span className="truncate">{cAddress}</span></>}
+                    {cAddress && (
+                      <>
+                        <span className="text-white/20">|</span>
+                        <span className="truncate">{cAddress}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -385,7 +436,9 @@ export const EditBillSheet = memo(function EditBillSheet({
                     phone={form.customerPhone}
                     email={form.customerEmail}
                     address={form.customerAddress}
-                    onChange={(key, val) => updateField(key as keyof FormState, val)}
+                    onChange={(key, val) =>
+                      updateField(key as keyof FormState, val)
+                    }
                   />
                   <button
                     onClick={() => setEditingCustomer(false)}
@@ -400,12 +453,16 @@ export const EditBillSheet = memo(function EditBillSheet({
             <div className="flex items-center gap-3 mt-2 text-[11px] text-white/30">
               <span>#{bill?.billNumber || bill?._id?.slice(-6) || "N/A"}</span>
               <span className="text-white/20">|</span>
-              <span className={cn(
-                "capitalize",
-                bill?.paymentStatus === "paid" ? "text-emerald-400/70" :
-                bill?.paymentStatus === "partial" ? "text-amber-400/70" :
-                "text-sky-400/70",
-              )}>
+              <span
+                className={cn(
+                  "capitalize",
+                  bill?.paymentStatus === "paid"
+                    ? "text-emerald-400/70"
+                    : bill?.paymentStatus === "partial"
+                      ? "text-amber-400/70"
+                      : "text-sky-400/70",
+                )}
+              >
                 {bill?.paymentStatus || "pending"}
               </span>
             </div>
@@ -430,11 +487,20 @@ export const EditBillSheet = memo(function EditBillSheet({
                           : "bg-white/[0.03] text-white/30",
                     )}
                   >
-                    {isComplete ? <Check className="w-3 h-3" /> : <StepIcon className="w-3 h-3" />}
+                    {isComplete ? (
+                      <Check className="w-3 h-3" />
+                    ) : (
+                      <StepIcon className="w-3 h-3" />
+                    )}
                     <span className="hidden sm:inline">{step.label}</span>
                   </button>
                   {i < steps.length - 1 && (
-                    <div className={cn("w-4 h-px", i < currentStep ? "bg-emerald-500/30" : "bg-white/10")} />
+                    <div
+                      className={cn(
+                        "w-4 h-px",
+                        i < currentStep ? "bg-emerald-500/30" : "bg-white/10",
+                      )}
+                    />
                   )}
                 </div>
               );
@@ -455,12 +521,18 @@ export const EditBillSheet = memo(function EditBillSheet({
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 z-20 shrink-0 flex items-center justify-between gap-3 px-5 py-4 border-t border-white/[0.08] bg-white/[0.02] backdrop-blur-xl -mx-5 -mb-4 mt-auto"
-            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}
+          <div
+            className="sticky bottom-0 z-20 shrink-0 flex items-center justify-between gap-3 px-5 py-4 border-t border-white/[0.08] bg-white/[0.02] backdrop-blur-xl -mx-5 -mb-4 mt-auto"
+            style={{
+              paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))",
+            }}
           >
             <Button
               variant="outline"
-              onClick={() => { setEditingCustomer(false); onClose(); }}
+              onClick={() => {
+                setEditingCustomer(false);
+                onClose();
+              }}
               className="!rounded-xl border-white/10 text-white/50"
             >
               Cancel
@@ -509,35 +581,64 @@ export const EditBillSheet = memo(function EditBillSheet({
 });
 
 function EditCustomerFields({
-  name, phone, email, address, onChange,
+  name,
+  phone,
+  email,
+  address,
+  onChange,
 }: {
-  name: string; phone: string; email: string; address: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
   onChange: (key: string, value: string) => void;
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
       <div>
         <label className="text-[10px] text-white/40 mb-1 block">Name</label>
-        <input value={name} onChange={(e) => onChange("customerName", e.target.value)} className="w-full glass-input !p-2 text-xs text-white" />
+        <input
+          value={name}
+          onChange={(e) => onChange("customerName", e.target.value)}
+          className="w-full glass-input !p-2 text-xs text-white"
+        />
       </div>
       <div>
         <label className="text-[10px] text-white/40 mb-1 block">Phone</label>
-        <input value={phone} onChange={(e) => onChange("customerPhone", e.target.value)} className="w-full glass-input !p-2 text-xs text-white" />
+        <input
+          value={phone}
+          onChange={(e) => onChange("customerPhone", e.target.value)}
+          className="w-full glass-input !p-2 text-xs text-white"
+        />
       </div>
       <div>
         <label className="text-[10px] text-white/40 mb-1 block">Email</label>
-        <input value={email} onChange={(e) => onChange("customerEmail", e.target.value)} className="w-full glass-input !p-2 text-xs text-white" />
+        <input
+          value={email}
+          onChange={(e) => onChange("customerEmail", e.target.value)}
+          className="w-full glass-input !p-2 text-xs text-white"
+        />
       </div>
       <div>
         <label className="text-[10px] text-white/40 mb-1 block">Address</label>
-        <input value={address} onChange={(e) => onChange("customerAddress", e.target.value)} className="w-full glass-input !p-2 text-xs text-white" />
+        <input
+          value={address}
+          onChange={(e) => onChange("customerAddress", e.target.value)}
+          className="w-full glass-input !p-2 text-xs text-white"
+        />
       </div>
     </div>
   );
 }
 
 function EditStepContent({
-  step, form, updateField, bill, itemTotal, chargeTotal, grandTotal,
+  step,
+  form,
+  updateField,
+  bill,
+  itemTotal,
+  chargeTotal,
+  grandTotal,
 }: {
   step: number;
   form: FormState;
@@ -554,54 +655,74 @@ function EditStepContent({
           <h3 className="text-base font-semibold text-white">Bill Items</h3>
           <div className="glass-divider" />
           {form.items.length === 0 ? (
-            <p className="text-sm text-white/30 text-center py-4">No items in this bill</p>
-          ) : form.items.map((item, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <input
-                type="text"
-                value={item.name}
-                onChange={(e) => {
-                  const items = [...form.items];
-                  items[i] = { ...items[i], name: e.target.value };
-                  updateField("items", items);
-                }}
-                placeholder="Item name"
-                className="flex-1 glass-input !p-2.5 text-sm text-white"
-              />
-              <input
-                type="number"
-                value={item.qty}
-                onChange={(e) => {
-                  const items = [...form.items];
-                  items[i] = { ...items[i], qty: Math.max(1, Number(e.target.value)) };
-                  updateField("items", items);
-                }}
-                placeholder="Qty"
-                className="w-16 glass-input !p-2.5 text-sm text-white text-center"
-                min="1"
-              />
-              <input
-                type="number"
-                value={item.price}
-                onChange={(e) => {
-                  const items = [...form.items];
-                  items[i] = { ...items[i], price: Math.max(0, Number(e.target.value)) };
-                  updateField("items", items);
-                }}
-                placeholder="Price"
-                className="w-24 glass-input !p-2.5 text-sm text-white text-right"
-                min="0"
-              />
-              <button
-                onClick={() => updateField("items", form.items.filter((_, idx) => idx !== i))}
-                className="p-2 text-white/30 hover:text-red-400 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+            <p className="text-sm text-white/30 text-center py-4">
+              No items in this bill
+            </p>
+          ) : (
+            form.items.map((item, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <input
+                  type="text"
+                  value={item.name}
+                  onChange={(e) => {
+                    const items = [...form.items];
+                    items[i] = { ...items[i], name: e.target.value };
+                    updateField("items", items);
+                  }}
+                  placeholder="Item name"
+                  className="flex-1 glass-input !p-2.5 text-sm text-white"
+                />
+                <input
+                  type="number"
+                  value={item.qty}
+                  onChange={(e) => {
+                    const items = [...form.items];
+                    items[i] = {
+                      ...items[i],
+                      qty: Math.max(1, Number(e.target.value)),
+                    };
+                    updateField("items", items);
+                  }}
+                  placeholder="Qty"
+                  className="w-16 glass-input !p-2.5 text-sm text-white text-center"
+                  min="1"
+                />
+                <input
+                  type="number"
+                  value={item.price}
+                  onChange={(e) => {
+                    const items = [...form.items];
+                    items[i] = {
+                      ...items[i],
+                      price: Math.max(0, Number(e.target.value)),
+                    };
+                    updateField("items", items);
+                  }}
+                  placeholder="Price"
+                  className="w-24 glass-input !p-2.5 text-sm text-white text-right"
+                  min="0"
+                />
+                <button
+                  onClick={() =>
+                    updateField(
+                      "items",
+                      form.items.filter((_, idx) => idx !== i),
+                    )
+                  }
+                  className="p-2 text-white/30 hover:text-red-400 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))
+          )}
           <button
-            onClick={() => updateField("items", [...form.items, { name: "", qty: 1, price: 0 }])}
+            onClick={() =>
+              updateField("items", [
+                ...form.items,
+                { name: "", qty: 1, price: 0 },
+              ])
+            }
             className="w-full py-2 rounded-xl border border-dashed border-white/[0.08] text-sm text-white/40 hover:text-white/60 hover:bg-white/[0.02] transition-all"
           >
             + Add Item
@@ -612,18 +733,25 @@ function EditStepContent({
     case 1:
       return (
         <div className="glass-card-static p-5 space-y-4">
-          <h3 className="text-base font-semibold text-white">Additional Charges</h3>
+          <h3 className="text-base font-semibold text-white">
+            Additional Charges
+          </h3>
           <div className="glass-divider" />
           {form.charges.map((charge, i) => (
             <div key={charge.label} className="flex items-center gap-3">
-              <span className="text-sm text-white/60 min-w-[140px]">{charge.label}</span>
+              <span className="text-sm text-white/60 min-w-[140px]">
+                {charge.label}
+              </span>
               <span className="text-white/30">₹</span>
               <input
                 type="number"
                 value={charge.amount}
                 onChange={(e) => {
                   const charges = [...form.charges];
-                  charges[i] = { ...charges[i], amount: Math.max(0, Number(e.target.value)) };
+                  charges[i] = {
+                    ...charges[i],
+                    amount: Math.max(0, Number(e.target.value)),
+                  };
                   updateField("charges", charges);
                 }}
                 className="flex-1 glass-input !p-2.5 text-sm text-white text-right"
@@ -644,7 +772,9 @@ function EditStepContent({
             <input
               type="number"
               value={form.discount}
-              onChange={(e) => updateField("discount", Math.max(0, Number(e.target.value)))}
+              onChange={(e) =>
+                updateField("discount", Math.max(0, Number(e.target.value)))
+              }
               className="flex-1 glass-input !p-3 text-lg font-bold text-white text-right"
               min="0"
               placeholder="0"
@@ -662,12 +792,18 @@ function EditStepContent({
               </div>
               <div className="flex justify-between text-sm mt-1">
                 <span className="text-emerald-400">Discount</span>
-                <span className="text-emerald-400">-₹{form.discount.toFixed(2)}</span>
+                <span className="text-emerald-400">
+                  -₹{form.discount.toFixed(2)}
+                </span>
               </div>
               <div className="glass-divider my-2" />
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-white/80">Payable</span>
-                <span className="text-lg font-bold text-amber-300">₹{grandTotal.toFixed(2)}</span>
+                <span className="text-sm font-medium text-white/80">
+                  Payable
+                </span>
+                <span className="text-lg font-bold text-amber-300">
+                  ₹{grandTotal.toFixed(2)}
+                </span>
               </div>
             </div>
           )}
@@ -680,7 +816,9 @@ function EditStepContent({
           <h3 className="text-base font-semibold text-white">Payment</h3>
           <div className="glass-divider" />
           <div>
-            <label className="text-xs text-white/40 mb-1.5 block">Payment Status</label>
+            <label className="text-xs text-white/40 mb-1.5 block">
+              Payment Status
+            </label>
             <select
               value={form.paymentStatus}
               onChange={(e) => updateField("paymentStatus", e.target.value)}
@@ -691,9 +829,16 @@ function EditStepContent({
               <option value="paid">Paid</option>
             </select>
           </div>
-          <Field label="Amount Paid (₹)" value={String(form.paidAmount)} onChange={(v) => updateField("paidAmount", Math.max(0, Number(v)))} type="number" />
+          <Field
+            label="Amount Paid (₹)"
+            value={String(form.paidAmount)}
+            onChange={(v) => updateField("paidAmount", Math.max(0, Number(v)))}
+            type="number"
+          />
           <div>
-            <label className="text-xs text-white/40 mb-1.5 block">Admin Notes</label>
+            <label className="text-xs text-white/40 mb-1.5 block">
+              Admin Notes
+            </label>
             <textarea
               value={form.notes}
               onChange={(e) => updateField("notes", e.target.value)}
@@ -716,18 +861,28 @@ function EditStepContent({
           </div>
           <div className="glass-divider" />
           <div className="space-y-1.5">
-            <span className="text-xs text-white/40 uppercase tracking-wider font-medium">Items</span>
+            <span className="text-xs text-white/40 uppercase tracking-wider font-medium">
+              Items
+            </span>
             {form.items.length === 0 ? (
               <p className="text-xs text-white/30">No items</p>
-            ) : form.items.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-white/60">{item.name} × {item.qty}</span>
-                <span className="text-white/80">₹{(item.qty * item.price).toFixed(2)}</span>
-              </div>
-            ))}
+            ) : (
+              form.items.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-white/60">
+                    {item.name} × {item.qty}
+                  </span>
+                  <span className="text-white/80">
+                    ₹{(item.qty * item.price).toFixed(2)}
+                  </span>
+                </div>
+              ))
+            )}
             <div className="flex justify-between text-sm pt-1 border-t border-white/[0.06]">
               <span className="text-white/50">Subtotal</span>
-              <span className="text-white font-medium">₹{itemTotal.toFixed(2)}</span>
+              <span className="text-white font-medium">
+                ₹{itemTotal.toFixed(2)}
+              </span>
             </div>
           </div>
           <div className="glass-divider" />
@@ -741,22 +896,32 @@ function EditStepContent({
             {form.discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-emerald-400">Discount</span>
-                <span className="text-emerald-400">-₹{form.discount.toFixed(2)}</span>
+                <span className="text-emerald-400">
+                  -₹{form.discount.toFixed(2)}
+                </span>
               </div>
             )}
           </div>
           <div className="glass-divider" />
           <div className="flex justify-between items-center">
-            <span className="text-base font-semibold text-white">Grand Total</span>
-            <span className="text-lg font-bold text-amber-300">₹{grandTotal.toFixed(2)}</span>
+            <span className="text-base font-semibold text-white">
+              Grand Total
+            </span>
+            <span className="text-lg font-bold text-amber-300">
+              ₹{grandTotal.toFixed(2)}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-white/50">Paid</span>
-            <span className="text-emerald-400">₹{form.paidAmount.toFixed(2)}</span>
+            <span className="text-emerald-400">
+              ₹{form.paidAmount.toFixed(2)}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-white/50">Balance</span>
-            <span className="text-amber-300">₹{Math.max(0, grandTotal - form.paidAmount).toFixed(2)}</span>
+            <span className="text-amber-300">
+              ₹{Math.max(0, grandTotal - form.paidAmount).toFixed(2)}
+            </span>
           </div>
         </div>
       );
@@ -766,13 +931,26 @@ function EditStepContent({
   }
 }
 
-function Field({ label, value, onChange, type }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string;
+function Field({
+  label,
+  value,
+  onChange,
+  type,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
 }) {
   return (
     <div>
       <label className="text-xs text-white/40 mb-1.5 block">{label}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(e.target.value)} className="w-full glass-input !p-3 text-sm text-white" />
+      <input
+        type={type || "text"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full glass-input !p-3 text-sm text-white"
+      />
     </div>
   );
 }

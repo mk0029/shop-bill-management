@@ -27,7 +27,7 @@ export interface Bill {
   serviceDate: string;
   completionDate?: string;
   technician?: string;
-  homeVisitFee: number;
+  visitingCharges: number;
   dueDate: any;
   // Primary field in DB
   repairFee: number;

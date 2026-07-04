@@ -40,8 +40,8 @@ export const BillsList = ({
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="p-8">
           <div className="flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            <span className="ml-3 text-gray-400">Loading your bills...</span>
+            <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+            <span className="ml-3 text-white/50">Loading your bills...</span>
           </div>
         </CardContent>
       </Card>
@@ -122,9 +122,9 @@ export const BillsList = ({
                       </div>
                     )}
                     {bill.locationType && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 capitalize">
                         <MapPin className="w-4 h-4" />
-                        {bill.locationType}
+                        {bill.locationType.replace(/_/g, " ")}
                       </div>
                     )}
                   </div>
@@ -188,17 +188,17 @@ export const BillsList = ({
               </div>
 
               {/* Additional charges */}
-              {(bill.homeVisitFee > 0 ||
+              {(bill.visitingCharges > 0 ||
                 ((bill as any).repairFee ?? bill.repairCharges) > 0) && (
                 <div className="border-t border-gray-800 pt-3">
                   <p className="text-sm text-gray-400 mb-2">
                     Additional Charges:
                   </p>
                   <div className="flex gap-4 text-sm">
-                    {bill.homeVisitFee > 0 && (
+                    {bill.visitingCharges > 0 && (
                       <span className="text-gray-300">
                         Home Visit: {currency}
-                        {bill.homeVisitFee}
+                        {bill.visitingCharges}
                       </span>
                     )}
                     {((bill as any).repairFee ?? bill.repairCharges) > 0 && (

@@ -48,9 +48,9 @@ export async function POST(req: NextRequest) {
     }))
 
     const subtotal = billItems.reduce((sum: number, it: any) => sum + (Number(it.totalPrice) || 0), 0)
-    const homeVisitFee = Number((params as any).homeVisitFee || 0)
+    const visitingCharges = Number((params as any).visitingCharges || 0)
     const repairFee = Number((params as any).repairFee || 0)
-    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairFee)
+    const totalAmount = Math.max(0, subtotal + visitingCharges + repairFee)
     const paidAmount = Number((params as any).paidAmount || 0)
     const balanceAmount = Math.max(0, totalAmount - paidAmount)
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       locationType: String((params as any).locationType || ''),
       items: billItems,
       serviceDate: new Date().toISOString(),
-      homeVisitFee,
+      visitingCharges,
       repairFee,
       subtotal,
       discount: 0,

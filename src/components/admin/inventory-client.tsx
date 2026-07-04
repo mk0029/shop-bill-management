@@ -127,6 +127,10 @@ export default function AdminInventoryClient() {
                   onEdit={handleEditProduct}
                   onDelete={handleDeleteProduct}
                   onView={setViewProduct}
+                  onManageOffer={(p) => {
+                    const productId = p._id || p.productId
+                    router.push(`/admin/offers?productId=${productId}`)
+                  }}
                   isTechnician={isTechnician}
                 />
               )}

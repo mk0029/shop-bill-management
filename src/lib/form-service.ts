@@ -104,7 +104,7 @@ export async function saveDraftBill(billData: {
   }>;
   serviceType?: "repair" | "sale" | "installation" | "maintenance" | "custom" | "fitting_wiring";
   locationType?: "shop" | "home" | "office";
-  homeVisitFee?: number;
+  visitingCharges?: number;
   repairCharges?: number;
   // Backward/forward compatibility: allow repairFee as alias of repairCharges
   repairFee?: number;
@@ -141,12 +141,12 @@ export async function saveDraftBill(billData: {
     }));
 
     const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
-    const homeVisitFee = Number(billData.homeVisitFee || 0);
+    const visitingCharges = Number(billData.visitingCharges || 0);
     const repairCharges = Number(
       billData.repairCharges ?? (billData as any).repairFee ?? 0
     );
     const discount = Number(billData.discount || 0);
-    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges);
+    const totalAmount = Math.max(0, subtotal + visitingCharges + repairCharges);
 
     const newDraft = {
       _type: "bill",
@@ -159,7 +159,7 @@ export async function saveDraftBill(billData: {
       locationType: billData.locationType || "shop",
       items,
       serviceDate: new Date().toISOString(),
-      homeVisitFee,
+      visitingCharges,
       // Persist only repairFee in DB
       repairFee: repairCharges,
       subtotal,
@@ -214,7 +214,7 @@ export async function updateDraftBill(
     }>;
     serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom" | "fitting_wiring";
     locationType: "shop" | "home" | "office";
-    homeVisitFee: number;
+    visitingCharges: number;
     repairCharges: number;
     // Allow repairFee as alias
     repairFee: number;
@@ -246,12 +246,12 @@ export async function updateDraftBill(
     }));
 
     const subtotal = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
-    const homeVisitFee = Number(updates.homeVisitFee || 0);
+    const visitingCharges = Number(updates.visitingCharges || 0);
     const repairCharges = Number(
       updates.repairCharges ?? (updates as any).repairFee ?? 0
     );
     const discount = Number((updates as any).discount || 0);
-    const totalAmount = Math.max(0, subtotal + homeVisitFee + repairCharges);
+    const totalAmount = Math.max(0, subtotal + visitingCharges + repairCharges);
 
     const patch: any = {
       ...(updates.customerId
@@ -260,7 +260,7 @@ export async function updateDraftBill(
       ...(updates.items ? { items } : {}),
       ...(updates.serviceType ? { serviceType: updates.serviceType } : {}),
       ...(updates.locationType ? { locationType: updates.locationType } : {}),
-      homeVisitFee,
+      visitingCharges,
       // Keep repairFee updated (single source of truth)
       repairFee: repairCharges,
       subtotal,
@@ -593,7 +593,7 @@ export async function createBill(billData: {
   }>;
   serviceType: "repair" | "sale" | "installation" | "maintenance" | "custom" | "fitting_wiring";
   locationType: "shop" | "home" | "office";
-  homeVisitFee?: number;
+  visitingCharges?: number;
   repairCharges?: number;
   // Allow repairFee as alias
   repairFee?: number;
@@ -731,12 +731,12 @@ export async function createBill(billData: {
     // Calculate totals from the final prepared items
     const subtotal = finalItems.reduce((sum, item) => sum + item.totalPrice, 0);
     // Always include the provided additional charges, regardless of service/location
-    const homeVisitFee = Number(billData.homeVisitFee || 0);
+    const visitingCharges = Number(billData.visitingCharges || 0);
     const repairChargesInput = billData.repairCharges ?? (billData as any).repairFee ?? 0;
     const repairCharges = Number(repairChargesInput);
     const discount = Number(billData.discount || 0);
     // Gross total before discount (to be persisted as totalAmount)
-    const grossTotal = Math.max(0, Number(subtotal) + homeVisitFee + repairCharges);
+    const grossTotal = Math.max(0, Number(subtotal) + visitingCharges + repairCharges);
     // Net payable after discount (used for balance/payment flows and notifications)
     const netPayable = Math.max(0, grossTotal - discount);
 
@@ -754,7 +754,7 @@ export async function createBill(billData: {
       billDate: billData.billDate,
       dueDate: billData.dueDate,
       serviceDate: new Date().toISOString(),
-      homeVisitFee,
+      visitingCharges,
       // Persist only repairFee in DB
       repairFee: repairCharges,
       subtotal,

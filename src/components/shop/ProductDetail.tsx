@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ShoppingCart,
@@ -17,6 +18,8 @@ import {
   RotateCcw,
   Plus,
   Minus,
+  Gift,
+  Clock,
 } from "lucide-react";
 import {
   type ShopProduct,
@@ -29,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProductGallery } from "@/components/shop/ProductGallery";
 import { DeliveryNotice } from "@/components/shop/DeliveryNotice";
+import type { OfferWithProduct } from "@/types/offers";
 
 export function ProductDetailSkeleton() {
   return (
@@ -50,8 +54,23 @@ export function ProductDetail({
   onBack?: () => void;
 }) {
   const { items, addItem, updateQuantity, openCart } = useCartStore();
+  const searchParams = useSearchParams();
   const inCart = items.find((i) => i.productId === product._id);
   const [showAllSpecs, setShowAllSpecs] = useState(false);
+
+  const [offer, setOffer] = useState<OfferWithProduct | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/products/${product._id}/offers`);
+        const data = await res.json();
+        if (active && data.success) setOffer(data.data);
+      } catch {}
+    })();
+    return () => { active = false };
+  }, [product._id]);
 
   const isOutOfStock = !product.inStock || product.stockCount <= 0;
   const isLowStock =
@@ -71,15 +90,35 @@ export function ProductDetail({
     : undefined;
 
   const handleAddToCart = () => {
+    const offerId = searchParams.get("offerId");
+    const offerClaimId = searchParams.get("claimId");
+    const offerCode = searchParams.get("offerCode");
+    const matchingOffer = offer && (!offerId || offer._id === offerId) ? offer : null;
+
+    const basePrice = product.pricing.sellingPrice;
+    let offerAdjustedPrice: number | undefined;
+    if (matchingOffer?.offerType === "percentage" && matchingOffer.discountValue != null) {
+      offerAdjustedPrice = Math.round(basePrice - (basePrice * matchingOffer.discountValue) / 100);
+    } else if (matchingOffer?.offerType === "fixed_amount" && matchingOffer.discountValue != null) {
+      offerAdjustedPrice = Math.max(0, basePrice - matchingOffer.discountValue);
+    }
+
     addItem({
       productId: product._id,
       name: product.name,
-      price: product.pricing.sellingPrice,
+      price: basePrice,
       originalPrice: product.pricing.mrp,
       imageUrl: imageUrl || undefined,
       unit: product.pricing.unit,
       brand: product.brand,
       stock: product.stockCount,
+      offerId: matchingOffer?._id || offerId || undefined,
+      offerClaimId: offerClaimId || undefined,
+      offerTitle: matchingOffer?.title || undefined,
+      offerCode: offerCode || offerClaimId || undefined,
+      offerType: matchingOffer?.offerType,
+      offerDiscountValue: matchingOffer?.discountValue,
+      offerAdjustedPrice,
     });
   };
 
@@ -156,6 +195,50 @@ export function ProductDetail({
           <span className="text-[10px] text-white/30 md:text-xs">/ {product.pricing.unit}</span>
         </div>
 
+        {/* Offer section */}
+        {offer && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 p-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-cyan-500/20 p-2">
+                <Gift className="h-5 w-5 text-cyan-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-cyan-300">{offer.title}</p>
+                {offer.description && (
+                  <p className="mt-0.5 text-xs text-cyan-200/70">{offer.description}</p>
+                )}
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                  {offer.offerType === "percentage" && offer.discountValue != null && (
+                    <span className="rounded-md bg-cyan-500/15 px-2 py-0.5 font-medium text-cyan-300">
+                      {offer.discountValue}% OFF
+                    </span>
+                  )}
+                  {offer.offerType === "fixed_amount" && offer.discountValue != null && (
+                    <span className="rounded-md bg-cyan-500/15 px-2 py-0.5 font-medium text-cyan-300">
+                      ₹{offer.discountValue} OFF
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1 text-gray-400">
+                    <Clock className="h-3 w-3" />
+                    {new Date(offer.endAt) > new Date()
+                      ? `Ends ${new Date(offer.endAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`
+                      : "Ended"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {offer.terms && (
+              <p className="mt-2 text-[10px] text-gray-500 border-t border-cyan-500/10 pt-2">
+                {offer.terms}
+              </p>
+            )}
+          </motion.div>
+        )}
+
         {/* Status badges */}
         <div className="flex flex-wrap gap-1.5 md:gap-2">
           {isOutOfStock ? (
@@ -202,43 +285,43 @@ export function ProductDetail({
 
         {/* Add to cart */}
         {!isOutOfStock && (
-          <div className="flex gap-2 md:gap-3">
+          <div className="flex gap-2">
             {inCart ? (
               <>
-                <div className="flex items-center overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.03]">
+                <div className="flex items-center overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.03]">
                   <button
                     type="button"
                     onClick={() => updateQuantity(product._id, inCart.quantity - 1)}
-                    className="flex h-11 w-11 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white md:h-12 md:w-12"
+                    className="flex h-9 w-9 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
                   >
-                    <Minus className="h-4 w-4" />
+                    <Minus className="h-3.5 w-3.5" />
                   </button>
-                  <span className="min-w-[2.5rem] text-center text-sm font-semibold text-white md:min-w-[3rem] md:text-base">
+                  <span className="min-w-[2rem] text-center text-sm font-semibold text-white">
                     {inCart.quantity}
                   </span>
                   <button
                     type="button"
                     onClick={() => updateQuantity(product._id, inCart.quantity + 1)}
                     disabled={inCart.quantity >= product.stockCount}
-                    className="flex h-11 w-11 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30 md:h-12 md:w-12"
+                    className="flex h-9 w-9 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 <button
                   onClick={openCart}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-sky-400/30 px-4 py-3 text-sm font-medium text-sky-400 transition-all active:scale-[0.97] hover:bg-sky-400/10 md:py-4 md:text-base"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-400 transition-all active:scale-[0.97] hover:bg-sky-400/10"
                 >
-                  <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
-                  <span className="hidden md:inline">View</span> Cart
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  View Cart
                 </button>
               </>
             ) : (
               <button
                 onClick={handleAddToCart}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition-all active:scale-[0.97] hover:from-sky-400 hover:to-sky-500 md:py-4 md:text-base"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/15 transition-all active:scale-[0.97] hover:from-sky-400 hover:to-sky-500"
               >
-                <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
+                <ShoppingCart className="h-4 w-4" />
                 Add to Cart
               </button>
             )}

@@ -4,13 +4,13 @@ import { useLocaleStore } from "@/store/locale-store";
 
 interface BillSummaryProps {
   subtotal: number;
-  homeVisitFee: number;
+  visitingCharges: number;
   total: number;
 }
 
 export function BillSummary({
   subtotal,
-  homeVisitFee,
+  visitingCharges,
   total,
 }: BillSummaryProps) {
   const { currency } = useLocaleStore();
@@ -29,12 +29,12 @@ export function BillSummary({
             {subtotal.toLocaleString()}
           </span>
         </div>
-        {homeVisitFee > 0 && (
+        {visitingCharges > 0 && (
           <div className="flex justify-between text-gray-300 text-sm sm:text-base">
-            <span>Home Visit Fee</span>
+            <span>Visiting Charges</span>
             <span>
               {currency}
-              {homeVisitFee}
+              {visitingCharges}
             </span>
           </div>
         )}

@@ -82,9 +82,9 @@ export function useBillForm({ onSubmit, onClose }: UseBillFormProps) {
 
   const calculateTotals = useCallback(() => {
     const subtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
-    const homeVisitFee = formData.locationType === "home" ? 500 : 0;
-    const total = subtotal + homeVisitFee;
-    return { subtotal, homeVisitFee, total };
+    const visitingCharges = formData.locationType === "home" ? 500 : 0;
+    const total = subtotal + visitingCharges;
+    return { subtotal, visitingCharges, total };
   }, [formData.items, formData.locationType]);
 
   const handleSubmit = useCallback(async () => {

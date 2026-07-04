@@ -1,11 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { Search, Package } from "lucide-react";
+
+const glassCardStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.04)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "20px",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+};
+
+const glassInputStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  backdropFilter: "blur(16px)",
+  borderRadius: "12px",
+};
 
 interface ItemSelectionSectionProps {
   categories: any[];
@@ -28,7 +44,6 @@ export const ItemSelectionSection = ({
 }: ItemSelectionSectionProps) => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  // Show ALL categories (parents + subcategories)
   const filteredCategories = categories.filter((category) => {
     const name = (category.name || "").toLowerCase();
     const matchesDropdown = categoryFilter === "all" || name === categoryFilter;
@@ -38,79 +53,84 @@ export const ItemSelectionSection = ({
   });
 
   return (
-    <Card className="bg-gray-900 border-gray-800">
-      <CardContent className={searcCardClass}>
-        {/* Category Filter */}
-        <div className={cn("mb-4", searcHeaderClass)}>
-          <Label className="text-gray-300 mb-2 block">Filter by Category</Label>
+    <div style={glassCardStyle} className={cn("p-5 sm:p-6", searcCardClass)}>
+      <div className="flex items-center gap-2 mb-5">
+        <Package className="w-5 h-5" style={{ color: "rgba(56,189,248,0.6)" }} />
+        <h3 className="text-white font-semibold text-base">Bill Items</h3>
+      </div>
+
+      <div className={cn("mb-4", searcHeaderClass)}>
+        <Label className="text-sm text-slate-300 mb-2 block">Filter by Category</Label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(148,163,184,0.4)" }} />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Type to filter categories"
-            className="mb-2 bg-gray-800 border-gray-700 text-white"
+            className="pl-9"
+            style={glassInputStyle}
           />
         </div>
+      </div>
 
-        {/* Category Buttons */}
-        <div className={cn("max-h-[200px] overflow-auto", searcItemsClass)}>
-          {" "}
-          <div className=" flex flex-wrap gap-2 mb-3">
-            {filteredCategories.map((category) => {
-              return (
-                <motion.div
-                  key={category._id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  initial={{ opacity: 0.1, filter: "blur(1px)" }} // starting state
-                  whileInView={{ opacity: 1, filter: "blur(0px)" }} // when it enters viewport
-                  transition={{ duration: 0.3, ease: "linear" }}
-                  viewport={{ once: false, amount: 0.5 }} // 👈 viewport settings
-                >
-                  <div
-                    // variant="outline"
-                    onClick={() => onOpenItemModal(category.name.toLowerCase())}
-                    className={`w-full h-auto px-3 py-2 flex flex-col items-start gap-2 bg-gray-800 border-gray-700 hover:bg-gray-700 rounded-md cursor-pointer`}
-                    aria-disabled
-                  >
-                    <p className="font-medium text-white text-xs">
-                      {category.name}
-                    </p>
-                  </div>
-                </motion.div>
-              );
-            })}
-            {categoryFilter === "all" ? (
-              ""
-            ) : (
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0.1, filter: "blur(1px)" }} // starting state
-                whileInView={{ opacity: 1, filter: "blur(0px)" }} // when it enters viewport
-                transition={{ duration: 0.3, ease: "linear" }}
-                viewport={{ once: false, amount: 0.5 }} // 👈 viewport settings
+      <div className={cn("max-h-[200px] overflow-auto", searcItemsClass)}>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {filteredCategories.map((category) => (
+            <motion.div
+              key={category._id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0.1, filter: "blur(1px)" }}
+              whileInView={{ opacity: 1, filter: "blur(0px)" }}
+              transition={{ duration: 0.3, ease: "linear" }}
+              viewport={{ once: false, amount: 0.5 }}
+            >
+              <div
+                onClick={() => onOpenItemModal(category.name.toLowerCase())}
+                className="px-4 py-2.5 rounded-xl cursor-pointer transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)";
+                }}
               >
-                <div
-                  // variant="outline"
-                  onClick={() => setCategoryFilter("all")}
-                  className={`w-full h-auto cursor-pointer pt-2`}
-                  aria-disabled
-                >
-                  <p className="font-noraml text-white text-sm">Reset Items</p>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Loading state */}
-            {productsLoading && (
-              <div className="col-span-full text-center py-8">
-                <div className="h-6 w-6 sm:w-8 sm:h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-400">Loading categories...</p>
+                <p className="font-medium text-white text-xs">{category.name}</p>
               </div>
-            )}
-          </div>
+            </motion.div>
+          ))}
+          {categoryFilter !== "all" && (
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0.1, filter: "blur(1px)" }}
+              whileInView={{ opacity: 1, filter: "blur(0px)" }}
+              transition={{ duration: 0.3, ease: "linear" }}
+              viewport={{ once: false, amount: 0.5 }}
+            >
+              <div
+                onClick={() => setCategoryFilter("all")}
+                className="cursor-pointer pt-2"
+              >
+                <p className="text-sm" style={{ color: "rgba(148,163,184,0.6)" }}>Reset Items</p>
+              </div>
+            </motion.div>
+          )}
+
+          {productsLoading && (
+            <div className="col-span-full text-center py-8">
+              <div className="h-6 w-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-sm" style={{ color: "rgba(148,163,184,0.5)" }}>Loading categories...</p>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

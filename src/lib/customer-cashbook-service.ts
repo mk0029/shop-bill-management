@@ -137,7 +137,7 @@ export const customerCashbookService = {
     serviceType?: string;
     locationType?: string;
     notes?: string;
-    homeVisitFee?: number;
+    visitingCharges?: number;
     repairFee?: number;
     paymentStatus?: 'pending' | 'partial' | 'paid';
     paidAmount?: number;

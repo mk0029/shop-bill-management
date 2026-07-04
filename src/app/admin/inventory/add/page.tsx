@@ -1,20 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
-import { SuccessPopup } from "@/components/ui/success-popup";
-import { ConfirmationPopup } from "@/components/ui/confirmation-popup";
-import { DynamicSpecificationFields } from "@/components/forms/dynamic-specification-fields";
 import { useMultipleInventoryForm } from "@/hooks/use-multiple-inventory-form";
 import type { InventoryFormData } from "@/hooks/use-multiple-inventory-form";
-import { BasicInfoSection } from "@/components/inventory/basic-info-section";
-import { PricingSection } from "@/components/inventory/pricing-section";
-import { StaticInfoSection } from "@/components/inventory/static-info-section";
-import { ResponsiveAccordion } from "@/components/ui/responsive-accordion";
-import { ProductImageUpload } from "@/components/inventory/product-image-upload";
+import { PageHeader } from "@/components/inventory/add-products/page-header";
+import { ProductCard } from "@/components/inventory/add-products/product-card";
+import { ProductWizardModal } from "@/components/inventory/add-products/product-wizard-modal";
+import { SaveConfirmModal } from "@/components/inventory/add-products/save-confirm-modal";
+import { SuccessModal } from "@/components/inventory/add-products/success-modal";
+
+const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
 
 export default function BulkAddInventoryPage() {
   const router = useRouter();
@@ -29,6 +26,7 @@ export default function BulkAddInventoryPage() {
     categories,
     products,
     successfulProducts,
+    editingFormId,
     handleInputChange,
     handleImagesChange,
     handleSpecificationChange,
@@ -38,323 +36,211 @@ export default function BulkAddInventoryPage() {
     resetForms,
     handleSuccessClose,
     setShowConfirmationPopup,
-    generateProductName,
     addNewForm,
     removeForm,
+    duplicateForm,
+    openEditor,
+    closeEditor,
+    saveCurrentProduct,
+    saveAndAddNew,
   } = useMultipleInventoryForm();
 
-  // Track which accordion item is open; only one at a time
-  const [openId, setOpenId] = useState<string | null>(null);
+  const editingForm = useMemo(
+    () => formDataList.find((f) => f.id === editingFormId) || null,
+    [formDataList, editingFormId]
+  );
 
-  // Helpers for normalization and matching
-  const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+  const editingErrors = editingFormId ? errors[editingFormId] || {} : {};
 
-  // Filtered suggestions per form based on current input (lowercase partial match)
   const filteredProductsByForm = useMemo(() => {
     const map: Record<string, typeof products> = {};
     for (const form of formDataList) {
       const query = normalize(form.productName || "");
       map[form.id] = query
-        ? products.filter(
-            (p) => p.isActive && normalize(p.name).includes(query),
-          )
+        ? products.filter((p) => p.isActive && normalize(p.name).includes(query))
         : products.filter((p) => p.isActive);
     }
     return map;
   }, [formDataList, products]);
 
-  // Wrapped input change: keep user's casing/spaces, but match using normalized value
-  const handleNormalizedInputChange = (
-    formId: string,
-    field: string,
-    value: string,
-  ) => {
-    if (field === "productName") {
-      // Keep what user typed (do not force lowercase or trim)
-      handleInputChange(formId, field, value);
-
-      const normalizedValue = normalize(value);
-
-      // Exact match -> auto-select existing item and populate
-      const exact = products.find(
-        (p) => normalize(p.name) === normalizedValue && p.isActive,
-      );
-      if (exact) {
-        handleExistingProductSelect(formId, exact._id);
+  const handleNormalizedInputChange = useCallback(
+    (formId: string, field: string, value: string) => {
+      if (field === "productName") {
+        handleInputChange(formId, field, value);
+        const normalizedValue = normalize(value);
+        const exact = products.find(
+          (p) => normalize(p.name) === normalizedValue && p.isActive
+        );
+        if (exact) {
+          handleExistingProductSelect(formId, exact._id);
+          return;
+        }
+        handleInputChange(formId, "_selectedExistingProduct", "");
         return;
       }
+      if (field.startsWith("_error_")) return;
+      handleInputChange(formId, field, value);
+    },
+    [handleInputChange, handleExistingProductSelect, products]
+  );
 
-      // No exact match -> only clear the selection flag, keep typed name intact
-      handleInputChange(formId, "selectedExistingProduct", "");
-      return;
-    }
-
-    // Non-name fields pass through
-    handleInputChange(formId, field, value);
-  };
-
-  const onFormSubmit = (e: React.FormEvent) => {
-    // Ensure duplicates are prevented just before submit by auto-selecting matches
-    for (const form of formDataList) {
-      const normalized = normalize(form.productName || "");
-      if (!normalized) continue;
-      const exact = products.find(
-        (p) => p.isActive && normalize(p.name) === normalized,
-      );
-      if (exact && form.selectedExistingProduct !== exact._id) {
-        handleExistingProductSelect(form.id, exact._id);
+  const handleClearError = useCallback(
+    (formId: string, field: string) => {
+      if (errors[formId]?.[field]) {
+        handleInputChange(formId, field, formDataList.find((f) => f.id === formId)?.[field as keyof InventoryFormData]?.toString() || "");
       }
-    }
-    // Proceed with existing submit flow
-    handleSubmit(e);
-  };
+    },
+    [errors, handleInputChange, formDataList]
+  );
+
+  const onFormSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      for (const form of formDataList) {
+        const normalized = normalize(form.productName || "");
+        if (!normalized) continue;
+        const exact = products.find(
+          (p) => p.isActive && normalize(p.name) === normalized
+        );
+        if (exact && form.selectedExistingProduct !== exact._id) {
+          handleExistingProductSelect(form.id, exact._id);
+        }
+      }
+      handleSubmit(e);
+    },
+    [formDataList, products, handleExistingProductSelect, handleSubmit]
+  );
+
+  const handleAddProduct = useCallback(() => {
+    const id = addNewForm();
+    openEditor(id);
+  }, [addNewForm, openEditor]);
+
+  const handleDuplicateProduct = useCallback(
+    (formId: string) => {
+      duplicateForm(formId);
+    },
+    [duplicateForm]
+  );
+
+  const handleEditCard = useCallback(
+    (formId: string) => {
+      openEditor(formId);
+    },
+    [openEditor]
+  );
+
+  const handleModalSave = useCallback(() => {
+    saveCurrentProduct();
+  }, [saveCurrentProduct]);
+
+  const handleModalSaveAndAdd = useCallback(() => {
+    saveAndAddNew();
+  }, [saveAndAddNew]);
+
+  const handleSuccessViewInventory = useCallback(() => {
+    handleSuccessClose();
+  }, [handleSuccessClose]);
+
+  const handleSuccessAddMore = useCallback(() => {
+    handleSuccessClose();
+    resetForms();
+  }, [handleSuccessClose, resetForms]);
 
   return (
-    <div className="space-y-6 max-md:space-y-4 max-md:pb-4">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => router.back()} className="p-2">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-            Add Products
-          </h1>
+    <div className="min-h-[80dvh]">
+      {/* Page Header */}
+      <PageHeader
+        productCount={formDataList.length}
+        isLoading={isLoading}
+        onAddProduct={handleAddProduct}
+        onSaveAll={onFormSubmit as any}
+      />
+
+      {/* Product Cards Grid */}
+      {formDataList.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {formDataList.map((formData, index) => (
+            <ProductCard
+              key={formData.id}
+              formData={formData}
+              index={index}
+              hasErrors={!!(errors[formData.id] && Object.keys(errors[formData.id]).length > 0)}
+              onEdit={() => handleEditCard(formData.id)}
+              onDuplicate={() => handleDuplicateProduct(formData.id)}
+              onRemove={() => removeForm(formData.id)}
+              categories={categories as any}
+              brands={brands as any}
+            />
+          ))}
         </div>
-      </div>
-
-      <form onSubmit={onFormSubmit} className="space-y-6 max-md:space-y-4">
-        {formDataList.map((formData: InventoryFormData, index) => (
-          <div key={formData.id} id={`product_${index + 1}`}>
-            {" "}
-            <ResponsiveAccordion
-              className="relative"
-              title={formData.productName || `Product #${index + 1}`}
-              headerRight={
-                formDataList.length > 1 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeForm(formData.id)}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                ) : null
-              }
-              open={openId ? openId === formData.id : index === 0}
-              onOpenChange={(next) => setOpenId(next ? formData.id : null)}
-              desktopCollapsible
-            >
-              {/* Product number indicator */}
-              {/* <div className="mb-4">
-              <h3 className="text-lg font-semibold text-white">
-                Product #{index + 1}
-              </h3>
-              <div className="w-full bg-gray-700 rounded-full h-1 mt-2">
-                <div
-                  className="bg-slate-400 h-0.5 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${((index + 1) / formDataList.length) * 100}%`,
-                  }}
-                ></div>
-              </div>
-            </div> */}
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-                {/* Left Column: Basic Information and Specifications */}
-                <div className="space-y-6 max-md:space-y-4">
-                  <BasicInfoSection
-                    formData={formData as any}
-                    categories={categories}
-                    brands={brands}
-                    products={filteredProductsByForm[formData.id] || products}
-                    errors={errors[formData.id] || {}}
-                    onInputChange={(field, value) =>
-                      handleNormalizedInputChange(formData.id, field, value)
-                    }
-                    onExistingProductSelect={(productId) =>
-                      handleExistingProductSelect(formData.id, productId)
-                    }
-                    onSpecificationChange={(field, value) =>
-                      handleSpecificationChange(formData.id, field, value)
-                    }
-                    dynamicSpecificationFields={
-                      <div>
-                        <DynamicSpecificationFields
-                          categoryId={formData.category}
-                          formData={
-                            formData.specifications as Record<string, string>
-                          }
-                          onFieldChange={(field, value) =>
-                            handleSpecificationChange(formData.id, field, value)
-                          }
-                          errors={errors[formData.id] || {}}
-                          disabled={!!formData.selectedExistingProduct}
-                        />
-                      </div>
-                    }
-                  />
-                </div>
-
-                {/* Right Column: Pricing and Static Information */}
-                <div className="space-y-6 max-md:space-y-4">
-                  <PricingSection
-                    formData={formData as any}
-                    errors={errors[formData.id] || {}}
-                    onInputChange={(field, value) =>
-                      handleInputChange(formData.id, field, value)
-                    }
-                  />
-
-                  <StaticInfoSection
-                    formData={formData as any}
-                    errors={errors[formData.id] || {}}
-                    onInputChange={(field, value) =>
-                      handleInputChange(formData.id, field, value)
-                    }
-                    isExistingProductSelected={
-                      !!formData.selectedExistingProduct
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Product Images Section */}
-              <div className="mt-6">
-                <ProductImageUpload
-                  images={formData.images}
-                  onImagesChange={(images) =>
-                    handleImagesChange(formData.id, images)
-                  }
-                  disabled={!!formData.selectedExistingProduct}
-                />
-              </div>
-            </ResponsiveAccordion>
-          </div>
-        ))}
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const id = addNewForm();
-                setOpenId(id);
-                // Scroll to the newly added section
-                setTimeout(() => {
-                  const el = document.getElementById(
-                    `product_${formDataList.length}`,
-                  );
-                  if (el) {
-                    el.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    });
-                  }
-                }, 10);
-              }}
-              className="flex items-center gap-2 w-full"
-            >
-              <Plus className="w-4 h-4" />
-              Add More Product
-            </Button>
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={isLoading || formDataList.length === 0}
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Adding {formDataList.length} Products...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-white">
-                  <Save className="w-4 h-4" />
-                  Add {formDataList.length} Product
-                  {formDataList.length !== 1 ? "s" : ""}
-                </div>
-              )}
-            </Button>
-          </div>
-
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => {
-              resetForms();
-              setOpenId(null);
-            }}
-            disabled={isLoading}
+      ) : (
+        /* Empty state */
+        <div
+          className="flex flex-col items-center justify-center py-20 rounded-3xl"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
-            Reset All
-          </Button>
+            <svg className="w-8 h-8" style={{ color: "rgba(148,163,184,0.4)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-white mb-1">No products yet</h3>
+          <p className="text-sm mb-6" style={{ color: "rgba(148,163,184,0.6)" }}>
+            Click &quot;Add Product&quot; to get started
+          </p>
         </div>
-      </form>
+      )}
 
-      {/* Success Popup */}
-      {showSuccessPopup && (
-        <SuccessPopup
-          isOpen={showSuccessPopup}
-          onClose={handleSuccessClose}
-          data={{
-            title: "Products Added Successfully",
-            message: `${successfulProducts.length} products have been added to your inventory`,
-            type: "product",
-            actions: [
-              {
-                label: "View Inventory",
-                action: handleSuccessClose,
-                variant: "default",
-              },
-              {
-                label: "Add More Products",
-                action: () => {
-                  handleSuccessClose();
-                  resetForms();
-                },
-                variant: "outline",
-              },
-            ],
-          }}
+      {/* Product Wizard Modal */}
+      {editingForm && (
+        <ProductWizardModal
+          isOpen={!!editingForm}
+          formData={editingForm}
+          errors={editingErrors}
+          categories={categories as any}
+          brands={brands as any}
+          products={filteredProductsByForm[editingForm.id] || products}
+          onClose={closeEditor}
+          onSave={handleModalSave}
+          onSaveAndAdd={handleModalSaveAndAdd}
+          onInputChange={(field, value) =>
+            handleNormalizedInputChange(editingForm.id, field, value)
+          }
+          onImagesChange={(images) => handleImagesChange(editingForm.id, images)}
+          onSpecificationChange={(field, value) =>
+            handleSpecificationChange(editingForm.id, field, value)
+          }
+          onExistingProductSelect={(productId) =>
+            handleExistingProductSelect(editingForm.id, productId)
+          }
+          onClearError={(field) => handleClearError(editingForm.id, field)}
         />
       )}
 
-      {/* Confirmation Popup */}
-      {showConfirmationPopup && (
-        <ConfirmationPopup
-          isOpen={showConfirmationPopup}
-          onClose={() => setShowConfirmationPopup(false)}
-          data={{
-            title: "Add Multiple Products",
-            message: isLoading
-              ? `Adding ${formDataList.length} products... (${progress.current}/${progress.total} completed)`
-              : `Are you sure you want to add ${formDataList.length} products to your inventory?`,
-            type: "info",
-            actions: [
-              {
-                label: isLoading
-                  ? `Adding... (${progress.current}/${progress.total})`
-                  : `Add ${formDataList.length} Products`,
-                action: confirmSubmit,
-                variant: "default",
-                disabled: isLoading,
-                loading: isLoading,
-              },
-              {
-                label: "Cancel",
-                action: () => setShowConfirmationPopup(false),
-                variant: "outline",
-                disabled: isLoading,
-              },
-            ],
-          }}
-        />
-      )}
+      {/* Save Confirmation Modal */}
+      <SaveConfirmModal
+        isOpen={showConfirmationPopup}
+        isLoading={isLoading}
+        productCount={formDataList.length}
+        progress={progress}
+        onConfirm={confirmSubmit}
+        onCancel={() => setShowConfirmationPopup(false)}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessPopup}
+        productCount={successfulProducts.length}
+        onViewInventory={handleSuccessViewInventory}
+        onAddMore={handleSuccessAddMore}
+      />
     </div>
   );
 }

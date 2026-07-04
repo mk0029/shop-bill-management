@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ShoppingCart, Star, Sparkles, Percent, Plus, Minus } from "lucide-react";
+import { ShoppingCart, Star, Sparkles, Percent, Plus, Minus, Gift } from "lucide-react";
 import {
   type ShopProduct,
   formatPrice,
@@ -11,6 +12,7 @@ import {
 import { useCartStore } from "@/store/cart-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { OfferWithProduct } from "@/types/offers";
 
 export function ProductCard({
   product,
@@ -35,6 +37,19 @@ export function ProductCard({
     product.pricing.mrp || 0,
     product.pricing.sellingPrice,
   );
+  const [offer, setOffer] = useState<OfferWithProduct | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/products/${product._id}/offers`);
+        const data = await res.json();
+        if (active && data.success) setOffer(data.data);
+      } catch {}
+    })();
+    return () => { active = false };
+  }, [product._id]);
 
   return (
     <motion.div
@@ -64,6 +79,34 @@ export function ProductCard({
 
           {/* Badges */}
           <div className="absolute left-1.5 top-1.5 flex flex-col gap-1 md:left-2 md:top-2 md:gap-1.5">
+            {offer && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+              >
+                <Badge className="relative overflow-hidden border-emerald-400/40 bg-gradient-to-r from-emerald-500/60 to-cyan-500/60 text-[9px] font-bold text-white shadow-[0_0_12px_rgba(52,211,153,0.3)] backdrop-blur-sm md:text-[10px]">
+                  <motion.span
+                    animate={{ rotate: [0, -10, 10, -10, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+                    className="mr-0.5 inline-flex md:mr-1"
+                  >
+                    <Gift className="h-2 w-2 md:h-2.5 md:w-2.5" />
+                  </motion.span>
+                  <motion.span
+                    animate={{ opacity: [1, 0.6, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    Offer Available
+                  </motion.span>
+                  <motion.span
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 rounded-inherit bg-white/20"
+                  />
+                </Badge>
+              </motion.div>
+            )}
             {discount > 0 && (
               <Badge className="border-red-500/30 bg-red-500/20 text-[9px] text-red-300 shadow-lg backdrop-blur-sm md:text-[10px]">
                 <Percent className="mr-0.5 h-2 w-2 md:h-2.5 md:w-2.5" />

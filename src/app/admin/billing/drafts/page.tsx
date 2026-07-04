@@ -94,7 +94,7 @@ export default function DraftBillsPage() {
         (sum, it) => sum + (Number(it.total) || 0),
         0,
       );
-      const fees = Number(fd.repairFee || 0) + Number(fd.homeVisitFee || 0);
+      const fees = Number(fd.repairFee || 0) + Number(fd.visitingCharges || 0);
       const total = itemsTotal + fees;
       const billDate = fd.billDate as string | undefined;
       map[s.id] = {

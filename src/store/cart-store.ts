@@ -13,6 +13,13 @@ export interface CartItem {
   unit: string;
   brand?: string;
   stock: number;
+  offerId?: string;
+  offerClaimId?: string;
+  offerTitle?: string;
+  offerCode?: string;
+  offerType?: string;
+  offerDiscountValue?: number;
+  offerAdjustedPrice?: number;
 }
 
 interface CartState {
@@ -21,6 +28,7 @@ interface CartState {
   addItem: (item: Omit<CartItem, "quantity">) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  updateItem: (productId: string, data: Partial<Omit<CartItem, "productId">>) => void;
   clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
@@ -76,6 +84,14 @@ export const useCartStore = create<CartState>()(
             ),
           };
         });
+      },
+
+      updateItem: (productId, data) => {
+        set((state) => ({
+          items: state.items.map((i) =>
+            i.productId === productId ? { ...i, ...data } : i,
+          ),
+        }));
       },
 
       clearCart: () => set({ items: [] }),

@@ -31,11 +31,11 @@ export const BillSummary = memo(function BillSummary({
   );
 
   const transportationFee = toNum(bill.transportationFee);
-  const homeVisitFee = toNum(bill.homeVisitFee);
+  const visitingCharges = toNum(bill.visitingCharges);
   const repairCharge = toNum(
     bill.repairCharges ?? bill.repairFee ?? bill.repairCharge ?? 0,
   );
-  const additionalTotal = transportationFee + homeVisitFee + repairCharge;
+  const additionalTotal = transportationFee + visitingCharges + repairCharge;
 
   const explicitTotal = toNum(bill.totalAmount ?? bill.total);
   const grandTotal =

@@ -267,7 +267,7 @@ export default function AdminNotificationBroadcastPage() {
   }
 
   return (
-    <main className="min-h-[calc(var(--app-vh,100dvh)-62px)] bg-transparent text-slate-100">
+    <main className="min-h-[calc(var(--app-vh,100dvh)-var(--topbar-h,62px))] bg-transparent text-slate-100">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
         <header className="rounded-lg border border-white/10 bg-white/[0.055] p-4 shadow-xl shadow-black/15 backdrop-blur-xl sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

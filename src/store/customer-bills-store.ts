@@ -17,7 +17,7 @@ export interface CustomerBill {
   serviceType?: string;
   locationType?: string;
   serviceDate?: string;
-  homeVisitFee?: number;
+  visitingCharges?: number;
   repairFee?: number;
   transportationFee?: number;
   laborCharges?: number;

@@ -20,8 +20,8 @@ export default async function AdminLayout({
   )
     redirect("/customer/bills");
 
-    return (
-      <div className="relative isolate h-[var(--app-vh,100dvh)] overflow-hidden bg-gray-950">
+  return (
+    <div className="relative isolate h-[var(--app-vh,100dvh)] overflow-hidden bg-gray-950">
       <AppBackground variant="admin" />
       <div className="relative z-10">
         <AdminViewportHeight />
@@ -29,8 +29,10 @@ export default async function AdminLayout({
         <AdminNavigationShell />
         <AdminWelcomeGate />
       </div>
-      <main className="admin-main hide-scroll relative z-10 h-[calc(var(--app-vh,100dvh)-62px)] overflow-y-auto overflow-x-hidden bg-transparent pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-3">
-        <div className="min-h-full pb-8 py-1 sm:p-2 sm:pb-10 xl:p-6 xl:pb-12">{children}</div>
+      <main className="admin-main hide-scroll relative z-10 h-[calc(var(--app-vh,100dvh)-var(--topbar-h,62px))] overflow-y-auto overflow-x-hidden touch-pan-y bg-transparent pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-3">
+        <div className="min-h-full pb-8 py-1 sm:p-2 sm:pb-10 xl:p-6 xl:pb-12">
+          {children}
+        </div>
       </main>
     </div>
   );

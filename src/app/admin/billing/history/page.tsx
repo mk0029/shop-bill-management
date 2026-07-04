@@ -19,6 +19,7 @@ import {
   Download,
   Calendar,
   DollarSign,
+  MapPin,
   User,
 } from "lucide-react";
 
@@ -326,6 +327,12 @@ export default function BillHistoryPage() {
                       {new Date(bill.date).toLocaleDateString()} - Due:{" "}
                       {new Date(bill.dueDate).toLocaleDateString()}
                     </p>
+                    {bill.locationType && (
+                      <p className="text-sm text-gray-400 flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3" />
+                        {bill.locationType.replace(/_/g, " ")}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">

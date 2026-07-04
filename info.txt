@@ -36,7 +36,7 @@ Defined and referenced across files like src/store/data-store.ts and src/lib/que
   - Fields: _id, clerkId, customerId, secretKey, name, email?, phone, location, role ('admin'|'customer'), isActive, createdAt
 - Bill
   - Fields: _id, billId, billNumber, customer (ref), items[] { product (ref), productName, category, brand, specifications, quantity, unitPrice, totalPrice, unit },
-    serviceType, locationType, serviceDate, homeVisitFee, transportationFee?, repairFee?, laborCharges?,
+    serviceType, locationType, serviceDate, visitingCharges, transportationFee?, repairFee?, laborCharges?,
     subtotal, taxAmount, discount?, totalAmount, paymentStatus, paymentMethod?, paidAmount, balanceAmount,
     status, priority, notes?, internalNotes?, createdAt, updatedAt
 - StockTransaction
@@ -81,7 +81,7 @@ B) useInventoryStore (src/store/inventory-store.ts)
 
 C) useSettingsStore (src/store/settings-store.ts)
 - Persisted UI/business defaults and notification preferences (localStorage):
-  - homeVisitFeeDefault, laborChargesDefault, repairFeeDefault, offlineAutoUploadDefault
+  - visitingChargesDefault, laborChargesDefault, repairFeeDefault, offlineAutoUploadDefault
   - showInAppNotifications, showNotificationPopover, playSoundOnNotification, pauseIncomingNotifications
 
 5) Real-time Data Flow

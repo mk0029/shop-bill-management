@@ -122,7 +122,7 @@ interface Bill {
   locationType: "shop" | "home" | "office";
   serviceDate: string;
   dueDate: string;
-  homeVisitFee: number;
+  visitingCharges: number;
   transportationFee?: number;
   repairFee?: number;
   subtotal: number;

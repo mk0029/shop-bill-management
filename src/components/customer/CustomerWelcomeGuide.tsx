@@ -272,7 +272,7 @@ export default function CustomerWelcomeGuide({
 
   const wrapperClasses = isGate
     ? "fixed inset-0 z-[9999]"
-    : "relative min-h-[var(--app-vh,100dvh)]";
+    : "relative min-h-full";
 
   const content = (
     <motion.section

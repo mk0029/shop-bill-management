@@ -7,8 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Plus, Package } from "lucide-react";
+import { Plus, Package, Calculator } from "lucide-react";
 import { toast } from "sonner";
+
+const glassCardStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  borderRadius: "14px",
+};
+
+const glassInputStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  backdropFilter: "blur(16px)",
+  borderRadius: "12px",
+};
 
 interface ManualItemModalProps {
   isOpen: boolean;
@@ -45,10 +58,7 @@ export const ManualItemModal = ({
   });
 
   const handleInputChange = (field: string, value: string | number) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = () => {
@@ -56,12 +66,10 @@ export const ManualItemModal = ({
       toast.error("Please enter a product name");
       return;
     }
-
     if (formData.quantity <= 0) {
       toast.error("Please enter a valid quantity");
       return;
     }
-
     if (formData.unitPrice < 0) {
       toast.error("Please enter a valid unit price");
       return;
@@ -77,7 +85,6 @@ export const ManualItemModal = ({
       unit: formData.unit,
     });
 
-    // Reset form and close modal
     setFormData({
       productName: "",
       category: "",
@@ -87,7 +94,6 @@ export const ManualItemModal = ({
       unitPrice: 0,
       unit: "pcs",
     });
-
     onClose();
   };
 
@@ -107,40 +113,34 @@ export const ManualItemModal = ({
   ];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Manual Item">
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-4">
-          <Package className="w-5 h-5 text-blue-400" />
-          <p className="text-gray-300">
-            Add custom items or services not in your inventory
-          </p>
+    <Modal isOpen={isOpen} onClose={onClose} title="Add Manual Item" size="md">
+      <div className="space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="flex items-center gap-2" style={{ color: "rgba(148,163,184,0.6)" }}>
+          <Package className="w-4 h-4" />
+          <p className="text-sm">Add custom items or services not in your inventory</p>
         </div>
 
         {/* Product Name */}
-        <div>
-          <Label className="text-gray-300 mb-2 block">
-            Product/Service Name *
+        <div className="space-y-2">
+          <Label className="text-sm text-slate-300">
+            Product/Service Name <span className="text-red-400">*</span>
           </Label>
           <Input
             value={formData.productName}
             onChange={(e) => handleInputChange("productName", e.target.value)}
             placeholder="Enter product or service name"
-            className="bg-gray-800 border-gray-700 text-white"
+            style={glassInputStyle}
           />
         </div>
 
-        {/* Category and Brand Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-          <div>
-            <Label className="text-gray-300 mb-2 block">Category</Label>
+        {/* Category & Brand */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">Category</Label>
             <Dropdown
               options={[
                 { value: "", label: "Select Category" },
-                ...categories.map((cat) => ({
-                  value: cat.name,
-                  label: cat.name,
-                })),
+                ...categories.map((cat) => ({ value: cat.name, label: cat.name })),
                 { value: "Service", label: "Service" },
                 { value: "Labor", label: "Labor" },
                 { value: "Custom", label: "Custom/Other" },
@@ -148,109 +148,102 @@ export const ManualItemModal = ({
               value={formData.category}
               onValueChange={(value) => handleInputChange("category", value)}
               placeholder="Select category"
-              className="bg-gray-800 border-gray-700"
             />
           </div>
-
-          <div>
-            <Label className="text-gray-300 mb-2 block">Brand</Label>
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">Brand</Label>
             <Dropdown
               options={[
                 { value: "", label: "Select Brand" },
-                ...brands.map((brand) => ({
-                  value: brand.name,
-                  label: brand.name,
-                })),
+                ...brands.map((brand) => ({ value: brand.name, label: brand.name })),
                 { value: "Generic", label: "Generic" },
                 { value: "Custom", label: "Custom/Other" },
               ]}
               value={formData.brand}
               onValueChange={(value) => handleInputChange("brand", value)}
               placeholder="Select brand"
-              className="bg-gray-800 border-gray-700"
             />
           </div>
         </div>
 
         {/* Specifications */}
-        <div>
-          <Label className="text-gray-300 mb-2 block">
-            Specifications/Description
-          </Label>
+        <div className="space-y-2">
+          <Label className="text-sm text-slate-300">Specifications/Description</Label>
           <Textarea
             value={formData.specifications}
-            onChange={(e) =>
-              handleInputChange("specifications", e.target.value)
-            }
+            onChange={(e) => handleInputChange("specifications", e.target.value)}
             placeholder="Enter specifications, model, description, or service details"
-            className="bg-gray-800 border-gray-700 text-white min-h-[100px]"
+            className="min-h-[100px]"
+            style={glassInputStyle}
           />
         </div>
 
-        {/* Quantity, Unit Price, and Unit Row */}
+        {/* Quantity, Price, Unit */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label className="text-gray-300 mb-2 block">Quantity *</Label>
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">Quantity <span className="text-red-400">*</span></Label>
             <Input
               type="number"
               min="1"
               step="0.01"
               value={formData.quantity}
-              onChange={(e) =>
-                handleInputChange("quantity", parseFloat(e.target.value) || 1)
-              }
-              className="bg-gray-800 border-gray-700 text-white"
+              onChange={(e) => handleInputChange("quantity", parseFloat(e.target.value) || 1)}
+              style={glassInputStyle}
             />
           </div>
-
-          <div>
-            <Label className="text-gray-300 mb-2 block">Unit Price (₹)</Label>
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">Unit Price (₹)</Label>
             <Input
               type="number"
               min="0"
               step="0.01"
               value={formData.unitPrice}
-              onChange={(e) =>
-                handleInputChange("unitPrice", parseFloat(e.target.value) || 0)
-              }
-              className="bg-gray-800 border-gray-700 text-white"
+              onChange={(e) => handleInputChange("unitPrice", parseFloat(e.target.value) || 0)}
+              style={glassInputStyle}
             />
           </div>
-
-          <div>
-            <Label className="text-gray-300 mb-2 block">Unit</Label>
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">Unit</Label>
             <Dropdown
               options={unitOptions}
               value={formData.unit}
               onValueChange={(value) => handleInputChange("unit", value)}
               placeholder="Select unit"
-              className="bg-gray-800 border-gray-700"
             />
           </div>
         </div>
 
         {/* Total Preview */}
-        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-400">Total Amount:</span>
+        <div style={glassCardStyle} className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calculator className="w-4 h-4" style={{ color: "rgba(56,189,248,0.5)" }} />
+              <span style={{ color: "rgba(148,163,184,0.6)" }}>Total Amount:</span>
+            </div>
             <span className="text-white font-semibold text-lg">
               ₹{(formData.quantity * formData.unitPrice).toFixed(2)}
             </span>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-4">
+        {/* Actions */}
+        <div className="flex gap-3 pt-2">
           <Button
             onClick={handleSubmit}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white">
-            <Plus className="w-4 h-4 mr-2" />
+            className="flex-1 gap-1.5"
+            style={{
+              background: "linear-gradient(135deg, rgba(56,189,248,0.2), rgba(139,92,246,0.15))",
+              border: "1px solid rgba(56,189,248,0.25)",
+            }}
+          >
+            <Plus className="w-4 h-4" />
             Add to Bill
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={onClose}
-            className="border-gray-700 text-gray-300 hover:bg-gray-800">
+            className="border border-white/10 text-slate-300"
+          >
             Cancel
           </Button>
         </div>

@@ -18,6 +18,7 @@ import {
   HelpCircle,
   X,
   ShoppingBag,
+  Tag,
 } from "lucide-react";
 // removed Bell route link; notifications are accessed via header popover
 import Link from "next/link";
@@ -52,6 +53,11 @@ const customerNavigation: NavigationItem[] = [
     label: "Chat",
     href: "/customer/chat",
     icon: MessageCircle,
+  },
+  {
+    label: "Offers",
+    href: "/customer/offers",
+    icon: Tag,
   },
   {
     label: "Purchase",
@@ -503,7 +509,7 @@ export function CustomerNavigation() {
                   </div>
 
                   {/* Navigation Items */}
-                  <div className="sm:p-4 p-3 space-y-2">
+                  <div className="min-h-0 flex-1 overflow-y-auto sm:p-4 p-3 space-y-2">
                     {isAdmin && (
                       <div className="mb-4">
                         <div className="flex items-center justify-between">
@@ -588,7 +594,7 @@ export function CustomerNavigation() {
                   </div>
 
                   {/* User Section */}
-                  <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-4">
+                  <div className="shrink-0 border-t border-gray-800 p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
                         <SanityImage
@@ -616,9 +622,9 @@ export function CustomerNavigation() {
       {/* Mobile Menu Button */}
 
       {/* Desktop Navigation */}
-      <nav className="hidden lg:block w-64  backdrop-blur-[2px] border-r-white/10 border-solid border-r-[0.5px] h-screen fixed left-0 top-0">
+      <nav className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-64 flex-col overflow-hidden border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] lg:flex">
         {/* Header */}
-        <div className="p-6 border-b border-gray-800">
+        <div className="shrink-0 p-6 border-b border-gray-800">
           <div className="flex items-center gap-3">
             <Building2 className="w-6 h-6 hidden text-white" />
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -641,7 +647,7 @@ export function CustomerNavigation() {
         </div>
 
         {/* Navigation Items */}
-        <div className="sm:p-4 p-3 space-y-2">
+        <div className="min-h-0 flex-1 overflow-y-auto touch-pan-y sm:p-4 p-3 space-y-2">
           {isAdmin && (
             <div className="mb-4">
               <div className="flex items-center justify-between">
@@ -722,7 +728,7 @@ export function CustomerNavigation() {
         </div>
 
         {/* User Section - Desktop */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-4">
+        <div className="shrink-0 border-t border-gray-800 p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
               <SanityImage
@@ -866,3 +872,4 @@ export function CustomerNavigation() {
     </>
   );
 }
+

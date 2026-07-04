@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag,
@@ -53,6 +53,7 @@ function ProductsGridSkeleton() {
 
 export default function CategoryDetailPage() {
   const { categorySlug } = useParams<{ categorySlug: string }>();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [category, setCategory] = useState<ShopCategory | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(
@@ -123,6 +124,17 @@ export default function CategoryDetailPage() {
     }
     load();
   }, [categorySlug]);
+
+  useEffect(() => {
+    const productId = searchParams.get("productId");
+    if (!productId || products.length === 0) return;
+
+    const matchedProduct = products.find((product) => product._id === productId);
+    if (matchedProduct) {
+      setSelectedProduct(matchedProduct);
+      setShowMobileDetail(true);
+    }
+  }, [products, searchParams]);
 
   const handleSelect = useCallback((product: ShopProduct) => {
     setSelectedProduct(product);

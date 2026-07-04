@@ -26,8 +26,8 @@ const chargeConfig: Record<
     icon: Truck,
     color: "from-sky-400/20 to-blue-500/20",
   },
-  homeVisitFee: {
-    label: "Home Visit Fee",
+  visitingCharges: {
+    label: "Visiting Charges",
     icon: Home,
     color: "from-emerald-400/20 to-teal-500/20",
   },
@@ -59,11 +59,11 @@ export const ChargesCard = memo(function ChargesCard({
         value: tf,
       });
 
-    const hvf = toNum(bill.homeVisitFee);
+    const hvf = toNum(bill.visitingCharges);
     if (hvf > 0)
       items.push({
-        key: "homeVisitFee",
-        ...chargeConfig.homeVisitFee,
+        key: "visitingCharges",
+        ...chargeConfig.visitingCharges,
         value: hvf,
       });
 

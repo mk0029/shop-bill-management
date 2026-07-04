@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, MessageSquare, Phone } from "lucide-react";
+import { ChevronDown, MapPin, MessageSquare, Phone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PayAllBillsModal } from "./pay-all-bills-modal";
@@ -276,6 +276,9 @@ export default function CustomerBillGroup({
                                   /_/g,
                                   " ",
                                 )}
+                                {bill.locationType
+                                  ? ` · ${bill.locationType.replace(/_/g, " ")}`
+                                  : ""}
                                 {bill.technician?.name
                                   ? ` · ${bill.technician.name}`
                                   : ""}

@@ -42,7 +42,7 @@ export function BillForm({
     handleSubmit,
   } = useBillForm({ onSubmit, onClose });
 
-  const { subtotal, homeVisitFee, total } = calculateTotals();
+  const { subtotal, visitingCharges, total } = calculateTotals();
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Bill" size="xl">
@@ -90,7 +90,7 @@ export function BillForm({
           {/* Bill Summary */}
           <BillSummary
             subtotal={subtotal}
-            homeVisitFee={homeVisitFee}
+            visitingCharges={visitingCharges}
             total={total}
           />
         </div>

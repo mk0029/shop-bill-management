@@ -39,7 +39,7 @@ export interface BillDetails {
   subtotal?: number;
   repairFee?: number;
   laborCharges?: number;
-  homeVisitFee?: number;
+  visitingCharges?: number;
   transportationFee?: number;
   taxAmount?: number;
   discount?: number;
@@ -94,7 +94,7 @@ export function generateWhatsAppMessage(bill: BillDetails, currency: string = 'â
     ) || 0;
 
   const additionalCharges =
-    (bill.homeVisitFee || 0) +
+    (bill.visitingCharges || 0) +
     (bill.transportationFee || 0) +
     (bill.repairFee || 0) +
     (bill.laborCharges || 0);

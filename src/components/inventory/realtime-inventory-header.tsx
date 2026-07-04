@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, TrendingUp, History } from "lucide-react";
+import { Plus, Package, TrendingUp, History, Tag } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
@@ -127,6 +127,15 @@ export const RealtimeInventoryHeader = ({
         </h1>
         {!isTechnician && (
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => router.push("/admin/offers")}
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+            >
+              <Tag className="w-4 h-4" />
+              <span className="hidden sm:inline">Offers</span>
+            </Button>
             <Button
               onClick={() => router.push("/admin/inventory/history")}
               variant="outline"

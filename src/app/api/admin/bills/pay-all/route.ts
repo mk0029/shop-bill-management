@@ -198,19 +198,36 @@ export async function POST(req: Request) {
     const customerDoc = billsToPay[0]?.customer || {};
 
     // ONE combined WhatsApp event (fire-and-forget)
+    const waBills = billsToPay.map((bill: any) => {
+      const grandTotal = Number(bill.totalAmount || 0);
+      const discount = Number(bill.discount || 0);
+      const netTotal = Math.max(0, grandTotal - discount);
+      const alreadyPaid = Number(bill.paidAmount || 0);
+      const dueAmount = Math.max(0, netTotal - alreadyPaid);
+      return {
+        _id: bill._id,
+        billId: bill.billId || bill._id,
+        billNumber: bill.billNumber || "",
+        totalAmount: grandTotal,
+        paidAmount: dueAmount,
+        balanceAmount: 0,
+        paymentStatus: "paid",
+      };
+    });
     void emitWaEventServer("billing.bulkPaid", {
       customerId,
       customerName: customerDisplayName(customerDoc),
+      customerNickname: customerDoc.nickname || customerDisplayName(customerDoc),
       customerPhone: customerDoc.phone || "",
-      billNumbers,
-      totalPaidAmount,
-      totalUnpaidBeforeDiscount: totalRemainingBeforeDiscount,
-      discountApplied,
+      customer: { name: customerDisplayName(customerDoc), nickname: customerDoc.nickname || "" },
+      bills: waBills,
+      totalPaid: totalPaidAmount,
+      remainingBalance: 0,
+      discountApplied: bulkDiscount > 0 ? discountApplied : 0,
       discountReason: bulkDiscount > 0 ? discountReason : "",
       paymentMode,
       paymentDate: payDate,
       paidByAdmin: actorUserId,
-      note,
       idempotencyKey,
     }).then((result) => {
       if (!result.ok) console.warn("[WA] bulkPaid event failed:", result.error);

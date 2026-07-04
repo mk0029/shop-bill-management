@@ -208,20 +208,30 @@ export async function POST(req: Request) {
     const remainingBalance = Math.max(0, totalPending - totalApplied);
 
     // ONE combined WhatsApp event (fire-and-forget)
+    const waBills = patchOps.map((op) => {
+      const bill = billsToPay.find((b: any) => b._id === op.id);
+      return {
+        _id: op.id,
+        billId: bill?.billId || op.id,
+        billNumber: bill?.billNumber || "",
+        totalAmount: bill?.totalAmount || 0,
+        paidAmount: op.amount,
+        balanceAmount: Math.max(0, (bill?.balanceAmount ?? bill?.totalAmount ?? 0) - op.amount),
+        paymentStatus: op.patches?.paymentStatus || "partial",
+      };
+    });
     void emitWaEventServer("billing.multiPaid", {
       customerId,
       customerName: customerDisplayName(customerDoc),
+      customerNickname: customerDoc.nickname || customerDisplayName(customerDoc),
       customerPhone: customerDoc.phone || "",
-      billNumbersFullyPaid: fullyPaidBills,
-      billNumberPartiallyPaid: partialBillNumber,
-      partialApplied,
-      totalReceived: customAmountEnabled ? Number(receivedAmount) : totalPending,
-      totalApplied,
-      remainingCustomerBalance: remainingBalance,
+      customer: { name: customerDisplayName(customerDoc), nickname: customerDoc.nickname || "" },
+      bills: waBills,
+      totalPaid: totalApplied,
+      remainingBalance,
       paymentMode,
       paymentDate: payDate,
       paidByAdmin: actorUserId,
-      smartNote,
       idempotencyKey,
     }).then((result) => {
       if (!result.ok) console.warn("[WA] multiPaid event failed:", result.error);

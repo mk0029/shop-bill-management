@@ -63,7 +63,7 @@ function toPhones(rawPhone?: string | null): string[] {
 
 function calcTotals(input: {
   items: Array<{ quantity?: number; unitPrice?: number; totalPrice?: number }>;
-  homeVisitFee?: number;
+  visitingCharges?: number;
   repairFee?: number;
   discount?: number;
 }) {
@@ -71,12 +71,12 @@ function calcTotals(input: {
     (sum, it) => sum + Number(it.totalPrice ?? Number(it.quantity || 0) * Number(it.unitPrice || 0)),
     0
   );
-  const homeVisitFee = Number(input.homeVisitFee || 0);
+  const visitingCharges = Number(input.visitingCharges || 0);
   const repairFee = Number(input.repairFee || 0);
   const discount = Number(input.discount || 0);
-  const grossTotal = Math.max(0, subtotal + homeVisitFee + repairFee);
+  const grossTotal = Math.max(0, subtotal + visitingCharges + repairFee);
   const netPayable = Math.max(0, grossTotal - discount);
-  return { subtotal, grossTotal, netPayable, homeVisitFee, repairFee, discount };
+  return { subtotal, grossTotal, netPayable, visitingCharges, repairFee, discount };
 }
 
 
@@ -155,7 +155,7 @@ function emitBillPaymentWaEventInBackground(eventType: string, payload: Record<s
         billDate,
         dueDate,
         notes,
-        homeVisitFee,
+        visitingCharges,
         repairFee,
         discount,
         subtotal,
@@ -237,7 +237,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const dueDate = String(body?.dueDate || "");
     const notes = String(body?.notes || "");
 
-    const homeVisitFee = Number(body?.homeVisitFee || 0);
+    const visitingCharges = Number(body?.visitingCharges || 0);
     const repairFee = Number(body?.repairFee || 0);
     const discount = Number(body?.discount || 0);
 
@@ -252,7 +252,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         customer->{_id, phone, name},
         items[]{ quantity, unitPrice, product->{_id} },
         discount,
-        homeVisitFee,
+        visitingCharges,
         repairFee,
         totalAmount,
         paidAmount,
@@ -293,7 +293,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     const totals = calcTotals({
       items: safeItems,
-      homeVisitFee,
+      visitingCharges,
       repairFee,
       discount,
     });
@@ -345,7 +345,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       dueDate,
       notes,
       items: safeItems,
-      homeVisitFee: totals.homeVisitFee,
+      visitingCharges: totals.visitingCharges,
       repairFee: totals.repairFee,
       subtotal: totals.subtotal,
       discount: totals.discount,

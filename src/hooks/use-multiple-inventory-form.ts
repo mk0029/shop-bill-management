@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSpecificationsStore } from "@/store/specifications-store";
 import { useProducts, useBrands, useCategories } from "@/hooks/use-sanity-data";
@@ -22,6 +22,8 @@ export interface InventoryFormData {
   minimumStock: string;
   unit: string;
   description: string;
+  notes?: string;
+  tags?: string;
   specifications: Specification;
   selectedExistingProduct: string;
   images: ImageItem[];
@@ -35,11 +37,9 @@ export const useMultipleInventoryForm = () => {
   const { products } = useProducts();
   const { createStockTransaction } = useInventoryStore();
 
-  // Initialize dynamic field registry
   const { isReady: isDynamicFieldsReady } = useDynamicFieldRegistry();
 
   useEffect(() => {
-    // Only ensure dynamic field registry is initialized; data comes from centralized store
     if (!isDynamicFieldsReady) {
       initFieldRegistry().catch(console.error);
     }
@@ -57,6 +57,8 @@ export const useMultipleInventoryForm = () => {
     minimumStock: "10",
     unit: "piece",
     description: "",
+    notes: "",
+    tags: "",
     specifications: {} as Specification,
     selectedExistingProduct: "",
     images: [],
@@ -68,18 +70,42 @@ export const useMultipleInventoryForm = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showConfirmationPopup, setShowConfirmationPopup] = useState(false);
   const [successfulProducts, setSuccessfulProducts] = useState<string[]>([]);
+  const [editingFormId, setEditingFormId] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ current: number; total: number; lastName?: string }>({
     current: 0,
     total: 0,
   });
 
-  const addNewForm = (): string => {
+  const addNewForm = useCallback((): string => {
     const newForm = createEmptyForm();
     setFormDataList((prev) => [...prev, newForm]);
     return newForm.id;
-  };
+  }, []);
 
-  const removeForm = (formId: string) => {
+  const duplicateForm = useCallback((formId: string) => {
+    setFormDataList((prev) => {
+      const source = prev.find((f) => f.id === formId);
+      if (!source) return prev;
+      const newForm: InventoryFormData = {
+        ...createEmptyForm(),
+        category: source.category,
+        brand: source.brand,
+        productName: source.productName,
+        purchasePrice: source.purchasePrice,
+        purchaseTotalAmount: source.purchaseTotalAmount,
+        sellingPrice: source.sellingPrice,
+        unit: source.unit,
+        description: source.description,
+        notes: source.notes,
+        tags: source.tags,
+        specifications: { ...source.specifications },
+        selectedExistingProduct: source.selectedExistingProduct,
+      };
+      return [...prev, newForm];
+    });
+  }, []);
+
+  const removeForm = useCallback((formId: string) => {
     if (formDataList.length > 1) {
       setFormDataList((prev) => prev.filter((form) => form.id !== formId));
       setErrors((prev) => {
@@ -87,32 +113,29 @@ export const useMultipleInventoryForm = () => {
         delete newErrors[formId];
         return newErrors;
       });
+      if (editingFormId === formId) {
+        setEditingFormId(null);
+      }
     }
-  };
+  }, [formDataList.length, editingFormId]);
 
-  const handleInputChange = (formId: string, field: string, value: string) => {
+  const handleInputChange = useCallback((formId: string, field: string, value: string) => {
     setFormDataList((prev) =>
       prev.map((form) => (form.id === formId ? { ...form, [field]: value } : form))
     );
-    // Clear error when user starts typing
     if (errors[formId]?.[field]) {
       setErrors((prev) => ({
         ...prev,
         [formId]: { ...prev[formId], [field]: "" },
       }));
     }
-  };
+  }, [errors]);
 
-  const handleExistingProductSelect = (formId: string, productId: string) => {
+  const handleExistingProductSelect = useCallback((formId: string, productId: string) => {
     if (!productId) {
       setFormDataList((prev) =>
         prev.map((form) =>
-          form.id === formId
-            ? {
-                ...createEmptyForm(),
-                id: form.id,
-              }
-            : form
+          form.id === formId ? { ...createEmptyForm(), id: form.id } : form
         )
       );
       return;
@@ -142,13 +165,23 @@ export const useMultipleInventoryForm = () => {
         )
       );
     }
-  };
+  }, [products]);
 
-  const handleImagesChange = (formId: string, images: ImageItem[]) => {
+  const handleImagesChange = useCallback((formId: string, images: ImageItem[]) => {
     setFormDataList((prev) =>
       prev.map((form) => (form.id === formId ? { ...form, images } : form))
     );
-  };
+  }, []);
+
+  const handleSpecificationChange = useCallback((formId: string, field: string, value: string | number | boolean | string[]) => {
+    setFormDataList((prev) =>
+      prev.map((form) =>
+        form.id === formId
+          ? { ...form, specifications: { ...form.specifications, [field]: value } as Specification }
+          : form
+      )
+    );
+  }, []);
 
   const uploadImage = async (file: File): Promise<string | null> => {
     const formData = new FormData();
@@ -181,19 +214,6 @@ export const useMultipleInventoryForm = () => {
     return updated;
   };
 
-  const handleSpecificationChange = (formId: string, field: string, value: string | number | boolean | string[]) => {
-    setFormDataList((prev) =>
-      prev.map((form) =>
-        form.id === formId
-          ? {
-              ...form,
-              specifications: { ...form.specifications, [field]: value } as Specification,
-            }
-          : form
-      )
-    );
-  };
-
   const validateForms = async () => {
     const validationErrors: Record<string, Record<string, string>> = {};
     let isValid = true;
@@ -212,12 +232,10 @@ export const useMultipleInventoryForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // show loader while validating potentially many forms
     setIsLoading(true);
     const valid = await validateForms();
     setIsLoading(false);
     if (valid) {
-      // preset progress total for the confirmation popup
       setProgress({ current: 0, total: formDataList.length });
       setShowConfirmationPopup(true);
     }
@@ -226,7 +244,6 @@ export const useMultipleInventoryForm = () => {
   const generateProductName = (formData: InventoryFormData) => {
     const category = categories.find((cat) => cat._id === formData.category);
     const brand = brands.find((br) => br._id === formData.brand);
-
     const categoryTitle = category?.name || "Unknown Category";
     const brandTitle = brand?.name || "Unknown Brand";
 
@@ -244,20 +261,14 @@ export const useMultipleInventoryForm = () => {
   };
 
   const confirmSubmit = async () => {
-    if (isLoading) {
-      return;
-    }
+    if (isLoading) return;
 
     setIsLoading(true);
-    // keep the confirmation popup open to show progress
     setShowConfirmationPopup(true);
-    // track successful names via API response below
 
     try {
-      // Normalize helper
       const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
 
-      // Partition forms into updates (existing product) and creations (new)
       const updates: Array<{ productId: string; quantity: number; unitPrice: number; name: string }> = [];
       const creations: Array<any> = [];
 
@@ -266,7 +277,6 @@ export const useMultipleInventoryForm = () => {
         const purchasePrice = parseFloat(formData.purchasePrice) || 0;
         const targetName = normalize(formData.productName || "");
 
-        // Prefer explicit selection, else try exact normalized match
         const existing = formData.selectedExistingProduct
           ? products.find((p) => p._id === formData.selectedExistingProduct)
           : products.find((p) => normalize(p.name) === targetName);
@@ -278,13 +288,11 @@ export const useMultipleInventoryForm = () => {
           continue;
         }
 
-        // Upload pending images for this product
         let imageUrls: string[] = [];
         const pendingImages = formData.images.filter((img) => img.status === "local");
         if (pendingImages.length > 0) {
           const updated = await uploadProductImages(pendingImages);
           imageUrls = updated.filter((img) => img.status === "uploaded" && img.uploadedUrl).map((img) => img.uploadedUrl!);
-          // Update form state with upload results
           setFormDataList((prev) =>
             prev.map((f) =>
               f.id === formData.id
@@ -320,7 +328,7 @@ export const useMultipleInventoryForm = () => {
             reorderLevel: 5,
           },
           description: formData.description,
-          tags: [],
+          tags: formData.tags ? formData.tags.split(",").map((t) => t.trim()) : [],
           images: imageUrls,
           initialStockTransaction: {
             type: "purchase" as const,
@@ -333,7 +341,6 @@ export const useMultipleInventoryForm = () => {
 
       setProgress({ current: 0, total: updates.length + creations.length });
 
-      // Perform stock updates first
       const successNames: string[] = [];
       for (const u of updates) {
         const res = await createStockTransaction({
@@ -349,7 +356,6 @@ export const useMultipleInventoryForm = () => {
         setProgress((p) => ({ ...p, current: p.current + 1 }));
       }
 
-      // Then create new products in bulk
       if (creations.length > 0) {
         const bulkResult = await inventoryApi.createBulkProducts(creations as any);
         if (bulkResult.success && bulkResult.data) {
@@ -357,18 +363,10 @@ export const useMultipleInventoryForm = () => {
           successNames.push(...successful.map((p: { name: string }) => p.name));
           setProgress((p) => ({ ...p, current: updates.length + summary.successful }));
           if (failed?.length) {
-            console.error("❌ Some products failed to create:");
-            console.table(
-              failed.map((f: any) => ({
-                name: f?.product?.name,
-                brandId: f?.product?.brandId,
-                categoryId: f?.product?.categoryId,
-                error: f?.error,
-              }))
-            );
+            console.error("Some products failed to create:", failed);
           }
         } else if (!bulkResult.success) {
-          console.error("❌ Bulk product creation failed:", bulkResult.error);
+          console.error("Bulk product creation failed:", bulkResult.error);
         }
       }
 
@@ -378,20 +376,41 @@ export const useMultipleInventoryForm = () => {
       console.error("Error in bulk product creation:", error);
     } finally {
       setIsLoading(false);
-      // close confirmation popup after processing completes
       setShowConfirmationPopup(false);
     }
   };
 
-  const resetForms = () => {
+  const resetForms = useCallback(() => {
     setFormDataList([createEmptyForm()]);
     setErrors({});
-  };
+    setEditingFormId(null);
+  }, []);
 
-  const handleSuccessClose = () => {
+  const handleSuccessClose = useCallback(() => {
     setShowSuccessPopup(false);
     router.push("/admin/inventory");
-  };
+  }, [router]);
+
+  const openEditor = useCallback((formId: string) => {
+    setEditingFormId(formId);
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    setEditingFormId(null);
+  }, []);
+
+  const saveCurrentProduct = useCallback(() => {
+    setEditingFormId(null);
+  }, []);
+
+  const saveAndAddNew = useCallback(() => {
+    const currentId = editingFormId;
+    if (currentId) {
+      setEditingFormId(null);
+      const newId = addNewForm();
+      setTimeout(() => setEditingFormId(newId), 100);
+    }
+  }, [editingFormId, addNewForm]);
 
   return {
     formDataList,
@@ -405,6 +424,7 @@ export const useMultipleInventoryForm = () => {
     specifications,
     products,
     successfulProducts,
+    editingFormId,
     handleInputChange,
     handleImagesChange,
     handleSpecificationChange,
@@ -417,5 +437,10 @@ export const useMultipleInventoryForm = () => {
     generateProductName,
     addNewForm,
     removeForm,
+    duplicateForm,
+    openEditor,
+    closeEditor,
+    saveCurrentProduct,
+    saveAndAddNew,
   };
 };

@@ -39,7 +39,7 @@ export interface BillFormData {
   dueDate: string;
   notes: string;
   repairFee: number;
-  homeVisitFee: number;
+  visitingCharges: number;
   discount?: number;
   // Payment Fields
   isMarkAsPaid: boolean;
@@ -72,7 +72,7 @@ export const useBillForm = () => {
   } = useDataStore();
   // Billing defaults (persisted)
   const {
-    homeVisitFeeDefault,
+    visitingChargesDefault,
     repairFeeDefault,
     offlineAutoUploadDefault,
   } = useSettingsStore();
@@ -99,7 +99,7 @@ export const useBillForm = () => {
     dueDate: "",
     notes: "",
     repairFee: Number(repairFeeDefault || 0),
-    homeVisitFee: Number(homeVisitFeeDefault || 0),
+    visitingCharges: Number(visitingChargesDefault || 0),
     discount: 0,
     isMarkAsPaid: false,
     enablePartialPayment: false,
@@ -110,7 +110,7 @@ export const useBillForm = () => {
   const handleInputChange = (field: keyof BillFormData, value: any) => {
     const numericFields = [
       "repairFee",
-      "homeVisitFee",
+      "visitingCharges",
       "discount",
       "partialPaymentAmount",
     ];
@@ -131,6 +131,18 @@ export const useBillForm = () => {
         ...prev,
         enablePartialPayment: !!value,
         isMarkAsPaid: false,
+      }));
+      setIsDirty(true);
+    } else if (field === "location") {
+      setFormData((prev) => ({
+        ...prev,
+        location: value,
+        visitingCharges:
+          value === "shop"
+            ? 0
+            : Number(prev.visitingCharges || 0) > 0
+              ? prev.visitingCharges
+              : Number(visitingChargesDefault || 200),
       }));
       setIsDirty(true);
     } else {
@@ -276,7 +288,7 @@ export const useBillForm = () => {
     const itemsTotal = calculateTotal();
     const additionalCharges =
       Number(formData.repairFee || 0) +
-      Number(formData.homeVisitFee || 0);
+      Number(formData.visitingCharges || 0);
     const discount = Number(formData.discount || 0);
     return Math.max(0, itemsTotal + additionalCharges - discount);
   };
@@ -338,10 +350,10 @@ export const useBillForm = () => {
     if (selectedItems.length === 0 && !["custom", "fitting_wiring"].includes(formData.serviceType)) {
       const anyServiceCharge =
         Number(formData.repairFee || 0) > 0 ||
-        Number(formData.homeVisitFee || 0) > 0;
+        Number(formData.visitingCharges || 0) > 0;
       if (!anyServiceCharge) {
         setAlertMessage(
-          "Please add at least one item or enter service charges (home visit/repair)"
+          "Please add at least one item or enter service charges (visiting/repair)"
         );
         setShowAlertModal(true);
         return;
@@ -376,8 +388,8 @@ export const useBillForm = () => {
           | "installation"
           | "maintenance"
           | "fitting_wiring",
-        locationType: formData.location as "home" | "shop" | "office",
-        homeVisitFee: Number(formData.homeVisitFee),
+        locationType: formData.location as "home" | "shop" | "office" | "factory",
+        visitingCharges: Number(formData.visitingCharges),
         repairFee: Number(formData.repairFee),
         discount: Number(formData.discount || 0),
         notes: formData.notes,
@@ -404,7 +416,7 @@ export const useBillForm = () => {
           dueDate: "",
           notes: "",
           repairFee: Number(repairFeeDefault || 0),
-          homeVisitFee: Number(homeVisitFeeDefault || 0),
+          visitingCharges: Number(visitingChargesDefault || 0),
           discount: 0,
           isMarkAsPaid: false,
           enablePartialPayment: false,
@@ -497,7 +509,7 @@ export const useBillForm = () => {
         dueDate: "",
         notes: "",
         repairFee: Number(repairFeeDefault || 0),
-        homeVisitFee: Number(homeVisitFeeDefault || 0),
+        visitingCharges: Number(visitingChargesDefault || 0),
         discount: 0,
         isMarkAsPaid: false,
         enablePartialPayment: false,
@@ -589,7 +601,7 @@ export const useBillForm = () => {
         isMarkAsPaid: false,
       }));
     }
-  }, [selectedItems, formData.discount, formData.repairFee, formData.homeVisitFee]);
+  }, [selectedItems, formData.discount, formData.repairFee, formData.visitingCharges]);
 
   // 30s inactivity autosave to local drafts (only if there is content)
   useEffect(() => {
@@ -661,7 +673,7 @@ export const useBillForm = () => {
       dueDate: "",
       notes: "",
       repairFee: Number(repairFeeDefault || 0),
-      homeVisitFee: Number(homeVisitFeeDefault || 0),
+      visitingCharges: Number(visitingChargesDefault || 0),
       isMarkAsPaid: false,
       enablePartialPayment: false,
       partialPaymentAmount: 0,
@@ -700,6 +712,7 @@ export const useBillForm = () => {
     setAlertMessage,
     setSelectedItems,
     addCustomItemToBill,
+    clearLocalDraft,
   };
 }
 // Helper functions
@@ -714,7 +727,7 @@ const hasDraftContent = (formData: BillFormData, selectedItems: BillItem[]) => {
   if (meaningfulFields.some((k) => !!(formData as any)[k])) return true;
   if (
     Number(formData.repairFee || 0) > 0 ||
-    Number(formData.homeVisitFee || 0) > 0 ||
+    Number(formData.visitingCharges || 0) > 0 ||
     Number(formData.discount || 0) > 0 ||
     Number(formData.partialPaymentAmount || 0) > 0
   )
@@ -751,3 +764,6 @@ const getItemSpecifications = (product: Product) => {
   }
   return specs.join(", ");
 };
+
+
+

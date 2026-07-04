@@ -157,7 +157,7 @@ export function BillingBrowser({
         })) || [],
       serviceType: bill.serviceType || "sale",
       locationType: bill.locationType || "shop",
-      homeVisitFee: bill.homeVisitFee || 0,
+      visitingCharges: bill.visitingCharges || 0,
       transportationFee: bill.transportationFee || 0,
       repairCharges:
         (bill as any).repairCharges ?? (bill as any).repairFee ?? 0,

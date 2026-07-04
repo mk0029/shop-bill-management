@@ -8,7 +8,7 @@ import { Info } from "lucide-react";
 import { useSettingsStore } from "@/store/settings-store";
 
 export default function AdminBillingDefaultsSection() {
-  const homeVisitFeeDefault = useSettingsStore((s) => s.homeVisitFeeDefault);
+  const visitingChargesDefault = useSettingsStore((s) => s.visitingChargesDefault);
   const repairFeeDefault = useSettingsStore((s) => s.repairFeeDefault);
   const offlineAutoUploadDefault = useSettingsStore(
     (s) => s.offlineAutoUploadDefault,
@@ -33,15 +33,15 @@ export default function AdminBillingDefaultsSection() {
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <Label htmlFor="homeVisitFee" className="text-xs font-medium text-slate-300">Home Visit Fee (₹)</Label>
+            <Label htmlFor="visitingCharges" className="text-xs font-medium text-slate-300">Visiting Charges (₹)</Label>
             <Input
-              id="homeVisitFee"
+              id="visitingCharges"
               inputMode="numeric"
               className="mt-1 border-white/10 bg-white/[0.04] text-white backdrop-blur-xl focus:border-emerald-400/40"
-              value={homeVisitFeeDefault}
+              value={visitingChargesDefault}
               onChange={(e) =>
                 setDefaults({
-                  homeVisitFeeDefault: Number(e.target.value) || 0,
+                  visitingChargesDefault: Number(e.target.value) || 0,
                 })
               }
             />

@@ -6,10 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { X, Plus } from "lucide-react";
+import { X, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts } from "@/hooks/use-sanity-data";
+
+const glassCardStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.04)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "20px",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+};
+
+const glassInputStyle: React.CSSProperties = {
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  backdropFilter: "blur(16px)",
+  borderRadius: "12px",
+};
 
 interface RewindingKitFormProps {
   onAddItem: (item: {
@@ -91,123 +106,115 @@ function SingleRewindingForm({
     onUpdate(formData.id, { [field]: value });
   };
 
-  // Config for common inputs
-  const inputFields = [
-    {
-      id: `kitName-${formData.id}`,
-      name: "kitName",
-      label: "Kit Name",
-      type: "text",
-      value: formData.kitName,
-      disabled: !!formData.selectedStarterId,
-    },
-    {
-      id: `windingRate-${formData.id}`,
-      name: "windingRate",
-      label: "Winding Rate",
-      type: "number",
-      value: formData.windingRate,
-    },
-    {
-      id: `quantity-${formData.id}`,
-      name: "quantity",
-      label: "Quantity",
-      type: "number",
-      value: formData.quantity,
-    },
-  ];
-
   return (
-    <Card className="relative bg-gray-800">
-      <CardHeader className="flex justify-end pb-0">
+    <div style={glassCardStyle} className="p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <RotateCcw className="w-4 h-4" style={{ color: "rgba(56,189,248,0.6)" }} />
+          <h4 className="text-white font-medium text-sm">Rewinding Service</h4>
+        </div>
         {canRemove && (
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={() => onRemove(formData.id)}
-            className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+            className="p-1.5 rounded-full transition-colors"
+            style={{ color: "rgba(248,113,113,0.5)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(248,113,113,0.9)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(248,113,113,0.5)"; }}
           >
-            <X className="h-4 w-4" />
-          </Button>
+            <X className="w-4 h-4" />
+          </button>
         )}
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-3 md:space-y-4">
-        {/* Kit Name & Starter */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-          {inputFields.slice(0, 1).map((f) => (
-            <div key={f.id}>
-              <Label htmlFor={f.id}>{f.label}</Label>
-              <Input
-                id={f.id}
-                name={f.name}
-                type={f.type}
-                value={f.value}
-                onChange={handleInputChange}
-                disabled={f.disabled}
-                className="bg-gray-800 mt-1 border-gray-700 text-white"
-              />
-            </div>
-          ))}
-
-          <div>
-            <Label>Select Starter (Optional)</Label>
-            <Dropdown className="mt-1"
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor={`kitName-${formData.id}`} className="text-sm text-slate-300">Kit Name</Label>
+            <Input
+              id={`kitName-${formData.id}`}
+              name="kitName"
+              type="text"
+              value={formData.kitName}
+              onChange={handleInputChange}
+              disabled={!!formData.selectedStarterId}
+              placeholder="Enter kit name"
+              style={glassInputStyle}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">Select Starter (Optional)</Label>
+            <Dropdown
               options={starters.map((s) => ({ value: s._id, label: s.name }))}
               value={formData.selectedStarterId}
               onValueChange={(v) => handleSelectChange("selectedStarterId", v)}
+              placeholder="Select starter"
+              searchable
             />
           </div>
         </div>
 
-        {/* Material Dropdowns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-          {[
-            { label: "Old Winding Material", field: "oldWindingMaterial" },
-            { label: "New Winding Material", field: "newWindingMaterial" },
-          ].map((m) => (
-            <div key={m.field}>
-              <Label>{m.label}</Label>
-              <Dropdown className="mt-1"
-                options={materialOptions}
-                value={formData[m.field as keyof RewindingFormData] as string}
-                onValueChange={(v) => handleSelectChange(m.field as any, v)}
-              />
-            </div>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">Old Winding Material</Label>
+            <Dropdown
+              options={materialOptions}
+              value={formData.oldWindingMaterial}
+              onValueChange={(v) => handleSelectChange("oldWindingMaterial", v)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm text-slate-300">New Winding Material</Label>
+            <Dropdown
+              options={materialOptions}
+              value={formData.newWindingMaterial}
+              onValueChange={(v) => handleSelectChange("newWindingMaterial", v)}
+            />
+          </div>
 
           {formData.oldWindingMaterial !== formData.newWindingMaterial && (
-            <div>
-              <Label htmlFor={`priceDifference-${formData.id}`}>
-                Price Difference
-              </Label>
+            <div className="space-y-2">
+              <Label htmlFor={`priceDifference-${formData.id}`} className="text-sm text-slate-300">Price Difference</Label>
               <Input
                 id={`priceDifference-${formData.id}`}
                 name="priceDifference"
                 type="number"
                 value={formData.priceDifference}
                 onChange={handleInputChange}
-                className="bg-gray-800 mt-1 border-gray-700 text-white"
+                placeholder="Enter difference"
+                style={glassInputStyle}
               />
             </div>
           )}
 
-          {inputFields.slice(1).map((f) => (
-            <div key={f.id}>
-              <Label htmlFor={f.id}>{f.label}</Label>
-              <Input
-                id={f.id}
-                name={f.name}
-                type={f.type}
-                value={f.value}
-                onChange={handleInputChange}
-                className="bg-gray-800 mt-1 border-gray-700 text-white"
-              />
-            </div>
-          ))}
+          <div className="space-y-2">
+            <Label htmlFor={`windingRate-${formData.id}`} className="text-sm text-slate-300">Winding Rate</Label>
+            <Input
+              id={`windingRate-${formData.id}`}
+              name="windingRate"
+              type="number"
+              value={formData.windingRate}
+              onChange={handleInputChange}
+              placeholder="Enter rate"
+              style={glassInputStyle}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`quantity-${formData.id}`} className="text-sm text-slate-300">Quantity</Label>
+            <Input
+              id={`quantity-${formData.id}`}
+              name="quantity"
+              type="number"
+              value={formData.quantity}
+              onChange={handleInputChange}
+              min="1"
+              style={glassInputStyle}
+            />
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -248,17 +255,8 @@ export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormPro
     }
 
     validForms.forEach(
-      ({
-        kitName,
-        windingRate,
-        priceDifference,
-        quantity,
-        oldWindingMaterial,
-        newWindingMaterial,
-      }) => {
-        const totalUnitPrice =
-          parseFloat(windingRate) + (parseFloat(priceDifference) || 0);
-
+      ({ kitName, windingRate, priceDifference, quantity, oldWindingMaterial, newWindingMaterial }) => {
+        const totalUnitPrice = parseFloat(windingRate) + (parseFloat(priceDifference) || 0);
         const specifications =
           oldWindingMaterial !== newWindingMaterial
             ? `${oldWindingMaterial} → ${newWindingMaterial}`
@@ -281,7 +279,7 @@ export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormPro
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {rewindingForms.map((form) => (
         <SingleRewindingForm
           key={form.id}
@@ -295,16 +293,24 @@ export function RewindingKitForm({ onAddItem, onSubmitted }: RewindingKitFormPro
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Button
-          variant="outline"
+          variant="ghost"
           onClick={addNewForm}
-          className="flex-1 bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
+          className="flex-1 gap-1.5"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
         >
-          <Plus className="h-4 w-4" /> Add More Service/Item
+          <Plus className="w-4 h-4" />
+          Add More Service/Item
         </Button>
-
         <Button
           onClick={handleSubmitAllRewindingServices}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+          className="flex-1 gap-1.5"
+          style={{
+            background: "linear-gradient(135deg, rgba(56,189,248,0.2), rgba(139,92,246,0.15))",
+            border: "1px solid rgba(56,189,248,0.25)",
+          }}
         >
           Submit All Services
         </Button>

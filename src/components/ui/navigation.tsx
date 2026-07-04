@@ -25,6 +25,7 @@ import Users from "lucide-react/dist/esm/icons/users.js";
 import Wrench from "lucide-react/dist/esm/icons/wrench.js";
 import X from "lucide-react/dist/esm/icons/x.js";
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
+import Tag from "lucide-react/dist/esm/icons/tag.js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./button";
@@ -61,6 +62,7 @@ const adminNavigation: NavigationItem[] = [
     icon: Package,
   },
   { label: "Rent Tools", href: "/admin/rent-tools", icon: Wrench },
+  { label: "Offers", href: "/admin/offers", icon: Tag },
   { label: "Work List", href: "/dashboard/work-list", icon: FileText },
   {
     label: "Other",
@@ -700,8 +702,8 @@ export function Navigation() {
         document.body,
       )}
 
-      <nav className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] overflow-y-auto border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:block">
-        <div className="p-4 border-b border-gray-800">
+        <nav className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] flex-col overflow-hidden border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:flex">
+        <div className="shrink-0 p-4 border-b border-gray-800">
           <div
             className={`flex items-center ${isDesktopNavMinimized ? "justify-center" : "gap-3"}`}
           >
@@ -749,7 +751,7 @@ export function Navigation() {
           )}
         </div>
 
-        <div className="sm:p-4 p-3 space-y-2 pb-28">
+        <div className="min-h-0 flex-1 overflow-y-auto touch-pan-y sm:p-4 p-3 space-y-2">
           {navigation.map((item) => renderNavigationItem(item))}
           {!isDesktopNavMinimized && (
             <div className="pt-2">
@@ -758,7 +760,7 @@ export function Navigation() {
           )}
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-4">
+        <div className="shrink-0 border-t border-gray-800 p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
               <SanityImage
@@ -821,3 +823,4 @@ export function Navigation() {
     </>
   );
 }
+

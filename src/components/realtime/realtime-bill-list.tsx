@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  MapPin,
   Receipt,
   Sparkles,
 } from "lucide-react";
@@ -18,7 +19,7 @@ import { useAuthStore } from "@/store/auth-store";
 
 interface Bill {
   locationType: string;
-  homeVisitFee: number;
+  visitingCharges: number;
   subtotal: number;
   notes: string | undefined;
   _id: string;
@@ -254,6 +255,9 @@ export const RealtimeBillList: React.FC<RealtimeBillListProps> = ({
                         </h3>
                         <p className="text-sm text-gray-400 truncate capitalize">
                           {bill.serviceType.replace(/_/g, " ") || "Service"}
+                          {bill.locationType
+                            ? ` • ${bill.locationType.replace(/_/g, " ")}`
+                            : ""}
                           {bill.technician?.name ? (
                             <> • Tech: {bill.technician?.name}</>
                           ) : null}

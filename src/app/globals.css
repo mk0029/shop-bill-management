@@ -45,6 +45,7 @@
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     --safe-area-left: env(safe-area-inset-left, 0px);
     --safe-area-right: env(safe-area-inset-right, 0px);
+    --topbar-h: 62px;
   }
 }
 
@@ -708,5 +709,91 @@ body.landing-page::-webkit-scrollbar-thumb:hover {
 @media (prefers-reduced-motion: reduce) {
   .motion-safe\:animate-\[welcome-gradient_7s_ease-in-out_infinite\] {
     animation: none;
+  }
+}
+
+/* Create Bill fixed panel layout */
+@layer components {
+  .admin-main:has(.create-bill-page) {
+    height: calc(var(--app-vh, 100dvh) - var(--topbar-h, 62px));
+    margin-top: max(0px, calc(var(--topbar-h, 62px) - 62px));
+    overflow: hidden !important;
+    overscroll-behavior: none;
+    padding-top: 0.5rem !important;
+  }
+
+  .admin-main:has(.create-bill-page) > div {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden !important;
+    padding-top: 0 !important;
+    padding-bottom: 0.75rem !important;
+  }
+  @media (min-width: 1280px) {
+    :root {
+      --topbar-h: 78px;
+    }
+
+    .admin-main:has(.create-bill-page) {
+      padding-top: 0.75rem !important;
+    }
+  }
+
+  .create-bill-page {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .create-bill-page > .min-h-0,
+  .create-bill-page form {
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .create-bill-modal {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .create-bill-modal-header,
+  .create-bill-progress,
+  .create-bill-modal-footer {
+    flex: 0 0 auto;
+  }
+
+  .create-bill-modal-header {
+    min-height: 64px;
+  }
+
+  .create-bill-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .create-bill-modal-body > div {
+    min-height: 100%;
+  }
+
+  .create-bill-modal-body::-webkit-scrollbar {
+    display: none;
   }
 }

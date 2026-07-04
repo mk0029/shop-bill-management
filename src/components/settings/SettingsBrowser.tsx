@@ -603,7 +603,7 @@ export default function SettingsBrowser({
   }
 
   return (
-    <main className=" mx-auto max-h-[var(--app-vh,100dvh)] max-w-4xl pb-20 pt-[env(safe-area-inset-top,0px)] sm:px-6 sm:py-6 overflow-auto">
+    <main className="mx-auto max-w-4xl pb-20 pt-[env(safe-area-inset-top,0px)] sm:px-6 sm:py-6">
       {/* Background elements */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(52,211,153,0.10)_0%,transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(6,182,212,0.08)_0%,transparent_50%),linear-gradient(180deg,#030712_0%,#0a1628_40%,#0c1a1a_70%,#120b18_100%)]">
         <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:48px_48px]" />
