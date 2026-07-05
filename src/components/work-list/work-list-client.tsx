@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ClipboardList, Play, CheckCircle2, PauseCircle, XCircle, Edit, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ClipboardList,
+  Play,
+  CheckCircle2,
+  PauseCircle,
+  XCircle,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import {
   workTaskService,
   listenWorkTasks,
@@ -137,7 +146,12 @@ function getTaskNotes(task: WorkTask) {
 }
 
 function getTaskDetailsText(task: WorkTask) {
-  return task.repairDetails || parseRepairDescription(task.description).details || task.description || "";
+  return (
+    task.repairDetails ||
+    parseRepairDescription(task.description).details ||
+    task.description ||
+    ""
+  );
 }
 
 function hasRepairRequestDetails(task: WorkTask) {
@@ -169,7 +183,9 @@ function parseRepairDescription(description?: string) {
   }
   return {
     details: withoutSource.slice(0, notesMatch.index).trim(),
-    customerNotes: withoutSource.slice(notesMatch.index + notesMatch[0].length).trim(),
+    customerNotes: withoutSource
+      .slice(notesMatch.index + notesMatch[0].length)
+      .trim(),
     source: sourceMatch?.[1]?.trim() || "",
   };
 }
@@ -189,7 +205,9 @@ function RepairTaskSummary({
 
   if (!showStructured) {
     return details ? (
-      <p className={`${compact ? "text-xs line-clamp-2" : "text-sm"} text-gray-300 mt-2 leading-5`}>
+      <p
+        className={`${compact ? "text-xs line-clamp-2" : "text-sm"} text-gray-300 mt-2 leading-5`}
+      >
         {details}
       </p>
     ) : null;
@@ -198,7 +216,9 @@ function RepairTaskSummary({
   return (
     <div className={`${compact ? "mt-1 space-y-1" : "mt-2 space-y-2"}`}>
       {details ? (
-        <p className={`${compact ? "text-xs line-clamp-2" : "text-sm"} text-gray-200 leading-5 whitespace-pre-wrap`}>
+        <p
+          className={`${compact ? "text-xs line-clamp-2" : "text-sm"} text-gray-200 leading-5 whitespace-pre-wrap`}
+        >
           {details}
         </p>
       ) : null}
@@ -315,7 +335,9 @@ export default function WorkListClient({
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("open");
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
   }, [pathname, router, searchParams]);
 
   const technicians = useMemo(
@@ -962,9 +984,13 @@ export default function WorkListClient({
                                   "-"}{" "}
                                 • {toLabel(task.issueCategory)}
                               </p>
-                              <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
-                                expandedMobileTaskId === task._id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                              }`}>
+                              <div
+                                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                                  expandedMobileTaskId === task._id
+                                    ? "grid-rows-[1fr] opacity-100"
+                                    : "grid-rows-[0fr] opacity-0"
+                                }`}
+                              >
                                 <div className="overflow-hidden">
                                   {task.customerRef?.name ? (
                                     <p className="text-xs text-blue-300 leading-5">
@@ -989,9 +1015,13 @@ export default function WorkListClient({
                                 {toLabel(task.priority)}
                               </span>
                             </div>
-                            <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
-                              expandedMobileTaskId === task._id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                            }`}>
+                            <div
+                              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                                expandedMobileTaskId === task._id
+                                  ? "grid-rows-[1fr] opacity-100"
+                                  : "grid-rows-[0fr] opacity-0"
+                              }`}
+                            >
                               <div className="overflow-hidden">
                                 <div className="pt-1">
                                   <Button
@@ -1006,13 +1036,15 @@ export default function WorkListClient({
                               </div>
                             </div>
                           </div>
-                          {expandedMobileTaskId === task._id && task.status === "completed" &&
+                          {expandedMobileTaskId === task._id &&
+                          task.status === "completed" &&
                           task.completionNotes ? (
                             <p className="text-xs text-green-300 mt-2">
                               Completion: {task.completionNotes}
                             </p>
                           ) : null}
-                          {expandedMobileTaskId === task._id && task.status === "cancelled" &&
+                          {expandedMobileTaskId === task._id &&
+                          task.status === "cancelled" &&
                           task.cancellationReason ? (
                             <p className="text-xs text-red-300 mt-2">
                               Cancelled: {task.cancellationReason}
@@ -1042,109 +1074,8 @@ export default function WorkListClient({
                   />
                 ) : (
                   <>
-                  <div className="hidden grid-cols-1 md:grid md:grid-cols-2 gap-3">
-                    {historyTasks.map((task) => (
-                      <div
-                        key={task._id}
-                        className={`rounded-lg p-3 border ${
-                          task.status === "completed"
-                            ? "border-green-700/30 bg-green-950/10"
-                            : task.status === "hold"
-                              ? "border-yellow-700/30 bg-yellow-950/10"
-                              : "border-red-700/30 bg-red-950/10"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="text-white font-semibold">
-                            {task.title}
-                          </p>
-                          <span className="text-xs px-2 py-1 rounded-full border border-gray-600/40 bg-gray-700/30 text-gray-200">
-                            {toLabel(task.status)}
-                          </span>
-                        </div>
-                        <div className="mt-2 space-y-1 text-xs text-gray-300">
-                          {task.customerRef?.name ? (
-                            <p>
-                              Customer:{" "}
-                              <span className="text-gray-100">
-                                {task.customerRef.name}
-                                {task.customerRef?.phone
-                                  ? ` (${task.customerRef.phone})`
-                                  : ""}
-                              </span>
-                            </p>
-                          ) : null}
-                          <p>
-                            Technician:{" "}
-                            <span className="text-gray-100">
-                              {task.assignedTechnicianName ||
-                                task.assignedTechnician?.name ||
-                                "-"}
-                            </span>
-                          </p>
-                          <p>
-                            Updated At:{" "}
-                            <span className="text-gray-100">
-                              {formatDayDateTime(
-                                task.updatedAt ||
-                                  task.completedAt ||
-                                  task.createdAt ||
-                                  "",
-                              )}
-                            </span>
-                          </p>
-                          <p>
-                            Priority:{" "}
-                            <span className="text-gray-100 capitalize">
-                              {task.priority}
-                            </span>
-                          </p>
-                        </div>
-                        {getTaskNotes(task) ? (
-                          <div className="mt-2 text-sm text-gray-200 border-t border-green-800/40 pt-2">
-                            {task.completionNotes ? (
-                              <p>Completion Notes: {task.completionNotes}</p>
-                            ) : null}
-                            {(task as any).holdReason ? (
-                              <p>Hold Reason: {(task as any).holdReason}</p>
-                            ) : null}
-                            {task.cancellationReason ? (
-                              <p>
-                                Cancellation Reason: {task.cancellationReason}
-                              </p>
-                            ) : null}
-                            <RepairTaskSummary task={task} />
-                            {(task as any).notes &&
-                            (task as any).notes !== task.description ? (
-                              <p>Notes: {(task as any).notes}</p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        <div className="mt-3 flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() =>
-                              updateTaskStatus(task, "in-progress")
-                            }
-                          >
-                            Back To In Progress
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateTaskStatus(task, "pending")}
-                          >
-                            Mark Pending
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="space-y-3 md:hidden">
-                    {historyTasks.map((task) => {
-                      const isExpanded = expandedMobileTaskId === task._id;
-                      return (
+                    <div className="hidden grid-cols-1 md:grid md:grid-cols-2 gap-3">
+                      {historyTasks.map((task) => (
                         <div
                           key={task._id}
                           className={`rounded-lg p-3 border ${
@@ -1155,27 +1086,37 @@ export default function WorkListClient({
                                 : "border-red-700/30 bg-red-950/10"
                           }`}
                         >
-                          <button
-                            type="button"
-                            className="flex w-full items-start justify-between gap-3 text-left"
-                            onClick={() =>
-                              setExpandedMobileTaskId((prev) =>
-                                prev === task._id ? null : task._id,
-                              )
-                            }
-                          >
-                            <span className="min-w-0">
-                              <span className="block text-base font-semibold leading-5 text-white">
-                                {task.title}
-                              </span>
-                              <span className="mt-1 block text-xs leading-5 text-gray-300">
-                                {task.customerRef?.name || "Customer"} |{" "}
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-white font-semibold">
+                              {task.title}
+                            </p>
+                            <span className="text-xs px-2 py-1 rounded-full border border-gray-600/40 bg-gray-700/30 text-gray-200">
+                              {toLabel(task.status)}
+                            </span>
+                          </div>
+                          <div className="mt-2 space-y-1 text-xs text-gray-300">
+                            {task.customerRef?.name ? (
+                              <p>
+                                Customer:{" "}
+                                <span className="text-gray-100">
+                                  {task.customerRef.name}
+                                  {task.customerRef?.phone
+                                    ? ` (${task.customerRef.phone})`
+                                    : ""}
+                                </span>
+                              </p>
+                            ) : null}
+                            <p>
+                              Technician:{" "}
+                              <span className="text-gray-100">
                                 {task.assignedTechnicianName ||
                                   task.assignedTechnician?.name ||
                                   "-"}
                               </span>
-                              <span className="mt-1 block text-xs text-gray-400">
-                                Updated:{" "}
+                            </p>
+                            <p>
+                              Updated At:{" "}
+                              <span className="text-gray-100">
                                 {formatDayDateTime(
                                   task.updatedAt ||
                                     task.completedAt ||
@@ -1183,78 +1124,182 @@ export default function WorkListClient({
                                     "",
                                 )}
                               </span>
-                            </span>
-                            <span className="flex shrink-0 items-center gap-2">
-                              <span className="text-xs px-2 py-1 rounded-full border border-gray-600/40 bg-gray-700/30 text-gray-200">
-                                {toLabel(task.status)}
+                            </p>
+                            <p>
+                              Priority:{" "}
+                              <span className="text-gray-100 capitalize">
+                                {task.priority}
                               </span>
-                              <ChevronDown
-                                className={`h-4 w-4 text-gray-300 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                              />
-                            </span>
-                          </button>
-                          <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
-                            isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                          }`}>
-                            <div className="overflow-hidden">
-                              <div className="mt-3 space-y-1 text-xs text-gray-300">
-                                {task.customerRef?.phone ? (
+                            </p>
+                          </div>
+                          {getTaskNotes(task) ? (
+                            <div className="mt-2 text-sm text-gray-200 border-t border-green-800/40 pt-2">
+                              {task.completionNotes ? (
+                                <p>Completion Notes: {task.completionNotes}</p>
+                              ) : null}
+                              {(task as any).holdReason ? (
+                                <p>Hold Reason: {(task as any).holdReason}</p>
+                              ) : null}
+                              {task.cancellationReason ? (
+                                <p>
+                                  Cancellation Reason: {task.cancellationReason}
+                                </p>
+                              ) : null}
+                              <RepairTaskSummary task={task} />
+                              {(task as any).notes &&
+                              (task as any).notes !== task.description ? (
+                                <p>Notes: {(task as any).notes}</p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <div className="mt-3 flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() =>
+                                updateTaskStatus(task, "in-progress")
+                              }
+                            >
+                              Back To In Progress
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateTaskStatus(task, "pending")}
+                            >
+                              Mark Pending
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-3 md:hidden">
+                      {historyTasks.map((task) => {
+                        const isExpanded = expandedMobileTaskId === task._id;
+                        return (
+                          <div
+                            key={task._id}
+                            className={`rounded-lg p-3 border ${
+                              task.status === "completed"
+                                ? "border-green-700/30 bg-green-950/10"
+                                : task.status === "hold"
+                                  ? "border-yellow-700/30 bg-yellow-950/10"
+                                  : "border-red-700/30 bg-red-950/10"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              className="flex w-full items-start justify-between gap-3 text-left"
+                              onClick={() =>
+                                setExpandedMobileTaskId((prev) =>
+                                  prev === task._id ? null : task._id,
+                                )
+                              }
+                            >
+                              <span className="min-w-0">
+                                <span className="block text-base font-semibold leading-5 text-white">
+                                  {task.title}
+                                </span>
+                                <span className="mt-1 block text-xs leading-5 text-gray-300">
+                                  {task.customerRef?.name || "Customer"} |{" "}
+                                  {task.assignedTechnicianName ||
+                                    task.assignedTechnician?.name ||
+                                    "-"}
+                                </span>
+                                <span className="mt-1 block text-xs text-gray-400">
+                                  Updated:{" "}
+                                  {formatDayDateTime(
+                                    task.updatedAt ||
+                                      task.completedAt ||
+                                      task.createdAt ||
+                                      "",
+                                  )}
+                                </span>
+                              </span>
+                              <span className="flex shrink-0 items-center gap-2">
+                                <span className="text-xs px-2 py-1 rounded-full border border-gray-600/40 bg-gray-700/30 text-gray-200">
+                                  {toLabel(task.status)}
+                                </span>
+                                <ChevronDown
+                                  className={`h-4 w-4 text-gray-300 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                />
+                              </span>
+                            </button>
+                            <div
+                              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                                isExpanded
+                                  ? "grid-rows-[1fr] opacity-100"
+                                  : "grid-rows-[0fr] opacity-0"
+                              }`}
+                            >
+                              <div className="overflow-hidden">
+                                <div className="mt-3 space-y-1 text-xs text-gray-300">
+                                  {task.customerRef?.phone ? (
+                                    <p>
+                                      Phone:{" "}
+                                      <span className="text-gray-100">
+                                        {task.customerRef.phone}
+                                      </span>
+                                    </p>
+                                  ) : null}
                                   <p>
-                                    Phone:{" "}
-                                    <span className="text-gray-100">
-                                      {task.customerRef.phone}
+                                    Priority:{" "}
+                                    <span className="text-gray-100 capitalize">
+                                      {task.priority}
                                     </span>
                                   </p>
-                                ) : null}
-                                <p>
-                                  Priority:{" "}
-                                  <span className="text-gray-100 capitalize">
-                                    {task.priority}
-                                  </span>
-                                </p>
-                              </div>
-                              {getTaskNotes(task) ? (
-                                <div className="mt-2 text-sm text-gray-200 border-t border-green-800/40 pt-2">
-                                  {task.completionNotes ? (
-                                    <p>Completion Notes: {task.completionNotes}</p>
-                                  ) : null}
-                                  {(task as any).holdReason ? (
-                                    <p>Hold Reason: {(task as any).holdReason}</p>
-                                  ) : null}
-                                  {task.cancellationReason ? (
-                                    <p>Cancellation Reason: {task.cancellationReason}</p>
-                                  ) : null}
-                                  <RepairTaskSummary task={task} />
-                                  {(task as any).notes &&
-                                  (task as any).notes !== task.description ? (
-                                    <p>Notes: {(task as any).notes}</p>
-                                  ) : null}
                                 </div>
-                              ) : null}
-                              <div className="mt-3 grid grid-cols-2 gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={() =>
-                                    updateTaskStatus(task, "in-progress")
-                                  }
-                                >
-                                  Back To In Progress
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => updateTaskStatus(task, "pending")}
-                                >
-                                  Mark Pending
-                                </Button>
+                                {getTaskNotes(task) ? (
+                                  <div className="mt-2 text-sm text-gray-200 border-t border-green-800/40 pt-2">
+                                    {task.completionNotes ? (
+                                      <p>
+                                        Completion Notes: {task.completionNotes}
+                                      </p>
+                                    ) : null}
+                                    {(task as any).holdReason ? (
+                                      <p>
+                                        Hold Reason: {(task as any).holdReason}
+                                      </p>
+                                    ) : null}
+                                    {task.cancellationReason ? (
+                                      <p>
+                                        Cancellation Reason:{" "}
+                                        {task.cancellationReason}
+                                      </p>
+                                    ) : null}
+                                    <RepairTaskSummary task={task} />
+                                    {(task as any).notes &&
+                                    (task as any).notes !== task.description ? (
+                                      <p>Notes: {(task as any).notes}</p>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() =>
+                                      updateTaskStatus(task, "in-progress")
+                                    }
+                                  >
+                                    Back To In Progress
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      updateTaskStatus(task, "pending")
+                                    }
+                                  >
+                                    Mark Pending
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -1350,6 +1395,7 @@ export default function WorkListClient({
               value={form.dueAt}
               onChange={(v) => setForm((p) => ({ ...p, dueAt: v }))}
               placeholder="Select due date & time"
+              disablePastDates
             />
           </div>
           {form.status === "completed" ||
@@ -1413,58 +1459,105 @@ export default function WorkListClient({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg bg-gray-800/40 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Status</p>
-                <span className="text-sm text-white">{toLabel(activeTask.status)}</span>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+                  Status
+                </p>
+                <span className="text-sm text-white">
+                  {toLabel(activeTask.status)}
+                </span>
               </div>
               <div className="rounded-lg bg-gray-800/40 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Priority</p>
-                <span className="text-sm text-white">{toLabel(activeTask.priority)}</span>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+                  Priority
+                </p>
+                <span className="text-sm text-white">
+                  {toLabel(activeTask.priority)}
+                </span>
               </div>
               <div className="rounded-lg bg-gray-800/40 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Customer</p>
-                <p className="text-sm text-white truncate">{activeTask.customerRef?.name || "-"}</p>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+                  Customer
+                </p>
+                <p className="text-sm text-white truncate">
+                  {activeTask.customerRef?.name || "-"}
+                </p>
               </div>
               <div className="rounded-lg bg-gray-800/40 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Technician</p>
-                <p className="text-sm text-white truncate">{activeTask.assignedTechnicianName || activeTask.assignedTechnician?.name || "-"}</p>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+                  Technician
+                </p>
+                <p className="text-sm text-white truncate">
+                  {activeTask.assignedTechnicianName ||
+                    activeTask.assignedTechnician?.name ||
+                    "-"}
+                </p>
               </div>
               <div className="rounded-lg bg-gray-800/40 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Due</p>
-                <p className="text-sm text-white">{formatDayDateTime(activeTask.dueAt)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+                  Due
+                </p>
+                <p className="text-sm text-white">
+                  {formatDayDateTime(activeTask.dueAt)}
+                </p>
               </div>
               <div className="rounded-lg bg-gray-800/40 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Category</p>
-                <p className="text-sm text-white capitalize">{toLabel((activeTask as any).issueCategory)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+                  Category
+                </p>
+                <p className="text-sm text-white capitalize">
+                  {toLabel((activeTask as any).issueCategory)}
+                </p>
               </div>
             </div>
             <RepairTaskSummary task={activeTask} />
             <div className="flex gap-2 pt-1">
-              {activeTask.status !== "completed" && activeTask.status !== "cancelled" && (
-                <Button
-                  onClick={() => updateTaskStatus(activeTask, "in-progress")}
-                  disabled={activeTask.status === "in-progress"}
-                  className="flex-1 bg-yellow-500/15 text-yellow-100 border border-yellow-500/30 hover:bg-yellow-500/25"
-                >
-                  <Play className="w-3.5 h-3.5 mr-1" />In Progress
-                </Button>
-              )}
-              {activeTask.status !== "completed" && activeTask.status !== "cancelled" && (
-                <Button
-                  onClick={markTaskCompleted}
-                  disabled={completingTask || activeTask.status === "completed"}
-                  className="flex-1 bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
-                >
-                  {activeTask.status === "completed" ? "Already Completed" : completingTask ? "Completing..." : <><CheckCircle2 className="w-3.5 h-3.5 mr-1" />Done</>}
-                </Button>
-              )}
+              {activeTask.status !== "completed" &&
+                activeTask.status !== "cancelled" && (
+                  <Button
+                    onClick={() => updateTaskStatus(activeTask, "in-progress")}
+                    disabled={activeTask.status === "in-progress"}
+                    className="flex-1 bg-yellow-500/15 text-yellow-100 border border-yellow-500/30 hover:bg-yellow-500/25"
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" />
+                    In Progress
+                  </Button>
+                )}
+              {activeTask.status !== "completed" &&
+                activeTask.status !== "cancelled" && (
+                  <Button
+                    onClick={markTaskCompleted}
+                    disabled={
+                      completingTask || activeTask.status === "completed"
+                    }
+                    className="flex-1 bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
+                  >
+                    {activeTask.status === "completed" ? (
+                      "Already Completed"
+                    ) : completingTask ? (
+                      "Completing..."
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                        Done
+                      </>
+                    )}
+                  </Button>
+                )}
               {activeTask.status !== "cancelled" && (
                 <Button
                   variant="outline"
-                  onClick={() => updateTaskStatus(activeTask, "cancelled", "Cancelled by admin")}
+                  onClick={() =>
+                    updateTaskStatus(
+                      activeTask,
+                      "cancelled",
+                      "Cancelled by admin",
+                    )
+                  }
                   disabled={activeTask.status === "cancelled"}
                   className="flex-1 bg-slate-500/15 text-slate-100 border border-slate-500/30 hover:bg-slate-500/25"
                 >
-                  <XCircle className="w-3.5 h-3.5 mr-1" />Cancel
+                  <XCircle className="w-3.5 h-3.5 mr-1" />
+                  Cancel
                 </Button>
               )}
               <Button
@@ -1475,7 +1568,8 @@ export default function WorkListClient({
                 }}
                 className="flex-1"
               >
-                <Trash2 className="w-3.5 h-3.5 mr-1" />Delete
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                Delete
               </Button>
             </div>
           </div>
@@ -1490,49 +1584,57 @@ export default function WorkListClient({
       >
         {actionTask ? (
           <div className="space-y-3">
-            <p className="text-sm text-gray-200 font-medium bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">{actionTask.title}</p>
+            <p className="text-sm text-gray-200 font-medium bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">
+              {actionTask.title}
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 onClick={() => runAction("in-progress")}
                 disabled={!!actionLoading}
                 className="bg-yellow-500/15 text-yellow-100 border border-yellow-500/30 hover:bg-yellow-500/25"
               >
-                <Play className="w-4 h-4 mr-2" />{actionLoading === "in-progress" ? "..." : "In Progress"}
+                <Play className="w-4 h-4 mr-2" />
+                {actionLoading === "in-progress" ? "..." : "In Progress"}
               </Button>
               <Button
                 onClick={() => runAction("done")}
                 disabled={!!actionLoading}
                 className="bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
               >
-                <CheckCircle2 className="w-4 h-4 mr-2" />{actionLoading === "done" ? "..." : "Done"}
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                {actionLoading === "done" ? "..." : "Done"}
               </Button>
               <Button
                 onClick={() => runAction("hold")}
                 disabled={!!actionLoading}
                 className="bg-amber-500/15 text-amber-100 border border-amber-500/30 hover:bg-amber-500/25"
               >
-                <PauseCircle className="w-4 h-4 mr-2" />{actionLoading === "hold" ? "..." : "Hold"}
+                <PauseCircle className="w-4 h-4 mr-2" />
+                {actionLoading === "hold" ? "..." : "Hold"}
               </Button>
               <Button
                 onClick={() => runAction("cancel")}
                 disabled={!!actionLoading}
                 className="bg-slate-500/15 text-slate-100 border border-slate-500/30 hover:bg-slate-500/25"
               >
-                <XCircle className="w-4 h-4 mr-2" />{actionLoading === "cancel" ? "..." : "Cancel"}
+                <XCircle className="w-4 h-4 mr-2" />
+                {actionLoading === "cancel" ? "..." : "Cancel"}
               </Button>
               <Button
                 onClick={() => runAction("edit")}
                 disabled={!!actionLoading}
                 className="bg-blue-500/15 text-blue-100 border border-blue-500/30 hover:bg-blue-500/25"
               >
-                <Edit className="w-4 h-4 mr-2" />{actionLoading === "edit" ? "..." : "Edit"}
+                <Edit className="w-4 h-4 mr-2" />
+                {actionLoading === "edit" ? "..." : "Edit"}
               </Button>
               <Button
                 onClick={() => runAction("delete")}
                 disabled={!!actionLoading}
                 className="bg-rose-500/15 text-rose-100 border border-rose-500/30 hover:bg-rose-500/25"
               >
-                <Trash2 className="w-4 h-4 mr-2" />{actionLoading === "delete" ? "..." : "Delete"}
+                <Trash2 className="w-4 h-4 mr-2" />
+                {actionLoading === "delete" ? "..." : "Delete"}
               </Button>
             </div>
           </div>

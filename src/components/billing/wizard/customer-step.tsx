@@ -110,6 +110,7 @@ export function CustomerStep({
             value={formData.dueDate}
             onChange={(v) => onInputChange("dueDate", v)}
             placeholder="Select due date"
+            disablePastDates
           />
         </div>
       </div>
@@ -136,4 +137,3 @@ export function CustomerStep({
     </div>
   );
 }
-
