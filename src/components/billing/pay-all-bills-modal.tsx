@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback, memo } from "react";
 import {
   Check,
   CreditCard,
-  Calendar,
   Loader2,
   Banknote,
   Smartphone,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -442,15 +442,12 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
           {/* Payment Date */}
           <div className="glass-card-static p-3 space-y-3">
             <h3 className="text-sm font-semibold text-white">Payment Date</h3>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-white/40" />
-              <input
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                className="flex-1 glass-input !p-2.5 text-sm text-white"
-              />
-            </div>
+            <AppDateTimePicker
+              mode="date"
+              value={paymentDate}
+              onChange={setPaymentDate}
+              placeholder="Select payment date"
+            />
           </div>
 
           {/* Note */}

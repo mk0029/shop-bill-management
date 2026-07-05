@@ -17,6 +17,7 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import { SelectField } from "@/components/ui/select-field";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { formatDayDateTime } from "@/lib/date-time";
@@ -444,14 +445,18 @@ export default function UnifiedWorkClient() {
                                 </div>
                                 {!isClosed && !hasTask && (
                                   <div className="sm:w-64 shrink-0 mt-3 sm:mt-0">
-                                    <div className="bg-gray-800/40 rounded-lg p-3 space-y-2">
-                                      <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Schedule</p>
-                                      <div className="grid grid-cols-[1fr_auto] gap-2">
-                                        <input type="date" value={getDate(scheduleById[r._id])}
-                                          onChange={e => setScheduleById(prev => ({ ...prev, [r._id]: `${e.target.value}T${getTime(prev[r._id]) || "10:00"}` }))}
-                                          className="h-9 rounded-md border border-gray-700 bg-gray-900 px-2 text-sm text-white [color-scheme:dark]" disabled={busy} />
-                                        <Button variant="outline" size="sm" onClick={() => openTimePicker(r)}
-                                          disabled={busy} className="h-9 border-gray-700 bg-gray-900 text-gray-200 text-xs">{getTime(scheduleById[r._id]) ? getTime(scheduleById[r._id]).slice(0, 5) : "Time"}</Button>
+                <div className="bg-gray-800/40 rounded-lg p-3 space-y-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500">Schedule</p>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <AppDateTimePicker
+                      mode="date"
+                      value={getDate(scheduleById[r._id])}
+                      onChange={(v) => setScheduleById(prev => ({ ...prev, [r._id]: `${v}T${getTime(prev[r._id]) || "10:00"}` }))}
+                      disabled={busy}
+                      placeholder="Date"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => openTimePicker(r)}
+                      disabled={busy} className="h-9 border-gray-700 bg-gray-900 text-gray-200 text-xs">{getTime(scheduleById[r._id]) ? getTime(scheduleById[r._id]).slice(0, 5) : "Time"}</Button>
                                       </div>
                                       <div className="grid grid-cols-3 gap-1">
                                         <Button variant="outline" size="xs" onClick={() => quickSchedule(r, "today_1h")} disabled={busy} className="border-gray-700 bg-gray-900 text-gray-300 text-[10px] h-7">+1h</Button>
@@ -680,12 +685,12 @@ export default function UnifiedWorkClient() {
               options={categoryOptions.map(c => ({ value: c, label: toLabel(c) }))} />
           </div>
           <div className="space-y-2"><p className="text-sm text-gray-300">Due *</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Input type="date" value={getDate(form.dueAt)} onChange={e => setForm(p => ({ ...p, dueAt: `${e.target.value}T${getTime(p.dueAt) || "10:00"}` }))}
-                className="bg-gray-800 border-gray-700 text-white [color-scheme:dark]" />
-              <Input type="time" value={getTime(form.dueAt)} onChange={e => setForm(p => ({ ...p, dueAt: `${getDate(p.dueAt) || new Date().toISOString().slice(0, 10)}T${e.target.value}` }))}
-                className="bg-gray-800 border-gray-700 text-white [color-scheme:dark]" />
-            </div>
+            <AppDateTimePicker
+              mode="datetime"
+              value={form.dueAt}
+              onChange={(v) => setForm(p => ({ ...p, dueAt: v }))}
+              placeholder="Select due date & time"
+            />
           </div>
           {(form.status === "completed" || form.status === "cancelled" || form.status === "hold") && (
             <Input value={form.status === "completed" ? form.completionNotes : form.status === "hold" ? form.holdReason : form.cancellationReason}

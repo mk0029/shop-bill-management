@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard,
@@ -333,17 +334,11 @@ export function PaymentStep({
                   >
                     Payment Date
                   </label>
-                  <Input
-                    type="date"
-                    value={
-                      formData.paymentDate ||
-                      new Date().toISOString().split("T")[0]
-                    }
-                    onChange={(e) =>
-                      onInputChange("paymentDate", e.target.value)
-                    }
-                    style={glassInput}
-                    className="text-white text-xs"
+                  <AppDateTimePicker
+                    mode="date"
+                    value={formData.paymentDate || new Date().toISOString().split("T")[0]}
+                    onChange={(v) => onInputChange("paymentDate", v)}
+                    placeholder="Select payment date"
                   />
                 </div>
               </div>

@@ -30,6 +30,7 @@ interface DropdownProps {
   classNameButton?: string;
   scrollLock?: boolean;
   closeOnOutsideClick?: boolean;
+  zIndex?: number;
 }
 
 const sizeClasses = {
@@ -63,6 +64,7 @@ export function Dropdown({
   minW = false,
   scrollLock = false,
   closeOnOutsideClick = true,
+  zIndex = 260,
 }: DropdownProps) {
   const idRef = React.useRef(getNextDropdownId());
   const [menuState, setMenuState] = React.useState<"closed" | "open" | "closing">("closed");
@@ -175,7 +177,7 @@ export function Dropdown({
       width: minW ? undefined : rect.width,
       minWidth,
       maxWidth: "calc(100vw - 24px)",
-      zIndex: 260,
+      zIndex,
     });
     setMenuState("open");
     document.dispatchEvent(new CustomEvent(DROPDOWN_EVENT, { detail: idRef.current }));

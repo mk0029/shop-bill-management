@@ -192,14 +192,16 @@ export default function PersonalInformationSection({
       });
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("userId", (authUser as any)?._id || (authUser as any)?.id || "");
+      formData.append(
+        "userId",
+        (authUser as any)?._id || (authUser as any)?.id || "",
+      );
       const response = await fetch("/api/upload/profile", {
         method: "POST",
         body: formData,
       });
       const json = await response.json();
-      if (!response.ok)
-        throw new Error(json?.error || "Image upload failed");
+      if (!response.ok) throw new Error(json?.error || "Image upload failed");
 
       const saveResponse = await fetch("/api/users/me/profile", {
         method: "PATCH",
@@ -244,14 +246,19 @@ export default function PersonalInformationSection({
         body: JSON.stringify({ removeProfileImage: true }),
       });
       const json = await response.json();
-      if (!response.ok || !json?.success) throw new Error(json?.error || "Failed to remove profile picture");
+      if (!response.ok || !json?.success)
+        throw new Error(json?.error || "Failed to remove profile picture");
       const nextUser = json.user as ProfileUser;
       setProfileUser(nextUser);
       setPreviewUrl("");
       setUser({ ...(authUser as any), ...nextUser, profileImage: "" } as any);
       toast.success("Profile photo removed");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to remove profile photo");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to remove profile photo",
+      );
     } finally {
       setBusy(false);
     }
@@ -351,9 +358,7 @@ export default function PersonalInformationSection({
       const message =
         error instanceof Error ? error.message : "Failed to request OTP";
       setWizardError(message);
-      toast.error(
-        message,
-      );
+      toast.error(message);
     } finally {
       setOtpRequestBusy(false);
     }
@@ -478,11 +483,12 @@ export default function PersonalInformationSection({
         <>
           <section className="overflow-hidden border-y border-slate-800 bg-slate-950/60 sm:rounded-lg sm:border">
             <div className="border-b border-slate-800 px-4 py-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-100">
                 Login Account
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Name and mobile are linked to billing records. Email can be updated below.
+                Name and mobile are linked to billing records. Email can be
+                updated below.
               </p>
             </div>
             <div className="grid gap-0 divide-y divide-slate-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
@@ -532,7 +538,7 @@ export default function PersonalInformationSection({
                       type="button"
                       onClick={removeProfileImage}
                       disabled={busy}
-                      className="inline-flex items-center justify-center gap-2 rounded-md border border-rose-500/35 px-3 py-2 text-sm font-medium text-rose-200 hover:bg-rose-500/10 disabled:opacity-60"
+                      className="inline-flex items-center justify-center gap-2 rounded-md border border-rose-500/35 px-3 py-2 text-sm font-medium text-rose-200 hover:bg-rose-500/10"
                     >
                       <Trash2 className="h-4 w-4" />
                       Remove Image
@@ -542,7 +548,7 @@ export default function PersonalInformationSection({
                     type="button"
                     onClick={openImagePicker}
                     disabled={busy}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-900 disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-900"
                   >
                     <Camera className="h-4 w-4" />
                     {busy ? "Working..." : "Choose Image"}
@@ -695,7 +701,8 @@ export default function PersonalInformationSection({
             <div className="min-w-0">
               <h2 className="text-sm font-semibold text-slate-100">Password</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Change your login password after WhatsApp or email OTP verification.
+                Change your login password after WhatsApp or email OTP
+                verification.
               </p>
             </div>
             <Button
@@ -718,9 +725,17 @@ export default function PersonalInformationSection({
         <div className="space-y-5 overflow-hidden">
           <div className="grid grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950/60 p-2">
             {[
-              { step: 1 as ResetStep, label: "Verification Method", done: otpSent },
+              {
+                step: 1 as ResetStep,
+                label: "Verification Method",
+                done: otpSent,
+              },
               { step: 2 as ResetStep, label: "Verify OTP", done: otpVerified },
-              { step: 3 as ResetStep, label: "New Password", done: resetComplete },
+              {
+                step: 3 as ResetStep,
+                label: "New Password",
+                done: resetComplete,
+              },
             ].map((item) => {
               const active = currentStep === item.step && !resetComplete;
               const disabled =
@@ -1005,7 +1020,9 @@ export default function PersonalInformationSection({
                       />
                       <button
                         type="button"
-                        onClick={() => setShowNewPassword((current) => !current)}
+                        onClick={() =>
+                          setShowNewPassword((current) => !current)
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                         aria-label={
                           showNewPassword ? "Hide password" : "Show password"

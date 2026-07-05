@@ -611,7 +611,7 @@ export function BillingBrowser({
               placeholder="Search bills by customer name or bill ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+              className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
             />
           </div>
 

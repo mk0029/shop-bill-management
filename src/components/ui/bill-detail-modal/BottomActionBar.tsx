@@ -218,10 +218,10 @@ export const BottomActionBar = memo(function BottomActionBar({
       initial={{ y: 80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="sticky -bottom-4 sm:bottom-0 z-30 -mx-5 sm:-mx-5 md:-mx-6 mt-6"
+      className="sticky -bottom-4 sm:bottom-0 z-30 mt-6"
     >
-      <div className="glass-dock px-4 py-3 max-sm:mx-4 sm:px-5 flex-1">
-        <div className="flex items-center justify-between sm:justify-center gap-2.5 overflow-x-visible no-scrollbar">
+      <div className=" px-4 py-3 max-sm:mx-4 sm:px-5 flex-1 bg-slate-950/90 rounded-lg md:rounded-2xl">
+        <div className="flex items-center justify-evenly gap-2.5 overflow-x-visible no-scrollbar">
           {primaryActions.map((action) => (
             <button
               key={action.label}
@@ -233,7 +233,14 @@ export const BottomActionBar = memo(function BottomActionBar({
                   : "glass-dock-btn text-white/70",
               )}
             >
-              <action.icon className={cn("w-5 h-5 sm:w-5 sm:h-5", (isSendingReminder || isSendingWhatsApp) && action.label === "Sending..." && "animate-spin")} />
+              <action.icon
+                className={cn(
+                  "w-5 h-5 sm:w-5 sm:h-5",
+                  (isSendingReminder || isSendingWhatsApp) &&
+                    action.label === "Sending..." &&
+                    "animate-spin",
+                )}
+              />
               <span className="leading-tight">{action.label}</span>
             </button>
           ))}

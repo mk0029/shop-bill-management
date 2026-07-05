@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { SwitchToggle } from "@/components/ui/switch-toggle";
 import { useRouter } from "next/navigation";
@@ -125,13 +126,11 @@ export const CustomerInfoSection = ({
           <Label htmlFor="billDate" className="text-sm text-slate-300">
             Bill Date <span className="text-red-400">*</span>
           </Label>
-          <Input
-            id="billDate"
-            type="date"
+          <AppDateTimePicker
+            mode="date"
             value={formData.billDate}
-            onChange={(e) => onInputChange("billDate", e.target.value)}
-            style={glassInputStyle}
-            required
+            onChange={(v) => onInputChange("billDate", v)}
+            placeholder="Select bill date"
           />
         </div>
 
@@ -139,12 +138,11 @@ export const CustomerInfoSection = ({
           <Label htmlFor="dueDate" className="text-sm text-slate-300">
             Due Date
           </Label>
-          <Input
-            id="dueDate"
-            type="date"
+          <AppDateTimePicker
+            mode="date"
             value={formData.dueDate}
-            onChange={(e) => onInputChange("dueDate", e.target.value)}
-            style={glassInputStyle}
+            onChange={(v) => onInputChange("dueDate", v)}
+            placeholder="Select due date"
           />
         </div>
       </div>

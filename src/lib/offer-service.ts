@@ -166,7 +166,7 @@ export async function claimOffer(
 export async function getAllActiveOffers(): Promise<OfferWithProduct[]> {
   const now = new Date().toISOString()
   const offers = await sanityClient.fetch<OfferWithProduct[]>(
-    `*[_type == "offer" && status == "active" && startAt <= $now && endAt >= $now] | order(createdAt desc)${OFFER_FIELDS}`,
+    `*[_type == "offer" && status == "active" && endAt >= $now] | order(createdAt desc)${OFFER_FIELDS}`,
     { now },
   )
   return offers.filter((o) => {
@@ -413,6 +413,7 @@ export async function getAdminOfferClaims(offerId: string): Promise<OfferClaim[]
     `*[_type == "offerClaim" && offerId == $offerId] | order(claimedAt desc){
       _id,
       offerId,
+      customer,
       customerId,
       productIds,
       claimedAt,
@@ -422,8 +423,8 @@ export async function getAdminOfferClaims(offerId: string): Promise<OfferClaim[]
       cancelReason,
       createdAt,
       updatedAt,
-      "customerName": *[_type=="user" && _id==^.customerId][0].name,
-      "customerPhone": *[_type=="user" && _id==^.customerId][0].phone
+      "customerName": *[_type=="user" && _id==^.customer._ref][0].name,
+      "customerPhone": *[_type=="user" && _id==^.customer._ref][0].phone
     }`,
     { offerId },
   )

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/store/auth-store";
 import { SHOP_CHAT_URL } from "@/lib/shop-chat/api";
@@ -602,11 +603,11 @@ export default function AdminNotificationBroadcastPage() {
                     <label className="text-sm font-medium text-slate-200">
                       Expiry Date
                     </label>
-                    <Input
-                      type="datetime-local"
+                    <AppDateTimePicker
+                      mode="datetime"
                       value={expiryDate}
-                      onChange={(event) => setExpiryDate(event.target.value)}
-                      className="text-slate-100"
+                      onChange={setExpiryDate}
+                      placeholder="Select expiry date & time"
                     />
                   </div>
                 </section>
@@ -634,11 +635,11 @@ export default function AdminNotificationBroadcastPage() {
                   ))}
                 </div>
                 {publishMode === "scheduled" ? (
-                  <Input
-                    type="datetime-local"
+                  <AppDateTimePicker
+                    mode="datetime"
                     value={scheduledAt}
-                    onChange={(event) => setScheduledAt(event.target.value)}
-                    className="text-slate-100"
+                    onChange={setScheduledAt}
+                    placeholder="Select scheduled date & time"
                   />
                 ) : null}
               </section>

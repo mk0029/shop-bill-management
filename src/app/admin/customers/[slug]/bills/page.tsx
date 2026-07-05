@@ -658,7 +658,7 @@ export default function CustomerBillsPage() {
             placeholder="Search bills by bill number or date..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+            className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
           />
         </div>
       </ResponsiveAccordion>

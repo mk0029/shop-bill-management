@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { ChevronRight, Star } from "lucide-react";
 import type { SettingNode } from "@/lib/settings/settings-config";
@@ -54,12 +53,7 @@ export function SettingsCategory({
 }) {
   const Icon = node.icon;
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.04, ease: "easeOut" }}
-      className={rowClasses}
-    >
+    <div className={rowClasses}>
       <Link href={href} className={linkClasses}>
         <span className="relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] ring-1 ring-white/10 transition-all duration-300 group-hover:ring-emerald-400/30 group-hover:shadow-[0_0_20px_rgba(52,211,153,0.12)]">
           <Icon className="h-5 w-5 text-emerald-300/90 transition-colors duration-300 group-hover:text-emerald-200" />
@@ -91,7 +85,7 @@ export function SettingsCategory({
         </button>
       )}
       <ChevronRight className="h-4 w-4 shrink-0 text-slate-500 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-slate-300" />
-    </motion.div>
+    </div>
   );
 }
 

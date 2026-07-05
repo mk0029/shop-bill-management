@@ -30,7 +30,7 @@ export default async function AdminLayout({
         <AdminWelcomeGate />
       </div>
       <main className="admin-main hide-scroll relative z-10 h-[calc(var(--app-vh,100dvh)-var(--topbar-h,62px))] overflow-y-auto overflow-x-hidden touch-pan-y bg-transparent pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-3">
-        <div className="min-h-full pb-8 py-1 sm:p-2 sm:pb-10 xl:p-6 xl:pb-12">
+        <div className="h-full pb-8 py-1 sm:p-2 sm:pb-10 xl:p-6 xl:pb-12">
           {children}
         </div>
       </main>

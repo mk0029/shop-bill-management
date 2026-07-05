@@ -1,6 +1,16 @@
 export type OfferType = 'percentage' | 'fixed_amount' | 'buy_x_get_y' | 'free_item' | 'custom'
 export type OfferStatus = 'active' | 'inactive'
+export type ComputedOfferStatus = 'scheduled' | 'active' | 'expired'
 export type ClaimStatus = 'claimed' | 'used' | 'expired' | 'cancelled'
+
+export function getComputedOfferStatus(startAt: string, endAt: string): ComputedOfferStatus {
+  const now = Date.now()
+  const start = new Date(startAt).getTime()
+  const end = new Date(endAt).getTime()
+  if (now < start) return 'scheduled'
+  if (now > end) return 'expired'
+  return 'active'
+}
 
 export interface Offer {
   _id: string
@@ -64,6 +74,8 @@ export interface OfferClaim {
   offerType?: string
   discountValue?: number
   productNames?: string[]
+  customerName?: string
+  customerPhone?: string
 }
 
 export interface CreateOfferInput {

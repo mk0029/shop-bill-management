@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 
 function mapCashbookEntryToFormData(entry: any): Partial<any> {
   return {
@@ -122,11 +123,11 @@ export default function SuperCashbookUpdateModal(props: {
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Date
             </label>
-            <input
-              type="date"
+            <AppDateTimePicker
+              mode="date"
               value={formData.date || ""}
-              onChange={(e) => handleInputChange("date", e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(v) => handleInputChange("date", v)}
+              placeholder="Select date"
             />
           </div>
 

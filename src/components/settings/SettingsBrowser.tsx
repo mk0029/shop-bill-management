@@ -574,7 +574,7 @@ export default function SettingsBrowser({
   if (slug.length && !node) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 1, y: 0 }}
         animate={{ opacity: 1, y: 0 }}
         className="mx-auto max-w-3xl px-0 py-4 sm:px-6"
       >
@@ -614,8 +614,8 @@ export default function SettingsBrowser({
       {/* Header */}
       <header className=" -mt-5 shrink-0 border-b backdrop-blur-2xl border-white/10 !bg-transparent px-3 pb-3 pt-[max(0.6rem,env(safe-area-inset-top,0px))] shadow-lg shadow-black/20 sm:rounded-2xl sm:border sm:bg-white/[0.04] sm:px-5 sm:py-4 sm:backdrop-blur-xl sm:shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
         <div className="mx-auto max-w-4xl">
-          <div className="flex items-center gap-3">
-            {slug.length ? (
+          {slug.length ? (
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => router.back()}
@@ -624,16 +624,6 @@ export default function SettingsBrowser({
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-            ) : null}
-            {/* <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-bold text-white sm:text-xl">
-                {pageTitle}
-              </h1>
-              <p className="mt-0.5 text-xs leading-5 text-slate-400">
-                {pageDescription}
-              </p>
-            </div> */}
-            {slug.length ? (
               <button
                 type="button"
                 onClick={() => toggleFavorite(currentPath)}
@@ -648,8 +638,8 @@ export default function SettingsBrowser({
                   }`}
                 />
               </button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
 
           {/* Breadcrumbs + Search */}
           {(crumbs.length || !isFocusedPasswordPage) ? (
@@ -737,18 +727,9 @@ export default function SettingsBrowser({
 
             {/* Home view */}
             {!slug.length && !activeQuery ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-4 sm:space-y-5"
-              >
+              <div className="space-y-4 sm:space-y-5">
                 {favorites.length ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35, ease: "easeOut" }}
-                  >
+                  <div>
                     <SettingsSection title="Pinned Settings">
                       {favorites.map((path) => {
                         const parts = path.split("/").filter(Boolean);
@@ -764,19 +745,11 @@ export default function SettingsBrowser({
                         ) : null;
                       })}
                     </SettingsSection>
-                  </motion.div>
+                    </div>
                 ) : null}
 
                 {recentDetails.length ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.35,
-                      ease: "easeOut",
-                      delay: 0.05,
-                    }}
-                  >
+                  <div>
                     <SettingsSection
                       title="Recently Changed"
                       action={
@@ -818,14 +791,10 @@ export default function SettingsBrowser({
                         </Link>
                       ))}
                     </SettingsSection>
-                  </motion.div>
+                    </div>
                 ) : null}
 
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
-                >
+                <div>
                   <SettingsSection title="Categories">
                     {visibleHome.map((item, idx) => (
                       <SettingsCategory
@@ -837,19 +806,13 @@ export default function SettingsBrowser({
                       />
                     ))}
                   </SettingsSection>
-                </motion.div>
-              </motion.div>
+                </div>
+              </div>
             ) : null}
 
             {/* Nested page view */}
             {slug.length && !activeQuery ? (
-              <motion.div
-                key={currentPath}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="space-y-4 sm:space-y-5"
-              >
+              <div className="space-y-4 sm:space-y-5">
                 {children.length ? (
                   <SettingsSection title="Options">
                     {children.map((child, idx) => {
@@ -925,7 +888,7 @@ export default function SettingsBrowser({
                     </div>
                   </SettingsSection>
                 ) : null}
-              </motion.div>
+              </div>
             ) : null}
           </div>
         </div>

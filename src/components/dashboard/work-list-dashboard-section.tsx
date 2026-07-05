@@ -6,6 +6,7 @@ import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { Modal } from "@/components/ui/modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -310,11 +311,11 @@ export default function WorkListDashboardSection({ users }: { users: UserLite[] 
           </div>
           <div>
             <p className="text-xs text-gray-300 mb-1">Due Date & Time</p>
-            <input
-              type="datetime-local"
+            <AppDateTimePicker
+              mode="datetime"
               value={createState.dueAt}
-              onChange={(e) => setCreateState((p) => ({ ...p, dueAt: e.target.value }))}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-2 text-white"
+              onChange={(v) => setCreateState((p) => ({ ...p, dueAt: v }))}
+              placeholder="Select due date & time"
             />
           </div>
           <div className="flex justify-end gap-2">

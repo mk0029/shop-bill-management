@@ -116,7 +116,10 @@ export const BillDetailModal = ({
     }
 
     const customerId =
-      bill.customer?._id || bill.customer?._ref || bill.customerId || bill.userId;
+      bill.customer?._id ||
+      bill.customer?._ref ||
+      bill.customerId ||
+      bill.userId;
     if (!customerId) {
       toast.error("Customer ID is required");
       return;
@@ -131,7 +134,10 @@ export const BillDetailModal = ({
       });
 
       if (result.rateLimited) {
-        toast.error(result.error || "One manual WhatsApp message per customer/bill is allowed every 5 minutes");
+        toast.error(
+          result.error ||
+            "One manual WhatsApp message per customer/bill is allowed every 5 minutes",
+        );
         return;
       }
 
@@ -207,7 +213,7 @@ export const BillDetailModal = ({
 
       if (result.rateLimited) {
         toast.info(
-          "Reminder was already sent recently. Please wait a few minutes before trying again."
+          "Reminder was already sent recently. Please wait a few minutes before trying again.",
         );
         return;
       }
@@ -219,7 +225,7 @@ export const BillDetailModal = ({
       toast.success("WhatsApp reminder sent successfully!");
     } catch (e: any) {
       toast.error(
-        e?.message || "Unable to send WhatsApp reminder. Please try again."
+        e?.message || "Unable to send WhatsApp reminder. Please try again.",
       );
     } finally {
       setIsSendingReminder(false);
@@ -292,9 +298,9 @@ export const BillDetailModal = ({
           )}
 
           {role === "customer" && (
-            <div className="sticky -bottom-4 sm:bottom-0 z-30 -mx-5 sm:-mx-5 md:-mx-6 mt-6">
-              <div className="glass-dock px-4 py-3 max-sm:mx-4 sm:px-5 flex-1 bg-black/50">
-                <div className="flex items-center justify-between gap-2.5 overflow-x-visible no-scrollbar">
+            <div className="sticky -bottom-4 sm:bottom-0 z-30  mt-6">
+              <div className=" px-4 py-3 max-sm:mx-4 sm:px-5 flex-1 bg-slate-950/90 rounded-lg md:rounded-2xl">
+                <div className="flex items-center justify-evenly gap-2.5 overflow-x-visible no-scrollbar">
                   {showShareButton && (
                     <button
                       onClick={handleShare}

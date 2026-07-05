@@ -417,7 +417,6 @@ export default function LandingHomeContent({
               />
             </ScrollRevealSection>
             <div className="mx-auto mt-6 md:mt-10 max-w-6xl relative">
-              <div className="absolute top-12 left-8 right-8 h-px bg-gradient-to-r from-sky-500/20 via-violet-500/20 to-transparent hidden lg:block" />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {processSteps.map((step, index) => (
                   <ScrollRevealSection key={step}>

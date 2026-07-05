@@ -7,12 +7,12 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useLocaleStore } from "@/store/locale-store";
 import { useSalesAnalytics } from "@/hooks/use-sales-analytics";
 import { useBills } from "@/hooks/use-sanity-data";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Modal } from "@/components/ui/modal";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import {
   formatCurrency,
   formatPercentage,
@@ -314,21 +314,21 @@ export default function SalesReportPage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-gray-400 text-sm">From</label>
-              <Input
-                type="date"
-                className="w-full"
+              <AppDateTimePicker
+                mode="date"
                 value={from ?? ""}
-                onChange={(e) => setFrom(e.target.value || undefined)}
+                onChange={(v) => setFrom(v || undefined)}
+                placeholder="Select date"
                 disabled={dateRange !== "custom"}
               />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-gray-400 text-sm">To</label>
-              <Input
-                type="date"
-                className="w-full"
+              <AppDateTimePicker
+                mode="date"
                 value={to ?? ""}
-                onChange={(e) => setTo(e.target.value || undefined)}
+                onChange={(v) => setTo(v || undefined)}
+                placeholder="Select date"
                 disabled={dateRange !== "custom"}
               />
             </div>

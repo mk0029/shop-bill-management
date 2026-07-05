@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 
 interface CustomerStepProps {
@@ -28,13 +28,6 @@ const locationOptions = [
   { value: "office", label: "Office Visit" },
   { value: "factory", label: "Factory Visit" },
 ];
-
-const glassInputStyle: React.CSSProperties = {
-  background: "rgba(255,255,255,0.06)",
-  border: "1px solid rgba(255,255,255,0.12)",
-  backdropFilter: "blur(16px)",
-  borderRadius: "12px",
-};
 
 const glassFieldsetStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
@@ -101,24 +94,22 @@ export function CustomerStep({
           <Label className="text-white text-sm font-medium mb-3 block">
             Bill Date
           </Label>
-          <Input
-            type="date"
+          <AppDateTimePicker
+            mode="date"
             value={formData.billDate}
-            onChange={(e) => onInputChange("billDate", e.target.value)}
-            style={glassInputStyle}
-            className="text-white"
+            onChange={(v) => onInputChange("billDate", v)}
+            placeholder="Select bill date"
           />
         </div>
         <div style={glassFieldsetStyle} className="p-3 sm:p-4 md:p-5">
           <Label className="text-white text-sm font-medium mb-3 block">
             Due Date
           </Label>
-          <Input
-            type="date"
+          <AppDateTimePicker
+            mode="date"
             value={formData.dueDate}
-            onChange={(e) => onInputChange("dueDate", e.target.value)}
-            style={glassInputStyle}
-            className="text-white"
+            onChange={(v) => onInputChange("dueDate", v)}
+            placeholder="Select due date"
           />
         </div>
       </div>

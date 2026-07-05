@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { Modal } from "@/components/ui/modal";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import { SelectField } from "@/components/ui/select-field";
 import { ResponsiveAccordion } from "@/components/ui/responsive-accordion";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
@@ -813,11 +814,11 @@ export default function WorkListClient({
                   </div>
                   <div className="space-y-2 xl:col-span-2">
                     <p className="text-sm text-gray-200">Due Date</p>
-                    <Input
-                      type="date"
+                    <AppDateTimePicker
+                      mode="date"
                       value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value)}
-                      className="bg-gray-800 border-gray-700 text-white"
+                      onChange={setDateFilter}
+                      placeholder="Filter by date"
                     />
                   </div>
                   <div className="xl:col-span-2">
@@ -1344,31 +1345,12 @@ export default function WorkListClient({
           </div>
           <div className="space-y-2">
             <p className="text-sm text-gray-200">Due Date & Time *</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Input
-                type="date"
-                value={getDatePart(form.dueAt)}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    dueAt: `${e.target.value}T${getTimePart(p.dueAt) || getCurrentLocalTimeHHMM()}`,
-                  }))
-                }
-                className="w-full bg-gray-800 border-gray-700 text-white [color-scheme:dark]"
-              />
-              <Input
-                type="time"
-                value={getTimePart(form.dueAt)}
-                min="07:00"
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    dueAt: `${getDatePart(p.dueAt) || new Date().toISOString().slice(0, 10)}T${e.target.value}`,
-                  }))
-                }
-                className="w-full bg-gray-800 border-gray-700 text-white [color-scheme:dark]"
-              />
-            </div>
+            <AppDateTimePicker
+              mode="datetime"
+              value={form.dueAt}
+              onChange={(v) => setForm((p) => ({ ...p, dueAt: v }))}
+              placeholder="Select due date & time"
+            />
           </div>
           {form.status === "completed" ||
           form.status === "cancelled" ||

@@ -4,6 +4,7 @@ import React from "react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 
 type ScheduledPrefs = {
   dailyGreetingEnabled: boolean;
@@ -153,24 +154,24 @@ export default function ScheduledNotificationPreferences({ role }: { role?: stri
         onChange={(value) => update({ quietHours: { ...prefs.quietHours, enabled: value } })}
       />
       <div className="grid gap-3 rounded-md bg-gray-800 p-3 sm:grid-cols-3">
-        <label className="space-y-1">
+        <div className="space-y-1">
           <span className="text-gray-300">Quiet start</span>
-          <Input
-            type="time"
+          <AppDateTimePicker
+            mode="time"
             value={prefs.quietHours.start}
-            onChange={(event) => update({ quietHours: { ...prefs.quietHours, start: event.target.value } })}
-            className="border-gray-700 bg-gray-900 text-white"
+            onChange={(v) => update({ quietHours: { ...prefs.quietHours, start: v } })}
+            placeholder="Select time"
           />
-        </label>
-        <label className="space-y-1">
+        </div>
+        <div className="space-y-1">
           <span className="text-gray-300">Quiet end</span>
-          <Input
-            type="time"
+          <AppDateTimePicker
+            mode="time"
             value={prefs.quietHours.end}
-            onChange={(event) => update({ quietHours: { ...prefs.quietHours, end: event.target.value } })}
-            className="border-gray-700 bg-gray-900 text-white"
+            onChange={(v) => update({ quietHours: { ...prefs.quietHours, end: v } })}
+            placeholder="Select time"
           />
-        </label>
+        </div>
         <label className="space-y-1">
           <span className="text-gray-300">Timezone</span>
           <Input

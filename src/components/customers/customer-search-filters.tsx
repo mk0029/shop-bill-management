@@ -31,7 +31,7 @@ export default function CustomerSearchFilters({
               placeholder="Search customers by name, phone, or location..."
               value={filters.searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-10 pr-10 bg-gray-800/80 border-gray-700 text-white placeholder-gray-400 focus:border-gray-500 transition-colors"
+              className="!pl-10 pr-10 bg-gray-800/80 border-gray-700 text-white placeholder-gray-400 focus:border-gray-500 transition-colors"
             />
             {filters.searchTerm && (
               <button
