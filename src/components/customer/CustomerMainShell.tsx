@@ -22,10 +22,10 @@ export default function CustomerMainShell({
           ? "h-[var(--app-vh,100dvh)] overflow-hidden p-0"
           : isPurchaseRoute
             ? "h-[calc(var(--app-vh,100dvh)-var(--customer-topbar-h,57px))] overflow-hidden p-0"
-            : "h-[calc(var(--app-vh,100dvh)-var(--customer-topbar-h,57px))] overflow-y-auto touch-pan-y pt-3 max-md:px-3 max-sm:px-3"
+            : "h-[calc(var(--app-vh,100dvh)-var(--customer-topbar-h,57px))] overflow-y-auto overflow-x-hidden touch-pan-y pt-3 max-md:px-3 max-sm:px-3"
       }`}
     >
-      <div className={isChatRoute || isPurchaseRoute ? "h-full" : "py-1 sm:p-2"}>{children}</div>
+      <div className={isChatRoute || isPurchaseRoute ? "h-full" : "h-full py-1 sm:p-2"}>{children}</div>
     </main>
   );
 }

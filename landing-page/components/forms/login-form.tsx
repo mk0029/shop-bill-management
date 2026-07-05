@@ -100,7 +100,11 @@ export function LoginForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-md:space-y-4" noValidate>
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 max-md:space-y-4"
+      noValidate
+    >
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-[#B8C0CC] font-medium text-sm">
@@ -114,12 +118,15 @@ export function LoginForm({
               inputMode="numeric"
               placeholder="Enter 10-digit mobile number"
               value={formData.phone}
-              onChange={(e) => handleInputChange("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+              onChange={(e) =>
+                handleInputChange(
+                  "phone",
+                  e.target.value.replace(/\D/g, "").slice(0, 10),
+                )
+              }
               disabled={isLoading}
-              className={`glass-input pl-10 text-white placeholder:text-[#B8C0CC]/50 ${
-                formErrors.phone
-                  ? "border-red-500/50 focus:border-red-500"
-                  : ""
+              className={`glass-input !pl-10 text-white placeholder:text-[#B8C0CC]/50 ${
+                formErrors.phone ? "border-red-500/50 focus:border-red-500" : ""
               }`}
             />
           </div>
@@ -129,7 +136,10 @@ export function LoginForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="secretKey" className="text-[#B8C0CC] font-medium text-sm">
+          <Label
+            htmlFor="secretKey"
+            className="text-[#B8C0CC] font-medium text-sm"
+          >
             Secret Key
           </Label>
           <div className="relative">
@@ -141,7 +151,7 @@ export function LoginForm({
               value={formData.secretKey}
               onChange={(e) => handleInputChange("secretKey", e.target.value)}
               disabled={isLoading}
-              className={`glass-input pl-10 pr-10 text-white placeholder:text-[#B8C0CC]/50 ${
+              className={`glass-input !pl-10 pr-10 text-white placeholder:text-[#B8C0CC]/50 ${
                 formErrors.secretKey
                   ? "border-red-500/50 focus:border-red-500"
                   : ""

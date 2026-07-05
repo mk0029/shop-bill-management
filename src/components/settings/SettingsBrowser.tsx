@@ -603,7 +603,7 @@ export default function SettingsBrowser({
   }
 
   return (
-    <main className="mx-auto max-w-4xl pb-20 pt-[env(safe-area-inset-top,0px)] sm:px-6 sm:py-6">
+    <div className="flex h-full flex-col">
       {/* Background elements */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(52,211,153,0.10)_0%,transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(6,182,212,0.08)_0%,transparent_50%),linear-gradient(180deg,#030712_0%,#0a1628_40%,#0c1a1a_70%,#120b18_100%)]">
         <div className="absolute inset-0 opacity-[0.15] [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:48px_48px]" />
@@ -611,308 +611,324 @@ export default function SettingsBrowser({
         <div className="absolute bottom-[10%] right-[-4%] h-[260px] w-[260px] rounded-full bg-cyan-500/6 blur-[100px]" />
       </div>
 
-      {/* Sticky header */}
-      <header className="sticky -top-3 z-[100] border-b backdrop-blur-2xl rounded-md border-white/10 !bg-transparent  px-2 pb-3 pt-[max(0.6rem,env(safe-area-inset-top,0px))] shadow-lg shadow-black/20  sm:relative sm:mb-6 sm:rounded-2xl sm:border sm:bg-white/[0.04] sm:px-5 sm:py-4 sm:backdrop-blur-xl sm:shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-        <div className="flex items-center gap-3">
-          {slug.length ? (
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-300 transition-all duration-200 hover:bg-white/[0.08] hover:text-white active:scale-90"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold text-white sm:text-xl">
-              {pageTitle}
-            </h1>
-            <p className="mt-0.5 text-xs leading-5 text-slate-400">
-              {pageDescription}
-            </p>
+      {/* Header */}
+      <header className=" -mt-5 shrink-0 border-b backdrop-blur-2xl border-white/10 !bg-transparent px-3 pb-3 pt-[max(0.6rem,env(safe-area-inset-top,0px))] shadow-lg shadow-black/20 sm:rounded-2xl sm:border sm:bg-white/[0.04] sm:px-5 sm:py-4 sm:backdrop-blur-xl sm:shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+        <div className="mx-auto max-w-4xl">
+          <div className="flex items-center gap-3">
+            {slug.length ? (
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-300 transition-all duration-200 hover:bg-white/[0.08] hover:text-white active:scale-90"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            ) : null}
+            {/* <div className="min-w-0 flex-1">
+              <h1 className="truncate text-lg font-bold text-white sm:text-xl">
+                {pageTitle}
+              </h1>
+              <p className="mt-0.5 text-xs leading-5 text-slate-400">
+                {pageDescription}
+              </p>
+            </div> */}
+            {slug.length ? (
+              <button
+                type="button"
+                onClick={() => toggleFavorite(currentPath)}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-all duration-200 hover:bg-white/[0.08] active:scale-90"
+                aria-label="Pin setting"
+              >
+                <Star
+                  className={`h-5 w-5 transition-all duration-200 ${
+                    isFavorite
+                      ? "fill-amber-300 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.35)]"
+                      : "text-slate-400"
+                  }`}
+                />
+              </button>
+            ) : null}
           </div>
-          {slug.length ? (
-            <button
-              type="button"
-              onClick={() => toggleFavorite(currentPath)}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-all duration-200 hover:bg-white/[0.08] active:scale-90"
-              aria-label="Pin setting"
-            >
-              <Star
-                className={`h-5 w-5 transition-all duration-200 ${
-                  isFavorite
-                    ? "fill-amber-300 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.35)]"
-                    : "text-slate-400"
-                }`}
-              />
-            </button>
+
+          {/* Breadcrumbs + Search */}
+          {(crumbs.length || !isFocusedPasswordPage) ? (
+            <div className="mt-2.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              {crumbs.length ? (
+                <nav className="flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto text-xs text-slate-400">
+                  <Link
+                    href={basePath}
+                    className="shrink-0 whitespace-nowrap transition-colors hover:text-emerald-300"
+                  >
+                    Settings
+                  </Link>
+                  {crumbs.map((crumb) => (
+                    <span
+                      key={crumb.path.join("/")}
+                      className="flex shrink-0 items-center gap-1.5"
+                    >
+                      <span className="text-slate-600">/</span>
+                      <Link
+                        href={hrefFor(basePath, crumb.path)}
+                        className="whitespace-nowrap transition-colors hover:text-emerald-300"
+                      >
+                        {crumb.title}
+                      </Link>
+                    </span>
+                  ))}
+                </nav>
+              ) : null}
+              {!isFocusedPasswordPage ? (
+                <div className="relative w-full sm:max-w-md sm:shrink-0">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    ref={searchRef}
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search settings..."
+                    className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] pl-10 pr-4 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-500 focus:border-emerald-400/40 focus:bg-white/[0.06] focus:shadow-[0_0_20px_rgba(52,211,153,0.08)]"
+                  />
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
-
-        {/* Breadcrumbs */}
-        {crumbs.length ? (
-          <nav className="mt-2.5 flex flex-wrap items-center gap-1.5 overflow-x-auto text-xs text-slate-400">
-            <Link
-              href={basePath}
-              className="whitespace-nowrap transition-colors hover:text-emerald-300"
-            >
-              Settings
-            </Link>
-            {crumbs.map((crumb) => (
-              <span
-                key={crumb.path.join("/")}
-                className="flex items-center gap-1.5"
-              >
-                <span className="text-slate-600">/</span>
-                <Link
-                  href={hrefFor(basePath, crumb.path)}
-                  className="whitespace-nowrap transition-colors hover:text-emerald-300"
-                >
-                  {crumb.title}
-                </Link>
-              </span>
-            ))}
-          </nav>
-        ) : null}
-
-        {/* Search */}
-        {!isFocusedPasswordPage ? (
-          <div className="relative mt-3">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search settings..."
-              className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] pl-10 pr-4 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-500 focus:border-emerald-400/40 focus:bg-white/[0.06] focus:shadow-[0_0_20px_rgba(52,211,153,0.08)]"
-            />
-          </div>
-        ) : null}
       </header>
 
-      {/* Content */}
-      <div className="space-y-4 sm:space-y-5">
-        {/* Search Results */}
-        {activeQuery ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <SettingsSection title="Search Results">
-              {searchResults.length ? (
-                searchResults.map(({ node, path }, idx) => (
+      {/* Scrollable content */}
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-6">
+        <div className="mx-auto max-w-4xl py-4 sm:py-6">
+          <div className="space-y-4 sm:space-y-5">
+            {/* Search Results */}
+            {activeQuery ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <SettingsSection title="Search Results">
+                  {searchResults.length ? (
+                    searchResults.map(({ node, path }, idx) => (
+                      <motion.div
+                        key={path.join("/")}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.3,
+                          delay: idx * 0.04,
+                          ease: "easeOut",
+                        }}
+                      >
+                        <SettingsCategory
+                          node={node}
+                          href={hrefFor(basePath, path)}
+                          index={idx}
+                        />
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-8 text-center text-sm text-slate-400">
+                      No settings found.
+                    </div>
+                  )}
+                </SettingsSection>
+              </motion.div>
+            ) : null}
+
+            {/* Home view */}
+            {!slug.length && !activeQuery ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4 sm:space-y-5"
+              >
+                {favorites.length ? (
                   <motion.div
-                    key={path.join("/")}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                  >
+                    <SettingsSection title="Pinned Settings">
+                      {favorites.map((path) => {
+                        const parts = path.split("/").filter(Boolean);
+                        const favNode = findSetting(parts, tree);
+                        return favNode ? (
+                          <SettingsCategory
+                            key={path}
+                            node={favNode}
+                            href={hrefFor(basePath, parts)}
+                            favorite
+                            onToggleFavorite={() => toggleFavorite(path)}
+                          />
+                        ) : null;
+                      })}
+                    </SettingsSection>
+                  </motion.div>
+                ) : null}
+
+                {recentDetails.length ? (
+                  <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{
-                      duration: 0.3,
-                      delay: idx * 0.04,
+                      duration: 0.35,
                       ease: "easeOut",
+                      delay: 0.05,
                     }}
                   >
-                    <SettingsCategory
-                      node={node}
-                      href={hrefFor(basePath, path)}
-                      index={idx}
-                    />
+                    <SettingsSection
+                      title="Recently Changed"
+                      action={
+                        recentDetails.length > 4 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRecentExpanded((current) => !current)
+                            }
+                            className="flex items-center gap-1 text-xs font-medium text-emerald-300/80 transition-colors hover:text-emerald-200"
+                          >
+                            {recentExpanded
+                              ? "Show less"
+                              : `Show all ${recentDetails.length}`}
+                            {recentExpanded ? (
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        ) : null
+                      }
+                    >
+                      {visibleRecentDetails.map((item) => (
+                        <Link
+                          key={item.key}
+                          href={item.href}
+                          className="flex min-h-[52px] items-center gap-3 px-4 py-3 text-sm text-slate-300 transition-all duration-200 hover:bg-white/[0.06] active:scale-[0.99] sm:px-5"
+                        >
+                          <Clock className="h-4 w-4 shrink-0 text-slate-500" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium text-slate-100">
+                              {item.title}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-slate-400">
+                              {item.description}
+                            </span>
+                          </span>
+                        </Link>
+                      ))}
+                    </SettingsSection>
                   </motion.div>
-                ))
-              ) : (
-                <div className="px-4 py-8 text-center text-sm text-slate-400">
-                  No settings found.
-                </div>
-              )}
-            </SettingsSection>
-          </motion.div>
-        ) : null}
+                ) : null}
 
-        {/* Home view */}
-        {!slug.length && !activeQuery ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4 sm:space-y-5"
-          >
-            {favorites.length ? (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-              >
-                <SettingsSection title="Pinned Settings">
-                  {favorites.map((path) => {
-                    const parts = path.split("/").filter(Boolean);
-                    const favNode = findSetting(parts, tree);
-                    return favNode ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
+                >
+                  <SettingsSection title="Categories">
+                    {visibleHome.map((item, idx) => (
                       <SettingsCategory
-                        key={path}
-                        node={favNode}
-                        href={hrefFor(basePath, parts)}
-                        favorite
-                        onToggleFavorite={() => toggleFavorite(path)}
+                        key={item.id}
+                        node={item}
+                        href={hrefFor(basePath, [item.id])}
+                        status={categoryStatus(item, values)}
+                        index={idx}
                       />
-                    ) : null;
-                  })}
-                </SettingsSection>
+                    ))}
+                  </SettingsSection>
+                </motion.div>
               </motion.div>
             ) : null}
 
-            {recentDetails.length ? (
+            {/* Nested page view */}
+            {slug.length && !activeQuery ? (
               <motion.div
+                key={currentPath}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, ease: "easeOut", delay: 0.05 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="space-y-4 sm:space-y-5"
               >
-                <SettingsSection
-                  title="Recently Changed"
-                  action={
-                    recentDetails.length > 4 ? (
+                {children.length ? (
+                  <SettingsSection title="Options">
+                    {children.map((child, idx) => {
+                      const path = [...slug, child.id];
+                      const pathKey = fullPath(path);
+                      return (
+                        <SettingsCategory
+                          key={child.id}
+                          node={child}
+                          href={hrefFor(basePath, path)}
+                          favorite={favorites.includes(pathKey)}
+                          onToggleFavorite={() => toggleFavorite(pathKey)}
+                          index={idx}
+                        />
+                      );
+                    })}
+                  </SettingsSection>
+                ) : null}
+
+                {node?.componentKey &&
+                !(
+                  role === "customer" && node.componentKey === "notifications"
+                ) ? (
+                  <div className="px-2 sm:px-0">
+                    <DetailComponent keyName={node.componentKey} />
+                  </div>
+                ) : null}
+
+                {role === "customer" &&
+                slug[0] === "notifications" &&
+                slug[1] === "in-app" ? (
+                  <div className="px-2 sm:px-0">
+                    <CustomerSettingsClient userId={customerUserId || null} />
+                  </div>
+                ) : null}
+
+                {node?.controls?.length ? (
+                  <SettingsSection
+                    title="Configuration"
+                    action={
                       <button
                         type="button"
-                        onClick={() => setRecentExpanded((current) => !current)}
-                        className="flex items-center gap-1 text-xs font-medium text-emerald-300/80 transition-colors hover:text-emerald-200"
+                        onClick={resetNode}
+                        className="flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
                       >
-                        {recentExpanded
-                          ? "Show less"
-                          : `Show all ${recentDetails.length}`}
-                        {recentExpanded ? (
-                          <ChevronUp className="h-3.5 w-3.5" />
-                        ) : (
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        )}
+                        <RotateCcw className="h-3.5 w-3.5" /> Reset
                       </button>
-                    ) : null
-                  }
-                >
-                  {visibleRecentDetails.map((item) => (
-                    <Link
-                      key={item.key}
-                      href={item.href}
-                      className="flex min-h-[52px] items-center gap-3 px-4 py-3 text-sm text-slate-300 transition-all duration-200 hover:bg-white/[0.06] active:scale-[0.99] sm:px-5"
-                    >
-                      <Clock className="h-4 w-4 shrink-0 text-slate-500" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium text-slate-100">
-                          {item.title}
-                        </span>
-                        <span className="mt-0.5 block text-xs text-slate-400">
-                          {item.description}
-                        </span>
-                      </span>
-                    </Link>
-                  ))}
-                </SettingsSection>
+                    }
+                  >
+                    {node.controls.map((control) => (
+                      <SettingControlRow
+                        key={control.key}
+                        control={control}
+                        value={values[control.key] ?? defaultValue(control)}
+                        changed={Object.prototype.hasOwnProperty.call(
+                          values,
+                          control.key,
+                        )}
+                        onChange={(value) => recordChange(control.key, value)}
+                        onAction={runAction}
+                      />
+                    ))}
+                  </SettingsSection>
+                ) : null}
+
+                {actionOutput ? (
+                  <SettingsSection title="Result">
+                    <div className="px-4 py-4 text-sm text-slate-300 sm:px-5">
+                      <div className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        {actionOutput}
+                      </div>
+                    </div>
+                  </SettingsSection>
+                ) : null}
               </motion.div>
             ) : null}
-
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
-            >
-              <SettingsSection title="Categories">
-                {visibleHome.map((item, idx) => (
-                  <SettingsCategory
-                    key={item.id}
-                    node={item}
-                    href={hrefFor(basePath, [item.id])}
-                    status={categoryStatus(item, values)}
-                    index={idx}
-                  />
-                ))}
-              </SettingsSection>
-            </motion.div>
-          </motion.div>
-        ) : null}
-
-        {/* Nested page view */}
-        {slug.length && !activeQuery ? (
-          <motion.div
-            key={currentPath}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="space-y-4 sm:space-y-5"
-          >
-            {children.length ? (
-              <SettingsSection title="Options">
-                {children.map((child, idx) => {
-                  const path = [...slug, child.id];
-                  const pathKey = fullPath(path);
-                  return (
-                    <SettingsCategory
-                      key={child.id}
-                      node={child}
-                      href={hrefFor(basePath, path)}
-                      favorite={favorites.includes(pathKey)}
-                      onToggleFavorite={() => toggleFavorite(pathKey)}
-                      index={idx}
-                    />
-                  );
-                })}
-              </SettingsSection>
-            ) : null}
-
-            {node?.componentKey &&
-            !(role === "customer" && node.componentKey === "notifications") ? (
-              <div className="px-2 sm:px-0">
-                <DetailComponent keyName={node.componentKey} />
-              </div>
-            ) : null}
-
-            {role === "customer" &&
-            slug[0] === "notifications" &&
-            slug[1] === "in-app" ? (
-              <div className="px-2 sm:px-0">
-                <CustomerSettingsClient userId={customerUserId || null} />
-              </div>
-            ) : null}
-
-            {node?.controls?.length ? (
-              <SettingsSection
-                title="Configuration"
-                action={
-                  <button
-                    type="button"
-                    onClick={resetNode}
-                    className="flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-white"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" /> Reset
-                  </button>
-                }
-              >
-                {node.controls.map((control) => (
-                  <SettingControlRow
-                    key={control.key}
-                    control={control}
-                    value={values[control.key] ?? defaultValue(control)}
-                    changed={Object.prototype.hasOwnProperty.call(
-                      values,
-                      control.key,
-                    )}
-                    onChange={(value) => recordChange(control.key, value)}
-                    onAction={runAction}
-                  />
-                ))}
-              </SettingsSection>
-            ) : null}
-
-            {actionOutput ? (
-              <SettingsSection title="Result">
-                <div className="px-4 py-4 text-sm text-slate-300 sm:px-5">
-                  <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    {actionOutput}
-                  </div>
-                </div>
-              </SettingsSection>
-            ) : null}
-          </motion.div>
-        ) : null}
+          </div>
+        </div>
       </div>
 
       <input
@@ -925,6 +941,6 @@ export default function SettingsBrowser({
 
       {/* Safe area bottom spacer */}
       <div className="h-[env(safe-area-inset-bottom,0px)]" />
-    </main>
+    </div>
   );
 }

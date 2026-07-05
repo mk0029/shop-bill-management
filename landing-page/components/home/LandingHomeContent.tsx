@@ -260,13 +260,18 @@ export default function LandingHomeContent({
   }, []);
 
   useEffect(() => {
+    const body = document.body;
+    const html = document.documentElement;
     if (showWelcome) {
-      document.body.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      html.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = "";
+      body.style.overflow = "";
+      html.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = "";
+      body.style.overflow = "";
+      html.style.overflow = "";
     };
   }, [showWelcome]);
 
