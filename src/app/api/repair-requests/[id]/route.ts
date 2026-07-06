@@ -195,6 +195,10 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: "Repair request not found" }, { status: 404 });
   }
 
+  if (request.status === "rejected") {
+    return NextResponse.json({ success: false, error: "Cannot modify a rejected request" }, { status: 400 });
+  }
+
   const now = new Date().toISOString();
   const actorName = safeUserName(
     String((auth.user as { name?: string } | null)?.name || ""),

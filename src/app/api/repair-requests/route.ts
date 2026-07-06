@@ -56,12 +56,12 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const status = String(url.searchParams.get("status") || "").trim();
+  const statusParam = String(url.searchParams.get("status") || "").trim();
+  const statuses = statusParam ? statusParam.split(",").map(s => s.trim()).filter(Boolean) : [];
   const customerId = String(url.searchParams.get("customerId") || "").trim();
-  const params = {
+  const params: Record<string, unknown> = {
     authUserId: auth.userId,
     authCustomerCode: auth.customerId,
-    status,
     customerId,
   };
 
@@ -75,8 +75,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
   }
 
+  const statusClause = statuses.length === 1
+    ? "status == $status"
+    : statuses.length > 1
+      ? "status in $statuses"
+      : "";
+  if (statuses.length === 1) params.status = statuses[0];
+  if (statuses.length > 1) params.statuses = statuses;
+
   const extra = [
-    status ? `status == $status` : "",
+    statusClause,
     canManage(auth.role) && customerId ? `customer._ref == $customerId` : "",
   ].filter(Boolean).join(" && ");
 

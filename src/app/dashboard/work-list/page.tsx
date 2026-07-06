@@ -15,12 +15,12 @@ export default async function DashboardWorkListPage() {
   }
 
   return (
-    <div className="relative isolate min-h-[var(--app-vh,100dvh)] overflow-x-hidden bg-gray-950">
+    <div className="relative isolate h-[var(--app-vh,100dvh)] overflow-hidden flex flex-col bg-gray-950">
       <AppBackground variant="admin" />
       <AdminViewportHeight />
       <Navigation />
-      <main className="admin-main relative z-10 pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-1.5">
-        <div className="py-1 sm:p-2 xl:p-6 max-w-7xl mx-auto">
+      <main className="admin-main relative z-10 flex-1 min-h-0 overflow-hidden pt-3 backdrop-blur-[1.5px] xl:pt-10 max-md:px-3 max-sm:px-1.5">
+        <div className="flex flex-col min-h-0 h-full py-1 sm:p-2 xl:p-6 max-w-7xl mx-auto">
           <UnifiedWorkClient />
         </div>
       </main>

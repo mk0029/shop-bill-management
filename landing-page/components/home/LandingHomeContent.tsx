@@ -12,6 +12,7 @@ import {
 import ElectricalBackground from "@landing/components/shared/ElectricalBackground";
 import { RequestAccountForm } from "@landing/components/forms/request-account-form";
 import { LandingShopSections } from "@/components/shop/LandingShopSections";
+import { ResponsiveCarousel } from "@/components/ui/carousel";
 import {
   faqs,
   pricingHighlights,
@@ -311,10 +312,16 @@ export default function LandingHomeContent({
                 copy={t("services.copy")}
               />
             </ScrollRevealSection>
-            <div className="mt-6 md:mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {services.slice(0, 6).map((item, index) => (
-                <ScrollRevealSection key={item.slug}>
-                  <PremiumCard>
+            <div className="mt-6 md:mt-10">
+              <ResponsiveCarousel
+                itemsPerView={{ base: 1, sm: 2, md: 3 }}
+                gap={20}
+                showArrows
+                showDots
+                infinite
+              >
+                {services.slice(0, 6).map((item, index) => (
+                  <PremiumCard key={item.slug}>
                     <div className="flex items-start gap-4 mb-4 max-sm:flex-col max-sm:items-center max-sm:text-center">
                       <IconBox
                         variant={
@@ -365,8 +372,8 @@ export default function LandingHomeContent({
                       </Link>
                     </div>
                   </PremiumCard>
-                </ScrollRevealSection>
-              ))}
+                ))}
+              </ResponsiveCarousel>
             </div>
           </section>
 

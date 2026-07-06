@@ -104,8 +104,8 @@ export function BaseGlassModal({
               "bg-transparent border border-white/[0.12]",
               "shadow-[0_8px_40px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)_inset,0_1px_0_rgba(255,255,255,0.1)_inset]",
               mobileType === "bottom-sheet"
-                ? "sm:rounded-[22px] sm:mx-4 max-h-[100dvh] sm:max-h-[90dvh]"
-                : "rounded-[10px] sm:mx-4 max-md:max-h-[100dvh] max-h-[90dvh]",
+                ? "sm:rounded-[22px] sm:mx-4 max-h-[100dvh] sm:max-h-[90dvh] h-full"
+                : "rounded-[10px] sm:mx-4 max-h-[100dvh] sm:max-h-[90dvh] h-full",
               sizeClasses[size],
               className,
             )}

@@ -16,6 +16,7 @@ import {
   type ShopCategory,
 } from "@/lib/shop-queries";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ResponsiveCarousel } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 
 function shuffle<T>(arr: T[]): T[] {
@@ -58,52 +59,45 @@ const iconMap: Record<string, string> = {
   speaker: "speaker",
 };
 
-function ShopCategoryCard({ category, index }: { category: ShopCategory; index: number }) {
+function ShopCategoryCard({ category }: { category: ShopCategory }) {
   const imageUrl = category.image ? getSanityImageUrl(category.image) : null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.5, delay: index * 0.08 }}
+    <Link
+      href={`/shop-items/${category.slug.current}`}
+      className="group block h-full"
     >
-      <Link
-        href={`/shop-items/${category.slug.current}`}
-        className="group block"
-      >
-        <div className="glass-card relative h-full overflow-hidden p-5 transition-all duration-500 hover:-translate-y-1">
-          {imageUrl && (
-            <div className="absolute inset-0 opacity-10 transition-opacity duration-500 group-hover:opacity-20">
-              <img
-                src={imageUrl}
-                alt={category.name}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            </div>
+      <div className="glass-card relative h-full overflow-hidden p-5 transition-all duration-500 hover:-translate-y-1">
+        {imageUrl && (
+          <div className="absolute inset-0 opacity-10 transition-opacity duration-500 group-hover:opacity-20">
+            <img
+              src={imageUrl}
+              alt={category.name}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
+        <div className="relative z-10">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 ring-1 ring-white/5 transition-all duration-500 group-hover:from-sky-500/30 group-hover:to-violet-500/20 group-hover:ring-sky-400/20">
+            <Bolt className="h-5 w-5 text-sky-400 transition-transform duration-500 group-hover:scale-110" />
+          </div>
+          <h3 className="text-base font-semibold text-white transition-colors duration-300 group-hover:text-sky-300">
+            {category.name}
+          </h3>
+          {category.description && (
+            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-400">
+              {category.description}
+            </p>
           )}
-          <div className="relative z-10">
-            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500/20 to-violet-500/10 ring-1 ring-white/5 transition-all duration-500 group-hover:from-sky-500/30 group-hover:to-violet-500/20 group-hover:ring-sky-400/20">
-              <Bolt className="h-5 w-5 text-sky-400 transition-transform duration-500 group-hover:scale-110" />
-            </div>
-            <h3 className="text-base font-semibold text-white transition-colors duration-300 group-hover:text-sky-300">
-              {category.name}
-            </h3>
-            {category.description && (
-              <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-400">
-                {category.description}
-              </p>
-            )}
-            <div className="mt-3 flex items-center gap-2 text-[11px] text-sky-400/60">
-              <span className="rounded-full border border-sky-400/15 bg-sky-400/5 px-2 py-0.5">
-                {category.productCount} items
-              </span>
-            </div>
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-sky-400/60">
+            <span className="rounded-full border border-sky-400/15 bg-sky-400/5 px-2 py-0.5">
+              {category.productCount} items
+            </span>
           </div>
         </div>
-      </Link>
-    </motion.div>
+      </div>
+    </Link>
   );
 }
 
@@ -182,11 +176,17 @@ export function LandingShopSections() {
                   ))}
                 </div>
               ) : (
-                <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  {group.map((cat, i) => (
-                    <ShopCategoryCard key={cat._id} category={cat} index={i} />
+                <ResponsiveCarousel
+                  itemsPerView={{ base: 1, sm: 2, md: 3, lg: 4 }}
+                  gap={16}
+                  showArrows
+                  showDots
+                  infinite
+                >
+                  {group.map((cat) => (
+                    <ShopCategoryCard key={cat._id} category={cat} />
                   ))}
-                </div>
+                </ResponsiveCarousel>
               )}
             </div>
           </section>
