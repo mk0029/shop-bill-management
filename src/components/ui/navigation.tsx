@@ -702,7 +702,7 @@ export function Navigation() {
         document.body,
       )}
 
-        <nav className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] flex-col overflow-hidden border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:flex">
+      <nav className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] flex-col overflow-hidden border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:flex">
         <div className="shrink-0 p-4 border-b border-gray-800">
           <div
             className={`flex items-center ${isDesktopNavMinimized ? "justify-center" : "gap-3"}`}
@@ -823,4 +823,3 @@ export function Navigation() {
     </>
   );
 }
-

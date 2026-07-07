@@ -73,6 +73,7 @@ export function CustomerStep({
               onInputChange("serviceType", value)
             }
             placeholder="Select service type"
+            removeSearchForce
           />
         </div>
         <div style={glassFieldsetStyle} className="p-3 sm:p-4 md:p-5">

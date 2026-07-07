@@ -426,6 +426,9 @@ export const useBillForm = () => {
         setSelectedItems([]);
         setDraftId(null);
         setIsDirty(false);
+        setIsLoading(false);
+        setShowAlertModal(false);
+        setAlertMessage("");
         return;
       }
 
@@ -514,6 +517,7 @@ export const useBillForm = () => {
         isMarkAsPaid: false,
         enablePartialPayment: false,
         partialPaymentAmount: 0,
+        offlineAutoUpload: !!offlineAutoUploadDefault,
       });
       setSelectedItems([]);
       setDraftId(null);
@@ -674,15 +678,19 @@ export const useBillForm = () => {
       notes: "",
       repairFee: Number(repairFeeDefault || 0),
       visitingCharges: Number(visitingChargesDefault || 0),
+      discount: 0,
       isMarkAsPaid: false,
       enablePartialPayment: false,
       partialPaymentAmount: 0,
+      offlineAutoUpload: !!offlineAutoUploadDefault,
     });
     setSelectedItems([]);
     setDraftId(null);
     setIsDirty(false);
     setIsLoading(false);
     setShowSuccessModal(false);
+    setShowAlertModal(false);
+    setAlertMessage("");
   };
 
   useEffect(() => {

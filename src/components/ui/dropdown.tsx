@@ -67,9 +67,11 @@ export function Dropdown({
   zIndex = 260,
 }: DropdownProps) {
   const idRef = React.useRef(getNextDropdownId());
-  const [menuState, setMenuState] = React.useState<"closed" | "open" | "closing">("closed");
+  const [menuState, setMenuState] = React.useState<
+    "closed" | "open" | "closing"
+  >("closed");
   const isOpen = menuState !== "closed";
-  const [isSearchAvialable, setIsSearch] = React.useState(false || searchable);
+  const [isSearchAvialable, setIsSearch] = React.useState(!!searchable);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [menuRect, setMenuRect] = React.useState<React.CSSProperties | null>(
     null,
@@ -79,7 +81,9 @@ export function Dropdown({
   const menuRef = React.useRef<HTMLDivElement>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const prevOverflowRef = React.useRef<string | null>(null);
-  const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const selectedOption = options.find((option) => option.value === value);
 
@@ -110,7 +114,8 @@ export function Dropdown({
       const target = e.target as Node;
       touchStartedInside =
         (dropdownRef.current?.contains(target) ||
-         menuRef.current?.contains(target)) ?? false;
+          menuRef.current?.contains(target)) ??
+        false;
     };
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -139,7 +144,9 @@ export function Dropdown({
       }
     };
 
-    document.addEventListener("touchstart", handleTouchStart, { passive: true });
+    document.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener(DROPDOWN_EVENT, handleDropdownOpen);
     return () => {
@@ -164,10 +171,9 @@ export function Dropdown({
     const gap = 6;
     const maxMenuHeight = Math.min(280, window.innerHeight - 24);
     const openAbove =
-      dropTop || (!dropTop && rect.bottom + maxMenuHeight + gap > window.innerHeight);
-    const left = dropLeft
-      ? rect.left
-      : Math.max(12, rect.right - minWidth);
+      dropTop ||
+      (!dropTop && rect.bottom + maxMenuHeight + gap > window.innerHeight);
+    const left = dropLeft ? rect.left : Math.max(12, rect.right - minWidth);
 
     setMenuRect({
       position: "fixed",
@@ -180,7 +186,9 @@ export function Dropdown({
       zIndex,
     });
     setMenuState("open");
-    document.dispatchEvent(new CustomEvent(DROPDOWN_EVENT, { detail: idRef.current }));
+    document.dispatchEvent(
+      new CustomEvent(DROPDOWN_EVENT, { detail: idRef.current }),
+    );
   }, [disabled, menuState, dropLeft, dropTop, minW]);
 
   // Lock body scroll when requested and menu is open
@@ -203,9 +211,9 @@ export function Dropdown({
       setIsSearch(false);
       return;
     } else {
-      setIsSearch(options.length > 5 || searchable);
+      setIsSearch(!!searchable);
     }
-  }, [options, removeSearchForce]);
+  }, [searchable, removeSearchForce]);
 
   // Focus search input when dropdown opens
   React.useEffect(() => {
@@ -221,16 +229,19 @@ export function Dropdown({
     if (menuState !== "open") return;
     const updateRect = (e?: Event) => {
       // Ignore scroll events from within the menu itself (e.g. scrolling the options list)
-      if (e && menuRef.current && (e.target as Node) !== document && menuRef.current.contains(e.target as Node)) {
+      if (
+        e &&
+        menuRef.current &&
+        (e.target as Node) !== document &&
+        menuRef.current.contains(e.target as Node)
+      ) {
         return;
       }
       if (!buttonRef.current) return;
       const rect = buttonRef.current.getBoundingClientRect();
       const mnw = minW ? Math.max(rect.width, 250) : rect.width;
       const gap = 6;
-      const leftPos = dropLeft
-        ? rect.left
-        : Math.max(12, rect.right - mnw);
+      const leftPos = dropLeft ? rect.left : Math.max(12, rect.right - mnw);
 
       setMenuRect((prev) =>
         prev
@@ -267,70 +278,70 @@ export function Dropdown({
   const isAnimatingOut = menuState === "closing";
 
   const menu = showMenu
-      ? createPortal(
-          <div
-            ref={menuRef}
-            style={menuRect}
-            className={cn(
-              "overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/92 pb-2 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl transition-all duration-150 overscroll-contain",
-              isAnimatingIn && "opacity-100 scale-100",
-              isAnimatingOut && "opacity-0 scale-95 pointer-events-none",
-              !isAnimatingIn && !isAnimatingOut && "opacity-0 scale-95",
-            )}
-          >
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.08)_1px,transparent_1px)] bg-[size:22px_22px] opacity-35" />
-            <div className="relative">
-              {isSearchAvialable && (
-                <div className="border-b border-white/10 p-1.5 sm:p-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-cyan-100/60" />
-                    <Input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder={searchPlaceholder}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8 max-sm:!py-1"
-                    />
-                  </div>
+    ? createPortal(
+        <div
+          ref={menuRef}
+          style={menuRect}
+          className={cn(
+            "overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-950/92 pb-2 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl transition-all duration-150 overscroll-contain",
+            isAnimatingIn && "opacity-100 scale-100",
+            isAnimatingOut && "opacity-0 scale-95 pointer-events-none",
+            !isAnimatingIn && !isAnimatingOut && "opacity-0 scale-95",
+          )}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.08)_1px,transparent_1px)] bg-[size:22px_22px] opacity-35" />
+          <div className="relative">
+            {isSearchAvialable && (
+              <div className="border-b border-white/10 p-1.5 sm:p-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-cyan-100/60" />
+                  <Input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder={searchPlaceholder}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="!pl-8 max-sm:!py-1"
+                  />
                 </div>
-              )}
-              <div className="max-h-56 overflow-auto p-1">
-                {filteredOptions.length === 0 ? (
-                  <div className="px-3 py-3 text-center text-sm text-slate-400">
-                    {searchTerm ? "No results found" : "No options available"}
-                  </div>
-                ) : (
-                  filteredOptions.map((option) => (
-                    <button
-                      type="button"
-                      key={option.value}
-                      onClick={() =>
-                        !option.disabled && handleSelect(option.value)
-                      }
-                      disabled={option.disabled}
-                      className={cn(
-                        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors duration-150 touch-manipulation",
-                        option.disabled
-                          ? "cursor-not-allowed text-slate-600"
-                          : "cursor-pointer text-slate-100 hover:bg-cyan-300/10 hover:text-white",
-                        option.value === value &&
-                          "bg-slate-700/85 text-white ring-1 ring-cyan-200/20",
-                      )}
-                    >
-                      <span className="min-w-0 truncate">{option.label}</span>
-                      {option.value === value && (
-                        <Check className="h-4 w-4 shrink-0 text-cyan-200" />
-                      )}
-                    </button>
-                  ))
-                )}
               </div>
+            )}
+            <div className="max-h-56 overflow-auto p-1">
+              {filteredOptions.length === 0 ? (
+                <div className="px-3 py-3 text-center text-sm text-slate-400">
+                  {searchTerm ? "No results found" : "No options available"}
+                </div>
+              ) : (
+                filteredOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={option.value}
+                    onClick={() =>
+                      !option.disabled && handleSelect(option.value)
+                    }
+                    disabled={option.disabled}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors duration-150 touch-manipulation",
+                      option.disabled
+                        ? "cursor-not-allowed text-slate-600"
+                        : "cursor-pointer text-slate-100 hover:bg-cyan-300/10 hover:text-white",
+                      option.value === value &&
+                        "bg-slate-700/85 text-white ring-1 ring-cyan-200/20",
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{option.label}</span>
+                    {option.value === value && (
+                      <Check className="h-4 w-4 shrink-0 text-cyan-200" />
+                    )}
+                  </button>
+                ))
+              )}
             </div>
-          </div>,
-          document.body,
-        )
-      : null;
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
 
   return (
     <div

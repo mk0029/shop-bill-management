@@ -87,15 +87,24 @@ export function AppDateTimePicker({
   maxTime,
 }: AppDateTimePickerProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [view, setView] = useState<"calendar" | "time">(mode === "time" ? "time" : "calendar");
-  const [navYear, setNavYear] = useState(toDate(value).getFullYear());
-  const [navMonth, setNavMonth] = useState(toDate(value).getMonth());
-  const [tempDate, setTempDate] = useState(toDate(value));
+  const [navYear, setNavYear] = useState<number | null>(null);
+  const [navMonth, setNavMonth] = useState<number | null>(null);
+  const [tempDate, setTempDate] = useState<Date | null>(null);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const hoursListRef = useRef<HTMLDivElement>(null);
   const minutesListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const initialDate = toDate(value);
+    setTempDate(initialDate);
+    setNavYear(initialDate.getFullYear());
+    setNavMonth(initialDate.getMonth());
+  }, [value]);
 
   const repositionPanel = useCallback(() => {
     if (!containerRef.current) return;
@@ -119,14 +128,14 @@ export function AppDateTimePicker({
   // Reset internal state and calculate position when picker opens
   useEffect(() => {
     if (open) {
-      const d = toDate(value);
+      const d = tempDate ?? toDate(value);
       setTempDate(d);
       setNavYear(d.getFullYear());
       setNavMonth(d.getMonth());
       setView(mode === "time" ? "time" : "calendar");
       repositionPanel();
     }
-  }, [open, value, mode, repositionPanel]);
+  }, [open, value, mode, repositionPanel, tempDate]);
 
   // Reposition on scroll/resize while open
   useEffect(() => {
@@ -159,18 +168,19 @@ export function AppDateTimePicker({
   useEffect(() => {
     if (view !== "time" || !open) return;
     requestAnimationFrame(() => {
+      const activeDate = tempDate ?? new Date(0);
       if (hoursListRef.current) {
-        const btn = hoursListRef.current.querySelector(`[data-hour="${tempDate.getHours()}"]`);
+        const btn = hoursListRef.current.querySelector(`[data-hour="${activeDate.getHours()}"]`);
         btn?.scrollIntoView({ block: "nearest" });
       }
       if (minutesListRef.current) {
-        const btn = minutesListRef.current.querySelector(`[data-minute="${Math.floor(tempDate.getMinutes() / 5) * 5}"]`);
+        const btn = minutesListRef.current.querySelector(`[data-minute="${Math.floor(activeDate.getMinutes() / 5) * 5}"]`);
         btn?.scrollIntoView({ block: "nearest" });
       }
     });
   }, [view, open, tempDate]);
 
-  const now = new Date();
+  const now = mounted ? new Date() : new Date(0);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const isDateDisabled = useCallback(
@@ -187,7 +197,8 @@ export function AppDateTimePicker({
     (h: number, m: number) => {
       if (!disablePastTime && !disablePastDates && !minTime && !maxTime) return false;
       const totalMinutes = h * 60 + m;
-      const shouldDisablePast = disablePastTime || (disablePastDates && isToday(tempDate));
+      const activeDate = tempDate ?? new Date(0);
+      const shouldDisablePast = disablePastTime || (disablePastDates && isToday(activeDate));
       if (shouldDisablePast) {
         const nowMin = now.getHours() * 60 + now.getMinutes();
         if (totalMinutes < nowMin) return true;
@@ -205,30 +216,33 @@ export function AppDateTimePicker({
     [disablePastTime, disablePastDates, minTime, maxTime, tempDate, now],
   );
 
+  const safeNavYear = navYear ?? 1970;
+  const safeNavMonth = navMonth ?? 0;
+
   const prevMonth = () => {
-    if (navMonth === 0) { setNavYear((y) => y - 1); setNavMonth(11); }
-    else setNavMonth((m) => m - 1);
+    if (safeNavMonth === 0) { setNavYear((y) => (y ?? 1970) - 1); setNavMonth(11); }
+    else setNavMonth((m) => (m ?? 0) - 1);
   };
 
   const nextMonth = () => {
-    if (navMonth === 11) { setNavYear((y) => y + 1); setNavMonth(0); }
-    else setNavMonth((m) => m + 1);
+    if (safeNavMonth === 11) { setNavYear((y) => (y ?? 1970) + 1); setNavMonth(0); }
+    else setNavMonth((m) => (m ?? 0) + 1);
   };
 
   const days = useMemo(() => {
-    const dim = daysInMonth(navYear, navMonth);
-    const first = new Date(navYear, navMonth, 1).getDay();
+    const dim = daysInMonth(safeNavYear, safeNavMonth);
+    const first = new Date(safeNavYear, safeNavMonth, 1).getDay();
     const result: (number | null)[] = [];
     for (let i = 0; i < first; i++) result.push(null);
     for (let i = 1; i <= dim; i++) result.push(i);
     return result;
-  }, [navYear, navMonth]);
+  }, [safeNavYear, safeNavMonth]);
 
   const selectDate = (day: number) => {
-    const d = new Date(navYear, navMonth, day);
+    const d = new Date(safeNavYear, safeNavMonth, day);
     if (isDateDisabled(d)) return;
-    const next = new Date(tempDate);
-    next.setFullYear(navYear, navMonth, day);
+    const next = new Date(tempDate ?? new Date(0));
+    next.setFullYear(safeNavYear, safeNavMonth, day);
     setTempDate(next);
     if (mode === "date") {
       onChange(toDateStr(next));
@@ -238,56 +252,60 @@ export function AppDateTimePicker({
     }
   };
 
-  const displayValue = value ? (() => {
+  const displayValue = useMemo(() => {
+    if (!value) return "";
     const d = new Date(value);
     if (isNaN(d.getTime())) return value;
+    if (!mounted) return value;
     if (mode === "date") return formatEnIN(d);
     return formatEnINWithTime(d);
-  })() : "";
+  }, [value, mounted, mode]);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
-
-  if (typeof window === "undefined") return null;
+  const portalContainer = typeof document !== "undefined" ? document.body : null;
+  const activeDate = tempDate ?? new Date(0);
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-              className={cn(
-                "flex h-[46px] w-full max-w-[340px] items-center gap-3 rounded-lg border bg-white/[0.04] px-4 text-sm shadow-inner shadow-white/[0.03] transition-all duration-200",
-          open
-            ? "border-cyan-400/40 bg-cyan-500/8"
-            : "border-white/[0.1] hover:border-white/20",
-          disabled && "pointer-events-none opacity-50",
-        )}
-      >
-        <div className={cn(
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-          open ? "bg-cyan-500/20 text-cyan-300" : "bg-white/[0.06] text-gray-400",
-        )}>
-          {mode === "time" ? <Clock className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}
-        </div>
-        <span className={cn(
-          "min-w-0 flex-1 text-left text-sm leading-none",
-          displayValue ? "text-white font-medium" : "text-gray-400",
-        )}>
-          {displayValue || placeholder || (mode === "time" ? "Select time" : "Select date")}
-        </span>
+      <div className="flex max-w-[340px] items-center gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen((v) => !v)}
+                className={cn(
+                  "flex h-[46px] flex-1 items-center gap-3 rounded-lg border bg-white/[0.04] px-4 text-sm shadow-inner shadow-white/[0.03] transition-all duration-200",
+            open
+              ? "border-cyan-400/40 bg-cyan-500/8"
+              : "border-white/[0.1] hover:border-white/20",
+            disabled && "pointer-events-none opacity-50",
+          )}
+        >
+          <div className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+            open ? "bg-cyan-500/20 text-cyan-300" : "bg-white/[0.06] text-gray-400",
+          )}>
+            {mode === "time" ? <Clock className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}
+          </div>
+          <span className={cn(
+            "min-w-0 flex-1 text-left text-sm leading-none",
+            displayValue ? "text-white font-medium" : "text-gray-400",
+          )}>
+            {displayValue || placeholder || (mode === "time" ? "Select time" : "Select date")}
+          </span>
+        </button>
         {displayValue && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onChange(""); setOpen(false); }}
-            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-gray-500 hover:bg-white/[0.12] hover:text-white transition"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-gray-500 transition hover:bg-white/[0.12] hover:text-white"
           >
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         )}
-      </button>
+      </div>
 
-      {createPortal(
+      {portalContainer ? createPortal(
         <AnimatePresence>
           {open && (
             <motion.div
@@ -312,7 +330,7 @@ export function AppDateTimePicker({
                           <ChevronLeft className="h-5 w-5" />
                         </button>
                         <span className="text-base font-semibold text-white/90">
-                          {MONTHS[navMonth]} {navYear}
+                          {MONTHS[safeNavMonth]} {safeNavYear}
                         </span>
                         <button type="button" onClick={nextMonth} className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 transition hover:bg-white/[0.08] hover:text-white">
                           <ChevronRight className="h-5 w-5" />
@@ -335,16 +353,16 @@ export function AppDateTimePicker({
                             <button
                               key={i}
                               type="button"
-                              disabled={isDateDisabled(new Date(navYear, navMonth, d))}
+                              disabled={isDateDisabled(new Date(safeNavYear, safeNavMonth, d))}
                               onClick={() => selectDate(d)}
                               className={cn(
                                 "relative mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-xl text-sm font-medium transition-all duration-150",
-                                isSameDay(tempDate, new Date(navYear, navMonth, d))
+                                isSameDay(activeDate, new Date(safeNavYear, safeNavMonth, d))
                                   ? "bg-gradient-to-br from-cyan-500 to-cyan-600 text-white shadow-lg shadow-cyan-500/25"
-                                  : isToday(new Date(navYear, navMonth, d))
+                                  : isToday(new Date(safeNavYear, safeNavMonth, d))
                                     ? "text-cyan-300 ring-1 ring-cyan-500/30"
                                     : "text-gray-300 hover:bg-white/[0.08] hover:text-white",
-                                isDateDisabled(new Date(navYear, navMonth, d)) &&
+                                isDateDisabled(new Date(safeNavYear, safeNavMonth, d)) &&
                                   "pointer-events-none opacity-25",
                               )}
                             >
@@ -377,7 +395,7 @@ export function AppDateTimePicker({
                             className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2 text-sm text-gray-300 transition hover:bg-white/[0.1]"
                           >
                             <CalendarDays className="h-4 w-4 text-cyan-400" />
-                            {formatEnIN(tempDate)}
+                            {formatEnIN(activeDate)}
                           </button>
                           <span className="text-xs text-gray-500">Select time</span>
                         </div>
@@ -392,8 +410,8 @@ export function AppDateTimePicker({
                             className="h-52 overflow-y-auto scroll-smooth rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
                           >
                             {hours.map((h) => {
-                              const disabled = isTimeDisabled(h, tempDate.getMinutes());
-                              const selected = tempDate.getHours() === h;
+                              const disabled = isTimeDisabled(h, activeDate.getMinutes());
+                              const selected = activeDate.getHours() === h;
                               return (
                                 <button
                                   key={h}
@@ -401,7 +419,7 @@ export function AppDateTimePicker({
                                   data-hour={h}
                                   disabled={disabled}
                                   onClick={() => {
-                                    const next = new Date(tempDate);
+                                    const next = new Date(activeDate);
                                     next.setHours(h);
                                     setTempDate(next);
                                   }}
@@ -429,8 +447,8 @@ export function AppDateTimePicker({
                             className="h-52 overflow-y-auto scroll-smooth rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
                           >
                             {minutes.map((m) => {
-                              const disabled = isTimeDisabled(tempDate.getHours(), m);
-                              const selected = tempDate.getMinutes() === m;
+                              const disabled = isTimeDisabled(activeDate.getHours(), m);
+                              const selected = activeDate.getMinutes() === m;
                               return (
                                 <button
                                   key={m}
@@ -438,7 +456,7 @@ export function AppDateTimePicker({
                                   data-minute={m}
                                   disabled={disabled}
                                   onClick={() => {
-                                    const next = new Date(tempDate);
+                                    const next = new Date(activeDate);
                                     next.setMinutes(m);
                                     setTempDate(next);
                                   }}
@@ -464,7 +482,7 @@ export function AppDateTimePicker({
                           type="button"
                           className="w-full gap-2"
                           onClick={() => {
-                            onChange(tempDate.toISOString());
+                            onChange(activeDate.toISOString());
                             setOpen(false);
                           }}
                         >
@@ -488,8 +506,8 @@ export function AppDateTimePicker({
                         className="h-56 overflow-y-auto scroll-smooth rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
                       >
                         {hours.map((h) => {
-                          const disabled = isTimeDisabled(h, tempDate.getMinutes());
-                          const selected = tempDate.getHours() === h;
+                          const disabled = isTimeDisabled(h, activeDate.getMinutes());
+                          const selected = activeDate.getHours() === h;
                           return (
                             <button
                               key={h}
@@ -497,7 +515,7 @@ export function AppDateTimePicker({
                               data-hour={h}
                               disabled={disabled}
                               onClick={() => {
-                                const next = new Date(tempDate);
+                                const next = new Date(activeDate);
                                 next.setHours(h);
                                 setTempDate(next);
                               }}
@@ -523,8 +541,8 @@ export function AppDateTimePicker({
                         className="h-56 overflow-y-auto scroll-smooth rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
                       >
                         {minutes.map((m) => {
-                          const disabled = isTimeDisabled(tempDate.getHours(), m);
-                          const selected = tempDate.getMinutes() === m;
+                          const disabled = isTimeDisabled(activeDate.getHours(), m);
+                          const selected = activeDate.getMinutes() === m;
                           return (
                             <button
                               key={m}
@@ -532,7 +550,7 @@ export function AppDateTimePicker({
                               data-minute={m}
                               disabled={disabled}
                               onClick={() => {
-                                const next = new Date(tempDate);
+                                const next = new Date(activeDate);
                                 next.setMinutes(m);
                                 setTempDate(next);
                               }}
@@ -557,7 +575,7 @@ export function AppDateTimePicker({
                       type="button"
                       className="w-full gap-2"
                       onClick={() => {
-                        onChange(toTimeStr(tempDate));
+                        onChange(toTimeStr(activeDate));
                         setOpen(false);
                       }}
                     >
@@ -570,8 +588,8 @@ export function AppDateTimePicker({
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
-      )}
+        portalContainer,
+      ) : null}
     </div>
   );
 }

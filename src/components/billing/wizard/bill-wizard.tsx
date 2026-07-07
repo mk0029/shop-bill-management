@@ -47,6 +47,7 @@ interface BillWizardProps {
   savingDraft: boolean;
   isDirty: boolean;
   autocompleteResetKey: number;
+  resetKey?: number;
   selectedCustomer: any;
   enableRewinding: boolean;
   enableFitting: boolean;
@@ -108,12 +109,24 @@ export function BillWizard({
   saveDraft,
   onBack,
   onSetActiveSection,
+  resetKey,
 }: BillWizardProps) {
   const [step, setStep] = useState(0);
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [manualItemModalOpen, setManualItemModalOpen] = useState(false);
   const [showFloatingSummary, setShowFloatingSummary] = useState(false);
   const wizardRef = useRef<HTMLFormElement>(null);
+  const prevResetKeyRef = useRef(resetKey);
+
+  useEffect(() => {
+    if (resetKey !== undefined && resetKey !== prevResetKeyRef.current) {
+      setStep(0);
+      setItemModalOpen(false);
+      setManualItemModalOpen(false);
+      setManualItem({ productName: "", quantity: 1, unitPrice: 0, specifications: "", category: "", brand: "", unit: "pcs" });
+      prevResetKeyRef.current = resetKey;
+    }
+  }, [resetKey]);
 
   const [manualItem, setManualItem] = useState({
     productName: "",
@@ -194,14 +207,14 @@ export function BillWizard({
 
           {/* Wizard Header */}
           <div
-            className="create-bill-modal-header relative z-10 flex min-h-16 items-center gap-3 border-b px-4 py-3 sm:px-6"
+            className="create-bill-modal-header relative z-10 flex min-h-12 items-center gap-2 border-b px-3 py-2 sm:min-h-16 sm:gap-3 sm:px-6 sm:py-3"
             style={{ borderColor: "rgba(255,255,255,0.06)" }}
           >
-            <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={onBack}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all sm:h-10 sm:w-10"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all sm:h-10 sm:w-10"
                 style={{
                   background: "rgba(255,255,255,0.06)",
                   border: "1px solid rgba(255,255,255,0.08)",
@@ -212,11 +225,11 @@ export function BillWizard({
               </button>
 
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-base font-bold tracking-tight text-white sm:text-lg">
+                <h2 className="hidden sm:block truncate text-base font-bold tracking-tight text-white sm:text-lg">
                   Create New Bill
                 </h2>
                 <p
-                  className="mt-1 truncate text-[11px] sm:text-xs"
+                  className="truncate text-[11px] sm:text-xs"
                   style={{ color: "rgba(148,163,184,0.62)" }}
                 >
                   Step {step + 1} of {STEPS.length} &mdash; {currentStep.title}
@@ -228,7 +241,7 @@ export function BillWizard({
               type="button"
               onClick={saveDraft}
               disabled={savingDraft}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 sm:text-sm xl:text-base font-medium transition-all text-xs"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-1 sm:px-2.5 sm:py-1.5 sm:text-sm xl:text-base font-medium transition-all text-xs"
               style={{
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid rgba(255,255,255,0.08)",
@@ -242,7 +255,7 @@ export function BillWizard({
 
           {/* Step progress bar */}
           <div
-            className="create-bill-progress relative z-10 border-b px-4 max-sm:pl-10 py-2 sm:py-3 md:px-6"
+            className="create-bill-progress relative z-10 border-b px-3 max-sm:pl-9 py-1.5 sm:py-3 md:px-6"
             style={{ borderColor: "rgba(255,255,255,0.06)" }}
           >
             <div className="flex items-center gap-0.5 overflow-x-auto overflow-y-hidden sm:gap-1">
@@ -254,7 +267,7 @@ export function BillWizard({
                     className="flex min-w-0 shrink-0 items-center gap-1 md:gap-2"
                   >
                     <div
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-medium transition-all duration-300 sm:h-6 sm:w-6 text-xs md:text-sm xl:text-base"
+                      className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full font-medium transition-all duration-300 sm:h-6 sm:w-6 text-[10px] sm:text-xs md:text-sm xl:text-base"
                       style={{
                         background:
                           step >= i
@@ -268,13 +281,13 @@ export function BillWizard({
                       }}
                     >
                       {step > i ? (
-                        <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                        <CheckCircle className="h-2 w-2 sm:h-3 sm:w-3" />
                       ) : (
                         s.num
                       )}
                     </div>
                     <span
-                      className="hidden truncate text-xs sm:text-sm xl:text-base font-medium sm:inline"
+                      className="hidden sm:inline truncate text-xs sm:text-sm xl:text-base font-medium"
                       style={{
                         color:
                           step === i

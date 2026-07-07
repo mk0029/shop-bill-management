@@ -20,6 +20,7 @@ export default function CreateBillPage() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [customerAutocompleteResetKey, setCustomerAutocompleteResetKey] =
     useState(0);
+  const [billCreationResetKey, setBillCreationResetKey] = useState(0);
 
   const confirmSaveDraftAndExit = async () => {
     await saveDraft();
@@ -75,6 +76,7 @@ export default function CreateBillPage() {
   const handleCreateAnotherBill = () => {
     handleCreateAnotherBillBase();
     setCustomerAutocompleteResetKey((prev) => prev + 1);
+    setBillCreationResetKey((prev) => prev + 1);
   };
 
   const selectedCustomer = customers.find((c) => c._id === formData.customerId);
@@ -146,6 +148,7 @@ export default function CreateBillPage() {
           savingDraft={savingDraft}
           isDirty={isDirty}
           autocompleteResetKey={customerAutocompleteResetKey}
+          resetKey={billCreationResetKey}
           selectedCustomer={selectedCustomer}
           enableRewinding={false}
           enableFitting={false}

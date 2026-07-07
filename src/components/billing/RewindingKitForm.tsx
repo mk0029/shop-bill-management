@@ -149,7 +149,6 @@ function SingleRewindingForm({
               value={formData.selectedStarterId}
               onValueChange={(v) => handleSelectChange("selectedStarterId", v)}
               placeholder="Select starter"
-              searchable
             />
           </div>
         </div>
