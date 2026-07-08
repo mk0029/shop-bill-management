@@ -7,11 +7,18 @@ import {
   billCreatedAdminNotification,
   billCreatedCustomerNotification,
 } from '@/lib/notifications/templates'
+import { getServerAuth } from '@/lib/server-auth'
+import { isAdminLike } from '@/lib/rbac'
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getServerAuth()
+    if (!auth.isAuthenticated || !isAdminLike(auth.role)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json().catch(() => ({}))
-    const actorUserId = (String(body?.actorUserId || '')).trim()
+    const actorUserId = (String(body?.actorUserId || auth.userId || '')).trim()
     if (!actorUserId) {
       return NextResponse.json({ success: false, error: 'Missing actorUserId' }, { status: 400 })
     }
@@ -42,7 +49,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // bill is expected to already contain proper Sanity references
     const created = await sanityClient.create({
       ...(bill as any),
       _type: 'bill',
@@ -59,7 +65,6 @@ export async function POST(req: NextRequest) {
       return ''
     })()
 
-    // Fire-and-forget WhatsApp event (non-blocking)
     void (async () => {
       try {
         const user = customerId
@@ -83,16 +88,13 @@ export async function POST(req: NextRequest) {
         console.error('[WA] billing.created event failed', e)
       }
     })()
-    // Emit realtime event through Sanity's listen system
+
     try {
       await sanityClient.patch(String((created as any)._id)).set({ updatedAt: new Date().toISOString() }).commit()
       console.log('[BillCreate] Triggered realtime sync for bill:', (created as any)._id)
     } catch {}
 
     try {
-      // Split notifications:
-      // - Admins: store as audience=admins (admins list depends on audience)
-      // - Customer: store as audience=users (direct)
       const billId = String((created as any)?.billNumber || (created as any)?._id || '')
       const adminRoute = `/admin/billing?open=${encodeURIComponent(String(billId || ''))}`
       const customerName = await (async () => {

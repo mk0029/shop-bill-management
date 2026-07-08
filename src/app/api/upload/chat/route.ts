@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { getServerAuth } from "@/lib/server-auth";
+import { isAdminLike } from "@/lib/rbac";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -12,14 +14,19 @@ function getAdminClient() {
   });
 }
 
-const ALLOWED_TYPES = [
+const ALLOWED_TYPES = new Set([
   "image/jpeg", "image/png", "image/gif", "image/webp", "image/avif",
   "video/mp4", "video/webm", "video/quicktime",
   "audio/mpeg", "audio/webm", "audio/ogg", "audio/wav", "audio/mp4",
   "application/pdf", "application/zip", "text/plain", "text/csv",
   "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-];
+]);
+
+const EXECUTABLE_EXTENSIONS = new Set([
+  ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".ps1", ".sh",
+  ".bash", ".dll", ".sys", ".vbs", ".js", ".jar", ".wasm",
+]);
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const BUCKET = "chat-media";
@@ -42,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const baseType = file.type.split(";")[0].trim();
-    if (!ALLOWED_TYPES.includes(baseType) && !baseType.startsWith("image/")) {
+    if (!ALLOWED_TYPES.has(baseType) && !baseType.startsWith("image/")) {
       return NextResponse.json({ error: `File type ${file.type} not supported` }, { status: 400 });
     }
 
@@ -50,9 +57,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File exceeds 25MB limit" }, { status: 400 });
     }
 
+    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+    if (EXECUTABLE_EXTENSIONS.has(ext)) {
+      return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
+    }
+
     const timestamp = Date.now();
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const filePath = `${roomId}/${messageId}/${timestamp}-${safeName}`;
+    const safeRoomId = roomId.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeMessageId = messageId.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const filePath = `${safeRoomId}/${safeMessageId}/${timestamp}-${safeName}`;
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -70,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     const { data: signedUrl } = await admin.storage
       .from(BUCKET)
-      .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10); // 10 years
+      .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
     const mediaUrl = signedUrl?.signedUrl || admin.storage.from(BUCKET).getPublicUrl(filePath).data.publicUrl;
 
     let imgWidth: number | undefined;
@@ -95,7 +109,6 @@ export async function POST(request: NextRequest) {
       uploadedAt: new Date().toISOString(),
     };
 
-    // Track upload in database
     await admin.from("uploads").insert({
       file_path: filePath,
       bucket: BUCKET,

@@ -1,48 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
 import { notificationService } from '@/lib/notification-service'
-
-function getActorUserIdFromAuthCookie(req: NextRequest): string {
-  try {
-    const raw = req.cookies.get('auth-storage')?.value
-    if (!raw) return ''
-
-    let decoded = raw
-    try {
-      decoded = decodeURIComponent(raw)
-    } catch {
-      decoded = raw
-    }
-
-    const parsedUnknown: unknown = (() => {
-      try {
-        return JSON.parse(decoded)
-      } catch {
-        return null
-      }
-    })()
-
-    const parsed =
-      typeof parsedUnknown === 'object' && parsedUnknown !== null
-        ? (parsedUnknown as { state?: { user?: any } })
-        : undefined
-
-    const user = parsed?.state?.user as any
-    return String((user?.id as string) || (user?._id as string) || '').trim()
-  } catch {
-    return ''
-  }
-}
+import { getServerAuth } from '@/lib/server-auth'
+import { isAdminLike } from '@/lib/rbac'
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getServerAuth()
+    if (!auth.isAuthenticated || !isAdminLike(auth.role)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json().catch(() => ({}))
 
     const actorUserId = (
-      String(body?.actorUserId || req.headers.get('x-user-id') || getActorUserIdFromAuthCookie(req) || '')
+      String(body?.actorUserId || auth.userId || '')
     ).trim()
     if (!actorUserId) {
-      return NextResponse.json({ success: false, error: 'Missing actorUserId (x-user-id header)' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Missing actorUserId' }, { status: 400 })
     }
 
     const entryData = body?.entry

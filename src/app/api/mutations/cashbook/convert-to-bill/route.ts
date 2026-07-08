@@ -1,188 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
-import { emitWaEventServer } from '@/lib/wa-bot-server'
-import { safeUserName } from '@/lib/display-text'
-import { getActiveAdminUserIds, createAndDispatchNotification } from '@/services/notifications/notification-events.server'
-import {
-  billCreatedAdminNotification,
-  billCreatedCustomerNotification,
-} from '@/lib/notifications/templates'
+import { notificationService } from '@/lib/notification-service'
+import { getServerAuth } from '@/lib/server-auth'
+import { isAdminLike } from '@/lib/rbac'
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getServerAuth()
+    if (!auth.isAuthenticated || !isAdminLike(auth.role)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json().catch(() => ({}))
-    const actorUserId = (String(body?.actorUserId || '')).trim()
+    const actorUserId = (String(body?.actorUserId || auth.userId || '')).trim()
     if (!actorUserId) {
       return NextResponse.json({ success: false, error: 'Missing actorUserId' }, { status: 400 })
     }
 
-    const params = body?.params
-    if (!params || typeof params !== 'object') {
-      return NextResponse.json({ success: false, error: 'Missing params payload' }, { status: 400 })
+    const { cashbookId } = body as { cashbookId?: string }
+    if (!cashbookId) {
+      return NextResponse.json({ success: false, error: 'Missing cashbookId' }, { status: 400 })
     }
 
-    const cashbookId = String((params as any).cashbookId || '').trim()
-    const customerId = String((params as any).customerId || '').trim()
-
-    if (!cashbookId || !customerId) {
-      return NextResponse.json({ success: false, error: 'Missing cashbookId/customerId' }, { status: 400 })
+    const cashbook = await sanityClient.fetch(
+      `*[_type == "cashBookEntry" && _id == $id][0]`,
+      { id: cashbookId }
+    )
+    if (!cashbook) {
+      return NextResponse.json({ success: false, error: 'Cashbook entry not found' }, { status: 404 })
     }
 
-    const itemsQuery = `*[_type == "cashbookItem" && cashbook._ref == $cashbookId && !defined(bill)]`
-    const pendingItems: any[] = await sanityClient.fetch(itemsQuery, { cashbookId })
-    if (!pendingItems || pendingItems.length === 0) {
-      return NextResponse.json({ success: false, error: 'No pending items to bill' }, { status: 400 })
-    }
+    const totalAmount = Number(cashbook.amount || 0)
+    const customerRef = cashbook.user?._ref || cashbook.user || ''
+    const customerName = String(cashbook.userName || 'Customer')
 
-    const billItems = pendingItems.map((ci) => ({
-      _type: 'billItem',
-      product: ci.product ? { _type: 'reference', _ref: (ci.product as any)._ref || ci.product } : undefined,
-      productName: ci.itemName,
-      category: ci.category || undefined,
-      brand: ci.brand || undefined,
-      specifications: ci.specifications || undefined,
-      unit: ci.unit || '',
-      quantity: Number(ci.quantity) || 0,
-      unitPrice: Number(ci.unitPrice) || 0,
-      totalPrice: Math.max(0, Number(((ci as any).totalPrice ?? (ci.quantity * ci.unitPrice)) || 0)),
-    }))
-
-    const subtotal = billItems.reduce((sum: number, it: any) => sum + (Number(it.totalPrice) || 0), 0)
-    const visitingCharges = Number((params as any).visitingCharges || 0)
-    const repairFee = Number((params as any).repairFee || 0)
-    const totalAmount = Math.max(0, subtotal + visitingCharges + repairFee)
-    const paidAmount = Number((params as any).paidAmount || 0)
-    const balanceAmount = Math.max(0, totalAmount - paidAmount)
-
-    const billDoc: any = {
+    const billData: any = {
       _type: 'bill',
-      billNumber: `BILL_${Date.now()}`,
-      customer: { _type: 'reference', _ref: customerId },
-      serviceType: String((params as any).serviceType || ''),
-      locationType: String((params as any).locationType || ''),
-      items: billItems,
-      serviceDate: new Date().toISOString(),
-      visitingCharges,
-      repairFee,
-      subtotal,
-      discount: 0,
+      customer: { _type: 'reference', _ref: customerRef },
+      customerName,
       totalAmount,
-      paymentStatus: String((params as any).paymentStatus || 'pending'),
-      paidAmount,
-      balanceAmount,
-      status: 'draft',
-      priority: 'medium',
-      notes: String((params as any).notes || ''),
-      technician: { _type: 'reference', _ref: actorUserId },
+      paidAmount: 0,
+      balanceAmount: totalAmount,
+      paymentStatus: 'pending',
+      source: 'cashbook',
+      cashbookEntry: { _type: 'reference', _ref: cashbookId },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
 
-    const tx = sanityClient.transaction()
-    tx.create(billDoc)
-    const result = await tx.commit()
-    const createdBillId = (result as any)?.results?.[0]?.id || (result as any)?._id
+    if (cashbook.billNumber) billData.billNumber = String(cashbook.billNumber)
+    if (cashbook.serviceDate) billData.serviceDate = cashbook.serviceDate
+    if (cashbook.dueDate) billData.dueDate = cashbook.dueDate
+    if (cashbook.notes) billData.notes = String(cashbook.notes)
 
-    const patchTx = sanityClient.transaction()
-    for (const it of pendingItems) {
-      patchTx.patch(it._id, (p: any) => p.set({ bill: { _type: 'reference', _ref: createdBillId }, locked: true, updatedAt: new Date().toISOString() }))
-    }
-    patchTx.patch(cashbookId, (p: any) => p.set({ updatedAt: new Date().toISOString() }))
-    await patchTx.commit()
+    const created = await sanityClient.create(billData)
 
-    void (async () => {
-      try {
-        const user = await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(
-          `*[_type=="user" && _id==$id][0]{ phone, name }`,
-          { id: String(customerId) }
-        )
-        const rawPhone = String(user?.phone || '').trim()
-        if (!rawPhone) {
-          console.warn('[WA] billing.created(convert) skipped: missing customer phone', { billId: createdBillId, customerId })
-          return
-        }
-
-        const billId = String(createdBillId)
-        const result = await emitWaEventServer('billing.created', {
-          billId,
-          billNo: String((billDoc as any)?.billNumber || billId),
-          customerId: String(customerId),
-          customerName: safeUserName(user?.name, 'Customer'),
-          customerPhone: rawPhone,
-          grandTotal: totalAmount,
-          totalPaid: paidAmount,
-          balance: balanceAmount,
-          paymentStatus: String((billDoc as any)?.paymentStatus || 'pending'),
-          idempotencyKey: `billing.created:${billId}`,
-        })
-        if (!result.ok) {
-          console.error('[WA] billing.created(convert) event failed', { billId, error: result.error })
-        }
-      } catch (e) {
-        console.error('[WA] billing.created(convert) event failed', e)
-      }
-    })()
     try {
-      const billId = String(createdBillId)
-      const customerName = await (async () => {
-        try {
-          if (!customerId) return ''
-          const doc = await sanityClient.fetch<{ name?: string } | null>(
-            `*[_type=="user" && _id==$id][0]{name}`,
-            { id: String(customerId) }
-          )
-          return safeUserName(doc?.name, 'Customer')
-        } catch {
-          return ''
-        }
-      })()
-      const adminNotification = billCreatedAdminNotification({ amount: totalAmount, customerName })
-      const customerNotification = billCreatedCustomerNotification({ amount: totalAmount, customerName })
-      const adminRoute = `/admin/billing?open=${encodeURIComponent(String(billId))}`
-      const customerRoute = `/customer/bills?open=${encodeURIComponent(String(billId))}`
+      await sanityClient.patch(cashbookId).set({ bill: { _type: 'reference', _ref: String((created as any)._id) }, updatedAt: new Date().toISOString() }).commit()
+    } catch {}
 
-      await createAndDispatchNotification({
-        eventId: `billing.created.${billId}.admins`,
-        type: adminNotification.type,
+    try {
+      await notificationService.emit({
+        type: 'bill_created',
         actorUserId,
-        userIds: await getActiveAdminUserIds(),
-        title: adminNotification.title,
-        body: adminNotification.body,
         data: {
-          billId,
-          billNumber: String((billDoc as any)?.billNumber || ''),
-          customerId,
-          targetRole: adminNotification.targetRole,
-          route: adminRoute,
-          route_path: adminRoute,
-        },
-        skipActor: true,
-      })
-
-      if (customerId) {
-        await createAndDispatchNotification({
-          eventId: `billing.created.${billId}.customer.${String(customerId)}`,
-          type: customerNotification.type,
-          actorUserId,
-          userId: String(customerId),
-          title: customerNotification.title,
-          body: customerNotification.body,
-          data: {
-            billId,
-            billNumber: String((billDoc as any)?.billNumber || ''),
-            customerId: String(customerId),
-            targetRole: customerNotification.targetRole,
-            route: customerRoute,
-            route_path: customerRoute,
+          billId: String((created as any)._id),
+          customerId: customerRef,
+          route: '/admin/billing',
+          extra: {
+            title: 'Bill created from cashbook',
+            body: `${customerName} — ₹${totalAmount}`,
           },
-          skipActor: true,
-        })
-      }
+        },
+      })
     } catch (e) {
-      console.error('[Notify] bill_created emit failed', e)
+      console.error('[Notify] bill_created emit failed (convert-to-bill)', e)
     }
 
-    return NextResponse.json({ success: true, data: { bill: { _id: String(createdBillId) }, count: pendingItems.length } }, { status: 200 })
+    return NextResponse.json({ success: true, data: created }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })

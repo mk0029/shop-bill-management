@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleAuth } from 'google-auth-library'
+import { getServerAuth } from '@/lib/server-auth'
+import { isAdminLike } from '@/lib/rbac'
 
 export const runtime = 'nodejs'
 
@@ -44,6 +46,11 @@ function buildFcmV1Message({ token, title, body, data }: { token: string; title:
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getServerAuth()
+    if (!auth.isAuthenticated || !isAdminLike(auth.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json().catch(() => null)
     const token: string | undefined = body?.token
     const title: string | undefined = body?.title
@@ -54,8 +61,8 @@ export async function POST(req: NextRequest) {
     if (!title) return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'title is required' }, { status: 400 })
     if (!msgBody) return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'body is required' }, { status: 400 })
 
-    const auth = getGoogleAuth()
-    const accessToken = await getAccessToken(auth)
+    const googleAuth = getGoogleAuth()
+    const accessToken = await getAccessToken(googleAuth)
 
     const projectId = process.env.PROJECT_ID || (() => {
       try {

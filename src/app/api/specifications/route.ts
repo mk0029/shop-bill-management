@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { getServerAuth } from "@/lib/server-auth";
+import { isAdminLike } from "@/lib/rbac";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -44,6 +46,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getServerAuth();
+    if (!auth.isAuthenticated || !isAdminLike(auth.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await request.json();
 
     const newSpecification = await sanityClient.create({

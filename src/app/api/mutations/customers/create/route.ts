@@ -4,6 +4,8 @@ import { notificationService } from '@/lib/notification-service'
 import { sanitizeUserText } from '@/constants/defaults'
 import { sendAppEmail } from '@/lib/email/server'
 import { sendWhatsAppNotification } from '@/lib/send-whatsapp-notification'
+import { getServerAuth } from '@/lib/server-auth'
+import { isAdminLike } from '@/lib/rbac'
 
 export const runtime = 'nodejs'
 
@@ -236,10 +238,16 @@ async function runPostCreateDelivery(input: {
     })
   })
 }
+
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getServerAuth()
+    if (!auth.isAuthenticated || !isAdminLike(auth.role)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json().catch(() => ({}))
-    const actorUserId = (String(body?.actorUserId || '')).trim()
+    const actorUserId = (String(body?.actorUserId || auth.userId || '')).trim()
     if (!actorUserId) {
       return NextResponse.json({ success: false, error: 'Missing actorUserId' }, { status: 400 })
     }
@@ -259,7 +267,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 })
     }
 
-    // Use phone-based _id for atomic duplicate prevention
     const docId = `user_c_${normalizedPhone}`
 
     const customerId = Buffer.from(Date.now().toString() + Math.random().toString())
@@ -295,7 +302,7 @@ export async function POST(req: NextRequest) {
       }
       throw err
     }
-// Fire delivery tasks — no after() to avoid Next.js 16 reliability issues
+
     runPostCreateDelivery({
       actorUserId,
       created,

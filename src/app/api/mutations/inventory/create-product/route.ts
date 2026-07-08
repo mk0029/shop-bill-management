@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
 import { notificationService } from '@/lib/notification-service'
+import { getServerAuth } from '@/lib/server-auth'
+import { isAdminLike } from '@/lib/rbac'
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await getServerAuth()
+    if (!auth.isAuthenticated || !isAdminLike(auth.role)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json().catch(() => ({}))
-    const actorUserId = (String(body?.actorUserId || '')).trim()
+    const actorUserId = (String(body?.actorUserId || auth.userId || '')).trim()
     if (!actorUserId) {
       return NextResponse.json({ success: false, error: 'Missing actorUserId' }, { status: 400 })
     }
@@ -52,7 +59,6 @@ export async function POST(req: NextRequest) {
 
     const created = await sanityClient.create(newProduct as any)
 
-    // Optional initial stock transaction
     const initial = (productData as any).initialStockTransaction
     if (initial && typeof initial === 'object') {
       const stockTransactionId = Buffer.from(Date.now().toString() + Math.random().toString())

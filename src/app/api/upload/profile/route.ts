@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getServerAuth } from "@/lib/server-auth";
+import { isAdminLike } from "@/lib/rbac";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -12,7 +14,7 @@ function getAdminClient() {
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 const BUCKET = "profile-images";
 
 export async function POST(request: NextRequest) {
@@ -30,7 +32,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing file or userId" }, { status: 400 });
     }
 
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    const sanitizedUserId = userId.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
       return NextResponse.json({ error: "Only JPEG, PNG, GIF, WebP images are allowed" }, { status: 400 });
     }
 
@@ -38,9 +42,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Image exceeds 5MB limit" }, { status: 400 });
     }
 
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
+      return NextResponse.json({ error: "Invalid file extension" }, { status: 400 });
+    }
+
     const timestamp = Date.now();
-    const ext = file.name.split(".").pop() || "jpg";
-    const filePath = `${userId}/avatar-${timestamp}.${ext}`;
+    const filePath = `${sanitizedUserId}/avatar-${timestamp}.${ext}`;
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
