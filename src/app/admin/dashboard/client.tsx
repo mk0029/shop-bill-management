@@ -64,7 +64,7 @@ export default function DashboardClient() {
     <RealtimeProvider enableNotifications={false}>
       <div
         data-dashboard-loaded="true"
-        className="h-[var(--app-vh,100dvh)] p-1 sm:p-4 md:p-6"
+        className="h-full p-1 sm:p-4 md:p-6"
       >
         <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 max-md:space-y-4 md:space-y-8">
           <div className="flex items-center justify-between max-sm:px-2">
