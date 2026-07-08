@@ -84,21 +84,21 @@ function clearSessionStorage() {
   }
 }
 
-function resetInMemoryStores() {
+async function resetInMemoryStores() {
   try {
-    const { useCartStore } = require("../store/cart-store");
+    const { useCartStore } = await import("../store/cart-store");
     useCartStore.getState().clearCart();
   } catch {}
   try {
-    const { useBillBookStore } = require("../store/bill-book-store");
+    const { useBillBookStore } = await import("../store/bill-book-store");
     useBillBookStore.setState({ bills: [], messagesByBillId: {}, summary: null });
   } catch {}
   try {
-    const { useNotificationStore } = require("../store/notification-store");
+    const { useNotificationStore } = await import("../store/notification-store");
     useNotificationStore.setState({ items: [], unread: 0 });
   } catch {}
   try {
-    const { useSettingsStore } = require("../store/settings-store");
+    const { useSettingsStore } = await import("../store/settings-store");
     useSettingsStore.setState({
       visitingChargesDefault: 0,
       repairFeeDefault: 0,
@@ -110,7 +110,7 @@ function resetInMemoryStores() {
     });
   } catch {}
   try {
-    const { useDataStore } = require("../store/data-store");
+    const { useDataStore } = await import("../store/data-store");
     useDataStore.setState({
       bills: [], customers: [], products: [], brands: [], categories: [],
       users: [], inventoryItems: [], isLoading: false,
@@ -122,6 +122,6 @@ export async function clearUserData() {
   if (typeof window === "undefined") return;
   clearLocalStorage();
   clearSessionStorage();
-  resetInMemoryStores();
+  await resetInMemoryStores();
   await clearIndexedDBDatabases();
 }
