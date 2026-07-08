@@ -12,7 +12,20 @@ export async function generateMetadata({
   const p = await params;
   const service = services.find((s) => s.slug === p.slug);
   if (!service) return { title: "Service" };
-  return { title: service.title, description: service.shortDescription };
+  const title = `${service.title} | Electrical Services`;
+  const description = service.shortDescription;
+  return {
+    title: service.title,
+    description,
+    openGraph: {
+      title,
+      description,
+    },
+    twitter: {
+      title,
+      description,
+    },
+  };
 }
 
 export default async function ServiceDetailPage({

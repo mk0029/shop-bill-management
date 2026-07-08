@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag,
@@ -148,6 +149,7 @@ export default function CategoryDetailPage() {
   const heading =
     category?.name ||
     categorySlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const pageTitle = heading;
   const inStockCount = filteredProducts.filter(
     (p) => p.inStock && p.stockCount > 0,
   ).length;
@@ -171,7 +173,7 @@ export default function CategoryDetailPage() {
                   Shop Items
                 </a>
                 <span className="mx-1.5 text-slate-600">/</span>
-                <span className="text-sky-400">{heading}</span>
+              <span className="text-sky-400"><h1 className="inline text-xs font-semibold">{pageTitle}</h1></span>
               </p>
             </div>
           </div>
@@ -343,11 +345,12 @@ export default function CategoryDetailPage() {
                   >
                     <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-900">
                       {product.images?.[0] ? (
-                        <img
+                        <Image
                           src={getSanityImageUrl(product.images[0]) || ""}
                           alt={product.name}
                           className="h-full w-full object-cover"
-                          loading="lazy"
+                          width={80}
+                          height={80}
                         />
                       ) : (
                         <ShoppingBag className="h-full w-full p-4 text-white/10" />

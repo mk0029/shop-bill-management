@@ -4,7 +4,15 @@ import { TermsContent } from "@landing/components/layout/public-page-content";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
-  description: "Terms and conditions for Jambh Electrics services and website.",
+  description: "Terms and conditions for Jambh Electrics services and website. Understand your rights, obligations, and service policies before engaging our electrical services.",
+  openGraph: {
+    title: "Terms & Conditions | Jambh Electrics",
+    description: "Terms and conditions for Jambh Electrics services, payments, warranties, and website usage.",
+  },
+  twitter: {
+    title: "Terms & Conditions | Jambh Electrics",
+    description: "Terms and conditions for Jambh Electrics services, payments, warranties, and website usage.",
+  },
 };
 
 export default function TermsPage() {

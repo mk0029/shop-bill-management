@@ -434,39 +434,55 @@ export function ContactContent({
       </GlassCard>
       <GlassCard>
         <h2 className="text-lg font-semibold text-white">{t("pages.contact.formTitle")}</h2>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-          <input
-            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
-            placeholder={t("pages.contact.namePlaceholder")}
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            required
-          />
-          <input
-            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
-            type="text"
-            inputMode="numeric"
-            placeholder={t("pages.contact.phonePlaceholder")}
-            value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-            required
-          />
-          <input
-            type="email"
-            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
-            placeholder={t("pages.contact.emailPlaceholder")}
-            value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            required
-          />
-          <textarea
-            className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50 resize-none"
-            rows={5}
-            placeholder={t("pages.contact.messagePlaceholder")}
-            value={form.message}
-            onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-            required
-          />
+          <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+            <div>
+              <label htmlFor="contact-name" className="sr-only">{t("pages.contact.namePlaceholder")}</label>
+              <input
+                id="contact-name"
+                className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+                placeholder={t("pages.contact.namePlaceholder")}
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-phone" className="sr-only">{t("pages.contact.phonePlaceholder")}</label>
+              <input
+                id="contact-phone"
+                className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+                type="text"
+                inputMode="numeric"
+                placeholder={t("pages.contact.phonePlaceholder")}
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-email" className="sr-only">{t("pages.contact.emailPlaceholder")}</label>
+              <input
+                id="contact-email"
+                type="email"
+                className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50"
+                placeholder={t("pages.contact.emailPlaceholder")}
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-message" className="sr-only">{t("pages.contact.messagePlaceholder")}</label>
+              <textarea
+                id="contact-message"
+                className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#B8C0CC]/50 resize-none"
+                rows={5}
+                placeholder={t("pages.contact.messagePlaceholder")}
+                value={form.message}
+                onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+                required
+              />
+            </div>
           <div className="flex gap-2">
             <button
               type="button"

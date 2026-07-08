@@ -283,7 +283,7 @@ export default function LandingHomeContent({
       {showWelcome && (
         <WelcomeOverlay onDismiss={() => setShowWelcome(false)} />
       )}
-      <div className="h-[var(--app-vh,100dvh)] text-[#E5E7EB]">
+      <div className="text-[#E5E7EB]">
         {!showWelcome && <Header />}
         <main>
           <HeroSection

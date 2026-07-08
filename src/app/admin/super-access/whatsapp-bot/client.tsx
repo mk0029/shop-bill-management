@@ -768,7 +768,7 @@ export default function WhatsAppBotClient() {
                         const w = window.open("", "_blank");
                         if (w) {
                           w.document.write(
-                            `<img src="${qrData}" style="width:100%;max-width:400px;margin:auto;display:block"/>`,
+                            `<img src="${qrData}" alt="WhatsApp QR code for authentication - scan with your WhatsApp app" style="width:100%;max-width:400px;margin:auto;display:block"/>`,
                           );
                         }
                       }}

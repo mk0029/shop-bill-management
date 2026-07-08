@@ -10,8 +10,16 @@ import {
 } from "@landing/components/layout/landing-shell";
 
 export const metadata: Metadata = {
-  title: "Request Account",
-  description: "Request a customer account with Jambh Electrics.",
+  title: "Request Customer Account",
+  description: "Request a customer account with Jambh Electrics to access billing, service history, tool rental, and more. Register online for quick electrical service access.",
+  openGraph: {
+    title: "Request Customer Account | Jambh Electrics",
+    description: "Register for a Jambh Electrics customer account to manage bills, track services, rent tools, and get electrical support.",
+  },
+  twitter: {
+    title: "Request Customer Account | Jambh Electrics",
+    description: "Register for a Jambh Electrics customer account to manage bills, track services, rent tools, and get electrical support.",
+  },
 };
 
 export default async function RequestAccountPage() {

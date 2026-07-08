@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import AdminNavigationShell from "@/components/ui/admin-navigation-shell";
 import NotificationSyncGate from "@/components/system/notification-sync-gate";
 import { getServerAuth } from "@/lib/server-auth";
@@ -5,6 +6,10 @@ import { redirect } from "next/navigation";
 import AdminWelcomeGate from "@/components/admin/AdminWelcomeGate";
 import AppBackground from "@/components/ui/AppBackground";
 import AdminViewportHeight from "@/components/system/admin-viewport-height";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminLayout({
   children,

@@ -193,9 +193,9 @@ export default function LandingLoginPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
                   {t("auth.welcomeBack")}
                 </p>
-                <h2 className="mt-2 text-2xl font-bold tracking-normal text-white">
+                <h1 className="mt-2 text-2xl font-bold tracking-normal text-white">
                   {t("auth.login")}
-                </h2>
+                </h1>
                 <p className="mt-2 text-sm leading-6 text-[#B8C0CC]">
                   {t("auth.signInToContinue")}
                 </p>

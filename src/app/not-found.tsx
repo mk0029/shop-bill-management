@@ -9,6 +9,7 @@ export default function NotFound() {
     <div className="relative isolate flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-8">
       <AppBackground variant="admin" />
       <div className="relative z-10 w-full max-w-3xl">
+        <h1 className="sr-only">Page Not Found</h1>
         <EmptyState
           icon={SearchX}
           eyebrow="404 / Missing route"

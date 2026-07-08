@@ -72,7 +72,7 @@ export default function HeroSection({
             <div className="aspect-video rounded-xl bg-gray-900 border border-border flex items-center justify-center relative">
               {/* <Home className="h-16 w-16 text-primary" /> */}
               <Image
-                alt="home"
+                alt="Jambh Electrics - Quality Electrical Products & Expert Home Services"
                 src="/je-p-512.png"
                 fill
                 className="w-full h-auto absolute top-0 left-0 z-10 object-contain"

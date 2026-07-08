@@ -1,8 +1,8 @@
 {
-  "name": "Jambh Electic",
-  "short_name": "Jambh Electic",
-  "description": "Professional Jambh Electic system",
-  "start_url": "/?utm_source=pwa",
+  "name": "Jambh Electrics",
+  "short_name": "Jambh Electrics",
+  "description": "Professional Jambh Electrics electrical shop and home service system",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0B0F18",

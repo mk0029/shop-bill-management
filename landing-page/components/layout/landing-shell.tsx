@@ -63,7 +63,7 @@ function LandingShellContent({
         <Header />
         <main className="flex-1">
           <section className="container mx-auto px-4 pt-24 pb-6 md:pb-8">
-            <SectionTitle title={resolvedTitle} copy={resolvedCopy} />
+            <SectionTitle title={resolvedTitle} copy={resolvedCopy} as="h1" />
           </section>
           {children}
           <FooterSection support={support} />

@@ -63,7 +63,7 @@ export function HeroSection({
   return (
     <section className="relative overflow-hidden " id="home">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-500/5 to-transparent" />
-      <div className="container mx-auto px-4 py-8 md:py-16 lg:py-24 relative">
+      <div className="container mx-auto px-4 max-sm:pt-12 py-8 md:py-16 lg:py-24 relative">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center max-sm:pt-6">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-sky-300/80 animate-fade-up">
@@ -84,14 +84,14 @@ export function HeroSection({
                 href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="glass-button-primary inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-sky-200 gap-2"
+                className="glass-button-primary inline-flex h-12 items-center justify-center rounded-2xl px-6 text-base font-semibold text-sky-200 gap-2 max-sm:w-full"
               >
                 <MessageCircle className="h-4 w-4" />
                 {t("hero.whatsapp")}
               </a>
               <a
                 href={`tel:${support.phone}`}
-                className="glass-button inline-flex h-12 items-center rounded-2xl px-6 text-base font-semibold text-[#E5E7EB] gap-2"
+                className="glass-button inline-flex h-12 items-center justify-center rounded-2xl px-6 text-base font-semibold text-[#E5E7EB] gap-2 max-sm:w-full"
               >
                 <Phone className="h-4 w-4" />
                 {t("hero.callNow")}
@@ -110,7 +110,7 @@ export function HeroSection({
             <div className="ambient-glow w-48 h-48 sm:w-60 sm:h-60 lg:w-72 lg:h-72 bg-sky-500/5 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
             <div className="glass-card-static aspect-square w-full max-w-xs sm:max-w-sm lg:max-w-md flex items-center justify-center p-6 sm:p-8">
               <Image
-                alt="brand"
+                alt="Jambh Electrics brand logo"
                 src="/je-p-512.png"
                 width={320}
                 height={320}
@@ -129,10 +129,12 @@ export function SectionTitle({
   eyebrow,
   title,
   copy,
+  as: HeadingTag = "h1",
 }: {
   eyebrow?: string;
   title: string;
   copy?: string;
+  as?: "h1" | "h2" | "h3" | "h4";
 }) {
   const { language } = useLandingLanguage();
   const isHindi = language === "hi";
@@ -145,12 +147,12 @@ export function SectionTitle({
           {eyebrow}
         </div>
       ) : null}
-      <h2
+      <HeadingTag
         className={`font-bold text-white ${isHindi ? "text-3xl md:text-4xl" : "text-3xl md:text-5xl leading-[1.1]"}`}
         style={isHindi ? hindiSectionHeadingStyle : undefined}
       >
         {title}
-      </h2>
+      </HeadingTag>
       {copy ? (
         <p className="text-base md:text-lg text-[#B8C0CC] leading-relaxed max-w-2xl mx-auto">
           {copy}

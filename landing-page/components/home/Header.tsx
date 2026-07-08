@@ -160,6 +160,7 @@ export default function Header() {
           <div className="flex items-center gap-2 xl:hidden">
             <LanguageToggle />
             <button
+              type="button"
               className="glass-button inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#E5E7EB]"
               onClick={() => setOpen(true)}
               aria-label={t("common.menu")}
@@ -172,9 +173,13 @@ export default function Header() {
 
       {open && (
         <>
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
           <div
             className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm xl:hidden duration-100 ease-linear"
             onClick={() => setOpen(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape' || e.key === ' ') setOpen(false); }}
+            role="presentation"
+            aria-hidden="true"
           />
           <aside className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm p-4 shadow-2xl xl:hidden animate-slide-in-right glass-strong">
             <div className="mb-4 flex items-center justify-between">
@@ -182,6 +187,7 @@ export default function Header() {
                 {t("common.menu")}
               </span>
               <button
+                type="button"
                 aria-label={t("common.closeMenu")}
                 onClick={() => setOpen(false)}
                 className="glass-button inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#E5E7EB]"
