@@ -6,6 +6,7 @@ import { sanityClient } from "@/lib/sanity";
 import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
 import { clearDeviceSessionActivation, ensureFcmToken, registerDeviceSession } from "@/lib/fcm";
 import { clearAutoLogoutInfo } from "@/lib/auto-logout";
+import { clearUserData } from "@/lib/clear-user-data";
 
 type PersistedState = {
   state?: {
@@ -68,6 +69,8 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (credentials: LoginCredentials) => {
         set({ isLoading: true });
+        // Clear previous user's cached data for a fresh experience
+        clearUserData().catch(() => {});
         try {
           const response = await userApiService.loginUser(credentials);
 
@@ -125,6 +128,8 @@ export const useAuthStore = create<AuthState>()(
         const currentUserId = String((get().user as any)?.id || (get().user as any)?._id || "");
         if (currentUserId) clearDeviceSessionActivation(currentUserId);
         clearWelcomeSeenKeys();
+        // Clear all persisted user data (cart, notifications, drafts, chat cache, etc.)
+        clearUserData().catch(() => {});
         // Clear Zustand state
         set({
           user: null,
