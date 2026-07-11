@@ -1,5 +1,5 @@
 export const INVALID_METHODS = new Set([
-  "CONNECT", "TRACE", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS",
+  "CONNECT", "TRACE",
 ]);
 
 export const SQL_INJECTION_PATTERNS = [

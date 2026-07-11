@@ -55,11 +55,6 @@ function makeIdempotencyKey(phone: string, message: string, eventType?: string):
 
 export async function sendViaWaBotServer(input: { phones?: string[]; phone?: string; message: string; eventType?: string }): Promise<SendBulkResult> {
   try {
-    const enabled = String(process.env.AUTO_WA_BILL_EVENTS || '').trim()
-    if (enabled && enabled !== '1' && enabled.toLowerCase() !== 'true') {
-      return { ok: false, sent: 0, failed: input.phones?.length || (input.phone ? 1 : 0) || 0, results: [], error: 'AUTO_WA_BILL_EVENTS disabled' }
-    }
-
     const backendUrl = normalizeBackendBaseUrl(process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL)
     const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
     if (!backendUrl || !secret) {

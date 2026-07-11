@@ -2,7 +2,13 @@
 
 import { memo, useMemo } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, CheckCircle2, Clock, AlertCircle, Smartphone } from "lucide-react";
+import {
+  CreditCard,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Smartphone,
+} from "lucide-react";
 import { GlassCard, GlassCardHeader } from "./GlassCard";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -187,8 +193,8 @@ export const PaymentCard = memo(function PaymentCard({
             </motion.div>
           )}
 
-          {role === "customer" && paymentStatus !== "paid" && onUPIPayment && (
-            <div className="space-y-3">
+          {/* {role === "customer" && paymentStatus !== "paid" && onUPIPayment && (
+            <div  className="space-y-3">
               <div className="glass-divider" />
               <Button
                 onClick={() => onUPIPayment(bill)}
@@ -198,7 +204,7 @@ export const PaymentCard = memo(function PaymentCard({
                 Pay via UPI
               </Button>
             </div>
-          )}
+          )} */}
         </div>
       </GlassCard>
     </motion.div>

@@ -556,9 +556,10 @@ export default function UnifiedWorkClient() {
             : {}),
       });
       toast.success(`Task ${toLabel(nextStatus).toLowerCase()}`);
-    } catch {
+    } catch (e) {
       setTasks(snapshot);
-      toast.error("Failed to update");
+      console.error("Failed to update task status", e);
+      toast.error(e instanceof Error ? e.message : "Failed to update");
     }
   };
 

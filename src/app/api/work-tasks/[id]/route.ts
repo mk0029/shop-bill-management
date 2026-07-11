@@ -32,9 +32,17 @@ async function notify(
   eventKey = "event",
   assignedTechnicianId?: string,
 ) {
-  const targetUserIds = assignedTechnicianId
-    ? [assignedTechnicianId]
-    : await getActiveAdminUserIds();
+  let targetUserIds: string[];
+  if (assignedTechnicianId) {
+    targetUserIds = [assignedTechnicianId];
+  } else {
+    try {
+      targetUserIds = await getActiveAdminUserIds();
+    } catch {
+      console.error("Failed to fetch admin user IDs for notification");
+      return;
+    }
+  }
   await createAndDispatchNotification({
     eventId: `${eventType}.${taskId}.${assignedTechnicianId || "admins"}.${eventKey}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
     type: eventType,
@@ -313,33 +321,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const eventType = notificationTypeForStatus(String(updated?.status || patch.status || "updated"));
   const updateTitle = "Work task updated";
   const updateBody = `${updated?.title || existing?.title} updated by ${actor?.name || "User"}. Technician: ${techName}. Status: ${status}. Due: ${dueStr}.`;
-  await notify(
-    actorUserId,
-    id,
-    eventType,
-    updateTitle,
-    updateBody,
-    String(updated?.updatedAt || Date.now()),
-    String(updated?.assignedTechnician?._id || updated?.assignedTechnician?._ref || assignedTechnicianId || ""),
-  );
+  try {
+    await notify(
+      actorUserId,
+      id,
+      eventType,
+      updateTitle,
+      updateBody,
+      String(updated?.updatedAt || Date.now()),
+      String(updated?.assignedTechnician?._id || updated?.assignedTechnician?._ref || assignedTechnicianId || ""),
+    );
+  } catch (e) {
+    console.error("Failed to send work task notification", e);
+  }
 
   if (customerRefId) {
-    await createAndDispatchNotification({
-      eventId: `${eventType}.${id}.customer.${customerRefId}.${String(updated?.updatedAt || Date.now())}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
-      type: eventType,
-      actorUserId,
-      userId: customerRefId,
-      title: updateTitle,
-      body: `${updated?.title || existing?.title} updated. Status: ${status}.`,
-      data: {
-        taskId: id,
-        customerId: customerRefId,
-        status: String(updated?.status || existing?.status || ""),
-        route: "/customer/request-repair",
-        route_path: "/customer/request-repair",
-      },
-      skipActor: true,
-    });
+    try {
+      await createAndDispatchNotification({
+        eventId: `${eventType}.${id}.customer.${customerRefId}.${String(updated?.updatedAt || Date.now())}`.replace(/[^a-zA-Z0-9_.-]/g, "-"),
+        type: eventType,
+        actorUserId,
+        userId: customerRefId,
+        title: updateTitle,
+        body: `${updated?.title || existing?.title} updated. Status: ${status}.`,
+        data: {
+          taskId: id,
+          customerId: customerRefId,
+          status: String(updated?.status || existing?.status || ""),
+          route: "/customer/request-repair",
+          route_path: "/customer/request-repair",
+        },
+        skipActor: true,
+      });
+    } catch (e) {
+      console.error("Failed to send customer notification", e);
+    }
   }
 
   return NextResponse.json({ success: true, data: updated });

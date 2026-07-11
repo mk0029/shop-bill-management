@@ -49,9 +49,6 @@ export async function sendWhatsAppNotification(input: NotificationInput): Promis
     if (!input.message) return { ok: false, error: 'message is required' }
     if (!input.phone && !input.customerId) return { ok: false, error: 'phone or customerId is required' }
 
-    const enabled = String(process.env.AUTO_WA_BILL_EVENTS || '').trim()
-    if (enabled && enabled !== '1' && enabled.toLowerCase() !== 'true') return { ok: false, error: 'AUTO_WA_BILL_EVENTS disabled' }
-
     const backendUrl = normalizeBackendBaseUrl(process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL)
     const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
     if (!backendUrl || !secret) return { ok: false, error: 'Missing central WhatsApp backend config' }

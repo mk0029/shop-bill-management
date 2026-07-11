@@ -4,6 +4,7 @@ import { notificationService } from '@/lib/notification-service'
 import { sanitizeUserText } from '@/constants/defaults'
 import { sendAppEmail } from '@/lib/email/server'
 import { sendWhatsAppNotification } from '@/lib/send-whatsapp-notification'
+import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
 import { normalizeAndValidate } from '@/lib/phone-utils'
@@ -179,6 +180,15 @@ async function runPostCreateDelivery(input: {
       displayName: safeName,
       loginUrl,
       secretKey: input.secretKey,
+    }),
+    emitWaEventServer('customer.created', {
+      customerId: userId,
+      customerName: input.name,
+      customerPhone: input.phone,
+      secretKey: input.secretKey,
+      loginUrl,
+      shopName: 'Jambh Electricals',
+      eventId: `customer.created.${userId}.${Date.now()}`,
     }),
   ]).then((results) => {
     results.forEach((result, index) => {

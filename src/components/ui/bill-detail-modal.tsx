@@ -3,7 +3,14 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, MessageSquare, Copy, Phone, Share2, Smartphone } from "lucide-react";
+import {
+  X,
+  MessageSquare,
+  Copy,
+  Phone,
+  Share2,
+  Smartphone,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
@@ -342,7 +349,7 @@ export const BillDetailModal = ({
                       <span className="leading-tight">Call Shop</span>
                     </a>
                   )}
-                  {onUPIPayment && (bill.paymentStatus === "pending" || bill.paymentStatus === "partial" || bill.paymentStatus === "overdue") && (
+                  {/* {onUPIPayment && (bill.paymentStatus === "pending" || bill.paymentStatus === "partial" || bill.paymentStatus === "overdue") && (
                     <button
                       onClick={() => onUPIPayment(bill)}
                       className="flex flex-col items-center gap-1 min-w-[72px] sm:min-w-[80px] px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200 shrink-0 glass-dock-btn text-purple-300 hover:text-purple-200"
@@ -350,7 +357,7 @@ export const BillDetailModal = ({
                       <Smartphone className="w-5 h-5 sm:w-5 sm:h-5" />
                       <span className="leading-tight">Pay via UPI</span>
                     </button>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>

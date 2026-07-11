@@ -19,7 +19,10 @@ import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { locationOptions as baseLocationOptions } from "../../tools/fitting-items/constants";
 
-const locationOptions = [...baseLocationOptions, { value: "__custom__", label: "Other (custom)" }];
+const locationOptions = [
+  ...baseLocationOptions,
+  { value: "__custom__", label: "Other (custom)" },
+];
 
 const serviceTypeOptions = [
   { value: "all", label: "All" },
@@ -55,7 +58,9 @@ export default function AddCustomerPage() {
     const location = searchParams.get("location");
     if (name || phone || email || location) {
       const loc = location || "";
-      const matched = baseLocationOptions.find((o) => o.value === loc || o.label === loc);
+      const matched = baseLocationOptions.find(
+        (o) => o.value === loc || o.label === loc,
+      );
       setFormData((prev) => ({
         ...prev,
         name: name || prev.name,
@@ -67,7 +72,10 @@ export default function AddCustomerPage() {
     }
   }, [searchParams]);
 
-  const resolvedLocation = formData.location === "__custom__" ? formData.customLocation : formData.location;
+  const resolvedLocation =
+    formData.location === "__custom__"
+      ? formData.customLocation
+      : formData.location;
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -107,7 +115,10 @@ export default function AddCustomerPage() {
       toast.error("Please enter phone number");
       return false;
     }
-    const loc = formData.location === "__custom__" ? formData.customLocation : formData.location;
+    const loc =
+      formData.location === "__custom__"
+        ? formData.customLocation
+        : formData.location;
     if (!loc.trim()) {
       toast.error("Please enter location");
       return false;
@@ -159,7 +170,9 @@ export default function AddCustomerPage() {
           }).catch(() => {});
         }
       } else {
-        toast.error(result.error || "An error occurred while creating the customer.");
+        toast.error(
+          result.error || "An error occurred while creating the customer.",
+        );
       }
     } catch (error) {
       console.error("Error adding customer:", error);
@@ -206,7 +219,7 @@ export default function AddCustomerPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter customer's full name"
                     required
                     disabled={isLoading}
@@ -222,13 +235,17 @@ export default function AddCustomerPage() {
                   id="nickname"
                   type="text"
                   value={formData.nickname}
-                  onChange={(e) => handleInputChange("nickname", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("nickname", e.target.value)
+                  }
                   className="bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                   placeholder="Preferred display name (optional)"
                   disabled={isLoading}
                 />
                 <p className="text-xs text-gray-500">
-                  Used for reminders, WhatsApp messages, invoices, and throughout the application. If left blank, the customer's full name will be used.
+                  Used for reminders, WhatsApp messages, invoices, and
+                  throughout the application. If left blank, the customer's full
+                  name will be used.
                 </p>
               </div>
               <div className="space-y-2">
@@ -242,7 +259,7 @@ export default function AddCustomerPage() {
                     type="number"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter phone number"
                     required
                     disabled={isLoading}
@@ -289,7 +306,7 @@ export default function AddCustomerPage() {
                       onChange={(e) =>
                         handleInputChange("customLocation", e.target.value)
                       }
-                      className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                      className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                       placeholder="Enter village / location name"
                       required
                       disabled={isLoading}
@@ -330,7 +347,7 @@ export default function AddCustomerPage() {
                     onChange={(e) =>
                       handleInputChange("address", e.target.value)
                     }
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter full address"
                     disabled={isLoading}
                   />
@@ -353,7 +370,7 @@ export default function AddCustomerPage() {
                     onChange={(e) =>
                       handleInputChange("customerId", e.target.value)
                     }
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter custom customer ID (optional)"
                     disabled={isLoading}
                   />
@@ -376,7 +393,7 @@ export default function AddCustomerPage() {
                     onChange={(e) =>
                       handleInputChange("secretKey", e.target.value)
                     }
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                    className="!pl-10 bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                     placeholder="Enter custom secret key (optional)"
                     disabled={isLoading}
                   />
