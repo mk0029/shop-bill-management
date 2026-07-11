@@ -21,6 +21,8 @@ const PUBLIC_PATHS = [
   "/api/health",
   "/api/offers",
   "/api/offers/active",
+  "/api/public/customers/register",
+  "/api/public/auth/recover",
 ];
 const UPLOAD_PATHS = [/^\/api\/upload\//];
 const WHATSAPP_PATHS = [/^\/api\/whatsapp\//];
@@ -242,7 +244,7 @@ export default async function middleware(request: NextRequest) {
 
   const chatUrl = (process.env.NEXT_PUBLIC_SHOP_CHAT_URL || "https://shop-chat-backend.onrender.com").replace(/\/+$/, "");
   const chatOrigin = (() => { try { return new URL(chatUrl).origin; } catch { return "https://shop-chat-backend.onrender.com"; } })();
-  const cspConnectSrc = `connect-src 'self' ws://localhost:* wss://*.render.com https://*.supabase.co https://*.sanity.io https://*.firebaseio.com https://api.razorpay.com https://idji8ni7.api.sanity.io ${chatOrigin}`;
+  const cspConnectSrc = `connect-src 'self' data: blob: ws://localhost:* wss://*.render.com wss://*.onrender.com https://*.supabase.co https://*.sanity.io https://*.firebaseio.com https://fcmregistrations.googleapis.com https://cdn.jsdelivr.net https://api.razorpay.com https://idji8ni7.api.sanity.io ${chatOrigin}`;
   const csp = CONTENT_SECURITY_POLICY.replace(/connect-src[^;]+/, cspConnectSrc);
   response.headers.set("Content-Security-Policy", csp);
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {

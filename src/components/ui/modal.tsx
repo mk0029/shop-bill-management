@@ -12,6 +12,7 @@ interface ModalProps {
   showCloseButton?: boolean;
   className?: string;
   backCloseId?: string;
+  forceFullSize?: boolean;
 }
 
 export function Modal({
@@ -23,13 +24,13 @@ export function Modal({
   showCloseButton = true,
   className,
   backCloseId,
+  forceFullSize,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
 
   if (!mounted || !isOpen) return null;
 
@@ -41,9 +42,10 @@ export function Modal({
       size={size}
       showCloseButton={showCloseButton}
       className={className}
-      mobileType="modal"
+      mobileType="center"
       zIndex={220}
       backCloseId={backCloseId || title}
+      forceFullSize={forceFullSize}
     >
       {children}
     </BaseGlassModal>

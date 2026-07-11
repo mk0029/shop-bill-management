@@ -6,8 +6,7 @@ import { CircleCheck, ShieldCheck, Truck, WalletCards, MessageCircle, Mail, Indi
 import { pricingHighlights, services } from "@landing/lib/site-data";
 import { PremiumCard } from "@landing/components/shared/landing-sections";
 import { useLandingLanguage } from "@landing/hooks/useLandingLanguage";
-import { RequestAccountForm } from "@landing/components/forms/request-account-form";
-import { getSupportContact } from "@/lib/auth-service";
+import { RequestAccountForm } from "@/components/customer-registration/RequestAccountForm";
 
 const serviceKeys = [
   "electrical-product-sales",
@@ -272,7 +271,6 @@ export function PricingContent() {
 
 export function RentToolsContent() {
   const { t } = useLandingLanguage();
-  const support = getSupportContact();
 
   return (
     <section className="container mx-auto px-4 py-11">
@@ -337,10 +335,7 @@ export function RentToolsContent() {
             {t("pages.rentTools.requestTitle")}
           </h2>
           <div className="glass-card p-6">
-            <RequestAccountForm
-              support={{ email: support.email, whatsapp: support.whatsapp }}
-              compact
-            />
+            <RequestAccountForm compact />
           </div>
         </div>
       </div>

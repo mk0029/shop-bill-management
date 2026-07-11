@@ -17,7 +17,11 @@ import { Button } from "@/components/ui/button";
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { useAuthStore } from "@/store/auth-store";
 import { useRouter } from "next/navigation";
-import type { OfferWithProduct, OfferType, ComputedOfferStatus } from "@/types/offers";
+import type {
+  OfferWithProduct,
+  OfferType,
+  ComputedOfferStatus,
+} from "@/types/offers";
 import { getComputedOfferStatus } from "@/types/offers";
 import { sanityClient } from "@/lib/sanity";
 
@@ -308,14 +312,18 @@ export function CustomerOffersClient() {
                       {offer.title}
                     </h3>
                     <p className="mt-1 text-xs text-gray-500">
-                      Starts {new Date(offer.startAt).toLocaleDateString("en-IN", {
+                      Starts{" "}
+                      {new Date(offer.startAt).toLocaleDateString("en-IN", {
                         day: "numeric",
                         month: "short",
                         year: "numeric",
                       })}
                     </p>
                     <div className="mt-3">
-                      <TimeDisplay startAt={offer.startAt} endAt={offer.endAt} />
+                      <TimeDisplay
+                        startAt={offer.startAt}
+                        endAt={offer.endAt}
+                      />
                     </div>
                     <div className="mt-4">
                       <Button
@@ -353,7 +361,8 @@ export function CustomerOffersClient() {
                           {getDiscountLabel(offer)}
                         </p>
                         <p className="text-[10px] text-gray-500">
-                          {offer.offerType === "percentage" && offer.discountValue
+                          {offer.offerType === "percentage" &&
+                          offer.discountValue
                             ? `Save ${offer.discountValue}% on your purchase`
                             : offer.offerType === "fixed_amount" &&
                                 offer.discountValue
@@ -386,7 +395,10 @@ export function CustomerOffersClient() {
 
                     {/* Live timer */}
                     <div className="mt-3">
-                      <TimeDisplay startAt={offer.startAt} endAt={offer.endAt} />
+                      <TimeDisplay
+                        startAt={offer.startAt}
+                        endAt={offer.endAt}
+                      />
                     </div>
 
                     {/* Claims */}
@@ -450,6 +462,7 @@ export function CustomerOffersClient() {
         size="md"
         mobileType="modal"
         backCloseId="customer-missed-offer"
+        forceFullSize
       >
         {missedOffer && (
           <div className="flex flex-col items-center px-4 py-6 text-center">
@@ -491,6 +504,7 @@ export function CustomerOffersClient() {
         size="md"
         mobileType="modal"
         backCloseId="customer-offer-products"
+        forceFullSize
       >
         {productListOffer && (
           <>

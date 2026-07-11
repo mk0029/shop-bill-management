@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { getDeviceInfo } from "@/lib/fcm/device";
 import { getDeviceSessionActivation } from "@/lib/fcm";
 import { setAutoLogoutInfo } from "@/lib/auto-logout";
+import { getStoredSessionId } from "@/lib/session-utils";
 
 const NEW_SESSION_GRACE_MS = 5 * 60 * 1000;
 
@@ -27,28 +28,30 @@ export default function DeviceSessionWatcher() {
         if (!deviceInfo.deviceId) return;
         const activation = getDeviceSessionActivation(user.id);
         if (!activation || activation.deviceId !== deviceInfo.deviceId) return;
-        const res = await fetch("/api/notifications/device-status", {
+        const localSessionId = getStoredSessionId();
+        if (!localSessionId) return;
+
+        const res = await fetch("/api/notifications/session-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: user?.id,
             deviceId: deviceInfo.deviceId,
-            activatedAt: activation.activatedAt,
+            sessionId: localSessionId,
           }),
         });
         const json = await res.json().catch(() => ({}));
         if (cancelled || !json?.success) return;
 
-        if (json.known === false || json.active !== false) return;
+        if (!json.sessionKnown || json.sessionStatus !== "replaced") return;
+        if (json.lastSeenSessionId === localSessionId) return;
+
         const activatedAt = Date.parse(String(activation.activatedAt || ""));
         if (Number.isFinite(activatedAt) && Date.now() - activatedAt < NEW_SESSION_GRACE_MS) return;
 
         setAutoLogoutInfo({
-          reason:
-            json.reason === "DEVICE_LIMIT_EXCEEDED"
-              ? "DEVICE_LIMIT_EXCEEDED"
-              : "LOGGED_IN_ON_ANOTHER_DEVICE",
-          loggedInOn: json.loggedInOn || undefined,
+          reason: "LOGGED_IN_ON_ANOTHER_DEVICE",
+          loggedInOn: json.replacedByDeviceName || undefined,
           message:
             "Your account has been logged out from this device because it was logged in on another device.",
         });

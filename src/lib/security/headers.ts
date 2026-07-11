@@ -15,11 +15,12 @@ export const SECURITY_HEADERS: Record<string, string> = {
 
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
+  "worker-src 'self' blob:",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebaseio.com https://*.googleapis.com https://checkout.razorpay.com https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https://*.supabase.co https://cdn.sanity.io https://*.googleapis.com https://*.gstatic.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' ws://localhost:* wss://*.render.com https://*.supabase.co https://*.sanity.io https://*.firebaseio.com https://api.razorpay.com https://idji8ni7.api.sanity.io",
+  "connect-src 'self' data: blob: ws://localhost:* wss://*.render.com wss://*.onrender.com https://*.supabase.co https://*.sanity.io https://*.firebaseio.com https://fcmregistrations.googleapis.com https://cdn.jsdelivr.net https://api.razorpay.com https://idji8ni7.api.sanity.io",
   "frame-src 'self' https://checkout.razorpay.com",
   "media-src 'self' data: blob: https://*.supabase.co",
   "object-src 'none'",

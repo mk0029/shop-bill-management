@@ -1,14 +1,16 @@
-import { Plus, Users, Sparkles } from "lucide-react";
+import { Plus, Users, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CustomersPageHeaderProps {
   onAddCustomer: () => void;
-  onSmartCreate?: () => void;
+  onOpenRequests: () => void;
+  pendingRequestsCount: number;
 }
 
 export default function CustomersPageHeader({
   onAddCustomer,
-  onSmartCreate,
+  onOpenRequests,
+  pendingRequestsCount,
 }: CustomersPageHeaderProps) {
   return (
     <div className="flex items-center justify-between">
@@ -26,17 +28,18 @@ export default function CustomersPageHeader({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {onSmartCreate && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onSmartCreate}
-            className="flex items-center gap-1.5"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span className="max-sm:hidden">Smart Create</span>
-          </Button>
-        )}
+        <button
+          onClick={onOpenRequests}
+          className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium border border-white/10 text-[#B8C0CC] hover:text-white hover:border-sky-400/30 transition-all bg-white/[0.03]"
+        >
+          <ClipboardList className="w-4 h-4" />
+          <span className="max-sm:hidden">Registration Requests</span>
+          {pendingRequestsCount > 0 && (
+            <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-sky-500/20 text-sky-400 text-xs font-semibold px-1.5">
+              {pendingRequestsCount}
+            </span>
+          )}
+        </button>
         <Button size="sm" onClick={onAddCustomer} className="shadow-lg shadow-blue-600/20">
           <Plus className="w-4 h-4 sm:mr-2" />
           <span className="max-sm:hidden">Add Customer</span>

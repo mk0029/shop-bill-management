@@ -227,7 +227,7 @@ export async function POST(req: NextRequest) {
           },
           skipActor: true,
         });
-        await emitWaEventServer("workTask.created", { taskId: String(created?._id || ""), customerId: String(body.customerRefId), customerName: safeCustomerName, customerPhone: String(customer?.phone || ""), title, description: String(body?.description || "").trim(), status: String(doc.status || "pending"), priority: String(doc.priority || "medium"), dueAt, assignedTechnicianName: safeTechnicianName, technicianPhone: String(tech?.phone || ""), updatedAt: now, idempotencyKey: `workTask.created:${String(created?._id || "")}` });
+        await emitWaEventServer("workTask.created", { taskId: String(created?._id || ""), customerId: String(body.customerRefId), customerName: safeCustomerName, customerPhone: String(customer?.phone || ""), title, description: String(body?.description || "").trim(), status: String(doc.status || "pending"), priority: String(doc.priority || "medium"), dueAt, updatedAt: now });
       })(),
     );
   }

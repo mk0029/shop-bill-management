@@ -249,7 +249,9 @@ export default function UnifiedWorkClient() {
   const loadIncomingRequests = useCallback(async () => {
     setIncomingLoading(true);
     try {
-      const res = await fetch("/api/repair-requests?status=pending", { cache: "no-store" });
+      const res = await fetch("/api/repair-requests?status=pending", {
+        cache: "no-store",
+      });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json?.success) {
         const data = (json.data || []) as RepairRequest[];
@@ -287,7 +289,10 @@ export default function UnifiedWorkClient() {
     setHistoryLoading(true);
     try {
       const [reqRes, taskData] = await Promise.all([
-        fetch("/api/repair-requests?status=accepted,rejected,cancelled,added_to_work_list,on_hold", { cache: "no-store" }),
+        fetch(
+          "/api/repair-requests?status=accepted,rejected,cancelled,added_to_work_list,on_hold",
+          { cache: "no-store" },
+        ),
         workTaskService.getWorkTasks(),
       ]);
       const reqJson = await reqRes.json().catch(() => ({}));
@@ -306,14 +311,25 @@ export default function UnifiedWorkClient() {
     setHistoryLoading(false);
   }, [deletedIds]);
 
-  const loadTabData = useCallback((t: Tab) => {
-    if (t === "incoming") { loadIncomingRequests(); }
-    else if (t === "active") { loadActiveTasks(); }
-    else { loadHistoryData(); }
-  }, [loadIncomingRequests, loadActiveTasks, loadHistoryData]);
+  const loadTabData = useCallback(
+    (t: Tab) => {
+      if (t === "incoming") {
+        loadIncomingRequests();
+      } else if (t === "active") {
+        loadActiveTasks();
+      } else {
+        loadHistoryData();
+      }
+    },
+    [loadIncomingRequests, loadActiveTasks, loadHistoryData],
+  );
 
   const loadAll = useCallback(async () => {
-    await Promise.all([loadIncomingRequests(), loadActiveTasks(), loadHistoryData()]);
+    await Promise.all([
+      loadIncomingRequests(),
+      loadActiveTasks(),
+      loadHistoryData(),
+    ]);
   }, [loadIncomingRequests, loadActiveTasks, loadHistoryData]);
 
   useEffect(() => {
@@ -358,9 +374,11 @@ export default function UnifiedWorkClient() {
       active: tasks.filter(
         (t) => !["completed", "cancelled", "hold"].includes(String(t.status)),
       ).length,
-      history: historyRequests.length + tasks.filter((t) =>
-        ["completed", "cancelled", "hold"].includes(String(t.status)),
-      ).length,
+      history:
+        historyRequests.length +
+        tasks.filter((t) =>
+          ["completed", "cancelled", "hold"].includes(String(t.status)),
+        ).length,
     }),
     [incomingRequests, historyRequests, tasks],
   );
@@ -467,7 +485,11 @@ export default function UnifiedWorkClient() {
       toast.success(
         action === "schedule" ? "Time saved" : "Request moved to work list",
       );
-      await Promise.all([loadIncomingRequests(), loadActiveTasks(), loadHistoryData()]);
+      await Promise.all([
+        loadIncomingRequests(),
+        loadActiveTasks(),
+        loadHistoryData(),
+      ]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -1079,7 +1101,8 @@ export default function UnifiedWorkClient() {
                         No Active Jobs
                       </h3>
                       <p className="text-sm text-gray-500 text-center max-w-xs">
-                        Jobs from incoming requests will appear here once accepted.
+                        Jobs from incoming requests will appear here once
+                        accepted.
                       </p>
                     </div>
                   ) : (
@@ -1175,7 +1198,8 @@ export default function UnifiedWorkClient() {
                         </div>
                       ))}
                     </div>
-                  ) : historyTasks.length === 0 && historyRequests.length === 0 ? (
+                  ) : historyTasks.length === 0 &&
+                    historyRequests.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 px-6">
                       <div className="w-16 h-16 rounded-full bg-gray-800/60 flex items-center justify-center mb-4">
                         <History className="w-8 h-8 text-gray-600" />
@@ -1326,7 +1350,6 @@ export default function UnifiedWorkClient() {
                                     </Button>
                                   </div>
                                 )}
-
                               </div>
                             </div>
                           </div>
@@ -1409,6 +1432,7 @@ export default function UnifiedWorkClient() {
 
       {/* ─── Create/Edit Work Modal ─── */}
       <Modal
+        forceFullSize
         isOpen={showForm}
         onClose={() => setShowForm(false)}
         title={editingTask ? "Edit Task" : "Create Task"}
@@ -1721,7 +1745,9 @@ export default function UnifiedWorkClient() {
         size="sm"
       >
         {(() => {
-          const req = incomingRequests.find((r) => r._id === timePickerRequestId);
+          const req = incomingRequests.find(
+            (r) => r._id === timePickerRequestId,
+          );
           if (!req) return null;
           const raw = scheduleById[req._id] || "";
           const t = getTime(raw) || "10:00";

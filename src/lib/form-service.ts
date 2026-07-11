@@ -17,6 +17,7 @@ export interface FormSubmissionResult {
   data?: any;
   error?: string;
   message?: string;
+  code?: string;
 }
 
 export interface ConfirmationData {
@@ -313,7 +314,7 @@ export async function createCustomer(customerData: {
     })
     const json = await res.json().catch(() => ({}))
     if (!res.ok || !json?.success) {
-      return { success: false, error: json?.error || 'Failed to create customer' }
+      return { success: false, error: json?.error || 'Failed to create customer', code: json?.code }
     }
 
     return {

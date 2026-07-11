@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, MessageSquare, Copy, Phone, Share2 } from "lucide-react";
+import { X, MessageSquare, Copy, Phone, Share2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
@@ -47,6 +47,7 @@ interface BillDetailModalProps {
   onRemindCustomer?: (bill: any) => void;
   onWhatsAppCustomer?: (bill: any) => void;
   onPrintBill?: (bill: any) => void;
+  onUPIPayment?: (bill: any) => void;
   showShareButton?: boolean;
   showPaymentControls?: boolean;
   role?: "admin" | "customer";
@@ -65,6 +66,7 @@ export const BillDetailModal = ({
   onRemindCustomer,
   onWhatsAppCustomer: onWhatsAppCustomerProp,
   onPrintBill,
+  onUPIPayment,
   showShareButton = true,
   showPaymentControls = true,
   role = "admin",
@@ -268,6 +270,7 @@ export const BillDetailModal = ({
                 : undefined
             }
             onPayOnline={undefined}
+            onUPIPayment={role === "customer" ? onUPIPayment : undefined}
           />
 
           <NotesCard bill={bill} />
@@ -339,6 +342,15 @@ export const BillDetailModal = ({
                       <span className="leading-tight">Call Shop</span>
                     </a>
                   )}
+                  {onUPIPayment && (bill.paymentStatus === "pending" || bill.paymentStatus === "partial" || bill.paymentStatus === "overdue") && (
+                    <button
+                      onClick={() => onUPIPayment(bill)}
+                      className="flex flex-col items-center gap-1 min-w-[72px] sm:min-w-[80px] px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all duration-200 shrink-0 glass-dock-btn text-purple-300 hover:text-purple-200"
+                    >
+                      <Smartphone className="w-5 h-5 sm:w-5 sm:h-5" />
+                      <span className="leading-tight">Pay via UPI</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -387,6 +399,7 @@ export const BillDetailModal = ({
         size="lg"
         mobileType="modal"
         zIndex={220}
+        forceFullSize
       >
         <AnimatePresence mode="wait">
           {loading ? (

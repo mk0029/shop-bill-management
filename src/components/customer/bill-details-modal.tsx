@@ -2,8 +2,10 @@
 
 import { useCallback, useState } from "react";
 import { BillDetailModal as BaseBillDetailModal } from "@/components/ui/bill-detail-modal";
+import { UpiPaymentModal } from "@/components/ui/upi-payment-modal";
 import { toast } from "sonner";
 import { safeUserName } from "@/lib/display-text";
+import { checkPaymentsDisabled } from "@/lib/payments-config";
 
 interface BillDetailsModalProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ export function BillDetailsModal({
   selectedBill,
 }: BillDetailsModalProps) {
   const [loading, setLoading] = useState(false);
+  const [showUpiModal, setShowUpiModal] = useState(false);
 
   const loadRazorpay = useCallback(async () => {
     if (typeof window === "undefined") return false;
@@ -38,6 +41,7 @@ export function BillDetailsModal({
     try {
       if (!b) return;
       if (typeof window === "undefined") return;
+      if (checkPaymentsDisabled()) return;
       const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || (window as any).NEXT_PUBLIC_RAZORPAY_KEY_ID;
       if (!key) {
         toast.error("Payment key not configured.");
@@ -117,15 +121,46 @@ export function BillDetailsModal({
     }
   }, [loadRazorpay, onClose]);
 
+  const handleUPIPayment = useCallback((bill: any) => {
+    if (checkPaymentsDisabled()) return;
+    setShowUpiModal(true);
+  }, []);
+
+  const handleCloseUpiModal = useCallback(() => {
+    setShowUpiModal(false);
+  }, []);
+
   if (!selectedBill) return null;
 
+  const upiBillData = {
+    _id: selectedBill._id,
+    billId: selectedBill.billId || selectedBill._id,
+    billNumber: selectedBill.billNumber,
+    totalAmount: selectedBill.totalAmount,
+    balanceAmount: selectedBill.balanceAmount,
+    paidAmount: selectedBill.paidAmount,
+    customerName: safeUserName(selectedBill?.customer?.name, ""),
+    customerPhone: selectedBill?.customer?.phone || "",
+    billDate: selectedBill.billDate || selectedBill.createdAt,
+    dueDate: selectedBill.dueDate,
+  };
+
   return (
-    <BaseBillDetailModal
-      isOpen={isOpen}
-      onClose={onClose}
-      bill={selectedBill}
-      onPayOnline={onPayOnline}
-      role="customer"
-    />
+    <>
+      <BaseBillDetailModal
+        isOpen={isOpen}
+        onClose={onClose}
+        bill={selectedBill}
+        onPayOnline={onPayOnline}
+        onUPIPayment={handleUPIPayment}
+        role="customer"
+      />
+
+      <UpiPaymentModal
+        isOpen={showUpiModal}
+        onClose={handleCloseUpiModal}
+        bill={upiBillData}
+      />
+    </>
   );
 }

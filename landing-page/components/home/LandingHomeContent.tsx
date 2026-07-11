@@ -10,7 +10,7 @@ import {
   SectionTitle,
 } from "@landing/components/shared/landing-sections";
 import ElectricalBackground from "@landing/components/shared/ElectricalBackground";
-import { RequestAccountForm } from "@landing/components/forms/request-account-form";
+import { RequestAccountForm } from "@/components/customer-registration/RequestAccountForm";
 import { LandingShopSections } from "@/components/shop/LandingShopSections";
 import { ResponsiveCarousel } from "@/components/ui/carousel";
 import {
@@ -552,13 +552,7 @@ export default function LandingHomeContent({
                     <div className="glass-card p-3 sm:p-5 md:p-8 lg:p-10">
                       <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-sky-500/5 to-transparent rounded-bl-full pointer-events-none" />
                       <div className="relative z-10">
-                        <RequestAccountForm
-                          support={{
-                            email: support.email,
-                            whatsapp: support.whatsapp,
-                          }}
-                          compact
-                        />
+                        <RequestAccountForm compact />
                       </div>
                     </div>
                   </div>

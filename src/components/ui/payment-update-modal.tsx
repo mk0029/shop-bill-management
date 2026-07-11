@@ -177,6 +177,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       zIndex={350}
       showCloseButton={!showSuccess}
       mobileType="bottom-sheet"
+      forceFullSize
     >
       {showSuccess ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -444,8 +445,11 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
             )}
           </div>
 
-          <div className="flex items-center gap-3 px-5 py-4 border-t border-white/[0.08] shrink-0 glass-modal-header"
-            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}
+          <div
+            className="flex items-center gap-3 px-5 py-4 border-t border-white/[0.08] shrink-0 glass-modal-header"
+            style={{
+              paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))",
+            }}
           >
             <Button
               variant="outline"

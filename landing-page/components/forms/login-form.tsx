@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoginCredentials } from "@/types";
-import { Eye, EyeOff, Phone, Lock } from "lucide-react";
+import { Eye, EyeOff, Phone, Lock, KeyRound } from "lucide-react";
+import { LoginRecoveryModal } from "@/components/customer-registration/LoginRecoveryModal";
 
 interface LoginFormProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
@@ -30,6 +31,7 @@ export function LoginForm({
   });
   const [formErrors, setFormErrors] = useState<Partial<LoginCredentials>>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const hasAutoSubmitted = useRef(false);
 
   useEffect(() => {
@@ -206,6 +208,22 @@ export function LoginForm({
           "Sign In"
         )}
       </Button>
+
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => setShowRecovery(true)}
+          className="inline-flex items-center gap-1.5 text-sm text-[#B8C0CC]/60 hover:text-sky-300 transition-colors"
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          Forgot your credentials?
+        </button>
+      </div>
+
+      <LoginRecoveryModal
+        isOpen={showRecovery}
+        onClose={() => setShowRecovery(false)}
+      />
     </form>
   );
 }

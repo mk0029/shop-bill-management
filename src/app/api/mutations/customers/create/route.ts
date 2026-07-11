@@ -6,6 +6,9 @@ import { sendAppEmail } from '@/lib/email/server'
 import { sendWhatsAppNotification } from '@/lib/send-whatsapp-notification'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
+import { normalizeAndValidate } from '@/lib/phone-utils'
+import { validateIdentity } from '@/lib/identity-validator'
+import { buildWelcomeText, buildWelcomeEmailHtml, buildWelcomeWhatsApp } from '@/lib/welcome-templates'
 
 export const runtime = 'nodejs'
 
@@ -14,46 +17,10 @@ function siteUrl() {
 }
 
 function supportInfo() {
-  return (
-    process.env.NEXT_PUBLIC_SUPPORT_PHONE ||
-    process.env.SUPPORT_PHONE ||
-    process.env.NEXT_PUBLIC_SUPPORT_EMAIL ||
-    process.env.SUPPORT_EMAIL ||
-    'Contact the shop/admin from the app chat'
-  )
-}
-
-function welcomeMessage(input: {
-  customerName: string
-  displayName?: string
-  loginUrl: string
-  contact: string
-}) {
-  const safeName = sanitizeUserText(input.displayName || input.customerName || 'Customer') || 'Customer'
-  return [
-    `Welcome to Jambh Electricals, ${safeName}.`,
-    '',
-    'Your customer account has been created successfully.',
-    '',
-    'Account Access',
-    input.loginUrl,
-    '',
-    'You can use this link to view your bills, service requests, payments, and account information securely.',
-    '',
-    `For assistance, please contact us at ${input.contact}.`,
-    '',
-    'Thank you for choosing Jambh Electricals.',
-    '',
-    'Regards,',
-    'Jambh Electricals',
-  ].join('\n')
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return {
+    phone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || process.env.SUPPORT_PHONE || undefined,
+    email: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || undefined,
+  }
 }
 
 const DELIVERY_SENDING_STALE_MS = 10 * 60 * 1000
@@ -95,17 +62,25 @@ async function sendWelcomeEmail(input: {
   email?: string
   customerName: string
   displayName?: string
-  message: string
+  loginUrl: string
 }) {
   const email = String(input.email || '').trim()
   if (!email) return
   const key = `welcome.email.user.${input.userId}`
   if (!(await claimDelivery(key, 'email'))) return
+  const support = supportInfo()
+  const templateData = {
+    customerName: input.customerName,
+    displayName: input.displayName,
+    loginUrl: input.loginUrl,
+    supportEmail: support.email,
+    supportPhone: support.phone,
+  }
   const result = await sendAppEmail({
     to: email,
-    subject: 'Welcome to Jambh Electrics',
-    text: input.message,
-    html: `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap;line-height:1.55">${escapeHtml(input.message)}</pre>`,
+    subject: `Welcome to Jambh Electricals`,
+    text: buildWelcomeText(templateData),
+    html: buildWelcomeEmailHtml(templateData),
   })
   if (result.sent) {
     await finishDelivery(key, 'sent')
@@ -135,34 +110,11 @@ async function sendWelcomeWhatsApp(input: {
     return
   }
 
-  const safeName = sanitizeUserText(input.displayName || input.customerName || 'Customer') || 'Customer'
-  const msg = [
-    `Account Created`,
-    '',
-    `Dear ${safeName},`,
-    '',
-    'Your customer account has been created successfully.',
-    '',
-    'From your account you can:',
-    '',
-    '* View all invoices and payment history',
-    '* Make secure payments online',
-    '* Track service requests and orders',
-    '* Update your profile and preferences',
-    '',
-    '🔐 Your Secure Account',
-    '',
-    'Click the link below to log in and securely access your account.',
-    '',
-    input.loginUrl,
-    '',
-    'Thank you for choosing Jambh Electricals.',
-    '',
-    'If you have any questions, simply reply to this message and our team will be happy to assist you.',
-    '',
-    'Regards,',
-    'Jambh Electricals',
-  ].join('\n')
+  const msg = buildWelcomeWhatsApp({
+    customerName: input.customerName,
+    displayName: input.displayName,
+    loginUrl: input.loginUrl,
+  })
 
   try {
     const result = await sendWhatsAppNotification({
@@ -198,8 +150,6 @@ async function runPostCreateDelivery(input: {
   const userId = String(input.created?._id || '').trim()
   const safeName = sanitizeUserText(input.nickname || input.name || 'Customer') || 'Customer'
   const loginUrl = `${siteUrl()}/login?phone=${encodeURIComponent(input.phone)}&passKey=${encodeURIComponent(input.secretKey)}`
-  const contact = supportInfo()
-  const message = welcomeMessage({ customerName: input.name, displayName: safeName, loginUrl, contact })
 
   await Promise.allSettled([
     notificationService.emit({
@@ -220,7 +170,7 @@ async function runPostCreateDelivery(input: {
       email: input.email,
       customerName: input.name,
       displayName: safeName,
-      message,
+      loginUrl,
     }),
     sendWelcomeWhatsApp({
       userId,
@@ -262,12 +212,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing name/phone/location' }, { status: 400 })
     }
 
-    const normalizedPhone = phone.replace(/[^0-9]/g, '')
-    if (normalizedPhone.length < 10) {
+    const canonicalPhone = normalizeAndValidate(phone)
+    if (!canonicalPhone) {
       return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 })
     }
 
-    const docId = `user_c_${normalizedPhone}`
+    const identityResult = await validateIdentity(
+      { email, phone: canonicalPhone },
+      { checkRequests: false },
+    )
+    if (!identityResult.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'A customer with these identity details already exists.', code: 'DUPLICATE_IDENTITY', conflict: identityResult.conflict },
+        { status: 409 },
+      )
+    }
+
+    const docId = `user_c_${canonicalPhone}`
 
     const customerId = Buffer.from(Date.now().toString() + Math.random().toString())
       .toString('base64')
@@ -286,6 +247,7 @@ export async function POST(req: NextRequest) {
       nickname: nickname || undefined,
       email,
       phone,
+      normalizedPhone: canonicalPhone,
       location,
       role: 'customer',
       isActive: true,

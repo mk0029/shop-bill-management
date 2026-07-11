@@ -54,7 +54,7 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
       params = { userId: userId || customerId, customerId };
     } else {
       // Admins listen to all document types
-      query = '*[_type in ["bill", "product", "stockTransaction", "user", "brand", "category", "payment", "supplier", "address", "branch", "specificationOption", "fieldDefinition"]]';
+      query = '*[_type in ["bill", "product", "stockTransaction", "user", "brand", "category", "payment", "supplier", "address", "branch", "specificationOption", "fieldDefinition", "customerRequest"]]';
     }
 
     console.log("[SanityRealtimeStore] Connecting with role:", role, "query:", query);
@@ -154,6 +154,25 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
                     ?.forEach((callback) =>
                       callback({ id: update.documentId })
                     );
+                  break;
+              }
+              break;
+            case "customerRequest":
+              switch (update.transition) {
+                case "appear":
+                  listeners
+                    .get("customerRequest:created")
+                    ?.forEach((callback) => callback(update.result));
+                  break;
+                case "update":
+                  listeners
+                    .get("customerRequest:updated")
+                    ?.forEach((callback) => callback(update.result));
+                  break;
+                case "disappear":
+                  listeners
+                    .get("customerRequest:deleted")
+                    ?.forEach((callback) => callback({ id: update.documentId }));
                   break;
               }
               break;

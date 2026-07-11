@@ -24,6 +24,8 @@ import User from "lucide-react/dist/esm/icons/user.js";
 import Users from "lucide-react/dist/esm/icons/users.js";
 import Wrench from "lucide-react/dist/esm/icons/wrench.js";
 import X from "lucide-react/dist/esm/icons/x.js";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw.js";
+
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
 import Tag from "lucide-react/dist/esm/icons/tag.js";
 import Link from "next/link";
@@ -41,6 +43,7 @@ import { useGlobalShopChat } from "@/lib/shop-chat/use-global-chat";
 import { SanityImage } from "./sanity-image";
 import { sanityClient } from "@/lib/sanity";
 import { createPortal } from "react-dom";
+import { useRegistrationRequestStore } from "@/store/registration-request-store";
 
 interface NavigationItem {
   label: string;
@@ -148,6 +151,7 @@ export function Navigation() {
   const { role, logout, user } = useAuthStore();
   const { hasUnread: hasChatUnread } = useGlobalShopChat(user as any);
   const [repairAttentionCount, setRepairAttentionCount] = useState(0);
+  const pendingRequestsCount = useRegistrationRequestStore((s) => s.pendingCount);
   const isChatRoute = pathname === "/admin/chat";
   const isRepairRoute =
     pathname === "/dashboard/work-list" ||
@@ -431,6 +435,18 @@ export function Navigation() {
               );
             })}
             <div className="my-1 h-px bg-white/10" />
+            <button
+              type="button"
+              onClick={() => {
+                setAccountMenuOpen(false);
+                window.location.reload();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-200 transition hover:bg-cyan-300/10 hover:text-white"
+            >
+              <RefreshCw className="h-4 w-4 text-cyan-100/70" />
+              <span>Refresh</span>
+            </button>
+            <div className="my-1 h-px bg-white/10" />
             <Link
               href="/?manual_home=1"
               onClick={() => {
@@ -505,6 +521,9 @@ export function Navigation() {
             >
               <Icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
+              {item.label === "Customers" && pendingRequestsCount > 0 && (
+                <span className="ml-auto min-w-[20px] h-5 flex items-center justify-center rounded-full bg-sky-500/20 text-sky-400 text-xs font-semibold px-1.5">{pendingRequestsCount}</span>
+              )}
               {(showChatDot || showRepairDot) && (
                 <span className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
               )}
@@ -551,7 +570,12 @@ export function Navigation() {
                   : "text-gray-300 hover:bg-gray-800"
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <div className="relative">
+                <Icon className="w-5 h-5" />
+                {item.label === "Customers" && pendingRequestsCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-sky-500/30 text-sky-400 text-[10px] font-bold px-1">{pendingRequestsCount}</span>
+                )}
+              </div>
               {(showChatDot || showRepairDot) && (
                 <span className="absolute right-2 top-1.5 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />
               )}
@@ -604,6 +628,9 @@ export function Navigation() {
           <Icon className="w-5 h-5" />
           {!isDesktopNavMinimized && (
             <span className="font-medium">{item.label}</span>
+          )}
+          {!isDesktopNavMinimized && item.label === "Customers" && pendingRequestsCount > 0 && (
+            <span className="ml-auto min-w-[20px] h-5 flex items-center justify-center rounded-full bg-sky-500/20 text-sky-400 text-xs font-semibold px-1.5">{pendingRequestsCount}</span>
           )}
           {(showChatDot || showRepairDot) && (
             <span className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />

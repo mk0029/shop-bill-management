@@ -7,6 +7,7 @@ import { getCookie, setCookie, deleteCookie } from "@/lib/cookies";
 import { clearDeviceSessionActivation, ensureFcmToken, registerDeviceSession } from "@/lib/fcm";
 import { clearAutoLogoutInfo } from "@/lib/auto-logout";
 import { clearUserData } from "@/lib/clear-user-data";
+import { generateSessionId, storeSessionId, clearStoredSessionId } from "@/lib/session-utils";
 
 type PersistedState = {
   state?: {
@@ -51,6 +52,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   hydrated: boolean;
+  sessionId: string;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   updateProfile: (data: ProfileData) => Promise<void>;
@@ -66,6 +68,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       hydrated: false,
+      sessionId: "",
 
       login: async (credentials: LoginCredentials) => {
         set({ isLoading: true });
@@ -94,7 +97,10 @@ export const useAuthStore = create<AuthState>()(
             clearAutoLogoutInfo();
           } catch {}
 
-          set({
+          const sessionId = generateSessionId();
+          storeSessionId(sessionId);
+
+          set({ sessionId,
             user: userNorm as User,
             role: (userNorm as any).role,
             isAuthenticated: true,
@@ -117,6 +123,25 @@ export const useAuthStore = create<AuthState>()(
           } catch {
             // ignore
           }
+
+          // Create session on backend asynchronously
+          Promise.resolve().then(async () => {
+            try {
+              const deviceInfo = await import("@/lib/fcm/device").then((m) => m.getDeviceInfo());
+              await fetch("/api/notifications/session-create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sessionId,
+                  userId: uid,
+                  deviceId: deviceInfo.deviceId || "",
+                  deviceName: deviceInfo.deviceName || "",
+                  browser: deviceInfo.browser || "",
+                  os: deviceInfo.os || "",
+                }),
+              });
+            } catch {}
+          }).catch(() => {});
         } catch (error) {
           console.error("❌ Login error:", error);
           set({ isLoading: false });
@@ -128,6 +153,7 @@ export const useAuthStore = create<AuthState>()(
         const currentUserId = String((get().user as any)?.id || (get().user as any)?._id || "");
         if (currentUserId) clearDeviceSessionActivation(currentUserId);
         clearWelcomeSeenKeys();
+        clearStoredSessionId();
         // Clear all persisted user data (cart, notifications, drafts, chat cache, etc.)
         clearUserData().catch(() => {});
         // Clear Zustand state
@@ -136,6 +162,7 @@ export const useAuthStore = create<AuthState>()(
           role: null,
           isAuthenticated: false,
           isLoading: false,
+          sessionId: "",
         });
         // Also clear persisted storage cookie
         if (typeof document !== "undefined") {
@@ -264,6 +291,7 @@ export const useAuthStore = create<AuthState>()(
           user: minimalUser,
           role: state.role,
           isAuthenticated: state.isAuthenticated,
+          sessionId: state.sessionId,
         };
       },
       onRehydrateStorage: () => (state, error) => {

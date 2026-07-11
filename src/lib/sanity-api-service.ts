@@ -1595,6 +1595,18 @@ export const cashBookApiService = {
         category,
         notes,
         bill,
+        billCount,
+        fullyPaidCount,
+        partialCount,
+        appliedBills[]{
+          billNumber,
+          appliedAmount,
+          status,
+          billRef->{
+            _id,
+            billNumber
+          }
+        },
         user->{
           _id,
           name,

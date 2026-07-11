@@ -46,7 +46,10 @@ interface BillPreview {
   status: "paid" | "partial" | "unchanged";
 }
 
-function distributePayment(bills: any[], amount: number): {
+function distributePayment(
+  bills: any[],
+  amount: number,
+): {
   previews: BillPreview[];
   totalApplied: number;
   fullyPaidCount: number;
@@ -148,7 +151,7 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
 }: PayAllBillsModalProps) {
   const [paymentMode, setPaymentMode] = useState("cash");
   const [paymentDate, setPaymentDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [customAmountEnabled, setCustomAmountEnabled] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState(0);
@@ -214,13 +217,15 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json.success) {
-        throw new Error(json.error || `Failed to apply payment (${res.status})`);
+        throw new Error(
+          json.error || `Failed to apply payment (${res.status})`,
+        );
       }
 
       setSuccessData(json.data);
       setShowSuccess(true);
       toast.success(
-        `Payment adjusted across ${json.data?.updatedCount || 0} bill(s)!`
+        `Payment adjusted across ${json.data?.updatedCount || 0} bill(s)!`,
       );
       setTimeout(() => {
         onPaid();
@@ -257,24 +262,35 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
       zIndex={360}
       showCloseButton={!showSuccess && !isProcessing}
       mobileType="bottom-sheet"
+      forceFullSize
     >
       {showSuccess ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/30 flex items-center justify-center mb-5">
             <Check className="w-10 h-10 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Payment Applied!</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Payment Applied!
+          </h2>
           <p className="text-sm text-white/50">
             Adjusted across {successData?.updatedCount || 0} bill(s)
           </p>
-          {successData?.fullyPaidBills?.length > 0 && (
-            <p className="text-xs text-emerald-400 mt-2">
-              Fully paid: {successData.fullyPaidBills.join(", ")}
+          <p className="text-xs text-white/40 mt-2">
+            ₹{successData?.totalApplied?.toLocaleString() || 0} applied
+          </p>
+          {successData?.fullyPaidCount > 0 && (
+            <p className="text-xs text-emerald-400 mt-1">
+              Fully paid: {successData.fullyPaidBills?.join(", ") || successData.fullyPaidCount + " bill(s)"}
             </p>
           )}
-          {successData?.partiallyPaidBill && (
+          {successData?.partialCount > 0 && (
             <p className="text-xs text-amber-400 mt-1">
-              Partial: {successData.partiallyPaidBill}
+              Partially paid: {successData.partialCount} bill(s)
+            </p>
+          )}
+          {successData?.remainingOutstanding > 0 && (
+            <p className="text-xs text-white/40 mt-1">
+              Remaining outstanding: ₹{successData.remainingOutstanding.toLocaleString()}
             </p>
           )}
         </div>
@@ -285,11 +301,18 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400/30 to-violet-500/30 border border-white/10 flex items-center justify-center shrink-0">
                 <span className="text-xs font-bold text-white/80">
-                  {cName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                  {cName
+                    .split(" ")
+                    .map((n: string) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
                 </span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-white truncate">{cName}</p>
+                <p className="text-sm font-medium text-white truncate">
+                  {cName}
+                </p>
                 {customer?.phone && (
                   <p className="text-[11px] text-white/40">{customer.phone}</p>
                 )}
@@ -326,11 +349,17 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
                   Amount received from customer
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">
+                    ₹
+                  </span>
                   <input
                     type="number"
                     value={receivedAmount || ""}
-                    onChange={(e) => setReceivedAmount(Math.max(0, Number(e.target.value) || 0))}
+                    onChange={(e) =>
+                      setReceivedAmount(
+                        Math.max(0, Number(e.target.value) || 0),
+                      )
+                    }
                     className="w-full glass-input !pl-7 !p-2.5 text-sm text-white"
                     min="0"
                     placeholder="0"
@@ -340,7 +369,10 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
                 {overpayment && (
                   <div className="flex items-center gap-1.5 mt-2 text-amber-400 text-[11px]">
                     <AlertTriangle className="w-3 h-3" />
-                    <span>Amount exceeds total pending. Will be capped to ₹{totalPending.toLocaleString()}.</span>
+                    <span>
+                      Amount exceeds total pending. Will be capped to ₹
+                      {totalPending.toLocaleString()}.
+                    </span>
                   </div>
                 )}
               </div>
@@ -349,19 +381,27 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
 
           {/* Distribution Preview */}
           <div className="glass-card-static p-3 space-y-3">
-            <h3 className="text-sm font-semibold text-white">Payment Summary</h3>
+            <h3 className="text-sm font-semibold text-white">
+              Payment Summary
+            </h3>
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-xl bg-emerald-500/10 p-2 text-center">
                 <p className="text-[10px] text-emerald-400/70">Fully Paid</p>
-                <p className="text-lg font-bold text-emerald-400">{distribution.fullyPaidCount}</p>
+                <p className="text-lg font-bold text-emerald-400">
+                  {distribution.fullyPaidCount}
+                </p>
               </div>
               <div className="rounded-xl bg-amber-500/10 p-2 text-center">
                 <p className="text-[10px] text-amber-400/70">Partial</p>
-                <p className="text-lg font-bold text-amber-400">{distribution.partialCount}</p>
+                <p className="text-lg font-bold text-amber-400">
+                  {distribution.partialCount}
+                </p>
               </div>
               <div className="rounded-xl bg-white/5 p-2 text-center">
                 <p className="text-[10px] text-white/40">Unchanged</p>
-                <p className="text-lg font-bold text-white/60">{distribution.unchangedCount}</p>
+                <p className="text-lg font-bold text-white/60">
+                  {distribution.unchangedCount}
+                </p>
               </div>
             </div>
 
@@ -370,7 +410,11 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
                 {customAmountEnabled ? "Received" : "Total Pending"}
               </span>
               <span className="font-semibold text-white">
-                ₹{(customAmountEnabled ? receivedAmount : totalPending).toLocaleString()}
+                ₹
+                {(customAmountEnabled
+                  ? receivedAmount
+                  : totalPending
+                ).toLocaleString()}
               </span>
             </div>
             {customAmountEnabled && (
@@ -394,22 +438,39 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
             {customAmountEnabled && (
               <div className="space-y-1.5 max-h-40 overflow-y-auto">
                 {distribution.previews.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between text-xs py-1">
-                    <span className="text-white/60 truncate flex-1">{p.billNumber}</span>
-                    <span className="text-white/40 w-16 text-right">₹{p.due.toLocaleString()}</span>
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between text-xs py-1"
+                  >
+                    <span className="text-white/60 truncate flex-1">
+                      {p.billNumber}
+                    </span>
+                    <span className="text-white/40 w-16 text-right">
+                      ₹{p.due.toLocaleString()}
+                    </span>
                     {p.applied > 0 && (
-                      <span className="text-emerald-400 w-16 text-right">-₹{p.applied.toLocaleString()}</span>
+                      <span className="text-emerald-400 w-16 text-right">
+                        -₹{p.applied.toLocaleString()}
+                      </span>
                     )}
-                    <span className={cn(
-                      "w-14 text-right font-medium",
-                      p.status === "paid" ? "text-emerald-400" :
-                      p.status === "partial" ? "text-amber-400" :
-                      "text-white/30"
-                    )}>
-                      {p.status === "paid" ? "Paid" : p.status === "partial" ? "Partial" : "—"}
+                    <span
+                      className={cn(
+                        "w-14 text-right font-medium",
+                        p.status === "paid"
+                          ? "text-emerald-400"
+                          : p.status === "partial"
+                            ? "text-amber-400"
+                            : "text-white/30",
+                      )}
+                    >
+                      {p.status === "paid"
+                        ? "Paid"
+                        : p.status === "partial"
+                          ? "Partial"
+                          : "—"}
                     </span>
                   </div>
-              ))}
+                ))}
               </div>
             )}
           </div>
@@ -428,11 +489,13 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
                       "flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all",
                       paymentMode === mode.value
                         ? "bg-sky-500/15 border-sky-500/30 text-sky-300"
-                        : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:bg-white/[0.06]"
+                        : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:bg-white/[0.06]",
                     )}
                   >
                     <ModeIcon className="w-4 h-4" />
-                    <span className="text-[10px] font-medium">{mode.label}</span>
+                    <span className="text-[10px] font-medium">
+                      {mode.label}
+                    </span>
                   </button>
                 );
               })}
@@ -467,7 +530,11 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
           {/* Confirm Button */}
           <Button
             onClick={handleConfirm}
-            disabled={isProcessing || unpaidBills.length === 0 || (customAmountEnabled && receivedAmount <= 0)}
+            disabled={
+              isProcessing ||
+              unpaidBills.length === 0 ||
+              (customAmountEnabled && receivedAmount <= 0)
+            }
             className="w-full !rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white border-0 py-5 text-sm font-semibold"
           >
             {isProcessing ? (

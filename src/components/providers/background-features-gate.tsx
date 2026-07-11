@@ -11,6 +11,7 @@ import AutoNotifications from "@/notifications/components/AutoNotifications";
 import ForegroundSystemNotifier from "@/notifications/components/ForegroundSystemNotifier";
 import NotificationToaster from "@/components/notifications/NotificationToaster";
 import NotificationServerSync from "@/components/notifications/NotificationServerSync";
+import RegistrationRequestToast from "@/components/realtime/registration-request-toast";
 
 export default function BackgroundFeaturesGate() {
   const role = useAuthStore((s) => s.role);
@@ -33,6 +34,7 @@ export default function BackgroundFeaturesGate() {
       <>
         <OfflineStatusOverlay />
         <NotificationsBridge />
+        <RegistrationRequestToast />
         {commonFeatures}
       </>
     );

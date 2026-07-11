@@ -14,11 +14,11 @@ import {
 import { toast } from "sonner";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName } from "@/lib/display-text";
+import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { useAuthStore } from "@/store/auth-store";
 import EmptyState from "@/components/ui/empty-state";
 import AdminRentToolsCreateClient from "@/components/admin/rent-tools-create-client";
-import { X } from "lucide-react";
 import {
   Clock,
   User,
@@ -618,23 +618,17 @@ export default function AdminRentToolsClient() {
         confirmText="Delete Rental"
       />
 
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-2 sm:p-4">
-          <div className="relative w-full max-w-2xl mt-4 sm:mt-8 mb-8">
-            <button
-              type="button"
-              onClick={closeCreateModal}
-              className="absolute top-3 right-3 z-10 text-gray-400 hover:text-white bg-gray-800/80 hover:bg-gray-700 rounded-full p-1.5 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <AdminRentToolsCreateClient
-              onClose={closeCreateModal}
-              onSuccess={handleCreateSuccess}
-            />
-          </div>
-        </div>
-      )}
+      <BaseGlassModal
+        isOpen={isCreateOpen}
+        onClose={closeCreateModal}
+        title="Create Rental"
+        size="lg"
+      >
+        <AdminRentToolsCreateClient
+          onClose={closeCreateModal}
+          onSuccess={handleCreateSuccess}
+        />
+      </BaseGlassModal>
     </div>
   );
 }

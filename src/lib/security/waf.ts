@@ -33,7 +33,7 @@ export const XSS_PATTERNS = [
   /<script\b[^>]*>.*?<\/script\b[^>]*>/is,
   /<script\b[^>]*\/?>/i,
   /javascript\s*:/i,
-  /on\w+\s*=\s*['"]?[^'"]*['"]?/i,
+  /\bon\w+\s*=\s*['"]?[^'"]*['"]?/i,
   /onerror\s*=/i,
   /onload\s*=/i,
   /onclick\s*=/i,

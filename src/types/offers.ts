@@ -31,6 +31,10 @@ export interface Offer {
   createdBy?: Record<string, unknown>
   createdAt: string
   updatedAt: string
+  audience?: 'all' | 'selected_groups' | 'selected_categories' | 'selected_customers'
+  targetCustomerIds?: string[]
+  targetCustomerGroups?: string[]
+  sendPushNotification?: boolean
 }
 
 export interface OfferWithProduct extends Omit<Offer, 'products'> {
@@ -93,6 +97,10 @@ export interface CreateOfferInput {
   minimumOrderAmount?: number
   minimumQuantity?: number
   terms?: string
+  audience?: 'all' | 'selected_groups' | 'selected_categories' | 'selected_customers'
+  targetCustomerIds?: string[]
+  targetCustomerGroups?: string[]
+  sendPushNotification?: boolean
 }
 
 export interface UpdateOfferInput extends Partial<CreateOfferInput> {

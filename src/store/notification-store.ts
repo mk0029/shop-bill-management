@@ -7,7 +7,8 @@ export type AppNotificationType =
   | "inventory"
   | "system"
   | "payment"
-  | "chat";
+  | "chat"
+  | "offer";
 
 // Optional structured metadata we can attach to a notification
 export type AppNotificationRoute = {

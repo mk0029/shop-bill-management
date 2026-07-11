@@ -116,9 +116,9 @@ export default function LandingLoginPage() {
 
       const { role } = useAuthStore.getState();
       if (isStaffRole(role)) {
-        router.push("/admin/welcome");
+        router.push("/admin");
       } else {
-        router.push("/customer/welcome");
+        router.push("/customer/bills");
       }
     } catch (err) {
       const errorMessage =
@@ -140,9 +140,9 @@ export default function LandingLoginPage() {
     if (!hydrated) return;
     if (isAuthenticated) {
       if (isStaffRole(role)) {
-        router.replace("/admin/welcome");
+        router.replace("/admin");
       } else {
-        router.replace("/customer/welcome");
+        router.replace("/customer/bills");
       }
     }
   }, [hydrated, isAuthenticated, role, router]);

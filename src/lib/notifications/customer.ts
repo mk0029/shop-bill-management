@@ -32,6 +32,7 @@ export function notificationAppType(eventType: string): AppNotificationType {
   if (eventType.includes("payment")) return "payment";
   if (eventType.startsWith("workTask.")) return "system";
   if (eventType.startsWith("toolRent.")) return "system";
+  if (eventType === "offer_live") return "offer";
   return "system";
 }
 
@@ -49,6 +50,7 @@ function routeFor(eventType: string, data: Record<string, unknown>) {
   if (eventType.startsWith("chat.")) return { pathname: "/customer/chat" };
   if (eventType.startsWith("workTask.")) return { pathname: "/customer/request-repair" };
   if (eventType.startsWith("toolRent.")) return { pathname: "/customer/rented-items" };
+  if (eventType === "offer_live") return { pathname: "/customer/offers" };
   return undefined;
 }
 
@@ -130,6 +132,7 @@ export function isCustomerNotificationVisible(notification: AppNotification, ide
   if (eventType.startsWith("chat.")) return !targetUserId || currentIds.has(targetUserId);
   if (eventType.startsWith("workTask.")) return !targetUserId || currentIds.has(targetUserId);
   if (eventType.startsWith("toolRent.")) return !targetUserId || currentIds.has(targetUserId);
+  if (eventType === "offer_live") return !targetUserId || currentIds.has(targetUserId);
 
   return false;
 }

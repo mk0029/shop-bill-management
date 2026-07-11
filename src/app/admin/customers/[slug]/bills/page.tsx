@@ -73,6 +73,10 @@ export default function CustomerBillsPage() {
   );
   const [dueReminderRepeatDays, setDueReminderRepeatDays] = useState<number>(6);
   const [allowDueReminder, setAllowDueReminder] = useState<boolean>(true);
+  const [reminderIntervalDays, setReminderIntervalDays] = useState<number>(7);
+  const [preferredChannels, setPreferredChannels] = useState<string[]>(["whatsapp"]);
+  const [preferredReminderTime, setPreferredReminderTime] = useState<string>("08:30");
+  const [isSendingManualReminder, setIsSendingManualReminder] = useState(false);
 
   const role = useAuthStore((s) => s.role);
   const isAdmin = role === "admin" || role === "super_admin";
@@ -201,6 +205,20 @@ export default function CustomerBillsPage() {
         ? Math.min(30, Math.max(1, repeatDays))
         : 6,
     );
+    const intervalDays = Number((customer as any)?.reminderIntervalDays);
+    setReminderIntervalDays(
+      Number.isFinite(intervalDays) && intervalDays >= 1
+        ? Math.min(60, Math.max(1, intervalDays))
+        : 7,
+    );
+    setPreferredChannels(
+      Array.isArray((customer as any)?.preferredChannels)
+        ? (customer as any).preferredChannels
+        : ["whatsapp"],
+    );
+    setPreferredReminderTime(
+      String((customer as any)?.preferredReminderTime || "08:30"),
+    );
   };
   useEffect(() => {
     syncReminderSettingsFromCustomer();
@@ -209,6 +227,9 @@ export default function CustomerBillsPage() {
     (customer as any)?.reminderLimit,
     (customer as any)?.allowDueReminder,
     (customer as any)?.dueReminderRepeatDays,
+    (customer as any)?.reminderIntervalDays,
+    (customer as any)?.preferredChannels,
+    (customer as any)?.preferredReminderTime,
   ]);
 
   const saveReminderSettings = async () => {
@@ -220,22 +241,58 @@ export default function CustomerBillsPage() {
         30,
         Math.max(1, Number(dueReminderRepeatDays || 6)),
       );
+      const safeIntervalDays = Math.min(
+        60,
+        Math.max(1, Number(reminderIntervalDays || 7)),
+      );
       await sanityClient
         .patch(customer._id)
         .set({
           reminderLimit: safeLimit,
           dueReminderRepeatDays: safeRepeatDays,
           allowDueReminder: !!allowDueReminder,
+          reminderIntervalDays: safeIntervalDays,
+          preferredChannels,
+          preferredReminderTime,
           updatedAt: new Date().toISOString(),
         })
         .commit();
       setReminderLimit(safeLimit);
       setDueReminderRepeatDays(safeRepeatDays);
+      setReminderIntervalDays(safeIntervalDays);
       toast.success("Reminder settings updated");
     } catch (e) {
       toast.error("Failed to save reminder settings");
     } finally {
       setIsSavingReminderSettings(false);
+    }
+  };
+
+  const sendManualReminder = async () => {
+    if (!customer?._id) return;
+    try {
+      setIsSendingManualReminder(true);
+      const res = await fetch("/api/bill-reminder/send-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: customer._id,
+          channels: preferredChannels,
+          sentBy: "admin",
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.remindersSent > 0) {
+        toast.success(`Sent ${data.remindersSent} reminder(s)`);
+      } else if (data.remindersSkipped > 0) {
+        toast.info("No eligible bills for reminder");
+      } else {
+        toast.error("Failed to send reminder");
+      }
+    } catch {
+      toast.error("Failed to send reminder");
+    } finally {
+      setIsSendingManualReminder(false);
     }
   };
 
@@ -749,15 +806,34 @@ export default function CustomerBillsPage() {
         size="md"
       >
         <div className="space-y-4">
+          {/* Reminder Info Section */}
+          {customer && (
+            <div className="space-y-2 bg-gray-800/50 rounded-lg p-3">
+              <h3 className="text-sm font-medium text-gray-300">Reminder Info</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-gray-500">Last Reminder:</span>
+                  <p className="text-gray-200">
+                    {(customer as any).lastDueReminderSentAt
+                      ? new Date((customer as any).lastDueReminderSentAt).toLocaleDateString()
+                      : "Never"}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Reminder Count:</span>
+                  <p className="text-gray-200">
+                    {(customer as any).reminderCount || 0} total
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Automatic Reminders Section */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-gray-300 border-b border-gray-800 pb-2">
               Automatic Reminders
             </h3>
-            <p className="text-xs text-gray-500">
-              These settings control when automatic reminders are sent based on
-              backend events and scheduled jobs.
-            </p>
             <div className="grid grid-cols-1 gap-3">
               <div className="space-y-1">
                 <label className="text-sm text-gray-300">Reminder Limit</label>
@@ -767,21 +843,17 @@ export default function CustomerBillsPage() {
                   value={reminderLimit}
                   onChange={(e) =>
                     setReminderLimit(
-                      Math.max(
-                        0,
-                        Number(e.target.value || DEFAULT_REMINDER_LIMIT),
-                      ),
+                      Math.max(0, Number(e.target.value || DEFAULT_REMINDER_LIMIT)),
                     )
                   }
                   className="bg-gray-800 border-gray-700 text-white"
                 />
                 <p className="text-xs text-gray-400">
-                  Reminder will only be sent when total pending amount is equal
-                  or above this limit.
+                  Only send when pending amount is at or above this limit.
                 </p>
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-300">Send Reminder</label>
+                <label className="text-sm text-gray-300">Enabled</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -795,25 +867,92 @@ export default function CustomerBillsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm text-gray-300">
-                  Repeat Gap (Days)
+                  First Reminder Offset (Days after due date)
                 </label>
                 <Input
                   type="number"
                   min={1}
-                  max={30}
+                  max={60}
                   value={dueReminderRepeatDays}
                   onChange={(e) =>
                     setDueReminderRepeatDays(
-                      Math.min(30, Math.max(1, Number(e.target.value || 6))),
+                      Math.min(60, Math.max(1, Number(e.target.value || 6))),
                     )
                   }
                   className="bg-gray-800 border-gray-700 text-white"
                 />
                 <p className="text-xs text-gray-400">
-                  Auto reminders repeat after this gap (1 to 30 days).
+                  First reminder sends this many days after due date.
                 </p>
               </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-300">
+                  Reminder Interval (Days)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={reminderIntervalDays}
+                  onChange={(e) =>
+                    setReminderIntervalDays(
+                      Math.min(60, Math.max(1, Number(e.target.value || 7))),
+                    )
+                  }
+                  className="bg-gray-800 border-gray-700 text-white"
+                />
+                <p className="text-xs text-gray-400">
+                  Subsequent reminders repeat after this many days.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-300">Preferred Channels</label>
+                <div className="flex flex-wrap gap-3">
+                  {["whatsapp", "email"].map((ch) => (
+                    <label key={ch} className="flex items-center gap-1.5 text-sm text-gray-200">
+                      <input
+                        type="checkbox"
+                        checked={preferredChannels.includes(ch)}
+                        onChange={() =>
+                          setPreferredChannels((prev) =>
+                            prev.includes(ch)
+                              ? prev.filter((c) => c !== ch)
+                              : [...prev, ch],
+                          )
+                        }
+                      />
+                      {ch === "whatsapp" ? "WhatsApp" : "Email"}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-300">Preferred Time</label>
+                <Input
+                  type="time"
+                  value={preferredReminderTime}
+                  onChange={(e) => setPreferredReminderTime(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white"
+                />
+              </div>
             </div>
+          </div>
+
+          {/* Manual Reminder Section */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-gray-300 border-b border-gray-800 pb-2">
+              Manual Reminder
+            </h3>
+            <p className="text-xs text-gray-500">
+              Send a reminder immediately for the latest pending bill.
+            </p>
+            <Button
+              onClick={sendManualReminder}
+              disabled={isSendingManualReminder}
+              className="w-full"
+            >
+              {isSendingManualReminder ? "Sending..." : "Send Reminder Now"}
+            </Button>
           </div>
 
           <div className="flex justify-end gap-2">

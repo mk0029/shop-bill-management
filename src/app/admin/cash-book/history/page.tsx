@@ -3,45 +3,23 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Receipt } from "lucide-react";
 import { BillDetailModal } from "@/components/ui/bill-detail-modal";
+import { Modal } from "@/components/ui/modal";
 import { format } from "date-fns";
-import { ArrowLeft, Calendar, Search, Filter } from "lucide-react";
+import { ArrowLeft, Calendar, Search, Filter, X } from "lucide-react";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
-import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { useAuthStore } from "@/store/auth-store";
 import { useRouter } from "next/navigation";
-
-interface CashBookEntry {
-  _id: string;
-  _createdAt: string;
-  user?: {
-    _id: string;
-    name: string;
-    phone?: string;
-    email?: string;
-  };
-  userName: string;
-  amount: number;
-  type: "credit" | "debit";
-  source: "Manual" | "Bill Payment";
-  bill?: {
-    _id: string;
-    billNumber: string;
-    customer?: {
-      _id: string;
-      name: string;
-    };
-  };
-  createdAt: string;
-  updatedAt: string;
-}
+import {
+  CashBookEntry,
+  CashbookCustomerGroupCard,
+  groupEntriesByDateAndCustomer,
+} from "@/components/cash-book/cash-book-shared";
 
 interface User {
   _id: string;
@@ -67,9 +45,9 @@ export default function CashBookHistoryPage() {
     "all" | "Manual" | "Bill Payment"
   >("all");
   const [filterUser, setFilterUser] = useState<string>("all");
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
-  // Real-time updates
-  const { isConnected } = useCashBookRealtime({
+  useCashBookRealtime({
     onEntryAdded: (newEntry) => {
       setEntries((prev) => [newEntry, ...prev]);
       toast.success(
@@ -103,14 +81,10 @@ export default function CashBookHistoryPage() {
         sanityApiService.cashBook.getAllEntries(),
         sanityApiService.users.getAllUsers(),
       ]);
-
-      if (entriesResponse.success && entriesResponse.data) {
+      if (entriesResponse.success && entriesResponse.data)
         setEntries(entriesResponse.data);
-      }
-
-      if (usersResponse.success && usersResponse.data) {
+      if (usersResponse.success && usersResponse.data)
         setUsers(usersResponse.data);
-      }
     } catch (error) {
       console.error("Error loading cash book data:", error);
       toast.error("Failed to load cash book data");
@@ -128,38 +102,20 @@ export default function CashBookHistoryPage() {
     }).format(value);
   };
 
-  // Filter entries
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (entry.user?.phone && entry.user.phone.includes(searchTerm)) ||
       (entry.bill?.billNumber &&
         entry.bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()));
-
     const matchesType = filterType === "all" || entry.type === filterType;
     const matchesSource =
       filterSource === "all" || entry.source === filterSource;
     const matchesUser = filterUser === "all" || entry.user?._id === filterUser;
-
     return matchesSearch && matchesType && matchesSource && matchesUser;
   });
 
-  // Group entries by date
-  const groupEntriesByDate = (entries: CashBookEntry[]) => {
-    const groups: { [date: string]: CashBookEntry[] } = {};
-
-    entries.forEach((entry) => {
-      const date = format(new Date(entry.createdAt), "yyyy-MM-dd");
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(entry);
-    });
-
-    return groups;
-  };
-
-  const groupedEntries = groupEntriesByDate(filteredEntries);
+  const groupedData = groupEntriesByDateAndCustomer(filteredEntries);
 
   const handleViewBill = async (billId: string) => {
     try {
@@ -176,6 +132,21 @@ export default function CashBookHistoryPage() {
     }
   };
 
+  const hasActiveFilters =
+    filterType !== "all" || filterSource !== "all" || filterUser !== "all";
+  const activeFilterCount = [
+    filterType !== "all",
+    filterSource !== "all",
+    filterUser !== "all",
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setFilterType("all");
+    setFilterSource("all");
+    setFilterUser("all");
+    setSearchTerm("");
+  };
+
   if (loading) {
     return (
       <div className="min-h-full bg-gray-900 flex items-center justify-center">
@@ -185,7 +156,7 @@ export default function CashBookHistoryPage() {
   }
 
   return (
-    <div className="min-h-full rounded-lg max-md:p-4">
+    <div className="min-h-full rounded-lg max-sm:-mt-3">
       <div className="flex items-center gap-4 md:pb-6">
         <Button
           variant="ghost"
@@ -203,320 +174,177 @@ export default function CashBookHistoryPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 mt-4 sm:mt-6">
-        {/* Filters */}
-        <ResponsiveAccordion
-          className="mb-4"
-          title={
-            <h3 className="text-lg font-semibold text-white  flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filters
-            </h3>
-          }
-        >
-          <Card className="bg-gray-800 border-gray-700 p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="search" className="text-gray-300 text-sm">
-                  Search
-                </Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="search"
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name, phone, bill..."
-                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 pl-10"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="type" className="text-gray-300 text-sm">
-                  Type
-                </Label>
-                <SelectField
-                  value={filterType}
-                  onValueChange={(value: "all" | "credit" | "debit") =>
-                    setFilterType(value)
-                  }
-                  options={[
-                    { value: "all", label: "All Types" },
-                    { value: "credit", label: "Credit" },
-                    { value: "debit", label: "Debit" },
-                  ]}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="source" className="text-gray-300 text-sm">
-                  Source
-                </Label>
-                <SelectField
-                  value={filterSource}
-                  onValueChange={(value: "all" | "Manual" | "Bill Payment") =>
-                    setFilterSource(value)
-                  }
-                  options={[
-                    { value: "all", label: "All Sources" },
-                    { value: "Manual", label: "Manual" },
-                    { value: "Bill Payment", label: "Bill Payment" },
-                  ]}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="user" className="text-gray-300 text-sm">
-                  User
-                </Label>
-                <SelectField
-                  value={filterUser}
-                  onValueChange={setFilterUser}
-                  options={[
-                    { value: "all", label: "All Users" },
-                    ...users.map((user) => ({
-                      value: user._id,
-                      label: user.name,
-                    })),
-                  ]}
-                  className="bg-gray-700 border-gray-600 text-white"
-                />
-              </div>
-            </div>
-          </Card>
-        </ResponsiveAccordion>
-
-        {/* Records */}
-        <div className="lg:hidden max-h-[88dvh] overflow-auto">
-          {Object.keys(groupedEntries).length === 0 ? (
-            <Card className="bg-gray-800 border-gray-700 p-8 text-center">
-              <p className="text-gray-400">
-                No entries found matching your filters
-              </p>
-            </Card>
-          ) : (
-            Object.entries(groupedEntries).map(([date, dateEntries]) => (
-              <div key={date} className="mb-4">
-                {/* Date Separator */}
-                <div className="border-t border-gray-600 my-2"></div>
-                <div className="px-4 py-2 bg-slate-950/75 rounded-md sticky top-1 z-10 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55">
-                  <p className="text-sm font-medium text-gray-300">
-                    {format(new Date(date), "EEEE, MMMM d, yyyy")}
-                  </p>
-                </div>
-                <div className="space-y-1 mt-2">
-                  {dateEntries.map((entry, index) => (
-                    <Card
-                      key={entry._id}
-                      className={`bg-gray-800 border-gray-700 p-4 ${index === 0 ? "rounded-none rounded-t-lg" : dateEntries.length - 1 === index ? "rounded-none rounded-b-lg" : "rounded-none "}`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="text-white font-medium">
-                            {entry.userName}
-                          </h4>
-                          {entry.user?.phone && (
-                            <p className="text-gray-400 text-sm">
-                              {entry.user.phone}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p
-                            className={`font-bold text-lg ${
-                              entry.type === "credit"
-                                ? "text-green-400"
-                                : "text-red-400"
-                            }`}
-                          >
-                            {entry.type === "credit" ? "+" : "-"}
-                            {formatCurrency(entry.amount)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge
-                          variant={
-                            entry.type === "credit" ? "default" : "destructive"
-                          }
-                          className={
-                            entry.type === "credit"
-                              ? "bg-green-600 text-white text-xs"
-                              : "bg-red-600 text-white text-xs"
-                          }
-                        >
-                          {entry.type === "credit" ? "Credit" : "Debit"}
-                        </Badge>
-                        <Badge
-                          variant="outline"
-                          className="border-gray-600 text-gray-300 text-xs"
-                        >
-                          {entry.source}
-                        </Badge>
-                        {entry.bill && (
-                          <>
-                            <span className="text-gray-400 text-xs">
-                              Bill: {entry.bill.billNumber}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                entry.bill && handleViewBill(entry.bill._id)
-                              }
-                              className="h-5 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
-                            >
-                              <Receipt className="w-2 h-2 mr-1" />
-                              View
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      <p className="text-gray-400 text-xs">
-                        {format(new Date(entry.createdAt), "hh:mm a")}
-                      </p>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            ))
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 mt-2 sm:mt-6">
+        {/* Search + Filter bar */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, phone, bill..."
+              className="bg-gray-800 border-gray-700 text-white placeholder-gray-500 pl-10 h-10 text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setShowFilterModal(true)}
+            className="border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 h-10 relative"
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-2 bg-blue-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          {(hasActiveFilters || searchTerm) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="text-gray-400 hover:text-white h-10"
+            >
+              Clear
+            </Button>
           )}
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden lg:block max-h-[88dvh] overflow-auto">
-          <Card className="bg-gray-800 border-gray-700">
-            <div className="p-4 border-b border-white/10 sticky top-0 z-10 bg-slate-950/75 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55">
-              <h3 className="text-lg font-semibold text-white">
-                All Records ({filteredEntries.length})
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              {Object.keys(groupedEntries).length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">
-                    No entries found matching your filters
-                  </p>
-                </div>
-              ) : (
-                Object.entries(groupedEntries).map(([date, dateEntries]) => (
-                  <div key={date}>
-                    <div className="border-t border-gray-600 my-2"></div>
-                    <div className="px-4 py-2 bg-gray-700/50">
-                      <p className="text-sm font-medium text-gray-300">
-                        {format(new Date(date), "EEEE, MMMM d, yyyy")}
-                      </p>
-                    </div>
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-700">
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            User
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Amount
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Type
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Source
-                          </th>
-                          <th className="text-left p-4 text-gray-400 font-medium">
-                            Time
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dateEntries.map((entry) => (
-                          <tr
-                            key={entry._id}
-                            className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
-                          >
-                            <td className="p-4">
-                              <div>
-                                <p className="text-white font-medium">
-                                  {entry.userName}
-                                </p>
-                                {entry.user?.phone && (
-                                  <p className="text-gray-400 text-sm">
-                                    {entry.user.phone}
-                                  </p>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <p
-                                className={`font-bold ${
-                                  entry.type === "credit"
-                                    ? "text-green-400"
-                                    : "text-red-400"
-                                }`}
-                              >
-                                {entry.type === "credit" ? "+" : "-"}
-                                {formatCurrency(entry.amount)}
-                              </p>
-                            </td>
-                            <td className="p-4">
-                              <Badge
-                                variant={
-                                  entry.type === "credit"
-                                    ? "default"
-                                    : "destructive"
-                                }
-                                className={
-                                  entry.type === "credit"
-                                    ? "bg-green-600 text-white"
-                                    : "bg-red-600 text-white"
-                                }
-                              >
-                                {entry.type === "credit" ? "Credit" : "Debit"}
-                              </Badge>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  variant="outline"
-                                  className="border-gray-600 text-gray-300"
-                                >
-                                  {entry.source}
-                                </Badge>
-                                {entry.bill && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      entry.bill &&
-                                      handleViewBill(entry.bill._id)
-                                    }
-                                    className="h-6 px-2 text-xs border-blue-600 text-blue-400 hover:bg-blue-600/20"
-                                  >
-                                    Check Bill
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <p className="text-gray-300">
-                                {format(new Date(entry.createdAt), "hh:mm a")}
-                              </p>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))
-              )}
-            </div>
+        {/* Records */}
+        {groupedData.length === 0 ? (
+          <Card className="bg-gray-800 border-gray-700 p-8 text-center">
+            <p className="text-gray-400">
+              No entries found matching your filters
+            </p>
           </Card>
-        </div>
+        ) : (
+          <div className="max-h-[88dvh] overflow-auto space-y-6 sm:space-y-8">
+            {groupedData.map(({ date, groups }) => (
+              <div key={date}>
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                  <Calendar className="w-4 h-4 text-white/40" />
+                  <h3 className="text-sm sm:text-base font-semibold text-white/70">
+                    {format(new Date(date), "EEEE, MMMM d, yyyy")}
+                  </h3>
+                </div>
+                <div className="space-y-3 sm:space-y-4">
+                  {groups.map((group) => (
+                    <CashbookCustomerGroupCard
+                      key={group.key}
+                      group={group}
+                      formatCurrency={formatCurrency}
+                      onViewBill={handleViewBill}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* Bill Detail Modal */}
+        {/* Filter Modal */}
+        <Modal
+          isOpen={showFilterModal}
+          onClose={() => setShowFilterModal(false)}
+          title="Filters"
+          size="sm"
+        >
+          <div className="space-y-5">
+            <div>
+              <Label
+                htmlFor="filter-type"
+                className="text-gray-300 text-sm mb-1.5 block"
+              >
+                Type
+              </Label>
+              <SelectField
+                id="filter-type"
+                value={filterType}
+                onValueChange={(value: "all" | "credit" | "debit") =>
+                  setFilterType(value)
+                }
+                options={[
+                  { value: "all", label: "All Types" },
+                  { value: "credit", label: "Credit" },
+                  { value: "debit", label: "Debit" },
+                ]}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="filter-source"
+                className="text-gray-300 text-sm mb-1.5 block"
+              >
+                Source
+              </Label>
+              <SelectField
+                id="filter-source"
+                value={filterSource}
+                onValueChange={(value: "all" | "Manual" | "Bill Payment") =>
+                  setFilterSource(value)
+                }
+                options={[
+                  { value: "all", label: "All Sources" },
+                  { value: "Manual", label: "Manual" },
+                  { value: "Bill Payment", label: "Bill Payment" },
+                ]}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="filter-user"
+                className="text-gray-300 text-sm mb-1.5 block"
+              >
+                User
+              </Label>
+              <SelectField
+                id="filter-user"
+                value={filterUser}
+                onValueChange={setFilterUser}
+                options={[
+                  { value: "all", label: "All Users" },
+                  ...users.map((user) => ({
+                    value: user._id,
+                    label: user.name,
+                  })),
+                ]}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-gray-600 text-gray-300 hover:text-white"
+                onClick={() => {
+                  setFilterType("all");
+                  setFilterSource("all");
+                  setFilterUser("all");
+                }}
+              >
+                Reset
+              </Button>
+              <Button
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white"
+                onClick={() => setShowFilterModal(false)}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
         <BillDetailModal
           isOpen={showBillModal}
           onClose={() => setShowBillModal(false)}

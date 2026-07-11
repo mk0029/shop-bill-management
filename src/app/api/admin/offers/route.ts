@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerAuth } from '@/lib/server-auth'
 import { getAdminOffers, createOffer, getOfferStats } from '@/lib/offer-service'
-import { sendNewOfferNotification } from '@/lib/offer-notifications'
+import { processOfferLiveNotification } from '@/services/notifications/offer-notification.server'
 import { sanityClient } from '@/lib/sanity'
 import { isAdminLike } from '@/lib/rbac'
 
@@ -44,19 +44,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 })
     }
 
-    const productNames: string[] = []
-    if (body.productIds?.length) {
-      const products = await sanityClient.fetch<Array<{ name: string }>>(
-        `*[_type == "shopProduct" && _id in $productIds]{name}`,
-        { productIds: body.productIds },
-      )
-      for (const p of products) productNames.push(p.name)
-    }
-
     if (result.offer?.status === 'active') {
-      sendNewOfferNotification(result.offer._id, result.offer.title, productNames).catch(
-        (err) => console.error('[OfferFCM] Background notification failed:', err),
-      )
+      const now = Date.now()
+      const start = new Date(result.offer.startAt).getTime()
+      const end = new Date(result.offer.endAt).getTime()
+      if (!Number.isNaN(start) && !Number.isNaN(end) && now >= start && now <= end) {
+        processOfferLiveNotification(result.offer._id).catch(
+          (err) => console.error('[OfferNotify] Background notification failed:', err),
+        )
+      }
     }
 
     return NextResponse.json({ success: true, data: result.offer }, { status: 201 })

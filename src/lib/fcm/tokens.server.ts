@@ -420,6 +420,7 @@ async function enforceUserFcmTokenLimit(
 async function notifyChatBackendDeviceRevoked(input: {
   userId: string;
   deviceId?: string;
+  sessionId?: string;
   reason: "DEVICE_LIMIT_EXCEEDED" | "LOGGED_IN_ON_ANOTHER_DEVICE";
   loggedInOn?: string;
 }) {
@@ -427,19 +428,22 @@ async function notifyChatBackendDeviceRevoked(input: {
   const token = String(process.env.CHAT_SYNC_TOKEN || process.env.CHAT_BACKEND_JWT_SECRET || process.env.JWT_SECRET || "");
   if (!baseUrl || !token || !input.deviceId) return;
 
+  const body: Record<string, unknown> = {
+    userId: input.userId,
+    deviceId: input.deviceId,
+    reason: input.reason,
+    loggedInOn: input.loggedInOn,
+    message: "Your account has been logged out from this device because it was logged in on another device.",
+  };
+  if (input.sessionId) body.sessionId = input.sessionId;
+
   await fetch(`${baseUrl}/internal/session/revoke`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      userId: input.userId,
-      deviceId: input.deviceId,
-      reason: input.reason,
-      loggedInOn: input.loggedInOn,
-      message: "Your account has been logged out from this device because it was logged in on another device.",
-    }),
+    body: JSON.stringify(body),
   }).catch((error) => {
     console.warn("[DeviceSession] realtime revoke failed", error);
   });

@@ -8,6 +8,7 @@ import { SHOP_CHAT_URL } from "@/lib/shop-chat/api";
 import { getShopAuthHeader } from "@/lib/shop-chat/auth";
 import { getDeviceInfo } from "@/lib/fcm/device";
 import { setAutoLogoutInfo } from "@/lib/auto-logout";
+import { getStoredSessionId } from "@/lib/session-utils";
 
 function toBase64Url(value: string) {
   try {
@@ -40,12 +41,14 @@ export default function SessionRealtimeBridge() {
     if (!authStorage) return;
 
     const deviceInfo = getDeviceInfo();
+    const localSessionId = getStoredSessionId();
     const socket = io(`${SHOP_CHAT_URL}/chat`, {
       autoConnect: true,
       auth: {
         authStorage: toBase64Url(authStorage),
         deviceId: deviceInfo.deviceId,
         deviceName: deviceInfo.deviceName,
+        sessionId: localSessionId,
         presence: false,
       },
       transports: ["websocket"],
@@ -59,8 +62,12 @@ export default function SessionRealtimeBridge() {
       }
     });
 
-    socket.on("session:revoked", (payload: { reason?: string; deviceId?: string; loggedInOn?: string; message?: string }) => {
+    socket.on("session:revoked", (payload: { reason?: string; deviceId?: string; sessionId?: string; loggedInOn?: string; message?: string }) => {
       if (!payload?.deviceId || payload.deviceId !== deviceInfo.deviceId) return;
+
+      const storedSessionId = getStoredSessionId();
+      if (payload.sessionId && storedSessionId && payload.sessionId !== storedSessionId) return;
+
       setAutoLogoutInfo({
         reason:
           payload?.reason === "DEVICE_LIMIT_EXCEEDED"

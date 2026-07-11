@@ -206,6 +206,56 @@ export default function NotificationsBridge() {
         });
       },
     );
+    // Customer Registration Request created (admin only)
+    on(
+      "customerRequest:created",
+      (req: { _id?: string; name?: string; email?: string; phone?: string; requestId?: string }) => {
+        if (!shouldNotifyUser()) return;
+        add({
+          type: "system",
+          title: "New Customer Registration Request",
+          body: `${req.name ?? "A customer"} has submitted a new registration request.`,
+          meta: {
+            eventType: "customer.request.created",
+            userId: undefined,
+            requestId: req.requestId || req._id,
+            route: { pathname: "/admin/customers", query: { openRequests: "true" } },
+          },
+        });
+      },
+    );
+
+    // Customer Registration Request updated (e.g., approved/rejected — remove in-app notification)
+    on(
+      "customerRequest:updated",
+      (ev: { _id?: string; status?: string; id?: string }) => {
+        const id = ev?._id || ev?.id;
+        if (!id) return;
+        const status = ev?.status;
+        if (status && status !== "pending") {
+          const removeWhere = useNotificationStore.getState().removeWhere;
+          removeWhere((n) => {
+            const meta = n.meta || {};
+            return String(meta.requestId) === id;
+          });
+        }
+      },
+    );
+
+    // Customer Registration Request deleted (remove in-app notifications)
+    on(
+      "customerRequest:deleted",
+      (ev: { id?: string }) => {
+        const id = ev?.id;
+        if (!id) return;
+        const removeWhere = useNotificationStore.getState().removeWhere;
+        removeWhere((n) => {
+          const meta = n.meta || {};
+          return String(meta.requestId) === id;
+        });
+      },
+    );
+
     return () => {
       disconnect();
     };

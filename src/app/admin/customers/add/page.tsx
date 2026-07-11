@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   createCustomerSuccessPopup,
 } from "@/components/ui/success-popup";
 import { createCustomer } from "@/lib/form-service";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocaleStore } from "@/store/locale-store";
 import { ArrowLeft, Save, User, Phone, MapPin, Building2 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ const serviceTypeOptions = [
 
 export default function AddCustomerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t, currency } = useLocaleStore();
   const [isLoading, setIsLoading] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
@@ -46,6 +47,25 @@ export default function AddCustomerPage() {
     customerId: "",
     secretKey: "",
   });
+
+  useEffect(() => {
+    const name = searchParams.get("name");
+    const phone = searchParams.get("phone");
+    const email = searchParams.get("email");
+    const location = searchParams.get("location");
+    if (name || phone || email || location) {
+      const loc = location || "";
+      const matched = baseLocationOptions.find((o) => o.value === loc || o.label === loc);
+      setFormData((prev) => ({
+        ...prev,
+        name: name || prev.name,
+        phone: phone || prev.phone,
+        email: email || prev.email,
+        location: matched ? matched.value : loc ? "__custom__" : prev.location,
+        customLocation: matched ? "" : loc || prev.customLocation,
+      }));
+    }
+  }, [searchParams]);
 
   const resolvedLocation = formData.location === "__custom__" ? formData.customLocation : formData.location;
 
@@ -124,6 +144,20 @@ export default function AddCustomerPage() {
         };
 
         setSuccessData(createCustomerSuccessPopup(result.data, resetForm));
+
+        const requestId = searchParams.get("requestId");
+        if (requestId) {
+          fetch(`/api/admin/customer-requests/${requestId}/approve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: formData.name,
+              phone: formData.phone.replace(/\D/g, ""),
+              email: formData.email || undefined,
+              location: resolvedLocation || undefined,
+            }),
+          }).catch(() => {});
+        }
       } else {
         toast.error(result.error || "An error occurred while creating the customer.");
       }

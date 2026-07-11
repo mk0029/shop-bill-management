@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerAuth } from '@/lib/server-auth'
 import { updateOffer } from '@/lib/offer-service'
-import { sendNewOfferNotification } from '@/lib/offer-notifications'
+import { processOfferLiveNotification } from '@/services/notifications/offer-notification.server'
 import { sanityClient } from '@/lib/sanity'
 import { isAdminLike } from '@/lib/rbac'
 
@@ -29,25 +29,19 @@ export async function PATCH(
     const result = await updateOffer(id, { status })
 
     if (status === 'active') {
-      const offer = await sanityClient.fetch<{ title: string; products?: Array<{ _ref?: string }> }>(
-        `*[_type == "offer" && _id == $offerId][0]{title, products}`,
+      const offer = await sanityClient.fetch<{ startAt: string; endAt: string }>(
+        `*[_type == "offer" && _id == $offerId][0]{startAt, endAt}`,
         { offerId: id },
       )
       if (offer) {
-        const productIds: string[] = (offer.products || [])
-          .map((p: { _ref?: string }) => p._ref || '')
-          .filter(Boolean)
-        const productNames: string[] = []
-        if (productIds.length) {
-          const products = await sanityClient.fetch<Array<{ name: string }>>(
-            `*[_type == "shopProduct" && _id in $productIds]{name}`,
-            { productIds },
+        const now = Date.now()
+        const start = new Date(offer.startAt).getTime()
+        const end = new Date(offer.endAt).getTime()
+        if (!Number.isNaN(start) && !Number.isNaN(end) && now >= start && now <= end) {
+          processOfferLiveNotification(id).catch(
+            (err) => console.error('[OfferNotify] Background notification failed:', err),
           )
-          for (const p of products) productNames.push(p.name)
         }
-        sendNewOfferNotification(id, offer.title, productNames).catch(
-          (err) => console.error('[OfferFCM] Background notification failed:', err),
-        )
       }
     }
 

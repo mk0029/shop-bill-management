@@ -52,6 +52,48 @@ export default {
       type: "reference",
       to: [{ type: "bill" }],
       hidden: ({ document }) => document?.source !== "Bill Payment",
+      description: "Legacy single bill reference. For multi-bill payments, use Applied Bills instead.",
+    },
+    {
+      title: "Applied Bills",
+      name: "appliedBills",
+      type: "array",
+      of: [
+        {
+          type: "object",
+          fields: [
+            { name: "billRef", type: "reference", to: [{ type: "bill" }] },
+            { name: "billNumber", type: "string", title: "Bill Number" },
+            { name: "appliedAmount", type: "number", title: "Applied Amount" },
+            { name: "status", type: "string", options: { list: [{ title: "Paid", value: "paid" }, { title: "Partial", value: "partial" }] }, title: "Status" },
+          ],
+          preview: {
+            select: { billNumber: "billNumber", appliedAmount: "appliedAmount", status: "status" },
+            prepare(sel) {
+              return { title: `${sel.billNumber || "Bill"} - ${sel.status}`, subtitle: `₹${sel.appliedAmount || 0}` }
+            }
+          }
+        }
+      ],
+      hidden: ({ document }) => document?.source !== "Bill Payment",
+    },
+    {
+      title: "Bill Count",
+      name: "billCount",
+      type: "number",
+      hidden: ({ document }) => document?.source !== "Bill Payment",
+    },
+    {
+      title: "Fully Paid Count",
+      name: "fullyPaidCount",
+      type: "number",
+      hidden: ({ document }) => document?.source !== "Bill Payment",
+    },
+    {
+      title: "Partially Paid Count",
+      name: "partialCount",
+      type: "number",
+      hidden: ({ document }) => document?.source !== "Bill Payment",
     },
     {
       title: "Created At",

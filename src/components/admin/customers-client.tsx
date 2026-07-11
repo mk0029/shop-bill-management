@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomerStats } from "@/hooks/use-customer-stats";
 import { useCustomerFilters } from "@/hooks/use-customer-filters";
 import { useCustomerActions } from "@/hooks/use-customer-actions";
 import CustomersPageHeader from "@/components/customers/customers-page-header";
-import CustomerStatsCards from "@/components/customers/customer-stats-cards";
 import CustomerSearchFilters from "@/components/customers/customer-search-filters";
 import CustomerTable from "@/components/customers/customer-table";
 import CustomerDetailModal from "@/components/customers/customer-detail-modal";
+import { CustomerRequestsModal } from "@/components/customers/customer-requests-modal";
+import { useRegistrationRealtime } from "@/hooks/use-registration-realtime";
 import type { CustomerWithStats } from "@/types/customer";
 
 export default function AdminCustomersClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { customersWithStats, stats, isLoadingCustomers, isLoadingStats } =
-    useCustomerStats();
+  const { customersWithStats, isLoadingCustomers } = useCustomerStats();
   const { filters, filteredCustomers, updateSearchTerm, updateFilterActive } =
     useCustomerFilters(customersWithStats);
   const {
@@ -26,12 +26,9 @@ export default function AdminCustomersClient() {
     deleteCustomer,
   } = useCustomerActions();
 
-  const navigateToSmartCreate = () => {
-    router.push("/admin/customers/smart-create");
-  };
-
-  const [selectedCustomer, setSelectedCustomer] =
-    useState<CustomerWithStats | null>(null);
+  const { pendingCount: pendingRequestsCount } = useRegistrationRealtime();
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null);
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
 
   const handleViewCustomer = (customer: CustomerWithStats) => {
     setSelectedCustomer(customer);
@@ -69,9 +66,11 @@ export default function AdminCustomersClient() {
 
   return (
     <div className="space-y-6 max-md:space-y-4 max-md:pb-3">
-      <CustomersPageHeader onAddCustomer={navigateToAddCustomer} onSmartCreate={navigateToSmartCreate} />
-
-      {/* <CustomerStatsCards stats={stats} isLoading={isLoadingStats} /> */}
+      <CustomersPageHeader
+        onAddCustomer={navigateToAddCustomer}
+        onOpenRequests={() => setShowRequestsModal(true)}
+        pendingRequestsCount={pendingRequestsCount}
+      />
 
       <CustomerSearchFilters
         filters={filters}
@@ -94,6 +93,11 @@ export default function AdminCustomersClient() {
         onClose={handleCloseModal}
         onViewBills={handleViewBills}
         onEditCustomer={handleEditCustomer}
+      />
+
+      <CustomerRequestsModal
+        isOpen={showRequestsModal}
+        onClose={() => setShowRequestsModal(false)}
       />
     </div>
   );

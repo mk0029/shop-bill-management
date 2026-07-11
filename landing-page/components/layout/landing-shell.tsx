@@ -7,7 +7,7 @@ import {
 } from "@landing/components/shared/landing-sections";
 import ElectricalBackground from "@landing/components/shared/ElectricalBackground";
 import { getSupportContact } from "@/lib/auth-service";
-import { RequestAccountForm } from "@landing/components/forms/request-account-form";
+import { RequestAccountForm } from "@/components/customer-registration/RequestAccountForm";
 import {
   LandingLanguageProvider,
   useLandingLanguage,
@@ -74,13 +74,10 @@ function LandingShellContent({
 }
 
 export function RequestAccountBlock() {
-  const support = getSupportContact();
   return (
     <div className="mx-auto max-w-4xl">
       <div className="glass-card p-4 sm:p-6 md:p-8">
-        <RequestAccountForm
-          support={{ email: support.email, whatsapp: support.whatsapp }}
-        />
+        <RequestAccountForm />
       </div>
     </div>
   );

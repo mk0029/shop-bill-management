@@ -15,10 +15,16 @@ interface BaseGlassModalProps {
   showCloseButton?: boolean;
   size?: "sm" | "md" | "lg" | "xl" | "full";
   zIndex?: number;
-  mobileType?: "modal" | "bottom-sheet";
+  mobileType?: "modal" | "bottom-sheet" | "center";
   className?: string;
   hideBackdrop?: boolean;
   backCloseId?: string;
+  glassWidth?: string;
+  glassHeight?: string;
+  glassMaxWidth?: string;
+  glassMaxHeight?: string;
+  glassClassName?: string;
+  forceFullSize?: boolean;
 }
 
 const sizeClasses = {
@@ -37,10 +43,16 @@ export function BaseGlassModal({
   showCloseButton = true,
   size = "md",
   zIndex = 300,
-  mobileType = "bottom-sheet",
+  mobileType = "center",
   className,
   hideBackdrop,
   backCloseId,
+  glassWidth,
+  glassHeight,
+  glassMaxWidth,
+  glassMaxHeight,
+  glassClassName,
+  forceFullSize,
 }: BaseGlassModalProps) {
   const [mounted, setMounted] = useState(false);
   const generatedId = useId();
@@ -70,7 +82,7 @@ export function BaseGlassModal({
     <AnimatePresence>
       {isOpen && (
         <div
-          className="fixed inset-0 flex items-end sm:items-center justify-center overflow-hidden"
+          className={`fixed inset-0 flex items-center justify-center overflow-hidden p-3 sm:p-4 ${forceFullSize ? "max-md:!p-0" : ""}`}
           style={{ zIndex }}
         >
           {/* Backdrop — thin dim overlay, no blur (blur lives on the panel) */}
@@ -100,16 +112,33 @@ export function BaseGlassModal({
             }
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
             className={cn(
-              "glass-modal relative w-full backdrop-blur-2xl flex flex-col",
+              "glass-modal backdrop-blur-2xl flex flex-col",
               "bg-transparent border border-white/[0.12]",
               "shadow-[0_8px_40px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.05)_inset,0_1px_0_rgba(255,255,255,0.1)_inset]",
+
               mobileType === "bottom-sheet"
-                ? "sm:rounded-[22px] sm:mx-4 max-h-[100dvh] sm:max-h-[90dvh] h-full"
-                : "rounded-[10px] sm:mx-4 max-h-[100dvh] sm:max-h-[90dvh] h-full",
-              sizeClasses[size],
+                ? "w-full sm:rounded-[22px] sm:mx-4 max-h-[100dvh] sm:max-h-[90dvh] h-full"
+                : cn(
+                    "rounded-[22px]",
+                    !glassWidth && "w-full",
+                    !glassMaxHeight && "max-h-[90dvh]",
+                    !glassMaxWidth && sizeClasses[size],
+                  ),
+              glassClassName,
               className,
+              forceFullSize
+                ? "max-xl:h-full !max-w-[700px]  w-full max-xl:max-h-full max-xl:max-w-full rounded-none !px-0 h-[90dvh]"
+                : "",
             )}
             style={{
+              ...(!forceFullSize && glassWidth ? { width: glassWidth } : {}),
+              ...(!forceFullSize && glassHeight ? { height: glassHeight } : {}),
+              ...(!forceFullSize && glassMaxWidth
+                ? { maxWidth: glassMaxWidth }
+                : {}),
+              ...(!forceFullSize && glassMaxHeight
+                ? { maxHeight: glassMaxHeight }
+                : {}),
               paddingBottom:
                 mobileType === "bottom-sheet"
                   ? "env(safe-area-inset-bottom, 0px)"

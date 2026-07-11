@@ -176,6 +176,27 @@ export async function POST(req: Request) {
       remainingAmount > 0.01 ? `\u20b9${remainingAmount.toLocaleString()} unapplied (exceeds total pending).` : "",
     ].filter(Boolean).join(" ");
 
+    const customerDoc = billsToPay[0]?.customer || {};
+
+    // Calculate total outstanding across ALL customer bills (BEFORE payment patch)
+    const allCustomerBills = await sanityClient.fetch(
+      `*[_type == "bill" && customer._ref == $customerId]{
+        _id, totalAmount, paidAmount, discount, balanceAmount, paymentStatus
+      }`,
+      { customerId }
+    );
+    const totalOutstandingBeforePayment = allCustomerBills.reduce((sum: number, b: any) => {
+      const paid = Number(b.paidAmount || 0);
+      const total = Number(b.totalAmount || 0);
+      const discount = Number(b.discount || 0);
+      const grandTotal = Math.max(0, total - discount);
+      const due = Math.max(0, grandTotal - paid);
+      return sum + due;
+    }, 0);
+
+    // Remaining outstanding = total outstanding before - total paid now
+    const remainingOutstanding = Math.max(0, totalOutstandingBeforePayment - totalApplied);
+
     // Execute in Sanity transaction
     const tx = sanityClient.transaction();
     for (const op of patchOps) {
@@ -183,29 +204,38 @@ export async function POST(req: Request) {
     }
     await tx.commit();
 
-    // Create cashbook entries (fire-and-forget)
-    for (const op of patchOps) {
+    // Build applied bills data for the single cashbook entry
+    const appliedBillsData = patchOps.map((op) => {
       const bill = billsToPay.find((b: any) => b._id === op.id);
-      if (!bill) continue;
-      try {
-        await sanityClient.create({
-          _type: "cashBookEntry",
-          user: { _type: "reference", _ref: customerId },
-          userName: bill.customer?.name || "",
-          amount: op.amount,
-          type: "credit",
-          source: "Bill Payment",
-          bill: { _type: "reference", _ref: bill._id },
-          createdAt: payDate,
-          updatedAt: now,
-        });
-      } catch (e) {
-        console.error("[PayMultiple] cashbook entry failed for", op.id, e);
-      }
-    }
+      return {
+        _key: `${bill?._id || op.id}`,
+        billRef: { _type: "reference", _ref: bill?._id || op.id },
+        billNumber: bill?.billNumber || "",
+        appliedAmount: op.amount,
+        status: op.patches?.paymentStatus || "partial",
+      };
+    });
 
-    const customerDoc = billsToPay[0]?.customer || {};
-    const remainingBalance = Math.max(0, totalPending - totalApplied);
+    // Create ONE cashbook entry instead of many
+    try {
+      await sanityClient.create({
+        _type: "cashBookEntry",
+        user: { _type: "reference", _ref: customerId },
+        userName: customerDoc?.name || "Customer",
+        amount: totalApplied,
+        type: "credit",
+        source: "Bill Payment",
+        bill: billsToPay.length === 1 ? { _type: "reference", _ref: billsToPay[0]._id } : undefined,
+        appliedBills: appliedBillsData,
+        billCount: patchOps.length,
+        fullyPaidCount: fullyPaidBills.length,
+        partialCount: partialBillNumber ? 1 : 0,
+        createdAt: payDate,
+        updatedAt: now,
+      });
+    } catch (e) {
+      console.error("[PayMultiple] cashbook entry creation failed:", e);
+    }
 
     // ONE combined WhatsApp event (fire-and-forget)
     const waBills = patchOps.map((op) => {
@@ -228,7 +258,10 @@ export async function POST(req: Request) {
       customer: { name: customerDisplayName(customerDoc), nickname: customerDoc.nickname || "" },
       bills: waBills,
       totalPaid: totalApplied,
-      remainingBalance,
+      remainingBalance: remainingOutstanding,
+      totalOutstandingBefore: totalOutstandingBeforePayment,
+      fullyPaidCount: fullyPaidBills.length,
+      partialCount: partialBillNumber ? 1 : 0,
       paymentMode,
       paymentDate: payDate,
       paidByAdmin: actorUserId,
@@ -245,18 +278,23 @@ export async function POST(req: Request) {
       if (adminUserIds.length > 0) {
         const adminRoute = `/admin/billing`;
         const partialText = partialBillNumber ? ` Partial: ${partialBillNumber} (\u20b9${partialApplied.toLocaleString()}).` : "";
+        const remainingText = `Remaining outstanding: \u20b9${remainingOutstanding.toLocaleString()}.`;
         await createAndDispatchNotification({
           eventId: `billing.multiPaid.${customerId}.${makeHash(sortedIds)}.${receivedAmount}`,
           type: "billing.updated",
           actorUserId,
           userIds: adminUserIds,
           title: "Payment Applied Across Bills",
-          body: `${customerDisplayName(customerDoc)} \u2014 \u20b9${totalApplied.toLocaleString()} applied across ${patchOps.length} bill(s). Fully paid: ${fullyPaidBills.join(", ") || "none"}.${partialText}`,
+          body: `${customerDisplayName(customerDoc)} \u2014 \u20b9${totalApplied.toLocaleString()} applied across ${patchOps.length} bill(s). Fully paid: ${fullyPaidBills.join(", ") || "none"}.${partialText} ${remainingText}`,
           data: {
             customerId,
             billNumbersFullyPaid: fullyPaidBills.join(","),
             billNumberPartiallyPaid: partialBillNumber || "",
             totalApplied,
+            totalOutstandingBefore: totalOutstandingBeforePayment,
+            remainingOutstanding,
+            fullyPaidCount: fullyPaidBills.length,
+            partialCount: partialBillNumber ? 1 : 0,
             paymentMode,
             route: adminRoute,
             route_path: adminRoute,
@@ -272,22 +310,26 @@ export async function POST(req: Request) {
     try {
       if (customerId) {
         const customerRoute = `/customer/bills`;
+        const fullyPaidText = fullyPaidBills.length > 0 ? `Fully Paid: ${fullyPaidBills.join(", ")}.` : "";
         const partialText = partialBillNumber ? `Partially paid: ${partialBillNumber} \u2014 \u20b9${partialApplied.toLocaleString()} applied.` : "";
-        const remainingText = remainingBalance > 0 ? `Remaining balance: \u20b9${remainingBalance.toLocaleString()}.` : "";
+        const remainingText = `Remaining outstanding: \u20b9${remainingOutstanding.toLocaleString()}.`;
         await createAndDispatchNotification({
           eventId: `billing.multiPaid.${customerId}.customer.${makeHash(sortedIds)}.${receivedAmount}`,
           type: "billing.updated",
           actorUserId,
           userIds: [customerId],
-          title: "Payment Adjusted",
-          body: `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. It has been adjusted against your pending bills. Fully Paid: ${fullyPaidBills.join(", ") || "None"}. ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment. Regards, Jambh Electricals`,
+          title: "Payment Received Successfully",
+          body: `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. ${fullyPaidText} ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment. Regards, Jambh Electricals`,
           data: {
             customerId,
             billNumbersFullyPaid: fullyPaidBills.join(","),
             billNumberPartiallyPaid: partialBillNumber || "",
             totalReceived: customAmountEnabled ? Number(receivedAmount) : totalPending,
             totalApplied,
-            remainingCustomerBalance: remainingBalance,
+            totalOutstandingBefore: totalOutstandingBeforePayment,
+            remainingOutstanding,
+            fullyPaidCount: fullyPaidBills.length,
+            partialCount: partialBillNumber ? 1 : 0,
             paymentMode,
             route: customerRoute,
             route_path: customerRoute,
@@ -309,7 +351,10 @@ export async function POST(req: Request) {
         partialApplied,
         totalReceived: customAmountEnabled ? Number(receivedAmount) : totalPending,
         totalApplied,
-        remainingBalance,
+        totalOutstandingBefore: totalOutstandingBeforePayment,
+        remainingOutstanding,
+        fullyPaidCount: fullyPaidBills.length,
+        partialCount: partialBillNumber ? 1 : 0,
         smartNote,
         paymentMode,
         paymentDate: payDate,

@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { CreditCard, CheckCircle2, Clock, AlertCircle, Smartphone } from "lucide-react";
 import { GlassCard, GlassCardHeader } from "./GlassCard";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ interface PaymentCardProps {
   role?: "admin" | "customer";
   onOpenPaymentModal?: () => void;
   onPayOnline?: (bill: any) => void;
+  onUPIPayment?: (bill: any) => void;
 }
 
 const toNum = (v: any): number => {
@@ -27,6 +28,7 @@ export const PaymentCard = memo(function PaymentCard({
   role = "admin",
   onOpenPaymentModal,
   onPayOnline,
+  onUPIPayment,
 }: PaymentCardProps) {
   const grandTotal = toNum(bill.totalAmount ?? bill.total ?? 0);
   const paidAmount = toNum(bill.paidAmount ?? 0);
@@ -183,6 +185,19 @@ export const PaymentCard = memo(function PaymentCard({
                 This bill has been fully paid. Thank you!
               </span>
             </motion.div>
+          )}
+
+          {role === "customer" && paymentStatus !== "paid" && onUPIPayment && (
+            <div className="space-y-3">
+              <div className="glass-divider" />
+              <Button
+                onClick={() => onUPIPayment(bill)}
+                className="w-full !rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-0 !py-3"
+              >
+                <Smartphone className="w-4 h-4 mr-2" />
+                Pay via UPI
+              </Button>
+            </div>
           )}
         </div>
       </GlassCard>

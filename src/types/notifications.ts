@@ -18,6 +18,11 @@ export const NOTIFICATION_EVENT_TYPES = [
   "scheduled.festivalGreeting",
   "daily_good_morning",
   "hindu_festival_greeting",
+  "customer.request.created",
+  "customer.request.approved",
+  "customer.request.rejected",
+  "customer.request.cancelled",
+  "offer_live",
   "system.general",
 ] as const;
 
