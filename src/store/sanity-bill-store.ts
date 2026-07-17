@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
 import { getCookie } from "@/lib/cookies";
+
 
 export interface BillItem {
   product: string;
@@ -183,15 +185,35 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
           const amount = Number((result as any)?.totalAmount || billData.totalAmount || 0);
           const payStatus = String((result as any)?.paymentStatus || billData.paymentStatus || 'pending');
           let customerName = '';
+          let customerPhone = '';
           try {
             if (customerId) {
-              const doc = await sanityClient.fetch<{ name?: string } | null>(
-                `*[_type=="user" && _id==$id][0]{name}`,
+              const doc = await sanityClient.fetch<{ name?: string; phone?: string } | null>(
+                `*[_type=="user" && _id==$id][0]{name,phone}`,
                 { id: customerId },
               );
               customerName = String(doc?.name || '').trim();
+              customerPhone = String(doc?.phone || '').trim();
             }
           } catch {}
+
+
+          emitWaEventServer('billing.created', {
+            billId,
+            billNumber: billNo,
+            customerId,
+            customerName,
+            customerPhone,
+            totalAmount: amount,
+            paidAmount: Number((result as any)?.paidAmount || billData.paidAmount || 0),
+            balanceAmount: Number((result as any)?.balanceAmount || billData.balanceAmount || amount),
+            paymentStatus: payStatus,
+            dueDate: String((result as any)?.dueDate || billData.dueDate || ''),
+            updatedAt: new Date().toISOString(),
+            idempotencyKey: `billing.created:${billId || ''}`,
+          }).catch((e) => {
+            console.warn('[WA] billing.created event failed:', e);
+          });
 
           fetch('/api/notifications/send', {
             method: 'POST',

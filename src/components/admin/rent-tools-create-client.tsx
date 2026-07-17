@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { Dropdown } from "@/components/ui/dropdown";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
+import ToolSelectionModal from "@/components/admin/tool-selection-modal";
 
 function formatINR(value: number) {
   return `Rs ${Number(value || 0).toFixed(2)}`;
@@ -33,6 +34,7 @@ export default function AdminRentToolsCreateClient({
 
   const [customerId, setCustomerId] = useState("");
   const [toolId, setToolId] = useState("");
+  const [showToolModal, setShowToolModal] = useState(false);
   const [durationType, setDurationType] = useState<DurationType>("hour");
   const [durationValue, setDurationValue] = useState(1);
   const [depositAmount, setDepositAmount] = useState(0);
@@ -160,17 +162,27 @@ export default function AdminRentToolsCreateClient({
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Tool *
                   </label>
-                  <Dropdown
-                    options={tools.map((t) => ({
-                      value: t._id,
-                      label: `${t.toolName} (${t.availableQuantity} available)`,
-                    }))}
-                    value={toolId}
-                    onValueChange={setToolId}
-                    placeholder="Type tool name to search..."
-                    searchable
-                    searchPlaceholder="Search tools..."
-                    removeSearchForce
+                  <button
+                    type="button"
+                    onClick={() => setShowToolModal(true)}
+                    className="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-left text-white hover:border-gray-500 transition-colors"
+                  >
+                    {selectedTool ? (
+                      <div className="flex items-center justify-between">
+                        <span>{selectedTool.toolName}</span>
+                        <span className="text-xs text-gray-400">
+                          {selectedTool.availableQuantity} available
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">Click to select a tool...</span>
+                    )}
+                  </button>
+                  <ToolSelectionModal
+                    isOpen={showToolModal}
+                    onClose={() => setShowToolModal(false)}
+                    tools={tools}
+                    onSelect={(tool) => setToolId(tool._id)}
                   />
                 </div>
                 <div>

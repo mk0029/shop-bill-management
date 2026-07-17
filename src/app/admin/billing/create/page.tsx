@@ -279,29 +279,15 @@ export default function CreateBillPage() {
       />
 
       {/* Alert Modal */}
-      {(() => {
-        const isRestoreAlert = alertMessage?.startsWith(
-          "Restored unsaved bill",
-        );
-        return (
-          <ConfirmationModal
-            isOpen={showAlertModal}
-            onClose={() => {
-              if (isRestoreAlert) {
-                setShowAlertModal(false);
-                router.replace("/admin/billing/create?fresh=1");
-              } else {
-                setShowAlertModal(false);
-              }
-            }}
-            title={isRestoreAlert ? "Restored Draft" : "Alert"}
-            message={alertMessage}
-            type={isRestoreAlert ? "confirm" : "alert"}
-            confirmText="OK"
-            onConfirm={() => setShowAlertModal(false)}
-          />
-        );
-      })()}
+      <ConfirmationModal
+        isOpen={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        title="Alert"
+        message={alertMessage}
+        type="alert"
+        confirmText="OK"
+        onConfirm={() => setShowAlertModal(false)}
+      />
     </div>
   );
 }

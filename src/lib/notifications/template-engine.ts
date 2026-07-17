@@ -238,7 +238,7 @@ export const notificationTemplates = {
       "",
       `Dear ${customerDisplay},`,
       "",
-      "We have successfully received your payment. Thank you for choosing Jambh Electricals.",
+      "We have successfully received your payment.",
       "",
       "🧾 Bill Details",
       `• Bill ID: ${billLabel(bill)}`,

@@ -31,6 +31,7 @@ import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { formatDayDateTime } from "@/lib/date-time";
 import { toast } from "sonner";
 import EmptyState from "@/components/ui/empty-state";
+import { WorkTaskBillWizard } from "@/components/billing/wizard/work-task-bill-wizard";
 
 const statusOptions = [
   "pending",
@@ -317,7 +318,6 @@ export default function WorkListClient({
   const [activeTask, setActiveTask] = useState<WorkTask | null>(null);
   const [holdTarget, setHoldTarget] = useState<WorkTask | null>(null);
   const [holdReason, setHoldReason] = useState("");
-  const [completingTask, setCompletingTask] = useState(false);
   const [form, setForm] = useState<FormState>(initialForm);
   const [isInitialized, setIsInitialized] = useState(false);
   const [actionTask, setActionTask] = useState<WorkTask | null>(null);
@@ -328,6 +328,10 @@ export default function WorkListClient({
   const [expandedMobileTaskId, setExpandedMobileTaskId] = useState<
     string | null
   >(null);
+  const [completionTask, setCompletionTask] = useState<WorkTask | null>(null);
+  const [completionModalOpen, setCompletionModalOpen] = useState(false);
+  const [billWizardOpen, setBillWizardOpen] = useState(false);
+  const [billWizardTask, setBillWizardTask] = useState<WorkTask | null>(null);
 
   const closeActiveTask = useCallback(() => {
     setActiveTask(null);
@@ -370,7 +374,9 @@ export default function WorkListClient({
         });
         const deduped = Array.from(
           new Map((data || []).map((t) => [t._id, t])).values(),
-        ).filter((t) => !deletedIds.has(t._id));
+        )
+          .filter((t) => !deletedIds.has(t._id))
+          .filter((t) => !t._id.startsWith("temp-"));
         setTasks(deduped);
       } catch (e) {
         toast.error(
@@ -403,7 +409,23 @@ export default function WorkListClient({
     const nextTask = event?.result;
     if (!nextTask) return;
     setTasks((prev) => {
-      const without = prev.filter((t) => t._id !== id);
+      // Check if task already exists to avoid duplicates
+      const alreadyExists = prev.some((t) => t._id === id);
+      if (alreadyExists) {
+        // Update existing task
+        return prev.map((t) => (t._id === id ? nextTask : t));
+      }
+      // Remove any temp/local tasks when online task arrives
+      // Match by title only for reliability (customer/technician might be optional)
+      const without = prev.filter((t) => {
+        // Keep the online task and remove temp tasks
+        if (t._id === id) return false;
+        // Remove temp tasks with matching title
+        if (t._id.startsWith("temp-") && t.title === nextTask.title) {
+          return false;
+        }
+        return true;
+      });
       return [nextTask, ...without];
     });
   }, []);
@@ -416,10 +438,13 @@ export default function WorkListClient({
     load({ silent: isInitialized });
     const sub = listenWorkTasks((event) => {
       applyRealtimeEvent(event);
-      load({ silent: true });
+      // Don't call load here to avoid race conditions with temp task removal
+      // The realtime event handler handles the task updates
     });
     return () => sub.unsubscribe();
   }, [isInitialized, load, applyRealtimeEvent]);
+
+  // Dev test task removed to avoid confusion with duplicate tasks
 
   useEffect(() => {
     const openTaskId = searchParams.get("open");
@@ -509,47 +534,14 @@ export default function WorkListClient({
         );
         toast.success("Work task updated");
       } else {
-        const tempId = `temp-${Date.now()}`;
-        const optimisticTask = {
-          _id: tempId,
-          title: payload.title,
-          description: payload.description,
-          priority: payload.priority,
-          status: payload.status,
-          issueCategory: payload.issueCategory,
-          dueAt: payload.dueAt,
-          assignedTechnician:
-            technicians.find(
-              (t: any) => t._id === payload.assignedTechnicianId,
-            ) || null,
-          assignedTechnicianName:
-            technicians.find((t: any) => t._id === payload.assignedTechnicianId)
-              ?.name || "",
-          customerRef:
-            customerUsers.find((c: any) => c._id === payload.customerRefId) ||
-            null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        } as unknown as WorkTask;
-        setTasks((prev) => [optimisticTask, ...prev]);
+        // No optimistic update - let realtime event handle adding the task
+        // This prevents duplicates from both API response and realtime event
+        await workTaskService.createWorkTask(payload as any);
         setShowForm(false);
         setEditingTask(null);
         setForm(initialForm);
-
-        try {
-          const created = await workTaskService.createWorkTask(payload as any);
-          setTasks((prev) => {
-            const next = prev.filter((t) => t._id !== tempId);
-            return Array.from(
-              new Map([created, ...next].map((t) => [t._id, t])).values(),
-            );
-          });
-          toast.success("Work task created");
-          return;
-        } catch (e) {
-          setTasks((prev) => prev.filter((t) => t._id !== tempId));
-          throw e;
-        }
+        toast.success("Work task created");
+        return;
       }
       setShowForm(false);
       setEditingTask(null);
@@ -582,61 +574,6 @@ export default function WorkListClient({
       });
       setTasks(snapshot);
       toast.error(e instanceof Error ? e.message : "Failed to delete task");
-    }
-  };
-
-  const markTaskCompleted = async () => {
-    if (!activeTask?._id || completingTask) return;
-    const snapshot = tasks;
-    const nowIso = new Date().toISOString();
-    try {
-      setCompletingTask(true);
-      setTasks((prev) =>
-        prev.map((t) =>
-          t._id === activeTask._id
-            ? {
-                ...t,
-                status: "completed",
-                completedAt: nowIso,
-                updatedAt: nowIso,
-              }
-            : t,
-        ),
-      );
-      await workTaskService.updateWorkTask(activeTask._id, {
-        status: "completed",
-      });
-      toast.success("Work marked as completed");
-      closeActiveTask();
-    } catch (e) {
-      setTasks(snapshot);
-      toast.error(e instanceof Error ? e.message : "Failed to complete task");
-    } finally {
-      setCompletingTask(false);
-    }
-  };
-
-  const markTaskDone = async (task: WorkTask) => {
-    if (!task?._id || task.status === "completed") return;
-    const snapshot = tasks;
-    try {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t._id === task._id
-            ? {
-                ...t,
-                status: "completed",
-                completedAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              }
-            : t,
-        ),
-      );
-      await workTaskService.updateWorkTask(task._id, { status: "completed" });
-      toast.success("Task marked as done");
-    } catch (e) {
-      setTasks(snapshot);
-      toast.error(e instanceof Error ? e.message : "Failed to mark task done");
     }
   };
 
@@ -1525,22 +1462,16 @@ export default function WorkListClient({
               {activeTask.status !== "completed" &&
                 activeTask.status !== "cancelled" && (
                   <Button
-                    onClick={markTaskCompleted}
-                    disabled={
-                      completingTask || activeTask.status === "completed"
-                    }
+                    onClick={() => {
+                      setCompletionTask(activeTask);
+                      setCompletionModalOpen(true);
+                      setActiveTask(null);
+                    }}
+                    disabled={completionModalOpen}
                     className="flex-1 bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
                   >
-                    {activeTask.status === "completed" ? (
-                      "Already Completed"
-                    ) : completingTask ? (
-                      "Completing..."
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                        Done
-                      </>
-                    )}
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                    Done
                   </Button>
                 )}
               {activeTask.status !== "cancelled" && (
@@ -1597,7 +1528,11 @@ export default function WorkListClient({
                 {actionLoading === "in-progress" ? "..." : "In Progress"}
               </Button>
               <Button
-                onClick={() => runAction("done")}
+                onClick={() => {
+                  setCompletionTask(actionTask);
+                  setCompletionModalOpen(true);
+                  setActionTask(null);
+                }}
                 disabled={!!actionLoading}
                 className="bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
               >
@@ -1673,6 +1608,65 @@ export default function WorkListClient({
           </div>
         }
       />
+
+      <Modal
+        isOpen={completionModalOpen}
+        onClose={() => {
+          setCompletionModalOpen(false);
+          setCompletionTask(null);
+        }}
+        title="Complete Task"
+        size="sm"
+      >
+        {completionTask ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-200 font-medium bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">
+              {completionTask.title}
+            </p>
+            <p className="text-sm text-gray-300">
+              How would you like to complete this task?
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                onClick={() => {
+                  if (completionTask) {
+                    setBillWizardTask(completionTask);
+                    setBillWizardOpen(true);
+                  }
+                  setCompletionModalOpen(false);
+                  setCompletionTask(null);
+                }}
+                className="bg-blue-500/15 text-blue-100 border border-blue-500/30 hover:bg-blue-500/25"
+              >
+                Create Bill
+              </Button>
+              <Button
+                onClick={() => {
+                  if (completionTask) {
+                    updateTaskStatus(completionTask, "completed");
+                  }
+                  setCompletionModalOpen(false);
+                  setCompletionTask(null);
+                }}
+                className="bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
+              >
+                Mark as Done Directly
+              </Button>
+            </div>
+          </div>
+          ) : null}
+        </Modal>
+
+      {billWizardOpen && (
+        <WorkTaskBillWizard
+          isOpen={billWizardOpen}
+          onClose={() => {
+            setBillWizardOpen(false);
+            setBillWizardTask(null);
+          }}
+          task={billWizardTask}
+        />
+      )}
     </div>
   );
 }

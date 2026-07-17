@@ -1,5 +1,7 @@
 import { sanityClient } from "./sanity";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { toast } from "sonner";
+
 
 // Enhanced API service with real-time capabilities
 export class RealtimeApiService {
@@ -131,6 +133,30 @@ export class RealtimeApiService {
 
       if (showNotification) {
         toast.success(`Bill #${billData.billNumber} created successfully`);
+      }
+
+      // WhatsApp notification
+      const customerRef = typeof billData.customer === 'string' ? billData.customer : billData.customer?._ref || billData.customerId || '';
+      if (customerRef) {
+        sanityClient.fetch(`*[_type=="user" && _id==$id][0]{phone,name}`, { id: String(customerRef) }
+        ).then((customer: any) => {
+          void emitWaEventServer('billing.created', {
+            billId,
+            billNumber: String(billData.billNumber || ''),
+            customerId: String(customerRef),
+            customerName: String(customer?.name || ''),
+            customerPhone: String(customer?.phone || ''),
+            totalAmount: Number(billData.totalAmount || 0),
+            paidAmount: Number(billData.paidAmount || 0),
+            balanceAmount: Number((billData.balanceAmount ?? billData.totalAmount) || 0),
+            paymentStatus: String(billData.paymentStatus || 'pending'),
+            dueDate: billData.dueDate || '',
+            updatedAt: new Date().toISOString(),
+            idempotencyKey: `billing.created:${billId || ''}`,
+          }).catch((e: any) => {
+            console.warn('[WA] billing.created event failed:', e);
+          });
+        }).catch(() => {});
       }
 
       return { success: true, data: result };

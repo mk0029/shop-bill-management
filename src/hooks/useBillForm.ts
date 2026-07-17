@@ -1,21 +1,46 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { BillFormData, BillItem, Item, Customer } from "@/types";
 
 interface UseBillFormProps {
   onSubmit: (billData: BillFormData) => Promise<void>;
   onClose: () => void;
+  initialData?: Partial<BillFormData>;
 }
 
-export function useBillForm({ onSubmit, onClose }: UseBillFormProps) {
+export function useBillForm({ onSubmit, onClose, initialData }: UseBillFormProps) {
   const [formData, setFormData] = useState<BillFormData>({
-    customerId: "",
-    serviceType: "sale",
-    locationType: "shop",
-    items: [],
-    notes: "",
+    customerId: initialData?.customerId || "",
+    customer: initialData?.customer || null,
+    serviceType: initialData?.serviceType || "sale",
+    locationType: initialData?.locationType || "shop",
+    items: initialData?.items || [],
+    notes: initialData?.notes || "",
+    dueDate: initialData?.dueDate || "",
+    paymentMethod: initialData?.paymentMethod || "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset form when initialData changes (modal opens with different task)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        customerId: initialData?.customerId || "",
+        customer: initialData?.customer || null,
+        serviceType: initialData?.serviceType || "sale",
+        locationType: initialData?.locationType || "shop",
+        items: initialData?.items || [],
+        notes: initialData?.notes || "",
+        dueDate: initialData?.dueDate || "",
+        paymentMethod: initialData?.paymentMethod || "",
+      });
+    }
+  }, [
+    initialData?.customerId,
+    initialData?.serviceType,
+    initialData?.locationType,
+    initialData?.notes,
+  ]);
 
   const updateField = useCallback((field: keyof BillFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

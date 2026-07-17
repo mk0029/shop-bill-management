@@ -8,6 +8,32 @@
   "background_color": "#0B0F18",
   "theme_color": "#0ea5e9",
   "prefer_related_applications": false,
+  "orientation": "portrait-primary",
+  "categories": ["business", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/je-p-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Chat",
+      "short_name": "Chat",
+      "description": "Open chat",
+      "url": "/chat",
+      "icons": [{ "src": "/je-p-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bills",
+      "short_name": "Bills",
+      "description": "View bills",
+      "url": "/customer/bills",
+      "icons": [{ "src": "/je-p-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/je-p-192.png",

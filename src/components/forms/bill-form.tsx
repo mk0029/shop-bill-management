@@ -20,6 +20,7 @@ interface BillFormProps {
   customers: Customer[];
   items: Item[];
   isLoading?: boolean;
+  initialData?: Partial<BillFormData>;
 }
 
 export function BillForm({
@@ -29,6 +30,7 @@ export function BillForm({
   customers,
   items,
   isLoading = false,
+  initialData,
 }: BillFormProps) {
   const {
     formData,
@@ -40,12 +42,12 @@ export function BillForm({
     removeItem,
     calculateTotals,
     handleSubmit,
-  } = useBillForm({ onSubmit, onClose });
+  } = useBillForm({ onSubmit, onClose, initialData });
 
   const { subtotal, visitingCharges, total } = calculateTotals();
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Bill" size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title={initialData ? "Create Bill for Work Task" : "Create New Bill"} size="xl">
       <div className="flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Left Column - Bill Details */}
         <div className="space-y-4 sm:space-y-6 max-md:space-y-4">

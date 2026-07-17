@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Send, Users, Target } from "lucide-react";
 import { toast } from "sonner";
+import { trackFcm } from "@/lib/notification-tracker";
 
 export function AdminNotificationDebug() {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +14,7 @@ export function AdminNotificationDebug() {
 
   const debugNotificationSending = async () => {
     setIsLoading(true);
+    const startMs = Date.now();
     try {
       // Get all user tokens for debugging
       const response = await fetch("/api/notifications/cleanup-tokens");
@@ -35,6 +37,7 @@ export function AdminNotificationDebug() {
 
       const result = await testResponse.json();
       console.log("📤 Debug send result:", result);
+      trackFcm({ eventType: "fcm-debug-all", ok: result.success, durationMs: Date.now() - startMs, target: "all", meta: { sent: result.sent, failed: result.failed } });
 
       if (result.success) {
         toast.success(
@@ -67,6 +70,7 @@ export function AdminNotificationDebug() {
       return;
     }
 
+    const startMs = Date.now();
     try {
       const response = await fetch("/api/notifications/send", {
         method: "POST",
@@ -81,6 +85,7 @@ export function AdminNotificationDebug() {
 
       const result = await response.json();
       console.log("🎯 Targeted send result:", result);
+      trackFcm({ eventType: "fcm-debug-targeted", ok: result.success, durationMs: Date.now() - startMs, target: customerUser._id?.slice(0, 8) + "...", meta: { sent: result.sent, failed: result.failed, userId: customerUser._id } });
 
       if (result.success) {
         toast.success(`Targeted sent: ${result.sent} delivered`);

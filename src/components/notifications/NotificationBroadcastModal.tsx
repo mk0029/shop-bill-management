@@ -12,6 +12,7 @@ import { useDataStore } from "@/store/data-store";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useAuthStore } from "@/store/auth-store";
 import { safeUserName } from "@/lib/display-text";
+import { trackFcm, trackWhatsApp } from "@/lib/notification-tracker";
 
 export type Audience = "admins" | "all" | "users" | "whatsapp";
 
@@ -174,6 +175,7 @@ export default function NotificationBroadcastModal({
 
   async function handleSend() {
     if (!canSubmit) return;
+    const startMs = Date.now();
     try {
       setLoading(true);
       type AdminAudiencePayload = {
@@ -251,6 +253,11 @@ export default function NotificationBroadcastModal({
       }
       const totalMessages = totalSent + whatsappSent;
       const totalFailures = totalFailed + whatsappFailed;
+
+      trackFcm({ eventType: "broadcast-fcm", ok: totalSent > 0, durationMs: Date.now() - startMs, target: audience, meta: { sent: totalSent, failed: totalFailed, audience } });
+      if (whatsappSent > 0 || whatsappFailed > 0) {
+        trackWhatsApp({ eventType: "broadcast-whatsapp", phone: selectedPhones[0], ok: whatsappFailed === 0 && whatsappSent > 0, durationMs: Date.now() - startMs });
+      }
 
       if (audience === "whatsapp") {
         toast.success(

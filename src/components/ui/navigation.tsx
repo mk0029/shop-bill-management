@@ -111,6 +111,11 @@ const adminNavigation: NavigationItem[] = [
         href: "/admin/super-access/whatsapp-bot",
         icon: Smartphone,
       },
+      {
+        label: "Testing Ground",
+        href: "/admin/super-access/testing-ground",
+        icon: RefreshCw,
+      },
     ],
   },
 ];

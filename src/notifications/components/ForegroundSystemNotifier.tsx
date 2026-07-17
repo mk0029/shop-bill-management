@@ -7,6 +7,7 @@ import {
   markNotificationHandled,
   notificationIdentity,
 } from '@/lib/notifications/dedupe'
+import { useNotificationStore } from '@/store/notification-store'
 
 export default function ForegroundSystemNotifier() {
   useEffect(() => {
@@ -34,6 +35,25 @@ export default function ForegroundSystemNotifier() {
           id,
           tag: data.tag,
           roomId: data.roomId,
+        })
+
+        // Add to in-app notification store so NotificationToaster can display it
+        const title = payload.notification?.title || data.title || 'Notification'
+        const body = payload.notification?.body || data.body || ''
+        const eventType = data.type || data.event || 'system.general'
+        useNotificationStore.getState().add({
+          id: id || `fg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: 'system',
+          title,
+          body,
+          createdAt: new Date().toISOString(),
+          meta: {
+            source: 'push',
+            type: eventType,
+            eventType,
+            tag: data.tag,
+            route: data.route ? { pathname: data.route } : undefined,
+          },
         })
       } catch (error) {
         console.warn('[FCM] foreground notification handling failed', error)

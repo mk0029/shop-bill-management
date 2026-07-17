@@ -130,6 +130,12 @@ export async function autoRegisterFcmToken(
     const json = await res.json().catch(() => ({}));
 
     if (!res.ok || !json?.success) {
+      console.warn("[FCM] Registration incomplete, storing for retry:", {
+        httpStatus: res.status,
+        success: json?.success,
+        backendRegistered: json?.backendRegistered,
+        error: json?.error || json?.backendError,
+      });
       try {
         if (safeStorageAvailable("localStorage")) {
           localStorage.setItem(PENDING_KEY(userId), JSON.stringify({ token, deviceInfo, ts: Date.now() }));
@@ -261,7 +267,15 @@ export async function retryPendingFcmToken(userId: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, token: pending.token, role: deviceInfo.role, displayName: deviceInfo.displayName, deviceInfo }),
     });
-    if (!res.ok) return { success: false, error: "registration-failed" };
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success) {
+      console.warn("[FCM] Retry registration incomplete:", {
+        httpStatus: res.status,
+        success: json?.success,
+        backendRegistered: json?.backendRegistered,
+      });
+      return { success: false, error: "registration-failed" };
+    }
     localStorage.removeItem(PENDING_KEY(userId));
     return { success: true, token: pending.token };
   } catch (error) {

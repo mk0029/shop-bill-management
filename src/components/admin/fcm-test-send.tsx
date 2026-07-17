@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { trackFcm } from "@/lib/notification-tracker";
 
 export function FcmTestSend() {
   const [isLoading, setIsLoading] = useState(false);
@@ -12,6 +13,7 @@ export function FcmTestSend() {
 
   const testFCMSend = async () => {
     setIsLoading(true);
+    const startMs = Date.now();
     try {
       // Test sending to all customers
       const response = await fetch("/api/notifications/send", {
@@ -32,6 +34,7 @@ export function FcmTestSend() {
       const result = await response.json();
       console.log("🧪 FCM Test Result:", result);
       setTestResult(result);
+      trackFcm({ eventType: "fcm-test-all", ok: result.success && result.sent > 0, durationMs: Date.now() - startMs, target: "all", meta: { sent: result.sent, failed: result.failed } });
 
       if (result.success && result.sent > 0) {
         toast.success(
@@ -55,6 +58,7 @@ export function FcmTestSend() {
   const testSpecificUser = async () => {
     // Test sending to a specific user (you can change this ID)
     const testUserId = "083750cf-3dba-4d0b-9f15-fb814e10c57c"; // Mohit Kumar from your debug
+    const startMs = Date.now();
 
     try {
       const response = await fetch("/api/notifications/send", {
@@ -74,6 +78,7 @@ export function FcmTestSend() {
 
       const result = await response.json();
       console.log("🎯 Targeted FCM Test Result:", result);
+      trackFcm({ eventType: "fcm-test-targeted", ok: result.success && result.sent > 0, durationMs: Date.now() - startMs, target: testUserId.slice(0, 8) + "...", meta: { sent: result.sent, failed: result.failed } });
 
       if (result.success && result.sent > 0) {
         toast.success(`✅ Targeted test: ${result.sent} sent`);

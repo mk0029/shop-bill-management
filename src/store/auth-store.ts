@@ -116,7 +116,7 @@ export const useAuthStore = create<AuthState>()(
                 Notification.permission === "granted"
               ) {
                 Promise.resolve()
-                  .then(() => ensureFcmToken({ userId: uid, forceRefresh: true }))
+                  .then(() => ensureFcmToken({ userId: uid }))
                   .catch(() => {});
               }
             }

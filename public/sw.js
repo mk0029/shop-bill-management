@@ -796,14 +796,35 @@ try {
       await self.registration.showNotification(title, options);
       console.log("[notifications-sw] notification displayed", { dedupeKey, tag: options.tag, title });
       await reportNotificationStatus(options.data, "delivered");
+      // Broadcast to the page so SWNotificationBridge can add to in-app store
+      try {
+        if (bc) {
+          const nd = options.data || {};
+          bc.postMessage({
+            type: "notification:received",
+            payload: {
+              id: nd.id || nd.notificationId || dedupeKey || `sw-${Date.now()}`,
+              type: "system",
+              title,
+              body: options.body || "",
+              createdAt: new Date().toISOString(),
+              meta: {
+                source: "push",
+                type: nd.type || nd.event || "system.general",
+                eventType: nd.type || nd.event || "system.general",
+                tag: options.tag,
+                ...nd.meta,
+                route: nd.meta?.route || (nd.link ? { pathname: nd.link } : undefined),
+              },
+            },
+          });
+        }
+      } catch {}
     } finally {
       if (dedupeKey) {
         setTimeout(() => showingNow.delete(dedupeKey), DEDUPE_WINDOW_MS);
       }
     }
-
-    // Do not replay system notifications into the app. In-app notifications
-    // are produced by realtime/unread sync when the app is foregrounded.
   }
 
   function normalizePushPayload(payload) {
@@ -934,23 +955,11 @@ try {
 
   // Handle background FCM messages (when app/tab is closed or in background)
   messaging.onBackgroundMessage((payload) => {
-    console.log("[notifications-sw] service worker received push", payload);
+    console.log("[notifications-sw] onBackgroundMessage received", payload);
     const maybeQueue = async () => {
-      if (payload && payload.notification && payload.notification.title) {
-        const data = payload.data || {};
-        const dedupeKey = makeDedupeKey({
-          dedupeKey: data.dedupeKey,
-          tag: data.tag,
-          title: payload.notification.title,
-          body: payload.notification.body || data.body || "",
-        });
-        markShown(dedupeKey);
-        console.log("[notifications-sw] notification payload handled by FCM, skipping manual display", { dedupeKey });
-        return;
-      }
       const normalized = normalizePushPayload(payload);
       const queued = await queueNotification(normalized);
-      console.log("📨 SW: queued result:", queued);
+      console.log("[notifications-sw] queued:", queued);
       if (!queued) await maybeAggregateAndShow(normalized);
     };
     return maybeQueue();
@@ -975,25 +984,9 @@ try {
             payload.data["google.c.a.c_id"])))
     );
     if (isFcmMsg) {
-      event.waitUntil(
-        (async () => {
-          if (payload && payload.notification && payload.notification.title) {
-            const data = payload.data || {};
-            const dedupeKey = makeDedupeKey({
-              dedupeKey: data.dedupeKey,
-              tag: data.tag,
-              title: payload.notification.title,
-              body: payload.notification.body || data.body || "",
-            });
-            markShown(dedupeKey);
-            console.log("[notifications-sw] FCM notification payload skipped in push fallback", { dedupeKey });
-            return;
-          }
-          const normalized = normalizePushPayload(payload);
-          const queued = await queueNotification(normalized);
-          if (!queued) await maybeAggregateAndShow(normalized);
-        })(),
-      );
+      // FCM messages are handled by onBackgroundMessage above.
+      // Do NOT call event.waitUntil() here — it tells the browser "I'm handling this"
+      // which prevents native notification display. Let onBackgroundMessage handle it.
       return;
     }
 

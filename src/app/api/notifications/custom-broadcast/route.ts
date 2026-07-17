@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
+import { getActiveTokenStringsForUsers } from "@/lib/fcm/tokens.server";
+import { sendFcmToTokens } from "@/services/notifications/fcm-sender.server";
 
 type BroadcastAudience = "customers" | "admins" | "all";
 
@@ -18,49 +20,25 @@ function isFutureDate(value: string) {
   return Number.isFinite(time) && time > Date.now() + 30_000;
 }
 
-function notificationBackendUrl() {
-  const raw =
-    process.env.SHOP_CHAT_URL ||
-    process.env.NEXT_PUBLIC_SHOP_CHAT_URL ||
-    "https://shop-chat-backend.onrender.com/";
-  return raw.replace(/\/+$/, "");
-}
-
-async function sendBackendBroadcast(input: {
-  eventId: string;
-  actorUserId: string;
+async function sendDirectBroadcast(input: {
   userIds: string[];
-  audience: BroadcastAudience;
   title: string;
   body: string;
   data: Record<string, unknown>;
-}) {
+}): Promise<{ ok: boolean; sent: number; failed: number; errorMessage?: string }> {
   try {
-    const response = await fetch(`${notificationBackendUrl()}/notifications/emit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.CHAT_SYNC_TOKEN ? { "x-notify-secret": process.env.CHAT_SYNC_TOKEN } : {}),
-      },
-      body: JSON.stringify({
-        eventId: input.eventId,
-        eventType: "system.general",
-        actorUserId: input.actorUserId,
-        userIds: input.userIds,
-        audience: input.audience,
-        title: input.title,
-        body: input.body,
-        data: input.data,
-      }),
-    });
-    const result = await response.json().catch(() => ({}));
-    return { ok: response.ok && result?.success !== false, status: response.status, result };
+    const tokens = await getActiveTokenStringsForUsers(input.userIds);
+    if (!tokens.length) {
+      return { ok: false, sent: 0, failed: 0, errorMessage: "No FCM tokens found" };
+    }
+    const stringData: Record<string, string> = {};
+    for (const [k, v] of Object.entries(input.data)) {
+      stringData[k] = typeof v === "string" ? v : JSON.stringify(v);
+    }
+    const result = await sendFcmToTokens({ tokens, title: input.title, body: input.body, data: stringData });
+    return { ok: result.success, sent: result.sent, failed: result.failed, errorMessage: result.errors?.[0] };
   } catch (error) {
-    return {
-      ok: false,
-      status: 0,
-      result: { error: error instanceof Error ? error.message : "Backend notification send failed" },
-    };
+    return { ok: false, sent: 0, failed: 0, errorMessage: error instanceof Error ? error.message : "FCM send failed" };
   }
 }
 
@@ -117,7 +95,6 @@ export async function GET(req: NextRequest) {
     const results: Array<{
       campaignId: string;
       success: boolean;
-      notificationId?: string;
     }> = [];
     for (const campaign of campaigns || []) {
       const targetUserIds = Array.isArray(campaign.targetUserIds) && campaign.targetUserIds.length
@@ -133,11 +110,8 @@ export async function GET(req: NextRequest) {
         route: campaign.ctaUrl || undefined,
         route_path: campaign.ctaUrl || undefined,
       };
-      const result = await sendBackendBroadcast({
-        eventId: `campaign.${campaign._id}`,
-        actorUserId: campaign.createdBy?._ref || "",
+      const result = await sendDirectBroadcast({
         userIds: targetUserIds,
-        audience: campaign.audience || "customers",
         title: String(campaign.title || "Offer"),
         body: String(campaign.description || ""),
         data: notificationData,
@@ -146,13 +120,12 @@ export async function GET(req: NextRequest) {
         .patch(campaign._id)
         .set({
           status: result.ok ? "sent" : "failed",
-          notificationId: result.result?.notificationId || result.result?.eventId,
           publishedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          ...(!result.ok ? { error: result.result?.error || "Backend notification send failed" } : {}),
+          ...(!result.ok ? { error: result.errorMessage || "FCM send failed" } : {}),
         })
         .commit();
-      results.push({ campaignId: campaign._id, success: result.ok, notificationId: result.result?.notificationId || result.result?.eventId });
+      results.push({ campaignId: campaign._id, success: result.ok });
     }
 
     return NextResponse.json({ success: true, processed: results.length, results });
@@ -215,10 +188,6 @@ export async function POST(req: NextRequest) {
     const expiresAt = expiryDate && !Number.isNaN(new Date(expiryDate).getTime())
       ? new Date(expiryDate).toISOString()
       : new Date(now.getTime() + expiresInHours * 60 * 60 * 1000).toISOString();
-    const eventId = `custom.${category}.${audience}.${now.toISOString().slice(0, 19)}`.replace(
-      /[^a-zA-Z0-9_.-]/g,
-      "-",
-    );
 
     if (isFutureDate(scheduledAt)) {
       const campaign = await sanityClient.create({
@@ -256,11 +225,8 @@ export async function POST(req: NextRequest) {
       route: link || undefined,
       route_path: link || undefined,
     };
-    const backend = await sendBackendBroadcast({
-      eventId,
-      actorUserId,
+    const backend = await sendDirectBroadcast({
       userIds: targetUserIds,
-      audience,
       title,
       body: message,
       data: notificationData,
@@ -270,9 +236,9 @@ export async function POST(req: NextRequest) {
       {
         success: Boolean(backend.ok),
         targetCount: targetUserIds.length,
-        notificationId: backend.result?.notificationId || backend.result?.eventId,
-        backendSend: backend.result,
-        error: backend.ok ? undefined : backend.result?.error || "Backend notification send failed",
+        sent: backend.sent,
+        failed: backend.failed,
+        error: backend.ok ? undefined : backend.errorMessage || "FCM send failed",
       },
       { status: backend.ok ? 200 : 500 },
     );

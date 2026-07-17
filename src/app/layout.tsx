@@ -21,6 +21,7 @@ import RouteProgress from "../components/ui/route-progress";
 import NotificationToaster from "../components/notifications/NotificationToaster";
 import ForegroundSystemNotifier from "../notifications/components/ForegroundSystemNotifier";
 import ClientErrorLogger from "@/components/providers/client-error-logger";
+import AndroidBridgeProvider from "@/components/providers/android-bridge-provider";
 
 // Enable ISR by default for server components
 export const revalidate = 60;
@@ -166,6 +167,7 @@ export default function RootLayout({
         {/* Synchronous auth prehydration to speed up startup */}
         <AuthPrehydrate />
         <ClientErrorLogger />
+        <AndroidBridgeProvider />
         {/* Role revalidation to handle server-side role changes without re-login */}
         <AuthRoleSync />
         {/* Global route progress bar */}

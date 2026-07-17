@@ -47,6 +47,7 @@ import {
 } from "@/lib/work-task-service";
 import EmptyState from "@/components/ui/empty-state";
 import { ResponsiveAccordion } from "@/components/ui/responsive-accordion";
+import { WorkTaskBillWizard } from "@/components/billing/wizard/work-task-bill-wizard";
 
 /* ─── Types ─── */
 type Tab = "incoming" | "active" | "history";
@@ -227,6 +228,10 @@ export default function UnifiedWorkClient() {
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [completionTask, setCompletionTask] = useState<WorkTask | null>(null);
+  const [completionModalOpen, setCompletionModalOpen] = useState(false);
+  const [billWizardOpen, setBillWizardOpen] = useState(false);
+  const [billWizardTask, setBillWizardTask] = useState<WorkTask | null>(null);
 
   const technicians = useMemo(
     () =>
@@ -636,8 +641,9 @@ export default function UnifiedWorkClient() {
         setTasks((prev) => prev.map((t) => (t._id === u._id ? u : t)));
         toast.success("Task updated");
       } else {
-        const created = await workTaskService.createWorkTask(payload as any);
-        setTasks((prev) => [created, ...prev]);
+        // No optimistic update - let realtime event handle adding the task
+        // This prevents duplicates from both API response and realtime event
+        await workTaskService.createWorkTask(payload as any);
         toast.success("Task created");
       }
       setShowForm(false);
@@ -656,8 +662,13 @@ export default function UnifiedWorkClient() {
     setActionLoading(action);
     if (action === "in-progress")
       await updateTaskStatus(actionTask, "in-progress");
-    else if (action === "done") await updateTaskStatus(actionTask, "completed");
-    else if (action === "hold") {
+    else if (action === "done") {
+      setCompletionTask(actionTask);
+      setCompletionModalOpen(true);
+      setActionTask(null);
+      setActionLoading(null);
+      return;
+    } else if (action === "hold") {
       setHoldTarget(actionTask);
       setHoldReason((actionTask as any).holdReason || "");
       setActionTask(null);
@@ -1735,6 +1746,54 @@ export default function UnifiedWorkClient() {
         }
       />
 
+      <Modal
+        isOpen={completionModalOpen}
+        onClose={() => {
+          setCompletionModalOpen(false);
+          setCompletionTask(null);
+        }}
+        title="Complete Task"
+        size="sm"
+      >
+        {completionTask ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-200 font-medium bg-gray-800/40 rounded-lg p-3 border border-gray-700/50">
+              {completionTask.title}
+            </p>
+            <p className="text-sm text-gray-300">
+              How would you like to complete this task?
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                onClick={() => {
+                  if (completionTask) {
+                    setBillWizardTask(completionTask);
+                    setBillWizardOpen(true);
+                  }
+                  setCompletionModalOpen(false);
+                  setCompletionTask(null);
+                }}
+                className="bg-blue-500/15 text-blue-100 border border-blue-500/30 hover:bg-blue-500/25"
+              >
+                Create Bill
+              </Button>
+              <Button
+                onClick={() => {
+                  if (completionTask) {
+                    updateTaskStatus(completionTask, "completed");
+                  }
+                  setCompletionModalOpen(false);
+                  setCompletionTask(null);
+                }}
+                className="bg-green-500/15 text-green-100 border border-green-500/30 hover:bg-green-500/25"
+              >
+                Mark as Done Directly
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
       {/* ─── Time Picker Modal ─── */}
       <Modal
         isOpen={!!timePickerRequestId}
@@ -1869,6 +1928,17 @@ export default function UnifiedWorkClient() {
           );
         })()}
       </Modal>
+
+      {billWizardOpen && (
+        <WorkTaskBillWizard
+          isOpen={billWizardOpen}
+          onClose={() => {
+            setBillWizardOpen(false);
+            setBillWizardTask(null);
+          }}
+          task={billWizardTask}
+        />
+      )}
     </div>
   );
 }

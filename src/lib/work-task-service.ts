@@ -27,6 +27,10 @@ export type WorkTask = {
   completedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  estimatedCharge?: number;
+  billId?: string;
+  billNumber?: string;
+  completionMethod?: string;
 };
 
 export type WorkTaskInput = {
@@ -41,6 +45,7 @@ export type WorkTaskInput = {
   completionNotes?: string;
   cancellationReason?: string;
   holdReason?: string;
+  completionMethod?: string;
 };
 
 export type WorkTaskRealtimeEvent = {

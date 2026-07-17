@@ -552,15 +552,7 @@ export const useBillForm = () => {
         if (parsed?.formData) setFormData((prev) => ({ ...prev, ...parsed.formData }));
         if (Array.isArray(parsed?.selectedItems)) setSelectedItems(parsed.selectedItems);
         if (parsed?.draftId) setDraftId(parsed.draftId);
-
-        // If coming from Drafts page, restore silently (no popup)
-        if (parsed?.fromDraft) {
-          setIsDirty(true);
-        } else {
-          setAlertMessage("Restored unsaved bill from your last session.");
-          setShowAlertModal(true);
-          setIsDirty(true);
-        }
+        setIsDirty(true);
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps

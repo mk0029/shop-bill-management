@@ -1,4 +1,5 @@
 import { sanityClient } from "./sanity";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { getCookie } from "@/lib/cookies";
 import {
   validateStockAvailability,
@@ -10,7 +11,7 @@ import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 import { TAX_RATE } from "../constants/defaults";
 import { syncSingleBillPayment } from "./bill-payment-sync";
 import { createBillCreatedShopChatEvent } from "@/lib/shop-chat/api";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
+
 
 export interface FormSubmissionResult {
   success: boolean;
@@ -812,22 +813,30 @@ export async function createBill(billData: {
             });
         }
 
-        // WhatsApp bill-created event (server-side, non-blocking)
-        void emitWaEventServer("billing.created", {
-          billId: String(createdId || ""),
-          billNumber: String(billNumber || ""),
-          customerId: String(billData.customerId || ""),
-          customerName: "",
-          customerPhone: "",
-          totalAmount: Number(grossTotal || 0),
-          paidAmount: Number(billData.paidAmount || 0),
-          balanceAmount: Number(billData.balanceAmount ?? netPayable),
-          paymentStatus: String(billData.paymentStatus || "pending"),
-          dueDate: billData.dueDate,
-          updatedAt: new Date().toISOString(),
-          idempotencyKey: `billing.created:${String(createdId || "")}`,
-        }).catch((e) => {
-          console.warn("[WA] billing.created event failed (non-blocking):", e);
+        // WhatsApp bill-created event (non-blocking)
+        const customerPromise = billData.customerId
+          ? sanityClient.fetch<{ phone?: string; name?: string } | null>(
+              `*[_type=="user" && _id==$id][0]{phone,name}`,
+              { id: String(billData.customerId) }
+            ).catch(() => null)
+          : Promise.resolve(null)
+        customerPromise.then((customer) => {
+          void emitWaEventServer("billing.created", {
+            billId: String(createdId || ""),
+            billNumber: String(billNumber || ""),
+            customerId: String(billData.customerId || ""),
+            customerName: String(customer?.name || ""),
+            customerPhone: String(customer?.phone || ""),
+            totalAmount: Number(grossTotal || 0),
+            paidAmount: Number(billData.paidAmount || 0),
+            balanceAmount: Number(billData.balanceAmount ?? netPayable),
+            paymentStatus: String(billData.paymentStatus || "pending"),
+            dueDate: billData.dueDate,
+            updatedAt: new Date().toISOString(),
+            idempotencyKey: `billing.created:${String(createdId || "")}`,
+          }).catch((e) => {
+            console.warn("[WA] billing.created event failed (non-blocking):", e);
+          });
         });
 
         // Notifications + WhatsApp

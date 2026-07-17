@@ -4,13 +4,13 @@ import { useEffect } from "react";
 import { useAuthStore } from "../../store/auth-store";
 import { useNotificationStore } from "../../store/notification-store";
 import { getClientApp, isMessagingAvailable } from "../lib/firebase";
-import { ensureFcmToken } from "../../lib/fcm";
+import { ensureFcmToken, hasPendingToken, retryPendingFcmToken } from "../../lib/fcm";
 
 /**
  * AutoNotifications
  * - Registers FCM service worker
  * - Requests Notification permission (if default)
- * - Logs the user's FCM token to the console
+ * - Retries pending FCM token registrations
  *
  * This component renders nothing and should be mounted once globally (e.g., in RootLayout).
  */
@@ -64,19 +64,35 @@ export default function AutoNotifications() {
       getClientApp();
 
       // 4) Request notification permission if needed
-      // DO NOT request permission automatically. Respect user's choice and only act if already granted.
-      // Native OS/browser prompt will appear when user explicitly interacts with a feature that needs it.
+      if (Notification.permission === "default") {
+        try {
+          await Notification.requestPermission();
+        } catch {}
+      }
 
       if (cancelled) return;
 
-      // 5) Silently ensure this device has an FCM token (only if permission already granted)
+      // 5) Check in-app notification preferences
+      let pushEnabled = true;
+      try {
+        const prefRes = await fetch("/api/notifications/preferences", { credentials: "include" });
+        const prefs = await prefRes.json().catch(() => ({}));
+        pushEnabled = prefs?.enabled !== false;
+      } catch {}
+
+      // 6) Silently ensure this device has an FCM token (only if permission already granted + push enabled)
       if (
         typeof Notification !== "undefined" &&
-        Notification.permission === "granted"
+        Notification.permission === "granted" &&
+        pushEnabled
       ) {
         const userId = user?.id ?? null;
         if (userId) {
           await ensureFcmToken({ userId }).catch(() => {});
+          // Retry any pending registration that failed previously
+          if (hasPendingToken(userId)) {
+            await retryPendingFcmToken(userId).catch(() => {});
+          }
         }
       }
     }
@@ -84,12 +100,16 @@ export default function AutoNotifications() {
     init();
 
     // Re-register token when we come back online
-    function handleOnline() {
+    async function handleOnline() {
       if (!user?.id) return;
-      if (
-        typeof Notification !== "undefined" &&
-        Notification.permission === "granted"
-      ) {
+      if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+      let pushEnabled = true;
+      try {
+        const prefRes = await fetch("/api/notifications/preferences", { credentials: "include" });
+        const prefs = await prefRes.json().catch(() => ({}));
+        pushEnabled = prefs?.enabled !== false;
+      } catch {}
+      if (pushEnabled) {
         ensureFcmToken({ userId: user.id }).catch(() => {});
       }
     }

@@ -79,6 +79,7 @@ interface BillWizardProps {
   saveDraft: () => void;
   onBack: () => void;
   onSetActiveSection: (section: string) => void;
+  submitButtonText?: string;
 }
 
 export function BillWizard({
@@ -110,6 +111,7 @@ export function BillWizard({
   onBack,
   onSetActiveSection,
   resetKey,
+  submitButtonText = "Create Bill",
 }: BillWizardProps) {
   const [step, setStep] = useState(0);
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -176,38 +178,12 @@ export function BillWizard({
       <form
         onSubmit={(e) => e.preventDefault()}
         ref={wizardRef}
-        className="h-full flex flex-col"
+        className="h-full flex flex-col overflow-hidden"
       >
-        <div
-          className="create-bill-modal relative flex flex-col min-h-0 overflow-hidden rounded-3xl"
-          style={{
-            background: "rgba(15,23,42,0.5)",
-            backdropFilter: "blur(24px) saturate(160%)",
-            WebkitBackdropFilter: "blur(24px) saturate(160%)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.06), 0 25px 60px rgba(0,0,0,0.4)",
-          }}
-        >
-          {/* Ambient glow */}
-          <div
-            className="absolute -top-20 -right-20 w-60 h-60 rounded-full opacity-10 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(56,189,248,0.3), transparent)",
-            }}
-          />
-          <div
-            className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full opacity-10 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(139,92,246,0.3), transparent)",
-            }}
-          />
 
           {/* Wizard Header */}
           <div
-            className="create-bill-modal-header relative z-10 flex min-h-12 items-center gap-2 border-b px-3 py-2 sm:min-h-16 sm:gap-3 sm:px-6 sm:py-3"
+            className="create-bill-modal-header relative z-10 flex shrink-0 min-h-12 items-center gap-2 border-b px-3 py-2 sm:min-h-16 sm:gap-3 sm:px-6 sm:py-3"
             style={{ borderColor: "rgba(255,255,255,0.06)" }}
           >
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
@@ -255,7 +231,7 @@ export function BillWizard({
 
           {/* Step progress bar */}
           <div
-            className="create-bill-progress relative z-10 border-b px-3 max-sm:pl-9 py-1.5 sm:py-3 md:px-6"
+            className="create-bill-progress relative z-10 shrink-0 border-b px-3 max-sm:pl-9 py-1.5 sm:py-3 md:px-6"
             style={{ borderColor: "rgba(255,255,255,0.06)" }}
           >
             <div className="flex items-center gap-0.5 overflow-x-auto overflow-y-hidden sm:gap-1">
@@ -321,9 +297,10 @@ export function BillWizard({
             <AnimatePresence mode="wait">
               <motion.div
                 key={step}
-                initial={{ opacity: 0, x: 20 }}
+                className="h-full min-h-full w-full"
+                initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.2 }}
               >
                 {step === 0 && (
@@ -380,12 +357,13 @@ export function BillWizard({
 
           {/* Wizard Footer - always visible */}
           <div
-            className="create-bill-modal-footer sticky bottom-0 z-30 flex shrink-0 items-center justify-between gap-3 border-t px-4 py-2.5 sm:px-6 sm:py-3"
+            className="create-bill-modal-footer z-30 flex shrink-0 items-center justify-between gap-3 border-t px-4 sm:px-6 pt-2.5 sm:pt-3"
             style={{
-              borderColor: "rgba(255,255,255,0.06)",
-              background: "rgba(15,23,42,0.65)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
+              borderColor: "rgba(255,255,255,0.08)",
+              background: "rgba(12, 18, 30, 0.56)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
             }}
           >
             <div>
@@ -430,12 +408,11 @@ export function BillWizard({
                   }}
                 >
                   <Send className="w-3.5 h-3.5" />
-                  {isLoading ? "Creating..." : "Create Bill"}
+                  {isLoading ? "Creating..." : submitButtonText}
                 </Button>
               )}
             </div>
           </div>
-        </div>
       </form>
 
       {/* Floating Summary */}

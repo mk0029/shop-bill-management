@@ -36,7 +36,6 @@ export default function AdminDataHydrator({
     const categoriesMap = toMap(categories);
     const usersMap = toMap(customers);
     const billsMap = toMap(bills);
-
     const productsByCategory = new Map<string, string[]>();
     const productsByBrand = new Map<string, string[]>();
     (products || []).forEach((product) => {

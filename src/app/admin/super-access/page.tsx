@@ -52,6 +52,15 @@ export default async function SuperAccessIndexPage() {
             Inspect bot health, status, event logs, wake/restart/test-send. All logs stored locally.
           </div>
         </Link>
+        <Link
+          href="/admin/super-access/testing-ground"
+          className="rounded-lg border border-green-800 bg-gray-900 p-4 hover:bg-gray-800"
+        >
+          <div className="font-semibold text-green-400">Testing Ground</div>
+          <div className="text-sm text-gray-400">
+            Simulate WhatsApp & FCM messages for any event type. Test billing, tool rental, work tasks, and more.
+          </div>
+        </Link>
       </div>
     </div>
   );

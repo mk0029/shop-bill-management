@@ -104,8 +104,6 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
   sanitized.click_action ||= buildWebPushLink(sanitized);
   sanitized.dedupeKey ||= sanitized.dedupeKey || sanitized.tag || sanitized.id || "";
   const topic = buildWebPushTopic(sanitized);
-  const isDailyGreeting = sanitized.type === "daily_good_morning" || sanitized.scheduledType === "daily_good_morning";
-  const androidChannelId = isDailyGreeting ? "daily-greetings" : "shop_notifications";
 
   return {
     message: {
@@ -117,6 +115,14 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
           Urgency: "high",
           Topic: topic,
         },
+        notification: {
+          title: safeTitle,
+          body: safeBody,
+          icon: sanitized.icon || NOTIFICATION_ICON,
+          click_action: sanitized.click_action,
+          tag: topic,
+          renotify: true,
+        },
         fcm_options: {
           link: sanitized.click_action,
         },
@@ -124,14 +130,6 @@ function buildMessage(token: string, title: string, body: string, data?: Record<
       android: {
         priority: "HIGH",
         ttl: "604800s",
-        notification: {
-          title: safeTitle,
-          body: safeBody,
-          channel_id: androidChannelId,
-          sound: "default",
-          visibility: "PUBLIC",
-          click_action: sanitized.click_action,
-        },
       },
     },
   };

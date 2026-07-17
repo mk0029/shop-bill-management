@@ -44,6 +44,7 @@ function generateIdempotencyKey(input: NotificationInput): string {
 }
 
 export async function sendWhatsAppNotification(input: NotificationInput): Promise<NotificationResult> {
+  const sendStartMs = Date.now();
   try {
     if (!input.eventType) return { ok: false, error: 'eventType is required' }
     if (!input.message) return { ok: false, error: 'message is required' }
@@ -54,7 +55,10 @@ export async function sendWhatsAppNotification(input: NotificationInput): Promis
     if (!backendUrl || !secret) return { ok: false, error: 'Missing central WhatsApp backend config' }
 
     const idempotencyKey = generateIdempotencyKey(input)
-    if (checkIdempotency(idempotencyKey)) return { ok: true, skipped: true, reason: 'duplicate' }
+    if (checkIdempotency(idempotencyKey)) {
+      trackWhatsApp({ eventType: input.eventType, phone: input.phone, ok: true, skipped: true, durationMs: Date.now() - sendStartMs, idempotencyKey });
+      return { ok: true, skipped: true, reason: 'duplicate' }
+    }
 
     const res = await fetch(`${backendUrl}/api/wa/send`, {
       method: 'POST',
@@ -72,13 +76,17 @@ export async function sendWhatsAppNotification(input: NotificationInput): Promis
       }),
     })
     const json = await res.json().catch(() => ({} as any))
+    const durationMs = Date.now() - sendStartMs;
     if (!res.ok || !(json?.success || json?.ok || json?.queued)) {
       idempotencyCache.delete(idempotencyKey)
+      trackWhatsApp({ eventType: input.eventType, phone: input.phone, ok: false, error: json?.error || json?.message || `${res.status} ${res.statusText}`, durationMs, idempotencyKey });
       return { ok: false, error: json?.error || json?.message || `${res.status} ${res.statusText}` }
     }
+    trackWhatsApp({ eventType: input.eventType, phone: input.phone, ok: true, skipped: json.skipped, durationMs, idempotencyKey });
     return { ok: true, skipped: json.skipped, reason: json.reason }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
+    trackWhatsApp({ eventType: input.eventType, phone: input.phone, ok: false, error: msg, durationMs: Date.now() - sendStartMs });
     return { ok: false, error: msg }
   }
 }
