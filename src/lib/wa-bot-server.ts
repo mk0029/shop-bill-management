@@ -128,3 +128,20 @@ export async function emitWaEventServer(eventName: string, payload: Record<strin
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 }
+
+export async function emitWaEventClient(eventName: string, payload: Record<string, unknown>): Promise<{ ok: boolean; queued?: boolean; skipped?: boolean; error?: string }> {
+  try {
+    const res = await fetch("/api/wa/emit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventName, payload }),
+    });
+    const json = await res.json().catch(() => ({} as any));
+    if (!res.ok || json?.ok === false || json?.success === false) {
+      return { ok: false, error: json?.error || json?.message || `${res.status} ${res.statusText}` };
+    }
+    return { ok: true, queued: Boolean(json?.queued), skipped: Boolean(json?.skipped) };
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

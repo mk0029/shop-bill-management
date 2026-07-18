@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AnimatePresence, motion } from "framer-motion";
 import { CreditCard, Edit3, CheckCircle2, Save } from "lucide-react";
+import { calculatePaymentValidation, normalizeMoneyInput } from "@/lib/bill-utils";
 
 interface PaymentControlsProps {
   isEditingPayment: boolean;
@@ -41,10 +43,30 @@ export const PaymentControls = ({
   handlePaymentUpdate,
   currency,
 }: PaymentControlsProps) => {
-  // Compute remaining amount after applying the current partial input, capped by grand total
-  const effectiveGrand = getEffectiveGrandTotal();
+  const grandTotalNum = toNum(grandTotal);
   const alreadyPaid = toNum(bill?.paidAmount || 0);
+  const discountNum = Math.max(Number(discountAmount || 0), 0);
   const partialNum = Math.max(Number(partialAmount || 0), 0);
+
+  const validation = useMemo(
+    () =>
+      paymentMode === "paid"
+        ? calculatePaymentValidation({
+            grandTotal: grandTotalNum,
+            alreadyPaid,
+            discountAmount: 0,
+            paymentAmount: Math.max(0, grandTotalNum - alreadyPaid),
+          })
+        : calculatePaymentValidation({
+            grandTotal: grandTotalNum,
+            alreadyPaid,
+            discountAmount: discountNum,
+            paymentAmount: partialNum,
+          }),
+    [grandTotalNum, alreadyPaid, discountNum, partialNum, paymentMode],
+  );
+
+  const effectiveGrand = getEffectiveGrandTotal();
   const newTotalPaid = Math.min(alreadyPaid + partialNum, effectiveGrand);
   const remainingAfterPartial = Math.max(0, effectiveGrand - newTotalPaid);
   return (
@@ -111,7 +133,7 @@ export const PaymentControls = ({
                     max={grandTotal}
                     step="1"
                     value={partialAmount}
-                    onChange={(e) => setPartialAmount(e.target.value)}
+                    onChange={(e) => setPartialAmount(normalizeMoneyInput(e.target.value))}
                     placeholder="0"
                     className="bg-gray-900 border-gray-600 text-white"
                   />
@@ -121,6 +143,11 @@ export const PaymentControls = ({
                         Enter an amount greater than 0 to enable Save.
                       </p>
                     )}
+                  {validation.paymentTooHigh && (
+                    <p className="mt-1 text-xs text-red-400">
+                      Payment exceeds payable amount of {currency}{validation.payableAfterDiscount.toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
                 {/* Live summary */}
@@ -204,10 +231,15 @@ export const PaymentControls = ({
                     min="0"
                     step="1"
                     value={discountAmount}
-                    onChange={(e) => setDiscountAmount(e.target.value)}
+                    onChange={(e) => setDiscountAmount(normalizeMoneyInput(e.target.value))}
                     placeholder="0"
                     className="bg-gray-900 border-gray-600 text-white"
                   />
+                  {validation.discountTooHigh && (
+                    <p className="mt-1 text-xs text-red-400">
+                      Discount exceeds remaining balance of {currency}{validation.originalRemaining.toFixed(2)}
+                    </p>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -219,6 +251,7 @@ export const PaymentControls = ({
               onClick={handlePaymentUpdate}
               disabled={
                 isUpdatingPayment ||
+                validation.hasValidationError ||
                 (paymentMode === "partial" &&
                   (!partialAmount || Number(partialAmount) <= 0) &&
                   (!discountAmount || Number(discountAmount) <= 0))

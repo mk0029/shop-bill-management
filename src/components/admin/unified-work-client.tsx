@@ -377,12 +377,12 @@ export default function UnifiedWorkClient() {
     () => ({
       incoming: incomingRequests.length,
       active: tasks.filter(
-        (t) => !["completed", "cancelled", "hold"].includes(String(t.status)),
+        (t) => !["completed", "cancelled"].includes(String(t.status)),
       ).length,
       history:
         historyRequests.length +
         tasks.filter((t) =>
-          ["completed", "cancelled", "hold"].includes(String(t.status)),
+          ["completed", "cancelled"].includes(String(t.status)),
         ).length,
     }),
     [incomingRequests, historyRequests, tasks],
@@ -410,7 +410,7 @@ export default function UnifiedWorkClient() {
       .slice(0, 10);
     return tasks
       .filter((t) => {
-        if (["completed", "cancelled", "hold"].includes(String(t.status)))
+        if (["completed", "cancelled"].includes(String(t.status)))
           return false;
         if (taskFilters.status && t.status !== taskFilters.status) return false;
         if (taskFilters.priority && t.priority !== taskFilters.priority)
@@ -434,7 +434,7 @@ export default function UnifiedWorkClient() {
     () =>
       tasks
         .filter((t) =>
-          ["completed", "cancelled", "hold"].includes(String(t.status)),
+          ["completed", "cancelled"].includes(String(t.status)),
         )
         .sort(
           (a, b) =>

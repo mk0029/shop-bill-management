@@ -4,6 +4,7 @@ import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { updateStockForBill } from "@/lib/inventory-management";
+import { resolveBillEvents, emitBillEventsInBackground } from "@/lib/bill-events";
 
 async function resolveBillDocumentId(identifier: string): Promise<string | null> {
   const key = String(identifier || "").trim();
@@ -80,32 +81,7 @@ function calcTotals(input: {
 }
 
 
-function resolveBillPaymentEventType(input: {
-  previousPaid: number;
-  nextPaid: number;
-  grandTotal: number;
-  previousStatus?: string;
-  nextStatus?: string;
-  paymentChanged: boolean;
-}) {
-  if (!input.paymentChanged) return null;
-  const previousStatus = String(input.previousStatus || "").toLowerCase();
-  const nextStatus = String(input.nextStatus || "").toLowerCase();
-  const delta = input.nextPaid - input.previousPaid;
-  if (delta < 0) return "billing.payment.removed";
-  if (input.nextPaid <= 0) return null;
-  if (delta === 0) return previousStatus !== nextStatus ? "billing.payment.updated" : null;
-  if (input.nextPaid >= input.grandTotal) return previousStatus === "paid" ? null : "billing.payment.paid";
-  return "billing.payment.partial";
-}
-
-function emitBillPaymentWaEventInBackground(eventType: string, payload: Record<string, unknown>) {
-  void emitWaEventServer(eventType, payload).then((result) => {
-    if (!result.ok) console.warn("[WA] bill payment event failed", result.error);
-  }).catch((error) => {
-    console.error("[WA] bill payment event dispatch failed", error);
-  });
-}export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
     // Derive bill id from params or fallback to URL path as a safety net (handles trailing slashes)
     const fromParams = (params as any)?.id as string | undefined;
@@ -257,7 +233,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         totalAmount,
         paidAmount,
         balanceAmount,
-        paymentStatus
+        paymentStatus,
+        status,
+        serviceType,
+        dueDate,
+        technician->{_id, name}
       }`,
       { id }
     );
@@ -357,48 +337,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     };
 
     const updated = await sanityClient.patch(id).set(patch).commit();
-    // Central WhatsApp event: super payment update (fire-and-forget)
+    // Central WhatsApp event: comprehensive bill change detection (fire-and-forget)
     try {
-      const previousPaid = Number(prev?.paidAmount || 0);
-      const totalPaid = Number(paidAmount || 0);
-      const paymentChanged = previousPaid !== totalPaid || String(prev?.paymentStatus || "") !== String(paymentStatus || "") || Number(prev?.balanceAmount || 0) !== Number(nextBalance || 0);
-      const eventType = resolveBillPaymentEventType({
-        previousPaid,
-        nextPaid: totalPaid,
-        grandTotal: totals.netPayable,
-        previousStatus: prev?.paymentStatus,
-        nextStatus: paymentStatus,
-        paymentChanged,
-      });
-      if (eventType) {
-        const updatedAt = patch.updatedAt;
-        const paymentDelta = totalPaid - previousPaid;
-        const paymentId = String((body as any)?.paymentId || (body as any)?.transactionId || `super-bill-update:${id}:${Math.abs(paymentDelta) || totalPaid}:${updatedAt}`);
-        emitBillPaymentWaEventInBackground(eventType, {
-          billId: id,
-          billNumber: prev?.billNumber || id,
-          paymentId,
-          customerId: prev?.customer?._id,
-          customerName: prev?.customer?.name || "",
-          customerPhone: prev?.customer?.phone || "",
-          grandTotal: totals.netPayable,
-          totalAmount: totals.netPayable,
-          paidNow: Math.max(0, paymentDelta),
-          paidAmount: totalPaid,
-          totalPaid,
-          balance: nextBalance,
-          balanceAmount: nextBalance,
-          paymentMode: (body as any)?.paymentMode || (body as any)?.paymentMethod || "manual",
-          paymentDate: updatedAt,
-          updatedAt,
-          eventId: `${eventType}.${id}.${paymentId}`,
-          idempotencyKey: eventType === "billing.payment.updated"
-            ? `${eventType}:${id}:${paymentId}:${updatedAt}`
-            : `${eventType}:${id}:${paymentId}`,
-        });
-      }
+      const next = {
+        ...patch,
+        _id: id,
+        billNumber: prev?.billNumber || id,
+        customer: prev?.customer,
+        technician: prev?.technician,
+        paymentMethod: (body as any)?.paymentMode || (body as any)?.paymentMethod || prev?.paymentMethod || "manual",
+      };
+      const events = resolveBillEvents(prev, next, body as Record<string, any>);
+      emitBillEventsInBackground(events);
     } catch (e) {
-      console.error("[WA] bill payment event dispatch failed", e);
+      console.error("[WA] bill event dispatch failed", e);
     }
 
     return NextResponse.json({ success: true, data: updated }, { status: 200 });

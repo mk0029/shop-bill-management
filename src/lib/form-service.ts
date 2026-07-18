@@ -1,5 +1,5 @@
 import { sanityClient } from "./sanity";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
+import { emitWaEventClient } from "@/lib/wa-bot-server";
 import { getCookie } from "@/lib/cookies";
 import {
   validateStockAvailability,
@@ -821,7 +821,7 @@ export async function createBill(billData: {
             ).catch(() => null)
           : Promise.resolve(null)
         customerPromise.then((customer) => {
-          void emitWaEventServer("billing.created", {
+          void emitWaEventClient("billing.created", {
             billId: String(createdId || ""),
             billNumber: String(billNumber || ""),
             customerId: String(billData.customerId || ""),

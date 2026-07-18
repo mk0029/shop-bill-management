@@ -16,6 +16,12 @@ import {
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  BILL_EPSILON,
+  toMoney,
+  normalizeMoneyInput,
+  calculatePaymentValidation,
+} from "@/lib/bill-utils";
 
 interface PaymentUpdateModalProps {
   isOpen: boolean;
@@ -43,11 +49,7 @@ const paymentMethods = [
   { id: "card", label: "Card", icon: Building2 },
 ];
 
-const toNum = (v: any): number => {
-  if (typeof v === "number" && isFinite(v)) return v;
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : 0;
-};
+const toNum = (v: any): number => toMoney(v);
 
 export const PaymentUpdateModal = memo(function PaymentUpdateModal({
   isOpen,
@@ -76,6 +78,22 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
   const progressPct =
     effectiveTotal > 0 ? (alreadyPaid / effectiveTotal) * 100 : 0;
 
+  const paymentVal = paymentMode === "full"
+    ? remaining
+    : Math.max(Number(amount) || 0, 0);
+
+  const validation = calculatePaymentValidation({
+    grandTotal,
+    alreadyPaid,
+    discountAmount: discountVal,
+    paymentAmount: paymentVal,
+  });
+
+  const isRecordDisabled =
+    isProcessing ||
+    validation.hasValidationError ||
+    (paymentMode === "partial" && paymentVal <= 0 && discountVal <= 0);
+
   useEffect(() => {
     if (isOpen) {
       setDiscount(String(existingDiscount));
@@ -96,24 +114,30 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
     if (paymentMode === "full") {
       payAmt = remaining;
     } else {
-      payAmt = Math.min(Math.max(Number(amount) || 0, 0), remaining);
+      payAmt = Math.max(Number(amount) || 0, 0);
     }
 
-    if (payAmt <= 0 && paymentMode !== "full") {
+    const v = calculatePaymentValidation({
+      grandTotal,
+      alreadyPaid,
+      discountAmount: discountVal,
+      paymentAmount: payAmt,
+    });
+
+    if (v.invalidAmount) {
+      setError("Amounts cannot be negative");
+      return;
+    }
+    if (v.discountTooHigh) {
+      setError("Discount cannot exceed remaining amount");
+      return;
+    }
+    if (v.paymentTooHigh && paymentMode !== "full") {
+      setError("Payment cannot exceed amount after discount");
+      return;
+    }
+    if (paymentMode !== "full" && payAmt <= 0 && discountVal <= 0) {
       setError("Payment amount must be greater than 0");
-      return;
-    }
-    if (payAmt < 0) {
-      setError("Payment amount cannot be negative");
-      return;
-    }
-    if (discountVal < 0) {
-      setError("Discount cannot be negative");
-      return;
-    }
-
-    if (payAmt + discountVal > remaining && paymentMode !== "full") {
-      setError("Payment + discount cannot exceed remaining amount");
       return;
     }
 
@@ -123,12 +147,12 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       if (!billId) return;
 
       const newPaid = alreadyPaid + payAmt;
-      const isFull = newPaid >= effectiveTotal;
+      const isFull = v.billStatus === "paid";
 
       await onUpdatePayment(String(billId), {
         paymentStatus: isFull ? "paid" : "partial",
         paidAmount: newPaid,
-        balanceAmount: isFull ? 0 : Math.max(0, effectiveTotal - newPaid),
+        balanceAmount: isFull ? 0 : Math.max(0, v.payableAfterDiscount - payAmt),
         paymentMethod: method,
         discount: discountVal > 0 ? discountVal : undefined,
         discountReason: discountReason || undefined,
@@ -148,9 +172,9 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
     paymentMode,
     amount,
     remaining,
-    discountVal,
+    grandTotal,
     alreadyPaid,
-    effectiveTotal,
+    discountVal,
     method,
     discountReason,
     notes,
@@ -321,7 +345,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                       type="number"
                       value={amount}
                       onChange={(e) => {
-                        setAmount(e.target.value);
+                        setAmount(normalizeMoneyInput(e.target.value));
                         setError("");
                       }}
                       min="0"
@@ -331,23 +355,28 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                     />
                   </div>
                   <div className="flex gap-2 mt-2">
-                    {[25, 50, 75, 100].map((pct) => (
-                      <button
-                        key={pct}
-                        onClick={() =>
-                          setAmount(String((remaining * pct) / 100))
-                        }
-                        className={cn(
-                          "flex-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
-                          Number(amount) >= (remaining * pct) / 100 - 1 &&
-                            Number(amount) <= (remaining * pct) / 100 + 1
-                            ? "border-sky-400/30 bg-sky-500/10 text-sky-300"
-                            : "border-white/[0.06] bg-white/[0.03] text-white/40 hover:bg-white/[0.06]",
-                        )}
-                      >
-                        {pct}%
-                      </button>
-                    ))}
+                    {[25, 50, 75, 100].map((pct) => {
+                      const pctAmount = (validation.payableAfterDiscount * pct) / 100;
+                      const isActive =
+                        Number(amount) >= pctAmount - BILL_EPSILON &&
+                        Number(amount) <= pctAmount + BILL_EPSILON;
+                      return (
+                        <button
+                          key={pct}
+                          onClick={() =>
+                            setAmount(String(pctAmount))
+                          }
+                          className={cn(
+                            "flex-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                            isActive
+                              ? "border-sky-400/30 bg-sky-500/10 text-sky-300"
+                              : "border-white/[0.06] bg-white/[0.03] text-white/40 hover:bg-white/[0.06]",
+                          )}
+                        >
+                          {pct}%
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -362,7 +391,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                     type="number"
                     value={discount}
                     onChange={(e) => {
-                      setDiscount(e.target.value);
+                      setDiscount(normalizeMoneyInput(e.target.value));
                       setError("");
                     }}
                     min="0"
@@ -460,10 +489,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={
-                isProcessing ||
-                (paymentMode === "partial" && (!amount || Number(amount) <= 0))
-              }
+              disabled={isRecordDisabled}
               className="flex-1 !rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white border-0"
             >
               {isProcessing ? (

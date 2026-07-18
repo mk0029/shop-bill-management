@@ -458,8 +458,7 @@ export default function WorkListClient({
       tasks.filter(
         (t) =>
           t.status !== "completed" &&
-          t.status !== "cancelled" &&
-          t.status !== "hold",
+          t.status !== "cancelled",
       ),
     [tasks],
   );
@@ -640,7 +639,7 @@ export default function WorkListClient({
     return sorted
       .filter(
         (task) =>
-          !["completed", "cancelled", "hold"].includes(String(task.status)),
+          !["completed", "cancelled"].includes(String(task.status)),
       )
       .slice(0, 8);
   }, [tasks, embedded]);
@@ -648,7 +647,7 @@ export default function WorkListClient({
     () =>
       filteredTasks.filter(
         (task) =>
-          !["completed", "cancelled", "hold"].includes(String(task.status)),
+          !["completed", "cancelled"].includes(String(task.status)),
       ),
     [filteredTasks],
   );
@@ -656,7 +655,7 @@ export default function WorkListClient({
     () =>
       [...tasks]
         .filter((t) =>
-          ["completed", "cancelled", "hold"].includes(String(t.status)),
+          ["completed", "cancelled"].includes(String(t.status)),
         )
         .sort(
           (a, b) =>
@@ -862,6 +861,11 @@ export default function WorkListClient({
                                       : ""}
                                   </p>
                                 ) : null}
+                                {task.status === "hold" && task.holdReason ? (
+                                  <p className="text-xs text-amber-300 mt-1">
+                                    Hold: {task.holdReason}
+                                  </p>
+                                ) : null}
                                 <RepairTaskSummary task={task} compact />
                               </td>
                               <td className="py-2 pr-2 text-gray-300">
@@ -935,6 +939,11 @@ export default function WorkListClient({
                                       {task.customerRef?.phone
                                         ? ` (${task.customerRef.phone})`
                                         : ""}
+                                    </p>
+                                  ) : null}
+                                  {task.status === "hold" && task.holdReason ? (
+                                    <p className="text-xs text-amber-300 leading-5 mt-1">
+                                      Hold: {task.holdReason}
                                     </p>
                                   ) : null}
                                   <p className="text-xs text-gray-400 leading-5">

@@ -135,7 +135,7 @@ export function AppDateTimePicker({
       setView(mode === "time" ? "time" : "calendar");
       repositionPanel();
     }
-  }, [open, value, mode, repositionPanel, tempDate]);
+  }, [open, value, mode, repositionPanel]);
 
   // Reposition on scroll/resize while open
   useEffect(() => {

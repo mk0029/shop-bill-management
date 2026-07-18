@@ -142,8 +142,7 @@ export default function WorkListDashboardSection({
         .filter(
           (t) =>
             t.status !== "completed" &&
-            t.status !== "cancelled" &&
-            t.status !== "hold",
+            t.status !== "cancelled",
         )
         .filter((t) => {
           const hay =
@@ -296,7 +295,11 @@ export default function WorkListDashboardSection({
                     key={task._id}
                     type="button"
                     onClick={() => setActiveTask(task)}
-                    className="w-full text-left border border-gray-800 rounded p-2.5 bg-gray-950/60 hover:border-gray-700 transition-colors"
+                    className={`w-full text-left border rounded p-2.5 transition-colors ${
+                      task.status === "hold"
+                        ? "border-amber-500/35 bg-amber-500/10 hover:border-amber-500/50"
+                        : "border-gray-800 bg-gray-950/60 hover:border-gray-700"
+                    }`}
                   >
                     <p className="text-white text-sm font-medium">
                       {task.title}
@@ -305,8 +308,13 @@ export default function WorkListDashboardSection({
                       {task.assignedTechnicianName ||
                         task.assignedTechnician?.name ||
                         "-"}{" "}
-                      • {task.priority} • {task.status}
+                      • {task.priority} • {String(task.status).replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                     </p>
+                    {task.status === "hold" && task.holdReason ? (
+                      <p className="text-xs text-amber-300 mt-1">
+                        Hold: {task.holdReason}
+                      </p>
+                    ) : null}
                     <p className="text-xs text-gray-500">
                       Due: {formatDayDateTime(task.dueAt)}
                     </p>

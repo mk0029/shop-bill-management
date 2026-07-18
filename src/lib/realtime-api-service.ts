@@ -1,5 +1,5 @@
 import { sanityClient } from "./sanity";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
+import { emitWaEventClient } from "@/lib/wa-bot-server";
 import { toast } from "sonner";
 
 
@@ -140,7 +140,7 @@ export class RealtimeApiService {
       if (customerRef) {
         sanityClient.fetch(`*[_type=="user" && _id==$id][0]{phone,name}`, { id: String(customerRef) }
         ).then((customer: any) => {
-          void emitWaEventServer('billing.created', {
+          void emitWaEventClient('billing.created', {
             billId,
             billNumber: String(billData.billNumber || ''),
             customerId: String(customerRef),

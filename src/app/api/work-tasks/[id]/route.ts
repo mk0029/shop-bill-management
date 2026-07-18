@@ -74,7 +74,7 @@ async function sendCustomerWorkUpdate(args: {
 }) {
   if (!args.customerRefId) return;
   const customer = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,phone}`, { id: args.customerRefId });
-  const mappedEvent = args.type === "completed" ? "workTask.completed" : args.type === "cancelled" || args.type === "deleted" ? "workTask.cancelled" : "workTask.updated";
+  const mappedEvent = args.type === "completed" ? "workTask.completed" : args.type === "cancelled" || args.type === "deleted" ? "workTask.cancelled" : args.type === "hold" ? "workTask.hold" : "workTask.updated";
   await emitWaEventServer(mappedEvent, {
     taskId: args.taskId || "",
     customerId: args.customerRefId,

@@ -108,8 +108,7 @@ export function footerText() {
     "",
     "If you have any questions, simply reply to this message and our team will be happy to assist you.",
     "",
-    "Regards,",
-    "Jambh Electricals",
+         `\u2014 Jambh Electricals`,
   ].join("\n");
 }
 
@@ -254,10 +253,9 @@ export const notificationTemplates = {
       "",
       "If you have any questions or need assistance, simply reply to this message. Our team will be happy to help.",
       "",
-      "Thank you for your business. We look forward to serving you again.",
-      "",
-      "Regards,",
-      "Jambh Electricals",
+        `Thank you for choosing Us.`,
+      `\u2014 Jambh Electricals`,
+      
     ].join("\n");
   },
 
@@ -389,7 +387,7 @@ export const notificationTemplates = {
       "",
       `Dear ${customerDisplay},`,
       "",
-      "We have successfully received your partial payment."
+      "We have successfully received your partial payment.",
       "",
       "🧾 Bill Details",
       `• Bill ID: ${billLabel(bill)}`,
@@ -405,10 +403,9 @@ export const notificationTemplates = {
       "",
       "If you have any questions or need assistance, simply reply to this message. Our team will be happy to help.",
       "",
-      "Thank you for your business. We look forward to serving you again.",
-      "",
-      "Regards,",
-      "Jambh Electricals",
+      `Thank you for choosing Us.`,
+      `\u2014  Jambh Electricals`,
+     ,
     ].join("\n");
   },
 

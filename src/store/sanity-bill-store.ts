@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
+import { emitWaEventClient } from "@/lib/wa-bot-server";
 import { useSanityRealtimeStore } from "./sanity-realtime-store";
 import { getCookie } from "@/lib/cookies";
 
@@ -198,7 +198,7 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
           } catch {}
 
 
-          emitWaEventServer('billing.created', {
+          emitWaEventClient('billing.created', {
             billId,
             billNumber: billNo,
             customerId,

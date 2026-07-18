@@ -137,6 +137,71 @@ export function formatBillItemsForDisplay(items: BillItem[]): string {
 }
 
 /**
+ * Central payment calculation utilities
+ */
+
+export const BILL_EPSILON = 0.01;
+
+export function toMoney(value: unknown): number {
+  const parsed = Number.parseFloat(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : 0;
+}
+
+export function normalizeMoneyInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const [whole = "", decimal] = cleaned.split(".");
+  const normalizedWhole = whole.replace(/^0+(?=\d)/, "");
+  return decimal !== undefined
+    ? `${normalizedWhole || "0"}.${decimal.slice(0, 2)}`
+    : normalizedWhole;
+}
+
+export function calculatePaymentValidation({
+  grandTotal,
+  alreadyPaid,
+  discountAmount,
+  paymentAmount,
+}: {
+  grandTotal: number;
+  alreadyPaid: number;
+  discountAmount: number;
+  paymentAmount: number;
+}) {
+  const originalRemaining = Math.max(0, grandTotal - alreadyPaid);
+  const payableAfterDiscount = Math.max(
+    0,
+    originalRemaining - discountAmount,
+  );
+  const totalSettlement = paymentAmount + discountAmount;
+  const remainingAfterPayment = Math.max(
+    0,
+    originalRemaining - totalSettlement,
+  );
+
+  const discountTooHigh =
+    discountAmount > originalRemaining + BILL_EPSILON;
+  const paymentTooHigh =
+    paymentAmount > payableAfterDiscount + BILL_EPSILON;
+  const invalidAmount = paymentAmount < 0 || discountAmount < 0;
+  const hasValidationError =
+    invalidAmount || discountTooHigh || paymentTooHigh;
+  const billStatus: "paid" | "partial" =
+    remainingAfterPayment <= BILL_EPSILON ? "paid" : "partial";
+
+  return {
+    originalRemaining,
+    payableAfterDiscount,
+    totalSettlement,
+    remainingAfterPayment,
+    discountTooHigh,
+    paymentTooHigh,
+    invalidAmount,
+    hasValidationError,
+    billStatus,
+  };
+}
+
+/**
  * Check if two bill items are the same product
  */
 export function isSameProduct(item1: BillItem, item2: BillItem): boolean {
