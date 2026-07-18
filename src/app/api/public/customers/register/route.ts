@@ -14,6 +14,35 @@ import { generateRequestId, generateDeviceToken } from "@/lib/customer-registrat
 import { checkIdentityRateLimit } from "@/lib/security/identity-rate-limiter";
 import { sendNotificationToAdmins } from "@/services/notifications/notification-events.server";
 
+async function sendWAToSuperAdmins(eventType: string, payload: Record<string, any>) {
+  try {
+    const { sanityClient } = await import("@/lib/sanity")
+    const admins = await sanityClient.fetch<{ _id: string; phone: string | null; name: string }[]>(
+      `*[_type == "user" && role in ["admin", "super_admin"] && isActive != false && defined(phone)]{ _id, phone, name }`
+    )
+    const superAdmins = (admins || []).filter(a => a.phone)
+    if (!superAdmins.length) return
+
+    const rawUrl = process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL
+    const backendUrl = (rawUrl || "").replace(/\/+$/, "")
+    const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || "").trim()
+    if (!backendUrl || !secret) return
+
+    const url = `${backendUrl}/api/wa/events/${eventType}`
+    for (const admin of superAdmins) {
+      const phone = String(admin.phone || "").replace(/\D/g, "")
+      if (!phone || phone.length < 7) continue
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${secret}`, "x-api-key": secret },
+        body: JSON.stringify({ ...payload, phone, customerPhone: phone, customerName: admin.name || "Admin" }),
+      }).catch(() => {})
+    }
+  } catch {
+    // silent — WA is best-effort for admin alerts
+  }
+}
+
 function errorResponse(code: string, message: string, status: number, errors?: Record<string, string[]>) {
   return NextResponse.json(
     { success: false, code, message, ...(errors ? { errors } : {}) },
@@ -153,6 +182,16 @@ export async function POST(request: Request) {
         customerName: name,
       },
     }).catch((e) => console.error("[Register] FCM notification failed:", e));
+
+    sendWAToSuperAdmins("customer.request.created", {
+      customerName: name,
+      customerPhone: canonicalPhone,
+      phone: canonicalPhone,
+      name,
+      requestId,
+      requestType: requestType || "self_registration",
+      status: "pending",
+    }).catch((e) => console.error("[Register] WA admin notification failed:", e));
 
     return successResponse("Your registration request has been submitted successfully.", {
       requestId,

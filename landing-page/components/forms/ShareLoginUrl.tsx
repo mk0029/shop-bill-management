@@ -12,7 +12,11 @@ function siteUrl() {
   ).replace(/\/+$/, "");
 }
 
-export function ShareLoginUrl({ support }: { support: { email: string; whatsapp: string } }) {
+export function ShareLoginUrl({
+  support,
+}: {
+  support: { email: string; whatsapp: string };
+}) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [secretKey, setSecretKey] = useState("");
@@ -43,7 +47,7 @@ export function ShareLoginUrl({ support }: { support: { email: string; whatsapp:
       "📞 Need help?",
       `Contact us: ${contact}`,
       "",
-      "Thank you for choosing Jambh Electrics! 🙏",
+      "Thank you for choosing Us",
     ].join("\n");
   };
 
@@ -90,38 +94,62 @@ export function ShareLoginUrl({ support }: { support: { email: string; whatsapp:
     <div className="glass-card p-5 md:p-6">
       <div className="flex items-center gap-2 mb-4">
         <Share2 className="h-4 w-4 text-sky-400" />
-        <h3 className="text-base font-semibold text-white">{t("share.title")}</h3>
+        <h3 className="text-base font-semibold text-white">
+          {t("share.title")}
+        </h3>
       </div>
       <div className="space-y-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-[#E5E7EB]">{t("share.customerName")}</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("share.customerNamePlaceholder")}
+          <label className="mb-1 block text-sm font-medium text-[#E5E7EB]">
+            {t("share.customerName")}
+          </label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("share.customerNamePlaceholder")}
             className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-[#B8C0CC]/50"
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-[#E5E7EB]">{t("share.customerPhone")}</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t("share.customerPhonePlaceholder")} required
+            <label className="mb-1 block text-sm font-medium text-[#E5E7EB]">
+              {t("share.customerPhone")}
+            </label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder={t("share.customerPhonePlaceholder")}
+              required
               className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-[#B8C0CC]/50"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-[#E5E7EB]">{t("share.secretKey")}</label>
-            <input value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={t("share.secretKeyPlaceholder")} required
+            <label className="mb-1 block text-sm font-medium text-[#E5E7EB]">
+              {t("share.secretKey")}
+            </label>
+            <input
+              value={secretKey}
+              onChange={(e) => setSecretKey(e.target.value)}
+              placeholder={t("share.secretKeyPlaceholder")}
+              required
               className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-[#B8C0CC]/50"
             />
           </div>
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={handleWhatsApp}
+          <button
+            type="button"
+            onClick={handleWhatsApp}
             className="glass-button-primary flex-1 rounded-xl h-10 text-sm font-semibold text-sky-200 inline-flex items-center justify-center gap-2"
           >
             <MessageCircle className="h-4 w-4" />
             {t("share.sendWhatsApp")}
           </button>
-          <button type="button" onClick={handleEmail} disabled={isLoading}
+          <button
+            type="button"
+            onClick={handleEmail}
+            disabled={isLoading}
             className="glass-button flex-1 rounded-xl h-10 text-sm font-semibold text-[#E5E7EB] inline-flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <Mail className="h-4 w-4" />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Zap, Loader2, AlertCircle, User, Phone, X } from 'lucide-react'
 import { NotificationDebug } from '@/components/fcm/notification-debug'
 import { FcmTokenButton } from '@/components/fcm/fcm-token-button'
 import { NotificationReset } from '@/components/fcm/notification-reset'
@@ -15,7 +16,7 @@ import {
   type TrackEntry,
 } from '@/lib/notification-tracker'
 
-type Tab = 'wa' | 'fcm' | 'tracker'
+type Tab = 'simulate' | 'wa' | 'fcm' | 'tracker'
 type TrackerFilter = 'all' | 'fcm' | 'whatsapp'
 type TraceStep = { step: string; ts: string; [k: string]: any }
 type User = { id: string; name: string; email: string | null; phone: string | null; role: string }
@@ -83,6 +84,416 @@ function formatTimestamp(iso: string): string {
   const s = String(d.getSeconds()).padStart(2, '0')
   const ms = String(d.getMilliseconds()).padStart(3, '0')
   return `${y}-${mo}-${da} ${h}:${mi}:${s}.${ms}`
+}
+
+function fmtMs(ts: number) {
+  const d = new Date(ts)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}.${String(d.getMilliseconds()).padStart(3, '0')}`
+}
+
+const SIM_CATEGORIES = ['Customer', 'Billing', 'Tool Rental', 'Work Task', 'Technician', 'Offer', 'Scheduled']
+
+function SimulatePanel() {
+  const [simEvents, setSimEvents] = useState<{ key: string; label: string; category: string; channels: string[] }[]>([])
+  const [catFilter, setCatFilter] = useState<string>('all')
+  const [selectedEvent, setSelectedEvent] = useState<string>('')
+  const [channels, setChannels] = useState<('wa' | 'fcm')[]>(['wa', 'fcm'])
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<any>(null)
+  const [trace, setTrace] = useState<any[]>([])
+  const [error, setError] = useState('')
+  const [history, setHistory] = useState<{ event: string; label: string; ts: number; ok: boolean; channels: string[]; phone: string }[]>([])
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalPhone, setModalPhone] = useState('')
+  const [modalName, setModalName] = useState('')
+  const [modalError, setModalError] = useState('')
+
+  const [offers, setOffers] = useState<any[]>([])
+  const [offersLoading, setOffersLoading] = useState(false)
+  const [offersOpen, setOffersOpen] = useState(false)
+  const [offerAction, setOfferAction] = useState<string>('')
+  const [offerTarget, setOfferTarget] = useState<any>(null)
+  const [offerResult, setOfferResult] = useState<any>(null)
+  const [offerTrace, setOfferTrace] = useState<any[]>([])
+  const [offerLoading, setOfferLoading] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/super/simulate')
+      .then(r => r.json())
+      .then(j => { if (j.ok) setSimEvents(j.events) })
+      .catch(() => {})
+  }, [])
+
+  function loadOffers() {
+    setOffersLoading(true)
+    fetch('/api/super/simulate?offers=true')
+      .then(r => r.json())
+      .then(j => { if (j.ok) setOffers(j.offers || []) })
+      .catch(() => {})
+      .finally(() => setOffersLoading(false))
+  }
+
+  async function fireOfferAction(action: string, offerId: string, extra?: Record<string, any>) {
+    setOfferLoading(true); setOfferResult(null); setOfferTrace([])
+    try {
+      const res = await fetch('/api/super/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, offerId, ...extra }),
+      })
+      const json = await res.json()
+      setOfferResult(json)
+      const allTrace: any[] = []
+      if (json.trace) allTrace.push(...json.trace)
+      setOfferTrace(allTrace)
+      if (json.error) setError(json.error)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setOfferLoading(false)
+    }
+  }
+
+  const filtered = catFilter === 'all' ? simEvents : simEvents.filter(e => e.category === catFilter)
+  const selectedMeta = simEvents.find(e => e.key === selectedEvent)
+
+  function openModal() {
+    if (!selectedEvent) return
+    setModalError('')
+    setModalOpen(true)
+  }
+
+  async function fireSimulate() {
+    const phone = modalPhone.replace(/\D/g, '')
+    if (!phone || phone.length < 7) { setModalError('Enter a valid phone number (min 7 digits)'); return }
+    if (!modalName.trim()) { setModalError('Customer name is required'); return }
+
+    setModalOpen(false)
+
+    // Offer FCM test action
+    if (offerAction === 'offer.fcmTest' && offerTarget) {
+      setOfferLoading(true); setOfferResult(null); setOfferTrace([])
+      try {
+        const res = await fetch('/api/super/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'offer.fcmTest', offerId: offerTarget.id, customerPhone: phone, customerName: modalName.trim() }),
+        })
+        const json = await res.json()
+        setOfferResult(json)
+        if (json.trace) setOfferTrace(json.trace)
+        if (json.error) setError(json.error)
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setOfferLoading(false)
+        setOfferAction(''); setOfferTarget(null)
+      }
+      return
+    }
+
+    // Standard event simulation
+    setLoading(true); setResult(null); setTrace([]); setError('')
+    try {
+      const res = await fetch('/api/super/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventType: selectedEvent, channels, customerPhone: phone, customerName: modalName.trim() }),
+      })
+      const json = await res.json()
+      setResult(json)
+      const allTrace: any[] = []
+      if (json.results?.wa?.trace) allTrace.push(...json.results.wa.trace)
+      if (json.results?.fcm?.trace) allTrace.push(...json.results.fcm.trace)
+      setTrace(allTrace)
+      if (json.error) setError(json.error)
+      setHistory(h => [{ event: selectedEvent, label: json.label || selectedEvent, ts: Date.now(), ok: json.ok, channels, phone: phone.slice(0, 4) + '****' }, ...h].slice(0, 50))
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Event Picker */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="w-5 h-5 text-orange-400" />
+          <span className="font-semibold text-white">Simulate Event</span>
+          <span className="text-xs text-orange-400/60 ml-1">super admin only</span>
+        </div>
+        <p className="text-xs text-gray-500 -mt-2">Real customer phone &amp; name required. Fires actual WA + FCM bridges. No business data saved.</p>
+
+        {/* Category chips */}
+        <div className="flex gap-1 flex-wrap">
+          <button onClick={() => setCatFilter('all')} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${catFilter === 'all' ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>All</button>
+          {SIM_CATEGORIES.map(c => (
+            <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${catFilter === c ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>{c}</button>
+          ))}
+        </div>
+
+        {/* Event grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+          {filtered.map(ev => (
+            <button key={ev.key} onClick={() => setSelectedEvent(ev.key)}
+              className={`p-2 rounded text-left text-xs transition-colors ${selectedEvent === ev.key ? 'bg-orange-600/30 border border-orange-500' : 'bg-gray-800 border border-gray-700 hover:border-gray-500'}`}>
+              <div className="font-medium text-white truncate">{ev.label}</div>
+              <div className="text-gray-500 text-[10px] mt-0.5">{ev.key}</div>
+              <div className="flex gap-1 mt-1">
+                {ev.channels.includes('wa') && <span className="text-[10px] px-1 rounded bg-green-900/50 text-green-400">WA</span>}
+                {ev.channels.includes('fcm') && <span className="text-[10px] px-1 rounded bg-blue-900/50 text-blue-400">FCM</span>}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Channel toggles + fire button */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="flex items-center gap-1 text-xs text-gray-400">
+            <input type="checkbox" checked={channels.includes('wa')} onChange={e => setChannels(ch => e.target.checked ? [...ch, 'wa'] : ch.filter(c => c !== 'wa'))}
+              className="w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500" />
+            WhatsApp
+          </label>
+          <label className="flex items-center gap-1 text-xs text-gray-400">
+            <input type="checkbox" checked={channels.includes('fcm')} onChange={e => setChannels(ch => e.target.checked ? [...ch, 'fcm'] : ch.filter(c => c !== 'fcm'))}
+              className="w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500" />
+            FCM
+          </label>
+          <button onClick={openModal} disabled={!selectedEvent || loading || channels.length === 0}
+            className="flex items-center gap-1 px-4 py-1.5 rounded bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium disabled:opacity-40 transition-colors">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {loading ? 'Running...' : 'Simulate'}
+          </button>
+          {selectedMeta && (
+            <span className="text-xs text-gray-600">{selectedMeta.label} — {selectedMeta.channels.join(' + ')}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Offers API Panel */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+        <button onClick={() => { setOffersOpen(!offersOpen); if (!offersOpen && offers.length === 0) loadOffers() }}
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-800/50 transition-colors">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🎁</span>
+            <span className="font-semibold text-white text-sm">Offers API</span>
+            <span className="text-xs text-gray-500">— real offers from Sanity</span>
+          </div>
+          <span className="text-gray-500 text-xs">{offersOpen ? '▲' : '▼'}</span>
+        </button>
+
+        {offersOpen && (
+          <div className="px-4 pb-4 space-y-3 border-t border-gray-800">
+            <div className="flex items-center gap-2 pt-3">
+              <button onClick={loadOffers} disabled={offersLoading}
+                className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded transition-colors disabled:opacity-40">
+                {offersLoading ? 'Loading...' : 'Refresh Offers'}
+              </button>
+              <span className="text-xs text-gray-500">{offers.length} offer(s) found</span>
+            </div>
+
+            {offers.length === 0 && !offersLoading && (
+              <p className="text-xs text-gray-500">No offers in Sanity. Create one from Admin → Offers first.</p>
+            )}
+
+            {offers.map(offer => (
+              <div key={offer.id} className="bg-gray-950 border border-gray-800 rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-white text-sm truncate">{offer.title}</div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${offer.status === 'active' ? 'bg-green-900 text-green-400' : offer.status === 'inactive' ? 'bg-gray-700 text-gray-400' : 'bg-yellow-900 text-yellow-400'}`}>
+                        {offer.status}
+                      </span>
+                      <span className="text-[10px] text-gray-500">{offer.type}: {offer.discount}</span>
+                      <span className="text-[10px] text-gray-500">audience: {offer.audience}</span>
+                      {offer.claims > 0 && <span className="text-[10px] text-gray-500">{offer.claims} claims</span>}
+                      <span className={`text-[10px] ${offer.pushEnabled ? 'text-blue-400' : 'text-gray-600'}`}>
+                        push {offer.pushEnabled ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-1.5 flex-wrap">
+                  <button onClick={() => fireOfferAction('offer.liveNotify', offer.id)} disabled={offerLoading}
+                    className="text-[11px] bg-blue-900/50 hover:bg-blue-800/50 text-blue-300 px-2.5 py-1 rounded transition-colors disabled:opacity-40">
+                    {offerLoading ? '...' : 'Live Notify (FCM)'}
+                  </button>
+                  <button onClick={() => { setOfferAction('offer.fcmTest'); setOfferTarget(offer); setModalOpen(true) }} disabled={offerLoading}
+                    className="text-[11px] bg-purple-900/50 hover:bg-purple-800/50 text-purple-300 px-2.5 py-1 rounded transition-colors disabled:opacity-40">
+                    FCM to Phone
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {offerResult && (
+              <div className={`rounded-lg p-3 text-xs ${offerResult.ok ? 'bg-green-950/30 border border-green-900 text-green-400' : 'bg-red-950/30 border border-red-900 text-red-400'}`}>
+                <span className="font-bold">{offerResult.ok ? 'OK' : 'FAILED'}</span>
+                {offerResult.offer && <span className="ml-2 text-gray-400">{offerResult.offer.title}</span>}
+                {offerResult.result && <pre className="mt-1 font-mono text-[10px] whitespace-pre-wrap break-all max-h-32 overflow-auto opacity-80">{JSON.stringify(offerResult.result, null, 2)}</pre>}
+              </div>
+            )}
+
+            {offerTrace.length > 0 && (
+              <div className="space-y-0.5 font-mono text-[10px]">
+                {offerTrace.map((t: any, i: number) => (
+                  <div key={i} className="flex items-start gap-2 py-0.5">
+                    <span className="text-gray-600 w-20 flex-shrink-0">{fmtMs(new Date(t.ts).getTime())}</span>
+                    <span className="text-gray-500 w-14 flex-shrink-0">{t.step}</span>
+                    <span className="text-gray-400 break-all">{JSON.stringify(t)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Customer Details Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
+          <div className="bg-gray-900 border border-orange-500/40 rounded-xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-white font-semibold">
+                  {offerAction === 'offer.fcmTest' ? 'FCM to Phone' : 'Customer Details'}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {offerAction === 'offer.fcmTest'
+                    ? <>Sending: <span className="text-purple-400">{offerTarget?.title}</span></>
+                    : <>Simulating: <span className="text-orange-400">{selectedMeta?.label}</span></>}
+                </p>
+              </div>
+              <button onClick={() => setModalOpen(false)} className="text-gray-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">Phone Number</label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input type="tel" value={modalPhone} onChange={e => { setModalPhone(e.target.value); setModalError('') }}
+                    placeholder="9876543210" autoFocus
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-10 pr-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">Customer Name</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input type="text" value={modalName} onChange={e => { setModalName(e.target.value); setModalError('') }}
+                    placeholder="Enter real customer name"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-10 pr-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+
+              {modalError && (
+                <div className="flex items-center gap-2 text-red-400 text-xs">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {modalError}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-lg bg-gray-800 text-gray-400 text-sm font-medium hover:bg-gray-700 transition-colors">Cancel</button>
+                <button onClick={fireSimulate} disabled={loading}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium disabled:opacity-40 transition-colors">
+                  <Zap className="w-4 h-4" /> Fire Notification
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-950/30 border border-red-900 rounded p-3 text-red-400 text-sm flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Result */}
+      {result && (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-white">Simulate: {result.label}</span>
+            <span className={`px-2 py-0.5 rounded text-xs font-medium ${result.ok ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
+              {result.ok ? 'OK' : 'FAILED'}
+            </span>
+          </div>
+          {result.results && Object.entries(result.results).map(([ch, r]: [string, any]) => (
+            <div key={ch} className={`rounded p-3 text-xs ${ch === 'wa' ? 'bg-green-950/30 border border-green-900' : 'bg-blue-950/30 border border-blue-900'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={`font-medium ${ch === 'wa' ? 'text-green-400' : 'text-blue-400'}`}>{ch === 'wa' ? 'WhatsApp' : 'FCM'}</span>
+                <span className={r.ok ? 'text-green-400' : 'text-red-400'}>{r.ok ? 'Success' : r.error || 'Failed'}</span>
+              </div>
+              {r.trace && (
+                <div className="space-y-1 mt-2">
+                  {r.trace.map((t: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-gray-600">{fmtMs(new Date(t.ts).getTime())}</span>
+                      <span className="text-gray-400">{t.step}</span>
+                      {t.status !== undefined && <span className={t.ok ? 'text-green-400' : 'text-red-400'}>HTTP {t.status}</span>}
+                      {t.count !== undefined && <span className="text-gray-500">{t.count} token(s)</span>}
+                      {t.error && <span className="text-red-400 truncate max-w-xs">{t.error}</span>}
+                      {t.body && <span className="text-gray-500 truncate max-w-xs">{JSON.stringify(t.body)}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Full Trace */}
+      {trace.length > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-2">
+          <span className="text-sm font-semibold text-white">Full Trace</span>
+          <div className="space-y-0.5 font-mono text-[11px]">
+            {trace.map((t: any, i: number) => (
+              <div key={i} className="flex items-start gap-2 py-0.5">
+                <span className="text-gray-600 w-24 flex-shrink-0">{fmtMs(new Date(t.ts).getTime())}</span>
+                <span className="text-gray-500 w-16 flex-shrink-0">{t.step}</span>
+                <span className="text-gray-400 break-all">{JSON.stringify(t)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* History */}
+      {history.length > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-white">Simulation History</span>
+            <span className="text-xs text-gray-500">last {history.length}</span>
+          </div>
+          <div className="space-y-1">
+            {history.map((h, i) => (
+              <div key={i} className="flex items-center gap-3 text-xs">
+                <span className="text-gray-600 font-mono w-24 flex-shrink-0">{fmtMs(h.ts)}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${h.ok ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
+                  {h.ok ? 'OK' : 'FAIL'}
+                </span>
+                <span className="text-white">{h.label}</span>
+                <span className="text-gray-600">{h.phone}</span>
+                <span className="text-gray-600">{h.channels.join('+')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function NotificationTrackerPanel() {
@@ -392,10 +803,14 @@ export function TestingGroundClient() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-900 rounded-lg p-1 w-fit">
+        <button onClick={() => { setTab('simulate'); setResult(null); setTrace(null); setError(null) }} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'simulate' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}>Simulate</button>
         <button onClick={() => { setTab('tracker'); setResult(null); setTrace(null); setError(null) }} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'tracker' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>Tracker</button>
         <button onClick={() => { setTab('wa'); setResult(null); setTrace(null); setError(null) }} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'wa' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}>WhatsApp</button>
         <button onClick={() => { setTab('fcm'); setResult(null); setTrace(null); setError(null) }} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === 'fcm' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>FCM Push</button>
       </div>
+
+      {/* Simulate Panel */}
+      {tab === 'simulate' && <SimulatePanel />}
 
       {/* Tracker Panel */}
       {tab === 'tracker' && <NotificationTrackerPanel />}

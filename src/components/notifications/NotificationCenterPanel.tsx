@@ -182,7 +182,7 @@ export default function NotificationCenterPanel({
 
   return (
     <section className="mx-auto w-full max-w-4xl px-2 pb-3 pt-0 sm:px-4 sm:pb-4 sm:pt-2 lg:px-6">
-      <div className="relative flex min-h-[calc(var(--app-vh,100dvh)-1rem)] flex-col overflow-hidden rounded-[1.15rem] border border-sky-300/15 bg-slate-950/62 text-slate-100 shadow-2xl shadow-black/35 backdrop-blur-2xl sm:min-h-[calc(var(--app-vh,100dvh)-2rem)] sm:rounded-[1.35rem]">
+      <div className="relative flex h-[calc(var(--app-vh,100dvh)-1rem)] max-h-[calc(var(--app-vh,100dvh)-1rem)] flex-col overflow-hidden rounded-[1.15rem] border border-sky-300/15 bg-slate-950/62 text-slate-100 shadow-2xl shadow-black/35 backdrop-blur-2xl sm:h-[calc(var(--app-vh,100dvh)-2rem)] sm:max-h-[calc(var(--app-vh,100dvh)-2rem)] sm:rounded-[1.35rem]">
         <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-cyan-400/14 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-orange-300/12 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(125,211,252,0.20)_1px,transparent_1px),linear-gradient(90deg,rgba(125,211,252,0.20)_1px,transparent_1px)] [background-size:34px_34px]" />
@@ -247,11 +247,7 @@ export default function NotificationCenterPanel({
         <motion.div
           layout
           transition={{ type: "spring", stiffness: 280, damping: 30 }}
-          className={`relative flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-slate-950/28 px-1 py-1 transition-[max-height] duration-300 ease-out sm:px-2 sm:py-2 ${
-            isClearing
-              ? "max-h-[calc(var(--app-vh,100dvh)-8rem)]"
-              : "max-h-[calc(var(--app-vh,100dvh)-6rem)]"
-          }`}
+          className="relative flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-slate-950/28 px-1 py-1 sm:px-2 sm:py-2"
         >
           {items.length === 0 ? (
             <motion.div

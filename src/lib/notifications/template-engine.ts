@@ -104,7 +104,7 @@ export function secureAccountSection(loginUrl?: string) {
 
 export function footerText() {
   return [
-    "Thank you for choosing Jambh Electricals.",
+    "Thank you for choosing Us.",
     "",
     "If you have any questions, simply reply to this message and our team will be happy to assist you.",
     "",
@@ -389,7 +389,7 @@ export const notificationTemplates = {
       "",
       `Dear ${customerDisplay},`,
       "",
-      "We have successfully received your partial payment. Thank you for choosing Jambh Electricals.",
+      "We have successfully received your partial payment."
       "",
       "🧾 Bill Details",
       `• Bill ID: ${billLabel(bill)}`,
@@ -630,7 +630,7 @@ export const notificationTemplates = {
       title: "Thank You",
       greeting: greetingText(input.customer),
       bodyParts: [
-        "Thank you for choosing Jambh Electricals.",
+        "Thank you for choosing Us.",
         "",
         "We truly value your trust and look forward to serving you again.",
         "",
