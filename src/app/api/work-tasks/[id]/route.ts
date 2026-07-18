@@ -116,6 +116,7 @@ async function sendTechnicianTaskAssigned(args: {
   dueAt?: string;
   priority?: string;
   taskId?: string;
+  customerName?: string;
 }) {
   const technicianId = String(args.technicianId || "").trim();
   if (!technicianId) return;
@@ -125,6 +126,7 @@ async function sendTechnicianTaskAssigned(args: {
     title: args.taskTitle,
     assignedTechnicianName: sanitizeUserText(String(tech?.name || "")).trim() || "Technician",
     technicianPhone: String(tech?.phone || ""),
+    customerName: args.customerName || "",
     dueAt: args.dueAt || "",
     priority: args.priority || "medium",
     status: "assigned",
@@ -193,11 +195,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       String(body.assignedTechnicianId)
   ) {
     try {
+      let custName = "";
+      const custRefId = String(existing?.customerRef?._ref || existing?.customerRef?._id || "");
+      if (custRefId) {
+        const cust = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{name}`, { id: custRefId });
+        custName = sanitizeUserText(String(cust?.name || "")).trim() || "Customer";
+      }
       await sendTechnicianTaskAssigned({
         technicianId: String(body.assignedTechnicianId),
         taskTitle: updated?.title || existing?.title || "Work",
         dueAt: String(updated?.dueAt || existing?.dueAt || ""),
         priority: String(updated?.priority || existing?.priority || "medium"),
+        taskId: id,
+        customerName: custName,
       });
     } catch {}
   }

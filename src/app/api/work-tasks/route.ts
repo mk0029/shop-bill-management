@@ -56,6 +56,7 @@ async function notifyWorkTaskEvent(args: {
 async function sendTechnicianTaskAssigned(args: {
   technicianPhone?: string;
   technicianName?: string;
+  customerName?: string;
   taskTitle: string;
   dueAt: string;
   priority?: string;
@@ -66,6 +67,7 @@ async function sendTechnicianTaskAssigned(args: {
     title: args.taskTitle,
     assignedTechnicianName: args.technicianName || "Technician",
     technicianPhone: args.technicianPhone || "",
+    customerName: args.customerName || "",
     dueAt: args.dueAt,
     priority: args.priority || "medium",
     updatedAt: new Date().toISOString(),
@@ -183,17 +185,22 @@ export async function POST(req: NextRequest) {
 
   const created = await sanityClient.create(doc as any);
 
+  let safeCustomerName = "";
+  let safeCustomerPhone = "";
+  if (body?.customerRefId) {
+    const customer = await sanityClient.fetch<any>(
+      `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
+      { id: String(body.customerRefId) },
+    );
+    safeCustomerName = sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
+    safeCustomerPhone = String(customer?.phone || "");
+  }
+
   const postCreateJobs: Promise<unknown>[] = [];
 
   if (body?.customerRefId) {
     postCreateJobs.push(
       (async () => {
-        const customer = await sanityClient.fetch<any>(
-          `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
-          { id: String(body.customerRefId) },
-        );
-        const safeCustomerName =
-          sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
         const safeTechnicianName =
           sanitizeUserText(String(tech?.name || "")).trim() || "Technician";
         await publishWorkTaskShopChatEvent(req, {
@@ -227,7 +234,7 @@ export async function POST(req: NextRequest) {
           },
           skipActor: true,
         });
-        await emitWaEventServer("workTask.created", { taskId: String(created?._id || ""), customerId: String(body.customerRefId), customerName: safeCustomerName, customerPhone: String(customer?.phone || ""), title, description: String(body?.description || "").trim(), status: String(doc.status || "pending"), priority: String(doc.priority || "medium"), dueAt, updatedAt: now });
+        await emitWaEventServer("workTask.created", { taskId: String(created?._id || ""), customerId: String(body.customerRefId), customerName: safeCustomerName, customerPhone: safeCustomerPhone, title, description: String(body?.description || "").trim(), status: String(doc.status || "pending"), priority: String(doc.priority || "medium"), dueAt, updatedAt: now });
       })(),
     );
   }
@@ -246,6 +253,7 @@ export async function POST(req: NextRequest) {
     sendTechnicianTaskAssigned({
       technicianPhone: tech?.phone,
       technicianName: sanitizeUserText(String(tech?.name || "")).trim() || "Technician",
+      customerName: safeCustomerName,
       taskTitle: title,
       dueAt,
       priority: String(body?.priority || "medium"),
