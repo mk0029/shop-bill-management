@@ -421,14 +421,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
               } catch {}
             }
 
-            console.log('Creating cash book entry for inventory debit:', {
-              transactionId: transaction._id,
-              type: transaction.type,
-              amount: transaction.totalAmount,
-              itemName: productName || '(unknown)',
-              userName: user?.name || 'System'
-            });
-            
             // Import here to avoid circular dependency
             const { sanityApiService } = await import("@/lib/sanity-api-service");
             
@@ -440,8 +432,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
               category: 'inventory',
               notes: `Inventory ${transaction.type}: ${transaction.quantity} units at ₹${transaction.unitPrice} each (Transaction ID: ${transaction.transactionId})`
             });
-            
-            console.log('Inventory debit cash book entry result:', cashBookResult);
             
             if (!cashBookResult.success) {
               console.error('Failed to create cash book entry for inventory debit:', cashBookResult.error);

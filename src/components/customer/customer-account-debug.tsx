@@ -34,7 +34,6 @@ export function CustomerAccountDebug() {
       });
 
       const data = await response.json();
-      console.log("🔍 User debug info:", data);
       setDebugInfo(data);
     } catch (error) {
       console.error("❌ Debug error:", error);
@@ -64,8 +63,6 @@ export function CustomerAccountDebug() {
       });
 
       const data = await response.json();
-      console.log("👤 Create customer result:", data);
-
       if (data.success) {
         toast.success("Customer account created!");
         // Refresh debug info

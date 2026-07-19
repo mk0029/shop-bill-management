@@ -62,8 +62,6 @@ export async function POST(req: NextRequest) {
       ...(actorUserId ? { technician: { _type: 'reference', _ref: actorUserId } } : {}),
     } as any)
 
-    console.log('[BillCreate] Bill created in Sanity:', (created as any)?._id, (created as any)?.billNumber)
-
     const createdCustomerId = (() => {
       const c = (created as any)?.customer
       if (c && typeof c === 'object' && typeof c._ref === 'string') return c._ref
@@ -118,13 +116,6 @@ export async function POST(req: NextRequest) {
           idempotencyKey: `${eventType}:${billId}:${(created as any)?.updatedAt || Date.now()}`,
         })
 
-        console.log(`[WA] ${eventType} emitted for bill ${billId}`, {
-          subtotal: summary.subtotal,
-          discount: summary.discount,
-          finalTotal: summary.finalTotal,
-          amountPaid: summary.amountPaid,
-          remainingBalance: summary.remainingBalance,
-        })
       } catch (e) {
         console.error('[WA] billing.created event failed', e)
       }
@@ -132,7 +123,6 @@ export async function POST(req: NextRequest) {
 
     try {
       await sanityClient.patch(String((created as any)._id)).set({ updatedAt: new Date().toISOString() }).commit()
-      console.log('[BillCreate] Triggered realtime sync for bill:', (created as any)._id)
     } catch {}
 
     try {

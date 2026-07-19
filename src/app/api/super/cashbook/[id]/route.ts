@@ -36,8 +36,6 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     })();
     const raw = String(fromParams || fromUrl || '').trim();
     
-    console.log("Cashbook GET ID derivation:", { fromParams, fromUrl, raw });
-    
     if (!raw) {
       return NextResponse.json({ success: false, error: "Missing cashbook entry id" }, { status: 400 });
     }
@@ -102,8 +100,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     })();
     const raw = String(fromParams || fromUrl || '').trim();
     
-    console.log("Cashbook PATCH ID derivation:", { fromParams, fromUrl, raw });
-    
     if (!raw) {
       return NextResponse.json({ success: false, error: "Missing cashbook entry id" }, { status: 400 });
     }
@@ -160,8 +156,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       }
     })();
     const raw = String(fromParams || fromUrl || '').trim();
-    
-    console.log("Cashbook DELETE ID derivation:", { fromParams, fromUrl, raw });
     
     if (!raw) {
       return NextResponse.json({ success: false, error: "Missing cashbook entry id" }, { status: 400 });

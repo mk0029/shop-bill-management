@@ -32,9 +32,6 @@ function auditLog(entry: {
   failureReason?: string;
 }) {
   const timestamp = new Date().toISOString();
-  console.log(
-    `[MANUAL_REMINDER_AUDIT] ${timestamp} | Admin: ${entry.adminName} (${entry.adminId}) | Customer: ${entry.customerId} | Bill: ${entry.billId} | Type: ${entry.reminderType} | Status: ${entry.status}${entry.failureReason ? ` | Reason: ${entry.failureReason}` : ""}`
-  );
 }
 
 async function postToReminderBackend(payload: Record<string, unknown>) {

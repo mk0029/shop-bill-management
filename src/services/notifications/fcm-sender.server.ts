@@ -151,8 +151,6 @@ function sleep(ms: number) {
 async function sendOne(token: string, title: string, body: string, data?: Record<string, string>, imageUrl?: string) {
   const projectId = getProjectId();
   if (!projectId) throw new Error("Firebase project id not configured");
-  console.log("[FCM_TRACE] firebase_project_id", projectId);
-  console.log("[FCM_TRACE] send_token", tokenHint(token));
   const accessToken = await getAccessToken();
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
     method: "POST",
@@ -165,7 +163,6 @@ async function sendOne(token: string, title: string, body: string, data?: Record
 
   const text = await response.text().catch(() => "");
   if (response.ok) {
-    console.log("[FCM_TRACE] firebase_response", text || `status=${response.status}`);
     return;
   }
   console.error("[FCM_TRACE] firebase_error", `status=${response.status} ${text}`);
@@ -178,7 +175,6 @@ function isInvalidTokenError(message: string) {
 
 export async function sendFcmToTokens(input: FcmMessageInput): Promise<NotificationSendResult> {
   const tokens = Array.from(new Set((input.tokens || []).filter(Boolean)));
-  console.log("[FCM_TRACE] token_count", tokens.length);
   if (!input.title.trim() || !input.body.trim()) {
     return { success: false, sent: 0, failed: tokens.length, errors: ["Missing title/body"] };
   }

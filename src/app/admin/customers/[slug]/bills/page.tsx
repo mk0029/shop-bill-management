@@ -499,8 +499,6 @@ export default function CustomerBillsPage() {
       discount?: number;
     },
   ) => {
-    console.log("🔥 handleUpdatePayment called:", { billId, paymentData });
-
     try {
       const existingBill = bills.find(
         (b: any) => (b._id || b.id) === billId,
@@ -523,14 +521,6 @@ export default function CustomerBillsPage() {
       const newPaidAmount = paymentData.paidAmount;
       const paymentAmount = newPaidAmount - previousPaidAmount;
 
-      console.log("💰 Payment calculation:", {
-        previousPaidAmount,
-        newPaidAmount,
-        paymentAmount,
-        customer: customer?.name,
-      });
-
-      const updateStartTime = Date.now();
       await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
@@ -539,23 +529,11 @@ export default function CustomerBillsPage() {
         updatedAt: new Date().toISOString(),
       } as any);
 
-      console.log(
-        `✅ Bill updated successfully in ${Date.now() - updateStartTime} ms`,
-      );
-
       // Create cash book entry asynchronously (don't wait for it)
       if (paymentAmount > 0 && customer) {
         // Fire and forget - don't await to avoid blocking the UI
         (async () => {
           try {
-            console.log("🏦 Creating cash book entry for manual payment:", {
-              billId,
-              userId: customer._id,
-              userName: customer.name,
-              amount: paymentAmount,
-              paymentType: "credit",
-            });
-
             const result =
               await sanityApiService.cashBook.createEntryFromBillPayment({
                 billId: billId,
@@ -565,17 +543,10 @@ export default function CustomerBillsPage() {
                 paymentType: "credit",
               });
 
-            console.log("📊 Manual payment cash book entry result:", result);
-
             if (!result.success) {
               console.error(
                 "❌ Failed to create cash book entry for manual payment:",
                 result.error,
-              );
-            } else {
-              console.log(
-                "✅ Cash book entry created successfully:",
-                result.data,
               );
             }
           } catch (cashBookError) {
@@ -586,15 +557,6 @@ export default function CustomerBillsPage() {
             // Don't fail payment update if cash book entry fails
           }
         })(); // Execute async function without awaiting
-      } else {
-        console.log(
-          "⚠️ No payment amount or customer data, skipping cash book entry:",
-          {
-            paymentAmount,
-            customerExists: !!customer,
-            customerName: customer?.name,
-          },
-        );
       }
 
       toast.success(

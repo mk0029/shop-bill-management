@@ -171,9 +171,7 @@ export default function CreateBillPage() {
           handleSubmit={handleSubmit}
           saveDraft={saveDraft}
           onBack={handleBack}
-          onSetActiveSection={(section) =>
-            console.log("section changed:", section)
-          }
+          onSetActiveSection={() => {}}
         />
       </div>
 

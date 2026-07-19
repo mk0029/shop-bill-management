@@ -57,8 +57,6 @@ export const useSanityRealtimeStore = create<RealtimeState>((set, get) => ({
       query = '*[_type in ["bill", "product", "stockTransaction", "user", "brand", "category", "payment", "supplier", "address", "branch", "specificationOption", "fieldDefinition", "customerRequest"]]';
     }
 
-    console.log("[SanityRealtimeStore] Connecting with role:", role, "query:", query);
-
     // Listen to document types based on role
     const newSubscription = sanityClient
       .listen(query, params)

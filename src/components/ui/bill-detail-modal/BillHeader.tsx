@@ -15,7 +15,6 @@ export const BillHeader = ({
   getStatusColor,
   formatDate,
 }: BillHeaderProps) => {
-  console.log(bill, "detail modal");
   return (
     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
       <div className="flex-1">

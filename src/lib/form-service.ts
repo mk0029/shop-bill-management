@@ -336,8 +336,6 @@ export async function createCustomer(customerData: {
       shopName: 'Jambh Electricals',
       eventId: `customer.created.${customerId}`,
       idempotencyKey: `customer.created.${customerId}`,
-    }).then((r) => {
-      console.log('[WA_CUSTOMER_CREATED]', { customerId, phone, ok: r.ok, error: r.error, queued: r.queued, skipped: r.skipped });
     }).catch((e) => console.error('[WA_CUSTOMER_CREATED]', { customerId, phone, ok: false, error: e?.message || String(e) }));
 
     return {
@@ -974,7 +972,6 @@ export async function createBill(billData: {
               }),
             }).catch(() => {});
 
-            console.log("[WA] Bill WhatsApp is emitted by backend/Sanity billing.created events", { billId: String(createdId) });
           }
         } catch {}
       })();
@@ -984,7 +981,6 @@ export async function createBill(billData: {
         if (typeof window !== "undefined") {
           const { useDataStore } = await import("@/store/data-store");
           useDataStore.getState().refreshBillsOnly();
-          console.log("[BillCreate] Triggered bills store refresh");
         }
       } catch {}
 

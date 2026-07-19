@@ -36,8 +36,6 @@ export function SimpleFcmTest() {
       });
 
       const result = await response.json();
-      console.log("🔔 Simple FCM Test Result:", result);
-
       if (result.success && result.sent > 0) {
         toast.success(`✅ Simple test: ${result.sent} sent`);
       } else {

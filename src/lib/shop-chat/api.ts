@@ -36,7 +36,6 @@ export function listShopChatRooms(opts?: { limit?: number; cursor?: string }) {
   // Dev trace: log every rooms fetch with reason
   if (process.env.NODE_ENV === "development") {
     roomsFetchCount++;
-    console.log(`[chat] fetchRooms #${roomsFetchCount}${suffix ? ` cursor=${opts?.cursor}` : ""}`);
     if (roomsFetchCount > 3) console.trace("[chat] fetchRooms stack trace");
   }
   // Dedupe concurrent calls: if a rooms request is already in-flight, return same promise

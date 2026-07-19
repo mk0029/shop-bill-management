@@ -82,14 +82,12 @@ export function BillingBrowser({
   const syncWithSanity = useDataStore((s) => s.syncWithSanity);
 
   useEffect(() => {
-    console.log("[BillsPage] mounted, triggering fresh bills fetch");
     syncWithSanity();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        console.log("[BillsPage] page became visible, refetching bills");
         syncWithSanity();
       }
     };
@@ -99,7 +97,6 @@ export function BillingBrowser({
 
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log("[BillsPage] periodic refresh");
       syncWithSanity();
     }, 30_000);
     return () => clearInterval(interval);

@@ -21,9 +21,7 @@ export function useAndroidBridge() {
     const unsubs: (() => void)[] = [];
 
     unsubs.push(
-      onNativeEvent("NATIVE_READY", (payload) => {
-        console.log("[AndroidBridge] Native ready", payload);
-      })
+      onNativeEvent("NATIVE_READY", () => {})
     );
 
     unsubs.push(

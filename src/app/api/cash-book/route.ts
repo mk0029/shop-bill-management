@@ -21,8 +21,6 @@ export async function POST(req: Request) {
         'system'
     ).trim() || 'system'
 
-    console.log('🔄 Cash book sync API called:', { type, documentId });
-
     switch (type) {
       case 'bill':
         await handleBillSync(documentId, document, actorUserId);
@@ -33,7 +31,6 @@ export async function POST(req: Request) {
         break;
       
       default:
-        console.log('⚠️ Unknown document type:', type);
     }
 
     return NextResponse.json({ success: true, message: 'Cash book synced successfully' });
@@ -54,12 +51,9 @@ async function handleBillSync(billId: string, bill: any, actorUserId: string) {
 
   // Only sync if bill is paid or partial and has a customer
   if (['paid', 'partial'].includes(bill.paymentStatus) && bill.customer) {
-    console.log('💰 Syncing bill payment to cash book:', billId);
-    
     const result = await syncSingleBillPayment(billId);
 
     if (result.success) {
-      console.log('✅ Cash book entry created for bill payment');
 
       // Notify admins (excluding sender when actorUserId is an admin)
       try {
@@ -108,8 +102,6 @@ async function handleInventorySync(transactionId: string, transaction: any, acto
   const debitTypes = ['sale', 'adjustment', 'damage', 'return'];
   
   if (debitTypes.includes(type) && totalAmount > 0) {
-    console.log('📦 Creating cash book entry for inventory:', transactionId);
-    
     const result = await sanityApiService.cashBook.createEntry({
       userName: 'System',
       amount: totalAmount,
@@ -119,8 +111,6 @@ async function handleInventorySync(transactionId: string, transaction: any, acto
     });
 
     if (result.success) {
-      console.log('✅ Cash book entry created for inventory transaction');
-
       // Notify admins (excluding sender when actorUserId is an admin)
       try {
         await notificationService.emit({
@@ -148,8 +138,6 @@ async function handleInventorySync(transactionId: string, transaction: any, acto
  */
 export async function GET(req: Request) {
   try {
-    console.log('🔄 Starting manual cash book sync...');
-
     // Use the new sync service for bill payments
     const syncResult = await syncBillPaymentsToCashBook();
 
@@ -162,8 +150,6 @@ export async function GET(req: Request) {
         product->{name}
       }
     `);
-
-    console.log(`📦 Found ${transactions.length} inventory transactions`);
 
     let syncedTransactions = 0;
     for (const transaction of transactions) {

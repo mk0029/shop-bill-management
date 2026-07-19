@@ -63,14 +63,11 @@ export default function SuperAccessCashbookClient() {
     setLoading(true);
     setError(null);
     try {
-      console.log("Fetching cashbook entry with ID:", entryId.trim());
       const res = await fetch(
         `/api/super/cashbook/${encodeURIComponent(entryId.trim())}`,
         { cache: "no-store" },
       );
-      console.log("Response status:", res.status);
       const json = await res.json().catch(() => ({}));
-      console.log("Response data:", json);
       if (!res.ok || json?.success === false) {
         throw new Error(json?.error || `Failed (${res.status})`);
       }
@@ -90,7 +87,6 @@ export default function SuperAccessCashbookClient() {
     setDeleting(true);
     setError(null);
     try {
-      console.log("Deleting cashbook entry with ID:", entryId.trim());
       const res = await fetch(
         `/api/super/cashbook/${encodeURIComponent(entryId.trim())}`,
         {
@@ -98,9 +94,7 @@ export default function SuperAccessCashbookClient() {
           cache: "no-store",
         },
       );
-      console.log("Delete response status:", res.status);
       const json = await res.json().catch(() => ({}));
-      console.log("Delete response data:", json);
       if (!res.ok || json?.success === false) {
         throw new Error(json?.error || `Failed to delete (${res.status})`);
       }

@@ -67,7 +67,6 @@ export async function registerFcmToken(input: RegisterFcmTokenInput) {
   if (!token) throw new Error("Missing token");
 
   const userId = await resolveUserId(requestedUserId);
-  console.log("[FCM_TRACE] register_token_user_id", userId);
   const now = new Date().toISOString();
   const deviceInfo: FcmDeviceInfo = input.deviceInfo || {};
   const stableDeviceId = String(deviceInfo.deviceId || "").trim();
@@ -237,7 +236,6 @@ export async function getActiveFcmTokensForUsers(userIds: string[]): Promise<Act
   if (!ids.length) return [];
   const resolvedIds = await resolveUserIdsForNotificationTargets(ids);
   const lookupIds = Array.from(new Set([...ids, ...resolvedIds]));
-  console.log("[FCM_TRACE] receiver_id", lookupIds.join(","));
   const tokenDocs = await sanityClient.fetch<ActiveFcmToken[]>(
     `*[_type=="userFcmToken" && isActive == true && defined(token) && token != "" && (userId in $ids || user._ref in $ids)] | order(updatedAt desc) {
       _id,
@@ -283,8 +281,6 @@ export async function getActiveFcmTokensForUsers(userIds: string[]): Promise<Act
   for (const doc of [...tokenDocs, ...legacyDocs]) {
     if (doc.token && !byToken.has(doc.token)) byToken.set(doc.token, doc);
   }
-  console.log("[FCM_TRACE] receiver_token_found", byToken.size > 0);
-  console.log("[FCM_TRACE] token_count", byToken.size);
   return Array.from(byToken.values());
 }
 

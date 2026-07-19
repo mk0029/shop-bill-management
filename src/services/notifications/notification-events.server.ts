@@ -40,9 +40,7 @@ function unique(values: Array<string | undefined | null>) {
 
 function tracePayload(payload: Record<string, unknown>) {
   try {
-    console.log("[FCM_TRACE] payload", JSON.stringify(payload));
   } catch {
-    console.log("[FCM_TRACE] payload", payload);
   }
 }
 
@@ -220,8 +218,6 @@ export async function createAndDispatchNotification(input: SendNotificationEvent
   try {
     const safeTitle = cleanNotificationText(input.title, "Notification");
     const safeBody = cleanNotificationText(input.body, "You have a new update.");
-    console.log("[FCM_TRACE] event_type", input.type);
-    console.log("[FCM_TRACE] sender_id", input.actorUserId || "");
     if (!hasNotificationText(safeTitle, safeBody)) {
       return {
         ok: false,
@@ -232,14 +228,10 @@ export async function createAndDispatchNotification(input: SendNotificationEvent
     }
 
     const requestedTargetUserIds = unique([input.userId, ...(input.userIds || [])]);
-    console.log("[FCM_TRACE] receiver_id", requestedTargetUserIds.join(","));
     const targetUserIds = requestedTargetUserIds.filter((id) => {
       if (!input.skipActor) return true;
       return id !== input.actorUserId;
     });
-    if (targetUserIds.length !== requestedTargetUserIds.length) {
-      console.log("[FCM_TRACE] receiver_id_after_skip_actor", targetUserIds.join(","));
-    }
     if (requestedTargetUserIds.length && !targetUserIds.length) {
       return {
         ok: true,
@@ -254,7 +246,6 @@ export async function createAndDispatchNotification(input: SendNotificationEvent
 
     for (const targetUserId of targetUserIds) {
       const dedupeKey = dedupeKeyFor(safeInput, targetUserId, eventId);
-      console.log("[notifications] dedupe key generated", { userId: targetUserId, dedupeKey });
       const targetInput = {
         ...safeInput,
         userId: targetUserId,
@@ -265,13 +256,10 @@ export async function createAndDispatchNotification(input: SendNotificationEvent
       const persisted = await persistNotification(targetInput, [targetUserId], eventId, dedupeKey);
       firstNotificationId ||= persisted.notificationId;
       if ("conflict" in persisted && persisted.conflict) {
-        console.log("[notifications] skipped duplicate", { userId: targetUserId, dedupeKey });
         continue;
       }
 
       const tokens = await getActiveTokenStringsForUsers([targetUserId]);
-      console.log("[FCM_TRACE] receiver_token_found", tokens.length > 0);
-      console.log("[notifications] token count per user", { userId: targetUserId, tokenCount: tokens.length });
       if (!tokens.length) {
         await updateNotificationDeliveryStatus({
           notificationId: persisted.notificationId,
@@ -298,8 +286,6 @@ export async function createAndDispatchNotification(input: SendNotificationEvent
         data: payload,
         imageUrl: typeof input.data?.imageUrl === "string" ? input.data.imageUrl : undefined,
       });
-      console.log("[FCM_TRACE] firebase_response", JSON.stringify(send));
-      if (send.sent > 0) console.log("[notifications] FCM send success", { userId: targetUserId, dedupeKey, sent: send.sent });
       if (send.errors?.length) {
         console.error("[notifications] FCM send failure", { userId: targetUserId, dedupeKey, errors: send.errors.slice(0, 5) });
         aggregate.errors?.push(...send.errors);

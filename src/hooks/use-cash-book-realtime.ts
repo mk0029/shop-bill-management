@@ -59,8 +59,6 @@ export function useCashBookRealtime({
           .listen(query, params, { includeResult: true })
           .subscribe({
             next: (update: any) => {
-              console.log('Cash Book realtime update:', update);
-              
               const { transition, result, documentId } = update;
               
               if (!result && transition !== "disappear") return;
@@ -87,7 +85,6 @@ export function useCashBookRealtime({
               setIsConnected(false);
             },
             complete: () => {
-              console.log('Cash Book realtime subscription completed');
               setIsConnected(false);
             },
           });

@@ -16,8 +16,6 @@ export async function POST(req: NextRequest) {
 
     const waBotBaseUrl = (WA_BOT_URL || '').replace(/\/+$/, '')
 
-    console.log('[WA/send-bulk] WA_BOT_URL present:', !!waBotBaseUrl, 'WA_BOT_TOKEN present:', !!WA_BOT_TOKEN, 'AUTO_WA:', AUTO_WA)
-
     if (!waBotBaseUrl || !WA_BOT_TOKEN) {
       console.warn('[WA/send-bulk] Config missing')
       return NextResponse.json(

@@ -122,13 +122,6 @@ export async function POST(req: Request) {
     }
     // Create cash book entry for this payment
     try {
-      console.log('Creating cash book entry for payment:', {
-        billId,
-        customer: bill.customer,
-        amount: add,
-        paymentType: 'credit'
-      });
-      
       if (bill.customer && add > 0) {
         const result = await sanityApiService.cashBook.createEntryFromBillPayment({
           billId: billId,
@@ -137,14 +130,10 @@ export async function POST(req: Request) {
           amount: add,
           paymentType: 'credit'
         });
-        
-        console.log('Cash book entry creation result:', result);
-        
+
         if (!result.success) {
           console.error('Failed to create cash book entry:', result.error);
         }
-      } else {
-        console.log('No customer data or zero amount, skipping cash book entry');
       }
     } catch (cashBookError) {
       console.error('Failed to create cash book entry:', cashBookError);

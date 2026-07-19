@@ -29,8 +29,6 @@ export async function notifyAdmins(payload: {
     const result = await res.json().catch(() => ({}));
     if (!res.ok) {
       console.error('[AdminNotifier] Failed to notify admins', result);
-    } else {
-      console.log('[AdminNotifier] Notified admins', result);
     }
     return result;
   } catch (e) {

@@ -100,14 +100,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     })();
     const raw = String(fromParams || fromUrl || '').trim();
     
-    console.log("ID derivation:", { fromParams, fromUrl, raw });
-    
     if (!raw) {
       return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });
     }
     
     const auth = await getServerAuth();
-    console.log("Auth check:", { isAuthenticated: auth.isAuthenticated, role: auth.role, userId: auth.userId });
     
     if (!auth.isAuthenticated) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -184,8 +181,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
     })();
     const raw = String(fromParams || fromUrl || '').trim();
-    
-    console.log("PATCH ID derivation:", { fromParams, fromUrl, raw });
     
     if (!raw) {
       return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });
@@ -377,8 +372,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       }
     })();
     const raw = String(fromParams || fromUrl || '').trim();
-    
-    console.log("DELETE ID derivation:", { fromParams, fromUrl, raw });
     
     if (!raw) {
       return NextResponse.json({ success: false, error: "Missing bill id" }, { status: 400 });

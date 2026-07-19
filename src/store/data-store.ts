@@ -1265,9 +1265,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
       if (['paid', 'partial'].includes(nextStatus)) {
         syncSingleBillPayment(String((result as any)?._id ?? _id))
           .then((syncResult) => {
-            if (syncResult.success) {
-              console.log('✅ Cash book entry created for bill payment update:', (result as any)?.billNumber);
-            } else {
+            if (!syncResult.success) {
               console.warn('⚠️ Failed to create cash book entry:', syncResult.message);
             }
           })

@@ -214,8 +214,7 @@ export async function createCustomerAccount(data: {
       eventId: `customer.created.${createdUser._id || customerId}`,
       idempotencyKey: `customer.created.${createdUser._id || customerId}`,
     }).then((r) => {
-      if (r.ok) console.log('[WA_CUSTOMER_CREATED_SENT]', { customerId: createdUser._id, phone: data.phone });
-      else console.error('[WA_CUSTOMER_CREATED_FAILED]', { customerId: createdUser._id, error: r.error });
+      if (!r.ok) console.error('[WA_CUSTOMER_CREATED_FAILED]', { customerId: createdUser._id, error: r.error });
     }).catch((e) => console.error('[WA_CUSTOMER_CREATED_FAILED]', { error: e?.message || String(e) }));
 
     // Sync user to Strapi

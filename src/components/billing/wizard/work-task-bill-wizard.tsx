@@ -172,9 +172,7 @@ export function WorkTaskBillWizard({
           handleSubmit={handleSubmit}
           saveDraft={saveDraft}
           onBack={handleWizardBack}
-          onSetActiveSection={(section) =>
-            console.log("section changed:", section)
-          }
+          onSetActiveSection={() => {}}
           submitButtonText="Create Bill & Done Task"
         />
       </BaseGlassModal>

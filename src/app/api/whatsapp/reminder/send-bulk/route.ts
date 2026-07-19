@@ -155,10 +155,6 @@ export async function POST(req: NextRequest) {
     const rateLimited = results.filter((r) => r.status === "rate_limited").length;
     const skippedPaid = results.filter((r) => r.status === "skipped_paid").length;
 
-    console.log(
-      `[BULK_MANUAL_REMINDER] ${new Date().toISOString()} | Admin: ${auth.user?.name} (${auth.userId}) | Sent: ${sent} | Failed: ${failed} | Rate limited: ${rateLimited} | Skipped paid: ${skippedPaid}`
-    );
-
     return NextResponse.json({
       success: true,
       results,

@@ -279,14 +279,6 @@ export async function POST(req: NextRequest) {
     const shareType = String(body.shareType || "").trim() as ShareType;
     const validShareTypes: ShareType[] = ["bill", "payment", "customer", "work_request", "reminder"];
 
-    console.log("[manual-whatsapp] Incoming Request:", {
-      billId: body.billId,
-      customerId: body.customerId,
-      shareType,
-      adminId: auth.userId,
-      role: auth.role,
-    });
-
     if (!validShareTypes.includes(shareType)) {
       return NextResponse.json({ success: false, error: "Valid shareType is required" }, { status: 400 });
     }
@@ -302,7 +294,6 @@ export async function POST(req: NextRequest) {
     }
 
     const customer = await getCustomer(customerId);
-    console.log("[manual-whatsapp] Customer Found:", customer ? { _id: customer._id, name: formatCustomerName(customer) } : null);
 
     if (!customer?._id) {
       return NextResponse.json({ success: false, error: "Customer not found." }, { status: 404 });
@@ -320,13 +311,11 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      console.log("[manual-whatsapp] Bill Found:", { _id: billLookup._id, customerId: billCustomerId });
     }
 
     const phone = normalizePhone(
       customer.whatsappNumber || customer.whatsapp || customer.mobile || customer.phone,
     );
-    console.log("[manual-whatsapp] Phone Number:", phone || "MISSING");
 
     if (!phone) {
       await createAuditLog({
@@ -354,7 +343,6 @@ export async function POST(req: NextRequest) {
       workRequestId,
     });
     const entityId = template.entityId;
-    console.log("[manual-whatsapp] Generated Template:", { eventType: eventTypeForShareType(shareType) });
 
     if (isRateLimited(customer._id, shareType, entityId, forceResend) || await wasSentRecently(customer._id, shareType, entityId)) {
       await createAuditLog({
@@ -378,7 +366,6 @@ export async function POST(req: NextRequest) {
     }
 
     const eventType = eventTypeForShareType(shareType);
-    console.log("[manual-whatsapp] WhatsApp Send Started:", { phone: phone.slice(0, 4) + "****", eventType });
 
     const result = await sendViaWaBotServer({
       phone,
@@ -388,7 +375,6 @@ export async function POST(req: NextRequest) {
 
     if (!result.ok || result.failed > 0) {
       const reason = result.error || result.results?.find((item) => !item.ok)?.error || "WhatsApp send failed";
-      console.log("[manual-whatsapp] WhatsApp Send Failed:", { reason });
       await createAuditLog({
         senderAdminId: auth.userId,
         senderRole: auth.role,
@@ -403,7 +389,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: reason }, { status: 502 });
     }
 
-    console.log("[manual-whatsapp] WhatsApp Send Success");
     markSent(customer._id, shareType, entityId);
     await createAuditLog({
       senderAdminId: auth.userId,

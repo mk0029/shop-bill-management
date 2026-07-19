@@ -27,7 +27,6 @@ function extractWaveformData(buffer: AudioBuffer, bars: number): number[] {
 }
 
 function devLog(...args: unknown[]) {
-  if (process.env.NODE_ENV === "development") console.log("[audio-player]", ...args);
 }
 
 /**

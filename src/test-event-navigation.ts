@@ -88,23 +88,7 @@ const testNotifications: AppNotification[] = [
 ];
 
 // Run tests
-console.log('=== Event Navigation Tests ===');
-
-testNotifications.forEach((notification, index) => {
-  const href = buildEventHref(notification);
-  const isModal = shouldOpenAsModal(notification);
-  
-  console.log(`\nTest ${index + 1}: ${notification.title}`);
-  console.log(`Type: ${notification.type}`);
-  console.log(`Event: ${notification.meta?.event || 'N/A'}`);
-  console.log(`Navigation Href: ${href || 'None (skipped)'}`);
-  console.log(`Should open as modal: ${isModal}`);
-  
-  if (href) {
-    console.log(`✅ Navigation available`);
-  } else {
-    console.log(`⚠️  No navigation (likely shop status event)`);
-  }
+testNotifications.forEach((notification) => {
+  buildEventHref(notification);
+  shouldOpenAsModal(notification);
 });
-
-console.log('\n=== Test Complete ===');

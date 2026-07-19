@@ -112,12 +112,6 @@ export async function createCashBookEntryFromBill(billData: BillPaymentData): Pr
                       billData.billDate || // Add bill creation date as fallback
                       new Date().toISOString();
     
-    console.log('💰 Creating cash book entry with date:', entryDate, 'for bill:', billData.billNumber);
-    console.log('📅 Bill data dates:', {
-      paymentDate: billData.paymentDate,
-      lastPaymentDate: billData.lastPaymentDate,
-      billDate: billData.billDate
-    });
     
     const entryData = {
       user: {

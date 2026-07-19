@@ -32,7 +32,6 @@ export function FcmTestSend() {
       });
 
       const result = await response.json();
-      console.log("🧪 FCM Test Result:", result);
       setTestResult(result);
       trackFcm({ eventType: "fcm-test-all", ok: result.success && result.sent > 0, durationMs: Date.now() - startMs, target: "all", meta: { sent: result.sent, failed: result.failed } });
 
@@ -77,7 +76,6 @@ export function FcmTestSend() {
       });
 
       const result = await response.json();
-      console.log("🎯 Targeted FCM Test Result:", result);
       trackFcm({ eventType: "fcm-test-targeted", ok: result.success && result.sent > 0, durationMs: Date.now() - startMs, target: testUserId.slice(0, 8) + "...", meta: { sent: result.sent, failed: result.failed } });
 
       if (result.success && result.sent > 0) {

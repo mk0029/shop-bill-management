@@ -1636,8 +1636,6 @@ export const cashBookApiService = {
    */
   async createEntry(entryData: any, options?: { actorUserId?: string }): Promise<ApiResponse<any>> {
     try {
-      console.log('📝 Creating cash book entry with data:', entryData);
-      console.log('⏰ Entry createdAt being used:', entryData.createdAt);
 
       // If running in the browser, use server API so we can emit notifications.
       if (typeof window !== 'undefined') {

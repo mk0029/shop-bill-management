@@ -17,7 +17,6 @@ export function TokenCleanup() {
       const statsResponse = await fetch("/api/notifications/cleanup-tokens");
       const stats = await statsResponse.json();
 
-      console.log("🧹 Current token stats:", stats);
       setCleanupResult(stats);
 
       // If there are invalid tokens from recent sends, clean them up
@@ -52,8 +51,6 @@ export function TokenCleanup() {
       });
 
       const result = await response.json();
-      console.log("🧹 Force cleanup result:", result);
-
       if (result.success) {
         toast.success(
           `✅ Cleaned ${result.cleanedUsers} users, removed ${result.removedTokens} invalid tokens`,

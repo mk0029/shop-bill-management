@@ -70,12 +70,10 @@ export function FcmTokenButton() {
       }
 
       // Register token with backend
-      console.log("🔑 Registering FCM token with backend:", fcmToken);
       const result = await registerFcmToken({
         userId: user.id,
         token: fcmToken,
       });
-      console.log("📝 FCM token registration result:", result);
       if (result.success) {
         setToken(fcmToken);
         setHasRegisteredToken(true);
@@ -107,12 +105,10 @@ export function FcmTokenButton() {
       }
 
       // Register token with backend
-      console.log("🔄 Refreshing FCM token with backend:", fcmToken);
       const result = await registerFcmToken({
         userId: user.id,
         token: fcmToken,
       });
-      console.log("📝 FCM token refresh result:", result);
       if (result.success) {
         setToken(fcmToken);
         setHasRegisteredToken(true);

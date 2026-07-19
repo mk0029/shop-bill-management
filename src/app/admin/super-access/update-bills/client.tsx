@@ -59,14 +59,11 @@ export default function SuperAccessUpdateBillsClient() {
     setLoading(true);
     setError(null);
     try {
-      console.log("Fetching bill with ID:", selectedBillId.trim());
       const res = await fetch(
         `/api/super/bills/${encodeURIComponent(selectedBillId.trim())}`,
         { cache: "no-store" },
       );
-      console.log("Response status:", res.status);
       const json = await res.json().catch(() => ({}));
-      console.log("Response data:", json);
       if (!res.ok || json?.success === false) {
         throw new Error(json?.error || `Failed (${res.status})`);
       }
@@ -86,7 +83,6 @@ export default function SuperAccessUpdateBillsClient() {
     setDeleting(true);
     setError(null);
     try {
-      console.log("Deleting bill with ID:", selectedBillId.trim());
       const res = await fetch(
         `/api/super/bills/${encodeURIComponent(selectedBillId.trim())}`,
         {
@@ -94,9 +90,7 @@ export default function SuperAccessUpdateBillsClient() {
           cache: "no-store",
         },
       );
-      console.log("Delete response status:", res.status);
       const json = await res.json().catch(() => ({}));
-      console.log("Delete response data:", json);
       if (!res.ok || json?.success === false) {
         throw new Error(json?.error || `Failed to delete (${res.status})`);
       }

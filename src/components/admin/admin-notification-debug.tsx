@@ -20,7 +20,6 @@ export function AdminNotificationDebug() {
       const response = await fetch("/api/notifications/cleanup-tokens");
       const data = await response.json();
 
-      console.log("🔍 Debug - All user tokens:", data);
       setDebugInfo(data);
 
       // Test sending to your specific customer token
@@ -36,7 +35,6 @@ export function AdminNotificationDebug() {
       });
 
       const result = await testResponse.json();
-      console.log("📤 Debug send result:", result);
       trackFcm({ eventType: "fcm-debug-all", ok: result.success, durationMs: Date.now() - startMs, target: "all", meta: { sent: result.sent, failed: result.failed } });
 
       if (result.success) {
@@ -84,16 +82,13 @@ export function AdminNotificationDebug() {
       });
 
       const result = await response.json();
-      console.log("🎯 Targeted send result:", result);
       trackFcm({ eventType: "fcm-debug-targeted", ok: result.success, durationMs: Date.now() - startMs, target: customerUser._id?.slice(0, 8) + "...", meta: { sent: result.sent, failed: result.failed, userId: customerUser._id } });
 
       if (result.success) {
         toast.success(`Targeted sent: ${result.sent} delivered`);
       } else {
         toast.error(`Targeted failed: ${result.failed} failed`);
-        if (result.errors) {
-          console.log("❌ Targeted errors:", result.errors);
-        }
+
       }
     } catch (error) {
       console.error("❌ Targeted error:", error);

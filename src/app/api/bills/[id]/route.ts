@@ -72,15 +72,6 @@ export async function PATCH(
       }
     })();
     const id = String(fromParams || fromUrl || '').trim();
-    // Debug: log id derivation
-    try {
-      console.log("[API] PATCH /api/bills - id derivation", {
-        url: req.url,
-        fromParams,
-        fromUrl,
-        id,
-      });
-    } catch {}
     if (!id) {
       return NextResponse.json(
         { success: false, error: "Missing bill id" },
@@ -180,7 +171,6 @@ export async function PATCH(
     // Patch published doc
     const startTime = Date.now();
     const updated = await sanityClient.patch(id).set(updates).commit();
-    console.log(`updateBill->commit: ${Date.now() - startTime} ms`);
 
     // Central WhatsApp event: comprehensive bill change detection (fire-and-forget)
     try {
@@ -278,8 +268,6 @@ export async function PATCH(
           const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, billNumber, paidAmount, customer->{_id, name} }`, { id });
           
           if (bill && bill.customer) {
-            console.log('Ã°Å¸â€™Â° Creating cash book entry for bill payment via API:', { billId: id, amount: paymentDelta, prevPaid, nextPaid });
-            
             const result = await sanityApiService.cashBook.createEntryFromBillPayment({
               billId: id,
               userId: bill.customer._id,
@@ -289,8 +277,6 @@ export async function PATCH(
             });
             
             if (result.success) {
-              console.log('Ã¢Å“â€¦ Cash book entry created via bill API');
-
               // Unified notification: cashbook entry (admins except actor)
               try {
                 const actorUserId = (req.headers.get('x-user-id') || '').trim()

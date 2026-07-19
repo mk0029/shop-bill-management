@@ -464,14 +464,12 @@ async function dispatchGreeting(input: {
   }
 
   const tokens = await getActiveFcmTokensForUsers([user._id]);
-  console.log("[scheduled-greetings] token count per user", { userId: user._id, tokenCount: tokens.length });
   const expiresAt = new Date(Date.now() + GREETING_TTL_HOURS * 60 * 60 * 1000).toISOString();
   const eventId = `${message.type}.${user._id}.${message.type === "daily_good_morning" ? localDate : `${localYear}.${festivalSlug}`}`;
   const dedupeKey =
     message.type === "daily_good_morning"
       ? `daily_good_morning:${user._id}:${eventId}:${localDate}`
       : `${message.type}:${user._id}:${festivalSlug || eventId}:${localYear}`;
-  console.log("[scheduled-greetings] dedupe key generated", { userId: user._id, dedupeKey });
   const result = await createAndDispatchNotification({
     eventId,
     type: message.type,
@@ -602,7 +600,6 @@ export async function runScheduledGreetings(input?: { now?: Date; force?: boolea
       notificationPreferences
     }`,
   );
-  console.log("[scheduled-greetings] users selected", (users || []).map((user) => user._id));
 
   const totals: GreetingRunStats = { sent: 0, skipped: 0, failed: 0 };
   for (const user of users || []) {
