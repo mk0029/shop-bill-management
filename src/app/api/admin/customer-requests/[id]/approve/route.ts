@@ -3,11 +3,11 @@ import { sanityClient } from '@/lib/sanity'
 import { getServerAuth } from '@/lib/server-auth'
 import { notificationService } from '@/lib/notification-service'
 import { sendAppEmail } from '@/lib/email/server'
-import { sendWhatsAppNotification } from '@/lib/send-whatsapp-notification'
+import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { normalizeAndValidate } from '@/lib/phone-utils'
 import { validateIdentity } from '@/lib/identity-validator'
 import { sendNotificationToAdmins } from '@/services/notifications/notification-events.server'
-import { buildWelcomeText, buildWelcomeEmailHtml, buildWelcomeWhatsApp } from '@/lib/welcome-templates'
+import { buildWelcomeText, buildWelcomeEmailHtml } from '@/lib/welcome-templates'
 
 export const runtime = 'nodejs'
 
@@ -212,11 +212,18 @@ export async function POST(
         text: buildWelcomeText(templateData),
         html: buildWelcomeEmailHtml(templateData),
       }) : Promise.resolve(),
-      sendWhatsAppNotification({
-        eventType: 'customer.welcome',
+      emitWaEventServer('customer.created', {
+        customerId: created._id,
+        customerName: name,
+        customerPhone: phone,
         phone,
-        message: buildWelcomeWhatsApp(templateData),
-        metadata: { entityId: created._id },
+        secretKey,
+        loginUrl,
+        shopName: 'Jambh Electricals',
+        eventId: `customer.created.${created._id}`,
+        idempotencyKey: `customer.created.${created._id}`,
+      }).then((result) => {
+        if (!result.ok) console.error('[WA_CUSTOMER_CREATED_FAILED]', { customerId: created._id, phone, error: result.error })
       }),
     ]).catch((e) => console.error('[Approve] delivery tasks failed', e))
 

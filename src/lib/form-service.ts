@@ -318,6 +318,28 @@ export async function createCustomer(customerData: {
       return { success: false, error: json?.error || 'Failed to create customer', code: json?.code }
     }
 
+    const created = json?.data || {};
+    const customerId = created._id || created.customerId || '';
+    const secretKey = created.secretKey || '';
+    const phone = customerData.phone || '';
+    const loginUrl = phone
+      ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(phone)}&passKey=${encodeURIComponent(secretKey)}`
+      : '';
+
+    void emitWaEventClient('customer.created', {
+      customerId,
+      customerName: customerData.name,
+      customerPhone: phone,
+      phone,
+      secretKey,
+      loginUrl,
+      shopName: 'Jambh Electricals',
+      eventId: `customer.created.${customerId}`,
+      idempotencyKey: `customer.created.${customerId}`,
+    }).then((r) => {
+      console.log('[WA_CUSTOMER_CREATED]', { customerId, phone, ok: r.ok, error: r.error, queued: r.queued, skipped: r.skipped });
+    }).catch((e) => console.error('[WA_CUSTOMER_CREATED]', { customerId, phone, ok: false, error: e?.message || String(e) }));
+
     return {
       success: true,
       data: json?.data,
@@ -827,11 +849,19 @@ export async function createBill(billData: {
             customerId: String(billData.customerId || ""),
             customerName: String(customer?.name || ""),
             customerPhone: String(customer?.phone || ""),
+            phone: String(customer?.phone || ""),
             totalAmount: Number(grossTotal || 0),
+            discount: Number(discount || 0),
+            finalTotal: Number(netPayable || 0),
             paidAmount: Number(billData.paidAmount || 0),
             balanceAmount: Number(billData.balanceAmount ?? netPayable),
             paymentStatus: String(billData.paymentStatus || "pending"),
+            isFullyPaid: String(billData.paymentStatus || "") === "paid",
             dueDate: billData.dueDate,
+            serviceName: billData.serviceType || "",
+            loginUrl: customer?.phone
+              ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(customer.phone)}`
+              : '',
             updatedAt: new Date().toISOString(),
             idempotencyKey: `billing.created:${String(createdId || "")}`,
           }).catch((e) => {

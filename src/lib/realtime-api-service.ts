@@ -138,19 +138,31 @@ export class RealtimeApiService {
       // WhatsApp notification
       const customerRef = typeof billData.customer === 'string' ? billData.customer : billData.customer?._ref || billData.customerId || '';
       if (customerRef) {
-        sanityClient.fetch(`*[_type=="user" && _id==$id][0]{phone,name}`, { id: String(customerRef) }
+        sanityClient.fetch(`*[_type=="user" && _id==$id][0]{phone,name,secretKey}`, { id: String(customerRef) }
         ).then((customer: any) => {
+          const grossTotal = Number(billData.totalAmount || 0);
+          const discount = Number(billData.discount || 0);
+          const paidAmt = Number(billData.paidAmount || 0);
+          const finalTotal = Math.max(0, grossTotal - discount);
+          const phone = String(customer?.phone || '');
           void emitWaEventClient('billing.created', {
             billId,
             billNumber: String(billData.billNumber || ''),
             customerId: String(customerRef),
             customerName: String(customer?.name || ''),
-            customerPhone: String(customer?.phone || ''),
-            totalAmount: Number(billData.totalAmount || 0),
-            paidAmount: Number(billData.paidAmount || 0),
-            balanceAmount: Number((billData.balanceAmount ?? billData.totalAmount) || 0),
+            customerPhone: phone,
+            phone,
+            totalAmount: grossTotal,
+            discount,
+            finalTotal,
+            paidAmount: paidAmt,
+            balanceAmount: Number((billData.balanceAmount ?? Math.max(0, finalTotal - paidAmt)) || 0),
             paymentStatus: String(billData.paymentStatus || 'pending'),
+            isFullyPaid: String(billData.paymentStatus || '') === 'paid',
             dueDate: billData.dueDate || '',
+            loginUrl: phone
+              ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(phone)}&passKey=${encodeURIComponent(customer?.secretKey || '')}`
+              : '',
             updatedAt: new Date().toISOString(),
             idempotencyKey: `billing.created:${billId || ''}`,
           }).catch((e: any) => {

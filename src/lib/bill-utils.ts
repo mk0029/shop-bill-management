@@ -214,3 +214,57 @@ export function isSameProduct(item1: BillItem, item2: BillItem): boolean {
 export function mergeBillItems(items: BillItem[]): BillItem[] {
   return deduplicateBillItems(items);
 }
+
+/**
+ * Round to 2 decimal places (currency)
+ */
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export type BillPaymentSummary = {
+  subtotal: number;
+  discount: number;
+  finalTotal: number;
+  amountPaid: number;
+  remainingBalance: number;
+  paymentStatus: "unpaid" | "partial" | "paid";
+  isFullyPaid: boolean;
+};
+
+/**
+ * Calculate the payment summary for a bill.
+ * Always uses server-calculated values — never trusts frontend state.
+ */
+export function calculateBillPaymentSummary(bill: {
+  totalAmount?: number;
+  paidAmount?: number;
+  discount?: number;
+}): BillPaymentSummary {
+  const subtotal = roundCurrency(Number(bill.totalAmount || 0));
+  const discount = roundCurrency(Number(bill.discount || 0));
+  const finalTotal = Math.max(0, roundCurrency(subtotal - discount));
+  const amountPaid = Math.max(0, roundCurrency(Number(bill.paidAmount || 0)));
+  const remainingBalance = Math.max(0, roundCurrency(finalTotal - amountPaid));
+
+  const isFullyPaid =
+    finalTotal === 0 ||
+    remainingBalance <= BILL_EPSILON ||
+    amountPaid >= finalTotal;
+
+  const paymentStatus: "unpaid" | "partial" | "paid" = isFullyPaid
+    ? "paid"
+    : amountPaid > 0
+      ? "partial"
+      : "unpaid";
+
+  return {
+    subtotal,
+    discount,
+    finalTotal,
+    amountPaid,
+    remainingBalance,
+    paymentStatus,
+    isFullyPaid,
+  };
+}

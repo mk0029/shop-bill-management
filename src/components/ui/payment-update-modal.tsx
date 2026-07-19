@@ -62,7 +62,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
   const existingDiscount = toNum(bill?.discount ?? 0);
   const alreadyPaid = toNum(bill?.paidAmount ?? 0);
 
-  const [discount, setDiscount] = useState(String(existingDiscount));
+  const [discount, setDiscount] = useState("");
   const [discountReason, setDiscountReason] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string>("cash");
@@ -78,9 +78,8 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
   const progressPct =
     effectiveTotal > 0 ? (alreadyPaid / effectiveTotal) * 100 : 0;
 
-  const paymentVal = paymentMode === "full"
-    ? remaining
-    : Math.max(Number(amount) || 0, 0);
+  const paymentVal =
+    paymentMode === "full" ? remaining : Math.max(Number(amount) || 0, 0);
 
   const validation = calculatePaymentValidation({
     grandTotal,
@@ -96,7 +95,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
 
   useEffect(() => {
     if (isOpen) {
-      setDiscount(String(existingDiscount));
+      setDiscount("");
       setDiscountReason("");
       setAmount("");
       setMethod("cash");
@@ -105,7 +104,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       setShowSuccess(false);
       setError("");
     }
-  }, [isOpen, existingDiscount]);
+  }, [isOpen]);
 
   const handleSubmit = useCallback(async () => {
     setError("");
@@ -152,7 +151,9 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       await onUpdatePayment(String(billId), {
         paymentStatus: isFull ? "paid" : "partial",
         paidAmount: newPaid,
-        balanceAmount: isFull ? 0 : Math.max(0, v.payableAfterDiscount - payAmt),
+        balanceAmount: isFull
+          ? 0
+          : Math.max(0, v.payableAfterDiscount - payAmt),
         paymentMethod: method,
         discount: discountVal > 0 ? discountVal : undefined,
         discountReason: discountReason || undefined,
@@ -356,16 +357,15 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                   </div>
                   <div className="flex gap-2 mt-2">
                     {[25, 50, 75, 100].map((pct) => {
-                      const pctAmount = (validation.payableAfterDiscount * pct) / 100;
+                      const pctAmount =
+                        (validation.payableAfterDiscount * pct) / 100;
                       const isActive =
                         Number(amount) >= pctAmount - BILL_EPSILON &&
                         Number(amount) <= pctAmount + BILL_EPSILON;
                       return (
                         <button
                           key={pct}
-                          onClick={() =>
-                            setAmount(String(pctAmount))
-                          }
+                          onClick={() => setAmount(String(pctAmount))}
                           className={cn(
                             "flex-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
                             isActive
@@ -382,7 +382,11 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                 <div className="flex items-center gap-2">
                   <Percent className="w-4 h-4 text-white/40" />
                   <span className="text-sm font-medium text-white/80">
-                    Discount
+                    Discount{" "}
+                    <span className="text-xs text-white/40">
+                      {" "}
+                      existing Discount = {existingDiscount.toFixed(2)}
+                    </span>
                   </span>
                 </div>
                 <div className="flex items-center gap-3">

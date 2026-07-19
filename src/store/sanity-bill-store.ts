@@ -198,17 +198,29 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
           } catch {}
 
 
+          const grossTotal = Number((result as any)?.totalAmount || billData.totalAmount || amount);
+          const discount = Number((result as any)?.discount || billData.discount || 0);
+          const paidAmt = Number((result as any)?.paidAmount || billData.paidAmount || 0);
+          const finalTotal = Math.max(0, grossTotal - discount);
+
           emitWaEventClient('billing.created', {
             billId,
             billNumber: billNo,
             customerId,
             customerName,
             customerPhone,
-            totalAmount: amount,
-            paidAmount: Number((result as any)?.paidAmount || billData.paidAmount || 0),
-            balanceAmount: Number((result as any)?.balanceAmount || billData.balanceAmount || amount),
+            phone: customerPhone,
+            totalAmount: grossTotal,
+            discount,
+            finalTotal,
+            paidAmount: paidAmt,
+            balanceAmount: Number((result as any)?.balanceAmount || billData.balanceAmount || Math.max(0, finalTotal - paidAmt)),
             paymentStatus: payStatus,
+            isFullyPaid: payStatus === 'paid',
             dueDate: String((result as any)?.dueDate || billData.dueDate || ''),
+            loginUrl: customerPhone
+              ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(customerPhone)}`
+              : '',
             updatedAt: new Date().toISOString(),
             idempotencyKey: `billing.created:${billId || ''}`,
           }).catch((e) => {

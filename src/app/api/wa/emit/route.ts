@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
 
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));

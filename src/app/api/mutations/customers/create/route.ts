@@ -3,13 +3,11 @@ import { sanityClient } from '@/lib/sanity'
 import { notificationService } from '@/lib/notification-service'
 import { sanitizeUserText } from '@/constants/defaults'
 import { sendAppEmail } from '@/lib/email/server'
-import { sendWhatsAppNotification } from '@/lib/send-whatsapp-notification'
-import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
 import { normalizeAndValidate } from '@/lib/phone-utils'
 import { validateIdentity } from '@/lib/identity-validator'
-import { buildWelcomeText, buildWelcomeEmailHtml, buildWelcomeWhatsApp } from '@/lib/welcome-templates'
+import { buildWelcomeText, buildWelcomeEmailHtml } from '@/lib/welcome-templates'
 
 export const runtime = 'nodejs'
 
@@ -23,8 +21,6 @@ function supportInfo() {
     email: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || process.env.SUPPORT_EMAIL || undefined,
   }
 }
-
-const DELIVERY_SENDING_STALE_MS = 10 * 60 * 1000
 
 async function claimDelivery(key: string, channel: 'email' | 'whatsapp') {
   try { await sanityClient.delete(key) } catch { /* ignore */ }
@@ -92,52 +88,6 @@ async function sendWelcomeEmail(input: {
   await finishDelivery(key, 'failed', reason)
 }
 
-async function sendWelcomeWhatsApp(input: {
-  userId: string
-  phone?: string
-  customerName: string
-  displayName?: string
-  loginUrl: string
-  secretKey: string
-}) {
-  const phone = String(input.phone || '').trim()
-  if (!phone) {
-    console.warn('[WelcomeDelivery] whatsapp skipped: missing phone', { userId: input.userId })
-    return
-  }
-  const key = `welcome.whatsapp.user.${input.userId}`
-  if (!(await claimDelivery(key, 'whatsapp'))) {
-    console.log('[WelcomeDelivery] whatsapp skipped: already sent', { userId: input.userId })
-    return
-  }
-
-  const msg = buildWelcomeWhatsApp({
-    customerName: input.customerName,
-    displayName: input.displayName,
-    loginUrl: input.loginUrl,
-  })
-
-  try {
-    const result = await sendWhatsAppNotification({
-      eventType: 'customer.welcome',
-      phone,
-      message: msg,
-      metadata: { entityId: input.userId },
-    })
-    if (!result.ok) {
-      console.error('[WelcomeDelivery] whatsapp failed', { userId: input.userId, reason: result.error })
-      await finishDelivery(key, 'failed', result.error)
-      return
-    }
-    console.log('[WelcomeDelivery] whatsapp sent', { userId: input.userId, phone })
-    await finishDelivery(key, 'sent')
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : 'WhatsApp send failed'
-    console.error('[WelcomeDelivery] whatsapp failed', { userId: input.userId, reason })
-    await finishDelivery(key, 'failed', reason)
-  }
-}
-
 async function runPostCreateDelivery(input: {
   actorUserId: string
   created: any
@@ -172,23 +122,6 @@ async function runPostCreateDelivery(input: {
       customerName: input.name,
       displayName: safeName,
       loginUrl,
-    }),
-    sendWelcomeWhatsApp({
-      userId,
-      phone: input.phone,
-      customerName: input.name,
-      displayName: safeName,
-      loginUrl,
-      secretKey: input.secretKey,
-    }),
-    emitWaEventServer('customer.created', {
-      customerId: userId,
-      customerName: input.name,
-      customerPhone: input.phone,
-      secretKey: input.secretKey,
-      loginUrl,
-      shopName: 'Jambh Electricals',
-      eventId: `customer.created.${userId}.${Date.now()}`,
     }),
   ]).then((results) => {
     results.forEach((result, index) => {

@@ -100,7 +100,7 @@ export function resolveBillEvents(
     }
   }
 
-  if (discountChanged || (statusChanged && !paymentChanged)) {
+  if ((discountChanged || statusChanged) && !paymentChanged) {
     events.push({
       type: "billing.updated",
       payload: {
@@ -109,9 +109,10 @@ export function resolveBillEvents(
         customerId: next.customer?._id || prev.customer?._id,
         customerName: next.customer?.name || prev.customer?.name || "",
         customerPhone: next.customer?.phone || prev.customer?.phone || "",
-        totalAmount: grandTotal,
-        balanceAmount: nextBalance,
+        totalAmount: grossTotal,
         discount: nextDiscount,
+        finalTotal: grandTotal,
+        balanceAmount: nextBalance,
         status: nextStatus || prevStatus,
         paymentStatus: nextPayStatus || prevPayStatus,
         serviceType: next.serviceType || prev.serviceType || "",

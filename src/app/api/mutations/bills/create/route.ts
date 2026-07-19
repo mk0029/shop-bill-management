@@ -9,6 +9,11 @@ import {
 } from '@/lib/notifications/templates'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
+import { calculateBillPaymentSummary } from '@/lib/bill-utils'
+
+function siteUrl() {
+  return 'https://jambh-ell.vercel.app'
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,21 +73,57 @@ export async function POST(req: NextRequest) {
     void (async () => {
       try {
         const user = customerId
-          ? await sanityClient.fetch<{ phone?: string | null; name?: string | null } | null>(`*[_type=="user" && _id==$id][0]{ phone, name }`, { id: String(customerId) })
+          ? await sanityClient.fetch<{ phone?: string | null; name?: string | null; secretKey?: string | null } | null>(`*[_type=="user" && _id==$id][0]{ phone, name, secretKey }`, { id: String(customerId) })
           : null
-        await emitWaEventServer('billing.created', {
-          billId: String((created as any)?._id || ''),
+
+        const loginUrl = user?.phone
+          ? `${siteUrl()}/login?phone=${encodeURIComponent(user.phone)}&passKey=${encodeURIComponent(user.secretKey || '')}`
+          : ''
+
+        const summary = calculateBillPaymentSummary({
+          totalAmount: Number((created as any)?.totalAmount || 0),
+          paidAmount: Number((created as any)?.paidAmount || 0),
+          discount: Number((created as any)?.discount || 0),
+        })
+
+        let eventType = 'billing.created.unpaid'
+        if (summary.finalTotal === 0) {
+          eventType = 'billing.created.zero_balance'
+        } else if (summary.isFullyPaid) {
+          eventType = 'billing.created.paid'
+        } else if (summary.paymentStatus === 'partial') {
+          eventType = 'billing.created.partial'
+        }
+
+        const billId = String((created as any)?._id || '')
+        await emitWaEventServer(eventType, {
+          billId,
           billNumber: String((created as any)?.billNumber || ''),
           customerId,
           customerName: safeUserName(user?.name, 'Customer'),
           customerPhone: String(user?.phone || ''),
-          totalAmount: Number((created as any)?.totalAmount || 0),
-          paidAmount: Number((created as any)?.paidAmount || 0),
-          balanceAmount: Number((created as any)?.balanceAmount || 0),
-          paymentStatus: String((created as any)?.paymentStatus || 'pending'),
+          phone: String(user?.phone || ''),
+          loginUrl,
+          totalAmount: summary.subtotal,
+          discount: summary.discount,
+          paidAmount: summary.amountPaid,
+          balanceAmount: summary.remainingBalance,
+          paymentStatus: summary.paymentStatus,
+          isFullyPaid: summary.isFullyPaid,
+          finalTotal: summary.finalTotal,
           dueDate: (created as any)?.dueDate,
+          serviceName: (created as any)?.serviceType || (created as any)?.serviceName || '',
+          technicianName: (created as any)?.technicianName || '',
           updatedAt: (created as any)?.updatedAt || new Date().toISOString(),
-          idempotencyKey: `billing.created:${String((created as any)?._id || '')}`,
+          idempotencyKey: `${eventType}:${billId}:${(created as any)?.updatedAt || Date.now()}`,
+        })
+
+        console.log(`[WA] ${eventType} emitted for bill ${billId}`, {
+          subtotal: summary.subtotal,
+          discount: summary.discount,
+          finalTotal: summary.finalTotal,
+          amountPaid: summary.amountPaid,
+          remainingBalance: summary.remainingBalance,
         })
       } catch (e) {
         console.error('[WA] billing.created event failed', e)
