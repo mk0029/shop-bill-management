@@ -126,6 +126,124 @@ const EVENTS: Record<string, SimEvent> = {
       totalAmount: 1500, deletedBy: 'admin',
     }),
   },
+  'billing.multiPaid': {
+    label: 'Multi Bill Pay (Pay Multiple at Once)',
+    category: 'Billing',
+    channels: ['wa', 'fcm'],
+    buildPayload: ({ phone, name }) => {
+      const billCount = Math.floor(Math.random() * 3) + 2
+      const extraPendingCount = Math.floor(Math.random() * 2) + 1
+      const bills: any[] = []
+      let totalPending = 0
+      for (let i = 0; i < billCount; i++) {
+        const total = randAmt(800, 4000)
+        const alreadyPaid = Math.floor(total * Math.random() * 0.3)
+        const due = total - alreadyPaid
+        totalPending += due
+        bills.push({
+          _id: SIM_ID(),
+          billId: SIM_ID(),
+          billNumber: billNum(),
+          totalAmount: total,
+          paidAmount: alreadyPaid,
+          balanceAmount: due,
+          paymentStatus: 'pending',
+        })
+      }
+      let extraPendingTotal = 0
+      for (let i = 0; i < extraPendingCount; i++) {
+        extraPendingTotal += randAmt(500, 3000)
+      }
+      const totalOutstandingBefore = totalPending + extraPendingTotal
+      const receivedAmount = Math.min(totalPending, randAmt(Math.floor(totalPending * 0.5), totalPending))
+      let remaining = receivedAmount
+      let fullyPaidCount = 0
+      let partialBillNumber: string | null = null
+      const billsPaid = bills.map((b: any) => {
+        if (remaining <= 0) return { ...b }
+        const due = b.balanceAmount
+        const applied = Math.min(remaining, due)
+        const newPaid = b.paidAmount + applied
+        const newDue = due - applied
+        const isFullyPaid = newDue <= 0.01
+        remaining -= applied
+        if (isFullyPaid) fullyPaidCount++
+        else partialBillNumber = b.billNumber
+        return {
+          _id: b._id, billId: b.billId, billNumber: b.billNumber,
+          totalAmount: b.totalAmount,
+          paidAmount: applied,
+          balanceAmount: Math.round(newDue * 100) / 100,
+          paymentStatus: isFullyPaid ? 'paid' : 'partial',
+        }
+      })
+      const remainingOutstanding = Math.max(0, totalOutstandingBefore - receivedAmount)
+      return {
+        phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
+        customerNickname: name.split(' ')[0],
+        bills: billsPaid,
+        totalPaid: receivedAmount,
+        remainingBalance: remainingOutstanding,
+        totalOutstandingBefore,
+        fullyPaidCount,
+        partialCount: partialBillNumber ? 1 : 0,
+        paymentMode: randItem(['cash', 'upi', 'card']),
+        paymentDate: new Date().toISOString(),
+      }
+    },
+    fcmTitle: 'Multiple Bills Paid',
+    fcmBody: 'Payment applied across multiple bills.',
+  },
+  'billing.bulkPaid': {
+    label: 'Bulk Bill Pay (Pay All Bills)',
+    category: 'Billing',
+    channels: ['wa', 'fcm'],
+    buildPayload: ({ phone, name }) => {
+      const billCount = Math.floor(Math.random() * 4) + 3
+      const extraPendingCount = Math.floor(Math.random() * 2) + 1
+      const bills: any[] = []
+      let totalPaid = 0
+      for (let i = 0; i < billCount; i++) {
+        const total = randAmt(500, 3500)
+        const discount = Math.random() > 0.7 ? Math.floor(total * 0.1) : 0
+        const grandTotal = Math.max(0, total - discount)
+        totalPaid += grandTotal
+        bills.push({
+          _id: SIM_ID(),
+          billId: SIM_ID(),
+          billNumber: billNum(),
+          totalAmount: total,
+          paidAmount: grandTotal,
+          balanceAmount: 0,
+          paymentStatus: 'paid',
+          discount,
+        })
+      }
+      let extraPendingTotal = 0
+      for (let i = 0; i < extraPendingCount; i++) {
+        extraPendingTotal += randAmt(500, 3000)
+      }
+      const totalOutstandingBefore = totalPaid + extraPendingTotal
+      const bulkDiscount = Math.random() > 0.6 ? Math.floor(totalPaid * 0.05) : 0
+      const netPaid = totalPaid - bulkDiscount
+      return {
+        phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
+        customerNickname: name.split(' ')[0],
+        bills,
+        totalPaid: netPaid,
+        remainingBalance: extraPendingTotal,
+        totalOutstandingBefore,
+        fullyPaidCount: bills.length,
+        partialCount: 0,
+        discountApplied: bulkDiscount,
+        discountReason: bulkDiscount > 0 ? randItem(['Early payment', 'Loyalty discount', 'Bulk payment offer', 'Seasonal offer']) : '',
+        paymentMode: randItem(['cash', 'upi', 'card']),
+        paymentDate: new Date().toISOString(),
+      }
+    },
+    fcmTitle: 'All Bills Paid',
+    fcmBody: 'All pending bills have been paid in bulk.',
+  },
 
   // ─── Tool Rental ────────────────────────────────────────
   'toolRent.created': {

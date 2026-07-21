@@ -108,14 +108,22 @@ function formatLastSeen(value?: string | null) {
   return `Last seen ${new Date(value).toLocaleDateString([], { day: "numeric", month: "short" })}`;
 }
 
-function roomSortTime(room: ShopChatRoom) {
-  const value = room.lastMessage?.createdAt || room.updatedAt || room.createdAt;
+function clampAdminSystemUnread(room: ShopChatRoom, myUserId: string, mode: Mode): ShopChatRoom {
+  if (mode === "admin" && room.lastMessage?.systemEventType && room.unreadBy?.[myUserId] && room.unreadBy[myUserId] > 0) {
+    return { ...room, unreadBy: { ...room.unreadBy, [myUserId]: 0 } };
+  }
+  return room;
+}
+
+function roomSortTime(room: ShopChatRoom, mode?: Mode) {
+  const msg = mode === "admin" ? (room.lastCustomerMessage || room.lastMessage) : room.lastMessage;
+  const value = msg?.createdAt || room.updatedAt || room.createdAt;
   const parsed = Date.parse(String(value || ""));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function sortRoomsByLatestMessage(rooms: ShopChatRoom[]) {
-  return [...rooms].sort((a, b) => roomSortTime(b) - roomSortTime(a));
+function sortRoomsByLatestMessage(rooms: ShopChatRoom[], mode?: Mode) {
+  return [...rooms].sort((a, b) => roomSortTime(b, mode) - roomSortTime(a, mode));
 }
 
 function customerStatusText(customerId: string, onlineUserIds?: Set<string>, lastSeenByUser?: Record<string, string>) {
@@ -391,6 +399,9 @@ function RoomSidebar({
   myUserId,
   onSelect,
   onAddClick,
+  onServerSearch,
+  serverSearchResults,
+  serverSearchLoading = false,
   typingByRoom = {},
   onlineUserIds = new Set<string>(),
   lastSeenByUser = {},
@@ -401,6 +412,9 @@ function RoomSidebar({
   myUserId?: string;
   onSelect: (room: ShopChatRoom) => void;
   onAddClick: () => void;
+  onServerSearch?: (query: string) => void;
+  serverSearchResults?: ShopChatRoom[] | null;
+  serverSearchLoading?: boolean;
   typingByRoom?: Record<string, string>;
   onlineUserIds?: Set<string>;
   lastSeenByUser?: Record<string, string>;
@@ -409,15 +423,33 @@ function RoomSidebar({
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query.trim()) {
+      onServerSearch?.("");
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      onServerSearch?.(query.trim());
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query, onServerSearch]);
+
+  const isSearching = Boolean(query.trim());
   const filtered = useMemo(() => {
+    if (isSearching && serverSearchResults) {
+      return sortRoomsByLatestMessage(serverSearchResults, mode);
+    }
     const q = query.trim().toLowerCase();
-    const sorted = sortRoomsByLatestMessage(rooms);
+    const sorted = sortRoomsByLatestMessage(rooms, mode);
     if (!q) return sorted;
     return sorted.filter((room) => {
-      const label = mode === "customer" ? "support chat support team" : `${room.customerName} ${room.customerKey || ""}`;
+      const label = `${room.customerName} ${room.customerKey || ""}`;
       return label.toLowerCase().includes(q);
     });
-  }, [mode, query, rooms]);
+  }, [mode, query, rooms, isSearching, serverSearchResults]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -504,8 +536,19 @@ function RoomSidebar({
                 </button>
               ) : null}
             </div>
-            <div className="px-1 text-xs text-slate-400">
-              {query.trim() ? `${filtered.length} chat${filtered.length === 1 ? "" : "s"} found` : "Search customer chats"}
+            <div className="flex items-center gap-1.5 px-1 text-xs text-slate-400">
+              {query.trim() ? (
+                serverSearchLoading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+                    <span>Searching all conversations...</span>
+                  </>
+                ) : (
+                  <span>{filtered.length} chat{filtered.length === 1 ? "" : "s"} found</span>
+                )
+              ) : (
+                <span>Search customer chats</span>
+              )}
             </div>
           </div>
           </div>
@@ -513,20 +556,23 @@ function RoomSidebar({
       </div>
       <ul className="min-h-0 flex-1 divide-y divide-white/10 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {filtered.map((room) => {
-          const unread = myUserId ? room.unreadBy?.[myUserId] || 0 : 0;
+          const unread = mode === "admin"
+            ? (myUserId ? room.customerUnreadBy?.[myUserId] || 0 : 0)
+            : (myUserId ? room.unreadBy?.[myUserId] || 0 : 0);
           const presenceText =
             mode === "customer"
               ? supportStatusText(room.admins, onlineUserIds, lastSeenByUser)
               : customerStatusText(room.customerId, onlineUserIds, lastSeenByUser);
-          const last = room.lastMessage
+          const lastMsg = mode === "admin" ? (room.lastCustomerMessage || room.lastMessage) : room.lastMessage;
+          const last = lastMsg
             ? {
                 content:
-                  room.lastMessage.type === "text"
-                    ? roleSafeSystemText(room.lastMessage.text, mode)
-                    : `[${room.lastMessage.type}]`,
-                timestamp: room.lastMessage.createdAt,
-                senderId: room.lastMessage.senderId,
-                kind: room.lastMessage.type === "text" ? ("text" as const) : ("media" as const),
+                  lastMsg.type === "text"
+                    ? roleSafeSystemText(lastMsg.text, mode)
+                    : `[${lastMsg.type}]`,
+                timestamp: lastMsg.createdAt,
+                senderId: lastMsg.senderId,
+                kind: lastMsg.type === "text" ? ("text" as const) : ("media" as const),
               }
             : undefined;
           return (
@@ -589,7 +635,35 @@ function RoomSidebar({
             </div>
           );
         })}
-        {!filtered.length && <div className="p-6 text-center text-sm text-gray-500">No customer rooms yet.</div>}
+        {!filtered.length && (
+          <li className="flex flex-col items-center justify-center px-6 py-12 text-center">
+            {serverSearchLoading ? (
+              <>
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                </div>
+                <p className="text-sm font-medium text-slate-200">Digging through all conversations...</p>
+                <p className="mt-1 text-xs text-slate-500">This might take a moment</p>
+              </>
+            ) : isSearching ? (
+              <>
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80">
+                  <span className="text-3xl" role="img" aria-label="detective">&#128373;&#65039;</span>
+                </div>
+                <p className="text-sm font-medium text-slate-200">No matches for &ldquo;{query.trim()}&rdquo;</p>
+                <p className="mt-1 text-xs text-slate-500">Try a different name, phone number, or customer ID</p>
+              </>
+            ) : (
+              <>
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/80">
+                  <MessageCircle className="h-8 w-8 text-slate-600" />
+                </div>
+                <p className="text-sm font-medium text-slate-200">No conversations yet</p>
+                <p className="mt-1 text-xs text-slate-500">Customer chats will appear here once they start messaging</p>
+              </>
+            )}
+          </li>
+        )}
       </ul>
     </aside>
   );
@@ -996,6 +1070,10 @@ export default function ShopChatClient({
   const [billFilter, setBillFilter] = useState<"all" | "pending" | "paid">("all");
   const [chatBills, setChatBills] = useState<Array<Record<string, any>>>([]);
   const [chatBillsLoading, setChatBillsLoading] = useState(false);
+  const [serverSearchResults, setServerSearchResults] = useState<ShopChatRoom[] | null>(null);
+  const [serverSearchLoading, setServerSearchLoading] = useState(false);
+  const serverSearchQueryRef = useRef("");
+  const serverSearchAbortRef = useRef<AbortController | null>(null);
   // Per-room loading state instead of global boolean
   const [roomLoadingState, setRoomLoadingState] = useState<Record<string, boolean>>({});
   const abortRef = useRef<AbortController | null>(null);
@@ -1045,13 +1123,14 @@ export default function ShopChatClient({
 
 
   const upsertRoom = useCallback((room: ShopChatRoom) => {
+    const sanitized = clampAdminSystemUnread(room, myUserId, mode);
     setRooms((prev) => {
-      const exists = prev.some((item) => item.roomId === room.roomId);
-      const next = exists ? prev.map((item) => (item.roomId === room.roomId ? room : item)) : [room, ...prev];
-      return sortRoomsByLatestMessage(next);
+      const exists = prev.some((item) => item.roomId === sanitized.roomId);
+      const next = exists ? prev.map((item) => (item.roomId === sanitized.roomId ? sanitized : item)) : [sanitized, ...prev];
+      return sortRoomsByLatestMessage(next, mode);
     });
-    setActiveRoom((prev) => (prev?.roomId === room.roomId ? room : prev));
-  }, []);
+    setActiveRoom((prev) => (prev?.roomId === sanitized.roomId ? sanitized : prev));
+  }, [mode, myUserId]);
 
   const loadMessages = useCallback(async (room: ShopChatRoom, signal?: AbortSignal) => {
     const response = await listShopChatMessages(room.roomId, { limit: 30, signal });
@@ -1233,7 +1312,8 @@ export default function ShopChatClient({
         cached = await getCachedRooms();
         if (cancelled) return;
         if (cached.length > 0) {
-          setRooms(sortRoomsByLatestMessage(cached));
+          const sanitizedCached = cached.map((r) => clampAdminSystemUnread(r, myUserId, mode));
+          setRooms(sortRoomsByLatestMessage(sanitizedCached, mode));
           if (!isAdmin) {
             setActiveRoom(cached[0]);
             const cachedMsgs = await getCachedMessages(cached[0].roomId);
@@ -1262,13 +1342,14 @@ export default function ShopChatClient({
         if (isAdmin) {
           const response = await listShopChatRooms({ limit: 0 });
           if (cancelled) return;
-          setRooms(sortRoomsByLatestMessage(response.rooms));
-          cacheRooms(response.rooms);
+          const sanitizedRooms = response.rooms.map((r) => clampAdminSystemUnread(r, myUserId, mode));
+          setRooms(sortRoomsByLatestMessage(sanitizedRooms, mode));
+          cacheRooms(sanitizedRooms);
         } else {
           const response = await getMyShopChatRoom();
           if (cancelled) return;
           const room = response.room;
-          setRooms(sortRoomsByLatestMessage([room]));
+          setRooms(sortRoomsByLatestMessage([room], mode));
           setActiveRoom((prev) => (prev?.roomId === room.roomId ? prev : room));
           cacheRoom(room);
           setRoomLoadingState((prev) => ({ ...prev, [room.roomId]: true }));
@@ -1297,6 +1378,23 @@ export default function ShopChatClient({
     };
   }, [loadMessages, mode, syncBillEventsForRoom]);
 
+  useEffect(() => {
+    if (mode !== "admin") return;
+    let cancelled = false;
+    const refreshRooms = async () => {
+      if (cancelled) return;
+      try {
+        const response = await listShopChatRooms({ limit: 0 });
+        if (cancelled) return;
+        const sanitizedRooms = response.rooms.map((r) => clampAdminSystemUnread(r, myUserId, mode));
+        setRooms(sortRoomsByLatestMessage(sanitizedRooms, mode));
+        cacheRooms(sanitizedRooms);
+      } catch {}
+    };
+    const intervalId = setInterval(refreshRooms, 30000);
+    return () => { cancelled = true; clearInterval(intervalId); };
+  }, [mode, myUserId]);
+
 
 
   useEffect(() => {
@@ -1322,17 +1420,19 @@ export default function ShopChatClient({
   useEffect(() => {
     if (!socket) return;
     const onRoomUpdated = (room: ShopChatRoom) => {
-      upsertRoom(room);
-      cacheRoom(room);
-      if (activeRoomRef.current?.roomId === room.roomId) {
-        refreshRoomIfMissingLastMessage(room);
+      const sanitized = clampAdminSystemUnread(room, myUserId, mode);
+      upsertRoom(sanitized);
+      cacheRoom(sanitized);
+      if (activeRoomRef.current?.roomId === sanitized.roomId) {
+        refreshRoomIfMissingLastMessage(sanitized);
       }
     };
     const onRoomJoined = ({ room }: { room: ShopChatRoom }) => {
-      upsertRoom(room);
-      cacheRoom(room);
-      if (activeRoomRef.current?.roomId === room.roomId) {
-        refreshRoomIfMissingLastMessage(room);
+      const sanitized = clampAdminSystemUnread(room, myUserId, mode);
+      upsertRoom(sanitized);
+      cacheRoom(sanitized);
+      if (activeRoomRef.current?.roomId === sanitized.roomId) {
+        refreshRoomIfMissingLastMessage(sanitized);
       }
     };
     const onMessageNew = (message: ShopChatMessage) => {
@@ -1488,6 +1588,21 @@ export default function ShopChatClient({
       setAddingCustomer(false);
     }
   };
+
+  const handleServerSearch = useCallback((q: string) => {
+    serverSearchQueryRef.current = q;
+    if (!q) { setServerSearchResults(null); setServerSearchLoading(false); return; }
+    serverSearchAbortRef.current?.abort();
+    const controller = new AbortController();
+    serverSearchAbortRef.current = controller;
+    setServerSearchLoading(true);
+    listShopChatRooms({ limit: 0, search: q }).then((res) => {
+      if (controller.signal.aborted) return;
+      setServerSearchResults(res.rooms.map((r) => clampAdminSystemUnread(r, myUserId, mode)));
+    }).catch(() => {}).finally(() => {
+      if (!controller.signal.aborted) setServerSearchLoading(false);
+    });
+  }, [mode, myUserId]);
 
   const sendText = async (
     text: string,
@@ -1858,6 +1973,9 @@ export default function ShopChatClient({
             myUserId={myUserId}
             onSelect={selectRoom}
             onAddClick={() => setAddOpen(true)}
+            onServerSearch={mode === "admin" ? handleServerSearch : undefined}
+            serverSearchResults={serverSearchResults}
+            serverSearchLoading={serverSearchLoading}
             typingByRoom={typingByRoom}
             onlineUserIds={onlineUserIds}
             lastSeenByUser={lastSeenByUser}

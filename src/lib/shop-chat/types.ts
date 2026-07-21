@@ -34,7 +34,9 @@ export type ShopChatRoom = {
   admins: ShopChatParticipant[];
   participants: ShopChatParticipant[];
   lastMessage: ShopChatLastMessage | null;
+  lastCustomerMessage: ShopChatLastMessage | null;
   unreadBy: Record<string, number>;
+  customerUnreadBy?: Record<string, number>;
   createdAt: string;
   updatedAt: string;
 };

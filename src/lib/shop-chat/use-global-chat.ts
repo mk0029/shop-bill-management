@@ -19,6 +19,27 @@ function isSupportRole(role?: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
 }
 
+function isSystemLastMessage(room: ShopChatRoom): boolean {
+  return Boolean(room.lastMessage?.systemEventType);
+}
+
+function sanitizeAdminUnread(room: ShopChatRoom, userId: string): ShopChatRoom {
+  if (room.unreadBy?.[userId] && room.unreadBy[userId] > 0 && isSystemLastMessage(room)) {
+    return { ...room, unreadBy: { ...room.unreadBy, [userId]: 0 } };
+  }
+  return room;
+}
+
+function adminUnreadCount(room: ShopChatRoom, userId: string): number {
+  return Number(room.customerUnreadBy?.[userId] || 0);
+}
+
+function sanitizeAdminUnreadCount(rooms: ShopChatRoom[], userId: string): number {
+  return rooms.reduce((sum, room) => {
+    return sum + adminUnreadCount(room, userId);
+  }, 0);
+}
+
 function messageTypeLabel(type?: ShopChatMessage["type"] | string | null) {
   if (type === "audio") return "audio";
   if (type === "video") return "video";
@@ -88,21 +109,23 @@ export function useGlobalShopChat(
 
   const maybeNotifyFromRoom = useCallback(
     (room: ShopChatRoom) => {
-      const last = room.lastMessage;
+      const sanitized = isSupportRole(role) ? sanitizeAdminUnread(room, userId) : room;
+      const last = role === "admin" ? (sanitized.lastCustomerMessage || sanitized.lastMessage) : sanitized.lastMessage;
       if (!last) return;
 
-      if (Number(room.unreadBy?.[userId] || 0) <= 0) {
-        useNotificationStore.getState().removeWhere((n) => n.meta?.type === "shop_chat" && n.meta?.roomId === room.roomId);
-        clearAppSystemNotifications({ roomId: room.roomId });
+      const unreadCount = isSupportRole(role) ? adminUnreadCount(sanitized, userId) : Number(sanitized.unreadBy?.[userId] || 0);
+      if (unreadCount <= 0) {
+        useNotificationStore.getState().removeWhere((n) => n.meta?.type === "shop_chat" && n.meta?.roomId === sanitized.roomId);
+        clearAppSystemNotifications({ roomId: sanitized.roomId });
       }
 
-      const previous = (chatStore.roomsById[room.roomId] || localRooms.find((r) => r.roomId === room.roomId));
+      const previous = (chatStore.roomsById[sanitized.roomId] || localRooms.find((r) => r.roomId === sanitized.roomId));
       if (previous?.lastMessage?.messageId === last.messageId) return;
 
       const activeChatId = getActiveChatId();
-      if (activeChatId === room.roomId) {
+      if (activeChatId === sanitized.roomId) {
         markNotificationHandled(last.messageId);
-        clearAppSystemNotifications({ roomId: room.roomId });
+        clearAppSystemNotifications({ roomId: sanitized.roomId });
         return;
       }
 
@@ -123,13 +146,13 @@ export function useGlobalShopChat(
           createdAt: last.createdAt,
           meta: {
             type: "shop_chat",
-            roomId: room.roomId,
+            roomId: sanitized.roomId,
             messageId: last.messageId,
             messageType: last.type,
             senderName,
             actorUserId: actorUserId || undefined,
-            userId: role === "customer" ? userId : room.customerId,
-            route: { pathname: chatPath, query: role === "customer" ? undefined : { customerId: room.customerId } },
+            userId: role === "customer" ? userId : sanitized.customerId,
+            route: { pathname: chatPath, query: role === "customer" ? undefined : { customerId: sanitized.customerId } },
           },
         });
       }
@@ -149,20 +172,21 @@ export function useGlobalShopChat(
 
   const clearSeenRoomNotifications = useCallback(
     (room: ShopChatRoom) => {
-      const lastMessageId = room.lastMessage?.messageId;
+      const lastMessageId = (role === "admin" ? (room.lastCustomerMessage || room.lastMessage) : room.lastMessage)?.messageId;
       if (lastMessageId) {
         markNotificationHandled(lastMessageId);
         markNotificationHandled(chatNotificationId(lastMessageId));
       }
       clearChatRoomNotifications(room.roomId);
     },
-    [clearChatRoomNotifications],
+    [clearChatRoomNotifications, role],
   );
 
   const markRoomSeenLocally = useCallback(
     (room: ShopChatRoom) => ({
       ...room,
       unreadBy: { ...(room.unreadBy || {}), ...(userId ? { [userId]: 0 } : {}) },
+      customerUnreadBy: { ...(room.customerUnreadBy || {}), ...(userId ? { [userId]: 0 } : {}) },
     }),
     [userId],
   );
@@ -174,17 +198,28 @@ export function useGlobalShopChat(
       return;
     }
 
+    const adminMode = isSupportRole(role);
     let cancelled = false;
     async function loadInitial() {
       try {
         // Load from cache first for instant display
         await chatStore.loadFromCache();
 
+        // Sanitize cached rooms for admin users
+        if (adminMode) {
+          const cached = Object.values(chatStore.roomsById);
+          for (const room of cached) {
+            const sanitized = sanitizeAdminUnread(room, userId);
+            if (sanitized !== room) chatStore.upsertRoom(sanitized);
+          }
+        }
+
         // Then fetch from network
-        if (isSupportRole(role)) {
+        if (adminMode) {
           const response = await listShopChatRooms({ limit: 0 });
           if (!cancelled) {
-            const rooms = isChatRoute ? response.rooms.map(markRoomSeenLocally) : response.rooms;
+            const rooms = (isChatRoute ? response.rooms.map(markRoomSeenLocally) : response.rooms)
+              .map((r) => sanitizeAdminUnread(r, userId));
             chatStore.setRooms(rooms, response.nextCursor, response.hasMore);
             setLocalRooms(rooms);
             if (isChatRoute) rooms.forEach(clearSeenRoomNotifications);
@@ -210,18 +245,21 @@ export function useGlobalShopChat(
   // Socket room updates
   useEffect(() => {
     if (!socket || !enabled) return;
+    const adminMode = isSupportRole(role);
     const onRoomUpdated = (room: ShopChatRoom) => {
+      const sanitized = adminMode ? sanitizeAdminUnread(room, userId) : room;
       if (isChatRoute) {
-        clearSeenRoomNotifications(room);
-        upsertRoom(markRoomSeenLocally(room));
+        clearSeenRoomNotifications(sanitized);
+        upsertRoom(markRoomSeenLocally(sanitized));
         return;
       }
-      maybeNotifyFromRoom(room);
-      upsertRoom(room);
+      maybeNotifyFromRoom(sanitized);
+      upsertRoom(sanitized);
     };
     const onRoomJoined = ({ room }: { room: ShopChatRoom }) => {
-      if (isChatRoute) clearSeenRoomNotifications(room);
-      upsertRoom(isChatRoute ? markRoomSeenLocally(room) : room);
+      const sanitized = adminMode ? sanitizeAdminUnread(room, userId) : room;
+      if (isChatRoute) clearSeenRoomNotifications(sanitized);
+      upsertRoom(isChatRoute ? markRoomSeenLocally(sanitized) : sanitized);
     };
     socket.on("room:updated", onRoomUpdated);
     socket.on("room:joined", onRoomJoined);
@@ -229,7 +267,7 @@ export function useGlobalShopChat(
       socket.off("room:updated", onRoomUpdated);
       socket.off("room:joined", onRoomJoined);
     };
-  }, [clearSeenRoomNotifications, enabled, isChatRoute, markRoomSeenLocally, maybeNotifyFromRoom, socket, upsertRoom]);
+  }, [clearSeenRoomNotifications, enabled, isChatRoute, markRoomSeenLocally, maybeNotifyFromRoom, role, socket, upsertRoom, userId]);
 
   // Clear notifications when on chat route
   useEffect(() => {
@@ -240,8 +278,14 @@ export function useGlobalShopChat(
   }, [clearSeenRoomNotifications, enabled, isChatRoute, userId, chatStore, localRooms]);
 
   const unreadCount = useMemo(
-    () => (isChatRoute ? 0 : chatStore.getUnreadCount(userId)),
-    [isChatRoute, chatStore, userId],
+    () => {
+      if (isChatRoute) return 0;
+      if (isSupportRole(role)) {
+        return sanitizeAdminUnreadCount(Object.values(chatStore.roomsById), userId);
+      }
+      return chatStore.getUnreadCount(userId);
+    },
+    [isChatRoute, chatStore, userId, role],
   );
 
   return {

@@ -54,7 +54,7 @@ export function greetingText(customerOrName?: NotificationCustomer | string | nu
 }
 
 export function signature() {
-  return "Regards,\nJambh Electricals";
+  return "Jambh Electricals";
 }
 
 function pendingAmount(bill: BillLike) {

@@ -276,7 +276,7 @@ export async function POST(req: Request) {
           actorUserId,
           userIds: [customerId],
           title: "All Bills Paid",
-          body: `Dear ${customerDisplayName(customerDoc)}, your payment has been received for ${billNumbers.length} bill(s): ${billNumbers.join(", ")}. Total Paid: \u20b9${totalPaidAmount.toLocaleString()}.${discountText} Payment Mode: ${paymentMode}. Thank you for your payment. Regards, Jambh Electricals`,
+          body: `Dear ${customerDisplayName(customerDoc)}, your payment has been received for ${billNumbers.length} bill(s): ${billNumbers.join(", ")}. Total Paid: \u20b9${totalPaidAmount.toLocaleString()}.${discountText} Payment Mode: ${paymentMode}. Thank you for your payment, Jambh Electricals`,
           data: {
             customerId,
             billNumbers: billNumbers.join(","),

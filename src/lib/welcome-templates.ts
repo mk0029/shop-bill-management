@@ -50,7 +50,6 @@ export function buildWelcomeText(data: WelcomeTemplateData): string {
     "Need help? Our support team is always happy to assist you.",
     support,
     "",
-    "Regards,",
     `${company} Team`,
   ].join("\n")
 }
@@ -74,7 +73,6 @@ export function buildWelcomeWhatsApp(data: WelcomeTemplateData): string {
     "",
     `Need help? Reply to this message or contact support.`,
     "",
-    `Regards,`,
     `${company} Team`,
   ].join("\n")
 }

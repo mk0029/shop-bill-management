@@ -232,6 +232,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [roomId]: {
             ...room,
             unreadBy: { ...room.unreadBy, [userId]: 0 },
+            customerUnreadBy: { ...(room.customerUnreadBy || {}), [userId]: 0 },
           },
         },
       };

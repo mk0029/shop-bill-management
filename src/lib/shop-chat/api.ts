@@ -28,10 +28,11 @@ async function requestJson<T>(path: string, init?: RequestInit & { signal?: Abor
 // ── Rooms ──
 let roomsFetchPromise: Promise<{ rooms: ShopChatRoom[]; nextCursor: string | null; hasMore: boolean }> | null = null;
 let roomsFetchCount = 0;
-export function listShopChatRooms(opts?: { limit?: number; cursor?: string }) {
+export function listShopChatRooms(opts?: { limit?: number; cursor?: string; search?: string }) {
   const params = new URLSearchParams();
-  if (opts?.limit) params.set("limit", String(opts.limit));
+  if (opts?.limit !== undefined && opts?.limit !== null) params.set("limit", String(opts.limit));
   if (opts?.cursor) params.set("cursor", opts.cursor);
+  if (opts?.search) params.set("search", opts.search);
   const suffix = params.toString() ? `?${params}` : "";
   // Dev trace: log every rooms fetch with reason
   if (process.env.NODE_ENV === "development") {

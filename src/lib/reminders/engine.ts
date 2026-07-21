@@ -238,7 +238,6 @@ function buildWhatsAppMessage(candidate: ReminderCandidate): string {
     "If payment has already been made, please disregard this message.",
     "",
     "Thank you for your continued business.",
-    "Regards,",
     "Jambh Electricals",
   ].join("\n");
 }

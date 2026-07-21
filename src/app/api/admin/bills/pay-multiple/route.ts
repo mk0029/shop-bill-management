@@ -319,7 +319,7 @@ export async function POST(req: Request) {
           actorUserId,
           userIds: [customerId],
           title: "Payment Received Successfully",
-          body: `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. ${fullyPaidText} ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment. Regards, Jambh Electricals`,
+          body: `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. ${fullyPaidText} ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment, Jambh Electricals`,
           data: {
             customerId,
             billNumbersFullyPaid: fullyPaidBills.join(","),
