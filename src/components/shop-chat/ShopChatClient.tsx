@@ -1836,6 +1836,8 @@ export default function ShopChatClient({
           [activeRoom.roomId]: mergeMessage(prev[activeRoom.roomId] || [], {
             ...response.message,
             media,
+            uploading: false,
+            uploadProgress: 100,
           }),
         }));
 

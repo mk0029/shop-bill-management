@@ -103,26 +103,19 @@ export default function CustomerNotificationsClient({
     if (!uniqueIds.length || isClearing) return;
     setIsClearing(true);
     await playClearAnimation(uniqueIds);
-    try {
-      await clearNotifications({
-        userId: userId || undefined,
-        phone: user?.phone || undefined,
-        notificationIds: uniqueIds,
-      });
-      const idSet = new Set(uniqueIds);
-      removeWhere((notification) => idSet.has(notification.id));
-      if (successMessage) toast.success(successMessage);
-      const remaining = visibleItems.filter((notification) => !idSet.has(notification.id));
-      if (remaining.length === 0) {
-        window.setTimeout(() => onRequestClose?.(), 140);
-      }
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Failed to clear notifications",
-      );
-    } finally {
-      finishClearAnimation();
+    const idSet = new Set(uniqueIds);
+    removeWhere((notification) => idSet.has(notification.id));
+    const remaining = visibleItems.filter((notification) => !idSet.has(notification.id));
+    if (remaining.length === 0) {
+      window.setTimeout(() => onRequestClose?.(), 140);
     }
+    finishClearAnimation();
+    if (successMessage) toast.success(successMessage);
+    clearNotifications({
+      userId: userId || undefined,
+      phone: user?.phone || undefined,
+      notificationIds: uniqueIds,
+    }).catch(() => {});
   };
 
   const handleRemove = async (id: string) => {

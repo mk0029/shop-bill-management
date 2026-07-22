@@ -127,6 +127,11 @@ const dayLabel = (value?: string) => {
   });
 };
 
+function stableKey(m: Message): string {
+  if (m.uploading && m.clientMessageId) return `upload-${m.clientMessageId}`;
+  return m.id;
+}
+
 function buildRenderItems(messages: Message[]): MessageItem[] {
   const COLLAGE_WINDOW_MS = 2 * 60 * 1000;
   const items: MessageItem[] = [];
@@ -139,7 +144,7 @@ function buildRenderItems(messages: Message[]): MessageItem[] {
     if (!isMedia) {
       items.push({
         kind: "single",
-        key: m.id,
+        key: stableKey(m),
         messages: [m],
         prev: i > 0 ? messages[i - 1] : null,
         next: i < messages.length - 1 ? messages[i + 1] : null,
@@ -170,7 +175,7 @@ function buildRenderItems(messages: Message[]): MessageItem[] {
     if (group.length >= 2) {
       items.push({
         kind: "collage",
-        key: `collage-${group[0].id}-${group[group.length - 1].id}`,
+        key: `collage-${stableKey(group[0])}-${stableKey(group[group.length - 1])}`,
         messages: group,
         prev: i > 0 ? messages[i - 1] : null,
         next: j < messages.length ? messages[j] : null,
@@ -179,7 +184,7 @@ function buildRenderItems(messages: Message[]): MessageItem[] {
     } else {
       items.push({
         kind: "single",
-        key: m.id,
+        key: stableKey(m),
         messages: [m],
         prev: i > 0 ? messages[i - 1] : null,
         next: i < messages.length - 1 ? messages[i + 1] : null,

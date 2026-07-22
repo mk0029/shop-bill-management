@@ -262,11 +262,13 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
           {localFiles.length > 1 && (
             <div className="flex gap-2 overflow-x-auto border-t border-white/10 bg-white/[0.02] px-4 py-2.5">
               {localFiles.map((pf, i) => (
-                <button
+                <div
                   key={i}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setActiveIndex(i)}
-                  className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveIndex(i); } }}
+                  className={`relative h-14 w-14 flex-shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 transition-all ${
                     i === activeIndex
                       ? "border-emerald-400 ring-1 ring-emerald-400/30"
                       : "border-transparent opacity-60 hover:opacity-100"
@@ -301,7 +303,7 @@ const MediaPreviewModal: React.FC<MediaPreviewModalProps> = ({
                   >
                     <X size={10} />
                   </button>
-                </button>
+                </div>
               ))}
             </div>
           )}

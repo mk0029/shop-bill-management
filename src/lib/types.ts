@@ -25,6 +25,7 @@ export interface Message {
   forwarded?: boolean;
   forwardedFrom?: string | null;
   type?: string;
+  clientMessageId?: string;
   uploading?: boolean;
   uploadProgress?: number;
   media?: { type: "image" | "video" | "audio" | "file"; url: string; path: string; fileName: string; mimeType: string; size: number; width?: number; height?: number; aspectRatio?: number; duration?: number; thumbnailUrl?: string; uploadedAt: string } | null;

@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
     }
 
     const tx = sanityClient.transaction();
-    for (const id of idsToClear) {
+    const validIds = idsToClear.filter((id) => !id.includes(":") && !id.includes(".."));
+    for (const id of validIds) {
       tx.patch(id, (p: any) => {
         let patch = p.setIfMissing({
           clearedByUserIds: [],
@@ -50,9 +51,9 @@ export async function POST(req: NextRequest) {
         return patch;
       });
     }
-    await tx.commit();
+    if (validIds.length > 0) await tx.commit();
 
-    return NextResponse.json({ ok: true, cleared: idsToClear.length }, { status: 200 });
+    return NextResponse.json({ ok: true, cleared: validIds.length, skipped: idsToClear.length - validIds.length }, { status: 200 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });
