@@ -261,6 +261,7 @@ export async function PATCH(
       // Only create a cashbook entry for the incremental payment amount (delta)
       // paidAmount is cumulative, so using it directly would create duplicate/incorrect totals.
       if (paymentDelta > 0) {
+      const paymentTimestamp = new Date().toISOString();
       // Fire and forget - don't await to avoid slowing down the bill update
       (async () => {
         try {
@@ -273,7 +274,8 @@ export async function PATCH(
               userId: bill.customer._id,
               userName: safeUserName(bill.customer.name, "Customer"),
               amount: Number(paymentDelta),
-              paymentType: 'credit'
+              paymentType: 'credit',
+              paymentDate: paymentTimestamp,
             });
             
             if (result.success) {

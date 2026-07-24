@@ -1590,10 +1590,18 @@ export const cashBookApiService = {
         user,
         userName,
         amount,
+        totalAmount,
+        pendingAmount,
+        receivedAmount,
         type,
         source,
         category,
         notes,
+        customerName,
+        customerId,
+        isCustomName,
+        status,
+        createdBy,
         bill,
         billCount,
         fullyPaidCount,
@@ -1687,23 +1695,31 @@ export const cashBookApiService = {
     userName: string;
     amount: number;
     paymentType: 'credit' | 'debit';
+    paymentDate?: string;
   }): Promise<ApiResponse<any>> {
     try {
+      const now = new Date().toISOString();
       const entryData = {
         user: {
           _type: "reference",
           _ref: paymentData.userId
         },
         userName: paymentData.userName,
+        customerName: paymentData.userName,
+        customerId: paymentData.userId,
         amount: paymentData.amount,
+        totalAmount: paymentData.amount,
+        pendingAmount: 0,
+        receivedAmount: paymentData.amount,
+        status: 'completed' as const,
         type: paymentData.paymentType,
         source: "Bill Payment",
         bill: {
           _type: "reference", 
           _ref: paymentData.billId
         },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: paymentData.paymentDate || now,
+        updatedAt: now,
       };
 
       return await this.createEntry(entryData);
@@ -1758,10 +1774,18 @@ export const cashBookApiService = {
         user,
         userName,
         amount,
+        totalAmount,
+        pendingAmount,
+        receivedAmount,
         type,
         source,
         category,
         notes,
+        customerName,
+        customerId,
+        isCustomName,
+        status,
+        createdBy,
         bill,
         user->{
           _id,

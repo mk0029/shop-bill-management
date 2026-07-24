@@ -12,10 +12,18 @@ export interface CashBookEntry {
     phone?: string;
     email?: string;
   };
-  userName: string;
+  userName?: string;
   amount: number;
+  totalAmount?: number;
+  pendingAmount?: number;
+  receivedAmount?: number;
   type: 'credit' | 'debit';
   source: 'Manual' | 'Bill Payment';
+  customerName?: string;
+  customerId?: string | null;
+  isCustomName?: boolean;
+  status?: 'completed' | 'partial';
+  createdBy?: string;
   bill?: {
     _id: string;
     billNumber: string;

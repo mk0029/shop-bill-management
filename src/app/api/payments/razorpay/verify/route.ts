@@ -128,7 +128,8 @@ export async function POST(req: Request) {
           userId: bill.customer._id,
           userName: bill.customer.name,
           amount: add,
-          paymentType: 'credit'
+          paymentType: 'credit',
+          paymentDate: new Date().toISOString(),
         });
 
         if (!result.success) {

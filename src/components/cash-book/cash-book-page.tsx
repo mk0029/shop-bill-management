@@ -4,7 +4,6 @@ import { BillDetailModal } from "@/components/ui/bill-detail-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SelectField } from "@/components/ui/select";
 import { useCashBookRealtime } from "@/hooks/use-cash-book-realtime";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { format } from "date-fns";
@@ -18,24 +17,42 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { stockApi } from "@/lib/inventory-api";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ItemSelectionSection } from "@/components/billing/item-selection-section";
 import { ItemSelectionModal } from "@/components/billing/item-selection-modal";
 import { useItemSelection } from "@/hooks/use-item-selection";
-import { useBrands, useCategories, useProducts } from "@/hooks/use-sanity-data";
+import {
+  useBrands,
+  useCategories,
+  useCustomers,
+  useProducts,
+} from "@/hooks/use-sanity-data";
 import { SelectedItemsList } from "@/components/billing/selected-items-list";
 import { sanityClient } from "@/lib/sanity";
 import { BaseGlassModal } from "@/components/ui/base-glass-modal";
 import { Modal } from "@/components/ui/modal";
 import { useAuthStore } from "@/store/auth-store";
+import { SearchableCustomerInput } from "@/components/cash-book/searchable-customer-input";
+import { PayPendingModal } from "@/components/cash-book/pay-pending-modal";
+import { customerCashbookService } from "@/lib/customer-cashbook-service";
+import {
+  roundCurrency,
+  calculateReceivedAmount,
+  formatCurrencyINR,
+  validateManualRecord,
+  buildRecordPayload,
+  computePendingTotals,
+  type CustomerSelection,
+} from "@/lib/cashbook-calculations";
 import {
   CashBookEntry,
   CashbookCustomerGroupCard,
   groupEntriesByDateAndCustomer,
 } from "./cash-book-shared";
+import { manualCashbookNamesService } from "@/lib/manual-cashbook-names";
 
 interface CashBookSummary {
   totalCredits: number;
@@ -52,7 +69,7 @@ interface User {
 }
 
 export function CashBookPage() {
-  const { role } = useAuthStore();
+  const { role, user: authUser } = useAuthStore();
   const isTechnician = role === "technician";
   const [entries, setEntries] = useState<CashBookEntry[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -71,10 +88,16 @@ export function CashBookPage() {
     Record<string, { name: string; price: number; qty: number; maxQty: number }>
   >({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [manualNames, setManualNames] = useState<
+    Array<{ _id: string; name: string; usageCount: number; lastUsedAt: string }>
+  >([]);
+  const [payEntry, setPayEntry] = useState<CashBookEntry | null>(null);
+  const [showPayModal, setShowPayModal] = useState(false);
 
   const { activeProducts, isLoading: productsLoading } = useProducts();
   const { categories } = useCategories();
   const { brands } = useBrands();
+  const { customers } = useCustomers();
   const {
     itemSelectionModal,
     openItemSelectionModal,
@@ -83,32 +106,57 @@ export function CashBookPage() {
     filterItemsBySpecifications,
   } = useItemSelection();
 
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [customUserName, setCustomUserName] = useState<string>("");
+  const [customerSelection, setCustomerSelection] = useState<CustomerSelection>(
+    {
+      customerId: null,
+      customerName: "",
+      isCustomName: false,
+    },
+  );
   const [amount, setAmount] = useState<string>("");
+  const [pendingAmountStr, setPendingAmountStr] = useState<string>("0");
   const [purpose, setPurpose] = useState("");
   const [transactionType, setTransactionType] = useState<"credit" | "debit">(
     "credit",
   );
-  const customNameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (selectedUserId === "other" && customNameRef.current) {
-      setTimeout(() => customNameRef.current?.focus(), 100);
-    }
-  }, [selectedUserId]);
+  const parsedTotalAmount = Number(amount);
+  const parsedPendingAmount = Number(pendingAmountStr);
+  const isDebit = transactionType === "debit";
+
+  const safeTotal = roundCurrency(
+    Number.isFinite(parsedTotalAmount) ? parsedTotalAmount : 0,
+  );
+  const safePending = isDebit
+    ? 0
+    : roundCurrency(
+        Number.isFinite(parsedPendingAmount) ? parsedPendingAmount : 0,
+      );
+  const receivedAmount = calculateReceivedAmount(
+    safeTotal,
+    safePending,
+    transactionType,
+  );
+
+  const pendingAmountError =
+    !isDebit && parsedPendingAmount > safeTotal && safeTotal > 0
+      ? "Pending amount cannot be greater than total amount"
+      : null;
 
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [entriesRes, usersRes, summaryRes] = await Promise.all([
-          sanityApiService.cashBook.getAllEntries(),
-          sanityApiService.users.getAllUsers(),
-          sanityApiService.cashBook.getSummary(),
-        ]);
+        const [entriesRes, usersRes, summaryRes, manualNamesRes] =
+          await Promise.all([
+            sanityApiService.cashBook.getAllEntries(),
+            sanityApiService.users.getAllUsers(),
+            sanityApiService.cashBook.getSummary(),
+            manualCashbookNamesService.getAll(),
+          ]);
         if (entriesRes.success) setEntries(entriesRes.data as CashBookEntry[]);
         if (usersRes.success) setUsers(usersRes.data as User[]);
         if (summaryRes.success) setSummary(summaryRes.data as CashBookSummary);
+        if (manualNamesRes.success) setManualNames(manualNamesRes.data || []);
       } catch (error) {
         console.error("Failed to load initial cash book data:", error);
       }
@@ -116,19 +164,39 @@ export function CashBookPage() {
     loadInitialData();
   }, []);
 
+  const refreshData = async () => {
+    try {
+      const [entriesRes, summaryRes, manualNamesRes] = await Promise.all([
+        sanityApiService.cashBook.getAllEntries(),
+        sanityApiService.cashBook.getSummary(),
+        manualCashbookNamesService.getAll(),
+      ]);
+      if (entriesRes.success) setEntries(entriesRes.data as CashBookEntry[]);
+      if (summaryRes.success) setSummary(summaryRes.data as CashBookSummary);
+      if (manualNamesRes.success) setManualNames(manualNamesRes.data || []);
+    } catch (error) {
+      console.error("Failed to refresh cash book data:", error);
+    }
+  };
+
   const filteredEntries = (entries || [])
     .filter((e) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
+      const displayName = e.customerName || e.userName || "";
       return (
-        e.userName?.toLowerCase().includes(q) ||
+        displayName.toLowerCase().includes(q) ||
         e.source?.toLowerCase().includes(q) ||
         e.amount.toString().includes(q)
       );
     })
     .slice(0, 50);
 
-  const groupedData = groupEntriesByDateAndCustomer(filteredEntries);
+  const pendingTotals = computePendingTotals(entries || []);
+  const groupedData = groupEntriesByDateAndCustomer(
+    filteredEntries,
+    pendingTotals,
+  );
   const filteredItems = filterItemsBySpecifications(activeProducts);
 
   const saleTotal = Object.values(selectedSaleItems).reduce(
@@ -340,56 +408,90 @@ export function CashBookPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("Please enter a valid amount");
+
+    const validation = validateManualRecord({
+      customer: customerSelection,
+      totalAmount: safeTotal,
+      pendingAmount: isDebit ? 0 : safePending,
+      purpose,
+      type: transactionType,
+    });
+
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid input");
       return;
     }
-    if (!selectedUserId) {
-      toast.error("Please select a user");
-      return;
-    }
-    if (selectedUserId === "other" && !customUserName.trim()) {
-      toast.error("Please enter a name");
-      return;
-    }
+
     setIsSubmitting(true);
     try {
+      const adminId = (authUser as any)?.id || (authUser as any)?._id || "";
+      const payload = buildRecordPayload(
+        {
+          customer: customerSelection,
+          totalAmount: safeTotal,
+          pendingAmount: isDebit ? 0 : safePending,
+          purpose,
+          type: transactionType,
+        },
+        adminId,
+      );
+
       const entryData: any = {
-        amount: parseFloat(amount),
-        type: transactionType,
-        source: "Manual",
-        notes: purpose.trim() || "",
+        amount: payload.amount,
+        totalAmount: payload.totalAmount,
+        pendingAmount: payload.pendingAmount,
+        receivedAmount: payload.receivedAmount,
+        type: payload.type,
+        source: payload.source,
+        status: payload.status,
+        notes: payload.purpose,
+        customerName: payload.customerName,
+        customerId: payload.customerId,
+        isCustomName: payload.isCustomName,
+        createdBy: adminId,
       };
-      if (selectedUserId === "other") {
-        entryData.userName = customUserName.trim();
-      } else {
-        const selectedUser = users.find((u) => u._id === selectedUserId);
-        if (!selectedUser) {
-          toast.error("Selected user not found");
-          return;
-        }
-        entryData.user = { _type: "reference", _ref: selectedUserId };
-        entryData.userName = selectedUser.name;
+
+      if (payload.customerId) {
+        entryData.user = { _type: "reference", _ref: payload.customerId };
       }
+
       const result = await sanityApiService.cashBook.createEntry(entryData);
       if (result.success) {
-        setAmount("");
-        setPurpose("");
-        setSelectedUserId("");
-        setCustomUserName("");
-        setTransactionType("credit");
+        const newEntry = (result as any).data as CashBookEntry | undefined;
+        resetForm();
         setShowAddForm(false);
-        toast.success(`Manual ${transactionType} entry added`);
-        try {
-          const [entriesRes, summaryRes] = await Promise.all([
-            sanityApiService.cashBook.getAllEntries(),
-            sanityApiService.cashBook.getSummary(),
-          ]);
-          if (entriesRes.success && entriesRes.data)
-            setEntries(entriesRes.data);
-          if (summaryRes.success && summaryRes.data)
-            setSummary(summaryRes.data);
-        } catch {}
+        setIsSubmitting(false);
+        if (newEntry) {
+          setEntries((prev) => [newEntry, ...prev]);
+        }
+        if (isDebit) {
+          toast.success(`Manual debit entry added`);
+        } else if (safePending > 0) {
+          toast.success(
+            `Record saved. ${formatCurrencyINR(receivedAmount)} received and ${formatCurrencyINR(safePending)} added to pending.`,
+          );
+        } else {
+          toast.success("Cashbook record added successfully.");
+        }
+        sanityApiService.cashBook
+          .getAllEntries()
+          .then((r) => {
+            if (r.success && r.data) setEntries(r.data);
+          })
+          .catch(() => {});
+        sanityApiService.cashBook
+          .getSummary()
+          .then((r) => {
+            if (r.success && r.data) setSummary(r.data);
+          })
+          .catch(() => {});
+        manualCashbookNamesService
+          .getAll()
+          .then((r) => {
+            if (r.success) setManualNames(r.data || []);
+          })
+          .catch(() => {});
+        return;
       } else toast.error(result.error || "Failed to add cash book entry");
     } catch {
       toast.error("Failed to add cash book entry");
@@ -397,6 +499,27 @@ export function CashBookPage() {
       setIsSubmitting(false);
     }
   };
+
+  const resetForm = () => {
+    setAmount("");
+    setPendingAmountStr("0");
+    setPurpose("");
+    setCustomerSelection({
+      customerId: null,
+      customerName: "",
+      isCustomName: false,
+    });
+    setTransactionType("credit");
+  };
+
+  const isSaveDisabled =
+    isSubmitting ||
+    !customerSelection.customerName.trim() ||
+    !Number.isFinite(parsedTotalAmount) ||
+    parsedTotalAmount <= 0 ||
+    !purpose.trim() ||
+    (!isDebit && parsedPendingAmount < 0) ||
+    (!isDebit && parsedPendingAmount > safeTotal && safeTotal > 0);
 
   return (
     <div className="space-y-3 sm:space-y-5">
@@ -583,101 +706,178 @@ export function CashBookPage() {
       {/* Add Record Modal */}
       <Modal
         isOpen={showAddForm}
-        onClose={() => setShowAddForm(false)}
+        onClose={() => {
+          if (!isSubmitting) setShowAddForm(false);
+        }}
         title="Add Manual Record"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <Label className="text-gray-300 text-sm">User</Label>
-              <SelectField
-                value={selectedUserId}
-                onValueChange={(value) => {
-                  setSelectedUserId(value);
-                  if (value !== "other") setCustomUserName("");
-                }}
-                options={[
-                  { value: "other", label: "Other (Enter custom name)" },
-                  ...users.map((user) => ({
-                    value: user._id,
-                    label: user.name,
-                  })),
-                ]}
-                placeholder="Select user"
-                className="bg-gray-800/50 border-gray-700/70 text-white"
+            <div className="sm:col-span-2">
+              <SearchableCustomerInput
+                customers={customers}
+                customNames={manualNames}
+                value={customerSelection}
+                onChange={setCustomerSelection}
+                disabled={isSubmitting}
               />
             </div>
-            {selectedUserId === "other" && (
-              <div>
-                <Label className="text-gray-300 text-sm">Custom Name</Label>
+            <div>
+              <Label className="text-gray-300 text-sm">Total Amount</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                  ₹
+                </span>
                 <Input
-                  ref={customNameRef}
-                  type="text"
-                  value={customUserName}
-                  onChange={(e) => setCustomUserName(e.target.value)}
-                  placeholder="Enter customer name"
-                  className="bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0"
+                  className="bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500 !pl-7"
+                  disabled={isSubmitting}
                 />
               </div>
-            )}
+            </div>
             <div>
-              <Label className="text-gray-300 text-sm">Amount</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500"
-              />
+              {!isDebit ? (
+                <>
+                  <Label className="text-gray-300 text-sm">
+                    Pending Amount
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                      ₹
+                    </span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={pendingAmountStr === "0" ? "" : pendingAmountStr}
+                      onChange={(e) => setPendingAmountStr(e.target.value)}
+                      placeholder="0"
+                      className={`bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500 !pl-7 ${pendingAmountError ? "border-red-500/50" : ""}`}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  {pendingAmountError && (
+                    <p className="text-red-400 text-[11px] mt-1">
+                      {pendingAmountError}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-2 pt-5">
+                  <span className="text-[11px] text-gray-500 bg-white/[0.03] px-2 py-1 rounded-md">
+                    Pending amount is not applicable for debit entries
+                  </span>
+                </div>
+              )}
             </div>
           </div>
+
+          {safeTotal > 0 && !isDebit && (
+            <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[11px]">
+              <span className="text-gray-400">
+                Total:{" "}
+                <span className="text-white font-semibold">
+                  {formatCurrencyINR(safeTotal)}
+                </span>
+              </span>
+              <span className="text-gray-400">
+                Received:{" "}
+                <span className="text-emerald-400 font-semibold">
+                  {formatCurrencyINR(receivedAmount)}
+                </span>
+              </span>
+              <span className="text-gray-400">
+                Pending:{" "}
+                <span className="text-amber-400 font-semibold">
+                  {formatCurrencyINR(safePending)}
+                </span>
+              </span>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label className="text-gray-300 text-sm">
+              Purpose / Item Details
+            </Label>
+            <textarea
+              value={purpose}
+              onChange={(e) => {
+                if (e.target.value.length <= 400) setPurpose(e.target.value);
+              }}
+              rows={2}
+              placeholder="e.g. Fan installation, winding payment, material purchase, advance payment..."
+              className="w-full rounded-lg border border-gray-700/70 bg-gray-800/50 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20 transition-all resize-none"
+              disabled={isSubmitting}
+            />
+            <div className="flex justify-end">
+              <span className="text-[10px] text-gray-600">
+                {purpose.length}/400
+              </span>
+            </div>
+          </div>
+
           <div>
             <Label className="text-gray-300 text-sm">Type</Label>
-            <div className="flex gap-2 mt-1.5">
+            <div
+              className="flex gap-2 mt-1.5"
+              role="radiogroup"
+              aria-label="Transaction type"
+            >
               <button
                 type="button"
-                onClick={() => setTransactionType("credit")}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                role="radio"
+                aria-pressed={transactionType === "credit"}
+                onClick={() => {
+                  setTransactionType("credit");
+                  if (pendingAmountStr === "") setPendingAmountStr("0");
+                }}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                   transactionType === "credit"
-                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/25"
+                    ? "bg-emerald-600/20 text-white shadow-lg shadow-emerald-600/25"
                     : "bg-white/[0.04] text-gray-400 hover:text-gray-200 border border-white/[0.06]"
                 }`}
               >
+                <span className="text-xs">↑</span>
                 Credit
               </button>
               <button
                 type="button"
-                onClick={() => setTransactionType("debit")}
-                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                role="radio"
+                aria-pressed={transactionType === "debit"}
+                onClick={() => {
+                  setTransactionType("debit");
+                  setPendingAmountStr("0");
+                }}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                   transactionType === "debit"
-                    ? "bg-red-600 text-white shadow-lg shadow-red-600/25"
+                    ? "bg-red-600/20 text-white shadow-lg shadow-red-600/2"
                     : "bg-white/[0.04] text-gray-400 hover:text-gray-200 border border-white/[0.06]"
                 }`}
               >
+                <span className="text-xs">↓</span>
                 Debit
               </button>
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-gray-300 text-sm">Purpose</Label>
-            <textarea
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              rows={2}
-              placeholder="e.g. Fan installation, Winding payment, Advance..."
-              className="w-full rounded-lg border border-gray-700/70 bg-gray-800/50 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20 transition-all resize-none"
-            />
-          </div>
+
           <div className="flex gap-2 pt-2 border-t border-white/[0.06]">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
+            <Button
+              type="submit"
+              disabled={isSaveDisabled}
+              className={`flex-1 ${isSaveDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
               {isSubmitting ? "Saving..." : "Save Entry"}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowAddForm(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
@@ -708,6 +908,7 @@ export function CashBookPage() {
                       group={group}
                       formatCurrency={formatCurrency}
                       onViewBill={handleViewBill}
+                      onPayPending={(entry) => { setPayEntry(entry); setShowPayModal(true); }}
                     />
                   ))}
                 </div>
@@ -725,6 +926,28 @@ export function CashBookPage() {
         onDownloadPDF={() => {}}
         showShareButton={false}
         showPaymentControls={false}
+      />
+
+      {/* Pay Pending Modal */}
+      <PayPendingModal
+        entry={payEntry}
+        isOpen={showPayModal}
+        onClose={() => { setShowPayModal(false); setPayEntry(null); }}
+        formatCurrency={formatCurrency}
+        onSubmit={async ({ entryId, paymentAmount, paymentMethod, note }) => {
+          const result = await customerCashbookService.receivePendingPayment({
+            entryId,
+            paymentAmount,
+            paymentMethod,
+            note,
+          });
+          if (result.success) {
+            toast.success("Payment recorded successfully");
+            await refreshData();
+          } else {
+            throw new Error(result.error || "Failed to record payment");
+          }
+        }}
       />
     </div>
   );

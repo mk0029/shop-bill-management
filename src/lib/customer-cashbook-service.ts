@@ -160,4 +160,30 @@ export const customerCashbookService = {
       return { success: false, error: 'Failed to convert items to bill' };
     }
   },
+
+  async receivePendingPayment(params: {
+    entryId: string;
+    paymentAmount: number;
+    paymentDate?: string;
+    paymentMethod?: string;
+    note?: string;
+  }): Promise<ApiResponse<any>> {
+    try {
+      const actorUserId = getActorUserId();
+      if (!actorUserId) return { success: false, error: 'Missing actorUserId' };
+      const res = await fetch('/api/mutations/cashbook/receive-pending', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actorUserId, ...params }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to receive pending payment' }
+      }
+      return { success: true, data: json?.data }
+    } catch (error) {
+      console.error('Error receiving pending payment:', error);
+      return { success: false, error: 'Failed to receive pending payment' };
+    }
+  },
 };

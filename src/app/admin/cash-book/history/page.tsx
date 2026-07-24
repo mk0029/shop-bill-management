@@ -20,6 +20,7 @@ import {
   CashbookCustomerGroupCard,
   groupEntriesByDateAndCustomer,
 } from "@/components/cash-book/cash-book-shared";
+import { computePendingTotals } from "@/lib/cashbook-calculations";
 
 interface User {
   _id: string;
@@ -103,8 +104,9 @@ export default function CashBookHistoryPage() {
   };
 
   const filteredEntries = entries.filter((entry) => {
+    const displayName = entry.customerName || entry.userName || "";
     const matchesSearch =
-      entry.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (entry.user?.phone && entry.user.phone.includes(searchTerm)) ||
       (entry.bill?.billNumber &&
         entry.bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -115,7 +117,8 @@ export default function CashBookHistoryPage() {
     return matchesSearch && matchesType && matchesSource && matchesUser;
   });
 
-  const groupedData = groupEntriesByDateAndCustomer(filteredEntries);
+  const pendingTotals = computePendingTotals(entries);
+  const groupedData = groupEntriesByDateAndCustomer(filteredEntries, pendingTotals);
 
   const handleViewBill = async (billId: string) => {
     try {
