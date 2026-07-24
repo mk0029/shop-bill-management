@@ -58,6 +58,35 @@ export default function CashbookDetailClient({ id }: Props) {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!book?._id) return;
+    const sub = sanityClient
+      .listen(
+        `*[_type == "cashbookItem" && cashbook._ref == $ref] | order(createdAt asc)`,
+        { ref: book._id },
+        { includeResult: true },
+      )
+      .subscribe((msg: any) => {
+        const { transition, result, documentId } = msg;
+        if (transition === "appear" || transition === "update") {
+          if (result) {
+            setItems((prev) => {
+              const exists = prev.some((i: any) => i._id === documentId);
+              if (exists) {
+                return prev.map((i: any) => (i._id === documentId ? result : i));
+              }
+              return [...prev, result].sort((a: any, b: any) =>
+                new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
+              );
+            });
+          }
+        } else if (transition === "disappear") {
+          setItems((prev) => prev.filter((i: any) => i._id !== documentId));
+        }
+      });
+    return () => sub.unsubscribe();
+  }, [book?._id]);
+
   if (loading) {
     return <div className="text-gray-400">Loading cashbook…</div>;
   }

@@ -110,6 +110,52 @@ export default function CashbookComposer({
     loadItems();
   }, [loadItems]);
 
+  // Realtime: subscribe to cashbookItem changes for this book
+  useEffect(() => {
+    const sub = sanityClient
+      .listen(
+        `*[_type == "cashbookItem" && cashbook._ref == $ref] | order(createdAt asc)`,
+        { ref: cashbookId },
+        { includeResult: true },
+      )
+      .subscribe((msg: any) => {
+        const { transition, result, documentId } = msg;
+        if (transition === "appear" || transition === "update") {
+          if (result) {
+            setItems((prev) => {
+              const exists = prev.some((i) => i._id === documentId);
+              if (exists) {
+                return prev.map((i) => (i._id === documentId ? result : i));
+              }
+              return [...prev, result].sort((a: any, b: any) =>
+                new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
+              );
+            });
+          }
+        } else if (transition === "disappear") {
+          setItems((prev) => prev.filter((i) => i._id !== documentId));
+        }
+      });
+    return () => sub.unsubscribe();
+  }, [cashbookId]);
+
+  // Realtime: subscribe to customerCashbook metadata changes (name, notes)
+  useEffect(() => {
+    const sub = sanityClient
+      .listen(
+        `*[_type == "customerCashbook" && _id == $id]{ _id, name, notes }`,
+        { id: cashbookId },
+        { includeResult: true },
+      )
+      .subscribe((msg: any) => {
+        const doc = msg.result;
+        if (!doc) return;
+        if (doc.name !== undefined) setName(doc.name);
+        if (doc.notes !== undefined) setNotes(doc.notes);
+      });
+    return () => sub.unsubscribe();
+  }, [cashbookId]);
+
   const pending = useMemo(() => items.filter((i) => !i.bill), [items]);
   const billed = useMemo(() => items.filter((i) => i.bill), [items]);
 
