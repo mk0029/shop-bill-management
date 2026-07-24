@@ -6,7 +6,9 @@ function errorResponse(code: string, message: string, status: number) {
   return NextResponse.json({ success: false, code, message }, { status, headers: SECURITY_HEADERS });
 }
 
-function buildRecoveryEmailHtml(name: string, customerId: string, secretKey: string) {
+function buildRecoveryEmailHtml(name: string, phone: string, secretKey: string) {
+  const rawDigits = phone.replace(/\D/g, "");
+  const loginPhone = rawDigits.length === 10 ? rawDigits : rawDigits.length > 10 ? rawDigits.slice(-10) : rawDigits;
   return `
     <!DOCTYPE html>
     <html>
@@ -29,8 +31,8 @@ function buildRecoveryEmailHtml(name: string, customerId: string, secretKey: str
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;margin:0 0 20px 0">
                     <tr>
                       <td style="padding:16px">
-                        <p style="margin:0 0 8px 0;font-size:13px;color:#6B7280">Customer ID</p>
-                        <p style="margin:0 0 16px 0;font-size:16px;font-weight:700;color:#0B0D12;font-family:monospace">${customerId}</p>
+                        <p style="margin:0 0 8px 0;font-size:13px;color:#6B7280">Phone Number</p>
+                        <p style="margin:0 0 16px 0;font-size:16px;font-weight:700;color:#0B0D12;font-family:monospace">${loginPhone}</p>
                         <p style="margin:0 0 8px 0;font-size:13px;color:#6B7280;border-top:1px solid #E5E7EB;padding-top:16px">Secret Key</p>
                         <p style="margin:0 0 0 0;font-size:16px;font-weight:700;color:#0B0D12;font-family:monospace">${secretKey}</p>
                       </td>
@@ -60,13 +62,15 @@ function buildRecoveryEmailHtml(name: string, customerId: string, secretKey: str
   `;
 }
 
-function buildRecoveryEmailText(name: string, customerId: string, secretKey: string) {
+function buildRecoveryEmailText(name: string, phone: string, secretKey: string) {
+  const rawDigits = phone.replace(/\D/g, "");
+  const loginPhone = rawDigits.length === 10 ? rawDigits : rawDigits.length > 10 ? rawDigits.slice(-10) : rawDigits;
   return [
     `Hello ${name},`,
     "",
     "Here are your login credentials for Jambh Electrics:",
     "",
-    `Customer ID: ${customerId}`,
+    `Phone Number: ${loginPhone}`,
     `Secret Key: ${secretKey}`,
     "",
     "For security, please change your secret key after logging in.",
@@ -82,23 +86,23 @@ export async function POST(request: Request) {
       return errorResponse("UNAUTHORIZED", "Unauthorized", 401);
     }
 
-    let body: { to?: string; name?: string; customerId?: string; secretKey?: string };
+    let body: { to?: string; name?: string; phone?: string; secretKey?: string };
     try {
       body = await request.json();
     } catch {
       return errorResponse("INVALID_JSON", "Invalid JSON", 400);
     }
 
-    const { to, name, customerId, secretKey } = body;
-    if (!to || !name || !customerId || !secretKey) {
-      return errorResponse("MISSING_FIELDS", "Missing required fields: to, name, customerId, secretKey", 400);
+    const { to, name, phone, secretKey } = body;
+    if (!to || !name || !phone || !secretKey) {
+      return errorResponse("MISSING_FIELDS", "Missing required fields: to, name, phone, secretKey", 400);
     }
 
     const result = await sendAppEmail({
       to,
       subject: "Your Jambh Electrics Login Credentials",
-      html: buildRecoveryEmailHtml(name, customerId, secretKey),
-      text: buildRecoveryEmailText(name, customerId, secretKey),
+      html: buildRecoveryEmailHtml(name, phone, secretKey),
+      text: buildRecoveryEmailText(name, phone, secretKey),
     });
 
     if (!result.sent) {

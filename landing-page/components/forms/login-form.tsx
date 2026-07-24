@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,32 +32,6 @@ export function LoginForm({
   const [formErrors, setFormErrors] = useState<Partial<LoginCredentials>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
-  const hasAutoSubmitted = useRef(false);
-
-  useEffect(() => {
-    const hasQuery =
-      typeof window !== "undefined" &&
-      typeof window.location?.search === "string" &&
-      window.location.search.length > 1;
-
-    if (!hasQuery) return;
-    if (hasAutoSubmitted.current) return;
-    if (isLoading) return;
-
-    const phoneFilled = !!formData.phone?.trim();
-    const secretFilled = !!formData.secretKey?.trim();
-    if (!phoneFilled || !secretFilled) return;
-
-    const isPhoneValid = /^\+?[1-9]\d{1,14}$/.test(formData.phone.trim());
-    const isSecretValid = formData.secretKey.trim().length > 0;
-    if (!isPhoneValid || !isSecretValid) return;
-
-    hasAutoSubmitted.current = true;
-    onSubmit(formData).catch((err) => {
-      console.error("Auto login failed:", err);
-      hasAutoSubmitted.current = false;
-    });
-  }, [formData, isLoading, onSubmit]);
 
   const validateForm = (): boolean => {
     const errors: Partial<LoginCredentials> = {};

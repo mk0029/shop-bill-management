@@ -17,7 +17,7 @@ export function LoginRecoveryModal({
   const [identifier, setIdentifier] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [deliveryMethod, setDeliveryMethod] = useState<"email" | "whatsapp">("email");
+  const [deliveryMethods, setDeliveryMethods] = useState<{ email: boolean; whatsapp: boolean }>({ email: false, whatsapp: false });
   const [error, setError] = useState("");
 
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
@@ -25,6 +25,7 @@ export function LoginRecoveryModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setError("");
 
     const cleaned = identifier.trim();
@@ -48,15 +49,21 @@ export function LoginRecoveryModal({
       if (!res.ok) {
         if (data.code === "RECOVERY_RATE_LIMITED" || data.code === "RATE_LIMITED") {
           setError("Too many attempts. Please try again later.");
+        } else if (data.code === "REQUEST_PENDING") {
+          setError("Your registration request is still pending approval. Please wait for our team to review it.");
+        } else if (data.code === "ACCOUNT_DISABLED") {
+          setError("Your account has been disabled. Please contact support for assistance.");
         } else if (data.code === "USER_NOT_FOUND") {
           setError("No account found with that email address or mobile number. Please check your information and try again.");
+        } else if (data.code === "DELIVERY_FAILED") {
+          setError("We found your account but could not deliver the credentials. Please try again or contact support.");
         } else {
           setError(data.message || "Something went wrong. Please try again.");
         }
         return;
       }
 
-      setDeliveryMethod(data.method || "email");
+      setDeliveryMethods(data.methods || { email: false, whatsapp: false });
       setSubmitted(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -68,7 +75,7 @@ export function LoginRecoveryModal({
   const resetForm = () => {
     setIdentifier("");
     setSubmitted(false);
-    setDeliveryMethod("email");
+    setDeliveryMethods({ email: false, whatsapp: false });
     setError("");
   };
 
@@ -89,17 +96,19 @@ export function LoginRecoveryModal({
               <CheckCircle className="w-6 h-6 text-green-400" />
             </div>
             <p className="text-[#B8C0CC] text-sm leading-relaxed">
-              {deliveryMethod === "whatsapp" ? (
-                <>Your login credentials have been sent via WhatsApp. Please check your messages.</>
-              ) : (
-                <>Your login credentials have been sent to your email. Please check your inbox.</>
-              )}
+              {deliveryMethods.email && deliveryMethods.whatsapp
+                ? <>Your login credentials have been sent via WhatsApp and email. Please check both.</>
+                : deliveryMethods.whatsapp
+                  ? <>Your login credentials have been sent via WhatsApp. Please check your messages.</>
+                  : <>Your login credentials have been sent to your email. Please check your inbox.</>
+              }
             </p>
-            <div className="flex items-center justify-center gap-2 text-[#B8C0CC]/60 text-xs">
-              {deliveryMethod === "whatsapp" ? (
-                <><MessageCircle className="w-3.5 h-3.5" /> Delivered via WhatsApp</>
-              ) : (
-                <><Mail className="w-3.5 h-3.5" /> Delivered via Email</>
+            <div className="flex items-center justify-center gap-3 text-[#B8C0CC]/60 text-xs">
+              {deliveryMethods.whatsapp && (
+                <span className="inline-flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> WhatsApp</span>
+              )}
+              {deliveryMethods.email && (
+                <span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</span>
               )}
             </div>
             <button

@@ -92,7 +92,14 @@ export async function POST(request: Request) {
 
     const result = await processRecovery(identifier, type);
 
-    if (!result.sent) {
+    if (!result.found) {
+      if (result.pendingRequest) {
+        return errorResponse(
+          "REQUEST_PENDING",
+          "Your registration request is still pending approval. Please wait for our team to review it, or contact support for assistance.",
+          404,
+        );
+      }
       return errorResponse(
         "USER_NOT_FOUND",
         "No account found with that email address or mobile number. Please check your information and try again.",
@@ -100,8 +107,24 @@ export async function POST(request: Request) {
       );
     }
 
+    if (result.disabled) {
+      return errorResponse(
+        "ACCOUNT_DISABLED",
+        "Your account has been disabled. Please contact support for assistance.",
+        403,
+      );
+    }
+
+    if (!result.sent) {
+      return errorResponse(
+        "DELIVERY_FAILED",
+        "We found your account but could not deliver the credentials. Please try again or contact support.",
+        500,
+      );
+    }
+
     return successResponse("Your login credentials have been sent successfully.", {
-      method: result.method,
+      methods: result.methods,
     });
   } catch (error) {
     console.error("Recovery API error:", error);
