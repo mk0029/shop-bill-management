@@ -541,6 +541,9 @@ export default function CustomerBillsPage() {
                 userName: customer.name,
                 amount: paymentAmount,
                 paymentType: "credit",
+                billNumber: existingBill?.billNumber,
+                totalAmount: Number(existingBill?.totalAmount || existingBill?.total || 0),
+                paymentStatus: paymentData.paymentStatus,
               });
 
             if (!result.success) {

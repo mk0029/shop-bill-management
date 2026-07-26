@@ -130,6 +130,9 @@ export async function POST(req: Request) {
           amount: add,
           paymentType: 'credit',
           paymentDate: new Date().toISOString(),
+          billNumber: bill.billNumber,
+          totalAmount: Number(bill.totalAmount || bill.total || 0),
+          paymentStatus,
         });
 
         if (!result.success) {

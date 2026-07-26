@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
 
     void (async () => {
       try {
-        const user = customerId
-          ? await sanityClient.fetch<{ phone?: string | null; name?: string | null; secretKey?: string | null } | null>(`*[_type=="user" && _id==$id][0]{ phone, name, secretKey }`, { id: String(customerId) })
+        const resolvedCustomerId = createdCustomerId || customerId
+        const user = resolvedCustomerId
+          ? await sanityClient.fetch<{ phone?: string | null; name?: string | null; secretKey?: string | null } | null>(`*[_type=="user" && _id==$id][0]{ phone, name, secretKey }`, { id: String(resolvedCustomerId) })
           : null
 
         const loginUrl = user?.phone
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
         }
 
         const billId = String((created as any)?._id || '')
-        await emitWaEventServer(eventType, {
+        const waResult = await emitWaEventServer(eventType, {
           billId,
           billNumber: String((created as any)?.billNumber || ''),
           customerId,
@@ -115,9 +116,10 @@ export async function POST(req: NextRequest) {
           updatedAt: (created as any)?.updatedAt || new Date().toISOString(),
           idempotencyKey: `${eventType}:${billId}:${(created as any)?.updatedAt || Date.now()}`,
         })
+        if (!waResult.ok) console.error('[WA] billing.created event failed', eventType, waResult.error)
 
       } catch (e) {
-        console.error('[WA] billing.created event failed', e)
+        console.error('[WA] billing.created event threw', e)
       }
     })()
 

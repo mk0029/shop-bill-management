@@ -9,6 +9,13 @@ function roundCurrency(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+function ensureUTC(dateStr: string | undefined | null): string {
+  if (!dateStr) return new Date().toISOString()
+  const s = String(dateStr).trim()
+  if (/Z$/i.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) return s
+  return s + "Z"
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await getServerAuth()
@@ -76,7 +83,8 @@ export async function POST(req: NextRequest) {
     const status = pendingAmount > 0 ? 'partial' : 'completed'
     const amount = receivedAmount
 
-    const createdAt = (entryData as any).createdAt ? String((entryData as any).createdAt) : new Date().toISOString()
+    const createdAtRaw = (entryData as any).createdAt ? String((entryData as any).createdAt) : new Date().toISOString()
+    const createdAt = ensureUTC(createdAtRaw)
 
     const isCustomName = !!(entryData as any).isCustomName
     let customerId = String((entryData as any).customerId || '').trim()
@@ -111,6 +119,17 @@ export async function POST(req: NextRequest) {
     } else if ((entryData as any).user && typeof (entryData as any).user === 'object') {
       const ref = (entryData as any).user
       if (ref._ref) customerId = String(ref._ref)
+    }
+
+    if ((entryData as any).bill && typeof (entryData as any).bill === 'object' && (entryData as any).bill._ref) {
+      const billRef = String((entryData as any).bill._ref)
+      const existingBillEntry = await sanityClient.fetch(
+        `*[_type == "cashBookEntry" && bill._ref == $billRef][0]._id`,
+        { billRef }
+      )
+      if (existingBillEntry) {
+        return NextResponse.json({ success: true, data: { _id: existingBillEntry }, message: 'Duplicate: entry already exists for this bill' }, { status: 200 })
+      }
     }
 
     const newEntry: any = {

@@ -150,7 +150,7 @@ export function CashbookPaymentRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 flex-wrap">
             <span className="text-sm text-white/80 font-mono">
-              {format(new Date(entry.createdAt), "hh:mm a")}
+              {formatISTTime(entry.updatedAt && normalizeToUTC(entry.updatedAt).getTime() > normalizeToUTC(entry.createdAt).getTime() ? entry.updatedAt : entry.createdAt)}
             </span>
             {entry.source !== "Bill Payment" && entry.source !== "manual" && (
               <span className="text-sm text-white/80 bg-white/[0.03] px-1.5 my-0.5 rounded">
@@ -361,6 +361,48 @@ export function CashbookCustomerGroupCard({
   );
 }
 
+export function toIST(dateInput: string | number | Date): Date {
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  const utcMs = d.getTime() + d.getTimezoneOffset() * 60_000;
+  return new Date(utcMs + 5.5 * 3600_000);
+}
+
+function normalizeToUTC(dateStr: string | undefined | null): Date {
+  if (!dateStr) return new Date(NaN);
+  const s = String(dateStr).trim();
+  if (/Z$/i.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
+    return new Date(s);
+  }
+  return new Date(s + "Z");
+}
+
+function parseEntryTime(entry: CashBookEntry): Date {
+  const updated = normalizeToUTC(entry.updatedAt);
+  const created = normalizeToUTC(entry.createdAt);
+  if (updated > created) return updated;
+  return created;
+}
+
+function formatISTDate(dateInput: string | undefined | null): string {
+  if (!dateInput) return "";
+  const d = normalizeToUTC(dateInput);
+  if (isNaN(d.getTime())) return "";
+  return format(toIST(d), "yyyy-MM-dd");
+}
+
+function formatISTTime(dateInput: string | undefined | null): string {
+  if (!dateInput) return "";
+  const d = normalizeToUTC(dateInput);
+  if (isNaN(d.getTime())) return "";
+  return format(toIST(d), "hh:mm a");
+}
+
+function getEntryDisplayDate(entry: CashBookEntry): string {
+  const ts = parseEntryTime(entry);
+  if (isNaN(ts.getTime())) return format(new Date(), "yyyy-MM-dd");
+  return format(toIST(ts), "yyyy-MM-dd");
+}
+
 export function groupEntriesByDateAndCustomer(
   entries: CashBookEntry[],
   pendingTotals?: {
@@ -378,61 +420,106 @@ export function groupEntriesByDateAndCustomer(
   function resolveCustomerId(entry: CashBookEntry): string {
     if (entry.customerId) return entry.customerId;
     if (entry.user?._id) return entry.user._id;
-    return resolveDisplayName(entry);
+    return "";
   }
 
-  const dateMap: { [date: string]: { [groupKey: string]: CashBookEntry[] } } =
-    {};
-  entries.forEach((entry) => {
-    const date = format(new Date(entry.createdAt), "yyyy-MM-dd");
-    if (!dateMap[date]) dateMap[date] = {};
+  function resolveCustomerGroupKey(entry: CashBookEntry): string {
     const cid = resolveCustomerId(entry);
-    const groupKey = `${cid}|${entry.type}|${entry.source}`;
-    if (!dateMap[date][groupKey]) dateMap[date][groupKey] = [];
-    dateMap[date][groupKey].push(entry);
-  });
+    if (cid) return `cid:${cid}`;
+    const name = (entry.customerName || entry.userName || entry.user?.name || "unnamed")
+      .trim().toLowerCase().replace(/\s+/g, " ");
+    return `name:${name}`;
+  }
+
+  const customerMap: {
+    [groupKey: string]: {
+      key: string;
+      customerName: string;
+      type: "credit" | "debit";
+      entries: CashBookEntry[];
+      isCustomName: boolean;
+      customerId: string | null;
+      latestActivityAt: number;
+    };
+  } = {};
+
+  for (const entry of entries) {
+    const groupKey = `${resolveCustomerGroupKey(entry)}|${entry.type}`;
+    if (!customerMap[groupKey]) {
+      const cid = resolveCustomerId(entry);
+      customerMap[groupKey] = {
+        key: groupKey,
+        customerName: resolveDisplayName(entry),
+        type: entry.type,
+        entries: [],
+        isCustomName: entry.isCustomName === true && !cid,
+        customerId: cid || null,
+        latestActivityAt: 0,
+      };
+    }
+    customerMap[groupKey].entries.push(entry);
+    const entryTime = parseEntryTime(entry).getTime();
+    if (Number.isFinite(entryTime) && entryTime > customerMap[groupKey].latestActivityAt) {
+      customerMap[groupKey].latestActivityAt = entryTime;
+    }
+  }
+
+  const customerGroups = Object.values(customerMap);
+
+  for (const group of customerGroups) {
+    group.entries.sort(
+      (a, b) => parseEntryTime(b).getTime() - parseEntryTime(a).getTime(),
+    );
+  }
+
+  const dateMap: { [date: string]: CustomerGroup[] } = {};
+  for (const group of customerGroups) {
+    const newestEntry = group.entries[0];
+    const date = getEntryDisplayDate(newestEntry);
+    if (!dateMap[date]) dateMap[date] = [];
+
+    const totalAmount = group.entries.reduce((sum, e) => sum + e.amount, 0);
+    const latestActivityAt = group.latestActivityAt;
+    const latestTime = formatISTTime(newestEntry?.createdAt);
+
+    let pendingTotal = 0;
+    if (pendingTotals) {
+      if (group.customerId && pendingTotals.byUser.has(group.customerId)) {
+        pendingTotal = pendingTotals.byUser.get(group.customerId) || 0;
+      } else if (pendingTotals.byCustomerName.has(group.customerName)) {
+        pendingTotal = pendingTotals.byCustomerName.get(group.customerName) || 0;
+      }
+    }
+
+    dateMap[date].push({
+      key: group.key,
+      customerName: group.customerName,
+      type: group.type,
+      source: group.entries[0].source,
+      entries: group.entries,
+      totalAmount,
+      latestTime,
+      pendingTotal,
+      isCustomName: group.isCustomName,
+      customerId: group.customerId,
+    });
+  }
 
   const result: { date: string; groups: CustomerGroup[] }[] = [];
-  for (const [date, groupMap] of Object.entries(dateMap)) {
-    const groups: CustomerGroup[] = Object.entries(groupMap).map(
-      ([key, entries]) => {
-        const sorted = [...entries].sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        const totalAmount = sorted.reduce((sum, e) => sum + e.amount, 0);
-        const latestTime = format(new Date(sorted[0].createdAt), "hh:mm a");
-
-        const displayName = resolveDisplayName(sorted[0]);
-        const customerId = resolveCustomerId(sorted[0]);
-        const firstIsCustom = sorted[0].isCustomName === true;
-
-        let pendingTotal = 0;
-        if (pendingTotals) {
-          if (customerId && pendingTotals.byUser.has(customerId)) {
-            pendingTotal = pendingTotals.byUser.get(customerId) || 0;
-          } else if (pendingTotals.byCustomerName.has(displayName)) {
-            pendingTotal = pendingTotals.byCustomerName.get(displayName) || 0;
-          }
-        }
-
-        return {
-          key,
-          customerName: displayName,
-          type: sorted[0].type,
-          source: sorted[0].source,
-          entries: sorted,
-          totalAmount,
-          latestTime,
-          pendingTotal,
-          isCustomName: firstIsCustom,
-          customerId,
-        };
-      },
-    );
+  for (const [date, groups] of Object.entries(dateMap)) {
+    groups.sort((a, b) => {
+      const aTime = a.entries[0] ? parseEntryTime(a.entries[0]).getTime() : 0;
+      const bTime = b.entries[0] ? parseEntryTime(b.entries[0]).getTime() : 0;
+      return bTime - aTime;
+    });
     result.push({ date, groups });
   }
-  return result.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
+
+  result.sort((a, b) => {
+    const aMax = a.groups[0] ? parseEntryTime(a.groups[0].entries[0]).getTime() : 0;
+    const bMax = b.groups[0] ? parseEntryTime(b.groups[0].entries[0]).getTime() : 0;
+    return bMax - aMax;
+  });
+
+  return result;
 }

@@ -29,33 +29,18 @@ const FCM_EVENTS = [
 ]
 
 async function handleWAEvent(eventType: string, payload: Record<string, any>) {
-  const rawUrl = process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL
-  const backendUrl = (rawUrl || '').replace(/\/+$/, '')
-  const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
+  const { emitWaEventServer } = await import('@/lib/wa-bot-server')
 
   const trace: any[] = []
   const t = (step: string, data: any) => trace.push({ step, ...data, ts: new Date().toISOString() })
 
-  t('config', { backendUrl: backendUrl || 'MISSING', hasSecret: !!secret, secretLen: secret.length })
-  if (!backendUrl) return { ok: false, error: 'WA_BACKEND_URL not configured', trace }
-  if (!secret) return { ok: false, error: 'WA secret not configured', trace }
-
-  const url = `${backendUrl}/api/wa/events/${eventType}`
-  t('request', { url, payload })
-
   try {
     const start = Date.now()
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', authorization: `Bearer ${secret}`, 'x-api-key': secret },
-      body: JSON.stringify(payload),
-    })
+    const result = await emitWaEventServer(eventType, payload)
     const ms = Date.now() - start
-    const text = await res.text()
-    let json: any = null
-    try { json = JSON.parse(text) } catch {}
-    t('response', { status: res.status, ok: res.ok, ms, body: json || text.slice(0, 500) })
-    return { ok: res.ok, status: res.status, response: json, trace }
+    t('response', { ms, ok: result.ok, body: result.error || 'sent' })
+    if (result.ok) return { ok: true, response: result, trace }
+    return { ok: false, error: result.error || 'send failed', trace }
   } catch (err: any) {
     t('error', { message: err.message })
     return { ok: false, error: err.message, trace }
@@ -112,19 +97,31 @@ async function handleHealthCheck(service: string) {
   const t = (step: string, data: any) => trace.push({ step, ...data, ts: new Date().toISOString() })
 
   if (service === 'wa') {
-    const rawUrl = process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL
-    const backendUrl = (rawUrl || '').replace(/\/+$/, '')
-    const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
-    t('config', { backendUrl: backendUrl || 'MISSING', hasSecret: !!secret })
-    if (!backendUrl) return { ok: false, error: 'WA backend URL not configured', trace }
+    const openwaUrl = (process.env.OPENWA_URL || '').replace(/\/+$/, '') || process.env.WA_BOT_URL?.replace(/\/+$/, '') || ''
+    const apiKey = process.env.OPENWA_API_KEY || process.env.WA_API_KEY || ''
+    t('config', { openwaUrl: openwaUrl || 'MISSING', hasApiKey: !!apiKey })
+    if (!openwaUrl) return { ok: false, error: 'OpenWA URL not configured', trace }
 
     try {
       const start = Date.now()
-      const res = await fetch(`${backendUrl}/health`, { headers: { authorization: `Bearer ${secret}`, 'x-api-key': secret } })
+      const res = await fetch(`${openwaUrl}/api/health`, { headers: { 'X-API-Key': apiKey } })
       const ms = Date.now() - start
       const json = await res.json().catch(() => ({}))
       t('response', { status: res.status, ok: res.ok, ms, body: json })
-      return { ok: res.ok, response: json, trace }
+
+      // Also check session status
+      const sid = process.env.OPENWA_SESSION_ID || ''
+      let botState = 'unknown'
+      if (sid) {
+        try {
+          const sres = await fetch(`${openwaUrl}/api/sessions/${sid}`, { headers: { 'X-API-Key': apiKey } })
+          const sj = await sres.json().catch(() => ({}))
+          botState = sj.status || 'unknown'
+          t('session', { status: sj.status, phone: sj.phone, pushName: sj.pushName })
+        } catch {}
+      }
+
+      return { ok: res.ok, response: { botState, queueSize: 0, ...json }, trace }
     } catch (err: any) {
       t('error', { message: err.message })
       return { ok: false, error: err.message, trace }
@@ -214,16 +211,15 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const rawUrl = process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL
-  const backendUrl = (rawUrl || '').replace(/\/+$/, '')
+  const openwaUrl = (process.env.OPENWA_URL || '').replace(/\/+$/, '') || process.env.WA_BOT_URL?.replace(/\/+$/, '') || ''
   const waEvents = WA_EVENTS
   const fcmEvents = FCM_EVENTS
 
   return NextResponse.json({
     ok: true,
     wa: {
-      backendUrl: backendUrl || 'NOT SET',
-      hasSecret: !!(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET),
+      backendUrl: openwaUrl || 'NOT SET',
+      hasSecret: !!(process.env.OPENWA_API_KEY || process.env.WA_API_KEY || process.env.WA_BOT_TOKEN || process.env.API_KEY),
     },
     fcm: {
       hasFirebase: !!(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.PROJECT_ID || process.env.FIREBASE_PROJECT_ID),

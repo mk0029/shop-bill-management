@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
+import { billPaymentNotes } from "@/lib/sanity-api-service";
 import {
   createAndDispatchNotification,
   getActiveAdminUserIds,
@@ -175,16 +176,33 @@ export async function POST(req: Request) {
       const bill = billsToPay.find((b: any) => b._id === op.id);
       if (!bill) continue;
       try {
-        const total = Number(bill.totalAmount || 0);
+        const existingEntry = await sanityClient.fetch(
+          `*[_type == "cashBookEntry" && bill._ref == $billId][0]._id`,
+          { billId: bill._id }
+        );
+        if (existingEntry) continue;
+
+        const total = Number(bill.total || bill.totalAmount || 0);
         const discount = Number(bill.discount || 0);
         const grandTotal = Math.max(0, total - discount);
+        const paid = Number(bill.paidAmount || 0);
+        const wasAlreadyFullyPaid = paid >= grandTotal;
+
+        const notes = billPaymentNotes({
+          billNumber: bill.billNumber,
+          paymentStatus: wasAlreadyFullyPaid ? 'paid' : 'partial',
+        });
+
         await sanityClient.create({
           _type: "cashBookEntry",
           user: { _type: "reference", _ref: customerId },
           userName: bill.customer?.name || "",
+          customerName: bill.customer?.name || "",
+          customerId: customerId,
           amount: grandTotal,
           type: "credit",
           source: "Bill Payment",
+          notes,
           bill: { _type: "reference", _ref: bill._id },
           createdAt: payDate,
           updatedAt: now,

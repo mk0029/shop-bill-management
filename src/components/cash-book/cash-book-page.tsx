@@ -17,7 +17,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { stockApi } from "@/lib/inventory-api";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -93,6 +93,7 @@ export function CashBookPage() {
   >([]);
   const [payEntry, setPayEntry] = useState<CashBookEntry | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [groupBy, setGroupBy] = useState<"day" | "week" | "month">("day");
 
   const { activeProducts, isLoading: productsLoading } = useProducts();
   const { categories } = useCategories();
@@ -197,6 +198,122 @@ export function CashBookPage() {
     filteredEntries,
     pendingTotals,
   );
+
+  const getDayLabel = (date: Date): string => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diff = Math.round((today.getTime() - d.getTime()) / 86400000);
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Yesterday";
+    return date.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getWeekLabel = (date: Date): string => {
+    const now = new Date();
+    const startOfWeek = (d: Date) => {
+      const s = new Date(d);
+      s.setDate(s.getDate() - s.getDay());
+      s.setHours(0, 0, 0, 0);
+      return s;
+    };
+    const endOfWeek = (d: Date) => {
+      const e = new Date(d);
+      e.setDate(e.getDate() + (6 - e.getDay()));
+      e.setHours(23, 59, 59, 999);
+      return e;
+    };
+    const thisWeekStart = startOfWeek(now);
+    const thisWeekEnd = endOfWeek(now);
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekEnd);
+    lastWeekEnd.setDate(lastWeekEnd.getDate() - 7);
+    if (date >= thisWeekStart && date <= thisWeekEnd) return "This Week";
+    if (date >= lastWeekStart && date <= lastWeekEnd) return "Last Week";
+    const ws = startOfWeek(date);
+    const we = endOfWeek(date);
+    const fmt = (d: Date) =>
+      d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    return `${fmt(ws)} – ${fmt(we)} ${date.getFullYear()}`;
+  };
+
+  const getMonthLabel = (date: Date): string => {
+    const now = new Date();
+    if (
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    )
+      return "This Month";
+    const lastMonth = new Date(now);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    if (
+      date.getMonth() === lastMonth.getMonth() &&
+      date.getFullYear() === lastMonth.getFullYear()
+    )
+      return "Last Month";
+    return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  };
+
+  const getTimeKey = (date: Date, mode: string): string => {
+    if (mode === "day")
+      return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    if (mode === "week") {
+      const s = new Date(date);
+      s.setDate(s.getDate() - s.getDay());
+      return `${s.getFullYear()}-${s.getMonth()}-${s.getDate()}`;
+    }
+    if (mode === "month") return `${date.getFullYear()}-${date.getMonth()}`;
+    return "";
+  };
+
+  const getTimeLabel = (date: Date, mode: string): string => {
+    if (mode === "day") return getDayLabel(date);
+    if (mode === "week") return getWeekLabel(date);
+    if (mode === "month") return getMonthLabel(date);
+    return "";
+  };
+
+  const groupedByTime = useMemo(() => {
+    type DateSection = { date: string; groups: CustomerGroup[] };
+    const map = new Map<
+      string,
+      {
+        label: string;
+        sections: DateSection[];
+        sortKey: number;
+        totalCredits: number;
+        totalDebits: number;
+      }
+    >();
+
+    for (const section of groupedData) {
+      const sectionDate = new Date(section.date + "T12:00:00");
+      const key = getTimeKey(sectionDate, groupBy);
+      const label = getTimeLabel(sectionDate, groupBy);
+      if (!map.has(key)) {
+        map.set(key, {
+          label,
+          sections: [],
+          sortKey: sectionDate.getTime(),
+          totalCredits: 0,
+          totalDebits: 0,
+        });
+      }
+      const bucket = map.get(key)!;
+      bucket.sections.push(section);
+      for (const group of section.groups) {
+        if (group.type === "credit") bucket.totalCredits += group.totalAmount;
+        else bucket.totalDebits += group.totalAmount;
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.sortKey - a.sortKey);
+  }, [groupedData, groupBy]);
   const filteredItems = filterItemsBySpecifications(activeProducts);
 
   const saleTotal = Object.values(selectedSaleItems).reduce(
@@ -579,6 +696,7 @@ export function CashBookPage() {
             className="w-full rounded-lg border border-white/[0.06] bg-white/[0.04] pl-9 pr-3 py-2 text-sm text-slate-100 outline-none backdrop-blur-xl placeholder:text-slate-500 focus:border-cyan-200/35 focus:ring-2 focus:ring-cyan-300/20 transition-all"
           />
         </div>
+
         <div className="flex items-center gap-1.5 sm:gap-2 sm:shrink-0 max-sm:w-full max-sm:*:w-full">
           <Button
             size="sm"
@@ -613,6 +731,22 @@ export function CashBookPage() {
             </Button>
           </Link>
         </div>
+      </div>
+      <div className="flex items-center justify-between gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-0.5 shrink-0">
+        {(["day", "week", "month"] as const).map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => setGroupBy(opt)}
+            className={`px-2.5 py-1 w-full text-sm rounded-full font-medium transition-all ${
+              groupBy === opt
+                ? "bg-white/10 text-white shadow-sm"
+                : "text-white/40 hover:text-white/60"
+            }`}
+          >
+            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+          </button>
+        ))}
       </div>
 
       {/* Inventory Sale Modal */}
@@ -888,30 +1022,61 @@ export function CashBookPage() {
       {/* Entries List */}
       {!isTechnician && (
         <div>
-          {groupedData.length === 0 ? (
+          {groupedByTime.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-white/[0.06] bg-white/[0.02]">
               <Wallet className="w-10 h-10 text-gray-600 mb-3" />
               <p className="text-gray-400 text-sm">No entries found</p>
             </div>
           ) : (
-            groupedData.map(({ date, groups }) => (
-              <div key={date} className="mb-8 last:mb-0">
-                <div className="sticky top-0 z-10 mb-5 px-3 sm:px-4 py-2 bg-slate-950/75 shadow-lg shadow-black/20 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55 border-b border-white/10">
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    {format(new Date(date), "EEEE, MMMM d, yyyy")}
-                  </p>
+            groupedByTime.map((bucket, bi) => (
+              <div key={bucket.label || `all-${bi}`} className="mb-6 last:mb-0">
+                <div className="sticky -top-4 z-10 mb-3 bg-[#0f172a]">
+                  <div className=" px-3 sm:px-4 py-2.5 ">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-white/90 uppercase tracking-wider">
+                        {bucket.label}
+                      </p>
+                      <div className="flex items-center gap-3 text-sm font-medium">
+                        {bucket.totalCredits > 0 && (
+                          <span className="text-emerald-400">
+                            +{formatCurrency(bucket.totalCredits)}
+                          </span>
+                        )}
+                        {bucket.totalDebits > 0 && (
+                          <span className="text-red-400">
+                            -{formatCurrency(bucket.totalDebits)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-3 sm:space-y-2">
-                  {groups.map((group) => (
-                    <CashbookCustomerGroupCard
-                      key={group.key}
-                      group={group}
-                      formatCurrency={formatCurrency}
-                      onViewBill={handleViewBill}
-                      onPayPending={(entry) => { setPayEntry(entry); setShowPayModal(true); }}
-                    />
-                  ))}
-                </div>
+                {bucket.sections.map((section) => (
+                  <div key={section.date} className="mb-5 last:mb-0">
+                    <div className="px-3 sm:px-4 mb-2">
+                      <p className="text-[10px] sm:text-[11px] font-medium text-white/30 uppercase tracking-wider">
+                        {format(
+                          new Date(section.date + "T12:00:00"),
+                          "EEEE, MMMM d, yyyy",
+                        )}
+                      </p>
+                    </div>
+                    <div className="space-y-3 sm:space-y-2">
+                      {section.groups.map((group) => (
+                        <CashbookCustomerGroupCard
+                          key={group.key}
+                          group={group}
+                          formatCurrency={formatCurrency}
+                          onViewBill={handleViewBill}
+                          onPayPending={(entry) => {
+                            setPayEntry(entry);
+                            setShowPayModal(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))
           )}
@@ -932,7 +1097,10 @@ export function CashBookPage() {
       <PayPendingModal
         entry={payEntry}
         isOpen={showPayModal}
-        onClose={() => { setShowPayModal(false); setPayEntry(null); }}
+        onClose={() => {
+          setShowPayModal(false);
+          setPayEntry(null);
+        }}
         formatCurrency={formatCurrency}
         onSubmit={async ({ entryId, paymentAmount, paymentMethod, note }) => {
           const result = await customerCashbookService.receivePendingPayment({

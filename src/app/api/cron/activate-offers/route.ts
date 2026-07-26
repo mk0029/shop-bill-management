@@ -8,10 +8,33 @@ export const dynamic = 'force-dynamic'
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET || ''
   if (!secret && process.env.NODE_ENV !== 'production') return true
+
   const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim()
   const header = req.headers.get('x-cron-secret')?.trim()
   const query = req.nextUrl.searchParams.get('secret')?.trim()
-  return Boolean(secret && (bearer === secret || header === secret || query === secret))
+
+  const hasSecret = Boolean(secret)
+  const authMethod = bearer && bearer === secret
+    ? 'bearer'
+    : header && header === secret
+      ? 'x-cron-secret'
+      : query && query === secret
+        ? 'query'
+        : 'none'
+
+  if (hasSecret && authMethod === 'none') {
+    console.warn(JSON.stringify({
+      job: 'activate-offers',
+      event: 'unauthorized',
+      hasSecret,
+      authMethod,
+      authHeaderPresent: Boolean(bearer || header || query),
+      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+      userAgent: req.headers.get('user-agent')?.slice(0, 100) || 'unknown',
+    }))
+  }
+
+  return Boolean(secret && authMethod !== 'none')
 }
 
 export async function GET(req: NextRequest) {

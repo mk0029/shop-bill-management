@@ -177,6 +177,13 @@ export default function WhatsAppBotClient() {
   const [qrStatus, setQrStatus] = useState<string>("");
   const [qrLoading, setQrLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [showSimulateForm, setShowSimulateForm] = useState(false);
+  const [simEventType, setSimEventType] = useState("billing.created");
+  const [simPhone, setSimPhone] = useState("+917015493276");
+  const [simPayload, setSimPayload] = useState('{\n  "customerName": "Test Customer",\n  "billNumber": "INV-001",\n  "totalAmount": 5000,\n  "paidAmount": 2000,\n  "balanceAmount": 3000,\n  "shopName": "Jambh Electricals"\n}');
+  const [simPreview, setSimPreview] = useState<string | null>(null);
+  const [simSending, setSimSending] = useState(false);
+  const [simLoadingPreview, setSimLoadingPreview] = useState(false);
   const lastQrFetch = useRef(0);
 
   useEffect(() => {
@@ -213,19 +220,20 @@ export default function WhatsAppBotClient() {
         if (!res.ok || json?.ok === false)
           throw new Error(json?.error || `HTTP ${res.status}`);
 
+        const isReady = json.status === "ready" || json.connected === true;
         const s: BotStatus = {
-          botState: json.botState || "unknown",
-          ready: json.ready ?? false,
-          connected: json.connected ?? false,
-          authenticated: json.authenticated ?? false,
-          hasQr: json.hasQr ?? false,
+          botState: isReady ? "ready" : (json.status || "unknown"),
+          ready: isReady,
+          connected: isReady,
+          authenticated: isReady,
+          hasQr: json.status === "qr_ready",
           queueSize: json.queueSize ?? 0,
-          lastActivityTime: json.lastActivityTime || null,
-          lastSuccessfulMessageTime: json.lastSuccessfulMessageTime || null,
-          lastError: json.lastError || null,
-          lastDisconnect: json.lastDisconnect || null,
-          lastDisconnectReason: json.lastDisconnectReason || null,
-          reconnectAttempts: json.reconnectAttempts ?? 0,
+          lastActivityTime: null,
+          lastSuccessfulMessageTime: null,
+          lastError: json.error || null,
+          lastDisconnect: null,
+          lastDisconnectReason: null,
+          reconnectAttempts: 0,
         };
 
         setStatus(s);
@@ -460,6 +468,86 @@ export default function WhatsAppBotClient() {
     } finally {
       refreshLogs();
       setTesting(false);
+      await fetchStatus(false);
+    }
+  };
+
+  const handleSimulatePreview = async () => {
+    if (!simPhone.trim() || !simEventType.trim()) {
+      toast.error("Phone & event type required");
+      return;
+    }
+    setSimLoadingPreview(true);
+    setSimPreview(null);
+    try {
+      let payload = {};
+      try { payload = JSON.parse(simPayload); } catch { toast.error("Invalid JSON payload"); setSimLoadingPreview(false); return; }
+      const res = await fetch("/api/whatsapp/simulate-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType: simEventType, phone: simPhone.trim(), payload, previewOnly: true }),
+      });
+      const json = await res.json();
+      if (json?.ok && json?.message) {
+        setSimPreview(json.message);
+        toast.success("Template rendered");
+      } else {
+        throw new Error(json?.error || "Preview failed");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Preview failed: ${msg}`);
+    } finally {
+      setSimLoadingPreview(false);
+    }
+  };
+
+  const handleSimulateSend = async () => {
+    if (!simPhone.trim() || !simEventType.trim()) {
+      toast.error("Phone & event type required");
+      return;
+    }
+    setSimSending(true);
+    addWaBotLocalLog({
+      level: "info",
+      eventType: "simulate_send",
+      phone: simPhone,
+      message: `Simulating ${simEventType} to ${simPhone}...`,
+    });
+    refreshLogs();
+    try {
+      let payload = {};
+      try { payload = JSON.parse(simPayload); } catch { toast.error("Invalid JSON payload"); setSimSending(false); return; }
+      const res = await fetch("/api/whatsapp/simulate-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType: simEventType, phone: simPhone.trim(), payload }),
+      });
+      const json = await res.json();
+      if (json?.ok) {
+        toast.success(`Template sent (${json.templateName})`);
+        setSimPreview(json.message);
+        addWaBotLocalLog({
+          level: "success",
+          eventType: "simulate_send",
+          phone: simPhone,
+          message: `Simulated ${simEventType} sent to ${simPhone}`,
+        });
+      } else {
+        throw new Error(json?.error || "Simulate send failed");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Simulate send failed: ${msg}`);
+      addWaBotLocalLog({
+        level: "error",
+        eventType: "simulate_send",
+        phone: simPhone,
+        message: `Simulate send failed: ${msg}`,
+      });
+    } finally {
+      refreshLogs();
+      setSimSending(false);
       await fetchStatus(false);
     }
   };
@@ -823,6 +911,13 @@ export default function WhatsAppBotClient() {
               {showTestForm ? "Hide Test" : "Test Send"}
             </Button>
             <Button
+              onClick={() => setShowSimulateForm(!showSimulateForm)}
+              size="sm"
+              variant={showSimulateForm ? "default" : "outline"}
+            >
+              {showSimulateForm ? "Hide Simulate" : "Simulate Template"}
+            </Button>
+            <Button
               onClick={handleRestart}
               loading={restarting}
               disabled={restarting || waking || resetting}
@@ -877,6 +972,99 @@ export default function WhatsAppBotClient() {
               >
                 Send Test
               </Button>
+            </div>
+          )}
+
+          {showSimulateForm && (
+            <div className="mt-4 border-t border-gray-800/60 pt-4">
+              <h3 className="text-sm font-semibold text-gray-300 mb-3">Simulate Message Template</h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1 font-medium">Event Type</label>
+                  <select
+                    value={simEventType}
+                    onChange={(e) => { setSimEventType(e.target.value); setSimPreview(null); }}
+                    className="!h-11 !w-full !text-sm !border-gray-700 !bg-gray-800/50 !text-gray-200 rounded-md px-3"
+                  >
+                    <optgroup label="Billing">
+                      <option value="billing.created">billing.created</option>
+                      <option value="billing.created.unpaid">billing.created.unpaid</option>
+                      <option value="billing.created.partial">billing.created.partial</option>
+                      <option value="billing.created.paid">billing.created.paid</option>
+                      <option value="billing.created.zero_balance">billing.created.zero_balance</option>
+                      <option value="billing.updated">billing.updated</option>
+                      <option value="billing.deleted">billing.deleted</option>
+                      <option value="bill.cancelled">bill.cancelled</option>
+                      <option value="bill.reminder.due">bill.reminder.due</option>
+                    </optgroup>
+                    <optgroup label="Payment">
+                      <option value="billing.payment.partial">billing.payment.partial</option>
+                      <option value="billing.payment.paid">billing.payment.paid</option>
+                      <option value="billing.payment.updated">billing.payment.updated</option>
+                      <option value="billing.payment.removed">billing.payment.removed</option>
+                      <option value="billing.multiPaid">billing.multiPaid</option>
+                      <option value="billing.bulkPaid">billing.bulkPaid</option>
+                    </optgroup>
+                    <optgroup label="Customer">
+                      <option value="customer.created">customer.created</option>
+                      <option value="customer.request.created">customer.request.created</option>
+                    </optgroup>
+                    <optgroup label="Work Task">
+                      <option value="workTask.created">workTask.created</option>
+                      <option value="workTask.updated">workTask.updated</option>
+                      <option value="workTask.completed">workTask.completed</option>
+                      <option value="workTask.cancelled">workTask.cancelled</option>
+                      <option value="workTask.hold">workTask.hold</option>
+                      <option value="urgentWork.created">urgentWork.created</option>
+                      <option value="urgentWork.completed">urgentWork.completed</option>
+                    </optgroup>
+                    <optgroup label="Tool Rent">
+                      <option value="toolRent.created">toolRent.created</option>
+                      <option value="toolRent.updated">toolRent.updated</option>
+                      <option value="toolRent.returned">toolRent.returned</option>
+                      <option value="toolRent.overdue">toolRent.overdue</option>
+                    </optgroup>
+                    <optgroup label="Scheduled">
+                      <option value="scheduled.goodMorning">scheduled.goodMorning</option>
+                      <option value="scheduled.festivalGreeting">scheduled.festivalGreeting</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1 font-medium">Phone (with country code)</label>
+                  <Input
+                    placeholder="e.g. 919876543210"
+                    value={simPhone}
+                    onChange={(e) => setSimPhone(e.target.value)}
+                    className="!h-11 !w-full !text-sm !border-gray-700 !bg-gray-800/50"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={handleSimulatePreview} loading={simLoadingPreview} disabled={simLoadingPreview || simSending} size="sm" variant="secondary">
+                    Preview
+                  </Button>
+                  <Button onClick={handleSimulateSend} loading={simSending} disabled={simSending || simLoadingPreview} size="sm">
+                    Send
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="block text-xs text-gray-500 mb-1 font-medium">Payload (JSON)</label>
+                <textarea
+                  value={simPayload}
+                  onChange={(e) => setSimPayload(e.target.value)}
+                  rows={6}
+                  className="!w-full !text-sm !border-gray-700 !bg-gray-800/50 !text-gray-200 rounded-md px-3 py-2 font-mono resize-y"
+                />
+              </div>
+              {simPreview && (
+                <div className="mt-3">
+                  <label className="block text-xs text-gray-500 mb-1 font-medium">Rendered Preview</label>
+                  <pre className="!w-full !text-sm !border-gray-700 !bg-gray-950 !text-gray-300 rounded-md px-3 py-2 whitespace-pre-wrap font-sans max-h-60 overflow-y-auto">
+                    {simPreview}
+                  </pre>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

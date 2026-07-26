@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { getServerAuth } from "@/lib/server-auth";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
+import { billPaymentNotes } from "@/lib/sanity-api-service";
 import {
   createAndDispatchNotification,
   getActiveAdminUserIds,
@@ -218,21 +219,42 @@ export async function POST(req: Request) {
 
     // Create ONE cashbook entry instead of many
     try {
-      await sanityClient.create({
-        _type: "cashBookEntry",
-        user: { _type: "reference", _ref: customerId },
-        userName: customerDoc?.name || "Customer",
-        amount: totalApplied,
-        type: "credit",
-        source: "Bill Payment",
-        bill: billsToPay.length === 1 ? { _type: "reference", _ref: billsToPay[0]._id } : undefined,
-        appliedBills: appliedBillsData,
-        billCount: patchOps.length,
-        fullyPaidCount: fullyPaidBills.length,
-        partialCount: partialBillNumber ? 1 : 0,
-        createdAt: payDate,
-        updatedAt: now,
-      });
+      let anyAlreadyHasEntry = false;
+      for (const ab of appliedBillsData) {
+        const billRef = ab.billRef?._ref;
+        if (!billRef) continue;
+        const existing = await sanityClient.fetch(
+          `*[_type == "cashBookEntry" && bill._ref == $billRef][0]._id`,
+          { billRef }
+        );
+        if (existing) { anyAlreadyHasEntry = true; break; }
+      }
+
+      if (!anyAlreadyHasEntry) {
+        const entryNotes = billPaymentNotes({
+          billCount: patchOps.length,
+          paymentStatus: fullyPaidBills.length === patchOps.length ? 'paid' : 'partial',
+        });
+
+        await sanityClient.create({
+          _type: "cashBookEntry",
+          user: { _type: "reference", _ref: customerId },
+          userName: customerDoc?.name || "Customer",
+          customerName: customerDoc?.name || "Customer",
+          customerId: customerId,
+          amount: totalApplied,
+          type: "credit",
+          source: "Bill Payment",
+          notes: entryNotes,
+          bill: billsToPay.length === 1 ? { _type: "reference", _ref: billsToPay[0]._id } : undefined,
+          appliedBills: appliedBillsData,
+          billCount: patchOps.length,
+          fullyPaidCount: fullyPaidBills.length,
+          partialCount: partialBillNumber ? 1 : 0,
+          createdAt: payDate,
+          updatedAt: now,
+        });
+      }
     } catch (e) {
       console.error("[PayMultiple] cashbook entry creation failed:", e);
     }

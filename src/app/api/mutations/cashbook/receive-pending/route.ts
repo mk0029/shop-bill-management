@@ -9,6 +9,13 @@ function roundCurrency(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+function ensureUTC(dateStr: string | undefined | null): string {
+  if (!dateStr) return new Date().toISOString()
+  const s = String(dateStr).trim()
+  if (/Z$/i.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) return s
+  return s + "Z"
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await getServerAuth()
@@ -27,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const entryId = String(body?.entryId || '').trim()
     const paymentAmount = Number(body?.paymentAmount || 0)
-    const paymentDate = body?.paymentDate ? String(body.paymentDate) : new Date().toISOString()
+    const paymentDate = ensureUTC(body?.paymentDate ? String(body.paymentDate) : undefined)
     const paymentMethod = String(body?.paymentMethod || 'cash').trim()
     const note = String(body?.note || '').trim()
 

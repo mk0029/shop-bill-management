@@ -13,6 +13,7 @@ import { checkDuplicates } from "@/lib/customer-registration/duplicate-checker";
 import { generateRequestId, generateDeviceToken } from "@/lib/customer-registration/token-service";
 import { checkIdentityRateLimit } from "@/lib/security/identity-rate-limiter";
 import { sendNotificationToAdmins } from "@/services/notifications/notification-events.server";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 async function sendWAToSuperAdmins(eventType: string, payload: Record<string, any>) {
   try {
@@ -23,20 +24,10 @@ async function sendWAToSuperAdmins(eventType: string, payload: Record<string, an
     const superAdmins = (admins || []).filter(a => a.phone)
     if (!superAdmins.length) return
 
-    const rawUrl = process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL
-    const backendUrl = (rawUrl || "").replace(/\/+$/, "")
-    const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || "").trim()
-    if (!backendUrl || !secret) return
-
-    const url = `${backendUrl}/api/wa/events/${eventType}`
     for (const admin of superAdmins) {
       const phone = String(admin.phone || "").replace(/\D/g, "")
       if (!phone || phone.length < 7) continue
-      fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${secret}`, "x-api-key": secret },
-        body: JSON.stringify({ ...payload, phone, customerPhone: phone, customerName: admin.name || "Admin" }),
-      }).catch(() => {})
+      emitWaEventServer(eventType, { ...payload, phone, customerPhone: phone, customerName: admin.name || "Admin" })
     }
   } catch {
     // silent — WA is best-effort for admin alerts

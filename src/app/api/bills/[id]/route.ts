@@ -269,6 +269,11 @@ export async function PATCH(
           const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, billNumber, paidAmount, customer->{_id, name} }`, { id });
           
           if (bill && bill.customer) {
+            // Determine payment status from paid amount
+            const paidAmount = Number(bill.paidAmount || 0) + Number(paymentDelta);
+            const totalAmount = Number((bill as any).totalAmount || (bill as any).total || 0);
+            const paymentStatus = totalAmount > 0 && paidAmount >= totalAmount ? 'paid' : 'partial';
+
             const result = await sanityApiService.cashBook.createEntryFromBillPayment({
               billId: id,
               userId: bill.customer._id,
@@ -276,6 +281,9 @@ export async function PATCH(
               amount: Number(paymentDelta),
               paymentType: 'credit',
               paymentDate: paymentTimestamp,
+              billNumber: bill.billNumber,
+              totalAmount,
+              paymentStatus,
             });
             
             if (result.success) {

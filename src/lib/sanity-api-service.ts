@@ -1576,6 +1576,41 @@ export const onlineApiService = {
 };
 
 // Cash Book API Service
+export function billPaymentNotes(opts: {
+  billNumber?: string;
+  billCount?: number;
+  paymentStatus?: string;
+  context?: string;
+}): string {
+  const { billNumber, billCount, paymentStatus, context } = opts;
+
+  if (context === 'reversal') {
+    return billNumber
+      ? `Payment reversed due to bill cancellation for Bill ${billNumber}`
+      : 'Payment reversed due to bill cancellation';
+  }
+  if (context === 'refund') {
+    return billNumber
+      ? `Refund issued for Bill ${billNumber}`
+      : 'Refund issued';
+  }
+  if (context === 'advance') {
+    return 'Advance payment received';
+  }
+  if (billCount && billCount > 1) {
+    return `Payment received for ${billCount} bills`;
+  }
+  if (paymentStatus === 'partial') {
+    return billNumber
+      ? `Partial payment received for Bill ${billNumber}`
+      : 'Partial payment received';
+  }
+  if (billNumber) {
+    return `Payment received for Bill ${billNumber}`;
+  }
+  return 'Payment received';
+}
+
 export const cashBookApiService = {
   /**
    * Get all cash book entries
@@ -1696,9 +1731,18 @@ export const cashBookApiService = {
     amount: number;
     paymentType: 'credit' | 'debit';
     paymentDate?: string;
+    billNumber?: string;
+    totalAmount?: number;
+    paymentStatus?: string;
+    context?: string;
   }): Promise<ApiResponse<any>> {
     try {
       const now = new Date().toISOString();
+      const notes = billPaymentNotes({
+        billNumber: paymentData.billNumber,
+        paymentStatus: paymentData.paymentStatus,
+        context: paymentData.context,
+      });
       const entryData = {
         user: {
           _type: "reference",
@@ -1714,8 +1758,9 @@ export const cashBookApiService = {
         status: 'completed' as const,
         type: paymentData.paymentType,
         source: "Bill Payment",
+        notes,
         bill: {
-          _type: "reference", 
+          _type: "reference",
           _ref: paymentData.billId
         },
         createdAt: paymentData.paymentDate || now,

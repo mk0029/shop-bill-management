@@ -1,30 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-
-async function postBackendReminder(payload: Record<string, unknown>) {
-  const baseUrl = (process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL || "").replace(/\/+$/, "");
-  const secret = process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || "";
-  if (!baseUrl || !secret) {
-    throw new Error("Bill reminder backend config missing (NOTIFICATION_API_URL/NOTIFY_API_SECRET)");
-  }
-  const res = await fetch(`${baseUrl}/bill-reminder/send-reminder`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": secret,
-      authorization: `Bearer ${secret}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.error || `Bill reminder backend failed (${res.status})`);
-  return json;
-}
+import { sendWhatsAppNotification } from "@/lib/send-whatsapp-notification";
+import { notificationTemplates } from "@/lib/notifications/template-engine";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const customerId = String(body?.customerId || "").trim();
     const billId = String(body?.billId || "").trim();
+    const phone = String(body?.phone || "").replace(/\D/g, "");
+    const customerName = String(body?.customerName || "Customer");
     const previewOnly = Boolean(body?.previewOnly);
 
     if (!customerId && !billId) {
@@ -32,26 +16,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (previewOnly) {
-      return NextResponse.json({
-        success: true,
-        previewOnly: true,
-        message: "Preview is handled by the backend reminder engine. Send without previewOnly to dispatch a manual reminder.",
-      });
+      return NextResponse.json({ success: true, previewOnly: true, message: "Preview is handled by the local engine." });
     }
 
-    const result = await postBackendReminder({
-      customerId: customerId || undefined,
-      billId: billId || undefined,
-      customMessage: body?.customMessage,
-      adminId: body?.adminId || body?.actorUserId || "frontend-admin",
+    if (!phone) {
+      return NextResponse.json({ success: false, error: "Customer phone number is required" }, { status: 400 });
+    }
+
+    const bills = body.bills || (billId ? [{ _id: billId, billNumber: body.billNumber, totalAmount: body.totalAmount, paidAmount: body.paidAmount, balanceAmount: body.balanceAmount, dueDate: body.dueDate }] : []);
+    const message = notificationTemplates.paymentReminder({ customer: { name: customerName }, bills });
+
+    const result = await sendWhatsAppNotification({
+      eventType: "due_reminder",
+      phone,
+      message,
+      metadata: { entityId: billId || customerId, adminId: body?.adminId || "frontend-admin" },
     });
 
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({ success: result.ok, ...(result.error ? { error: result.error } : {}) });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error?.message || "Failed to process due reminder" },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: error?.message || "Failed to process due reminder" }, { status: 500 });
   }
 }
-

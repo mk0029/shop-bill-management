@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/server-auth";
+import { sendWhatsAppNotification } from "@/lib/send-whatsapp-notification";
+import { notificationTemplates } from "@/lib/notifications/template-engine";
 
 const RATE_LIMIT_MS = 5 * 60 * 1000;
-
 const reminderTimestamps = new Map<string, number>();
 
 function isRateLimited(billId: string, customerId: string) {
@@ -13,140 +14,72 @@ function isRateLimited(billId: string, customerId: string) {
 }
 
 function markReminderSent(billId: string, customerId: string) {
-  const key = `${billId}:${customerId}`;
-  reminderTimestamps.set(key, Date.now());
-}
-
-async function postToReminderBackend(payload: Record<string, unknown>) {
-  const baseUrl = (
-    process.env.WA_BACKEND_URL ||
-    process.env.WA_BOT_URL ||
-    process.env.WHATSAPP_BACKEND_URL ||
-    process.env.NOTIFICATION_API_URL ||
-    ""
-  ).replace(/\/+$/, "");
-
-  const secret =
-    process.env.WA_BOT_TOKEN ||
-    process.env.API_KEY ||
-    process.env.WA_EVENT_SECRET ||
-    process.env.NOTIFY_API_SECRET ||
-    "";
-
-  if (!baseUrl || !secret) {
-    throw new Error(
-      "Bill reminder backend config missing (NOTIFICATION_API_URL/NOTIFY_API_SECRET)"
-    );
-  }
-
-  const res = await fetch(`${baseUrl}/bill-reminder/send-reminder`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": secret,
-      authorization: `Bearer ${secret}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(
-      json?.error || `Bill reminder backend failed (${res.status})`
-    );
-  }
-  return json;
+  reminderTimestamps.set(`${billId}:${customerId}`, Date.now());
 }
 
 export async function POST(req: NextRequest) {
   try {
     const auth = await getServerAuth();
     if (!auth.isAuthenticated) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
-
     if (auth.role !== "admin" && auth.role !== "super_admin") {
-      return NextResponse.json(
-        { success: false, error: "Only Admin or Super Admin can send manual reminders" },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: "Only Admin or Super Admin can send manual reminders" }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({}));
     const { reminders, reminderType = "manual_bill_reminder" } = body;
 
     if (!Array.isArray(reminders) || reminders.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "reminders array is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "reminders array is required" }, { status: 400 });
     }
-
     if (reminders.length > 50) {
-      return NextResponse.json(
-        { success: false, error: "Maximum 50 reminders per batch" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Maximum 50 reminders per batch" }, { status: 400 });
     }
 
-    const results: Array<{
-      billId: string;
-      customerId: string;
-      status: "sent" | "failed" | "rate_limited" | "skipped_paid";
-      error?: string;
-    }> = [];
+    const results: Array<{ billId: string; customerId: string; status: string; error?: string }> = [];
 
     for (const reminder of reminders) {
-      const { billId, customerId, paymentStatus } = reminder;
+      const { billId, customerId, paymentStatus, phone, customerName } = reminder;
 
       if (paymentStatus === "paid") {
-        results.push({
-          billId,
-          customerId,
-          status: "skipped_paid",
-        });
+        results.push({ billId, customerId, status: "skipped_paid" });
         continue;
       }
 
       if (billId && isRateLimited(billId, customerId)) {
-        results.push({
-          billId,
-          customerId,
-          status: "rate_limited",
-          error: "Sent recently",
-        });
+        results.push({ billId, customerId, status: "rate_limited", error: "Sent recently" });
         continue;
       }
 
       try {
-        await postToReminderBackend({
-          customerId: customerId || undefined,
-          billId: billId || undefined,
-          reminderType,
-          adminId: auth.userId || auth.customerId || "frontend-admin",
-          adminName: (auth.user?.name as string) || "Admin",
-          manualTrigger: true,
-        });
-
-        if (billId && customerId) {
-          markReminderSent(billId, customerId);
+        if (!phone) {
+          results.push({ billId, customerId, status: "failed", error: "No phone number" });
+          continue;
         }
 
+        const message = notificationTemplates.paymentReminder({
+          customer: { name: customerName || "Customer" },
+          bills: reminder.bills || (billId ? [{ _id: billId, billNumber: reminder.billNumber, totalAmount: reminder.totalAmount, paidAmount: reminder.paidAmount, balanceAmount: reminder.balanceAmount, dueDate: reminder.dueDate }] : []),
+        });
+
+        const sendResult = await sendWhatsAppNotification({
+          eventType: reminderType,
+          phone,
+          message,
+          metadata: { entityId: billId || customerId, adminId: auth.userId },
+        });
+
+        if (sendResult.ok && billId && customerId) markReminderSent(billId, customerId);
+
         results.push({
           billId,
           customerId,
-          status: "sent",
+          status: sendResult.ok ? "sent" : "failed",
+          error: sendResult.error,
         });
       } catch (error: any) {
-        results.push({
-          billId,
-          customerId,
-          status: "failed",
-          error: error?.message || "Failed to send",
-        });
+        results.push({ billId, customerId, status: "failed", error: error?.message || "Failed to send" });
       }
     }
 
@@ -158,21 +91,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       results,
-      summary: {
-        total: reminders.length,
-        sent,
-        failed,
-        rateLimited,
-        skippedPaid,
-      },
+      summary: { total: reminders.length, sent, failed, rateLimited, skippedPaid },
     });
   } catch (error: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: error?.message || "Failed to process bulk reminders",
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error?.message || "Failed to process bulk reminders" }, { status: 500 });
   }
 }

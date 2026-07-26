@@ -3,7 +3,7 @@ import { getServerAuth } from "@/lib/server-auth";
 
 export const maxDuration = 60;
 
-const BACKEND_URL = process.env.PAYMENT_VERIFICATION_API_URL || "https://shop-wa-bot-keu5.onrender.com";
+const BACKEND_URL = process.env.PAYMENT_VERIFICATION_API_URL || "https://open-wa-bot.onrender.com";
 const WA_API_KEY = process.env.WA_API_KEY || "3d3a7f2c3bwldkkfjwdbwdfwrfewrfewrfewrfewf2344r45454r323443re23fet34trwfwef23rf24gt34t5rt4252544242242314re2fwrfer4r3gdf4b69a9d9d5a0b0d8c1b5";
 
 export async function POST(request: NextRequest) {

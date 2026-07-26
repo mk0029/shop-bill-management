@@ -458,32 +458,19 @@ const EVENTS: Record<string, SimEvent> = {
 }
 
 async function fireWA(eventType: string, payload: Record<string, any>) {
-  const rawUrl = process.env.WA_BACKEND_URL || process.env.WA_BOT_URL || process.env.WHATSAPP_BACKEND_URL || process.env.NOTIFICATION_API_URL
-  const backendUrl = (rawUrl || '').replace(/\/+$/, '')
-  const secret = String(process.env.WA_BOT_TOKEN || process.env.API_KEY || process.env.WA_EVENT_SECRET || process.env.NOTIFY_API_SECRET || '').trim()
+  const { emitWaEventServer } = await import('@/lib/wa-bot-server')
 
   const trace: any[] = []
   const log = (step: string, data: any) => trace.push({ step, ...data, ts: new Date().toISOString() })
 
   log('fire_wa', { eventType, phone: String(payload.phone || '').slice(0, 4) + '****' })
 
-  if (!backendUrl) { log('skip', { reason: 'WA_BACKEND_URL not configured' }); return { ok: false, error: 'WA_BACKEND_URL not configured', trace } }
-  if (!secret) { log('skip', { reason: 'WA secret not configured' }); return { ok: false, error: 'WA secret not configured', trace } }
-
-  const url = `${backendUrl}/api/wa/events/${eventType}`
   try {
     const start = Date.now()
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', authorization: `Bearer ${secret}`, 'x-api-key': secret },
-      body: JSON.stringify({ ...payload, _simulated: true }),
-    })
+    const result = await emitWaEventServer(eventType, { ...payload, _simulated: true })
     const ms = Date.now() - start
-    const text = await res.text()
-    let json: any = null
-    try { json = JSON.parse(text) } catch {}
-    log('response', { status: res.status, ok: res.ok, ms, body: json || text.slice(0, 500) })
-    return { ok: res.ok, status: res.status, response: json, trace }
+    log('response', { ms, ok: result.ok, body: result.error || 'sent' })
+    return { ok: result.ok, response: result, trace }
   } catch (err: any) {
     log('error', { message: err.message })
     return { ok: false, error: err.message, trace }
@@ -682,7 +669,7 @@ export async function POST(req: NextRequest) {
   const simEvent = EVENTS[eventType]
   if (!simEvent) return NextResponse.json({ ok: false, error: `Unknown event: ${eventType}. Available: ${Object.keys(EVENTS).join(', ')}` }, { status: 400 })
 
-  const payload = simEvent.buildPayload({ phone, name })
+    const payload = simEvent.buildPayload({ phone, name })
   const channels = targetChannels || simEvent.channels
   const results: Record<string, any> = {}
 

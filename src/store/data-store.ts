@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
-import { syncSingleBillPayment } from "@/lib/bill-payment-sync";
 import { getCookie } from "@/lib/cookies";
 import { useAuthStore } from "@/store/auth-store";
 import { useBillBookStore } from "@/store/bill-book-store";
@@ -1260,117 +1259,13 @@ export const useDataStore = create<DataStore>((set, get) => ({
       }
       // The real-time listener will automatically update the local state
 
-      // Create cash book entry for paid/partial bills (non-blocking)
-      const nextStatus = (result as any)?.paymentStatus ?? (updates as any)?.paymentStatus;
-      if (['paid', 'partial'].includes(nextStatus)) {
-        syncSingleBillPayment(String((result as any)?._id ?? _id))
-          .then((syncResult) => {
-            if (!syncResult.success) {
-              console.warn('⚠️ Failed to create cash book entry:', syncResult.message);
-            }
-          })
-          .catch((error) => {
-            console.error('❌ Cash book sync error:', error);
-          });
-      }
-
-      // Fire-and-forget notifications (client-only)
+      // Mark recent update to suppress self-toasts elsewhere if applicable
       try {
         if (typeof window !== "undefined") {
-          // Mark recent update to suppress self-toasts elsewhere if applicable
-          try {
-            const key = "recentUpdatedBillIds";
-            const arr = JSON.parse(window.sessionStorage.getItem(key) || "[]");
-            const next = [{ id: String((result as any)?._id ?? billId), t: Date.now() }, ...arr].slice(0, 20);
-            window.sessionStorage.setItem(key, JSON.stringify(next));
-          } catch {}
-
-          // Determine customer id from result or previous
-          const customerId: string | null = (result as any)?.customer?._ref || (result as any)?.customer?._id || prev?.customer?._id || null;
-
-          // Notify customer on paymentStatus changes (more specific message)
-          const prevStatus = prev?.paymentStatus;
-          const nextStatus = (result as any)?.paymentStatus ?? (updates as any)?.paymentStatus;
-          if (customerId && prevStatus !== nextStatus) {
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId: `billing.updated.${String((result as any)?._id ?? _id)}.status.${String(nextStatus ?? 'updated')}`,
-                eventType: 'billing.updated',
-                title: 'Bill updated',
-                body: `Status: ${String(nextStatus ?? 'updated')}`,
-                userIds: [customerId],
-                data: {
-                  billId: String((result as any)?._id ?? _id),
-                  role: 'customer',
-                  customerId: String(customerId),
-                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? _id))}`,
-                  route_path: '/customer/bills',
-                },
-                sound: 'default',
-              }),
-            }).catch(() => {});
-          }
-
-          // Always notify customer generically on any update
-          if (customerId) {
-            const billNo: string = (result as any)?.billNumber ?? prev?.billNumber ?? '';
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId: `billing.updated.${String((result as any)?._id ?? _id)}.customer`,
-                eventType: 'billing.updated',
-                title: 'Bill updated',
-                body: billNo ? `Bill ${billNo} was updated` : 'Your bill was updated',
-                userIds: [customerId],
-                data: {
-                  billId: String((result as any)?._id ?? _id),
-                  event: 'bill-updated',
-                  role: 'customer',
-                  customerId: String(customerId),
-                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? _id))}`,
-                  route_path: '/customer/bills',
-                },
-                sound: 'default',
-              }),
-            }).catch(() => {});
-          }
-
-          // Admin-wide notification excluding the actor
-          try {
-            const actorId = (function getActorId(){
-              try {
-                const raw = getCookie('auth-storage');
-                if (!raw) return null as string | null;
-                const parsed = JSON.parse(decodeURIComponent(raw));
-                return parsed?.state?.user?.id ?? null;
-              } catch {
-                return null;
-              }
-            })();
-            const billNo = (result as any)?.billNumber ?? prev?.billNumber ?? '';
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                audience: 'admins',
-                eventId: `billing.updated.${String((result as any)?._id ?? _id)}.admins`,
-                eventType: 'billing.updated',
-                actorUserId: actorId || undefined,
-                title: 'Bill updated',
-                body: billNo ? `Bill ${billNo} was updated` : 'A bill was updated',
-                data: {
-                  billId: String((result as any)?._id ?? _id),
-                  event: 'bill-updated',
-                  billNumber: String(billNo),
-                  route: `/admin/billing?open=${encodeURIComponent(String((result as any)?._id ?? _id))}`,
-                },
-                excludeUserIds: actorId ? [actorId] : undefined,
-              }),
-            }).catch(() => {});
-          } catch {}
+          const key = "recentUpdatedBillIds";
+          const arr = JSON.parse(window.sessionStorage.getItem(key) || "[]");
+          const next = [{ id: String((result as any)?._id ?? billId), t: Date.now() }, ...arr].slice(0, 20);
+          window.sessionStorage.setItem(key, JSON.stringify(next));
         }
       } catch {}
 
