@@ -3,9 +3,9 @@ import { createClient } from '@sanity/client';
 
 // Sanity client factory
 const getSanityClient = () => {
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'idji8ni7';
+  const projectId = process.env.SANITY_PROJECT_ID || 'idji8ni7';
   const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'live-shop';
-  const token = process.env.SANITY_API_WRITE_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN;
+  const token = process.env.SANITY_API_WRITE_TOKEN || process.env.SANITY_API_TOKEN;
 
   if (!token) {
     console.error('Sanity API token is not configured');

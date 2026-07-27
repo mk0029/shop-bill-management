@@ -35,10 +35,11 @@ export async function POST(req: NextRequest) {
         result: { error: error instanceof Error ? error.message : "Backend registration failed" },
       }));
     return NextResponse.json({
-      success: backend.ok && backend.result?.success !== false,
+      success: true,
+      localRegistered: true,
       data: local,
       backendRegistered: backend.ok && backend.result?.success !== false,
-      ...(backend.ok ? {} : { backendError: backend.result?.error || "Backend registration failed" }),
+      ...(backend.ok ? {} : { warning: backend.result?.error || "Backend registration failed" }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";

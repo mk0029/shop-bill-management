@@ -5,7 +5,7 @@ const { createClient } = require("@sanity/client");
 
 // Configure your Sanity client
 const client = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+  projectId: process.env.SANITY_PROJECT_ID,
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || "production",
   useCdn: false,
   apiVersion: "2024-01-01",
@@ -13,7 +13,6 @@ const client = createClient({
 });
 
 async function updateCategoryFieldMappings() {
-
   try {
     // First, fetch all categories to create a mapping from slug to ID
     const categories = await client.fetch(`
@@ -23,7 +22,6 @@ async function updateCategoryFieldMappings() {
         slug
       }
     `);
-
 
     const categoryMap = {};
     categories.forEach((cat) => {
@@ -49,8 +47,6 @@ async function updateCategoryFieldMappings() {
       const categoryId = categoryMap[mapping.categoryName];
 
       if (categoryId) {
-     
-
         await client
           .patch(mapping._id)
           .set({
@@ -61,11 +57,9 @@ async function updateCategoryFieldMappings() {
           })
           .unset(["categoryName"]) // Remove the old categoryName field
           .commit();
-
       } else {
       }
     }
-
   } catch (error) {
     console.error("❌ Migration failed:", error);
     process.exit(1);

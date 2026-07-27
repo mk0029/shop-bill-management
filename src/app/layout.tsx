@@ -135,7 +135,7 @@ export const metadata: Metadata = {
       { url: "/je-192.ico", sizes: "192x192", type: "image/x-icon" },
       { url: "/je-512.ico", sizes: "512x512", type: "image/x-icon" },
     ],
-    apple: [
+apple: [
       { url: "/je-p-192.png", sizes: "192x192", type: "image/png" },
       { url: "/je-p-512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -615,7 +615,6 @@ export default function RootLayout({
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(speakableSchema) }}
         />
-
         <Script id="disable-number-input-scroll" strategy="afterInteractive">
           {`
               function disableNumberInputScroll() {
