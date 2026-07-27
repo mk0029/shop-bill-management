@@ -171,29 +171,27 @@ export async function POST(req: Request) {
     }
     await tx.commit();
 
-    // Create cashbook entries (fire-and-forget per bill)
-    for (const op of patchOps) {
-      const bill = billsToPay.find((b: any) => b._id === op.id);
-      if (!bill) continue;
-      try {
-        const existingEntry = await sanityClient.fetch(
-          `*[_type == "cashBookEntry" && bill._ref == $billId][0]._id`,
-          { billId: bill._id }
-        );
-        if (existingEntry) continue;
+    // Create cashbook entries in batch (single query + single transaction)
+    try {
+      const billIds = patchOps.map(op => op.id);
+      const existingIds: string[] = billIds.length ? await sanityClient.fetch(
+        `*[_type == "cashBookEntry" && bill._ref in $billIds].bill._ref`,
+        { billIds }
+      ) : [];
+
+      const existingSet = new Set(existingIds);
+      const cbeTx = sanityClient.transaction();
+      let hasEntries = false;
+      for (const op of patchOps) {
+        if (existingSet.has(op.id)) continue;
+        const bill = billsToPay.find((b: any) => b._id === op.id);
+        if (!bill) continue;
 
         const total = Number(bill.total || bill.totalAmount || 0);
         const discount = Number(bill.discount || 0);
         const grandTotal = Math.max(0, total - discount);
-        const paid = Number(bill.paidAmount || 0);
-        const wasAlreadyFullyPaid = paid >= grandTotal;
 
-        const notes = billPaymentNotes({
-          billNumber: bill.billNumber,
-          paymentStatus: wasAlreadyFullyPaid ? 'paid' : 'partial',
-        });
-
-        await sanityClient.create({
+        cbeTx.create({
           _type: "cashBookEntry",
           user: { _type: "reference", _ref: customerId },
           userName: bill.customer?.name || "",
@@ -202,14 +200,16 @@ export async function POST(req: Request) {
           amount: grandTotal,
           type: "credit",
           source: "Bill Payment",
-          notes,
+          notes: billPaymentNotes({ billNumber: bill.billNumber, paymentStatus: 'paid' }),
           bill: { _type: "reference", _ref: bill._id },
           createdAt: payDate,
           updatedAt: now,
         });
-      } catch (e) {
-        console.error("[PayAll] cashbook entry failed for", op.id, e);
+        hasEntries = true;
       }
+      if (hasEntries) await cbeTx.commit();
+    } catch (e) {
+      console.error("[PayAll] cashbook entries failed:", e);
     }
 
     // Fetch customer info for notifications

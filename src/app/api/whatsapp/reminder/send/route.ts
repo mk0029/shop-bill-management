@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/server-auth";
-import { sendWhatsAppNotification } from "@/lib/send-whatsapp-notification";
-import { notificationTemplates } from "@/lib/notifications/template-engine";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 const RATE_LIMIT_MS = 5 * 60 * 1000;
 const reminderTimestamps = new Map<string, number>();
@@ -50,16 +49,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Customer phone number is required" }, { status: 400 });
     }
 
-    const message = notificationTemplates.paymentReminder({
-      customer: { name: customerName },
+    const result = await emitWaEventServer("billing.reminder", {
+      customerId, billId, customerName, customerPhone: phone,
       bills: body.bills || (billId ? [{ _id: billId, billNumber: body.billNumber, totalAmount: body.totalAmount, paidAmount: body.paidAmount, balanceAmount: body.balanceAmount, dueDate: body.dueDate }] : []),
-    });
-
-    const result = await sendWhatsAppNotification({
-      eventType: reminderType,
-      phone,
-      message,
-      metadata: { entityId: billId || customerId, adminId: auth.userId },
+      eventId: `${reminderType}.${billId || customerId}`,
     });
 
     if (billId && customerId) markReminderSent(billId, customerId);

@@ -9,6 +9,7 @@ import { updateStockForBill } from "@/lib/inventory-management";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 import { safeUserName } from "@/lib/display-text";
 import { resolveBillEvents, emitBillEventsInBackground } from "@/lib/bill-events";
+import { calculatePaymentWithRoundFigureDiscount, toMoney, BILL_EPSILON } from "@/lib/bill-utils";
 
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
   return await sanityClient.fetch(
@@ -79,21 +80,13 @@ export async function PATCH(
       );
     }
 
-    // Fetch previous snapshot for change detection (best-effort)
+    // Fetch bill snapshot ONCE with all fields needed downstream
     const prev = await (async () => {
       try {
         return await sanityClient.fetch(
           `*[_type == "bill" && _id == $id][0]{
-            _id,
-            billNumber,
-            status,
-            paymentStatus,
-            totalAmount,
-            discount,
-            paidAmount,
-            balanceAmount,
-            serviceType,
-            dueDate,
+            _id, billNumber, status, paymentStatus, totalAmount, discount,
+            paidAmount, balanceAmount, paymentMethod, paymentDate, serviceType, dueDate,
             technician->{_id, name},
             customer->{_id, phone, name}
           }`,
@@ -168,36 +161,50 @@ export async function PATCH(
     // Always set updatedAt
     updates["updatedAt"] = new Date().toISOString();
 
-    // Patch published doc
-    const startTime = Date.now();
+    // Compute payment delta from prev + body
+    const prevPaid = Number(prev?.paidAmount ?? 0);
+    const nextPaid = typeof body.paidAmount !== "undefined" ? Number(body.paidAmount) : undefined;
+    const paymentDelta = typeof nextPaid === "number" && Number.isFinite(nextPaid) ? nextPaid - prevPaid : 0;
+
+    // Calculate round figure discount if applicable (only for individual payments)
+    if (paymentDelta > 0 && prev) {
+      const paidAmount = toMoney(prev.paidAmount || 0);
+      const totalAmount = toMoney(prev.totalAmount || 0);
+      const existingDiscount = toMoney(prev.discount || 0);
+      const grandTotal = Math.max(0, totalAmount - existingDiscount);
+      const paymentWithRoundFigure = calculatePaymentWithRoundFigureDiscount({
+        grandTotal,
+        alreadyPaid: paidAmount,
+        discountAmount: 0,
+        paymentAmount: paymentDelta,
+      });
+      const roundFigureDiscount = paymentWithRoundFigure.roundFigureDiscount;
+      if (roundFigureDiscount.shouldApply && roundFigureDiscount.discountAmount > 0) {
+        updates["discount"] = (Number(updates["discount"]) || 0) + roundFigureDiscount.discountAmount;
+        updates["discountReason"] = updates["discountReason"] || "Round Figure Discount";
+      }
+    }
+
+  // Patch published doc
     const updated = await sanityClient.patch(id).set(updates).commit();
 
+    // Build "next" state from prev + updates for downstream events
+    const next = prev ? { ...prev, ...updates } : prev;
+
     // Central WhatsApp event: comprehensive bill change detection (fire-and-forget)
-    try {
-      const bill = await sanityClient.fetch(
-        `*[_type == "bill" && _id == $id][0]{_id,billNumber,paymentStatus,totalAmount,discount,paidAmount,balanceAmount,paymentMethod,paymentDate,serviceType,dueDate,status,customer->{_id,name,phone},technician->{_id,name}}`,
-        { id }
-      );
-      const events = resolveBillEvents(prev, bill, body as Record<string, any>);
-      emitBillEventsInBackground(events);
-    } catch (e) {
-      console.error("[WA] bill event dispatch failed", e);
-    }
-    // Unified notification: bill status/payment update.
+    emitBillEventsInBackground(resolveBillEvents(prev, next, body as Record<string, any>));
+
+    // Unified notification: bill status/payment update (fire-and-forget)
     try {
       const actorUserId = String(auth.userId || req.headers.get('x-user-id') || '').trim()
       const changedKeys = ["status", "paymentStatus", "paidAmount", "balanceAmount"].filter(
         (key) => typeof (updates as any)[key] !== "undefined",
       );
-      if (actorUserId && changedKeys.length) {
-        const bill = await sanityClient.fetch(
-          `*[_type == "bill" && _id == $id][0]{ _id, billNumber, customer->{_id}, status, paymentStatus, paidAmount, balanceAmount }`,
-          { id }
-        )
-        const customerId = bill?.customer?._id ? String(bill.customer._id) : undefined
-        const billNumber = String(bill?.billNumber || prev?.billNumber || id)
-        const statusText = typeof updates.status !== "undefined" ? String(updates.status) : String(bill?.status || "")
-        const paymentText = typeof updates.paymentStatus !== "undefined" ? String(updates.paymentStatus) : String(bill?.paymentStatus || "")
+      if (actorUserId && changedKeys.length && next) {
+        const customerId = next?.customer?._id ? String(next.customer._id) : undefined
+        const billNumber = String(next?.billNumber || id)
+        const statusText = String(next?.status || "")
+        const paymentText = String(next?.paymentStatus || "")
         const suffix = changedKeys
           .map((key) => `${key}-${String((updates as any)[key])}`)
           .join(".")
@@ -208,11 +215,9 @@ export async function PATCH(
         const adminRoute = `/admin/billing?open=${encodeURIComponent(String(id))}`
         const customerRoute = `/customer/bills?open=${encodeURIComponent(String(id))}`
 
-        await createAndDispatchNotification({
-          eventId: `billing.updated.${String(id)}.admins.${suffix}`,
-          type: 'billing.updated',
+        const notificationPayload = {
+          type: 'billing.updated' as const,
           actorUserId,
-          userIds: await getActiveAdminUserIds(),
           title,
           body: bodyText,
           data: {
@@ -225,99 +230,77 @@ export async function PATCH(
             route_path: adminRoute,
           },
           skipActor: true,
-        })
+        };
+
+        getActiveAdminUserIds().then((adminUserIds) => {
+          if (adminUserIds?.length) {
+            createAndDispatchNotification({
+              ...notificationPayload,
+              eventId: `billing.updated.${String(id)}.admins.${suffix}`,
+              userIds: adminUserIds,
+            }).catch(() => {});
+          }
+        }).catch(() => {});
 
         if (customerId) {
-          await createAndDispatchNotification({
+          createAndDispatchNotification({
+            ...notificationPayload,
             eventId: `billing.updated.${String(id)}.customer.${customerId}.${suffix}`,
-            type: 'billing.updated',
-            actorUserId,
             userId: String(customerId),
-            title,
-            body: bodyText,
-            data: {
-              billId: String(id),
-              billNumber,
-              customerId: String(customerId),
-              status: statusText,
-              paymentStatus: paymentText,
-              route: customerRoute,
-              route_path: customerRoute,
-            },
-            skipActor: true,
-          })
+            data: { ...notificationPayload.data, route: customerRoute, route_path: customerRoute },
+          }).catch(() => {});
         }
       }
     } catch (notifyErr) {
       console.error('[Notify] billing.updated event failed', notifyErr)
     }
     
-    // Create cash book entry asynchronously (don't wait for it)
-    {
-      const prevPaid = Number(prev?.paidAmount ?? 0);
-      const nextPaid = typeof (updates as any).paidAmount !== "undefined" ? Number((updates as any).paidAmount) : undefined;
-      const paymentDelta = typeof nextPaid === "number" && Number.isFinite(nextPaid) ? nextPaid - prevPaid : 0;
-
-      // Only create a cashbook entry for the incremental payment amount (delta)
-      // paidAmount is cumulative, so using it directly would create duplicate/incorrect totals.
-      if (paymentDelta > 0) {
+    // Create cash book entry asynchronously (fire-and-forget, reuse prev data)
+    if (paymentDelta > 0 && prev?.customer) {
       const paymentTimestamp = new Date().toISOString();
-      // Fire and forget - don't await to avoid slowing down the bill update
       (async () => {
         try {
-          // Fetch the bill to get customer details
-          const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, billNumber, paidAmount, customer->{_id, name} }`, { id });
-          
-          if (bill && bill.customer) {
-            // Determine payment status from paid amount
-            const paidAmount = Number(bill.paidAmount || 0) + Number(paymentDelta);
-            const totalAmount = Number((bill as any).totalAmount || (bill as any).total || 0);
-            const paymentStatus = totalAmount > 0 && paidAmount >= totalAmount ? 'paid' : 'partial';
+          const paidAmount = toMoney(prev.paidAmount || 0);
+          const totalAmount = toMoney(prev.totalAmount || 0);
+          const existingDiscount = toMoney(prev.discount || 0);
+          const grandTotal = Math.max(0, totalAmount - existingDiscount);
+          const paymentWithRoundFigure = calculatePaymentWithRoundFigureDiscount({
+            grandTotal,
+            alreadyPaid: paidAmount,
+            discountAmount: 0,
+            paymentAmount: paymentDelta,
+          });
+          const roundFigureDiscount = paymentWithRoundFigure.roundFigureDiscount;
+          let newTotalDiscount = existingDiscount;
+          let discountReason = "";
+          if (roundFigureDiscount.shouldApply) {
+            newTotalDiscount = Math.max(existingDiscount, roundFigureDiscount.discountAmount);
+            discountReason = "Round Figure Discount";
+          }
+          const finalPaidAmount = roundFigureDiscount.finalPaidAmount;
+          const finalRemaining = roundFigureDiscount.finalRemaining;
+          const paymentStatus = finalRemaining <= BILL_EPSILON ? 'paid' : 'partial';
 
-            const result = await sanityApiService.cashBook.createEntryFromBillPayment({
-              billId: id,
-              userId: bill.customer._id,
-              userName: safeUserName(bill.customer.name, "Customer"),
-              amount: Number(paymentDelta),
-              paymentType: 'credit',
-              paymentDate: paymentTimestamp,
-              billNumber: bill.billNumber,
-              totalAmount,
-              paymentStatus,
-            });
-            
-            if (result.success) {
-              // Unified notification: cashbook entry (admins except actor)
-              try {
-                const actorUserId = (req.headers.get('x-user-id') || '').trim()
-                if (actorUserId) {
-                  await notificationService.emit({
-                    type: 'cashbook_entry',
-                    actorUserId,
-                    data: {
-                      billId: String(id),
-                      customerId: String(bill.customer._id),
-                      route: '/admin/cash-book/history',
-                      extra: {
-                        title: 'Cashbook entry',
-                        body: `Payment received Ã¢â‚¬Â¢ Ã¢â€šÂ¹${Number(paymentDelta)}`,
-                      },
-                    },
-                  })
-                }
-              } catch (notifyErr) {
-                console.error('[Notify] cashbook_entry emit failed', notifyErr)
-              }
-            } else {
-              console.error('Ã¢ÂÅ’ Failed to create cash book entry via bill API:', result.error);
-            }
+          const customer = prev.customer;
+          const result = await sanityApiService.cashBook.createEntryFromBillPayment({
+            billId: id,
+            userId: customer._id,
+            userName: safeUserName(customer.name, "Customer"),
+            amount: Number(finalPaidAmount - paidAmount),
+            paymentType: 'credit',
+            paymentDate: paymentTimestamp,
+            billNumber: prev.billNumber,
+            totalAmount,
+            paymentStatus,
+          });
+          // Cashbook entry created — no additional notification needed (admin already notified via billing.updated above)
+          if (!result.success) {
+            console.error('Failed to create cash book entry via bill API:', result.error);
           }
         } catch (cashBookError) {
-          console.error('Ã¢ÂÅ’ Error creating cash book entry in bill API:', cashBookError);
-          // Don't fail the bill update if cash book entry fails
+          console.error('Error creating cash book entry in bill API:', cashBookError);
         }
-      })(); // Execute async function without awaiting
-      }
+      })();
     }
     
     // Best-effort: also patch draft if it exists
@@ -366,7 +349,9 @@ export async function DELETE(
       `*[_type == "bill" && _id == $id][0]{
         _id,
         billNumber,
-        customer->{phone},
+        totalAmount,
+        serviceType,
+        customer->{phone,name},
         items[]{
           quantity,
           unitPrice,
@@ -432,7 +417,10 @@ export async function DELETE(
       void emitWaEventServer("bill-deleted", {
         billId: id,
         billNumber: bill?.billNumber || id,
+        customerName: bill?.customer?.name || "Customer",
         customerPhone: bill?.customer?.phone || "",
+        totalAmount: bill?.totalAmount || 0,
+        serviceName: bill?.serviceType || "",
         eventId: id,
         idempotencyKey: `billDeleted:${id}`,
       }).then((result) => {

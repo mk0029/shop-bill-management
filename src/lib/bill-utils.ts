@@ -16,6 +16,12 @@ export interface BillItem {
   isRewinding?: boolean;
 }
 
+export interface RoundFigureDiscountResult {
+  shouldApply: boolean;
+  discountAmount: number;
+  discountReason: string;
+}
+
 /**
  * Deduplicate bill items by product ID, combining quantities
  */
@@ -156,6 +162,55 @@ export function normalizeMoneyInput(value: string): string {
     : normalizedWhole;
 }
 
+export interface RoundFigureDiscountCalculation {
+  shouldApply: boolean;
+  discountAmount: number;
+  originalRemaining: number;
+  paymentAmount: number;
+  finalPaidAmount: number;
+  finalRemaining: number;
+  isFullyPaid: boolean;
+}
+
+export function calculateRoundFigureDiscount({
+  originalRemaining,
+  paymentAmount,
+}: {
+  originalRemaining: number;
+  paymentAmount: number;
+}): RoundFigureDiscountCalculation {
+  const roundedDownAmount = Math.floor(originalRemaining);
+  const difference = roundedDownAmount - paymentAmount;
+  
+  const result: RoundFigureDiscountCalculation = {
+    shouldApply: false,
+    discountAmount: 0,
+    originalRemaining,
+    paymentAmount,
+    finalPaidAmount: paymentAmount,
+    finalRemaining: originalRemaining,
+    isFullyPaid: false,
+  };
+  
+  if (difference > 0 && difference <= 5) {
+    result.shouldApply = true;
+    result.discountAmount = difference;
+    result.finalPaidAmount = roundedDownAmount;
+    result.finalRemaining = 0;
+    result.isFullyPaid = true;
+  } else if (difference <= 0) {
+    result.finalPaidAmount = Math.min(paymentAmount, originalRemaining);
+    result.finalRemaining = Math.max(0, originalRemaining - result.finalPaidAmount);
+    result.isFullyPaid = result.finalRemaining <= BILL_EPSILON;
+  } else {
+    result.finalPaidAmount = paymentAmount;
+    result.finalRemaining = originalRemaining - paymentAmount;
+    result.isFullyPaid = result.finalRemaining <= BILL_EPSILON;
+  }
+  
+  return result;
+}
+
 export function calculatePaymentValidation({
   grandTotal,
   alreadyPaid,
@@ -199,6 +254,65 @@ export function calculatePaymentValidation({
     hasValidationError,
     billStatus,
   };
+}
+
+export function calculatePaymentWithRoundFigureDiscount({
+  grandTotal,
+  alreadyPaid,
+  discountAmount,
+  paymentAmount,
+}: {
+  grandTotal: number;
+  alreadyPaid: number;
+  discountAmount: number;
+  paymentAmount: number;
+}): {
+  validation: ReturnType<typeof calculatePaymentValidation>;
+  roundFigureDiscount: RoundFigureDiscountCalculation;
+} {
+  const validation = calculatePaymentValidation({
+    grandTotal,
+    alreadyPaid,
+    discountAmount,
+    paymentAmount,
+  });
+  
+  const roundFigureDiscount = calculateRoundFigureDiscount({
+    originalRemaining: validation.originalRemaining,
+    paymentAmount,
+  });
+  
+  return {
+    validation,
+    roundFigureDiscount,
+  };
+}
+
+export function getRoundFigureDiscountApplied({
+  originalRemaining,
+  paymentAmount,
+  existingDiscounts,
+}: {
+  originalRemaining: number;
+  paymentAmount: number;
+  existingDiscounts: Record<string, number>;
+}): RoundFigureDiscountResult {
+  const roundedDownAmount = Math.floor(originalRemaining);
+  const difference = roundedDownAmount - paymentAmount;
+  
+  const result: RoundFigureDiscountResult = {
+    shouldApply: false,
+    discountAmount: 0,
+    discountReason: "",
+  };
+  
+  if (difference > 0 && difference <= 5) {
+    result.shouldApply = true;
+    result.discountAmount = difference;
+    result.discountReason = "Round Figure Discount";
+  }
+  
+  return result;
 }
 
 /**

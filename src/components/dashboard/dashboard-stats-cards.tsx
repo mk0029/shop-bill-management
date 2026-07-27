@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Package, Users, FileText, TrendingUp } from "lucide-react";
+import { Package, Users, FileText, TrendingUp, Wallet } from "lucide-react";
 import { DashboardStats } from "@/types";
 
 interface DashboardStatsCardsProps {

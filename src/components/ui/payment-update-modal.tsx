@@ -21,6 +21,7 @@ import {
   toMoney,
   normalizeMoneyInput,
   calculatePaymentValidation,
+  calculatePaymentWithRoundFigureDiscount,
 } from "@/lib/bill-utils";
 
 interface PaymentUpdateModalProps {
@@ -81,12 +82,15 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
   const paymentVal =
     paymentMode === "full" ? remaining : Math.max(Number(amount) || 0, 0);
 
-  const validation = calculatePaymentValidation({
+  const paymentWithRoundFigure = calculatePaymentWithRoundFigureDiscount({
     grandTotal,
     alreadyPaid,
     discountAmount: discountVal,
     paymentAmount: paymentVal,
   });
+  const roundFigureDiscount = paymentWithRoundFigure.roundFigureDiscount;
+
+  const validation = paymentWithRoundFigure.validation;
 
   const isRecordDisabled =
     isProcessing ||
@@ -106,7 +110,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
     }
   }, [isOpen]);
 
-  const handleSubmit = useCallback(async () => {
+      const handleSubmit = useCallback(async () => {
     setError("");
 
     let payAmt: number;
@@ -116,12 +120,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       payAmt = Math.max(Number(amount) || 0, 0);
     }
 
-    const v = calculatePaymentValidation({
-      grandTotal,
-      alreadyPaid,
-      discountAmount: discountVal,
-      paymentAmount: payAmt,
-    });
+    const v = paymentWithRoundFigure.validation;
 
     if (v.invalidAmount) {
       setError("Amounts cannot be negative");
@@ -410,10 +409,25 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                   className="w-full glass-input !p-2.5 text-xs text-white/70"
                   placeholder="Discount reason (optional)"
                 />
-                {discountVal > 0 && (
+                {roundFigureDiscount.shouldApply && roundFigureDiscount.discountAmount > 0 && (
+                  <p className="text-xs text-emerald-400/80">
+                    Round Figure Discount: {currency}{roundFigureDiscount.discountAmount.toFixed(2)} Applied
+                  </p>
+                )}
+                {discountVal > 0 && !roundFigureDiscount.shouldApply && (
                   <p className="text-xs text-emerald-400/80">
                     Payable after discount: {currency}
                     {effectiveTotal.toFixed(2)}
+                  </p>
+                )}
+                {roundFigureDiscount.shouldApply && roundFigureDiscount.discountAmount > 0 && (
+                  <p className="text-xs text-emerald-400/80">
+                    Round Figure Discount: {currency}{roundFigureDiscount.discountAmount.toFixed(2)} Applied
+                  </p>
+                )}
+                {roundFigureDiscount.isFullyPaid && (
+                  <p className="text-xs text-emerald-400/80">
+                    Bill will be marked as fully paid after this payment
                   </p>
                 )}
               </motion.div>

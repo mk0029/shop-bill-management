@@ -227,48 +227,7 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
             console.warn('[WA] billing.created event failed:', e);
           });
 
-          fetch('/api/notifications/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audience: 'admins',
-              eventId: `billing.created.${billId || Date.now()}.admins`,
-              eventType: 'billing.created',
-              actorUserId: actorId || undefined,
-              title: 'Bill created',
-              body: `${customerName || 'Customer'} | Rs.${amount} | ${payStatus}`,
-              data: {
-                billId,
-                event: 'bill-created',
-                billNumber: billNo,
-                route: `/admin/billing?open=${encodeURIComponent(billId)}`,
-              },
-              excludeUserIds: actorId ? [actorId] : undefined,
-            }),
-          }).catch(() => {});
-
-          if (customerId) {
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId: `billing.created.${billId || Date.now()}.customer`,
-                eventType: 'billing.created',
-                actorUserId: actorId || undefined,
-                title: 'Bill created',
-                body: billNo ? `Your bill ${billNo} was created` : 'Your bill was created',
-                userIds: [customerId],
-                data: {
-                  billId,
-                  event: 'bill-created',
-                  billNumber: billNo,
-                  customerId,
-                  route: `/customer/bills?open=${encodeURIComponent(billId)}`,
-                  route_path: '/customer/bills',
-                },
-              }),
-            }).catch(() => {});
-          }
+          // Notifications handled server-side by /api/mutations/bills/create/route.ts
         }
       } catch {}
       set({ loading: false });
@@ -345,30 +304,7 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
             }).catch(() => {});
           }
 
-          // Always notify customer generically
-          if (customerId) {
-            const billNo: string = (result as any)?.billNumber ?? prev?.billNumber ?? '';
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId: `billing.updated.${String((result as any)?._id ?? billId)}.customer`,
-                eventType: 'billing.updated',
-                title: 'Bill updated',
-                body: billNo ? `Bill ${billNo} was updated` : 'Your bill was updated',
-                userIds: [customerId],
-                data: {
-                  billId: String((result as any)?._id ?? billId),
-                  event: 'bill-updated',
-                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? billId))}`,
-                  route_path: '/customer/bills',
-                },
-                sound: 'default',
-              }),
-            }).catch(() => {});
-          }
-
-          // Admin-wide notification excluding actor
+          // Admin-wide notification excluding actor (customer notified server-side via PATCH route)
           try {
             const actorId = (function getActorId(){
               try {

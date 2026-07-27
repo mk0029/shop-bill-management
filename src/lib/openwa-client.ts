@@ -5,11 +5,11 @@ function getOpenWaBaseUrl(): string {
 }
 
 function getOpenWaApiKey(): string {
-  return process.env.OPENWA_API_KEY || "owa_k1_316ff7aaee0ca962faf48afc2a2bd91a1c001f01ad3d663ef98cc0ecc1a4eb46"
+  return process.env.OPENWA_API_KEY || ""
 }
 
 function getOpenWaSessionId(): string {
-  return process.env.OPENWA_SESSION_ID || "6e19b3d4-383f-4c5d-bd3f-70ce106643fe"
+  return process.env.OPENWA_SESSION_ID || ""
 }
 
 function normalizePhoneToJid(phone: string): string {
@@ -36,6 +36,9 @@ export type OpenWaBulkResult = {
 }
 
 export async function sendOpenWaText(phone: string, message: string): Promise<OpenWaSendResult> {
+  if (!getOpenWaApiKey() || !getOpenWaSessionId()) {
+    return { ok: false, phone, error: "WhatsApp bot is not configured" }
+  }
   const chatId = normalizePhoneToJid(phone)
   if (!chatId) return { ok: false, phone, error: "Invalid phone number" }
 
@@ -66,6 +69,33 @@ export async function sendOpenWaBulk(inputs: { phone: string; message: string }[
   const sent = results.filter((r) => r.ok).length
   const failed = results.length - sent
   return { ok: true, sent, failed, results }
+}
+
+export type OpenWaSession = {
+  id: string;
+  name: string;
+  status: string;
+  phone?: string | null;
+  pushName?: string | null;
+  connectedAt?: string | null;
+  lastActive?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  lastError?: string | null;
+}
+
+export async function getOpenWaSessions(): Promise<{ ok: boolean; sessions?: OpenWaSession[]; error?: string }> {
+  try {
+    const res = await fetch(`${getOpenWaBaseUrl()}/api/sessions`, {
+      headers: { "X-API-Key": getOpenWaApiKey() },
+      signal: AbortSignal.timeout(10_000),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: json?.message || `${res.status} ${res.statusText}` }
+    return { ok: true, sessions: Array.isArray(json) ? json : [] }
+  } catch (e: unknown) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
 }
 
 export async function getOpenWaSessionStatus(): Promise<{ ok: boolean; status?: string; phone?: string; pushName?: string; error?: string }> {

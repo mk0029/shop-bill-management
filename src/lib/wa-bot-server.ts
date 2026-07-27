@@ -84,9 +84,74 @@ export async function sendViaWaBotServer(input: { phones?: string[]; phone?: str
   }
 }
 
+/**
+ * The single production registry for customer-facing WhatsApp events.  Keep the
+ * event name, renderer and the simulator on this path; do not render messages
+ * separately in individual routes.
+ */
+export const WHATSAPP_EVENT_TEMPLATE_NAMES: Record<string, string> = {
+  "billing.created": "bill_created",
+  "billing.created.unpaid": "bill_created",
+  "billing.created.paid": "bill_created",
+  "billing.created.partial": "bill_created",
+  "billing.created.zero_balance": "bill_created",
+  "billing.payment.paid": "payment_received",
+  "billing.payment.partial": "payment_partial",
+  "billing.payment.removed": "payment_adjusted",
+  "billing.payment.updated": "payment_adjusted",
+  "billing.updated": "bill_updated",
+  "billing.deleted": "bill_deleted",
+  "bill-deleted": "bill_deleted",
+  "billing.multiPaid": "multiple_bill_payment",
+  "billing.bulkPaid": "multiple_bill_payment",
+  "customer.created": "account_created",
+  "customer.request.created": "customer_registration_request",
+  "workTask.created": "work_request",
+  "workTask.updated": "work_request",
+  "workTask.completed": "work_request",
+  "workTask.cancelled": "work_request",
+  "workTask.hold": "work_request",
+  "workTask.reminder.overdue": "technician_task_reminder",
+  "workTask.reminder.due": "technician_task_reminder",
+  "workTask.reminder.pending": "technician_task_reminder",
+  "bill.reminder.technician": "technician_bill_reminder",
+  "toolRent.created": "tool_rental_created",
+  "toolRent.updated": "tool_rental_updated",
+  "toolRent.returned": "tool_rental_returned",
+  "toolRent.paid": "tool_rental_paid",
+  "toolRent.deleted": "tool_rental_deleted",
+  "toolRent.overdue": "tool_rental_overdue",
+  "billing.dueToday": "payment_due_today",
+  "paymentDueToday": "payment_due_today",
+  "billing.overdue": "payment_overdue",
+  "paymentOverdue": "payment_overdue",
+  "billing.reminder": "payment_reminder",
+  "scheduled.goodMorning": "good_morning",
+  "scheduled.festivalGreeting": "festival_greeting",
+  "offer.created": "offer",
+  "offer.distributed": "offer",
+};
+
+const TECHNICIAN_EVENTS = new Set([
+  "workTask.reminder.overdue",
+  "workTask.reminder.due",
+  "workTask.reminder.pending",
+  "bill.reminder.technician",
+]);
+
+export type RenderedWhatsAppEvent = {
+  phone: string
+  message: string
+  templateName: string
+}
+
 function buildMessageFromEvent(eventName: string, payload: Record<string, unknown>): { phone?: string; message: string } | null {
   const customer: any = { name: payload.customerName }
-  const phone = String(payload.customerPhone || payload.phone || "").replace(/\D/g, "")
+  const phone = String(
+    TECHNICIAN_EVENTS.has(eventName)
+      ? (payload.technicianPhone || payload.phone || "")
+      : (payload.customerPhone || payload.phone || ""),
+  ).replace(/\D/g, "")
   if (!phone) return null
 
   const loginUrl = payload.loginUrl ? String(payload.loginUrl) : undefined
@@ -246,12 +311,13 @@ function buildMessageFromEvent(eventName: string, payload: Record<string, unknow
       return { phone, message }
     }
     case "toolRent.created":
+    case "toolRent.updated":
     case "toolRent.returned":
     case "toolRent.paid": {
       const toolName = String(payload.toolName || "Tool")
       const isReturn = eventName === "toolRent.returned" || eventName === "toolRent.paid"
       const message = [
-        isReturn ? "Tool Rental Completed & Paid" : "New Tool Rental",
+        isReturn ? "Tool Rental Completed & Paid" : eventName === "toolRent.updated" ? "Tool Rental Updated" : "New Tool Rental",
         "",
         greetingByText(customer),
         "",
@@ -260,6 +326,25 @@ function buildMessageFromEvent(eventName: string, payload: Record<string, unknow
         ...(isReturn && payload.paidAmount ? [`Paid: ${formatCurrency(Number(payload.paidAmount))}`] : []),
         ...(!isReturn && payload.rentalDays ? [`Rental Days: ${payload.rentalDays}`] : []),
         ...(payload.returnedDate ? [`Returned: ${formatDate(String(payload.returnedDate))}`] : []),
+        "",
+        footerText(),
+      ].join("\n")
+      return { phone, message }
+    }
+    case "billing.reminder": {
+      const bill = payload as any
+      const bills = payload.bills ? (payload.bills as any[]) : [bill]
+      const message = notificationTemplates.paymentReminder({ customer, bills, loginUrl })
+      return { phone, message }
+    }
+    case "toolRent.deleted": {
+      const message = [
+        "Tool Rental Removed",
+        "",
+        greetingByText(customer),
+        "",
+        `Tool: ${payload.toolName || "Tool"}`,
+        "This rental has been removed from your account.",
         "",
         footerText(),
       ].join("\n")
@@ -383,13 +468,21 @@ function buildMessageFromEvent(eventName: string, payload: Record<string, unknow
   }
 }
 
+/** Render only. Used by both real delivery and the admin simulator. */
+export function renderWhatsAppEvent(eventName: string, payload: Record<string, unknown>): RenderedWhatsAppEvent | null {
+  const built = buildMessageFromEvent(eventName, payload)
+  const templateName = WHATSAPP_EVENT_TEMPLATE_NAMES[eventName]
+  if (!built?.phone || !templateName) return null
+  return { ...built, phone: built.phone, templateName }
+}
+
 function greetingByText(customer: any) {
   return greetingByTime(customer?.name)
 }
 
 export async function emitWaEventServer(eventName: string, payload: Record<string, unknown>): Promise<{ ok: boolean; queued?: boolean; skipped?: boolean; error?: string }> {
   try {
-    const built = buildMessageFromEvent(eventName, payload)
+    const built = renderWhatsAppEvent(eventName, payload)
     if (!built) {
       return { ok: false, error: `No template mapping for event: ${eventName}` }
     }

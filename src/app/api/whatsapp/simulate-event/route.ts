@@ -1,21 +1,4 @@
-function getOpenWaUrl(): string {
-  return (process.env.OPENWA_URL || "http://localhost:2785").replace(/\/+$/, "")
-}
-
-function getOpenWaApiKey(): string {
-  return process.env.OPENWA_API_KEY || ""
-}
-
-function getOpenWaSessionId(): string {
-  return process.env.OPENWA_SESSION_ID || "6e19b3d4-383f-4c5d-bd3f-70ce106643fe"
-}
-
-function phoneToChatId(phone: string): string {
-  const digits = phone.replace(/\D/g, "")
-  if (digits.length < 10) return ""
-  const national = digits.length > 10 ? digits.slice(-10) : digits
-  return `91${national}@c.us`
-}
+import { renderWhatsAppEvent, sendViaWaBotServer } from "@/lib/wa-bot-server"
 
 export async function POST(req: Request) {
   try {
@@ -29,31 +12,24 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, error: "phone is required" }, { status: 400 })
     }
 
-    const chatId = phoneToChatId(phone)
-    if (!chatId) {
+    const normalizedPhone = phone.replace(/\D/g, "")
+    if (normalizedPhone.length < 10) {
       return Response.json({ ok: false, error: "Invalid phone number" }, { status: 400 })
     }
-
-    const baseUrl = getOpenWaUrl()
-    const apiKey = getOpenWaApiKey()
-    const sessionId = getOpenWaSessionId()
-    const endpoint = previewOnly ? "preview-event" : "send-event"
-
-    const res = await fetch(`${baseUrl}/sessions/${sessionId}/notification-engine/${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": apiKey,
-      },
-      body: JSON.stringify({ eventType, chatId, payload: payload || {} }),
+    const rendered = renderWhatsAppEvent(eventType, {
+      ...(payload && typeof payload === "object" ? payload : {}),
+      phone: normalizedPhone,
+      customerPhone: normalizedPhone,
+      technicianPhone: normalizedPhone,
     })
+    if (!rendered) return Response.json({ ok: false, error: `No template mapping or recipient for event: ${eventType}` }, { status: 400 })
+    if (previewOnly) return Response.json({ ok: true, previewOnly: true, message: rendered.message, templateName: rendered.templateName })
 
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      return Response.json({ ok: false, error: json?.error || json?.message || `${res.status} ${res.statusText}` }, { status: res.status })
+    const result = await sendViaWaBotServer({ phone: rendered.phone, message: rendered.message, eventType })
+    if (!result.ok || result.failed > 0) {
+      return Response.json({ ok: false, error: result.error || result.results.find((item) => !item.ok)?.error || "Send failed" }, { status: 502 })
     }
-
-    return Response.json(json)
+    return Response.json({ ok: true, message: rendered.message, templateName: rendered.templateName, result })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     return Response.json({ ok: false, error: `Simulate proxy failed: ${msg}` }, { status: 502 })

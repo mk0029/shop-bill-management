@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/server-auth";
-import { sendWhatsAppNotification } from "@/lib/send-whatsapp-notification";
-import { notificationTemplates } from "@/lib/notifications/template-engine";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 const RATE_LIMIT_MS = 5 * 60 * 1000;
 const reminderTimestamps = new Map<string, number>();
@@ -58,16 +57,10 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const message = notificationTemplates.paymentReminder({
-          customer: { name: customerName || "Customer" },
+        const sendResult = await emitWaEventServer("billing.reminder", {
+          customerId, billId, customerName: customerName || "Customer", customerPhone: phone,
           bills: reminder.bills || (billId ? [{ _id: billId, billNumber: reminder.billNumber, totalAmount: reminder.totalAmount, paidAmount: reminder.paidAmount, balanceAmount: reminder.balanceAmount, dueDate: reminder.dueDate }] : []),
-        });
-
-        const sendResult = await sendWhatsAppNotification({
-          eventType: reminderType,
-          phone,
-          message,
-          metadata: { entityId: billId || customerId, adminId: auth.userId },
+          eventId: `${reminderType}.${billId || customerId}`,
         });
 
         if (sendResult.ok && billId && customerId) markReminderSent(billId, customerId);

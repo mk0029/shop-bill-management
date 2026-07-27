@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendWhatsAppNotification } from "@/lib/send-whatsapp-notification";
-import { notificationTemplates } from "@/lib/notifications/template-engine";
+import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,13 +23,9 @@ export async function POST(req: NextRequest) {
     }
 
     const bills = body.bills || (billId ? [{ _id: billId, billNumber: body.billNumber, totalAmount: body.totalAmount, paidAmount: body.paidAmount, balanceAmount: body.balanceAmount, dueDate: body.dueDate }] : []);
-    const message = notificationTemplates.paymentReminder({ customer: { name: customerName }, bills });
-
-    const result = await sendWhatsAppNotification({
-      eventType: "due_reminder",
-      phone,
-      message,
-      metadata: { entityId: billId || customerId, adminId: body?.adminId || "frontend-admin" },
+    const result = await emitWaEventServer("billing.reminder", {
+      customerId, billId, customerName, customerPhone: phone, bills,
+      eventId: `billing.reminder.${billId || customerId}`,
     });
 
     return NextResponse.json({ success: result.ok, ...(result.error ? { error: result.error } : {}) });

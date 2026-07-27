@@ -217,20 +217,15 @@ export async function POST(req: Request) {
       };
     });
 
-    // Create ONE cashbook entry instead of many
+    // Create ONE cashbook entry instead of many (batch existence check)
     try {
-      let anyAlreadyHasEntry = false;
-      for (const ab of appliedBillsData) {
-        const billRef = ab.billRef?._ref;
-        if (!billRef) continue;
-        const existing = await sanityClient.fetch(
-          `*[_type == "cashBookEntry" && bill._ref == $billRef][0]._id`,
-          { billRef }
-        );
-        if (existing) { anyAlreadyHasEntry = true; break; }
-      }
+      const billRefs = appliedBillsData.map(ab => ab.billRef?._ref).filter(Boolean);
+      const existingEntries = billRefs.length ? await sanityClient.fetch(
+        `*[_type == "cashBookEntry" && bill._ref in $billRefs][0]._id`,
+        { billRefs }
+      ) : null;
 
-      if (!anyAlreadyHasEntry) {
+      if (!existingEntries) {
         const entryNotes = billPaymentNotes({
           billCount: patchOps.length,
           paymentStatus: fullyPaidBills.length === patchOps.length ? 'paid' : 'partial',

@@ -47,9 +47,9 @@ export default async function SuperAccessIndexPage() {
           href="/admin/super-access/whatsapp-bot"
           className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800"
         >
-          <div className="font-semibold text-white">WhatsApp Bot Status</div>
+          <div className="font-semibold text-white">WhatsApp Bot</div>
           <div className="text-sm text-gray-400">
-            Inspect bot health, status, event logs, wake/restart/test-send. All logs stored locally.
+            View bot session details, status, QR code. Wake, restart, or force-reset sessions.
           </div>
         </Link>
         <Link

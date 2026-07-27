@@ -1141,63 +1141,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
               return null;
             }
           })();
-          const billNo = (bill as any)?.billNumber ?? '';
-          const customerId = (bill as any)?.customer?._ref ? String((bill as any).customer._ref) : ''
-          const customerName = await (async () => {
-            try {
-              if (!customerId) return ''
-              const doc = await sanityClient.fetch<{ name?: string } | null>(
-                `*[_type=="user" && _id==$id][0]{name}`,
-                { id: String(customerId) }
-              )
-              return String(doc?.name || '').trim()
-            } catch {
-              return ''
-            }
-          })()
-          const amount = Number((bill as any)?.totalAmount || 0)
-          const payStatus = String((bill as any)?.paymentStatus || (bill as any)?.status || 'pending')
-          fetch('/api/notifications/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audience: 'admins',
-              eventId: `billing.created.${String((bill as any)?._id || Date.now())}.admins`,
-              eventType: 'billing.created',
-              actorUserId: actorId || undefined,
-              title: 'Bill created',
-              body: `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`,
-              data: {
-                billId: (bill as any)?._id,
-                event: 'bill-created',
-                billNumber: String(billNo),
-                route: `/admin/billing?open=${encodeURIComponent(String((bill as any)?._id || ''))}`,
-              },
-              excludeUserIds: actorId ? [actorId] : undefined,
-            }),
-          }).catch(() => {});
-          if (customerId) {
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId: `billing.created.${String((bill as any)?._id || Date.now())}.customer`,
-                eventType: 'billing.created',
-                actorUserId: actorId || undefined,
-                title: 'Bill created',
-                body: billNo ? `Your bill ${String(billNo)} was created` : 'Your bill was created',
-                userIds: [customerId],
-                data: {
-                  billId: (bill as any)?._id,
-                  event: 'bill-created',
-                  billNumber: String(billNo),
-                  customerId,
-                  route: `/customer/bills?open=${encodeURIComponent(String((bill as any)?._id || ''))}`,
-                  route_path: '/customer/bills',
-                },
-              }),
-            }).catch(() => {});
-          }
+          // Notifications handled server-side by /api/mutations/bills/create/route.ts
         } catch {}
       }
 

@@ -395,7 +395,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       `*[_type == "bill" && _id == $id][0]{
         _id,
         billNumber,
-        customer->{phone},
+        totalAmount,
+        serviceType,
+        customer->{phone,name},
         items[]{
           quantity,
           unitPrice,
@@ -455,7 +457,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       void emitWaEventServer("bill-deleted", {
         billId: id,
         billNumber: bill?.billNumber || id,
+        customerName: bill?.customer?.name || "Customer",
         customerPhone: bill?.customer?.phone || "",
+        totalAmount: bill?.totalAmount || 0,
+        serviceName: bill?.serviceType || "",
         eventId: id,
         idempotencyKey: `billDeleted:${id}`,
       }).then((result) => {

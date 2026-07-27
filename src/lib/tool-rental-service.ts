@@ -1,5 +1,6 @@
 import { sanityClient } from "@/lib/sanity";
 import { notifyAdmins } from "@/lib/admin-notifier";
+import { emitWaEventClient } from "@/lib/wa-bot-server";
 
 export type DurationType = "hour" | "day";
 export type RentalStatus = "active" | "overdue" | "returned" | "cancelled";
@@ -139,13 +140,19 @@ async function createCashBookCreditEntry(args: {
 
 function notifyCustomerToolRent(args: {
   eventId: string;
-  eventType: "toolRent.created" | "toolRent.updated";
+  eventType: string;
   actorUserId?: string;
   customerUserId?: string;
   title: string;
   body: string;
   rentalId: string;
   toolName?: string;
+  customerName?: string;
+  customerPhone?: string;
+  totalAmount?: number;
+  paidAmount?: number;
+  expectedReturnTime?: string;
+  whatsappEventType?: string;
 }) {
   const customerUserId = String(args.customerUserId || "").trim();
   if (!customerUserId) return;
@@ -170,6 +177,22 @@ function notifyCustomerToolRent(args: {
   }).catch((error) => {
     console.warn("[FCM] tool rent customer notification failed", error);
   });
+
+  if (args.customerPhone) {
+    void emitWaEventClient(args.whatsappEventType || args.eventType, {
+      customerId: customerUserId,
+      customerName: args.customerName || "Customer",
+      customerPhone: args.customerPhone,
+      toolName: args.toolName,
+      totalAmount: args.totalAmount,
+      paidAmount: args.paidAmount,
+      expectedReturnTime: args.expectedReturnTime,
+      returnedDate: args.whatsappEventType === "toolRent.returned" ? new Date().toISOString() : undefined,
+      eventId: args.eventId,
+    }).then((result) => {
+      if (!result.ok) console.warn("[WA] tool rental event failed", args.whatsappEventType || args.eventType, result.error);
+    });
+  }
 }
 
 function generateRentalBillNumber() {
@@ -372,6 +395,11 @@ export const toolRentalService = {
       body: `You rented ${input.tool.toolName}. Return due: ${formatDateTime(expectedReturnTime)}`,
       rentalId,
       toolName: input.tool.toolName,
+      customerName: input.customer.name,
+      customerPhone: input.customer.phone,
+      totalAmount,
+      paidAmount,
+      expectedReturnTime,
     });
 
     if (rental) {
@@ -462,6 +490,11 @@ export const toolRentalService = {
       body: `${rental.toolName} rental duration updated. New return due: ${formatDateTime(expectedReturnTime)}`,
       rentalId,
       toolName: rental.toolName,
+      customerName: rental.customerName,
+      customerPhone: rental.customerPhone,
+      totalAmount,
+      paidAmount: rental.paidAmount,
+      expectedReturnTime,
     });
 
     return updated;
@@ -541,6 +574,11 @@ export const toolRentalService = {
       body: `${rental.toolName} returned. Final total: Rs ${finalTotal.toFixed(2)}.`,
       rentalId: rental._id,
       toolName: rental.toolName,
+      customerName: rental.customerName,
+      customerPhone: rental.customerPhone,
+      totalAmount: finalTotal,
+      paidAmount: resolvedPaidAmount,
+      whatsappEventType: "toolRent.returned",
     });
 
     return { overdueUnits, extraChargeAmount, finalTotal, paymentStatus };
@@ -586,9 +624,14 @@ export const toolRentalService = {
         actorUserId,
         customerUserId: rental.customerRefId || rental.customerId,
         title: "Tool rental payment updated",
-        body: `${rental.toolName} payment status: ${paymentStatus}. Paid: Rs ${normalizedPaid}.`,
-        rentalId,
-        toolName: rental.toolName,
+      body: `${rental.toolName} payment status: ${paymentStatus}. Paid: Rs ${normalizedPaid}.`,
+      rentalId,
+      toolName: rental.toolName,
+      customerName: rental.customerName,
+      customerPhone: rental.customerPhone,
+      totalAmount: currentTotalAmount,
+      paidAmount: normalizedPaid,
+      whatsappEventType: paymentStatus === "paid" ? "toolRent.paid" : "toolRent.updated",
       });
     }
     return updated;
@@ -628,6 +671,11 @@ export const toolRentalService = {
       body: `${rental.toolName} rental was removed.`,
       rentalId,
       toolName: rental.toolName,
+      customerName: rental.customerName,
+      customerPhone: rental.customerPhone,
+      totalAmount: rental.totalAmount,
+      paidAmount: rental.paidAmount,
+      whatsappEventType: "toolRent.deleted",
     });
 
     return { success: true };

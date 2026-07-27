@@ -848,13 +848,36 @@ export function CashBookPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <SearchableCustomerInput
-                customers={customers}
-                customNames={manualNames}
-                value={customerSelection}
-                onChange={setCustomerSelection}
-                disabled={isSubmitting}
-              />
+              {isDebit ? (
+                <div className="space-y-1">
+                  <Label className="text-gray-300 text-sm">Recipient / Shop Name</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                    <Input
+                      type="text"
+                      value={customerSelection.customerName}
+                      onChange={(e) =>
+                        setCustomerSelection({
+                          customerId: null,
+                          customerName: e.target.value,
+                          isCustomName: true,
+                        })
+                      }
+                      placeholder="e.g. Rajesh Electronics, Star Distributors..."
+                      disabled={isSubmitting}
+                      className="bg-gray-800/50 border-gray-700/70 text-white placeholder-gray-500 !pl-8"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <SearchableCustomerInput
+                  customers={customers}
+                  customNames={manualNames}
+                  value={customerSelection}
+                  onChange={setCustomerSelection}
+                  disabled={isSubmitting}
+                />
+              )}
             </div>
             <div>
               <Label className="text-gray-300 text-sm">Total Amount</Label>
