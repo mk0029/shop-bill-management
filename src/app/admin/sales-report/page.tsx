@@ -561,6 +561,10 @@ export default function SalesReportPage() {
             </div>
           </ResponsiveAccordion>
 
+          <ResponsiveAccordion title="Advance Stats">
+            <ClientAdvanceStats />
+          </ResponsiveAccordion>
+
           {/* Charts and Analytics */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-6">
             {/* Monthly Revenue Chart */}
@@ -826,6 +830,49 @@ export default function SalesReportPage() {
           </Card>
         </>
       )}
+    </div>
+  );
+}
+
+function ClientAdvanceStats() {
+  const [stats, setStats] = useState({ totalCollected: 0, totalUtilized: 0, outstanding: 0, customerCount: 0 });
+  useEffect(() => {
+    (async () => {
+      try {
+        const { sanityClient } = await import("@/lib/sanity");
+        const data = await sanityClient.fetch(`{
+          "customers": *[_type == "user" && role == "customer" && defined(advanceBalance) && advanceBalance > 0]{
+            advanceBalance,
+            lifetimeAdvanceCreated,
+            lifetimeAdvanceUsed
+          }
+        }`);
+        const customers = data?.customers || [];
+        const totalCollected = customers.reduce((s: number, c: any) => s + Number(c.lifetimeAdvanceCreated || 0), 0);
+        const totalUtilized = customers.reduce((s: number, c: any) => s + Number(c.lifetimeAdvanceUsed || 0), 0);
+        const outstanding = customers.reduce((s: number, c: any) => s + Number(c.advanceBalance || 0), 0);
+        setStats({ totalCollected, totalUtilized, outstanding, customerCount: customers.length });
+      } catch {}
+    })();
+  }, []);
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+      <Card className="p-4 bg-emerald-900/20 border-emerald-800/30">
+        <p className="text-xs text-emerald-300/70">Total Advance Collected</p>
+        <p className="text-xl font-bold text-emerald-400">₹{stats.totalCollected.toLocaleString()}</p>
+      </Card>
+      <Card className="p-4 bg-blue-900/20 border-blue-800/30">
+        <p className="text-xs text-blue-300/70">Total Advance Utilized</p>
+        <p className="text-xl font-bold text-blue-400">₹{stats.totalUtilized.toLocaleString()}</p>
+      </Card>
+      <Card className="p-4 bg-amber-900/20 border-amber-800/30">
+        <p className="text-xs text-amber-300/70">Outstanding Liability</p>
+        <p className="text-xl font-bold text-amber-400">₹{stats.outstanding.toLocaleString()}</p>
+      </Card>
+      <Card className="p-4 bg-purple-900/20 border-purple-800/30">
+        <p className="text-xs text-purple-300/70">Customers with Balance</p>
+        <p className="text-xl font-bold text-purple-400">{stats.customerCount}</p>
+      </Card>
     </div>
   );
 }

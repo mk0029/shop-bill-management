@@ -142,7 +142,21 @@ export const PaymentCard = memo(function PaymentCard({
                 color="text-emerald-400"
               />
             )}
-            {bill.dueDate && !discount && (
+            {Number(bill.advanceApplied) > 0 && (
+              <DetailCard
+                label="Advance Applied"
+                value={`${currency}${Number(bill.advanceApplied).toFixed(2)}`}
+                color="text-emerald-400"
+              />
+            )}
+            {Number(bill.advanceCreated) > 0 && (
+              <DetailCard
+                label="Advance Created"
+                value={`+${currency}${Number(bill.advanceCreated).toFixed(2)}`}
+                color="text-amber-400"
+              />
+            )}
+            {bill.dueDate && !discount && !Number(bill.advanceApplied) && !Number(bill.advanceCreated) && (
               <DetailCard
                 label="Due Date"
                 value={new Date(bill.dueDate).toLocaleDateString("en-US", {

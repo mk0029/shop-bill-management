@@ -8,6 +8,12 @@ import {
   createAndDispatchNotification,
   getActiveAdminUserIds,
 } from "@/services/notifications/notification-events.server";
+import {
+  toMoney,
+  fetchCustomerAdvanceBalance,
+  updateCustomerAdvanceBalance,
+  createAdvanceTransaction,
+} from "@/lib/customer-advance";
 
 function makeHash(str: string): string {
   let hash = 0;
@@ -164,6 +170,50 @@ export async function POST(req: Request) {
       );
     }
 
+    // Apply customer advance balance proportionally across bills
+    const customerAdvanceBalance = await fetchCustomerAdvanceBalance(customerId);
+    let advanceRemaining = customerAdvanceBalance;
+    let totalAdvanceApplied = 0;
+
+    if (advanceRemaining > 0 && totalRemainingBeforeDiscount > 0) {
+      for (const op of patchOps) {
+        if (advanceRemaining <= 0) break;
+        const bill = billsToPay.find((b: any) => b._id === op.id);
+        if (!bill) continue;
+        const paid = Number(bill.paidAmount || 0);
+        const total = Number(bill.totalAmount || 0);
+        const billDiscount = Number(bill.discount || 0);
+        const grandTotal = Math.max(0, total - billDiscount);
+        const remaining = Math.max(0, grandTotal - paid);
+        const advanceForBill = Math.min(advanceRemaining, remaining);
+        if (advanceForBill > 0) {
+          advanceRemaining -= advanceForBill;
+          totalAdvanceApplied += advanceForBill;
+          op.patches.advanceApplied = advanceForBill;
+          op.patches.paidAmount = paid + advanceForBill;
+          op.patches.balanceAmount = 0;
+        }
+      }
+
+      if (totalAdvanceApplied > 0) {
+        (async () => {
+          try {
+            await updateCustomerAdvanceBalance(customerId, -totalAdvanceApplied);
+            await createAdvanceTransaction({
+              customerId,
+              amount: totalAdvanceApplied,
+              type: "used",
+              reason: "applied_to_bill",
+              reference: `Bulk pay all (${patchOps.length} bills)`,
+              createdBy: actorUserId || "system",
+            });
+          } catch (err) {
+            console.error("[Advance] Failed to apply advance in pay-all:", err);
+          }
+        })();
+      }
+    }
+
     // Execute in Sanity transaction for atomicity
     const tx = sanityClient.transaction();
     for (const op of patchOps) {
@@ -243,6 +293,7 @@ export async function POST(req: Request) {
       remainingBalance: 0,
       discountApplied: bulkDiscount > 0 ? discountApplied : 0,
       discountReason: bulkDiscount > 0 ? discountReason : "",
+      advanceApplied: totalAdvanceApplied || 0,
       paymentMode,
       paymentDate: payDate,
       paidByAdmin: actorUserId,
@@ -273,6 +324,7 @@ export async function POST(req: Request) {
             discountApplied,
             discountReason,
             paymentMode,
+            ...(totalAdvanceApplied > 0 ? { advanceApplied: totalAdvanceApplied } : {}),
             route: adminRoute,
             route_path: adminRoute,
           },
@@ -302,6 +354,7 @@ export async function POST(req: Request) {
             discountApplied,
             discountReason,
             paymentMode,
+            ...(totalAdvanceApplied > 0 ? { advanceApplied: totalAdvanceApplied } : {}),
             route: customerRoute,
             route_path: customerRoute,
           },

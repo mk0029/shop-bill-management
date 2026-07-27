@@ -8,6 +8,13 @@ import {
   createAndDispatchNotification,
   getActiveAdminUserIds,
 } from "@/services/notifications/notification-events.server";
+import {
+  toMoney,
+  fetchCustomerAdvanceBalance,
+  updateCustomerAdvanceBalance,
+  createAdvanceTransaction,
+  calculateAdvanceOnMultiPayment,
+} from "@/lib/customer-advance";
 
 function makeHash(str: string): string {
   let hash = 0;
@@ -109,10 +116,30 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
     const payDate = paymentDate || now;
 
-    // Distribution logic
-    let remainingAmount = customAmountEnabled
-      ? Math.min(Math.max(0, Number(receivedAmount || 0)), totalPending)
+    // Fetch customer advance balance
+    const customerAdvanceBalance = await fetchCustomerAdvanceBalance(customerId);
+    const effectiveReceivedAmount = customAmountEnabled
+      ? Math.max(0, Number(receivedAmount || 0))
       : totalPending;
+
+    // Calculate advance on multi-payment
+    const advanceCalc = calculateAdvanceOnMultiPayment({
+      customerAdvanceBalance,
+      totalPending,
+      receivedAmount: effectiveReceivedAmount,
+    });
+
+    // Distribution logic - use amount needed from customer (after advance) + customer payment
+    let distributionAmount: number;
+    if (customerAdvanceBalance > 0 && advanceCalc.advanceApplied > 0) {
+      distributionAmount = Math.min(effectiveReceivedAmount, totalPending);
+    } else {
+      distributionAmount = customAmountEnabled
+        ? Math.min(Math.max(0, Number(receivedAmount || 0)), totalPending)
+        : totalPending;
+    }
+
+    let remainingAmount = distributionAmount;
 
     const fullyPaidBills: string[] = [];
     let partialBillNumber: string | null = null;
@@ -121,11 +148,28 @@ export async function POST(req: Request) {
     const patchOps: Array<{ id: string; patches: any; amount: number }> = [];
     const notes: string[] = [];
 
+    // Track advance distribution per bill
+    let advanceRemaining = advanceCalc.advanceApplied;
+
     for (const bill of billsToPay) {
-      if (remainingAmount <= 0) break;
+      if (remainingAmount <= 0 && advanceRemaining <= 0) break;
 
       const due = getDueAmount(bill);
-      const applied = Math.min(remainingAmount, due);
+      let appliedFromCash = 0;
+      let appliedFromAdvance = 0;
+
+      if (advanceRemaining > 0) {
+        appliedFromAdvance = Math.min(advanceRemaining, due);
+        advanceRemaining -= appliedFromAdvance;
+      }
+
+      const remainingDue = due - appliedFromAdvance;
+      if (remainingDue > 0 && remainingAmount > 0) {
+        appliedFromCash = Math.min(remainingAmount, remainingDue);
+        remainingAmount -= appliedFromCash;
+      }
+
+      const applied = appliedFromCash + appliedFromAdvance;
       if (applied <= 0) continue;
 
       const newPaid = Number(bill.paidAmount || 0) + applied;
@@ -135,17 +179,23 @@ export async function POST(req: Request) {
       const discount = Number(bill.discount || 0);
       const grandTotal = Math.max(0, total - discount);
 
+      const patches: any = {
+        paidAmount: newPaid,
+        balanceAmount: Math.round(newDue * 100) / 100,
+        paymentStatus: isFullyPaid ? "paid" : "partial",
+        paymentDate: payDate,
+        paymentMethod: paymentMode,
+        updatedAt: now,
+      };
+
+      if (appliedFromAdvance > 0) {
+        patches.advanceApplied = appliedFromAdvance;
+      }
+
       patchOps.push({
         id: bill._id,
         amount: applied,
-        patches: {
-          paidAmount: newPaid,
-          balanceAmount: Math.round(newDue * 100) / 100,
-          paymentStatus: isFullyPaid ? "paid" : "partial",
-          paymentDate: payDate,
-          paymentMethod: paymentMode,
-          updatedAt: now,
-        },
+        patches,
       });
 
       if (isFullyPaid) {
@@ -158,7 +208,6 @@ export async function POST(req: Request) {
       }
 
       totalApplied += applied;
-      remainingAmount -= applied;
     }
 
     if (patchOps.length === 0) {
@@ -254,6 +303,42 @@ export async function POST(req: Request) {
       console.error("[PayMultiple] cashbook entry creation failed:", e);
     }
 
+    // Update customer advance balance
+    if (advanceCalc.advanceCreated > 0) {
+      (async () => {
+        try {
+          await updateCustomerAdvanceBalance(customerId, advanceCalc.advanceCreated);
+          await createAdvanceTransaction({
+            customerId,
+            amount: advanceCalc.advanceCreated,
+            type: "created",
+            reason: "excess_payment",
+            reference: `Bulk payment (${fullyPaidBills.length} bills)`,
+            createdBy: actorUserId || "system",
+          });
+        } catch (err) {
+          console.error("[Advance] Failed to create advance:", err);
+        }
+      })();
+    }
+    if (advanceCalc.advanceApplied > 0) {
+      (async () => {
+        try {
+          await updateCustomerAdvanceBalance(customerId, -advanceCalc.advanceApplied);
+          await createAdvanceTransaction({
+            customerId,
+            amount: advanceCalc.advanceApplied,
+            type: "used",
+            reason: "applied_to_bill",
+            reference: `Bulk payment (${fullyPaidBills.length} bills)`,
+            createdBy: actorUserId || "system",
+          });
+        } catch (err) {
+          console.error("[Advance] Failed to apply advance:", err);
+        }
+      })();
+    }
+
     // ONE combined WhatsApp event (fire-and-forget)
     const waBills = patchOps.map((op) => {
       const bill = billsToPay.find((b: any) => b._id === op.id);
@@ -279,6 +364,8 @@ export async function POST(req: Request) {
       totalOutstandingBefore: totalOutstandingBeforePayment,
       fullyPaidCount: fullyPaidBills.length,
       partialCount: partialBillNumber ? 1 : 0,
+      advanceApplied: advanceCalc.advanceApplied || 0,
+      advanceCreated: advanceCalc.advanceCreated || 0,
       paymentMode,
       paymentDate: payDate,
       paidByAdmin: actorUserId,
@@ -313,6 +400,8 @@ export async function POST(req: Request) {
             fullyPaidCount: fullyPaidBills.length,
             partialCount: partialBillNumber ? 1 : 0,
             paymentMode,
+            ...(advanceCalc.advanceApplied > 0 ? { advanceApplied: advanceCalc.advanceApplied } : {}),
+            ...(advanceCalc.advanceCreated > 0 ? { advanceCreated: advanceCalc.advanceCreated } : {}),
             route: adminRoute,
             route_path: adminRoute,
           },
@@ -348,6 +437,8 @@ export async function POST(req: Request) {
             fullyPaidCount: fullyPaidBills.length,
             partialCount: partialBillNumber ? 1 : 0,
             paymentMode,
+            ...(advanceCalc.advanceApplied > 0 ? { advanceApplied: advanceCalc.advanceApplied } : {}),
+            ...(advanceCalc.advanceCreated > 0 ? { advanceCreated: advanceCalc.advanceCreated } : {}),
             route: customerRoute,
             route_path: customerRoute,
           },

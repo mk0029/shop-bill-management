@@ -3,6 +3,7 @@
 import { CustomersOverview } from "@/components/dashboard/customers-overview";
 import { ProductsOverview } from "@/components/dashboard/products-overview";
 import { CashbookDashboardSection } from "@/components/dashboard/cashbook-dashboard-section";
+import { AdvanceSummarySection } from "@/components/dashboard/advance-summary-section";
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { useAuthStore } from "@/store/auth-store";
 import { useDataStore } from "@/store/data-store";
@@ -36,6 +37,8 @@ export default function DashboardClient() {
           </div>
 
           <CashbookDashboardSection />
+
+          <AdvanceSummarySection />
 
           <WorkListClient embedded />
 

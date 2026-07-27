@@ -67,20 +67,15 @@ export default function CustomerBillGroup({
       const amount = Number(bill.totalAmount ?? 0);
       const paidAmt = Number(bill.paidAmount ?? 0);
       const discount = Number(bill.discount ?? 0);
-      const netPaid = Math.max(0, paidAmt - discount);
+      const effectiveTotal = Math.max(0, amount - discount);
+      const balance = Math.max(0, effectiveTotal - paidAmt);
       if (status === "paid") {
-        paid += netPaid;
+        paid += paidAmt;
       } else if (status === "partial") {
-        paid += netPaid;
-        pending +=
-          bill.balanceAmount != null
-            ? Number(bill.balanceAmount)
-            : Math.max(0, amount - discount - netPaid);
+        paid += paidAmt;
+        pending += balance;
       } else {
-        pending +=
-          bill.balanceAmount != null
-            ? Number(bill.balanceAmount)
-            : Math.max(0, amount - discount);
+        pending += balance;
       }
     });
 
@@ -244,11 +239,8 @@ export default function CustomerBillGroup({
                     const total = Number(bill.totalAmount ?? 0);
                     const discount = Number(bill.discount ?? 0);
                     const paidAmount = Number(bill.paidAmount ?? 0);
-                    const netPaid = Math.max(0, paidAmount - discount);
-                    const balance =
-                      bill.balanceAmount != null
-                        ? Number(bill.balanceAmount)
-                        : Math.max(0, total - discount - netPaid);
+                    const effectiveTotal = Math.max(0, total - discount);
+                    const balance = Math.max(0, effectiveTotal - paidAmount);
 
                     return (
                       <Card
@@ -256,8 +248,7 @@ export default function CustomerBillGroup({
                         className="bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.06] transition-colors cursor-pointer"
                         onClick={() => onBillClick?.(bill)}
                         role="button"
-                        aria-label={`View details for bill ${bill.billNumber}`}
-                      >
+                        aria-label={`View details for bill ${bill.billNumber}`}>
                         <CardContent className="p-2.5">
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 flex-1">
@@ -266,8 +257,7 @@ export default function CustomerBillGroup({
                                   {bill.billNumber || `#${bill._id?.slice(-6)}`}
                                 </span>
                                 <Badge
-                                  className={`text-[10px] px-1.5 py-0 ${getStatusColor(status)}`}
-                                >
+                                  className={`text-[10px] px-1.5 py-0 ${getStatusColor(status)}`}>
                                   {status}
                                 </Badge>
                               </div>
@@ -285,23 +275,31 @@ export default function CustomerBillGroup({
                               </p>
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-sm font-semibold text-white">
-                                ₹{total.toLocaleString()}
-                              </p>
-                              {discount > 0 && (
-                                <p className="text-[10px] text-blue-400">
-                                  -₹{discount.toLocaleString()}
+                              {status !== "paid" && balance > 0 && (
+                                <p className="text-sm text-amber-400">
+                                  ₹{balance.toLocaleString()} due
                                 </p>
                               )}
-                              {(status === "partial" || status === "paid") &&
-                                netPaid > 0 && (
-                                  <p className="text-[10px] text-emerald-400">
-                                    ₹{netPaid.toLocaleString()} paid
-                                  </p>
-                                )}
-                              {status !== "paid" && balance > 0 && (
-                                <p className="text-[10px] text-amber-400">
-                                  ₹{balance.toLocaleString()} due
+
+                              {status !== "paid" && balance !== total && (
+                                <p className="text-xs font-semibold text-white">
+                                  ₹{total.toLocaleString()} total
+                                </p>
+                              )}
+                              {discount > 0 && (
+                                <p
+                                  className={` ${status === "paid" ? "text-base" : "text-[10px]"} text-green-400`}>
+                                  -₹{discount.toLocaleString()} less
+                                </p>
+                              )}
+                              {status === "partial" && paidAmount > 0 && (
+                                <p className="text-[10px] text-emerald-400">
+                                  ₹{paidAmount.toLocaleString()} paid
+                                </p>
+                              )}
+                              {status === "paid" && paidAmount > 0 && (
+                                <p className="text-base text-emerald-400">
+                                  Paid
                                 </p>
                               )}
                             </div>

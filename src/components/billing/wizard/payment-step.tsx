@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { fetchCustomerAdvanceBalance, calculateAdvanceOnBillCreation } from "@/lib/customer-advance";
 import { Input } from "@/components/ui/input";
 import { Dropdown } from "@/components/ui/dropdown";
 import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
@@ -84,6 +85,22 @@ export function PaymentStep({
   const discount = Number(formData.discount || 0);
   const additionalCharges =
     Number(formData.repairFee || 0) + Number(formData.visitingCharges || 0);
+
+  const [advanceBalance, setAdvanceBalance] = useState(0);
+  useEffect(() => {
+    if (selectedCustomer?._id) {
+      fetchCustomerAdvanceBalance(selectedCustomer._id).then(setAdvanceBalance).catch(() => setAdvanceBalance(0));
+    } else {
+      setAdvanceBalance(0);
+    }
+  }, [selectedCustomer?._id]);
+
+  const advanceCalc = useMemo(() => {
+    if (advanceBalance > 0 && grandTotal > 0) {
+      return calculateAdvanceOnBillCreation({ customerAdvanceBalance: advanceBalance, billTotal: grandTotal });
+    }
+    return { advanceApplied: 0, remainingBalance: grandTotal, isFullyCovered: false };
+  }, [advanceBalance, grandTotal]);
 
   const paymentMethods = [
     { value: "cash", label: "Cash" },
@@ -196,9 +213,18 @@ export function PaymentStep({
               <span>-{formatCurrency(discount)}</span>
             </div>
           )}
+          {advanceCalc.advanceApplied > 0 && (
+            <div
+              className="flex justify-between text-xs"
+              style={{ color: "rgba(52,211,153,0.8)" }}
+            >
+              <span>Advance Applied</span>
+              <span>-{formatCurrency(advanceCalc.advanceApplied)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm font-semibold text-white pt-1">
-            <span>Grand Total</span>
-            <span>{formatCurrency(grandTotal)}</span>
+            <span>{advanceCalc.advanceApplied > 0 ? "Final Payable" : "Grand Total"}</span>
+            <span>{formatCurrency(advanceCalc.remainingBalance)}</span>
           </div>
         </div>
 
@@ -233,7 +259,7 @@ export function PaymentStep({
           className="text-white text-xs"
         />
       </div>
-      {/* Payment Status */}
+        {/* Payment Status */}
       <div>
         <div className="grid grid-cols-3 gap-2.5">
           {[
@@ -242,19 +268,19 @@ export function PaymentStep({
               label: "Pending",
               icon: Wallet,
               selected:
-                !formData.isMarkAsPaid && !formData.enablePartialPayment,
+                !advanceCalc.isFullyCovered && !formData.isMarkAsPaid && !formData.enablePartialPayment,
             },
             {
               id: "paid",
-              label: "Paid",
+              label: advanceCalc.isFullyCovered ? "Paid (Advance)" : "Paid",
               icon: CreditCard,
-              selected: formData.isMarkAsPaid,
+              selected: advanceCalc.isFullyCovered || formData.isMarkAsPaid,
             },
             {
               id: "partial",
               label: "Partial",
               icon: DollarSign,
-              selected: formData.enablePartialPayment,
+              selected: !advanceCalc.isFullyCovered && formData.enablePartialPayment,
             },
           ].map((opt) => (
             <motion.button

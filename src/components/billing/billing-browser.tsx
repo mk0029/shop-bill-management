@@ -167,6 +167,11 @@ export function BillingBrowser({
       notes: bill.notes,
       // Include discount for modal display
       discount: (bill as any)?.discount ?? (bill as any)?.discountAmount ?? 0,
+      // Advance fields
+      advanceApplied: (bill as any)?.advanceApplied ?? 0,
+      advanceCreated: (bill as any)?.advanceCreated ?? 0,
+      paymentBeforeAdvance: (bill as any)?.paymentBeforeAdvance ?? 0,
+      finalCustomerPayment: (bill as any)?.finalCustomerPayment ?? 0,
       customer: {
         name: safeUserName(bill.customer?.name, "Unknown Customer"),
         nickname: bill.customer?.nickname || undefined,
@@ -237,6 +242,9 @@ export function BillingBrowser({
       paidAmount: number;
       balanceAmount: number;
       discount?: number;
+      advanceCreated?: number;
+      finalCustomerPayment?: number;
+      paymentBeforeAdvance?: number;
     },
   ) => {
     try {
@@ -256,12 +264,16 @@ export function BillingBrowser({
         console.time("updateBill->commit");
       }
       // Persist to Sanity via centralized data layer (only payment fields)
-      await updateBill(billId, {
+      const billUpdates: any = {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
         ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
-      } as any);
+      };
+      if (paymentData.advanceCreated) billUpdates.advanceCreated = paymentData.advanceCreated;
+      if (paymentData.finalCustomerPayment) billUpdates.finalCustomerPayment = paymentData.finalCustomerPayment;
+      if (paymentData.paymentBeforeAdvance) billUpdates.paymentBeforeAdvance = paymentData.paymentBeforeAdvance;
+      await updateBill(billId, billUpdates as any);
       if (process.env.NODE_ENV === "development") {
         console.timeEnd("updateBill->commit");
         console.time("optimistic-selectedBill-set");
@@ -278,6 +290,9 @@ export function BillingBrowser({
           paidAmount: paymentData.paidAmount,
           balanceAmount: paymentData.balanceAmount,
           ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
+          ...(paymentData.advanceCreated ? { advanceCreated: paymentData.advanceCreated } : {}),
+          ...(paymentData.finalCustomerPayment ? { finalCustomerPayment: paymentData.finalCustomerPayment } : {}),
+          ...(paymentData.paymentBeforeAdvance ? { paymentBeforeAdvance: paymentData.paymentBeforeAdvance } : {}),
         });
         if (process.env.NODE_ENV === "development") {
           console.timeEnd("optimistic-selectedBill-set");

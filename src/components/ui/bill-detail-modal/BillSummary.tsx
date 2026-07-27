@@ -46,8 +46,10 @@ export const BillSummary = memo(function BillSummary({
   );
   const tax = toNum(bill.taxAmount ?? bill.tax ?? 0);
   const paid = toNum(bill.paidAmount ?? 0);
-  const netPayable = Math.max(0, grandTotal - discount - paid);
-  const remaining = Math.max(0, grandTotal - discount - paid);
+  const advanceApplied = toNum(bill.advanceApplied ?? 0);
+  const advanceCreated = toNum(bill.advanceCreated ?? 0);
+  const netPayable = Math.max(0, grandTotal - discount - paid - advanceApplied);
+  const remaining = Math.max(0, grandTotal - discount - paid + advanceCreated - advanceApplied);
 
   const rows = useMemo(
     () => [
@@ -73,6 +75,26 @@ export const BillSummary = memo(function BillSummary({
         : []),
       ...(tax > 0 ? [{ label: "Tax", value: tax, highlight: false }] : []),
       { label: "Grand Total", value: grandTotal, highlight: true, bold: true },
+      ...(advanceApplied > 0
+        ? [
+            {
+              label: "Advance Applied",
+              value: -advanceApplied,
+              highlight: false,
+              green: true,
+            },
+          ]
+        : []),
+      ...(advanceCreated > 0
+        ? [
+            {
+              label: "Advance Created",
+              value: advanceCreated,
+              highlight: false,
+              accent: true,
+            },
+          ]
+        : []),
       ...(paid > 0
         ? [
             {
@@ -108,6 +130,8 @@ export const BillSummary = memo(function BillSummary({
       tax,
       grandTotal,
       paid,
+      advanceApplied,
+      advanceCreated,
       remaining,
       netPayable,
     ],

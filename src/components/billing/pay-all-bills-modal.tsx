@@ -189,6 +189,7 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
     return distributePayment(bills, Math.max(0, receivedAmount));
   }, [bills, totalPending, customAmountEnabled, receivedAmount]);
 
+  const advanceCreatedAmount = customAmountEnabled && receivedAmount > totalPending ? receivedAmount - totalPending : 0;
   const overpayment = customAmountEnabled && receivedAmount > totalPending;
   const effectiveAmount = customAmountEnabled
     ? Math.min(Math.max(0, receivedAmount), totalPending)
@@ -293,6 +294,11 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
               Remaining outstanding: ₹{successData.remainingOutstanding.toLocaleString()}
             </p>
           )}
+          {successData?.advanceCreated > 0 && (
+            <p className="text-xs text-amber-400 mt-1">
+              Advance created: ₹{successData.advanceCreated.toLocaleString()}
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -370,8 +376,8 @@ export const PayAllBillsModal = memo(function PayAllBillsModal({
                   <div className="flex items-center gap-1.5 mt-2 text-amber-400 text-[11px]">
                     <AlertTriangle className="w-3 h-3" />
                     <span>
-                      Amount exceeds total pending. Will be capped to ₹
-                      {totalPending.toLocaleString()}.
+                      Amount exceeds total pending. Excess ₹
+                      {advanceCreatedAmount.toLocaleString()} will be added as customer advance balance.
                     </span>
                   </div>
                 )}

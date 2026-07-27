@@ -235,11 +235,9 @@ export function calculatePaymentValidation({
 
   const discountTooHigh =
     discountAmount > originalRemaining + BILL_EPSILON;
-  const paymentTooHigh =
-    paymentAmount > payableAfterDiscount + BILL_EPSILON;
   const invalidAmount = paymentAmount < 0 || discountAmount < 0;
   const hasValidationError =
-    invalidAmount || discountTooHigh || paymentTooHigh;
+    invalidAmount || discountTooHigh;
   const billStatus: "paid" | "partial" =
     remainingAfterPayment <= BILL_EPSILON ? "paid" : "partial";
 
@@ -249,7 +247,6 @@ export function calculatePaymentValidation({
     totalSettlement,
     remainingAfterPayment,
     discountTooHigh,
-    paymentTooHigh,
     invalidAmount,
     hasValidationError,
     billStatus,

@@ -10,6 +10,12 @@ import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services
 import { safeUserName } from "@/lib/display-text";
 import { resolveBillEvents, emitBillEventsInBackground } from "@/lib/bill-events";
 import { calculatePaymentWithRoundFigureDiscount, toMoney, BILL_EPSILON } from "@/lib/bill-utils";
+import {
+  calculateAdvanceForPayment,
+  fetchCustomerAdvanceBalance,
+  updateCustomerAdvanceBalance,
+  createAdvanceTransaction,
+} from "@/lib/customer-advance";
 
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
   return await sanityClient.fetch(
@@ -87,8 +93,9 @@ export async function PATCH(
           `*[_type == "bill" && _id == $id][0]{
             _id, billNumber, status, paymentStatus, totalAmount, discount,
             paidAmount, balanceAmount, paymentMethod, paymentDate, serviceType, dueDate,
+            advanceApplied, advanceCreated, paymentBeforeAdvance, finalCustomerPayment,
             technician->{_id, name},
-            customer->{_id, phone, name}
+            customer->{_id, phone, name, advanceBalance}
           }`,
           { id }
         );
@@ -122,6 +129,10 @@ export async function PATCH(
       "dueDate",
       "priority",
       "technician",
+      "advanceApplied",
+      "advanceCreated",
+      "paymentBeforeAdvance",
+      "finalCustomerPayment",
     ]);
     const requestedKeys = Object.keys(body || {});
     const hasUnsafeKeys = requestedKeys.some((k) => !adminSafeKeys.has(k));
@@ -153,6 +164,10 @@ export async function PATCH(
       "dueDate",
       "priority",
       "technician",
+      "advanceApplied",
+      "advanceCreated",
+      "paymentBeforeAdvance",
+      "finalCustomerPayment",
     ]);
     const updates: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(body || {})) {
@@ -215,6 +230,12 @@ export async function PATCH(
         const adminRoute = `/admin/billing?open=${encodeURIComponent(String(id))}`
         const customerRoute = `/customer/bills?open=${encodeURIComponent(String(id))}`
 
+        const advanceAppliedNotify = toMoney(body?.advanceApplied ?? 0)
+        const advanceCreatedNotify = toMoney(body?.advanceCreated ?? 0)
+        const advanceData: Record<string, unknown> = {}
+        if (advanceAppliedNotify > 0) advanceData.advanceApplied = advanceAppliedNotify
+        if (advanceCreatedNotify > 0) advanceData.advanceCreated = advanceCreatedNotify
+
         const notificationPayload = {
           type: 'billing.updated' as const,
           actorUserId,
@@ -228,6 +249,7 @@ export async function PATCH(
             paymentStatus: paymentText,
             route: adminRoute,
             route_path: adminRoute,
+            ...advanceData,
           },
           skipActor: true,
         };
@@ -255,6 +277,86 @@ export async function PATCH(
       console.error('[Notify] billing.updated event failed', notifyErr)
     }
     
+    // Advance payment logic: compute if excess payment creates advance balance
+    let advanceCreatedAmount = 0;
+    let advanceAppliedAmount = 0;
+    let paymentBeforeAdvance = 0;
+    let finalCustomerPayment = 0;
+
+    if (paymentDelta > 0 && prev?.customer) {
+      const customerId = prev.customer._id;
+      const totalAmount = toMoney(prev.totalAmount || 0);
+      const existingDiscount = toMoney(prev.discount || 0);
+      const grandTotal = Math.max(0, totalAmount - existingDiscount);
+      const paidAmount = toMoney(prev.paidAmount || 0);
+      const newPaidAmount = paidAmount + paymentDelta;
+      const remainingAfterPayment = Math.max(0, grandTotal - newPaidAmount);
+      const isFullyPaid = remainingAfterPayment <= BILL_EPSILON;
+
+      if (isFullyPaid && newPaidAmount > grandTotal) {
+        const excess = newPaidAmount - grandTotal;
+        advanceCreatedAmount = excess;
+        finalCustomerPayment = grandTotal;
+        paymentBeforeAdvance = newPaidAmount;
+      } else {
+        finalCustomerPayment = newPaidAmount;
+        paymentBeforeAdvance = newPaidAmount;
+      }
+    }
+
+    // If advance was created, update customer balance and create transaction
+    if (advanceCreatedAmount > 0 && prev?.customer) {
+      const customerId = prev.customer._id;
+      const billNumber = prev.billNumber || id;
+      (async () => {
+        try {
+          await updateCustomerAdvanceBalance(customerId, advanceCreatedAmount);
+          await createAdvanceTransaction({
+            customerId,
+            billId: id,
+            amount: advanceCreatedAmount,
+            type: "created",
+            reason: "excess_payment",
+            reference: `Bill ${billNumber}`,
+            createdBy: auth.userId || "system",
+          });
+        } catch (err) {
+          console.error("[Advance] Failed to update balance:", err);
+        }
+      })();
+    }
+
+    // If advance was applied (from frontend), update balance and create transaction
+    const advanceApplied = toMoney(body?.advanceApplied ?? 0);
+    if (advanceApplied > 0 && prev?.customer) {
+      const customerId = prev.customer._id;
+      const billNumber = prev.billNumber || id;
+      (async () => {
+        try {
+          await updateCustomerAdvanceBalance(customerId, -advanceApplied);
+          await createAdvanceTransaction({
+            customerId,
+            billId: id,
+            amount: advanceApplied,
+            type: "used",
+            reason: "applied_to_bill",
+            reference: `Bill ${billNumber}`,
+            createdBy: auth.userId || "system",
+          });
+        } catch (err) {
+          console.error("[Advance] Failed to apply advance:", err);
+        }
+      })();
+    }
+
+    // Set advance fields on bill if applicable
+    if (advanceCreatedAmount > 0 || advanceApplied > 0 || toMoney(body?.finalCustomerPayment) > 0) {
+      updates["advanceApplied"] = advanceApplied > 0 ? advanceApplied : toMoney(prev?.advanceApplied ?? 0);
+      updates["advanceCreated"] = advanceCreatedAmount > 0 ? advanceCreatedAmount : toMoney(prev?.advanceCreated ?? 0) + (toMoney(body?.advanceCreated ?? 0));
+      updates["paymentBeforeAdvance"] = paymentBeforeAdvance > 0 ? paymentBeforeAdvance : toMoney(prev?.paymentBeforeAdvance ?? 0);
+      updates["finalCustomerPayment"] = finalCustomerPayment > 0 ? finalCustomerPayment : toMoney(prev?.finalCustomerPayment ?? 0) + (toMoney(body?.finalCustomerPayment ?? 0));
+    }
+
     // Create cash book entry asynchronously (fire-and-forget, reuse prev data)
     if (paymentDelta > 0 && prev?.customer) {
       const paymentTimestamp = new Date().toISOString();

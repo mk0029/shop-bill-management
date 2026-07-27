@@ -19,6 +19,10 @@ type BillLike = {
   items?: Array<{ name?: string; description?: string; price?: number }>;
   notes?: string;
   note?: string;
+  advanceApplied?: number;
+  advanceCreated?: number;
+  paymentBeforeAdvance?: number;
+  finalCustomerPayment?: number;
 };
 
 export function formatCurrency(value: unknown) {
@@ -206,8 +210,13 @@ export function composeMessage({ title, greeting, bodyParts = [], loginUrl }: { 
 export const notificationTemplates = {
   billCreated(input: { customer: NotificationCustomer; bill: BillLike; loginUrl?: string }) {
     const bill = input.bill;
+    const isPaid = bill.paymentStatus === "paid" || (typeof bill.advanceApplied === 'number' && bill.advanceApplied >= Number(bill.totalAmount));
+    const advanceApplied = typeof bill.advanceApplied === 'number' && bill.advanceApplied > 0 ? `\u2022 Advance Applied: ${formatCurrency(bill.advanceApplied)}` : null;
+    const actionLine = isPaid
+      ? "This bill has been fully paid via advance balance. No further action is needed."
+      : "Please review the details and complete the payment by the due date.";
     return composeMessage({
-      title: "Bill Created",
+      title: isPaid ? "Bill Created \u2014 Paid via Advance" : "Bill Created",
       greeting: greetingText(input.customer),
       bodyParts: [
         "A new bill has been created in your account.",
@@ -218,9 +227,10 @@ export const notificationTemplates = {
         `\u2022 Amount: ${formatCurrency(bill.totalAmount)}`,
         bill.dueDate ? `\u2022 Due Date: ${formatDate(bill.dueDate)}` : null,
         bill.serviceName ? `\u2022 Service: ${bill.serviceName}` : null,
+        advanceApplied,
         bill.technicianName || bill.technician ? `\u2022 Technician: ${bill.technicianName || bill.technician}` : null,
         "",
-        "Please review the details and complete the payment by the due date.",
+        actionLine,
       ],
       loginUrl: input.loginUrl,
     });
@@ -232,6 +242,8 @@ export const notificationTemplates = {
     const paid = formatCurrency(bill.paidAmount || bill.totalAmount || 0);
     const total = formatCurrency(bill.totalAmount || 0);
     const remaining = formatCurrency(pendingAmount(bill));
+    const advanceApplied = typeof bill.advanceApplied === 'number' && bill.advanceApplied > 0 ? formatCurrency(bill.advanceApplied) : null;
+    const advanceCreated = typeof bill.advanceCreated === 'number' && bill.advanceCreated > 0 ? formatCurrency(bill.advanceCreated) : null;
     return [
       "✅ Payment Received Successfully",
       "",
@@ -246,6 +258,8 @@ export const notificationTemplates = {
       `• Total Amount: ${total}`,
       `• Amount Paid: ${paid}`,
       `• Remaining Balance: ${remaining}`,
+      ...(advanceApplied ? [`• Advance Used: ${advanceApplied}`] : []),
+      ...(advanceCreated ? [`• Advance Created: ${advanceCreated}`] : []),
       "",
       "✅ Bill Status: PAID",
       "",
@@ -339,6 +353,8 @@ export const notificationTemplates = {
 
   billUpdated(input: { customer: NotificationCustomer; bill: BillLike; loginUrl?: string }) {
     const bill = input.bill;
+    const advanceApplied = typeof bill.advanceApplied === 'number' && bill.advanceApplied > 0 ? `\u2022 Advance Used: ${formatCurrency(bill.advanceApplied)}` : null;
+    const advanceCreated = typeof bill.advanceCreated === 'number' && bill.advanceCreated > 0 ? `\u2022 Advance Added: ${formatCurrency(bill.advanceCreated)}` : null;
     return composeMessage({
       title: "Bill Updated",
       greeting: greetingText(input.customer),
@@ -351,6 +367,8 @@ export const notificationTemplates = {
         `\u2022 Amount: ${formatCurrency(bill.totalAmount)}`,
         bill.serviceName ? `\u2022 Service: ${bill.serviceName}` : null,
         `\u2022 Balance: ${formatCurrency(bill.balanceAmount ?? bill.totalAmount ?? 0)}`,
+        advanceApplied,
+        advanceCreated,
         bill.technicianName ? `\u2022 Technician: ${bill.technicianName}` : null,
       ],
       loginUrl: input.loginUrl,
@@ -382,6 +400,8 @@ export const notificationTemplates = {
     const paid = formatCurrency(bill.paidAmount || 0);
     const total = formatCurrency(bill.totalAmount || 0);
     const remaining = formatCurrency(pendingAmount(bill));
+    const advanceApplied = typeof bill.advanceApplied === 'number' && bill.advanceApplied > 0 ? formatCurrency(bill.advanceApplied) : null;
+    const advanceCreated = typeof bill.advanceCreated === 'number' && bill.advanceCreated > 0 ? formatCurrency(bill.advanceCreated) : null;
     return [
       "✅ Partial Payment Received",
       "",
@@ -395,6 +415,8 @@ export const notificationTemplates = {
       "💳 Payment Summary",
       `• Total Amount: ${total}`,
       `• Amount Paid: ${paid}`,
+      ...(advanceApplied ? [`• Advance Used: ${advanceApplied}`] : []),
+      ...(advanceCreated ? [`• Advance Created: ${advanceCreated}`] : []),
       `• Remaining Balance: ${remaining}`,
       "",
       "⚠️ Bill Status: PARTIALLY PAID",

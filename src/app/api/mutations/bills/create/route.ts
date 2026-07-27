@@ -146,6 +146,10 @@ export async function POST(req: NextRequest) {
       const adminNotification = billCreatedAdminNotification({ amount, customerName })
       const customerNotification = billCreatedCustomerNotification({ amount, customerName })
 
+      const advanceField = Number((created as any)?.advanceApplied || 0) > 0
+        ? { advanceApplied: Number((created as any)?.advanceApplied) }
+        : {}
+
       const adminIds = await getActiveAdminUserIds()
       await createAndDispatchNotification({
         eventId: `billing.created.${String((created as any)?._id || billId)}.admins`,
@@ -159,6 +163,7 @@ export async function POST(req: NextRequest) {
           billNumber: String((created as any)?.billNumber || ''),
           customerId,
           targetRole: adminNotification.targetRole,
+          ...advanceField,
           route: adminRoute,
           route_path: adminRoute,
         },
@@ -179,6 +184,7 @@ export async function POST(req: NextRequest) {
             billNumber: String((created as any)?.billNumber || ''),
             customerId: String(customerId),
             targetRole: customerNotification.targetRole,
+            ...advanceField,
             route: customerRoute,
             route_path: customerRoute,
           },

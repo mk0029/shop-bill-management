@@ -11,6 +11,13 @@ import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 import { TAX_RATE } from "../constants/defaults";
 import { syncSingleBillPayment } from "./bill-payment-sync";
 import { createBillCreatedShopChatEvent } from "@/lib/shop-chat/api";
+import {
+  toMoney,
+  fetchCustomerAdvanceBalance,
+  updateCustomerAdvanceBalance,
+  createAdvanceTransaction,
+  calculateAdvanceOnBillCreation,
+} from "@/lib/customer-advance";
 
 
 export interface FormSubmissionResult {
@@ -762,6 +769,51 @@ export async function createBill(billData: {
     // Net payable after discount (used for balance/payment flows and notifications)
     const netPayable = Math.max(0, grossTotal - discount);
 
+    // Auto-apply customer advance balance to this bill
+    let advanceApplied = 0;
+    let adjustedPaidAmount = Number(billData.paidAmount || 0);
+    let adjustedBalanceAmount = billData.balanceAmount ?? netPayable;
+    let adjustedPaymentStatus = billData.paymentStatus || "pending";
+
+    if (customerId) {
+      const customerAdvanceBalance = await fetchCustomerAdvanceBalance(customerId);
+      if (customerAdvanceBalance > 0) {
+        const advanceCalc = calculateAdvanceOnBillCreation({
+          customerAdvanceBalance,
+          billTotal: netPayable,
+        });
+        if (advanceCalc.advanceApplied > 0) {
+          advanceApplied = advanceCalc.advanceApplied;
+          const wasAlreadyPaid = Number(billData.paidAmount || 0) > 0;
+          if (!wasAlreadyPaid && advanceCalc.isFullyCovered) {
+            adjustedPaymentStatus = "paid";
+            adjustedPaidAmount = netPayable;
+            adjustedBalanceAmount = 0;
+          } else if (!wasAlreadyPaid) {
+            adjustedPaidAmount = Math.min(Number(billData.paidAmount || 0), netPayable);
+            adjustedBalanceAmount = advanceCalc.remainingBalance;
+          }
+          // Update customer advance balance
+          (async () => {
+            try {
+              await updateCustomerAdvanceBalance(customerId, -advanceApplied);
+              await createAdvanceTransaction({
+                customerId,
+                billId: undefined,
+                amount: advanceApplied,
+                type: "used",
+                reason: "applied_to_bill",
+                reference: `New bill auto-apply`,
+                createdBy: actorId || "system",
+              });
+            } catch (err) {
+              console.error("[Advance] Auto-apply failed:", err);
+            }
+          })();
+        }
+      }
+    }
+
     // Determine current actor (admin/technician) to set as bill.technician
     const actorId = getActorUserId();
 
@@ -782,9 +834,10 @@ export async function createBill(billData: {
       subtotal,
       discount,
       totalAmount: grossTotal,
-      paymentStatus: billData.paymentStatus || "pending",
-      paidAmount: billData.paidAmount || 0,
-      balanceAmount: billData.balanceAmount ?? netPayable,
+      advanceApplied: advanceApplied,
+      paymentStatus: adjustedPaymentStatus,
+      paidAmount: adjustedPaidAmount,
+      balanceAmount: adjustedBalanceAmount,
       status: "draft",
       priority: "medium",
       notes: billData.notes,
@@ -851,10 +904,11 @@ export async function createBill(billData: {
             totalAmount: Number(grossTotal || 0),
             discount: Number(discount || 0),
             finalTotal: Number(netPayable || 0),
-            paidAmount: Number(billData.paidAmount || 0),
-            balanceAmount: Number(billData.balanceAmount ?? netPayable),
-            paymentStatus: String(billData.paymentStatus || "pending"),
-            isFullyPaid: String(billData.paymentStatus || "") === "paid",
+            paidAmount: Number(adjustedPaidAmount),
+            balanceAmount: Number(adjustedBalanceAmount),
+            paymentStatus: String(adjustedPaymentStatus),
+            advanceApplied: Number(advanceApplied),
+            isFullyPaid: String(adjustedPaymentStatus || "") === "paid",
             dueDate: billData.dueDate,
             serviceName: billData.serviceType || "",
             loginUrl: customer?.phone

@@ -43,30 +43,30 @@ export const PaymentControls = ({
   handlePaymentUpdate,
   currency,
 }: PaymentControlsProps) => {
-  const grandTotalNum = toNum(grandTotal);
   const alreadyPaid = toNum(bill?.paidAmount || 0);
   const discountNum = Math.max(Number(discountAmount || 0), 0);
   const partialNum = Math.max(Number(partialAmount || 0), 0);
+
+  const effectiveGrand = getEffectiveGrandTotal();
 
   const validation = useMemo(
     () =>
       paymentMode === "paid"
         ? calculatePaymentValidation({
-            grandTotal: grandTotalNum,
+            grandTotal: effectiveGrand,
             alreadyPaid,
             discountAmount: 0,
-            paymentAmount: Math.max(0, grandTotalNum - alreadyPaid),
+            paymentAmount: Math.max(0, effectiveGrand - alreadyPaid),
           })
         : calculatePaymentValidation({
-            grandTotal: grandTotalNum,
+            grandTotal: effectiveGrand,
             alreadyPaid,
             discountAmount: discountNum,
             paymentAmount: partialNum,
           }),
-    [grandTotalNum, alreadyPaid, discountNum, partialNum, paymentMode],
+    [effectiveGrand, alreadyPaid, discountNum, partialNum, paymentMode],
   );
 
-  const effectiveGrand = getEffectiveGrandTotal();
   const newTotalPaid = Math.min(alreadyPaid + partialNum, effectiveGrand);
   const remainingAfterPartial = Math.max(0, effectiveGrand - newTotalPaid);
   return (
@@ -130,7 +130,7 @@ export const PaymentControls = ({
                     id="partial-amount"
                     type="number"
                     min="0"
-                    max={grandTotal}
+                    max={effectiveGrand}
                     step="1"
                     value={partialAmount}
                     onChange={(e) => setPartialAmount(normalizeMoneyInput(e.target.value))}
@@ -143,11 +143,6 @@ export const PaymentControls = ({
                         Enter an amount greater than 0 to enable Save.
                       </p>
                     )}
-                  {validation.paymentTooHigh && (
-                    <p className="mt-1 text-xs text-red-400">
-                      Payment exceeds payable amount of {currency}{validation.payableAfterDiscount.toFixed(2)}
-                    </p>
-                  )}
                 </div>
 
                 {/* Live summary */}

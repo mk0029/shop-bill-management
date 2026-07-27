@@ -23,6 +23,7 @@ import {
   calculatePaymentValidation,
   calculatePaymentWithRoundFigureDiscount,
 } from "@/lib/bill-utils";
+import { calculateAdvanceForPayment } from "@/lib/customer-advance";
 
 interface PaymentUpdateModalProps {
   isOpen: boolean;
@@ -74,16 +75,16 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
   const [error, setError] = useState("");
 
   const discountVal = Math.max(0, Number(discount) || 0);
-  const effectiveTotal = Math.max(0, grandTotal - discountVal);
+  const effectiveTotal = Math.max(0, grandTotal - existingDiscount - discountVal);
   const remaining = Math.max(0, effectiveTotal - alreadyPaid);
   const progressPct =
-    effectiveTotal > 0 ? (alreadyPaid / effectiveTotal) * 100 : 0;
+    (grandTotal - existingDiscount) > 0 ? (alreadyPaid / (grandTotal - existingDiscount)) * 100 : 0;
 
   const paymentVal =
     paymentMode === "full" ? remaining : Math.max(Number(amount) || 0, 0);
 
   const paymentWithRoundFigure = calculatePaymentWithRoundFigureDiscount({
-    grandTotal,
+    grandTotal: Math.max(0, grandTotal - existingDiscount),
     alreadyPaid,
     discountAmount: discountVal,
     paymentAmount: paymentVal,
@@ -130,10 +131,6 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       setError("Discount cannot exceed remaining amount");
       return;
     }
-    if (v.paymentTooHigh && paymentMode !== "full") {
-      setError("Payment cannot exceed amount after discount");
-      return;
-    }
     if (paymentMode !== "full" && payAmt <= 0 && discountVal <= 0) {
       setError("Payment amount must be greater than 0");
       return;
@@ -147,6 +144,13 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       const newPaid = alreadyPaid + payAmt;
       const isFull = v.billStatus === "paid";
 
+      // Calculate advance if excess payment
+      const advanceResult = calculateAdvanceForPayment({
+        customerAdvanceBalance: 0,
+        billTotal: remaining,
+        customerPays: payAmt,
+      });
+
       await onUpdatePayment(String(billId), {
         paymentStatus: isFull ? "paid" : "partial",
         paidAmount: newPaid,
@@ -157,6 +161,9 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
         discount: discountVal > 0 ? discountVal : undefined,
         discountReason: discountReason || undefined,
         notes: notes || undefined,
+        advanceCreated: advanceResult.advanceCreated > 0 ? advanceResult.advanceCreated : undefined,
+        finalCustomerPayment: advanceResult.finalCustomerPayment > 0 ? advanceResult.finalCustomerPayment : undefined,
+        paymentBeforeAdvance: advanceResult.paymentBeforeAdvance > 0 ? advanceResult.paymentBeforeAdvance : undefined,
       });
 
       setShowSuccess(true);
@@ -358,9 +365,12 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                     {[25, 50, 75, 100].map((pct) => {
                       const pctAmount =
                         (validation.payableAfterDiscount * pct) / 100;
+                      const numAmount = Number(amount);
                       const isActive =
-                        Number(amount) >= pctAmount - BILL_EPSILON &&
-                        Number(amount) <= pctAmount + BILL_EPSILON;
+                        pct === 100 && numAmount >= validation.payableAfterDiscount - BILL_EPSILON
+                          ? true
+                          : numAmount >= pctAmount - BILL_EPSILON &&
+                            numAmount <= pctAmount + BILL_EPSILON;
                       return (
                         <button
                           key={pct}
@@ -429,6 +439,24 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                   <p className="text-xs text-emerald-400/80">
                     Bill will be marked as fully paid after this payment
                   </p>
+                )}
+                {/* Advance calculation preview */}
+                {paymentVal > 0 && remaining > 0 && paymentVal >= remaining && (
+                  (() => {
+                    const advancePreview = calculateAdvanceForPayment({
+                      customerAdvanceBalance: 0,
+                      billTotal: remaining,
+                      customerPays: paymentVal,
+                    });
+                    if (advancePreview.advanceCreated > 0) {
+                      return (
+                        <p className="text-xs text-amber-400/80 mt-1">
+                          Advance Created: {currency}{advancePreview.advanceCreated.toFixed(2)} will be added to customer balance
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()
                 )}
               </motion.div>
             )}

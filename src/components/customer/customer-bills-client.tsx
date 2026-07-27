@@ -16,6 +16,8 @@ import { checkPaymentsDisabled } from "@/lib/payments-config";
 import ResponsiveAccordion from "@/components/ui/responsive-accordion";
 import { useBills } from "@/hooks/use-sanity-data";
 import EmptyState from "@/components/ui/empty-state";
+import { useAuthStore } from "@/store/auth-store";
+import { fetchCustomerAdvanceBalance } from "@/lib/customer-advance";
 
 export default function CustomerBillsClient() {
   const router = useRouter();
@@ -108,6 +110,14 @@ export default function CustomerBillsClient() {
 
   const totalPendingAmount = useMemo(() => unpaidBills.reduce((s, b) => s + b.balance, 0), [unpaidBills]);
 
+  const currentUser = useAuthStore((s: any) => s.user);
+  const [advanceBalance, setAdvanceBalance] = useState(0);
+  useEffect(() => {
+    if (currentUser?._id) {
+      fetchCustomerAdvanceBalance(currentUser._id).then(setAdvanceBalance).catch(() => setAdvanceBalance(0));
+    }
+  }, [currentUser?._id]);
+
   const viewBillDetails = useCallback((bill: any) => {
     setSelectedBill(bill);
     setShowBillModal(true);
@@ -180,6 +190,22 @@ export default function CustomerBillsClient() {
       <ResponsiveAccordion title="Bill's Info">
         <CustomerBillStats bills={customerBills} />
       </ResponsiveAccordion>
+
+      {/* Customer Advance Balance */}
+      {advanceBalance > 0 && (
+        <Card className="border-emerald-800/40 bg-gradient-to-br from-emerald-900/30 to-emerald-800/20">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <span className="text-2xl">💰</span>
+            </div>
+            <div>
+              <p className="text-sm text-emerald-300/80">Your Advance Balance</p>
+              <p className="text-2xl font-bold text-emerald-400">₹{advanceBalance.toLocaleString()}</p>
+              <p className="text-xs text-emerald-300/60">Available for your next purchase.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <BillFilters
         searchTerm={searchTerm}
