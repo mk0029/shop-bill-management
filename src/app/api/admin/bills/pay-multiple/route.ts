@@ -122,12 +122,34 @@ export async function POST(req: Request) {
       ? Math.max(0, Number(receivedAmount || 0))
       : totalPending;
 
+    // Validate: advance cannot exceed actual customer balance
+    if (customerAdvanceBalance < 0 || !Number.isFinite(customerAdvanceBalance)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid customer advance balance" },
+        { status: 400 },
+      );
+    }
+
     // Calculate advance on multi-payment
     const advanceCalc = calculateAdvanceOnMultiPayment({
       customerAdvanceBalance,
       totalPending,
       receivedAmount: effectiveReceivedAmount,
     });
+
+    // Validate: advanceApplied must never exceed customer's actual balance
+    if (advanceCalc.advanceApplied > customerAdvanceBalance + 0.01) {
+      return NextResponse.json(
+        { success: false, error: `advanceApplied (${advanceCalc.advanceApplied}) exceeds customer balance (${customerAdvanceBalance})` },
+        { status: 400 },
+      );
+    }
+    if (advanceCalc.advanceApplied < 0 || !Number.isFinite(advanceCalc.advanceApplied)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid advanceApplied value" },
+        { status: 400 },
+      );
+    }
 
     // Distribution logic - use amount needed from customer (after advance) + customer payment
     let distributionAmount: number;
@@ -218,8 +240,11 @@ export async function POST(req: Request) {
     }
 
     // Generate smart note
+    const isAdvanceOnly = advanceCalc.advanceApplied > 0 && effectiveReceivedAmount === 0 && Number(receivedAmount) === 0;
     const smartNote = note || [
-      `Received \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()} from customer.`,
+      isAdvanceOnly
+        ? `Applied \u20b9${advanceCalc.advanceApplied.toLocaleString()} from customer's advance balance.`
+        : `Received \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()} from customer.`,
       `Auto-adjusted against oldest pending bills.`,
       fullyPaidBills.length > 0 ? `Fully paid: ${fullyPaidBills.join(", ")}.` : "",
       partialBillNumber ? `Partially paid ${partialBillNumber} with \u20b9${partialApplied.toLocaleString()}.` : "",
@@ -425,12 +450,16 @@ export async function POST(req: Request) {
           actorUserId,
           userIds: [customerId],
           title: "Payment Received Successfully",
-          body: `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. ${fullyPaidText} ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment, Jambh Electricals`,
+          body: advanceCalc.advanceApplied > 0 && effectiveReceivedAmount === 0
+            ? `Dear ${customerDisplayName(customerDoc)}, your advance balance of \u20b9${advanceCalc.advanceApplied.toLocaleString()} has been applied to your pending bill(s). ${fullyPaidText} ${partialText} ${remainingText} Thank you, Jambh Electricals`
+            : `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. ${fullyPaidText} ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment, Jambh Electricals`,
           data: {
             customerId,
             billNumbersFullyPaid: fullyPaidBills.join(","),
             billNumberPartiallyPaid: partialBillNumber || "",
-            totalReceived: customAmountEnabled ? Number(receivedAmount) : totalPending,
+            totalReceived: customAmountEnabled
+              ? (advanceCalc.advanceApplied > 0 && Number(receivedAmount) === 0 ? totalApplied : Number(receivedAmount))
+              : totalPending,
             totalApplied,
             totalOutstandingBefore: totalOutstandingBeforePayment,
             remainingOutstanding,
@@ -457,7 +486,9 @@ export async function POST(req: Request) {
         fullyPaidBills,
         partiallyPaidBill: partialBillNumber,
         partialApplied,
-        totalReceived: customAmountEnabled ? Number(receivedAmount) : totalPending,
+        totalReceived: customAmountEnabled
+          ? (advanceCalc.advanceApplied > 0 && Number(receivedAmount) === 0 ? totalApplied : Number(receivedAmount))
+          : totalPending,
         totalApplied,
         totalOutstandingBefore: totalOutstandingBeforePayment,
         remainingOutstanding,

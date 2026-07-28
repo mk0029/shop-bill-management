@@ -150,11 +150,22 @@ export function CashbookPaymentRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 flex-wrap">
             <span className="text-sm text-white/80 font-mono">
-              {formatISTTime(entry.updatedAt && normalizeToUTC(entry.updatedAt).getTime() > normalizeToUTC(entry.createdAt).getTime() ? entry.updatedAt : entry.createdAt)}
+              {formatISTTime(
+                entry.updatedAt &&
+                  normalizeToUTC(entry.updatedAt).getTime() >
+                    normalizeToUTC(entry.createdAt).getTime()
+                  ? entry.updatedAt
+                  : entry.createdAt,
+              )}
             </span>
             {entry.source !== "Bill Payment" && entry.source !== "manual" && (
               <span className="text-sm text-white/80 bg-white/[0.03] px-1.5 my-0.5 rounded">
                 {entry.source}
+              </span>
+            )}
+            {entry.category === "advance" && (
+              <span className="text-[11px] px-1.5 py-0.5 rounded font-medium bg-purple-500/15 text-purple-400 border border-purple-500/20">
+                Advance
               </span>
             )}
             {entry.notes && (
@@ -175,8 +186,7 @@ export function CashbookPaymentRow({
                     e.stopPropagation();
                     onPayPending(entry);
                   }}
-                  className="text-[12px] px-1.5 py-0.5 rounded font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors"
-                >
+                  className="text-[12px] px-1.5 py-0.5 rounded font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors">
                   Pay
                 </button>
               )}
@@ -194,8 +204,7 @@ export function CashbookPaymentRow({
             <button
               type="button"
               onClick={() => onViewBill(entry.bill?._id || "")}
-              className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 mt-1.5 transition-colors"
-            >
+              className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 mt-1.5 transition-colors">
               <Receipt className="w-3 h-3" />{" "}
               {entry.bill.billNumber || "View Bill"}
             </button>
@@ -203,8 +212,7 @@ export function CashbookPaymentRow({
         </div>
         <div className="shrink-0 text-right">
           <span
-            className={`text-sm sm:text-base font-bold ${entry.type === "credit" ? "text-emerald-400" : "text-red-400"}`}
-          >
+            className={`text-sm sm:text-base font-bold ${entry.type === "credit" ? "text-emerald-400" : "text-red-400"}`}>
             {entry.type === "credit" ? "+" : "-"}
             {formatCurrency(entry.amount)}
           </span>
@@ -243,12 +251,10 @@ export function CashbookCustomerGroupCard({
         expanded
           ? "border-white/[0.12] bg-white/[0.05] shadow-lg shadow-black/20"
           : "border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.09] hover:shadow-md hover:shadow-black/10"
-      }`}
-    >
+      }`}>
       <div
         onClick={() => setExpanded(!expanded)}
-        className="px-4 sm:px-5 py-3 sm:py-3.5 cursor-pointer transition-colors rounded-xl"
-      >
+        className="px-4 sm:px-5 py-3 sm:py-3.5 cursor-pointer transition-colors rounded-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -256,8 +262,7 @@ export function CashbookCustomerGroupCard({
                 <a
                   href={customerLink(group.customerId)}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-sm sm:text-base font-semibold text-white truncate max-w-[150px] sm:max-w-none hover:text-cyan-300 transition-colors"
-                >
+                  className="text-sm sm:text-base font-semibold text-white truncate max-w-[150px] sm:max-w-none hover:text-cyan-300 transition-colors">
                   {group.customerName}
                 </a>
               ) : (
@@ -280,8 +285,7 @@ export function CashbookCustomerGroupCard({
                   group.type === "credit"
                     ? "bg-emerald-900/30 text-emerald-300"
                     : "bg-red-900/30 text-red-300"
-                }`}
-              >
+                }`}>
                 {group.type === "credit" ? "Credit" : "Debit"}
               </span>
               <span className="text-[12px] sm:text-[11px] text-gray-400 bg-white/[0.04] px-1.5 sm:px-2 py-0.5 rounded-md">
@@ -290,15 +294,15 @@ export function CashbookCustomerGroupCard({
               </span>
             </div>
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-base sm:text-lg font-bold text-white">
-                {formatCurrency(group.totalAmount)}
-              </span>
+              {group.totalAmount !== 0 && (
+                <span className="text-base sm:text-lg font-bold text-white">
+                  {formatCurrency(group.totalAmount)}
+                </span>
+              )}
               {hasPending && (
-                <span className="text-[11px] text-amber-400/80">
-                  &bull;{" "}
-                  <span className="font-bold text-sm">
-                    {formatCurrency(pending)}{" "}
-                  </span>
+                <span
+                  className={`${group.totalAmount === 0 ? "text-base font-bold sm:text-lg" : "text-[11px]"} text-amber-400/80`}>
+                  &bull; <span>{formatCurrency(pending)}&nbsp;Pending </span>
                 </span>
               )}
               <span className="text-[11px] text-white/40">
@@ -313,8 +317,7 @@ export function CashbookCustomerGroupCard({
                 group.type === "credit"
                   ? "bg-emerald-500/15 text-emerald-400"
                   : "bg-red-500/15 text-red-400"
-              }`}
-            >
+              }`}>
               {group.type === "credit" ? (
                 <ArrowUpRight className="w-4 h-4" />
               ) : (
@@ -324,8 +327,7 @@ export function CashbookCustomerGroupCard({
             <div className="flex items-center justify-center w-6 h-6">
               <motion.span
                 animate={{ rotate: expanded ? 180 : 0 }}
-                transition={{ duration: 0.2, ease: "easeInOut" }}
-              >
+                transition={{ duration: 0.2, ease: "easeInOut" }}>
                 <ChevronDown className="w-4 h-4 text-white/40" />
               </motion.span>
             </div>
@@ -340,8 +342,7 @@ export function CashbookCustomerGroupCard({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
+            className="overflow-hidden">
             <div className="mx-4 sm:mx-5 border-t border-white/[0.08]" />
             <div className="py-2">
               {group.entries.map((entry) => (
@@ -444,7 +445,8 @@ export function groupEntriesByDateAndCustomer(
   } = {};
 
   for (const entry of entries) {
-    const groupKey = `${resolveCustomerGroupKey(entry)}|${entry.type}`;
+    const entryDate = getEntryDisplayDate(entry);
+    const groupKey = `${resolveCustomerGroupKey(entry)}|${entry.type}|${entryDate}`;
     if (!customerMap[groupKey]) {
       const cid = resolveCustomerId(entry);
       customerMap[groupKey] = {

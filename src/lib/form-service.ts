@@ -12,11 +12,10 @@ import { TAX_RATE } from "../constants/defaults";
 import { syncSingleBillPayment } from "./bill-payment-sync";
 import { createBillCreatedShopChatEvent } from "@/lib/shop-chat/api";
 import {
-  toMoney,
+  BILL_EPSILON,
   fetchCustomerAdvanceBalance,
   updateCustomerAdvanceBalance,
   createAdvanceTransaction,
-  calculateAdvanceOnBillCreation,
 } from "@/lib/customer-advance";
 
 
@@ -778,38 +777,40 @@ export async function createBill(billData: {
     if (customerId) {
       const customerAdvanceBalance = await fetchCustomerAdvanceBalance(customerId);
       if (customerAdvanceBalance > 0) {
-        const advanceCalc = calculateAdvanceOnBillCreation({
-          customerAdvanceBalance,
-          billTotal: netPayable,
-        });
-        if (advanceCalc.advanceApplied > 0) {
-          advanceApplied = advanceCalc.advanceApplied;
-          const wasAlreadyPaid = Number(billData.paidAmount || 0) > 0;
-          if (!wasAlreadyPaid && advanceCalc.isFullyCovered) {
-            adjustedPaymentStatus = "paid";
-            adjustedPaidAmount = netPayable;
-            adjustedBalanceAmount = 0;
-          } else if (!wasAlreadyPaid) {
-            adjustedPaidAmount = Math.min(Number(billData.paidAmount || 0), netPayable);
-            adjustedBalanceAmount = advanceCalc.remainingBalance;
-          }
-          // Update customer advance balance
-          (async () => {
-            try {
-              await updateCustomerAdvanceBalance(customerId, -advanceApplied);
-              await createAdvanceTransaction({
-                customerId,
-                billId: undefined,
-                amount: advanceApplied,
-                type: "used",
-                reason: "applied_to_bill",
-                reference: `New bill auto-apply`,
-                createdBy: actorId || "system",
-              });
-            } catch (err) {
-              console.error("[Advance] Auto-apply failed:", err);
+        const cashPaid = Number(billData.paidAmount || 0);
+        const remainingNeeded = Math.max(0, netPayable - cashPaid);
+        if (remainingNeeded > 0) {
+          const advanceToUse = Math.min(customerAdvanceBalance, remainingNeeded);
+          if (advanceToUse > 0) {
+            advanceApplied = advanceToUse;
+            const newRemaining = remainingNeeded - advanceToUse;
+            if (newRemaining <= BILL_EPSILON) {
+              adjustedPaymentStatus = "paid";
+              adjustedPaidAmount = cashPaid;
+              adjustedBalanceAmount = 0;
+            } else {
+              adjustedPaidAmount = cashPaid;
+              adjustedBalanceAmount = newRemaining;
+              adjustedPaymentStatus = cashPaid > 0 ? "partial" : "pending";
             }
-          })();
+            // Update customer advance balance
+            (async () => {
+              try {
+                await updateCustomerAdvanceBalance(customerId, -advanceApplied);
+                await createAdvanceTransaction({
+                  customerId,
+                  billId: undefined,
+                  amount: advanceApplied,
+                  type: "used",
+                  reason: "applied_to_bill",
+                  reference: `New bill auto-apply`,
+                  createdBy: actorId || "system",
+                });
+              } catch (err) {
+                console.error("[Advance] Auto-apply failed:", err);
+              }
+            })();
+          }
         }
       }
     }
@@ -868,6 +869,26 @@ export async function createBill(billData: {
             .catch((error) => {
               console.error("❌ Cash book sync error:", error);
             });
+        }
+
+        // Overpayment → create advance for customer
+        const amountReceived = Number((billData as any).amountReceived || 0);
+        const overpaid = amountReceived > netPayable ? amountReceived - netPayable : 0;
+        if (overpaid > 0 && customerId) {
+          try {
+            await updateCustomerAdvanceBalance(customerId, overpaid);
+            await createAdvanceTransaction({
+              customerId,
+              billId: String(createdId || ""),
+              amount: overpaid,
+              type: "created",
+              reason: "overpayment",
+              reference: `Overpayment on bill ${billNumber}`,
+              createdBy: actorId || "system",
+            });
+          } catch (err) {
+            console.error("[Advance] Overpayment advance creation failed:", err);
+          }
         }
 
         // Stock update

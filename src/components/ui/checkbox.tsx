@@ -27,13 +27,14 @@ export function Checkbox({
       onClick={() => onCheckedChange?.(!checked)}
       className={cn(
         "relative h-4 w-4 rounded border border-gray-600 bg-gray-800 transition-colors focus:outline-none   focus:ring-offset-2 focus:ring-offset-gray-900",
-        checked && "bg-blue-600 border-blue-600",
+        checked && "bg-sky-600 border-sky-600",
         disabled && "opacity-50 cursor-not-allowed",
         !disabled && "hover:border-gray-500",
-        className
+        className,
+      )}>
+      {checked && (
+        <Check className="absolute inset-0 h-4 w-4 -left-[1px] text-white" />
       )}
-    >
-      {checked && <Check className="absolute inset-0 h-4 w-4 text-white" />}
     </button>
   );
 }

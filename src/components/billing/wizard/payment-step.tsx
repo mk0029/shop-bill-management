@@ -17,6 +17,7 @@ import {
   Send,
   FileText,
   Calendar,
+  ArrowUpRight,
 } from "lucide-react";
 import { useOnline } from "@/hooks/use-online";
 import { formatCurrency } from "@/lib/inventory-helpers";
@@ -58,16 +59,6 @@ const glassInput: React.CSSProperties = {
   borderRadius: "12px",
 };
 
-const radioActive: React.CSSProperties = {
-  background: "rgba(56,189,248,0.12)",
-  border: "1px solid rgba(56,189,248,0.25)",
-};
-
-const radioInactive: React.CSSProperties = {
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.06)",
-};
-
 export function PaymentStep({
   formData,
   selectedItems,
@@ -85,6 +76,7 @@ export function PaymentStep({
   const discount = Number(formData.discount || 0);
   const additionalCharges =
     Number(formData.repairFee || 0) + Number(formData.visitingCharges || 0);
+  const amountReceived = Number(formData.amountReceived || 0);
 
   const [advanceBalance, setAdvanceBalance] = useState(0);
   useEffect(() => {
@@ -102,12 +94,29 @@ export function PaymentStep({
     return { advanceApplied: 0, remainingBalance: grandTotal, isFullyCovered: false };
   }, [advanceBalance, grandTotal]);
 
+  const effectivePayable = Math.max(0, grandTotal - advanceCalc.advanceApplied);
+  const underPaid = amountReceived < effectivePayable ? effectivePayable - amountReceived : 0;
+  const overPaid = amountReceived > grandTotal ? amountReceived - grandTotal : 0;
+  const hasPayment = amountReceived > 0;
+
   const paymentMethods = [
     { value: "cash", label: "Cash" },
     { value: "card", label: "Card" },
     { value: "upi", label: "UPI" },
     { value: "bank_transfer", label: "Bank Transfer" },
   ];
+
+  const paymentStatusLabel = paymentDetails.paymentStatus === "paid"
+    ? overPaid > 0 ? "Paid (with Advance)" : "Paid"
+    : paymentDetails.paymentStatus === "partial"
+      ? "Partial"
+      : "Pending";
+
+  const paymentStatusColor = paymentDetails.paymentStatus === "paid"
+    ? "rgba(52,211,153,0.8)"
+    : paymentDetails.paymentStatus === "partial"
+      ? "rgba(251,191,36,0.8)"
+      : "rgba(148,163,184,0.5)";
 
   return (
     <div className="space-y-4">
@@ -222,9 +231,33 @@ export function PaymentStep({
               <span>-{formatCurrency(advanceCalc.advanceApplied)}</span>
             </div>
           )}
-          <div className="flex justify-between text-sm font-semibold text-white pt-1">
-            <span>{advanceCalc.advanceApplied > 0 ? "Final Payable" : "Grand Total"}</span>
-            <span>{formatCurrency(advanceCalc.remainingBalance)}</span>
+          {amountReceived > 0 && (
+            <div
+              className="flex justify-between text-xs"
+              style={{ color: "rgba(56,189,248,0.8)" }}
+            >
+              <span>Amount Received</span>
+              <span>{formatCurrency(amountReceived)}</span>
+            </div>
+          )}
+          {overPaid > 0 && (
+            <div
+              className="flex justify-between text-xs"
+              style={{ color: "rgba(168,85,247,0.8)" }}
+            >
+              <span>Advance to Create</span>
+              <span>+{formatCurrency(overPaid)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-semibold pt-1" style={{ color: paymentStatusColor }}>
+            <span>{paymentStatusLabel}</span>
+            <span>
+              {underPaid > 0
+                ? formatCurrency(underPaid) + " due"
+                : paymentDetails.paymentStatus === "paid"
+                  ? formatCurrency(0)
+                  : formatCurrency(grandTotal)}
+            </span>
           </div>
         </div>
 
@@ -239,6 +272,7 @@ export function PaymentStep({
           </div>
         )}
       </div>
+
       {/* Discount */}
       <div style={glassCard} className="p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -259,83 +293,99 @@ export function PaymentStep({
           className="text-white text-xs"
         />
       </div>
-        {/* Payment Status */}
-      <div>
-        <div className="grid grid-cols-3 gap-2.5">
-          {[
-            {
-              id: "pending",
-              label: "Pending",
-              icon: Wallet,
-              selected:
-                !advanceCalc.isFullyCovered && !formData.isMarkAsPaid && !formData.enablePartialPayment,
-            },
-            {
-              id: "paid",
-              label: advanceCalc.isFullyCovered ? "Paid (Advance)" : "Paid",
-              icon: CreditCard,
-              selected: advanceCalc.isFullyCovered || formData.isMarkAsPaid,
-            },
-            {
-              id: "partial",
-              label: "Partial",
-              icon: DollarSign,
-              selected: !advanceCalc.isFullyCovered && formData.enablePartialPayment,
-            },
-          ].map((opt) => (
-            <motion.button
-              key={opt.id}
-              type="button"
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                if (opt.id === "pending") {
-                  onInputChange("isMarkAsPaid", false);
-                  onInputChange("enablePartialPayment", false);
-                } else if (opt.id === "paid")
-                  onInputChange("isMarkAsPaid", true);
-                else onInputChange("enablePartialPayment", true);
-              }}
-              className="flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all"
-              style={opt.selected ? radioActive : radioInactive}
+
+      {/* Advance Balance */}
+      {advanceBalance > 0 && (
+        <div
+          className="p-3 rounded-xl"
+          style={{
+            background: "linear-gradient(135deg,rgba(52,211,153,0.12),rgba(16,185,129,0.08))",
+            border: "1px solid rgba(52,211,153,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(52,211,153,0.15)" }}
             >
-              <opt.icon
-                className="w-4.5 h-4.5"
-                style={{
-                  color: opt.selected
-                    ? "rgba(56,189,248,0.8)"
-                    : "rgba(148,163,184,0.5)",
-                }}
-              />
-              <span
-                className="text-xs font-medium"
-                style={{
-                  color: opt.selected
-                    ? "rgba(56,189,248,0.9)"
-                    : "rgba(148,163,184,0.6)",
-                }}
-              >
-                {opt.label}
-              </span>
-            </motion.button>
-          ))}
+              <span className="text-sm">💰</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-emerald-300">Advance Available</p>
+              <p className="text-lg font-bold text-emerald-400">₹{advanceBalance.toLocaleString()}</p>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* Amount Received */}
+      <div style={glassCard} className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <DollarSign
+            className="w-4 h-4"
+            style={{ color: "rgba(56,189,248,0.6)" }}
+          />
+          <span className="text-white text-xs font-medium">Amount Received</span>
+        </div>
+        <Input
+          type="number"
+          min={0}
+          step={1}
+          value={formData.amountReceived ?? ""}
+          onChange={(e) => onInputChange("amountReceived", e.target.value)}
+          placeholder="Enter amount received from customer"
+          style={glassInput}
+          className="text-white text-xs"
+        />
+        {amountReceived > 0 && (
+          <div
+            className="flex items-center gap-2 mt-2 px-2.5 py-1.5 rounded-lg"
+            style={{
+              background:
+                paymentDetails.paymentStatus === "paid"
+                  ? "rgba(52,211,153,0.08)"
+                  : "rgba(251,191,36,0.08)",
+              border: `1px solid ${
+                paymentDetails.paymentStatus === "paid"
+                  ? "rgba(52,211,153,0.2)"
+                  : "rgba(251,191,36,0.2)"
+              }`,
+            }}
+          >
+            <span
+              className="text-[11px] font-medium"
+              style={{ color: paymentStatusColor }}
+            >
+              {paymentStatusLabel === "Paid (with Advance)"
+                ? "Fully paid — excess will become advance"
+                : paymentDetails.paymentStatus === "paid"
+                  ? "Fully paid"
+                  : `Partial — ${formatCurrency(underPaid)} remaining`}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Conditional fields based on payment status */}
+      {/* Payment Method + Date (shown when any amount received) */}
       <AnimatePresence>
-        {/* Paid → show method + date */}
-        {formData.isMarkAsPaid && (
+        {hasPayment && (
           <motion.div
-            key="paid-fields"
+            key="payment-details"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
             <div style={glassCard} className="p-4 space-y-3">
-              <span className="text-white text-xs font-medium">
-                Payment Details
-              </span>
+              <div className="flex items-center gap-2">
+                <CreditCard
+                  className="w-4 h-4"
+                  style={{ color: "rgba(56,189,248,0.6)" }}
+                />
+                <span className="text-white text-xs font-medium">
+                  Payment Details
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label
@@ -368,57 +418,6 @@ export function PaymentStep({
                   />
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Partial → received amount + balance */}
-        {formData.enablePartialPayment && (
-          <motion.div
-            key="partial-fields"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div style={glassCard} className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <DollarSign
-                  className="w-4 h-4"
-                  style={{ color: "rgba(251,191,36,0.6)" }}
-                />
-                <span className="text-white text-xs font-medium">
-                  Partial Payment
-                </span>
-              </div>
-              <Input
-                type="number"
-                min={0}
-                max={grandTotal}
-                value={formData.partialPaymentAmount || ""}
-                onChange={(e) =>
-                  onInputChange("partialPaymentAmount", e.target.value)
-                }
-                placeholder={`Received amount (max ${formatCurrency(grandTotal)})`}
-                style={glassInput}
-                className="text-white text-xs"
-              />
-              {Number(formData.partialPaymentAmount) > 0 && (
-                <div className="flex justify-between text-xs mt-2">
-                  <span style={{ color: "rgba(148,163,184,0.5)" }}>
-                    Total: {formatCurrency(grandTotal)}
-                  </span>
-                  <span style={{ color: "rgba(251,191,36,0.6)" }}>
-                    Balance:{" "}
-                    {formatCurrency(
-                      Math.max(
-                        0,
-                        grandTotal - Number(formData.partialPaymentAmount),
-                      ),
-                    )}
-                  </span>
-                </div>
-              )}
             </div>
           </motion.div>
         )}

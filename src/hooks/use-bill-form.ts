@@ -42,9 +42,9 @@ export interface BillFormData {
   visitingCharges: number;
   discount?: number;
   // Payment Fields
-  isMarkAsPaid: boolean;
-  enablePartialPayment: boolean;
-  partialPaymentAmount: number;
+  amountReceived: number;
+  paymentMethod: string;
+  paymentDate: string;
   // Offline behavior
   offlineAutoUpload?: boolean;
 }
@@ -101,9 +101,9 @@ export const useBillForm = () => {
     repairFee: Number(repairFeeDefault || 0),
     visitingCharges: Number(visitingChargesDefault || 0),
     discount: 0,
-    isMarkAsPaid: false,
-    enablePartialPayment: false,
-    partialPaymentAmount: 0,
+    amountReceived: 0,
+    paymentMethod: "cash",
+    paymentDate: new Date().toISOString().split("T")[0],
     offlineAutoUpload: !!offlineAutoUploadDefault,
   });
 
@@ -112,26 +112,11 @@ export const useBillForm = () => {
       "repairFee",
       "visitingCharges",
       "discount",
-      "partialPaymentAmount",
+      "amountReceived",
     ];
 
     if (numericFields.includes(field)) {
       setFormData((prev) => ({ ...prev, [field]: Number(value) || 0 }));
-      setIsDirty(true);
-    } else if (field === "isMarkAsPaid") {
-      setFormData((prev) => ({
-        ...prev,
-        isMarkAsPaid: !!value,
-        enablePartialPayment: false,
-        partialPaymentAmount: 0,
-      }));
-      setIsDirty(true);
-    } else if (field === "enablePartialPayment") {
-      setFormData((prev) => ({
-        ...prev,
-        enablePartialPayment: !!value,
-        isMarkAsPaid: false,
-      }));
       setIsDirty(true);
     } else if (field === "location") {
       setFormData((prev) => ({
@@ -295,41 +280,27 @@ export const useBillForm = () => {
 
   const getPaymentDetails = () => {
     const grandTotal = calculateGrandTotal();
+    const received = Number(formData.amountReceived || 0);
 
-    if (formData.isMarkAsPaid) {
-      return {
-        paymentStatus: "paid" as const,
-        paidAmount: grandTotal,
-        balanceAmount: 0,
-      };
-    } else if (
-      formData.enablePartialPayment &&
-      formData.partialPaymentAmount > 0
-    ) {
-      const paidAmount = Math.min(formData.partialPaymentAmount, grandTotal);
-      const balanceAmount = grandTotal - paidAmount;
-      
-      // Auto-mark as paid if partial payment covers 100% of the bill
-      if (balanceAmount === 0) {
-        return {
-          paymentStatus: "paid" as const,
-          paidAmount,
-          balanceAmount: 0,
-        };
-      }
-      
-      return {
-        paymentStatus: "partial" as const,
-        paidAmount,
-        balanceAmount,
-      };
-    } else {
+    if (received <= 0) {
       return {
         paymentStatus: "pending" as const,
         paidAmount: 0,
         balanceAmount: grandTotal,
       };
     }
+    if (received >= grandTotal) {
+      return {
+        paymentStatus: "paid" as const,
+        paidAmount: grandTotal,
+        balanceAmount: 0,
+      };
+    }
+    return {
+      paymentStatus: "partial" as const,
+      paidAmount: received,
+      balanceAmount: grandTotal - received,
+    };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -397,6 +368,9 @@ export const useBillForm = () => {
         paymentStatus: paymentDetails.paymentStatus,
         paidAmount: paymentDetails.paidAmount,
         balanceAmount: paymentDetails.balanceAmount,
+        amountReceived: Number(formData.amountReceived || 0),
+        paymentMethod: formData.paymentMethod || "cash",
+        paymentDate: formData.paymentDate,
       };
 
       // If offline and user opted for auto-upload, queue and show info
@@ -418,9 +392,9 @@ export const useBillForm = () => {
           repairFee: Number(repairFeeDefault || 0),
           visitingCharges: Number(visitingChargesDefault || 0),
           discount: 0,
-          isMarkAsPaid: false,
-          enablePartialPayment: false,
-          partialPaymentAmount: 0,
+          amountReceived: 0,
+          paymentMethod: "cash",
+          paymentDate: new Date().toISOString().split("T")[0],
           offlineAutoUpload: !!offlineAutoUploadDefault,
         });
         setSelectedItems([]);
@@ -514,9 +488,9 @@ export const useBillForm = () => {
         repairFee: Number(repairFeeDefault || 0),
         visitingCharges: Number(visitingChargesDefault || 0),
         discount: 0,
-        isMarkAsPaid: false,
-        enablePartialPayment: false,
-        partialPaymentAmount: 0,
+        amountReceived: 0,
+        paymentMethod: "cash",
+        paymentDate: new Date().toISOString().split("T")[0],
         offlineAutoUpload: !!offlineAutoUploadDefault,
       });
       setSelectedItems([]);
@@ -583,18 +557,10 @@ export const useBillForm = () => {
   // Effect to automatically mark as paid if grand total is 0
   useEffect(() => {
     const grandTotal = calculateGrandTotal();
-    if (grandTotal === 0 && !formData.isMarkAsPaid) {
+    if (grandTotal === 0 && Number(formData.amountReceived || 0) === 0) {
       setFormData((prev) => ({
         ...prev,
-        isMarkAsPaid: true,
-        enablePartialPayment: false,
-        partialPaymentAmount: 0,
-      }));
-    } else if (grandTotal > 0 && formData.isMarkAsPaid && !formData.enablePartialPayment) {
-      // If grandTotal becomes positive, and it was marked as paid automatically, revert
-      setFormData((prev) => ({
-        ...prev,
-        isMarkAsPaid: false,
+        amountReceived: 0,
       }));
     }
   }, [selectedItems, formData.discount, formData.repairFee, formData.visitingCharges]);
@@ -671,9 +637,9 @@ export const useBillForm = () => {
       repairFee: Number(repairFeeDefault || 0),
       visitingCharges: Number(visitingChargesDefault || 0),
       discount: 0,
-      isMarkAsPaid: false,
-      enablePartialPayment: false,
-      partialPaymentAmount: 0,
+      amountReceived: 0,
+      paymentMethod: "cash",
+      paymentDate: new Date().toISOString().split("T")[0],
       offlineAutoUpload: !!offlineAutoUploadDefault,
     });
     setSelectedItems([]);
@@ -729,7 +695,7 @@ const hasDraftContent = (formData: BillFormData, selectedItems: BillItem[]) => {
     Number(formData.repairFee || 0) > 0 ||
     Number(formData.visitingCharges || 0) > 0 ||
     Number(formData.discount || 0) > 0 ||
-    Number(formData.partialPaymentAmount || 0) > 0
+    Number(formData.amountReceived || 0) > 0
   )
     return true;
   return false;

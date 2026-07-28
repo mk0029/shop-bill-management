@@ -5,8 +5,10 @@ import { useLocaleStore } from "@/store/locale-store";
 import { formatCustomerActivity, getAdminCustomerDisplayName } from "@/lib/customer-utils";
 import type { CustomerWithStats } from "@/types/customer";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { safeInitial, safeUserName } from "@/lib/display-text";
-import { Phone, MapPin, Receipt, Calendar, CreditCard, Copy, Check } from "lucide-react";
+import { Phone, MapPin, Receipt, Calendar, CreditCard, Copy, Check, Sparkles } from "lucide-react";
+import { resetAdvanceSkip } from "@/components/billing/advance-adjust-modal";
 import { toast } from "sonner";
 
 interface CustomerDetailModalProps {
@@ -32,6 +34,7 @@ export default function CustomerDetailModal({
   onEditCustomer,
 }: CustomerDetailModalProps) {
   const { currency } = useLocaleStore();
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
 
   if (!customer) return null;
@@ -115,6 +118,17 @@ export default function CustomerDetailModal({
       color: isAllPaid ? "text-emerald-400" : "text-amber-400",
       bg: isAllPaid ? "bg-emerald-500/10" : "bg-amber-500/10",
     },
+    ...((customer as any).advanceBalance > 0
+      ? [
+          {
+            icon: CreditCard,
+            label: "Advance Balance",
+            value: `₹${Number((customer as any).advanceBalance || 0).toLocaleString()}`,
+            color: "text-purple-400",
+            bg: "bg-purple-500/10",
+          },
+        ]
+      : []),
     {
       icon: Calendar,
       label: "Last Bill",
@@ -219,6 +233,20 @@ export default function CustomerDetailModal({
             <Button className="flex-1 gap-2" onClick={() => onViewBills(customer)}>
               <Receipt className="w-4 h-4" />
               View Bills
+            </Button>
+          )}
+          {(customer as any).advanceBalance > 0 && (
+            <Button
+              variant="outline"
+              className="flex-1 gap-2 border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              onClick={() => {
+                resetAdvanceSkip(customer._id);
+                router.push("/admin/billing");
+                onClose();
+              }}
+            >
+              <Sparkles className="w-4 h-4" />
+              Adjust Advance
             </Button>
           )}
           {onEditCustomer && (

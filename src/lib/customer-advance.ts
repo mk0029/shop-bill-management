@@ -138,12 +138,13 @@ export function calculateAdvanceOnMultiPayment(opts: {
     const advanceApplied = Math.min(advanceBalance, totalPending);
     const amountNeededFromCustomer = Math.max(0, totalPending - advanceBalance);
     const finalCustomerPayment = receivedAmount > amountNeededFromCustomer ? receivedAmount : amountNeededFromCustomer;
-    const advanceCreated = finalCustomerPayment > amountNeededFromCustomer
-      ? finalCustomerPayment - amountNeededFromCustomer
-      : (advanceBalance > totalPending ? advanceBalance - totalPending : 0);
+    // Only create new advance when customer overpays (cash exceeds what's needed after advance)
+    const advanceCreated = receivedAmount > amountNeededFromCustomer
+      ? receivedAmount - amountNeededFromCustomer
+      : 0;
     return {
       advanceApplied: toMoney(advanceApplied),
-      advanceCreated: toMoney(advanceCreated + excess),
+      advanceCreated: toMoney(advanceCreated),
       amountNeededFromCustomer: toMoney(amountNeededFromCustomer),
       finalCustomerPayment: toMoney(finalCustomerPayment),
       excessAfterAllPaid: toMoney(excess),

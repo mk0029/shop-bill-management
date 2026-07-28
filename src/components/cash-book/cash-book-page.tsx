@@ -39,6 +39,10 @@ import { SearchableCustomerInput } from "@/components/cash-book/searchable-custo
 import { PayPendingModal } from "@/components/cash-book/pay-pending-modal";
 import { customerCashbookService } from "@/lib/customer-cashbook-service";
 import {
+  updateCustomerAdvanceBalance,
+  createAdvanceTransaction,
+} from "@/lib/customer-advance";
+import {
   roundCurrency,
   calculateReceivedAmount,
   formatCurrencyINR,
@@ -53,6 +57,7 @@ import {
   groupEntriesByDateAndCustomer,
 } from "./cash-book-shared";
 import { manualCashbookNamesService } from "@/lib/manual-cashbook-names";
+import { Checkbox } from "../ui/checkbox";
 
 interface CashBookSummary {
   totalCredits: number;
@@ -120,6 +125,7 @@ export function CashBookPage() {
   const [transactionType, setTransactionType] = useState<"credit" | "debit">(
     "credit",
   );
+  const [isAdvancePayment, setIsAdvancePayment] = useState(false);
 
   const parsedTotalAmount = Number(amount);
   const parsedPendingAmount = Number(pendingAmountStr);
@@ -566,6 +572,7 @@ export function CashBookPage() {
         customerId: payload.customerId,
         isCustomName: payload.isCustomName,
         createdBy: adminId,
+        ...(isAdvancePayment ? { category: "advance" } : {}),
       };
 
       if (payload.customerId) {
@@ -575,13 +582,46 @@ export function CashBookPage() {
       const result = await sanityApiService.cashBook.createEntry(entryData);
       if (result.success) {
         const newEntry = (result as any).data as CashBookEntry | undefined;
+        // If advance payment and linked to a real customer, update their advance balance
+        if (
+          isAdvancePayment &&
+          payload.customerId &&
+          !payload.isCustomName &&
+          receivedAmount > 0
+        ) {
+          (async () => {
+            try {
+              await updateCustomerAdvanceBalance(
+                payload.customerId!,
+                receivedAmount,
+              );
+              await createAdvanceTransaction({
+                customerId: payload.customerId!,
+                amount: receivedAmount,
+                type: "created",
+                reason: "cashbook_advance",
+                reference: `Cashbook entry: ${payload.purpose}`,
+                createdBy: adminId,
+              });
+            } catch (err) {
+              console.error(
+                "[Advance] Failed to update balance from cashbook entry:",
+                err,
+              );
+            }
+          })();
+        }
         resetForm();
         setShowAddForm(false);
         setIsSubmitting(false);
         if (newEntry) {
           setEntries((prev) => [newEntry, ...prev]);
         }
-        if (isDebit) {
+        if (isAdvancePayment) {
+          toast.success(
+            `Advance payment of ${formatCurrencyINR(receivedAmount)} recorded for ${payload.customerName}`,
+          );
+        } else if (isDebit) {
           toast.success(`Manual debit entry added`);
         } else if (safePending > 0) {
           toast.success(
@@ -627,6 +667,7 @@ export function CashBookPage() {
       isCustomName: false,
     });
     setTransactionType("credit");
+    setIsAdvancePayment(false);
   };
 
   const isSaveDisabled =
@@ -702,24 +743,21 @@ export function CashBookPage() {
             size="sm"
             variant="secondary"
             onClick={() => (window.location.href = "/admin/cash-book/history")}
-            className="gap-1.5"
-          >
+            className="gap-1.5">
             <History className="w-4 h-4" />
             <span className="hidden sm:inline">History</span>
           </Button>
           <Button
             size="sm"
             onClick={() => setShowInventorySale(true)}
-            className="gap-1.5 bg-emerald-600 hover:bg-emerald-500"
-          >
+            className="gap-1.5 bg-emerald-600 hover:bg-emerald-500">
             <ShoppingCart className="w-4 h-4" />
             <span className="hidden sm:inline">Sale</span>
           </Button>
           <Button
             size="sm"
             onClick={() => setShowAddForm(true)}
-            className="gap-1.5"
-          >
+            className="gap-1.5">
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Record</span>
           </Button>
@@ -742,8 +780,7 @@ export function CashBookPage() {
               groupBy === opt
                 ? "bg-white/10 text-white shadow-sm"
                 : "text-white/40 hover:text-white/60"
-            }`}
-          >
+            }`}>
             {opt.charAt(0).toUpperCase() + opt.slice(1)}
           </button>
         ))}
@@ -756,15 +793,13 @@ export function CashBookPage() {
         showCloseButton={false}
         size="xl"
         mobileType="modal"
-        zIndex={50}
-      >
+        zIndex={50}>
         <div className="flex items-center justify-between p-4 border-b border-white/[0.06] shrink-0">
           <h3 className="text-white font-semibold">Add Sale</h3>
           <button
             type="button"
             onClick={() => setShowInventorySale(false)}
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
-          >
+            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors">
             <XIcon className="w-5 h-5" />
           </button>
         </div>
@@ -808,8 +843,7 @@ export function CashBookPage() {
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 variant="outline"
-                onClick={() => setShowInventorySale(false)}
-              >
+                onClick={() => setShowInventorySale(false)}>
                 Cancel
               </Button>
               <Button
@@ -817,8 +851,7 @@ export function CashBookPage() {
                 onClick={submitInventorySale}
                 disabled={
                   isAddingSale || Object.keys(selectedSaleItems).length === 0
-                }
-              >
+                }>
                 {isAddingSale ? "Adding..." : "Add Sale"}
               </Button>
             </div>
@@ -843,14 +876,15 @@ export function CashBookPage() {
         onClose={() => {
           if (!isSubmitting) setShowAddForm(false);
         }}
-        title="Add Manual Record"
-      >
+        title="Add Manual Record">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               {isDebit ? (
                 <div className="space-y-1">
-                  <Label className="text-gray-300 text-sm">Recipient / Shop Name</Label>
+                  <Label className="text-gray-300 text-sm">
+                    Recipient / Shop Name
+                  </Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                     <Input
@@ -898,7 +932,7 @@ export function CashBookPage() {
               </div>
             </div>
             <div>
-              {!isDebit ? (
+              {!isDebit && !isAdvancePayment ? (
                 <>
                   <Label className="text-gray-300 text-sm">
                     Pending Amount
@@ -924,17 +958,17 @@ export function CashBookPage() {
                     </p>
                   )}
                 </>
-              ) : (
+              ) : !isAdvancePayment ? (
                 <div className="flex items-center gap-2 pt-5">
                   <span className="text-[11px] text-gray-500 bg-white/[0.03] px-2 py-1 rounded-md">
                     Pending amount is not applicable for debit entries
                   </span>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 
-          {safeTotal > 0 && !isDebit && (
+          {safeTotal > 0 && !isDebit && !isAdvancePayment && (
             <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[11px]">
               <span className="text-gray-400">
                 Total:{" "}
@@ -955,6 +989,23 @@ export function CashBookPage() {
                 </span>
               </span>
             </div>
+          )}
+          {transactionType === "credit" && customerSelection.customerId && (
+            <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06] cursor-pointer">
+              <Checkbox
+                checked={isAdvancePayment}
+                onCheckedChange={(checked) => {
+                  setIsAdvancePayment(checked);
+                  if (checked) setPendingAmountStr("0");
+                }}
+                disabled={isSubmitting}
+              />
+              <div className="min-w-0">
+                <h3 className="text-sm font-medium text-white">
+                  Advance Payment
+                </h3>
+              </div>
+            </label>
           )}
 
           <div className="space-y-1">
@@ -983,8 +1034,7 @@ export function CashBookPage() {
             <div
               className="flex gap-2 mt-1.5"
               role="radiogroup"
-              aria-label="Transaction type"
-            >
+              aria-label="Transaction type">
               <button
                 type="button"
                 role="radio"
@@ -997,8 +1047,7 @@ export function CashBookPage() {
                   transactionType === "credit"
                     ? "bg-emerald-600/20 text-white shadow-lg shadow-emerald-600/25"
                     : "bg-white/[0.04] text-gray-400 hover:text-gray-200 border border-white/[0.06]"
-                }`}
-              >
+                }`}>
                 <span className="text-xs">↑</span>
                 Credit
               </button>
@@ -1014,8 +1063,7 @@ export function CashBookPage() {
                   transactionType === "debit"
                     ? "bg-red-600/20 text-white shadow-lg shadow-red-600/2"
                     : "bg-white/[0.04] text-gray-400 hover:text-gray-200 border border-white/[0.06]"
-                }`}
-              >
+                }`}>
                 <span className="text-xs">↓</span>
                 Debit
               </button>
@@ -1026,16 +1074,14 @@ export function CashBookPage() {
             <Button
               type="submit"
               disabled={isSaveDisabled}
-              className={`flex-1 ${isSaveDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
-            >
+              className={`flex-1 ${isSaveDisabled ? "opacity-60 cursor-not-allowed" : ""}`}>
               {isSubmitting ? "Saving..." : "Save Entry"}
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowAddForm(false)}
-              disabled={isSubmitting}
-            >
+              disabled={isSubmitting}>
               Cancel
             </Button>
           </div>

@@ -118,6 +118,7 @@ export default {
           { title: "General", value: "general" },
           { title: "Inventory", value: "inventory" },
           { title: "Bill Payment", value: "bill_payment" },
+          { title: "Advance", value: "advance" },
           { title: "Expense", value: "expense" },
           { title: "Income", value: "income" },
         ],

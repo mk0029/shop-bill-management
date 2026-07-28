@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dropdown } from "@/components/ui/dropdown";
 import { AppDateTimePicker } from "@/components/ui/app-date-time-picker";
 import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
-import { fetchCustomerAdvanceBalance } from "@/lib/customer-advance";
+
 
 interface CustomerStepProps {
   formData: any;
@@ -44,16 +44,6 @@ export function CustomerStep({
   onInputChange,
   autocompleteResetKey,
 }: CustomerStepProps) {
-  const [advanceBalance, setAdvanceBalance] = useState(0);
-
-  useEffect(() => {
-    if (formData.customerId) {
-      fetchCustomerAdvanceBalance(formData.customerId).then(setAdvanceBalance).catch(() => setAdvanceBalance(0));
-    } else {
-      setAdvanceBalance(0);
-    }
-  }, [formData.customerId]);
-
   return (
     <div className="space-y-3 md:space-y-5">
       {/* Customer Selection */}
@@ -71,9 +61,6 @@ export function CustomerStep({
           }
         />
       </div>
-
-      {/* Customer Advance Balance Info */}
-      {advanceBalance > 0 && <div className="p-3 rounded-xl" style={{background:"linear-gradient(135deg,rgba(52,211,153,0.12),rgba(16,185,129,0.08))",border:"1px solid rgba(52,211,153,0.2)"}}><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{background:"rgba(52,211,153,0.15)"}}><span className="text-sm">💰</span></div><div><p className="text-xs font-medium text-emerald-300">Advance Available</p><p className="text-lg font-bold text-emerald-400">₹{advanceBalance.toLocaleString()}</p></div></div></div>}
 
       {/* Service Type & Location */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

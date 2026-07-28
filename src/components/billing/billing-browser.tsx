@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 import { safeUserName } from "@/lib/display-text";
+import { AdvanceAdjustModal, isAdvanceSkipped } from "./advance-adjust-modal";
 
 export type BillingBrowserVariant = "all" | "pending";
 
@@ -75,6 +76,44 @@ export function BillingBrowser({
   const [groupBy, setGroupBy] = useState<"day" | "week" | "month" | "none">(
     "none",
   );
+  const [advanceAdjustTarget, setAdvanceAdjustTarget] = useState<{
+    customer: any;
+    bills: any[];
+  } | null>(null);
+  const advanceHandledRef = useRef(new Set<string>());
+
+  // Scan for customers with advance balance + unpaid bills to auto-adjust
+  useEffect(() => {
+    if (!customers.length || !bills.length) return;
+
+    const candidates = customers.filter((c: any) => Number(c.advanceBalance || 0) > 0);
+    if (candidates.length === 0) return;
+
+    for (const customer of candidates) {
+      if (advanceHandledRef.current.has(customer._id)) continue;
+      if (isAdvanceSkipped(customer._id)) {
+        advanceHandledRef.current.add(customer._id);
+        continue;
+      }
+
+      const unpaidBills = bills.filter((bill: any) => {
+        const cid = bill.customer?._id || bill.customer?._ref;
+        if (cid !== customer._id) return false;
+        const status = String(bill.paymentStatus || "").toLowerCase();
+        if (status === "paid") return false;
+        const paid = Number(bill.paidAmount || 0);
+        const total = Number(bill.totalAmount || 0);
+        const discount = Number(bill.discount || 0);
+        const grandTotal = Math.max(0, total - discount);
+        return paid < grandTotal;
+      });
+
+      if (unpaidBills.length > 0) {
+        setAdvanceAdjustTarget({ customer, bills: unpaidBills });
+        return;
+      }
+    }
+  }, [customers, bills]);
 
   // All initial data load and realtime setup is handled globally in `DataProvider`
 
@@ -729,6 +768,25 @@ export function BillingBrowser({
           ))
         )}
       </div>
+
+      {/* Advance Adjust Modal */}
+      <AdvanceAdjustModal
+        isOpen={!!advanceAdjustTarget}
+        onClose={() => {
+          advanceHandledRef.current.add(advanceAdjustTarget?.customer._id);
+          setAdvanceAdjustTarget(null);
+        }}
+        customer={advanceAdjustTarget?.customer}
+        unpaidBills={advanceAdjustTarget?.bills || []}
+        onPaid={() => {
+          advanceHandledRef.current.add(advanceAdjustTarget?.customer._id);
+          setAdvanceAdjustTarget(null);
+          syncWithSanity();
+        }}
+        onSkip={() => {
+          advanceHandledRef.current.add(advanceAdjustTarget?.customer._id);
+        }}
+      />
 
       {/* Bill Form (kept for parity, not shown by default) */}
       <BillForm
