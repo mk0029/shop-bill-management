@@ -412,6 +412,7 @@ export function CashBookPage() {
         if (!(amount > 0)) continue;
         const createdEntryRes = await sanityApiService.cashBook.createEntry({
           userName: it.name,
+          customerName: it.name,
           amount,
           type: "credit",
           source: "Sale",

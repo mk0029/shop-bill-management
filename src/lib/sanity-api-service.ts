@@ -1695,7 +1695,8 @@ export const cashBookApiService = {
           if (res.ok && j?.success) {
             return { success: true, data: j.data }
           }
-          return { success: false, error: j?.error || 'Failed to create cash book entry' }
+          // If API rejected, log and fall through to direct Sanity create
+          if (j?.error) console.warn('[CashBook] API rejected entry, falling back to direct create:', j.error);
         } catch (e) {
           // fall through to direct Sanity create
         }
