@@ -301,5 +301,69 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
+// Shop types (Online Shop)
+export interface ShopProduct {
+  _id: string;
+  name: string;
+  slug: { current: string; _type: string };
+  shortDescription?: string;
+  description?: string;
+  category: {
+    _id: string;
+    name: string;
+    slug: { current: string };
+    image?: any;
+    isActive?: boolean;
+  };
+  subcategory?: {
+    _id: string;
+    name: string;
+  };
+  brand?: string;
+  images: Array<{
+    _key: string;
+    asset: { _ref: string; _type: string };
+    alt?: string;
+    caption?: string;
+  }>;
+  pricing: {
+    sellingPrice: number;
+    buyerPrice?: number;
+    mrp?: number;
+    unit?: string;
+  };
+  inStock: boolean;
+  stockCount: number;
+  lowStockThreshold: number;
+  features?: string[];
+  specifications?: Array<{
+    _key: string;
+    label: string;
+    value: string;
+  }>;
+  tags?: string[];
+  isActive: boolean;
+  isFeatured: boolean;
+  isNewArrival: boolean;
+  seoTitle?: string;
+  seoDescription?: string;
+  rating?: number;
+  reviewCount?: number;
+  createdAt: string;
+}
+
+export interface ShopCategory {
+  _id: string;
+  name: string;
+  slug: { current: string; _type: string };
+  description?: string;
+  image?: any;
+  icon?: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  productCount?: number;
+}
+
 // Utility types
 export type Item = Product;

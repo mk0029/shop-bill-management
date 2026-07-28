@@ -430,6 +430,155 @@ export const queries = {
     updatedAt
   }`,
 
+  // Shop Product queries
+  shopProducts: `*[_type == "shopProduct"] {
+    _id,
+    name,
+    slug,
+    shortDescription,
+    description,
+    category->{
+      _id,
+      name,
+      slug,
+      image,
+      isActive
+    },
+    subcategory->{
+      _id,
+      name
+    },
+    brand,
+    images,
+    pricing,
+    inStock,
+    stockCount,
+    lowStockThreshold,
+    features,
+    specifications,
+    tags,
+    isActive,
+    isFeatured,
+    isNewArrival,
+    seoTitle,
+    seoDescription,
+    rating,
+    reviewCount,
+    createdAt
+  } | order(createdAt desc)`,
+
+  shopProductById: (id: string) => `*[_type == "shopProduct" && _id == "${id}"][0] {
+    _id,
+    name,
+    slug,
+    shortDescription,
+    description,
+    category->{
+      _id,
+      name,
+      slug,
+      image,
+      isActive
+    },
+    subcategory->{
+      _id,
+      name
+    },
+    brand,
+    images,
+    pricing,
+    inStock,
+    stockCount,
+    lowStockThreshold,
+    features,
+    specifications,
+    tags,
+    isActive,
+    isFeatured,
+    isNewArrival,
+    seoTitle,
+    seoDescription,
+    rating,
+    reviewCount,
+    createdAt
+  }`,
+
+  shopProductBySlug: (slug: string) => `*[_type == "shopProduct" && slug.current == "${slug}"][0] {
+    _id,
+    name,
+    slug,
+    shortDescription,
+    description,
+    category->{
+      _id,
+      name,
+      slug,
+      image,
+      isActive
+    },
+    subcategory->{
+      _id,
+      name
+    },
+    brand,
+    images,
+    pricing,
+    inStock,
+    stockCount,
+    lowStockThreshold,
+    features,
+    specifications,
+    tags,
+    isActive,
+    isFeatured,
+    isNewArrival,
+    seoTitle,
+    seoDescription,
+    rating,
+    reviewCount,
+    createdAt
+  }`,
+
+  // Shop Category queries
+  shopCategories: `*[_type == "shopCategory"] {
+    _id,
+    name,
+    slug,
+    description,
+    image,
+    icon,
+    isActive,
+    sortOrder,
+    createdAt,
+    "productCount": count(*[_type == "shopProduct" && category._ref == ^._id])
+  } | order(sortOrder asc, name asc)`,
+
+  shopCategoryById: (id: string) => `*[_type == "shopCategory" && _id == "${id}"][0] {
+    _id,
+    name,
+    slug,
+    description,
+    image,
+    icon,
+    isActive,
+    sortOrder,
+    createdAt,
+    "productCount": count(*[_type == "shopProduct" && category._ref == ^._id])
+  }`,
+
+  shopCategoryBySlug: (slug: string) => `*[_type == "shopCategory" && slug.current == "${slug}"][0] {
+    _id,
+    name,
+    slug,
+    description,
+    image,
+    icon,
+    isActive,
+    sortOrder,
+    createdAt,
+    "productCount": count(*[_type == "shopProduct" && category._ref == ^._id])
+  }`,
+
   whatsappConfig: (
     configId: string
   ) => `*[_type == "whatsappConfig" && _id == "${configId}"][0] {

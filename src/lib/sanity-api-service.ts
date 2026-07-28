@@ -1509,6 +1509,156 @@ export const supplierApiService = {
   },
 };
 
+// Shop Product API Service
+export const shopProductApiService = {
+  async getAll(): Promise<ApiResponse<any[]>> {
+    try {
+      const query = `*[_type == "shopProduct"] {
+        _id,
+        name,
+        slug,
+        shortDescription,
+        description,
+        category->{ _id, name, slug, image, isActive },
+        subcategory->{ _id, name },
+        brand,
+        images,
+        pricing,
+        inStock,
+        stockCount,
+        lowStockThreshold,
+        features,
+        specifications,
+        tags,
+        isActive,
+        isFeatured,
+        isNewArrival,
+        seoTitle,
+        seoDescription,
+        rating,
+        reviewCount,
+        createdAt
+      } | order(createdAt desc)`;
+      const data = await sanityClient.fetch(query);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: 'Failed to fetch shop products' };
+    }
+  },
+
+  async getById(id: string): Promise<ApiResponse<any>> {
+    try {
+      const query = `*[_type == "shopProduct" && _id == $id][0] {
+        _id, name, slug, shortDescription, description,
+        category->{ _id, name, slug, image, isActive },
+        subcategory->{ _id, name },
+        brand, images, pricing, inStock, stockCount, lowStockThreshold,
+        features, specifications, tags, isActive, isFeatured, isNewArrival,
+        seoTitle, seoDescription, rating, reviewCount, createdAt
+      }`;
+      const data = await sanityClient.fetch(query, { id });
+      if (!data) return { success: false, error: 'Product not found' };
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: 'Failed to fetch shop product' };
+    }
+  },
+
+  async create(data: any): Promise<ApiResponse<any>> {
+    try {
+      const doc = {
+        _type: "shopProduct",
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
+      const created = await sanityClient.create(doc);
+      return { success: true, data: created };
+    } catch (error) {
+      return { success: false, error: 'Failed to create shop product' };
+    }
+  },
+
+  async update(id: string, data: any): Promise<ApiResponse<any>> {
+    try {
+      const updated = await sanityClient.patch(id).set(data).commit();
+      return { success: true, data: updated };
+    } catch (error) {
+      return { success: false, error: 'Failed to update shop product' };
+    }
+  },
+
+  async delete(id: string): Promise<ApiResponse<void>> {
+    try {
+      await sanityClient.delete(id);
+      return { success: true, message: 'Shop product deleted' };
+    } catch (error) {
+      return { success: false, error: 'Failed to delete shop product' };
+    }
+  },
+};
+
+// Shop Category API Service
+export const shopCategoryApiService = {
+  async getAll(): Promise<ApiResponse<any[]>> {
+    try {
+      const query = `*[_type == "shopCategory"] {
+        _id, name, slug, description, image, icon, isActive, sortOrder, createdAt,
+        "productCount": count(*[_type == "shopProduct" && category._ref == ^._id])
+      } | order(sortOrder asc, name asc)`;
+      const data = await sanityClient.fetch(query);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: 'Failed to fetch shop categories' };
+    }
+  },
+
+  async getById(id: string): Promise<ApiResponse<any>> {
+    try {
+      const query = `*[_type == "shopCategory" && _id == $id][0] {
+        _id, name, slug, description, image, icon, isActive, sortOrder, createdAt,
+        "productCount": count(*[_type == "shopProduct" && category._ref == ^._id])
+      }`;
+      const data = await sanityClient.fetch(query, { id });
+      if (!data) return { success: false, error: 'Category not found' };
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: 'Failed to fetch shop category' };
+    }
+  },
+
+  async create(data: any): Promise<ApiResponse<any>> {
+    try {
+      const doc = {
+        _type: "shopCategory",
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
+      const created = await sanityClient.create(doc);
+      return { success: true, data: created };
+    } catch (error) {
+      return { success: false, error: 'Failed to create shop category' };
+    }
+  },
+
+  async update(id: string, data: any): Promise<ApiResponse<any>> {
+    try {
+      const updated = await sanityClient.patch(id).set(data).commit();
+      return { success: true, data: updated };
+    } catch (error) {
+      return { success: false, error: 'Failed to update shop category' };
+    }
+  },
+
+  async delete(id: string): Promise<ApiResponse<void>> {
+    try {
+      await sanityClient.delete(id);
+      return { success: true, message: 'Shop category deleted' };
+    } catch (error) {
+      return { success: false, error: 'Failed to delete shop category' };
+    }
+  },
+};
+
 // Online API Service
 export const onlineApiService = {
   /**

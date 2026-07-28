@@ -28,6 +28,8 @@ import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw.js";
 
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
 import Tag from "lucide-react/dist/esm/icons/tag.js";
+import ShoppingCart from "lucide-react/dist/esm/icons/shopping-cart.js";
+import Store from "lucide-react/dist/esm/icons/store.js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./button";
@@ -67,6 +69,16 @@ const adminNavigation: NavigationItem[] = [
   { label: "Rent Tools", href: "/admin/rent-tools", icon: Wrench },
   { label: "Offers", href: "/admin/offers", icon: Tag },
   { label: "Work List", href: "/dashboard/work-list", icon: FileText },
+  {
+    label: "Online Shop",
+    href: "/admin/shop",
+    icon: ShoppingCart,
+    children: [
+      { label: "Dashboard", href: "/admin/shop", icon: Store },
+      { label: "Products", href: "/admin/shop/products", icon: Package },
+      { label: "Categories", href: "/admin/shop/categories", icon: Tag },
+    ],
+  },
   {
     label: "Other",
     href: "/admin/settings",
