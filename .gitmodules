@@ -1,0 +1,6 @@
+[submodule "sanity"]
+	path = sanity
+	url = https://github.com/mk0029/sanity-shop.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/mk0029/shop-bill-management.git
