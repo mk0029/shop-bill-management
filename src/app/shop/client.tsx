@@ -41,7 +41,7 @@ export default function PublicShopClient() {
           slug,
           shortDescription,
           images,
-          pricing,
+          pricing { sellingPrice, mrp, unit },
           stockCount,
           inStock,
           isFeatured,

@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SanityImage } from "@/components/ui/sanity-image";
 import { Dropdown } from "@/components/ui/dropdown";
-import { shopProductApiService, shopCategoryApiService } from "@/lib/sanity-api-service";
+import { shopProductApiService, shopCategoryApiService, brandApiService } from "@/lib/sanity-api-service";
 import { sanityClient } from "@/lib/sanity";
 import {
   Loader2,
@@ -33,11 +33,14 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [extraImages, setExtraImages] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragOverExtra, setIsDragOverExtra] = useState(false);
   const [originalImages, setOriginalImages] = useState<any[]>([]);
+  const [notFound, setNotFound] = useState(false);
+  const [jsonInput, setJsonInput] = useState("");
   const dropRef = useRef<HTMLDivElement>(null);
 
   const imageRefToUrl = (ref: string) => {
@@ -105,6 +108,12 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     label: cat.name,
   }));
 
+  const brandOptions = brands.map((b: any) => ({
+    value: b.name,
+    label: b.name,
+  }));
+  brandOptions.sort((a, b) => a.label.localeCompare(b.label));
+
   const unitOptions = [
     { value: "piece", label: "Piece" },
     { value: "meter", label: "Meter" },
@@ -120,6 +129,9 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     shopCategoryApiService.getAll().then((res) => {
       setCategories(res.data || []);
     });
+    brandApiService.getAllBrands().then((res) => {
+      setBrands(res.data || []);
+    });
   }, []);
 
   useEffect(() => {
@@ -129,6 +141,7 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
       .getById(productId)
       .then((res) => {
         if (res.data) {
+          setNotFound(false);
           const p = res.data;
           setForm({
             name: p.name || "",
@@ -164,9 +177,11 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
               setExtraImages(rest as string[]);
             }
           }
+        } else {
+          setNotFound(true);
         }
       })
-      .catch(() => toast.error("Failed to load product"))
+      .catch(() => { setNotFound(true); toast.error("Failed to load product"); })
       .finally(() => setLoading(false));
   }, [productId]);
 
@@ -277,7 +292,7 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
-  const handleSave = async () => {
+  const handleSave = async (forceActive?: boolean) => {
     if (!form.name.trim()) {
       toast.error("Product name is required");
       return;
@@ -288,6 +303,11 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     }
     if (!form.sellingPrice || Number(form.sellingPrice) <= 0) {
       toast.error("Please enter a valid selling price");
+      return;
+    }
+
+    if (isEdit && notFound) {
+      toast.error("Cannot update: product was not found");
       return;
     }
 
@@ -332,7 +352,7 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
         stockCount: Number(form.stockCount),
         lowStockThreshold: Number(form.lowStockThreshold),
         inStock: form.inStock,
-        isActive: form.isActive,
+        isActive: forceActive ?? form.isActive,
         isFeatured: form.isFeatured,
         isNewArrival: form.isNewArrival,
         features: form.features.filter(Boolean),
@@ -375,6 +395,62 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     }
   };
 
+  const handleJsonImport = () => {
+    try {
+      const data = JSON.parse(jsonInput);
+      const updates: any = {};
+      if (data.name) updates.name = data.name;
+      if (data.shortDescription !== undefined) updates.shortDescription = data.shortDescription;
+      if (data.description !== undefined) updates.description = data.description;
+      if (data.brand) updates.brand = data.brand;
+      if (data.unit) updates.unit = data.unit;
+      if (data.stockCount !== undefined) updates.stockCount = String(data.stockCount);
+      if (data.lowStockThreshold !== undefined) updates.lowStockThreshold = String(data.lowStockThreshold);
+      if (data.inStock !== undefined) updates.inStock = data.inStock;
+      if (data.isActive !== undefined) updates.isActive = data.isActive;
+      if (data.isFeatured !== undefined) updates.isFeatured = data.isFeatured;
+      if (data.isNewArrival !== undefined) updates.isNewArrival = data.isNewArrival;
+      if (data.seoTitle !== undefined) updates.seoTitle = data.seoTitle;
+      if (data.seoDescription !== undefined) updates.seoDescription = data.seoDescription;
+      if (data.features?.length) updates.features = data.features;
+      if (data.specifications?.length) updates.specifications = data.specifications;
+      if (data.tags) updates.tags = data.tags;
+      setForm((prev) => ({ ...prev, ...updates }));
+      setJsonInput("");
+      toast.success("Form filled from JSON");
+    } catch {
+      toast.error("Invalid JSON format");
+    }
+  };
+
+  const downloadJsonTemplate = () => {
+    const template = {
+      name: "",
+      shortDescription: "",
+      description: "",
+      brand: "",
+      unit: "piece",
+      stockCount: 0,
+      lowStockThreshold: 5,
+      inStock: true,
+      isActive: false,
+      isFeatured: false,
+      isNewArrival: false,
+      seoTitle: "",
+      seoDescription: "",
+      features: [""],
+      specifications: [{ label: "", value: "" }],
+      tags: "",
+    };
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "shop-product-template.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const updateField = (field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -384,6 +460,22 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 text-blue-400 animate-spin" />
         <span className="ml-2 text-gray-400">Loading product...</span>
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="space-y-6 max-w-4xl">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Product Not Found</h1>
+            <p className="text-sm text-gray-400 mt-1">The product you&apos;re trying to edit doesn&apos;t exist.</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -404,6 +496,36 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
         </div>
       </div>
 
+      {/* JSON Import */}
+      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+        <details className="group">
+          <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none text-sm text-gray-400 hover:text-gray-200 transition-colors">
+            <span className="font-medium">Import from JSON</span>
+            <svg className="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div className="px-4 pb-4 space-y-3">
+            <p className="text-xs text-gray-500">Paste product JSON below to auto-fill the form fields (pricing excluded — enter manually).</p>
+            <Textarea
+              value={jsonInput}
+              onChange={(e) => setJsonInput(e.target.value)}
+              rows={6}
+              placeholder='{"name": "Product Name", "brand": "Brand", ...}'
+              className="font-mono text-xs"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={handleJsonImport} disabled={!jsonInput.trim()}>
+                Fill from JSON
+              </Button>
+              <Button size="sm" variant="ghost" onClick={downloadJsonTemplate}>
+                Download Template
+              </Button>
+            </div>
+          </div>
+        </details>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -416,6 +538,16 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
                   value={form.name}
                   onChange={(e) => updateField("name", e.target.value)}
                   placeholder="Enter product name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Brand</Label>
+                <Dropdown
+                  options={brandOptions}
+                  value={form.brand}
+                  onValueChange={(v) => updateField("brand", v)}
+                  placeholder="Select brand"
+                  searchable
                 />
               </div>
               <div className="space-y-2">
@@ -626,6 +758,7 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
                 value={form.categoryRef}
                 onValueChange={(v) => updateField("categoryRef", v)}
                 placeholder="Select Category"
+                searchable
               />
               {form.categoryRef && (() => {
                 const cat = categories.find((c) => c._id === form.categoryRef);
@@ -814,8 +947,11 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
 
       <div className="flex items-center justify-end gap-3 py-4 border-t border-white/10">
         <Button variant="ghost" onClick={() => router.back()}>Cancel</Button>
-        <Button onClick={handleSave} loading={saving}>
-          <Save className="mr-2 h-4 w-4" /> {isEdit ? "Update Product" : "Create Product"}
+        <Button variant="outline" onClick={() => handleSave(false)} loading={saving}>
+          <Save className="mr-2 h-4 w-4" /> Save Draft
+        </Button>
+        <Button onClick={() => handleSave(true)} loading={saving}>
+          <Save className="mr-2 h-4 w-4" /> {isEdit ? "Update & Publish" : "Create & Publish"}
         </Button>
       </div>
     </div>

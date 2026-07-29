@@ -67,7 +67,7 @@ export async function fetchShopProductsByCategory(
       "caption": caption,
       "url": asset->url
     },
-    pricing,
+    pricing { sellingPrice, mrp, unit },
     inStock,
     stockCount,
     lowStockThreshold,
@@ -102,7 +102,7 @@ export async function fetchShopProductBySlug(
       "caption": caption,
       "url": asset->url
     },
-    pricing,
+    pricing { sellingPrice, mrp, unit },
     inStock,
     stockCount,
     lowStockThreshold,

@@ -1580,7 +1580,11 @@ export const shopProductApiService = {
 
   async update(id: string, data: any): Promise<ApiResponse<any>> {
     try {
-      const updated = await sanityClient.patch(id).set(data).commit();
+      const updated = await sanityClient.createOrReplace({
+        _id: id,
+        _type: "shopProduct",
+        ...data,
+      });
       return { success: true, data: updated };
     } catch (error) {
       return { success: false, error: 'Failed to update shop product' };
