@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import Image from "next/image";
+import { ShopImage } from "@/components/ui/shop-image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingBag,
@@ -15,7 +15,6 @@ import {
 import {
   fetchShopProductsByCategory,
   fetchShopCategoryBySlug,
-  getSanityImageUrl,
   formatPrice,
   type ShopProduct,
   type ShopCategory,
@@ -345,8 +344,8 @@ export default function CategoryDetailClient() {
                   >
                     <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-900">
                       {product.images?.[0] ? (
-                        <Image
-                          src={getSanityImageUrl(product.images[0]) || ""}
+                        <ShopImage
+                          src={product.images[0]}
                           alt={product.name}
                           className="h-full w-full object-cover"
                           width={80}

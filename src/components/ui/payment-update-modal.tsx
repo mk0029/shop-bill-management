@@ -69,6 +69,9 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [paymentMode, setPaymentMode] = useState<"full" | "partial">("partial");
+  const [paymentDate, setPaymentDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
   const [notes, setNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -105,6 +108,7 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
       setAmount("");
       setMethod("cash");
       setPaymentMode("partial");
+      setPaymentDate(new Date().toISOString().split("T")[0]);
       setNotes("");
       setShowSuccess(false);
       setError("");
@@ -158,6 +162,12 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
           ? 0
           : Math.max(0, v.payableAfterDiscount - payAmt),
         paymentMethod: method,
+        paymentDate: (() => {
+          const d = new Date(paymentDate);
+          const now = new Date();
+          d.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+          return d.toISOString();
+        })(),
         discount: discountVal > 0 ? discountVal : undefined,
         discountReason: discountReason || undefined,
         notes: notes || undefined,
@@ -332,6 +342,18 @@ export const PaymentUpdateModal = memo(function PaymentUpdateModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2 block">
+                Payment Date
+              </label>
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                className="w-full glass-input !p-3 text-sm text-white"
+              />
             </div>
 
             {paymentMode === "partial" && (

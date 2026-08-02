@@ -77,7 +77,6 @@ export async function POST(req: NextRequest) {
       .set({
         pendingAmount: newPendingAmount,
         receivedAmount: newReceivedAmount,
-        amount: newReceivedAmount,
         status: newStatus,
         updatedAt: new Date().toISOString(),
       })

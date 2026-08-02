@@ -27,10 +27,12 @@ import {
   Calculator,
   FileTextIcon,
   Users,
+  Wallet,
 } from "lucide-react";
 import ResponsiveAccordion from "../ui/responsive-accordion";
 import { safeUserName } from "@/lib/display-text";
 import { AdvanceAdjustModal, isAdvanceSkipped } from "./advance-adjust-modal";
+import { CashbookSyncModal } from "@/components/cash-book/cashbook-sync-modal";
 
 export type BillingBrowserVariant = "all" | "pending";
 
@@ -81,6 +83,7 @@ export function BillingBrowser({
     bills: any[];
   } | null>(null);
   const advanceHandledRef = useRef(new Set<string>());
+  const [showCashbookSync, setShowCashbookSync] = useState(false);
 
   // Scan for customers with advance balance + unpaid bills to auto-adjust
   useEffect(() => {
@@ -280,6 +283,8 @@ export function BillingBrowser({
       paymentStatus: "pending" | "partial" | "paid";
       paidAmount: number;
       balanceAmount: number;
+      paymentMethod?: string;
+      paymentDate?: string;
       discount?: number;
       advanceCreated?: number;
       finalCustomerPayment?: number;
@@ -307,6 +312,8 @@ export function BillingBrowser({
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
         balanceAmount: paymentData.balanceAmount,
+        paymentMethod: paymentData.paymentMethod,
+        paymentDate: paymentData.paymentDate || new Date().toISOString(),
         ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
       };
       if (paymentData.advanceCreated) billUpdates.advanceCreated = paymentData.advanceCreated;
@@ -328,6 +335,7 @@ export function BillingBrowser({
           paymentStatus: paymentData.paymentStatus,
           paidAmount: paymentData.paidAmount,
           balanceAmount: paymentData.balanceAmount,
+          paymentMethod: paymentData.paymentMethod,
           ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
           ...(paymentData.advanceCreated ? { advanceCreated: paymentData.advanceCreated } : {}),
           ...(paymentData.finalCustomerPayment ? { finalCustomerPayment: paymentData.finalCustomerPayment } : {}),
@@ -609,16 +617,26 @@ export function BillingBrowser({
         {rightAction ?? (
           <div className="flex items-center gap-2">
             {!isTechnician && (
-              <Button
-                onClick={() => {
-                  router.push("/admin/billing/drafts");
-                }}
-                className="w-full sm:w-auto"
-                variant="outline"
-              >
-                <FileTextIcon className="w-4 h-4 mr-2" />
-                Drafts
-              </Button>
+              <>
+                <Button
+                  onClick={() => setShowCashbookSync(true)}
+                  className="w-full sm:w-auto"
+                  variant="outline"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  Sync Cash
+                </Button>
+                <Button
+                  onClick={() => {
+                    router.push("/admin/billing/drafts");
+                  }}
+                  className="w-full sm:w-auto"
+                  variant="outline"
+                >
+                  <FileTextIcon className="w-4 h-4 mr-2" />
+                  Drafts
+                </Button>
+              </>
             )}
             <Button
               onClick={() => {
@@ -785,6 +803,15 @@ export function BillingBrowser({
         }}
         onSkip={() => {
           advanceHandledRef.current.add(advanceAdjustTarget?.customer._id);
+        }}
+      />
+
+      {/* Cashbook Sync Modal */}
+      <CashbookSyncModal
+        isOpen={showCashbookSync}
+        onClose={() => setShowCashbookSync(false)}
+        onSynced={() => {
+          syncWithSanity();
         }}
       />
 

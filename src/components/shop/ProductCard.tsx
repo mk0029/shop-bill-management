@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ShoppingCart, Star, Sparkles, Percent, Plus, Minus, Gift } from "lucide-react";
+import { ShopImage } from "@/components/ui/shop-image";
 import {
   type ShopProduct,
   formatPrice,
@@ -64,12 +65,11 @@ export function ProductCard({
       >
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-slate-900 md:aspect-square">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
+          {product.images?.[0] ? (
+            <ShopImage
+              src={product.images[0]}
               alt={product.name}
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-              loading="lazy"
             />
           ) : (
             <div className="flex h-full items-center justify-center">

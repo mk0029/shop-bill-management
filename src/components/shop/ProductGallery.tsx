@@ -1,23 +1,32 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Play, Package, X } from "lucide-react";
-import { getSanityImageUrl, getSanityImageUrlFull } from "@/lib/shop-queries";
+import { ShopImage } from "@/components/ui/shop-image";
+import { getSanityImageUrl, getSanityImageUrlFull, getNextImageFallbackUrl } from "@/lib/shop-queries";
 import type { ShopProduct } from "@/lib/shop-queries";
 
 export function ProductGallery({ product }: { product: ShopProduct }) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState(false);
+
+  const fullscreenUrls = useMemo(() => {
+    return product.images?.map((img: any) => {
+      const url = getSanityImageUrlFull(img);
+      if (!url) return null;
+      return {
+        cdn: url,
+        fallback: getNextImageFallbackUrl(url, 1200),
+      };
+    }).filter(Boolean) || [];
+  }, [product.images]);
   const touchStartX = useRef(0);
 
   const imageUrls =
     product.images?.map((img: any) => getSanityImageUrl(img)).filter(Boolean) ||
     [];
-  const imageUrlsFull =
-    product.images
-      ?.map((img: any) => getSanityImageUrlFull(img))
-      .filter(Boolean) || [];
   const videoUrl = product.videos?.[0]?.url || null;
 
   const next = useCallback(() => {
@@ -76,16 +85,16 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.25 }}
               onClick={() =>
-                imageUrlsFull[selectedImage] && setFullscreen(true)
+                fullscreenUrls[selectedImage] && setFullscreen(true)
               }
               className="cursor-zoom-in"
             >
-              <img
-                src={imageUrls[selectedImage] || ""}
+              <ShopImage
+                src={product.images?.[selectedImage]}
                 alt={product.images?.[selectedImage]?.alt || product.name}
                 className="aspect-[4/3] w-full object-cover md:aspect-square object-center"
                 style={{ maxHeight: "260px" }}
-                loading="lazy"
+                imgWidth={600}
               />
             </motion.div>
           ) : (
@@ -158,11 +167,11 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
                   : "border-transparent opacity-50 hover:opacity-80"
               }`}
             >
-              <img
-                src={url || ""}
+              <ShopImage
+                src={product.images?.[i]}
                 alt={`${product.name} ${i + 1}`}
                 className="h-10 w-10 object-cover md:h-16 md:w-16"
-                loading="lazy"
+                imgWidth={150}
               />
             </button>
           ))}
@@ -171,7 +180,7 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
 
       {/* Fullscreen modal */}
       <AnimatePresence>
-        {fullscreen && imageUrlsFull[selectedImage] && (
+        {fullscreen && fullscreenUrls[selectedImage] && (
           <motion.div
             key="fullscreen-overlay"
             initial={{ opacity: 0 }}
@@ -181,13 +190,14 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl"
           >
             <motion.img
-              key={selectedImage}
+              key={`${selectedImage}-${fullscreenError ? "fallback" : "primary"}`}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              src={imageUrlsFull[selectedImage]}
+              src={fullscreenError ? fullscreenUrls[selectedImage]!.fallback : fullscreenUrls[selectedImage]!.cdn}
               alt={product.name}
               className="max-h-[90vh] max-w-[90vw] object-contain"
+              onError={() => { if (!fullscreenError) setFullscreenError(true); }}
             />
             {imageUrls.length > 1 && (
               <>
@@ -219,7 +229,7 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
 
       {/* Close button rendered outside overlay to avoid stacking-context nesting */}
       <AnimatePresence>
-        {fullscreen && imageUrlsFull[selectedImage] && (
+        {fullscreen && fullscreenUrls[selectedImage] && (
           <motion.button
             key="fullscreen-close"
             type="button"

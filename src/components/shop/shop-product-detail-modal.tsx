@@ -79,7 +79,7 @@ export default function ShopProductDetailModal({
           {product.images?.[0]?.asset?._ref && (
             <div className="rounded-xl overflow-hidden bg-white/[0.03] border border-white/5">
               <div className="aspect-video relative">
-                <SanityImage ref={product.images[0].asset._ref} alt={product.name} className="object-contain w-full h-full" />
+                <SanityImage src={product.images[0]} alt={product.name} fill className="object-contain" />
               </div>
             </div>
           )}
@@ -169,7 +169,7 @@ export default function ShopProductDetailModal({
                 {product.extraImages.map((img: any, i: number) =>
                   img?.asset?._ref ? (
                     <div key={i} className="aspect-square rounded-lg overflow-hidden bg-white/[0.02]">
-                      <SanityImage ref={img.asset._ref} alt={`${product.name} ${i + 1}`} className="object-cover w-full h-full" />
+                      <SanityImage src={img} alt={`${product.name} ${i + 1}`} fill className="object-cover" />
                     </div>
                   ) : null
                 )}

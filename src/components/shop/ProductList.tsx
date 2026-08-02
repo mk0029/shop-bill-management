@@ -1,5 +1,6 @@
 "use client";
 
+import { ShopImage } from "@/components/ui/shop-image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, Check, IndianRupee } from "lucide-react";
 import { type ShopProduct, formatPrice, getSanityImageUrl } from "@/lib/shop-queries";
@@ -85,13 +86,12 @@ export function ProductList({
               }`}
             >
               <div className="flex items-center gap-3">
-                {imageUrl && (
+                {product.images?.[0] && (
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white/5">
-                    <img
-                      src={imageUrl}
+                    <ShopImage
+                      src={product.images[0]}
                       alt={product.name}
                       className="h-full w-full object-cover"
-                      loading="lazy"
                     />
                   </div>
                 )}

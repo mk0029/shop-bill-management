@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
 export default function ShopProductForm({ productId }: { productId?: string }) {
   const router = useRouter();
   const isEdit = !!productId;
@@ -223,9 +225,11 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
   };
 
   const handleExtraImageAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    processFile(file, "extra");
+    const files = e.target.files;
+    if (!files?.length) return;
+    for (const file of Array.from(files)) {
+      processFile(file, "extra");
+    }
     e.target.value = "";
   };
 
@@ -293,17 +297,19 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
   }, [handlePaste]);
 
   const handleSave = async (forceActive?: boolean) => {
-    if (!form.name.trim()) {
-      toast.error("Product name is required");
-      return;
-    }
-    if (!form.categoryRef) {
-      toast.error("Please select a category");
-      return;
-    }
-    if (!form.sellingPrice || Number(form.sellingPrice) <= 0) {
-      toast.error("Please enter a valid selling price");
-      return;
+    if (forceActive !== false) {
+      if (!form.name.trim()) {
+        toast.error("Product name is required");
+        return;
+      }
+      if (!form.categoryRef) {
+        toast.error("Please select a category");
+        return;
+      }
+      if (!form.sellingPrice || Number(form.sellingPrice) <= 0) {
+        toast.error("Please enter a valid selling price");
+        return;
+      }
     }
 
     if (isEdit && notFound) {
@@ -316,9 +322,11 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
       const images = isEdit ? [...originalImages] : [];
 
       if ((window as any).__shopMainImage) {
-        const result = await handleImageUpload((window as any).__shopMainImage);
+        const file = (window as any).__shopMainImage;
+        const result = await handleImageUpload(file);
         if (result) {
-          const newImg = { _type: "image", asset: { _type: "reference", _ref: result._ref } };
+          const label = file.name.replace(/\.[^.]+$/, "");
+          const newImg = { _key: uid(), _type: "image", asset: { _type: "reference", _ref: result._ref }, alt: label, caption: label };
           if (images.length > 0) images[0] = newImg;
           else images.push(newImg);
         }
@@ -330,7 +338,8 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
         for (const file of extraFiles) {
           const result = await handleImageUpload(file);
           if (result) {
-            images.push({ _type: "image", asset: { _type: "reference", _ref: result._ref } });
+            const label = file.name.replace(/\.[^.]+$/, "");
+            images.push({ _key: uid(), _type: "image", asset: { _type: "reference", _ref: result._ref }, alt: label, caption: label });
           }
         }
         delete (window as any).__shopExtraImages;
@@ -851,6 +860,7 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
                     id="extra-image-input"
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
                     onChange={handleExtraImageAdd}
                   />

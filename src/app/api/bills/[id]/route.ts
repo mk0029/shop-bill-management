@@ -16,6 +16,7 @@ import {
   updateCustomerAdvanceBalance,
   createAdvanceTransaction,
 } from "@/lib/customer-advance";
+import { logBillEvent, buildPaymentDescription } from "@/lib/bill-timeline-service";
 
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
   return await sanityClient.fetch(
@@ -112,6 +113,8 @@ export async function PATCH(
       "paymentStatus",
       "paidAmount",
       "balanceAmount",
+      "paymentMethod",
+      "paymentDate",
       "status",
       "notes",
       "internalNotes",
@@ -147,6 +150,8 @@ export async function PATCH(
       "paymentStatus",
       "paidAmount",
       "balanceAmount",
+      "paymentMethod",
+      "paymentDate",
       "status",
       "notes",
       "internalNotes",
@@ -357,9 +362,11 @@ export async function PATCH(
       updates["finalCustomerPayment"] = finalCustomerPayment > 0 ? finalCustomerPayment : toMoney(prev?.finalCustomerPayment ?? 0) + (toMoney(body?.finalCustomerPayment ?? 0));
     }
 
+    // Define shared timestamp for downstream operations
+    const paymentTimestamp = String(updates["paymentDate"] || prev?.paymentDate || new Date().toISOString());
+
     // Create cash book entry asynchronously (fire-and-forget, reuse prev data)
     if (paymentDelta > 0 && prev?.customer) {
-      const paymentTimestamp = new Date().toISOString();
       (async () => {
         try {
           const paidAmount = toMoney(prev.paidAmount || 0);
@@ -384,27 +391,183 @@ export async function PATCH(
           const paymentStatus = finalRemaining <= BILL_EPSILON ? 'paid' : 'partial';
 
           const customer = prev.customer;
+          const transactionId = `pmt_${id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
           const result = await sanityApiService.cashBook.createEntryFromBillPayment({
             billId: id,
             userId: customer._id,
             userName: safeUserName(customer.name, "Customer"),
-            amount: Number(finalPaidAmount - paidAmount),
+            amount: Number(finalPaidAmount),
             paymentType: 'credit',
             paymentDate: paymentTimestamp,
             billNumber: prev.billNumber,
             totalAmount,
             paymentStatus,
+            transactionId,
           });
-          // Cashbook entry created — no additional notification needed (admin already notified via billing.updated above)
           if (!result.success) {
             console.error('Failed to create cash book entry via bill API:', result.error);
+          }
+          // Post-payment reconciliation validation
+          if (result.success && result.data) {
+            try {
+              const entryId = result.data._id || result.data;
+              const savedEntry = await sanityClient.fetch(
+                `*[_id == $entryId]{_id, createdAt, amount, transactionId, bill{_ref}}[0]`,
+                { entryId }
+              );
+              if (savedEntry) {
+                const entryDate = new Date(savedEntry.createdAt).toISOString().split('T')[0];
+                const paymentDate = new Date(paymentTimestamp).toISOString().split('T')[0];
+                if (entryDate !== paymentDate) {
+                  console.error(`[RECONCILIATION] Cash book entry date mismatch: entry createdAt=${savedEntry.createdAt} (${entryDate}) vs paymentTimestamp=${paymentTimestamp} (${paymentDate}). Bill: ${prev.billNumber}, Amount: ₹${finalPaidAmount - paidAmount}`);
+                }
+                if (!savedEntry.transactionId) {
+                  console.error(`[RECONCILIATION] Cash book entry missing transactionId. Entry: ${entryId}, Bill: ${prev.billNumber}`);
+                }
+              } else {
+                console.error(`[RECONCILIATION] Cash book entry ${entryId} not found after creation for bill ${prev.billNumber}`);
+              }
+            } catch (valErr) {
+              console.error('[RECONCILIATION] Validation check failed:', valErr);
+            }
           }
         } catch (cashBookError) {
           console.error('Error creating cash book entry in bill API:', cashBookError);
         }
       })();
     }
-    
+
+    // Log timeline events (await each to ensure they actually write)
+    if (prev) {
+      const changes: Array<{ field: string; label: string; oldValue?: string; newValue?: string }> = [];
+      const loggedEventTypes = new Set<string>();
+      const actorInfo = { actorUserId: auth.userId || "", actorName: auth.name || "Admin", actorRole: auth.role || "admin" };
+
+      // Payment received
+      if (paymentDelta > 0 && prev.customer) {
+        const amount = Number(updates["paidAmount"] || 0) - toMoney(prev.paidAmount || 0);
+        const method = String(updates["paymentMethod"] || prev.paymentMethod || "");
+        try {
+          const evResult = await logBillEvent({
+            billId: id,
+            eventType: "payment_received",
+            timestamp: paymentTimestamp,
+            ...actorInfo,
+            description: buildPaymentDescription({ amount, method, billNumber: prev.billNumber }),
+            paymentAmount: amount,
+            paymentMethod: method,
+            isPublic: true,
+          });
+          if (!evResult.success) console.error("[Timeline] payment_received failed:", evResult.error);
+        } catch (tlErr) {
+          console.error("[Timeline] payment_received threw:", tlErr);
+        }
+        loggedEventTypes.add("payment_received");
+      }
+
+      // Payment updated (decreased)
+      if (paymentDelta < 0) {
+        try {
+          const evResult = await logBillEvent({
+            billId: id,
+            eventType: "payment_updated",
+            timestamp: new Date().toISOString(),
+            ...actorInfo,
+            description: `Payment adjusted by ₹${Math.abs(paymentDelta)}`,
+            previousValues: { paidAmount: prev.paidAmount },
+            newValues: { paidAmount: updates["paidAmount"] },
+            isPublic: true,
+          });
+          if (!evResult.success) console.error("[Timeline] payment_updated failed:", evResult.error);
+        } catch (tlErr) {
+          console.error("[Timeline] payment_updated threw:", tlErr);
+        }
+        loggedEventTypes.add("payment_updated");
+      }
+
+      // Status changed
+      const newStatus = updates["paymentStatus"] as string;
+      const oldStatus = prev.paymentStatus;
+      if (newStatus && newStatus !== oldStatus) {
+        const statusLabels: Record<string, string> = {
+          pending: "Pending", partial: "Partially Paid", paid: "Paid", overdue: "Overdue",
+        };
+        changes.push({
+          field: "paymentStatus",
+          label: "Payment Status",
+          oldValue: statusLabels[oldStatus] || oldStatus,
+          newValue: statusLabels[newStatus] || newStatus,
+        });
+      }
+
+      // Advance adjusted
+      const advanceAppliedAmt = toMoney(body?.advanceApplied ?? 0);
+      const advanceCreatedAmt = toMoney(body?.advanceCreated ?? 0);
+      if (advanceAppliedAmt > 0 || advanceCreatedAmt > 0) {
+        try {
+          const evResult = await logBillEvent({
+            billId: id,
+            eventType: "advance_adjusted",
+            timestamp: new Date().toISOString(),
+            ...actorInfo,
+            description: advanceAppliedAmt > 0
+              ? `₹${advanceAppliedAmt.toLocaleString()} applied from advance balance`
+              : `₹${advanceCreatedAmt.toLocaleString()} added as advance balance`,
+            paymentAmount: advanceAppliedAmt || advanceCreatedAmt,
+            isPublic: true,
+          });
+          if (!evResult.success) console.error("[Timeline] advance_adjusted failed:", evResult.error);
+        } catch (tlErr) {
+          console.error("[Timeline] advance_adjusted threw:", tlErr);
+        }
+        loggedEventTypes.add("advance_adjusted");
+      }
+
+      // Bill edited (other field changes)
+      const trackedFields: Record<string, string> = {
+        discount: "Discount",
+        dueDate: "Due Date",
+        notes: "Notes",
+        internalNotes: "Internal Notes",
+        items: "Items",
+        visitingCharges: "Visiting Charges",
+        transportationFee: "Transportation Fee",
+        repairFee: "Repair Fee",
+        subtotal: "Subtotal",
+        totalAmount: "Total Amount",
+        serviceType: "Service Type",
+        locationType: "Location Type",
+        technician: "Technician",
+      };
+      for (const [field, label] of Object.entries(trackedFields)) {
+        if (field in updates && !loggedEventTypes.has("bill_edited")) {
+          const oldVal = String((prev as any)[field] ?? "");
+          const newVal = String(updates[field] ?? "");
+          if (oldVal !== newVal) {
+            changes.push({ field, label, oldValue: oldVal, newValue: newVal });
+          }
+        }
+      }
+
+      if (changes.length > 0 && !loggedEventTypes.has("payment_received") && !loggedEventTypes.has("payment_updated")) {
+        const eventType = changes.some(c => c.field === "paymentStatus") ? "status_changed" : "bill_edited" as const;
+        try {
+          const evResult = await logBillEvent({
+            billId: id,
+            eventType,
+            timestamp: new Date().toISOString(),
+            ...actorInfo,
+            description: changes.map(c => `${c.label}: ${c.oldValue || "(empty)"} → ${c.newValue || "(empty)"}`).join(", "),
+            changes,
+            isPublic: true,
+          });
+          if (!evResult.success) console.error(`[Timeline] ${eventType} failed:`, evResult.error);
+        } catch (tlErr) {
+          console.error(`[Timeline] ${eventType} threw:`, tlErr);
+        }
+      }
+    }
+
     // Best-effort: also patch draft if it exists
     try {
       await sanityClient.patch(`drafts.${id}`).set(updates).commit();
@@ -513,6 +676,21 @@ export async function DELETE(
     }
 
     await tx.commit();
+
+    // Log timeline event: bill cancelled (fire-and-forget)
+    try {
+      void logBillEvent({
+        billId: id,
+        eventType: "bill_cancelled",
+        timestamp: new Date().toISOString(),
+        actorUserId: auth.userId || "",
+        actorName: auth.name || "Admin",
+        actorRole: auth.role || "super_admin",
+        description: `Bill ${bill?.billNumber || id} deleted by ${auth.name || "Admin"}`,
+        notes: "Bill permanently deleted from system",
+        isPublic: true,
+      });
+    } catch {}
 
     // Central WhatsApp event: bill deleted (fire-and-forget)
     try {

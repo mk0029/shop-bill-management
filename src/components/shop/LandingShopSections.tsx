@@ -10,9 +10,9 @@ import {
   Bolt,
   Star,
 } from "lucide-react";
+import { ShopImage } from "@/components/ui/shop-image";
 import {
   fetchShopCategories,
-  getSanityImageUrl,
   type ShopCategory,
 } from "@/lib/shop-queries";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,21 +60,18 @@ const iconMap: Record<string, string> = {
 };
 
 function ShopCategoryCard({ category }: { category: ShopCategory }) {
-  const imageUrl = category.image ? getSanityImageUrl(category.image) : null;
-
   return (
     <Link
       href={`/shop-items/${category.slug.current}`}
       className="group block h-full"
     >
       <div className="glass-card relative h-full overflow-hidden p-5 transition-all duration-500 hover:-translate-y-1">
-        {imageUrl && (
+        {category.image && (
           <div className="absolute inset-0 opacity-10 transition-opacity duration-500 group-hover:opacity-20">
-            <img
-              src={imageUrl}
+            <ShopImage
+              src={category.image}
               alt={category.name}
               className="h-full w-full object-cover"
-              loading="lazy"
             />
           </div>
         )}

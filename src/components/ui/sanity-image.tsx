@@ -1,11 +1,13 @@
-import Image, { ImageProps } from 'next/image';
-import { useMemo, useState, ReactNode } from 'react';
+import { useMemo, useState, ReactNode, ImgHTMLAttributes } from 'react';
 
-interface SanityImageProps extends Omit<ImageProps, 'src'> {
+interface SanityImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> {
   src: unknown;
   alt: string;
   className?: string;
   fallback?: ReactNode;
+  width?: number;
+  height?: number;
+  fill?: boolean;
 }
 
 function sanityAssetRefToUrl(ref: string) {
@@ -41,22 +43,21 @@ export function SanityImage({
   alt,
   className = '',
   fallback,
+  fill,
+  width,
+  height,
+  style,
   ...props
 }: SanityImageProps) {
   const [hasError, setHasError] = useState(false);
   const imageUrl = useMemo(() => {
     const normalizedSrc = normalizeImageSrc(src);
     if (!normalizedSrc) return null;
-    
-    // If it's already a full URL or data URL, return as is
     if (normalizedSrc.startsWith('http') || normalizedSrc.startsWith('data:')) {
       return normalizedSrc;
     }
-
     const sanityAssetUrl = sanityAssetRefToUrl(normalizedSrc);
     if (sanityAssetUrl) return sanityAssetUrl;
-    
-    // Prepend Sanity URL if it's a relative path
     const baseUrl = process.env.NEXT_PUBLIC_SANITY_URL || '';
     return normalizedSrc.startsWith('/') ? `${baseUrl}${normalizedSrc}` : `${baseUrl}/${normalizedSrc}`;
   }, [src]);
@@ -69,23 +70,21 @@ export function SanityImage({
     ) : null;
   }
 
+  const imgStyle: React.CSSProperties = fill
+    ? { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', ...(style || {}) }
+    : { ...(style || {}) };
+
   return (
-    <Image
+    <img
       src={imageUrl}
       alt={alt}
       className={className}
+      width={width}
+      height={height}
+      style={imgStyle}
       onError={() => setHasError(true)}
+      loading="lazy"
       {...props}
     />
   );
 }
-
-// Usage example:
-// <SanityImage 
-//   src={user?.profileImage} 
-//   alt={user?.name || 'Profile'} 
-//   width={40} 
-//   height={40}
-//   className="rounded-full object-cover"
-//   fallback={<User className="w-5 h-5 text-white" />}
-// />

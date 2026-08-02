@@ -10,7 +10,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Receipt,
+  Clock,
 } from "lucide-react";
+import { useAuthStore } from "@/store/auth-store";
 
 export interface AppliedBill {
   billNumber?: string;
@@ -48,6 +50,7 @@ export interface CashBookEntry {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+  transactionId?: string;
 }
 
 export interface CustomerGroup {
@@ -132,12 +135,16 @@ export function CashbookPaymentRow({
   formatCurrency,
   onViewBill,
   onPayPending,
+  onEditTimestamp,
 }: {
   entry: CashBookEntry;
   formatCurrency: (v: number) => string;
   onViewBill: (id: string) => void;
   onPayPending?: (entry: CashBookEntry) => void;
+  onEditTimestamp?: (entry: CashBookEntry) => void;
 }) {
+  const { role } = useAuthStore();
+  const isSuperAdmin = role === "super_admin";
   const isBillPayment = entry.source === "Bill Payment";
   const bills = entry.appliedBills || [];
   const hasBills = bills.length > 0;
@@ -210,16 +217,27 @@ export function CashbookPaymentRow({
             </button>
           )}
         </div>
-        <div className="shrink-0 text-right">
-          <span
-            className={`text-sm sm:text-base font-bold ${entry.type === "credit" ? "text-emerald-400" : "text-red-400"}`}>
-            {entry.type === "credit" ? "+" : "-"}
-            {formatCurrency(entry.amount)}
-          </span>
-          {hasPending && (
-            <span className="block text-[12px] text-amber-400 mt-0.5">
-              {formatCurrency(pendingAmt)} pending
+        <div className="shrink-0 text-right flex items-center gap-2">
+          <div>
+            <span
+              className={`text-sm sm:text-base font-bold ${entry.type === "credit" ? "text-emerald-400" : "text-red-400"}`}>
+              {entry.type === "credit" ? "+" : "-"}
+              {formatCurrency(Math.abs(entry.amount))}
             </span>
+            {hasPending && (
+              <span className="block text-[12px] text-amber-400 mt-0.5">
+                {formatCurrency(pendingAmt)} pending
+              </span>
+            )}
+          </div>
+          {isSuperAdmin && onEditTimestamp && (
+            <button
+              onClick={() => onEditTimestamp(entry)}
+              className="p-1.5 rounded-lg hover:bg-white/[0.06] text-white/30 hover:text-purple-400 transition-colors"
+              title="Edit timestamp"
+            >
+              <Clock className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       </div>
@@ -233,12 +251,14 @@ export function CashbookCustomerGroupCard({
   onViewBill,
   customerLink,
   onPayPending,
+  onEditTimestamp,
 }: {
   group: CustomerGroup;
   formatCurrency: (v: number) => string;
   onViewBill: (id: string) => void;
   customerLink?: (customerId: string) => string;
   onPayPending?: (entry: CashBookEntry) => void;
+  onEditTimestamp?: (entry: CashBookEntry) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const pending = group.pendingTotal || 0;
@@ -352,6 +372,7 @@ export function CashbookCustomerGroupCard({
                   formatCurrency={formatCurrency}
                   onViewBill={onViewBill}
                   onPayPending={onPayPending}
+                  onEditTimestamp={onEditTimestamp}
                 />
               ))}
             </div>
@@ -378,9 +399,12 @@ function normalizeToUTC(dateStr: string | undefined | null): Date {
 }
 
 function parseEntryTime(entry: CashBookEntry): Date {
-  const updated = normalizeToUTC(entry.updatedAt);
   const created = normalizeToUTC(entry.createdAt);
-  if (updated > created) return updated;
+  if (isNaN(created.getTime())) {
+    const updated = normalizeToUTC(entry.updatedAt);
+    if (!isNaN(updated.getTime())) return updated;
+    return new Date(NaN);
+  }
   return created;
 }
 

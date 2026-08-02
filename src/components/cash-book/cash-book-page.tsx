@@ -58,6 +58,7 @@ import {
 } from "./cash-book-shared";
 import { manualCashbookNamesService } from "@/lib/manual-cashbook-names";
 import { Checkbox } from "../ui/checkbox";
+import { CashbookTimestampEditModal } from "./cashbook-timestamp-edit-modal";
 
 interface CashBookSummary {
   totalCredits: number;
@@ -98,6 +99,7 @@ export function CashBookPage() {
   >([]);
   const [payEntry, setPayEntry] = useState<CashBookEntry | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [timestampEditEntry, setTimestampEditEntry] = useState<CashBookEntry | null>(null);
   const [groupBy, setGroupBy] = useState<"day" | "week" | "month">("day");
 
   const { activeProducts, isLoading: productsLoading } = useProducts();
@@ -1142,6 +1144,9 @@ export function CashBookPage() {
                             setPayEntry(entry);
                             setShowPayModal(true);
                           }}
+                          onEditTimestamp={(entry) => {
+                            setTimestampEditEntry(entry);
+                          }}
                         />
                       ))}
                     </div>
@@ -1185,6 +1190,20 @@ export function CashBookPage() {
           } else {
             throw new Error(result.error || "Failed to record payment");
           }
+        }}
+      />
+
+      {/* Timestamp Edit Modal (Super Admin only) */}
+      <CashbookTimestampEditModal
+        isOpen={!!timestampEditEntry}
+        onClose={() => setTimestampEditEntry(null)}
+        entryId={timestampEditEntry?._id || ""}
+        currentCreatedAt={timestampEditEntry?.createdAt || ""}
+        customerName={timestampEditEntry?.customerName || timestampEditEntry?.userName || ""}
+        amount={timestampEditEntry?.amount || 0}
+        onSaved={() => {
+          setTimestampEditEntry(null);
+          refreshData();
         }}
       />
     </div>

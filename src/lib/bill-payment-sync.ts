@@ -140,6 +140,8 @@ export async function createCashBookEntryFromBill(billData: BillPaymentData): Pr
       customerName: billData.customerName,
       customerId: billData.customerId,
       amount: billData.amount,
+      totalAmount: billData.totalAmount,
+      billTotal: billData.totalAmount,
       type: 'credit' as const,
       source: "Bill Payment" as const,
       notes,

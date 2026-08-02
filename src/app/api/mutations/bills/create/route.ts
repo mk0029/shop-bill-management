@@ -9,7 +9,8 @@ import {
 } from '@/lib/notifications/templates'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
-import { calculateBillPaymentSummary } from '@/lib/bill-utils'
+import { calculateBillPaymentSummary, toMoney } from '@/lib/bill-utils'
+import { logBillEvent } from '@/lib/bill-timeline-service'
 
 function siteUrl() {
   return 'https://jambh-ell.vercel.app'
@@ -62,11 +63,28 @@ export async function POST(req: NextRequest) {
       ...(actorUserId ? { technician: { _type: 'reference', _ref: actorUserId } } : {}),
     } as any)
 
+    const createdId = String((created as any)?._id || '')
     const createdCustomerId = (() => {
       const c = (created as any)?.customer
       if (c && typeof c === 'object' && typeof c._ref === 'string') return c._ref
       return ''
     })()
+
+    // Log timeline event (fire-and-forget)
+    try {
+      const paidAmount = toMoney((created as any)?.paidAmount ?? 0)
+      void logBillEvent({
+        billId: createdId,
+        eventType: 'bill_created',
+        timestamp: (created as any)?.createdAt || new Date().toISOString(),
+        actorUserId,
+        actorName: auth.name || 'Admin',
+        actorRole: auth.role || 'admin',
+        description: `Bill ${(created as any)?.billNumber || ''} created for ₹${toMoney((created as any)?.totalAmount || 0).toLocaleString()}${paidAmount > 0 ? ` with ₹${paidAmount.toLocaleString()} paid` : ''}`,
+        paymentAmount: paidAmount > 0 ? paidAmount : undefined,
+        isPublic: true,
+      })
+    } catch {}
 
     void (async () => {
       try {

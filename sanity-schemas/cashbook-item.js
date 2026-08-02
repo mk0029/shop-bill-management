@@ -79,7 +79,7 @@ export default {
       name: "createdAt",
       type: "datetime",
       initialValue: () => new Date().toISOString(),
-      readOnly: true,
+      readOnly: false,
     },
     {
       title: "Updated At",

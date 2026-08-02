@@ -46,6 +46,8 @@ export const PaymentCard = memo(function PaymentCard({
 
   const paymentStatus = bill.paymentStatus?.toLowerCase() || "pending";
 
+  // Per-payment save now lives in the Activity Timeline rows; this global button is removed.
+
   const statusBadge = useMemo(() => {
     const config = {
       paid: {
@@ -193,6 +195,8 @@ export const PaymentCard = memo(function PaymentCard({
               </Button>
             </div>
           )}
+
+          {/* Per-payment Save to Cash Book buttons now live in the Activity Timeline below */}
 
           {role === "customer" && paymentStatus === "paid" && (
             <motion.div

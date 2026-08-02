@@ -109,7 +109,7 @@ export default function ShopCategoryForm({ categoryId }: { categoryId?: string }
       if ((window as any).__shopCategoryImage) {
         const result = await handleImageUpload((window as any).__shopCategoryImage);
         if (result) {
-          imageRef = { _type: "image", asset: { _type: "reference", _ref: result._ref } };
+          imageRef = { _key: Date.now().toString(36) + Math.random().toString(36).slice(2), _type: "image", asset: { _type: "reference", _ref: result._ref } };
         }
         delete (window as any).__shopCategoryImage;
       }

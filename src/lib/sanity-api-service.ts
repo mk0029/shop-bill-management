@@ -1877,7 +1877,23 @@ export const cashBookApiService = {
   },
 
   /**
+   * Check if a cash book entry already exists for a bill
+   */
+  async checkEntryExistsForBill(billId: string): Promise<boolean> {
+    try {
+      const entry = await sanityClient.fetch(
+        `*[_type == "cashBookEntry" && bill._ref == $billId][0]{_id}`,
+        { billId }
+      );
+      return !!entry;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
    * Create cash book entry from bill payment
+   * Prevents duplicates by checking existing entries for the same bill
    */
   async createEntryFromBillPayment(paymentData: {
     billId: string;
@@ -1890,8 +1906,26 @@ export const cashBookApiService = {
     totalAmount?: number;
     paymentStatus?: string;
     context?: string;
+    transactionId?: string;
   }): Promise<ApiResponse<any>> {
     try {
+      // Never allow negative amounts — reject with diagnostic info
+      if (paymentData.amount <= 0) {
+        console.error(`[RECONCILIATION] Rejecting cashbook entry with invalid amount: ${paymentData.amount}. Bill: ${paymentData.billNumber || paymentData.billId}, PaymentDate: ${paymentData.paymentDate}`);
+        return { success: false, error: `Cash book entry amount must be positive (got ${paymentData.amount})` };
+      }
+
+      // Check for duplicate transactionId if provided
+      if (paymentData.transactionId) {
+        const dup = await sanityClient.fetch(
+          `*[_type == "cashBookEntry" && transactionId == $tid][0]._id`,
+          { tid: paymentData.transactionId }
+        );
+        if (dup) {
+          return { success: true, data: { _id: dup }, message: 'Duplicate: entry exists for this transaction' };
+        }
+      }
+
       const now = new Date().toISOString();
       const notes = billPaymentNotes({
         billNumber: paymentData.billNumber,
@@ -1907,7 +1941,8 @@ export const cashBookApiService = {
         customerName: paymentData.userName,
         customerId: paymentData.userId,
         amount: paymentData.amount,
-        totalAmount: paymentData.amount,
+        billTotal: paymentData.totalAmount || paymentData.amount,
+        totalAmount: paymentData.totalAmount || paymentData.amount,
         pendingAmount: 0,
         receivedAmount: paymentData.amount,
         status: 'completed' as const,
@@ -1918,6 +1953,7 @@ export const cashBookApiService = {
           _type: "reference",
           _ref: paymentData.billId
         },
+        transactionId: paymentData.transactionId,
         createdAt: paymentData.paymentDate || now,
         updatedAt: now,
       };

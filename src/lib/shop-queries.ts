@@ -153,6 +153,10 @@ export function getSanityImageUrlFull(source: any): string | null {
   }
 }
 
+export function getNextImageFallbackUrl(cdnUrl: string, width = 600, quality = 75): string {
+  return `/_next/image?url=${encodeURIComponent(cdnUrl)}&w=${width}&q=${quality}`;
+}
+
 export function formatPrice(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",

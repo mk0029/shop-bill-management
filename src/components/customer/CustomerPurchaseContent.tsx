@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { ShopImage } from "@/components/ui/shop-image";
 import { motion, AnimatePresence } from "framer-motion";
 import { sanityClient } from "@/lib/sanity";
 import {
@@ -764,11 +765,10 @@ export function CustomerPurchaseContent() {
         <div onClick={() => selectProduct(product)}>
           <div className="relative aspect-square w-full overflow-hidden bg-slate-800">
             {product.images?.[0] ? (
-              <img
-                src={getSanityImageUrl(product.images[0]) || ""}
+              <ShopImage
+                src={product.images[0]}
                 alt={product.name}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
               />
             ) : (
               <div className="flex h-full items-center justify-center">
@@ -856,11 +856,10 @@ export function CustomerPurchaseContent() {
       >
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-900">
           {product.images?.[0] ? (
-            <img
-              src={getSanityImageUrl(product.images[0]) || ""}
+            <ShopImage
+              src={product.images[0]}
               alt={product.name}
               className="h-full w-full object-cover"
-              loading="lazy"
             />
           ) : (
             <ShoppingBag className="h-full w-full p-4 text-white/10" />

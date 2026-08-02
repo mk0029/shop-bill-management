@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { ShopImage } from "@/components/ui/shop-image";
 import {
   Zap,
   Lightbulb,
@@ -15,7 +16,7 @@ import {
   Speaker,
   type LucideIcon,
 } from "lucide-react";
-import { getSanityImageUrl, type ShopCategory } from "@/lib/shop-queries";
+import { type ShopCategory } from "@/lib/shop-queries";
 
 const iconMap: Record<string, LucideIcon> = {
   zap: Zap,
@@ -39,7 +40,6 @@ export function CategoryCard({
 }) {
   const { name, slug, description, icon, image, productCount } = category;
   const IconComponent = iconMap[icon || ""] || Zap;
-  const imageUrl = image ? getSanityImageUrl(image) : null;
 
   return (
     <motion.div
@@ -49,13 +49,12 @@ export function CategoryCard({
     >
       <Link href={`/shop-items/${slug.current}`} className="group block">
         <div className="glass-card relative h-full overflow-hidden rounded-xl transition-all duration-500 hover:-translate-y-0.5 md:rounded-2xl md:hover:-translate-y-1">
-          {imageUrl && (
+          {image && (
             <div className="absolute inset-0 opacity-20 transition-opacity duration-500 group-hover:opacity-30">
-              <img
-                src={imageUrl}
+              <ShopImage
+                src={image}
                 alt={name}
                 className="h-full w-full object-cover"
-                loading="lazy"
               />
             </div>
           )}

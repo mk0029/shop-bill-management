@@ -119,16 +119,34 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     const body = await req.json().catch(() => ({}));
 
-    const patch = {
-      amount: Number(body?.amount || 0),
-      type: String(body?.type || "credit"),
-      description: String(body?.description || ""),
-      date: String(body?.date || new Date().toISOString().slice(0, 10)),
-      paymentMethod: String(body?.paymentMethod || "cash"),
-      reference: String(body?.reference || ""),
-      notes: String(body?.notes || ""),
+    const patch: Record<string, any> = {
       updatedAt: new Date().toISOString(),
     };
+
+    if (body?.createdAt) {
+      patch.createdAt = String(body.createdAt);
+    }
+    if (body?.amount !== undefined) {
+      patch.amount = Number(body.amount);
+    }
+    if (body?.type) {
+      patch.type = String(body.type);
+    }
+    if (body?.description !== undefined) {
+      patch.description = String(body.description);
+    }
+    if (body?.date) {
+      patch.date = String(body.date).slice(0, 10);
+    }
+    if (body?.paymentMethod) {
+      patch.paymentMethod = String(body.paymentMethod);
+    }
+    if (body?.reference !== undefined) {
+      patch.reference = String(body.reference);
+    }
+    if (body?.notes !== undefined) {
+      patch.notes = String(body.notes);
+    }
 
     const updated = await sanityClient.patch(id).set(patch).commit();
 

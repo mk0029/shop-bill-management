@@ -121,14 +121,15 @@ export async function POST(req: NextRequest) {
       if (ref._ref) customerId = String(ref._ref)
     }
 
-    if ((entryData as any).bill && typeof (entryData as any).bill === 'object' && (entryData as any).bill._ref) {
-      const billRef = String((entryData as any).bill._ref)
-      const existingBillEntry = await sanityClient.fetch(
-        `*[_type == "cashBookEntry" && bill._ref == $billRef][0]._id`,
-        { billRef }
+    // Dedup by transactionId if provided
+    const transactionId = String((entryData as any).transactionId || "").trim()
+    if (transactionId) {
+      const existing = await sanityClient.fetch(
+        `*[_type == "cashBookEntry" && transactionId == $tid][0]._id`,
+        { tid: transactionId }
       )
-      if (existingBillEntry) {
-        return NextResponse.json({ success: true, data: { _id: existingBillEntry }, message: 'Duplicate: entry already exists for this bill' }, { status: 200 })
+      if (existing) {
+        return NextResponse.json({ success: true, data: { _id: existing }, message: 'Duplicate: entry already exists for this transaction' }, { status: 200 })
       }
     }
 
@@ -159,6 +160,9 @@ export async function POST(req: NextRequest) {
     }
     if ((entryData as any).bill) {
       newEntry.bill = (entryData as any).bill
+    }
+    if (transactionId) {
+      newEntry.transactionId = transactionId
     }
 
     const created = await sanityClient.create(newEntry)

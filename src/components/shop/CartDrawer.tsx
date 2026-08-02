@@ -13,9 +13,10 @@ import {
   Loader2,
   Sparkles,
 } from "lucide-react";
+import { ShopImage } from "@/components/ui/shop-image";
 import { useCartStore, type CartItem } from "@/store/cart-store";
 import { Button } from "@/components/ui/button";
-import { formatPrice, getSanityImageUrl } from "@/lib/shop-queries";
+import { formatPrice } from "@/lib/shop-queries";
 
 function CartItemRow({
   item,
@@ -39,11 +40,10 @@ function CartItemRow({
       >
         {item.imageUrl && (
           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-slate-900">
-            <img
+            <ShopImage
               src={item.imageUrl}
               alt={item.name}
               className="h-full w-full object-cover"
-              loading="lazy"
             />
           </div>
         )}
@@ -112,11 +112,10 @@ function CartItemRow({
     >
       {item.imageUrl && (
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-900">
-          <img
+          <ShopImage
             src={item.imageUrl}
             alt={item.name}
             className="h-full w-full object-cover"
-            loading="lazy"
           />
         </div>
       )}

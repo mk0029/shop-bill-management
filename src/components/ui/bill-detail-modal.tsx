@@ -21,7 +21,7 @@ import { ItemsCard } from "./bill-detail-modal/ItemsCard";
 import { ChargesCard } from "./bill-detail-modal/ChargesCard";
 import { PaymentCard } from "./bill-detail-modal/PaymentCard";
 import { NotesCard } from "./bill-detail-modal/NotesCard";
-import { ActivityTimeline } from "./bill-detail-modal/ActivityTimeline";
+import { TimelineCard } from "./bill-detail-modal/timeline/TimelineCard";
 import { BottomActionBar } from "./bill-detail-modal/BottomActionBar";
 import { EditBillSheet } from "./bill-detail-modal/EditBillSheet";
 import { BillSkeleton } from "./bill-detail-modal/SkeletonLoader";
@@ -45,7 +45,12 @@ interface BillDetailModalProps {
       paymentStatus: "pending" | "partial" | "paid";
       paidAmount: number;
       balanceAmount: number;
+      paymentMethod?: string;
+      paymentDate?: string;
       discount?: number;
+      advanceCreated?: number;
+      finalCustomerPayment?: number;
+      paymentBeforeAdvance?: number;
     },
   ) => Promise<void>;
   onEditBill?: (bill: any) => void;
@@ -282,7 +287,10 @@ export const BillDetailModal = ({
 
           <NotesCard bill={bill} />
 
-          <ActivityTimeline bill={bill} />
+          <TimelineCard
+            billId={bill._id || bill.id || bill.billId || ""}
+            isAdmin={role === "admin"}
+          />
 
           {role === "admin" && (
             <BottomActionBar
