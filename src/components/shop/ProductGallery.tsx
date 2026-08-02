@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Play, Package, X } from "lucide-react";
 import { ShopImage } from "@/components/ui/shop-image";
@@ -23,6 +24,32 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
     }).filter(Boolean) || [];
   }, [product.images]);
   const touchStartX = useRef(0);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+
+    const body = document.body;
+    const html = document.documentElement;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyTouchAction = body.style.touchAction;
+    const prevHtmlOverflow = html.style.overflow;
+
+    body.style.overflow = "hidden";
+    body.style.touchAction = "none";
+    html.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      body.style.overflow = prevBodyOverflow;
+      body.style.touchAction = prevBodyTouchAction;
+      html.style.overflow = prevHtmlOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [fullscreen]);
 
   const imageUrls =
     product.images?.map((img: any) => getSanityImageUrl(img)).filter(Boolean) ||
@@ -179,8 +206,11 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
       )}
 
       {/* Fullscreen modal */}
-      <AnimatePresence>
-        {fullscreen && fullscreenUrls[selectedImage] && (
+      {/* Rendered through a portal to <body> so no ancestor stacking context
+          (e.g. sticky/transform wrappers) can paint the navbar above it. */}
+      {fullscreen &&
+        fullscreenUrls[selectedImage] &&
+        createPortal(
           <motion.div
             key="fullscreen-overlay"
             initial={{ opacity: 0 }}
@@ -223,13 +253,15 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
                 </button>
               </>
             )}
-          </motion.div>
+          </motion.div>,
+          document.body,
         )}
-      </AnimatePresence>
 
-      {/* Close button rendered outside overlay to avoid stacking-context nesting */}
-      <AnimatePresence>
-        {fullscreen && fullscreenUrls[selectedImage] && (
+      {/* Close button portaled with the overlay so it stays on the same
+          stacking context (above the overlay, below nothing else on screen) */}
+      {fullscreen &&
+        fullscreenUrls[selectedImage] &&
+        createPortal(
           <motion.button
             key="fullscreen-close"
             type="button"
@@ -240,9 +272,9 @@ export function ProductGallery({ product }: { product: ShopProduct }) {
             className="fixed right-4 top-4 z-[210] flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
           >
             <X className="h-5 w-5" />
-          </motion.button>
+          </motion.button>,
+          document.body,
         )}
-      </AnimatePresence>
     </>
   );
 }

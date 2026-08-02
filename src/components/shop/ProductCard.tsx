@@ -19,10 +19,12 @@ export function ProductCard({
   product,
   onSelect,
   index = 0,
+  selected = false,
 }: {
   product: ShopProduct;
   onSelect: (product: ShopProduct) => void;
   index?: number;
+  selected?: boolean;
 }) {
   const { items, addItem, updateQuantity } = useCartStore();
   const inCart = items.find((i) => i.productId === product._id);
@@ -58,10 +60,15 @@ export function ProductCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.05 }}
       layout
+      data-selected-product={selected ? "true" : undefined}
     >
       <div
         onClick={() => onSelect(product)}
-        className="group relative cursor-pointer overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.03] transition-all duration-500 hover:-translate-y-0.5 hover:border-white/[0.12] hover:bg-white/[0.06] hover:shadow-2xl hover:shadow-black/30 md:rounded-2xl"
+        className={`group relative cursor-pointer overflow-hidden rounded-xl border bg-white/[0.03] transition-all duration-500 hover:-translate-y-0.5 hover:border-white/[0.12] hover:bg-white/[0.06] hover:shadow-2xl hover:shadow-black/30 md:rounded-2xl ${
+          selected
+            ? "border-sky-400/40 bg-sky-400/[0.07] ring-2 ring-sky-400/50"
+            : "border-white/[0.06]"
+        }`}
       >
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-slate-900 md:aspect-square">

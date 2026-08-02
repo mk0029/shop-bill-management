@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  ══════════════════════════════════════════════════════════════
+  Z-INDEX LAYER HIERARCHY
+  Keep every fixed/sticky/overlay element inside one of these bands.
+  Never introduce a value that competes with another band.
+
+  z-0        base content (default)
+  z-[1-9]    decorative / in-page overlays (cards, search icons)
+  z-10       sticky section headers / content that must stay above cards
+  z-50       public navbar (fixed), floating action buttons, bottom prompts
+  z-[70]     mobile side-drawer backdrop / fullscreen mobile detail modal
+  z-[80]     mobile side-drawer panel
+  z-[90]     cart drawer backdrop
+  z-[100]    cart drawer panel
+  z-[200]    fullscreen image lightbox (MUST be portaled to <body> so no
+             ancestor stacking context — e.g. a sticky wrapper — can trap it)
+  z-[210]    lightbox chrome (close button) above the overlay
+  z-[9997]+  app-level transient UI: route loader, toasts, nprogress bar
+
+  Rule: any element that must cover the whole screen (lightbox, modal)
+  is portaled to document.body AND uses z-[200] or higher.
+  ══════════════════════════════════════════════════════════════
+*/
+
 @layer base {
   :root {
     --font-geist-sans: Arial, Helvetica, sans-serif;

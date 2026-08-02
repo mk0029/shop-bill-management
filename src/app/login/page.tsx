@@ -3,15 +3,16 @@ import LandingLoginPage from "@landing/components/LandingLoginPage";
 
 export const metadata: Metadata = {
   title: "Sign In",
-  description: "Sign in to your Jambh Electrics customer or admin account to manage bills, services, tool rental, and more.",
+  description:
+    "Sign in to your Jambh Electricals customer or admin account to manage bills, services, tool rental, and more.",
   robots: { index: false, follow: true },
   openGraph: {
-    title: "Sign In | Jambh Electrics",
-    description: "Sign in to your Jambh Electrics account.",
+    title: "Sign In | Jambh Electricals",
+    description: "Sign in to your Jambh Electricals account.",
   },
   twitter: {
-    title: "Sign In | Jambh Electrics",
-    description: "Sign in to your Jambh Electrics account.",
+    title: "Sign In | Jambh Electricals",
+    description: "Sign in to your Jambh Electricals account.",
   },
 };
 

@@ -170,86 +170,88 @@ export default function AdminWelcomePageClient() {
             className="w-full max-w-5xl overflow-hidden rounded-xl border border-white/10 bg-slate-950/82 shadow-2xl shadow-black/45 backdrop-blur-2xl"
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 260, damping: 26 }}
-          >
+            transition={{ type: "spring", stiffness: 260, damping: 26 }}>
             <div className="relative overflow-hidden p-5 sm:p-8 lg:p-10">
-            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-400/15 blur-3xl" />
-            <div className="absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-sky-400/15 blur-3xl" />
-            <div className="relative grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/20 bg-orange-300/10 px-3 py-1.5 text-xs font-semibold text-orange-100">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Admin workspace ready
-                </div>
-                <div className="mt-5 flex items-center gap-4">
-                  <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-cyan-300/15 bg-slate-900">
-                    <Image
-                      src="/je-p-512.png"
-                      alt="Jambh Electrics"
-                      width={64}
-                      height={64}
-                      className="h-full w-full object-cover"
-                      priority
-                    />
+              <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-400/15 blur-3xl" />
+              <div className="absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-sky-400/15 blur-3xl" />
+              <div className="relative grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/20 bg-orange-300/10 px-3 py-1.5 text-xs font-semibold text-orange-100">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Admin workspace ready
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-200">
-                      Jambh Electrics
-                    </p>
-                    <h1 className="mt-1 text-3xl font-bold leading-tight text-white sm:text-5xl">
-                      Welcome,
-                      <span className="block bg-[linear-gradient(90deg,#38bdf8,#f59e0b,#22c55e,#38bdf8)] bg-[length:260%_100%] bg-clip-text text-transparent motion-safe:animate-[welcome-gradient_7s_ease-in-out_infinite]">
-                        {safeName}
-                      </span>
-                    </h1>
+                  <div className="mt-5 flex items-center gap-4">
+                    <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-cyan-300/15 bg-slate-900">
+                      <Image
+                        src="/je-p-512.png"
+                        alt="Jambh Electricals"
+                        width={64}
+                        height={64}
+                        className="h-full w-full object-cover"
+                        priority
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-200">
+                        Jambh Electricals
+                      </p>
+                      <h1 className="mt-1 text-3xl font-bold leading-tight text-white sm:text-5xl">
+                        Welcome,
+                        <span className="block bg-[linear-gradient(90deg,#38bdf8,#f59e0b,#22c55e,#38bdf8)] bg-[length:260%_100%] bg-clip-text text-transparent motion-safe:animate-[welcome-gradient_7s_ease-in-out_infinite]">
+                          {safeName}
+                        </span>
+                      </h1>
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-6">
-                  <Typewriter text="Your admin dashboard is ready for customer management, service updates, billing, stock checks, team coordination, and live notifications." />
-                </div>
+                  <div className="mt-6">
+                    <Typewriter text="Your admin dashboard is ready for customer management, service updates, billing, stock checks, team coordination, and live notifications." />
+                  </div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-                  transition={{ duration: 0.25 }}
-                  className="mt-6"
-                >
-                  {ready && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-10 bg-orange-400 px-5 font-semibold text-slate-950 hover:bg-orange-300"
-                      onClick={continueToDashboard}
-                    >
-                      Continue to dashboard
-                    </Button>
-                  )}
-                </motion.div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
-                {staffTools.map(({ label, Icon }, index) => (
                   <motion.div
-                    key={label}
-                    className="rounded-lg border border-white/10 bg-white/[0.06] p-4 text-slate-100"
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + index * 0.08 }}
-                  >
-                    <Icon className="h-6 w-6 text-orange-200" />
-                    <p className="mt-3 text-sm font-semibold leading-5">{label}</p>
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={
+                      ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }
+                    }
+                    transition={{ duration: 0.25 }}
+                    className="mt-6">
+                    {ready && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-10 bg-orange-400 px-5 font-semibold text-slate-950 hover:bg-orange-300"
+                        onClick={continueToDashboard}>
+                        Continue to dashboard
+                      </Button>
+                    )}
                   </motion.div>
-                ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
+                  {staffTools.map(({ label, Icon }, index) => (
+                    <motion.div
+                      key={label}
+                      className="rounded-lg border border-white/10 bg-white/[0.06] p-4 text-slate-100"
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + index * 0.08 }}>
+                      <Icon className="h-6 w-6 text-orange-200" />
+                      <p className="mt-3 text-sm font-semibold leading-5">
+                        {label}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative mt-7 flex items-center gap-2 rounded-lg border border-emerald-300/15 bg-emerald-300/10 p-3 text-sm text-emerald-50">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-200" />
+                <span>
+                  Staff access is active. Continue to open the dashboard.
+                </span>
               </div>
             </div>
-
-            <div className="relative mt-7 flex items-center gap-2 rounded-lg border border-emerald-300/15 bg-emerald-300/10 p-3 text-sm text-emerald-50">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-200" />
-              <span>Staff access is active. Continue to open the dashboard.</span>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
         </div>
       </div>
     </section>

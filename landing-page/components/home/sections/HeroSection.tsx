@@ -42,16 +42,14 @@ export default function HeroSection({
                   const wa = `https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}?text=${msg}`;
 
                   window.open(wa, "_blank");
-                }}
-              >
+                }}>
                 <MessageCircle className="mr-2 h-5 w-5" /> Get Service
               </Button>
               <Button
                 className="max-sm:!px-2 max-sm:w-full"
                 size="lg"
                 variant="secondary"
-                onClick={() => window.open(`tel:${support.phone}`, "_blank")}
-              >
+                onClick={() => window.open(`tel:${support.phone}`, "_blank")}>
                 <Phone className="mr-2 h-5 w-5" /> Call for Inspection
               </Button>
             </div>
@@ -72,7 +70,7 @@ export default function HeroSection({
             <div className="aspect-video rounded-xl bg-gray-900 border border-border flex items-center justify-center relative">
               {/* <Home className="h-16 w-16 text-primary" /> */}
               <Image
-                alt="Jambh Electrics - Quality Electrical Products & Expert Home Services"
+                alt="Jambh Electricals - Quality Electrical Products & Expert Home Services"
                 src="/je-p-512.png"
                 fill
                 className="w-full h-auto absolute top-0 left-0 z-10 object-contain"

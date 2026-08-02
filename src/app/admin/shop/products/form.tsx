@@ -43,7 +43,18 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
   const [originalImages, setOriginalImages] = useState<any[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [jsonInput, setJsonInput] = useState("");
+  const [jsonOpen, setJsonOpen] = useState(false);
+  const [parsedProducts, setParsedProducts] = useState<any[]>([]);
+  const [selectedProductIndex, setSelectedProductIndex] = useState(0);
   const dropRef = useRef<HTMLDivElement>(null);
+  const jsonTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (jsonOpen) {
+      jsonTextareaRef.current?.focus();
+    }
+  }, [jsonOpen]);
 
   const imageRefToUrl = (ref: string) => {
     const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "";
@@ -57,7 +68,7 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     return `https://cdn.sanity.io/images/${projectId}/${dataset}/${id}-${dimensions}.${format}`;
   };
 
-  const [form, setForm] = useState({
+  const getEmptyForm = () => ({
     name: "",
     shortDescription: "",
     description: "",
@@ -79,6 +90,8 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     specifications: [] as { label: string; value: string }[],
     tags: "",
   });
+
+  const [form, setForm] = useState(getEmptyForm);
 
   const slugFromName = (name: string) =>
     name
@@ -391,8 +404,17 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
       } else {
         const res = await shopProductApiService.create(payload);
         if (res.success) {
-          toast.success("Product created");
-          router.push("/admin/shop/products");
+          if (parsedProducts.length > 0) {
+            if (advanceAfterRemoval(selectedProductIndex)) {
+              toast.success(`Product created — ${parsedProducts.length - 1} more to add`);
+            } else {
+              toast.success("All products created");
+              router.push("/admin/shop/products");
+            }
+          } else {
+            toast.success("Product created");
+            router.push("/admin/shop/products");
+          }
         } else {
           toast.error(res.error || "Failed to create");
         }
@@ -404,32 +426,141 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
     }
   };
 
+  const buildUpdates = (data: any) => {
+    const updates: any = {};
+    if (data.name) updates.name = data.name;
+    if (data.shortDescription !== undefined) updates.shortDescription = data.shortDescription;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.brand) updates.brand = data.brand;
+    if (data.categoryRef) updates.categoryRef = data.categoryRef;
+    if (data.unit) updates.unit = data.unit;
+    if (data.sellingPrice !== undefined) updates.sellingPrice = String(data.sellingPrice);
+    if (data.buyerPrice !== undefined) updates.buyerPrice = String(data.buyerPrice);
+    if (data.mrp !== undefined) updates.mrp = String(data.mrp);
+    if (data.stockCount !== undefined) updates.stockCount = String(data.stockCount);
+    if (data.lowStockThreshold !== undefined) updates.lowStockThreshold = String(data.lowStockThreshold);
+    if (data.inStock !== undefined) updates.inStock = data.inStock;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    if (data.isFeatured !== undefined) updates.isFeatured = data.isFeatured;
+    if (data.isNewArrival !== undefined) updates.isNewArrival = data.isNewArrival;
+    if (data.seoTitle !== undefined) updates.seoTitle = data.seoTitle;
+    if (data.seoDescription !== undefined) updates.seoDescription = data.seoDescription;
+    if (data.features?.length) updates.features = data.features;
+    if (data.specifications?.length) updates.specifications = data.specifications;
+    if (data.tags) updates.tags = data.tags;
+    return updates;
+  };
+
+  const loadProductIntoForm = (data: any, silent?: boolean) => {
+    setForm({ ...getEmptyForm(), ...buildUpdates(data) });
+    setImagePreview(null);
+    setExtraImages([]);
+    setOriginalImages([]);
+    delete (window as any).__shopMainImage;
+    delete (window as any).__shopExtraImages;
+    if (!silent) toast.success("Product loaded into form — edit and save");
+  };
+
+  const advanceAfterRemoval = (removedIndex: number) => {
+    const remaining = parsedProducts.filter((_, i) => i !== removedIndex);
+    setParsedProducts(remaining);
+    if (remaining.length === 0) {
+      setSelectedProductIndex(0);
+      return false;
+    }
+    const next = Math.min(removedIndex, remaining.length - 1);
+    setSelectedProductIndex(next);
+    loadProductIntoForm(remaining[next], true);
+    return true;
+  };
+
+  const removeParsedProduct = (index: number) => {
+    if (advanceAfterRemoval(index)) {
+      toast.success("Item removed — next product loaded");
+    } else {
+      setForm(getEmptyForm());
+      setImagePreview(null);
+      setExtraImages([]);
+      delete (window as any).__shopMainImage;
+      delete (window as any).__shopExtraImages;
+      toast.success("Item removed from list");
+    }
+  };
+
+  const fillFormFromData = (data: any) => {
+    setForm((prev) => ({ ...prev, ...buildUpdates(data) }));
+    setJsonInput("");
+    setParsedProducts([]);
+    setSelectedProductIndex(0);
+    setJsonOpen(false);
+    toast.success("Form filled from JSON");
+  };
+
   const handleJsonImport = () => {
     try {
       const data = JSON.parse(jsonInput);
-      const updates: any = {};
-      if (data.name) updates.name = data.name;
-      if (data.shortDescription !== undefined) updates.shortDescription = data.shortDescription;
-      if (data.description !== undefined) updates.description = data.description;
-      if (data.brand) updates.brand = data.brand;
-      if (data.unit) updates.unit = data.unit;
-      if (data.stockCount !== undefined) updates.stockCount = String(data.stockCount);
-      if (data.lowStockThreshold !== undefined) updates.lowStockThreshold = String(data.lowStockThreshold);
-      if (data.inStock !== undefined) updates.inStock = data.inStock;
-      if (data.isActive !== undefined) updates.isActive = data.isActive;
-      if (data.isFeatured !== undefined) updates.isFeatured = data.isFeatured;
-      if (data.isNewArrival !== undefined) updates.isNewArrival = data.isNewArrival;
-      if (data.seoTitle !== undefined) updates.seoTitle = data.seoTitle;
-      if (data.seoDescription !== undefined) updates.seoDescription = data.seoDescription;
-      if (data.features?.length) updates.features = data.features;
-      if (data.specifications?.length) updates.specifications = data.specifications;
-      if (data.tags) updates.tags = data.tags;
-      setForm((prev) => ({ ...prev, ...updates }));
-      setJsonInput("");
-      toast.success("Form filled from JSON");
+      if (Array.isArray(data)) {
+        if (data.length === 0) {
+          toast.error("JSON array is empty");
+          return;
+        }
+        setJsonInput("");
+        if (data.length === 1) {
+          fillFormFromData(data[0]);
+        } else {
+          setParsedProducts(data);
+          setSelectedProductIndex(0);
+          loadProductIntoForm(data[0]);
+          toast.success(`${data.length} products loaded — pick one from the dropdown to edit`);
+        }
+      } else {
+        fillFormFromData(data);
+      }
     } catch {
       toast.error("Invalid JSON format");
     }
+  };
+
+  const handleJsonFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const allProducts: any[] = [];
+    const errors: string[] = [];
+    const pending = Array.from(files).map(
+      (file) =>
+        new Promise<void>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const data = JSON.parse(reader.result as string);
+              if (Array.isArray(data)) allProducts.push(...data);
+              else allProducts.push(data);
+            } catch {
+              errors.push(file.name);
+            }
+            resolve();
+          };
+          reader.onerror = () => {
+            errors.push(file.name);
+            resolve();
+          };
+          reader.readAsText(file);
+        })
+    );
+    Promise.all(pending).then(() => {
+      if (errors.length > 0) {
+        toast.error(`Could not parse: ${errors.join(", ")}`);
+      }
+      if (allProducts.length === 0) return;
+      if (allProducts.length === 1 && parsedProducts.length === 0) {
+        fillFormFromData(allProducts[0]);
+        return;
+      }
+      const firstNewIndex = parsedProducts.length;
+      setParsedProducts((prev) => [...prev, ...allProducts]);
+      setSelectedProductIndex(firstNewIndex);
+      loadProductIntoForm(allProducts[0]);
+      toast.success(`${allProducts.length} product${allProducts.length > 1 ? "s" : ""} loaded from JSON file${files.length > 1 ? "s" : ""} — pick one from the dropdown to edit`);
+    });
   };
 
   const downloadJsonTemplate = () => {
@@ -438,7 +569,11 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
       shortDescription: "",
       description: "",
       brand: "",
+      categoryRef: "",
       unit: "piece",
+      sellingPrice: 0,
+      buyerPrice: 0,
+      mrp: 0,
       stockCount: 0,
       lowStockThreshold: 5,
       inStock: true,
@@ -507,7 +642,11 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
 
       {/* JSON Import */}
       <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-        <details className="group">
+        <details
+          className="group"
+          open={jsonOpen}
+          onToggle={(e) => setJsonOpen(e.currentTarget.open)}
+        >
           <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none text-sm text-gray-400 hover:text-gray-200 transition-colors">
             <span className="font-medium">Import from JSON</span>
             <svg className="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -515,22 +654,87 @@ export default function ShopProductForm({ productId }: { productId?: string }) {
             </svg>
           </summary>
           <div className="px-4 pb-4 space-y-3">
-            <p className="text-xs text-gray-500">Paste product JSON below to auto-fill the form fields (pricing excluded — enter manually).</p>
+            <p className="text-xs text-gray-500">
+              Paste product JSON below, or upload multiple .json files. For multiple products, pick one from the dropdown — its data fills the form fields below, edit and save one by one.
+            </p>
             <Textarea
+              ref={jsonTextareaRef}
               value={jsonInput}
               onChange={(e) => setJsonInput(e.target.value)}
               rows={6}
-              placeholder='{"name": "Product Name", "brand": "Brand", ...}'
+              placeholder='{"name": "Product Name", "brand": "Brand", "sellingPrice": 100, ...}'
               className="font-mono text-xs"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={handleJsonImport} disabled={!jsonInput.trim()}>
                 Fill from JSON
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-3.5 w-3.5 mr-1" />
+                Upload JSON File(s)
               </Button>
               <Button size="sm" variant="ghost" onClick={downloadJsonTemplate}>
                 Download Template
               </Button>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleJsonFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            {parsedProducts.length > 0 && (
+              <div className="rounded-md border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-gray-300">
+                    {parsedProducts.length} product{parsedProducts.length > 1 ? "s" : ""} loaded — edit fields below and save
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-gray-400 hover:text-white"
+                    onClick={() => {
+                      setParsedProducts([]);
+                      setSelectedProductIndex(0);
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+                {parsedProducts.length > 1 ? (
+                  <Dropdown
+                    options={[
+                      ...parsedProducts.map((p, i) => ({
+                        value: String(i),
+                        label: p?.name || `Product ${i + 1}`,
+                      })),
+                      { value: "__remove__", label: "Remove selected item from list" },
+                    ]}
+                    value={String(selectedProductIndex)}
+                    onValueChange={(v) => {
+                      if (v === "__remove__") {
+                        removeParsedProduct(selectedProductIndex);
+                      } else {
+                        const idx = Number(v);
+                        setSelectedProductIndex(idx);
+                        loadProductIntoForm(parsedProducts[idx]);
+                      }
+                    }}
+                    placeholder="Select product to edit"
+                    searchable
+                  />
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Loaded: {parsedProducts[0]?.name || "Product"} — edit fields below and save.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </details>
       </div>

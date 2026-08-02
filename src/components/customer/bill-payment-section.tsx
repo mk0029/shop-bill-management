@@ -114,7 +114,7 @@ export function BillPaymentSection({ selectedBill }: BillPaymentSectionProps) {
         const options: any = {
           key,
           order_id: orderJson.order.id,
-          name: "Jambh Electrics",
+          name: "Jambh Electricals",
           description: b.billNumber
             ? `Payment for ${b.billNumber}`
             : "Bill Payment",

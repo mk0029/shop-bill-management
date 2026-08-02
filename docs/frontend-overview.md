@@ -159,14 +159,14 @@ Homepage at `src/app/(public)/page.tsx`:
 
 ```tsx
 export const metadata = {
-  title: "Welcome to Jambh Electrics",
+  title: "Welcome to Jambh Electricals",
   description: "Billing, inventory, and customer management.",
 };
 
 export default function MarketingHome() {
   return (
     <main className="h-[var(--app-vh,100dvh)] flex flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-4xl font-semibold">Jambh Electrics</h1>
+      <h1 className="text-4xl font-semibold">Jambh Electricals</h1>
       <p className="text-muted-foreground max-w-prose text-center">
         Smart billing and inventory for shops and customers.
       </p>
@@ -190,14 +190,14 @@ About page at `src/app/(public)/about/page.tsx`:
 
 ```tsx
 export const metadata = {
-  title: "About | Jambh Electrics",
-  description: "Learn about Jambh Electrics and our mission.",
+  title: "About | Jambh Electricals",
+  description: "Learn about Jambh Electricals and our mission.",
 };
 
 export default function AboutPage() {
   return (
     <main className="max-w-3xl mx-auto p-6 space-y-4">
-      <h1 className="text-3xl font-semibold">About Jambh Electrics</h1>
+      <h1 className="text-3xl font-semibold">About Jambh Electricals</h1>
       <p>
         We build practical billing tools for electricians and retail shops,
         focusing on performance, offline-safe UX, and realtime notifications.

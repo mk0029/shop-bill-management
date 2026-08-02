@@ -127,15 +127,13 @@ export function ProductDetail({
       key={product._id}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+      transition={{ duration: 0.3 }}>
       {/* Back button */}
       {onBack && (
         <button
           type="button"
           onClick={onBack}
-          className="mb-3 flex items-center gap-1.5 text-xs text-white/50 transition-colors hover:text-white"
-        >
+          className="mb-3 flex items-center gap-1.5 text-xs text-white/50 transition-colors hover:text-white">
           <ChevronLeft className="h-3.5 w-3.5" />
           Back to all items
         </button>
@@ -192,7 +190,9 @@ export function ProductDetail({
                 </Badge>
               </>
             )}
-          <span className="text-[10px] text-white/30 md:text-xs">/ {product.pricing.unit}</span>
+          <span className="text-[10px] text-white/30 md:text-xs">
+            / {product.pricing.unit}
+          </span>
         </div>
 
         {/* Offer section */}
@@ -200,28 +200,33 @@ export function ProductDetail({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 p-4"
-          >
+            className="rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-cyan-500/20 p-2">
                 <Gift className="h-5 w-5 text-cyan-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-cyan-300">{offer.title}</p>
+                <p className="text-sm font-semibold text-cyan-300">
+                  {offer.title}
+                </p>
                 {offer.description && (
-                  <p className="mt-0.5 text-xs text-cyan-200/70">{offer.description}</p>
+                  <p className="mt-0.5 text-xs text-cyan-200/70">
+                    {offer.description}
+                  </p>
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
-                  {offer.offerType === "percentage" && offer.discountValue != null && (
-                    <span className="rounded-md bg-cyan-500/15 px-2 py-0.5 font-medium text-cyan-300">
-                      {offer.discountValue}% OFF
-                    </span>
-                  )}
-                  {offer.offerType === "fixed_amount" && offer.discountValue != null && (
-                    <span className="rounded-md bg-cyan-500/15 px-2 py-0.5 font-medium text-cyan-300">
-                      ₹{offer.discountValue} OFF
-                    </span>
-                  )}
+                  {offer.offerType === "percentage" &&
+                    offer.discountValue != null && (
+                      <span className="rounded-md bg-cyan-500/15 px-2 py-0.5 font-medium text-cyan-300">
+                        {offer.discountValue}% OFF
+                      </span>
+                    )}
+                  {offer.offerType === "fixed_amount" &&
+                    offer.discountValue != null && (
+                      <span className="rounded-md bg-cyan-500/15 px-2 py-0.5 font-medium text-cyan-300">
+                        ₹{offer.discountValue} OFF
+                      </span>
+                    )}
                   <span className="flex items-center gap-1 text-gray-400">
                     <Clock className="h-3 w-3" />
                     {new Date(offer.endAt) > new Date()
@@ -244,8 +249,7 @@ export function ProductDetail({
           {isOutOfStock ? (
             <Badge
               variant="destructive"
-              className="flex items-center gap-1 border-red-500/20 bg-red-500/10 text-[10px] text-red-400 md:text-xs"
-            >
+              className="flex items-center gap-1 border-red-500/20 bg-red-500/10 text-[10px] text-red-400 md:text-xs">
               <AlertTriangle className="h-2.5 w-2.5 md:h-3 md:w-3" />
               Out of Stock
             </Badge>
@@ -273,8 +277,7 @@ export function ProductDetail({
           {product.subcategory && (
             <Badge
               variant="outline"
-              className="border-violet-500/20 bg-violet-500/10 text-[10px] text-violet-400 md:text-xs"
-            >
+              className="border-violet-500/20 bg-violet-500/10 text-[10px] text-violet-400 md:text-xs">
               {product.subcategory.name}
             </Badge>
           )}
@@ -291,9 +294,10 @@ export function ProductDetail({
                 <div className="flex items-center overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.03]">
                   <button
                     type="button"
-                    onClick={() => updateQuantity(product._id, inCart.quantity - 1)}
-                    className="flex h-9 w-9 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
-                  >
+                    onClick={() =>
+                      updateQuantity(product._id, inCart.quantity - 1)
+                    }
+                    className="flex h-9 w-9 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white">
                     <Minus className="h-3.5 w-3.5" />
                   </button>
                   <span className="min-w-[2rem] text-center text-sm font-semibold text-white">
@@ -301,17 +305,17 @@ export function ProductDetail({
                   </span>
                   <button
                     type="button"
-                    onClick={() => updateQuantity(product._id, inCart.quantity + 1)}
+                    onClick={() =>
+                      updateQuantity(product._id, inCart.quantity + 1)
+                    }
                     disabled={inCart.quantity >= product.stockCount}
-                    className="flex h-9 w-9 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
-                  >
+                    className="flex h-9 w-9 items-center justify-center text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-30">
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 <button
                   onClick={openCart}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-400 transition-all active:scale-[0.97] hover:bg-sky-400/10"
-                >
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-400 transition-all active:scale-[0.97] hover:bg-sky-400/10">
                   <ShoppingCart className="h-3.5 w-3.5" />
                   View Cart
                 </button>
@@ -319,8 +323,7 @@ export function ProductDetail({
             ) : (
               <button
                 onClick={handleAddToCart}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/15 transition-all active:scale-[0.97] hover:from-sky-400 hover:to-sky-500"
-              >
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/15 transition-all active:scale-[0.97] hover:from-sky-400 hover:to-sky-500">
                 <ShoppingCart className="h-4 w-4" />
                 Add to Cart
               </button>
@@ -345,8 +348,7 @@ export function ProductDetail({
               {product.features.map((feature, i) => (
                 <li
                   key={i}
-                  className="flex items-start gap-2 text-sm text-slate-300"
-                >
+                  className="flex items-start gap-2 text-sm text-slate-300">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-400 md:h-4 md:w-4" />
                   {feature}
                 </li>
@@ -381,8 +383,7 @@ export function ProductDetail({
                       key={i}
                       className={`border-b border-white/[0.04] last:border-0 ${
                         i % 2 === 0 ? "bg-white/[0.02]" : ""
-                      }`}
-                    >
+                      }`}>
                       <td className="px-3 py-2 font-medium text-white/60 md:px-4 md:py-2.5">
                         {spec.label}
                       </td>
@@ -398,15 +399,14 @@ export function ProductDetail({
               <button
                 type="button"
                 onClick={() => setShowAllSpecs(!showAllSpecs)}
-                className="mt-2 flex items-center gap-1 text-xs text-sky-400/70 transition-colors hover:text-sky-400"
-              >
+                className="mt-2 flex items-center gap-1 text-xs text-sky-400/70 transition-colors hover:text-sky-400">
                 {showAllSpecs ? (
                   <>
                     Show less <ChevronUp className="h-3 w-3" />
                   </>
                 ) : (
                   <>
-                    See all {specs.length} specifications{" "}
+                    See all specifications
                     <ChevronDown className="h-3 w-3" />
                   </>
                 )}
@@ -419,15 +419,21 @@ export function ProductDetail({
         <div className="grid grid-cols-3 gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 md:gap-3 md:p-4">
           <div className="text-center">
             <Truck className="mx-auto mb-1 h-4 w-4 text-sky-400/60 md:h-5 md:w-5" />
-            <p className="text-[10px] text-white/40 md:text-[11px]">Pickup Only</p>
+            <p className="text-[10px] text-white/40 md:text-[11px]">
+              Pickup Only
+            </p>
           </div>
           <div className="text-center">
             <ShieldCheck className="mx-auto mb-1 h-4 w-4 text-sky-400/60 md:h-5 md:w-5" />
-            <p className="text-[10px] text-white/40 md:text-[11px]">Genuine Products</p>
+            <p className="text-[10px] text-white/40 md:text-[11px]">
+              Genuine Products
+            </p>
           </div>
           <div className="text-center">
             <RotateCcw className="mx-auto mb-1 h-4 w-4 text-sky-400/60 md:h-5 md:w-5" />
-            <p className="text-[10px] text-white/40 md:text-[11px]">Check before buy</p>
+            <p className="text-[10px] text-white/40 md:text-[11px]">
+              Check before buy
+            </p>
           </div>
         </div>
       </div>

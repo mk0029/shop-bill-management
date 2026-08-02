@@ -75,8 +75,7 @@ export function ShopNavbar() {
           scrolled
             ? "bg-slate-950/90 backdrop-blur-2xl border-b border-white/[0.06] shadow-lg shadow-black/10"
             : "bg-transparent",
-        )}
-      >
+        )}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
           {/* Left: Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -84,7 +83,7 @@ export function ShopNavbar() {
               <Store className="h-4 w-4 text-sky-400" />
             </div>
             <span className="hidden text-sm font-bold text-white tracking-tight sm:block">
-              Jambh Electrics
+              Jambh Electricals
             </span>
           </Link>
 
@@ -101,15 +100,18 @@ export function ShopNavbar() {
                     active
                       ? "text-white bg-white/10"
                       : "text-slate-400 hover:text-white hover:bg-white/[0.06]",
-                  )}
-                >
+                  )}>
                   <link.icon className="h-3.5 w-3.5" />
                   {link.label}
                   {active && (
                     <motion.span
                       layoutId="nav-active"
                       className="absolute inset-0 rounded-xl border border-white/10 bg-white/[0.06]"
-                      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                      transition={{
+                        type: "spring",
+                        damping: 25,
+                        stiffness: 300,
+                      }}
                     />
                   )}
                 </Link>
@@ -122,8 +124,7 @@ export function ShopNavbar() {
             <button
               type="button"
               onClick={openCart}
-              className="relative flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-slate-300 transition-all hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-            >
+              className="relative flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-slate-300 transition-all hover:border-white/20 hover:bg-white/[0.08] hover:text-white">
               <ShoppingCart className="h-4 w-4" />
               {totalItems > 0 && (
                 <Badge className="absolute -right-2 -top-2 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-sky-500 px-1 text-[10px] font-bold text-white shadow-lg shadow-sky-500/30">
@@ -141,8 +142,7 @@ export function ShopNavbar() {
               type="button"
               onClick={() => setMobileOpen(true)}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-slate-300 transition-colors hover:border-white/20 hover:text-white lg:hidden"
-              aria-label="Open menu"
-            >
+              aria-label="Open menu">
               <Menu className="h-4 w-4" />
             </button>
           </div>
@@ -166,15 +166,13 @@ export function ShopNavbar() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm border-l border-white/[0.08] bg-slate-950 p-5 shadow-2xl lg:hidden"
-            >
+              className="fixed inset-y-0 right-0 z-[80] w-full max-w-sm border-l border-white/[0.08] bg-slate-950 p-5 shadow-2xl lg:hidden">
               <div className="flex items-center justify-between mb-6">
                 <span className="text-sm font-semibold text-white">Menu</span>
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-white/20 hover:text-white"
-                >
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition-colors hover:border-white/20 hover:text-white">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -192,8 +190,7 @@ export function ShopNavbar() {
                         active
                           ? "bg-sky-400/10 text-sky-300 border border-sky-400/20"
                           : "text-slate-300 hover:bg-white/[0.06] border border-transparent",
-                      )}
-                    >
+                      )}>
                       <link.icon className="h-4 w-4" />
                       {link.label}
                     </Link>
@@ -208,8 +205,7 @@ export function ShopNavbar() {
                     setMobileOpen(false);
                     openCart();
                   }}
-                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white"
-                >
+                  className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white">
                   <ShoppingCart className="h-4 w-4 text-sky-400" />
                   View Cart
                   {totalItems > 0 && (

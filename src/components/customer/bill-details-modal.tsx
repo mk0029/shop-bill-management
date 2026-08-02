@@ -77,8 +77,10 @@ export function BillDetailsModal({
       const options: any = {
         key,
         order_id: orderJson.order.id,
-        name: "Jambh Electrics",
-        description: b.billNumber ? `Payment for ${b.billNumber}` : "Bill Payment",
+        name: "Jambh Electricals",
+        description: b.billNumber
+          ? `Payment for ${b.billNumber}`
+          : "Bill Payment",
         theme: { color: "#059669" },
         handler: async (resp: any) => {
           try {

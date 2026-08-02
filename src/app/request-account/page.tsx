@@ -11,14 +11,17 @@ import {
 
 export const metadata: Metadata = {
   title: "Request Customer Account",
-  description: "Request a customer account with Jambh Electrics to access billing, service history, tool rental, and more. Register online for quick electrical service access.",
+  description:
+    "Request a customer account with Jambh Electricals to access billing, service history, tool rental, and more. Register online for quick electrical service access.",
   openGraph: {
-    title: "Request Customer Account | Jambh Electrics",
-    description: "Register for a Jambh Electrics customer account to manage bills, track services, rent tools, and get electrical support.",
+    title: "Request Customer Account | Jambh Electricals",
+    description:
+      "Register for a Jambh Electricals customer account to manage bills, track services, rent tools, and get electrical support.",
   },
   twitter: {
-    title: "Request Customer Account | Jambh Electrics",
-    description: "Register for a Jambh Electrics customer account to manage bills, track services, rent tools, and get electrical support.",
+    title: "Request Customer Account | Jambh Electricals",
+    description:
+      "Register for a Jambh Electricals customer account to manage bills, track services, rent tools, and get electrical support.",
   },
 };
 

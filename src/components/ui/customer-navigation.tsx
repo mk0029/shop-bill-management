@@ -491,19 +491,17 @@ export function CustomerNavigation() {
                   animate={{ x: 0 }}
                   exit={{ x: "100%" }}
                   transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                  className="fixed right-0 top-0 z-[210] h-[var(--app-vh,100dvh)] w-[85vw] max-w-sm border-l border-gray-800 bg-gray-900/94 shadow-2xl shadow-black/40 backdrop-blur-2xl xl:hidden"
-                >
+                  className="fixed right-0 top-0 z-[210] h-[var(--app-vh,100dvh)] w-[85vw] max-w-sm border-l border-gray-800 bg-gray-900/94 shadow-2xl shadow-black/40 backdrop-blur-2xl xl:hidden">
                   {/* Header */}
                   <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-800">
                     <h2 className="text-xl font-semibold tracking-normal text-white">
-                      Jambh Electrics
+                      Jambh Electricals
                     </h2>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="hover:bg-gray-800"
-                    >
+                      className="hover:bg-gray-800">
                       <X className="w-5 h-5" />
                     </Button>
                   </div>
@@ -547,8 +545,7 @@ export function CustomerNavigation() {
                               onMouseDown={startMouseDrag}
                               onTouchStart={startTouchDrag}
                               ref={sliderRef}
-                              className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
-                            >
+                              className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}>
                               <div className="absolute inset-0 grid grid-cols-3">
                                 <button
                                   type="button"
@@ -683,8 +680,7 @@ export function CustomerNavigation() {
                     onMouseDown={startMouseDrag}
                     onTouchStart={startTouchDrag}
                     ref={sliderRef}
-                    className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
-                  >
+                    className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}>
                     <div className="absolute inset-0 grid grid-cols-3">
                       <button
                         type="button"
@@ -766,8 +762,7 @@ export function CustomerNavigation() {
                   href="/customer/chat"
                   className="relative inline-flex h-10 items-center justify-center gap-2 rounded-md border border-orange-400/30 bg-orange-500 px-3 text-sm font-semibold text-gray-950 shadow-sm transition hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-300 max-sm:w-10 max-sm:px-0"
                   title="Open chat"
-                  aria-label="Open chat"
-                >
+                  aria-label="Open chat">
                   <MessageCircle className="h-4 w-4" />
                   <span className="max-sm:hidden">Chat</span>
                   {hasChatUnread && (
@@ -810,8 +805,7 @@ export function CustomerNavigation() {
                         onMouseDown={startMouseDrag}
                         onTouchStart={startTouchDrag}
                         ref={sliderRef}
-                        className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}
-                      >
+                        className={`relative w-20 h-7 rounded-full border border-gray-500/60 bg-slate-700/40 backdrop-blur-sm transition-colors duration-200 outline-none focus:ring-2 focus:ring-blue-500`}>
                         <div className="absolute inset-0 grid grid-cols-3">
                           <button
                             type="button"
@@ -858,8 +852,7 @@ export function CustomerNavigation() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="xl:hidden relative"
-              >
+                className="xl:hidden relative">
                 <Menu className="w-5 h-5" />
                 {hasChatUnread && (
                   <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />

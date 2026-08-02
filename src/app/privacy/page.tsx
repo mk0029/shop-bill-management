@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "Privacy policy for Jambh Electrics.",
+  description: "Privacy policy for Jambh Electricals.",
   robots: { index: false, follow: true },
   alternates: { canonical: "https://jambh-ell.vercel.app/privacy-policy" },
 };

@@ -11,7 +11,7 @@ export default function FooterSection({
     <footer className="container mx-auto px-4 py-10">
       <div className="grid md:grid-cols-4 gap-8 text-sm">
         <div>
-          <div className="text-lg font-semibold">Jambh Electrics</div>
+          <div className="text-lg font-semibold">Jambh Electricals</div>
           <p className="mt-3 text-muted-foreground">
             Trusted electrical products and professional services with
             transparent pricing.
@@ -70,8 +70,7 @@ export default function FooterSection({
               <Link
                 href={
                   "https://wa.me/917012345678?text=Hello%20we%20want%20service"
-                }
-              >
+                }>
                 {support.whatsapp}
               </Link>
             </li>
@@ -83,7 +82,7 @@ export default function FooterSection({
         </div>
       </div>
       <div className="mt-8 pt-6 border-t text-xs text-muted-foreground text-center">
-        © {new Date().getFullYear()} Jambh Electrics. All rights reserved.
+        © {new Date().getFullYear()} Jambh Electricals. All rights reserved.
       </div>
     </footer>
   );

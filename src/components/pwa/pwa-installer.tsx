@@ -93,25 +93,26 @@ export default function PWAInstaller() {
     <div
       className="fixed inset-x-0 bottom-4 mx-auto w-[92%] max-w-md rounded-xl border border-slate-700 bg-slate-900/90 p-3 shadow-xl backdrop-blur z-50"
       role="dialog"
-      aria-label="Install app"
-    >
+      aria-label="Install app">
       <div className="flex items-center gap-3">
-        <img src="/je-p-192.png" alt="Jambh Electrics" className="h-8 w-8" />
+        <img src="/je-p-192.png" alt="Jambh Electricals" className="h-8 w-8" />
         <div className="flex-1">
-          <p className="text-sm font-medium text-slate-100">Install Jambh Electrics</p>
-          <p className="text-xs text-slate-300">Get a faster, full-screen experience</p>
+          <p className="text-sm font-medium text-slate-100">
+            Install Jambh Electricals
+          </p>
+          <p className="text-xs text-slate-300">
+            Get a faster, full-screen experience
+          </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleLater}
-            className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
-          >
+            className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800">
             Later
           </button>
           <button
             onClick={handleInstall}
-            className="rounded-md bg-sky-600 px-3 py-1 text-xs font-medium text-white hover:bg-sky-500"
-          >
+            className="rounded-md bg-sky-600 px-3 py-1 text-xs font-medium text-white hover:bg-sky-500">
             Install
           </button>
         </div>

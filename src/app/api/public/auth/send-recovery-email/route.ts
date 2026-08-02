@@ -27,7 +27,7 @@ function buildRecoveryEmailHtml(name: string, phone: string, secretKey: string) 
               <tr>
                 <td style="padding:0 32px">
                   <p style="font-size:14px;color:#374151;margin:0 0 16px 0">Hello <strong>${name}</strong>,</p>
-                  <p style="font-size:14px;color:#374151;margin:0 0 16px 0">Here are your login credentials for Jambh Electrics:</p>
+                  <p style="font-size:14px;color:#374151;margin:0 0 16px 0">Here are your login credentials for Jambh Electricals:</p>
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;margin:0 0 20px 0">
                     <tr>
                       <td style="padding:16px">
@@ -47,7 +47,7 @@ function buildRecoveryEmailHtml(name: string, phone: string, secretKey: string) 
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="border-top:1px solid #E5E7EB;padding-top:16px">
-                        <p style="margin:0;font-size:12px;color:#9CA3AF">Jambh Electrics &middot; Customer Support</p>
+                        <p style="margin:0;font-size:12px;color:#9CA3AF">Jambh Electricals &middot; Customer Support</p>
                       </td>
                     </tr>
                   </table>
@@ -68,7 +68,7 @@ function buildRecoveryEmailText(name: string, phone: string, secretKey: string) 
   return [
     `Hello ${name},`,
     "",
-    "Here are your login credentials for Jambh Electrics:",
+    "Here are your login credentials for Jambh Electricals:",
     "",
     `Phone Number: ${loginPhone}`,
     `Secret Key: ${secretKey}`,
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
 
     const result = await sendAppEmail({
       to,
-      subject: "Your Jambh Electrics Login Credentials",
+      subject: "Your Jambh Electricals Login Credentials",
       html: buildRecoveryEmailHtml(name, phone, secretKey),
       text: buildRecoveryEmailText(name, phone, secretKey),
     });

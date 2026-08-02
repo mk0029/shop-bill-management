@@ -19,7 +19,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       toolsAvailable: "Tools Available",
     },
     common: {
-      brand: "Jambh Electrics",
+      brand: "Jambh Electricals",
       language: "Language",
       english: "English",
       hindi: "Hindi",
@@ -50,7 +50,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       requestAccount: "Request Account",
     },
     hero: {
-      eyebrow: "Jambh Electrics",
+      eyebrow: "Jambh Electricals",
       title: "Trusted Electrical Products and Expert Home Services",
       copy: "Fair pricing, skilled technicians, and fast support for homes and local businesses. From repairs to complete wiring, we keep safety first.",
       getService: "Get Service",
@@ -195,7 +195,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
     },
     pages: {
       about: {
-        title: "About Jambh Electrics",
+        title: "About Jambh Electricals",
         copy: "Serving homes and local businesses with trusted electrical support.",
         heading: "Who We Are",
         bullets: {
@@ -350,7 +350,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
         button: "Send Account Request",
       },
       contact: {
-        title: "Contact Jambh Electrics",
+        title: "Contact Jambh Electricals",
         copy: "Reach us for service, product, account, or payment support.",
         phone: "Phone",
         whatsapp: "WhatsApp",
@@ -487,7 +487,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
               item2: "Final charges may vary based on work type, location, urgency, material used, and extra work found during inspection.",
               item3: "We explain charges before starting work whenever possible.",
               item4: "Customers must provide correct contact details, address, and service requirements.",
-              item5: "Jambh Electrics is not responsible for issues caused by old wiring, damaged fittings, low-quality existing materials, voltage problems, or third-party work.",
+              item5: "Jambh Electricals is not responsible for issues caused by old wiring, damaged fittings, low-quality existing materials, voltage problems, or third-party work.",
             },
           },
           section2: {
@@ -542,7 +542,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
           section7: {
             title: "7. Equipment Borrowing / Tool Rental Policy",
             points: {
-              item1: "Tool rental is chargeable and may be updated by Jambh Electrics.",
+              item1: "Tool rental is chargeable and may be updated by Jambh Electricals.",
               item2: "Standard rental starts around Rs. 100 per hour and Rs. 500 per day.",
               item3: "Time starts from handover and the full charge is deposited in advance.",
               item4: "Delay in return may add hourly or daily charges.",
@@ -587,7 +587,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
           section12: {
             title: "12. Changes to Terms",
             points: {
-              item1: "Jambh Electrics may update these terms at any time.",
+              item1: "Jambh Electricals may update these terms at any time.",
               item2: "Updated terms apply once published on the website.",
             },
           },
@@ -672,7 +672,7 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       privacy: "Privacy",
       refund: "Refund",
       copyright: "All rights reserved.",
-      professionalSystem: "Professional Jambh Electrics system",
+      professionalSystem: "Professional Jambh Electricals system",
       serviceLinks: {
         homeElectricalService: "Home Electrical Service",
         productSales: "Product Sales",

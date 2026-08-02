@@ -22,7 +22,7 @@ import { checkPaymentsDisabled } from "@/lib/payments-config";
 import type { BillData } from "./types";
 
 const DEFAULT_MERCHANT_UPI_ID = "7015493276@axl";
-const DEFAULT_MERCHANT_NAME = "Jambh Electrics";
+const DEFAULT_MERCHANT_NAME = "Jambh Electricals";
 const DEFAULT_SUPPORT_WHATSAPP = "918607871431";
 
 const GLASS =

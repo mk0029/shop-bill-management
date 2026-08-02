@@ -1,4 +1,4 @@
-Jambh Electrics - Project Technical Overview (info.txt)
+Jambh Electricals - Project Technical Overview (info.txt)
 Last updated: 2025-09-16 09:23:40 +05:30
 
 1) System Overview

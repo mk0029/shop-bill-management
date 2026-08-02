@@ -435,7 +435,7 @@ function dailyMessage(user: GreetingUser) {
   return {
     type: "daily_good_morning" as const,
     title: `Good morning ${name}`,
-    body: `Good morning ${name}. Have a great day from Jambh Electrics.`,
+    body: `Good morning ${name}. Have a great day from Jambh Electricals.`,
     festival: undefined,
   };
 }

@@ -17,7 +17,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-export const siteName = "Jambh Electrics";
+export const siteName = "Jambh Electricals";
 
 export const quickLinks = [
   { label: "Home", href: "/" },

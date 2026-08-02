@@ -53,7 +53,7 @@ export default function CustomerNotFoundPage() {
 
   const handleWhatsAppContact = () => {
     const message =
-      "Hello! I need help creating a customer account for Jambh Electrics. Please assist me with the registration process.";
+      "Hello! I need help creating a customer account for Jambh Electricals. Please assist me with the registration process.";
     shareToWhatsAppApp({ text: message, phone: supportContact.whatsapp }).catch(
       () => {},
     );
@@ -61,10 +61,10 @@ export default function CustomerNotFoundPage() {
 
   const handleEmailContact = () => {
     const subject = encodeURIComponent(
-      "Customer Account Request - Jambh Electrics",
+      "Customer Account Request - Jambh Electricals",
     );
     const body = encodeURIComponent(
-      "Hello,\n\nI would like to request a customer account for Jambh Electrics.\n\nPlease provide me with my Customer ID and Secret Key.\n\nThank you!",
+      "Hello,\n\nI would like to request a customer account for Jambh Electricals.\n\nPlease provide me with my Customer ID and Secret Key.\n\nThank you!",
     );
     const emailUrl = `mailto:${supportContact.email}?subject=${subject}&body=${body}`;
     window.open(emailUrl, "_blank");

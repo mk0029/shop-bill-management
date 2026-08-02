@@ -103,13 +103,13 @@ function buildWaCredentialMessage(name: string, phone: string, secretKey: string
   return [
     `Hello ${name},`,
     "",
-    "Your Jambh Electrics login credentials:",
+    "Your Jambh Electricals login credentials:",
     "",
     `Phone Number: ${loginPhone}`,
     `Secret Key: ${secretKey}`,
     "",
     "Please keep these details secure.",
-    "For support, contact Jambh Electrics.",
+    "For support, contact Jambh Electricals.",
   ].join("\n");
 }
 

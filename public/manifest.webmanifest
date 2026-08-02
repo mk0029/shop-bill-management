@@ -1,7 +1,7 @@
 {
-  "name": "Jambh Electrics",
-  "short_name": "Jambh Electrics",
-  "description": "Professional Jambh Electrics electrical shop and home service system",
+  "name": "Jambh Electricals",
+  "short_name": "Jambh Electricals",
+  "description": "Professional Jambh Electricals electrical shop and home service system",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -279,8 +279,7 @@ export default function CustomerWelcomeGuide({
       className={wrapperClasses}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
+      exit={{ opacity: 0 }}>
       <div className="pointer-events-none absolute inset-0 bg-slate-950/95">
         <FloatingBackground />
       </div>
@@ -291,8 +290,7 @@ export default function CustomerWelcomeGuide({
             className="w-full max-w-6xl overflow-hidden rounded-lg border border-white/10 bg-slate-950/84 shadow-2xl shadow-black/45 backdrop-blur-2xl"
             initial={{ opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 260, damping: 26 }}
-          >
+            transition={{ type: "spring", stiffness: 260, damping: 26 }}>
             {step === 1 ? (
               <div className="relative overflow-hidden p-5 sm:p-8 lg:p-10">
                 <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-400/15 blur-3xl" />
@@ -301,7 +299,7 @@ export default function CustomerWelcomeGuide({
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1.5 text-xs font-semibold text-sky-100">
                       <Sparkles className="h-3.5 w-3.5" />
-                      Jambh Electrics service app
+                      Jambh Electricals service app
                     </div>
                     <h1 className="mt-5 text-4xl font-bold leading-tight text-white sm:text-6xl">
                       Welcome,
@@ -314,17 +312,19 @@ export default function CustomerWelcomeGuide({
                     </div>
                     <motion.div
                       initial={{ opacity: 0, y: 12 }}
-                      animate={introReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+                      animate={
+                        introReady
+                          ? { opacity: 1, y: 0 }
+                          : { opacity: 0, y: 12 }
+                      }
                       transition={{ duration: 0.25 }}
-                      className="mt-6"
-                    >
+                      className="mt-6">
                       {introReady && (
                         <Button
                           type="button"
                           size="sm"
                           className="h-10 bg-orange-400 px-5 font-semibold text-slate-950 hover:bg-orange-300"
-                          onClick={() => setStep(2)}
-                        >
+                          onClick={() => setStep(2)}>
                           Continue
                         </Button>
                       )}
@@ -340,8 +340,7 @@ export default function CustomerWelcomeGuide({
                           className="rounded-lg border border-white/10 bg-white/[0.06] p-4 text-slate-100"
                           initial={{ opacity: 0, y: 14 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.2 + index * 0.08 }}
-                        >
+                          transition={{ delay: 0.2 + index * 0.08 }}>
                           <Icon className="h-6 w-6 text-orange-200" />
                           <p className="mt-3 text-sm font-semibold leading-5">
                             {item.label}
@@ -360,15 +359,15 @@ export default function CustomerWelcomeGuide({
                       Customer dashboard guide
                     </p>
                     <p className="mt-1 text-xs leading-5 text-slate-300">
-                      These are the main tools available after login. You can open this Guide again from the customer menu.
+                      These are the main tools available after login. You can
+                      open this Guide again from the customer menu.
                     </p>
                   </div>
                   <Button
                     type="button"
                     size="sm"
                     className="h-10 shrink-0 bg-orange-400 px-5 font-semibold text-slate-950 hover:bg-orange-300"
-                    onClick={continueToDashboard}
-                  >
+                    onClick={continueToDashboard}>
                     Continue to app
                   </Button>
                 </div>
@@ -396,8 +395,7 @@ export default function CustomerWelcomeGuide({
                     variant="outline"
                     size="sm"
                     className="h-10 border-white/15 bg-slate-950/60 px-4 text-white hover:bg-slate-900 md:hidden"
-                    onClick={continueToDashboard}
-                  >
+                    onClick={continueToDashboard}>
                     Continue to app
                   </Button>
                 </div>

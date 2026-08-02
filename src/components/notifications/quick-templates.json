@@ -2,14 +2,14 @@
   {
     "label": "5% Service Off",
     "title": "5% Off Today",
-    "message": "Get 5% off on selected electrical services today. Book your service with Jambh Electrics now.",
+    "message": "Get 5% off on selected electrical services today. Book your service with Jambh Electricals now.",
     "category": "special_offer",
     "ctaLabel": "Book Service"
   },
   {
     "label": "10% Service Off",
     "title": "10% Service Discount",
-    "message": "Enjoy 10% off on service charges for a limited time. Contact Jambh Electrics to book your visit.",
+    "message": "Enjoy 10% off on service charges for a limited time. Contact Jambh Electricals to book your visit.",
     "category": "special_offer",
     "ctaLabel": "Book Now"
   },
@@ -30,7 +30,7 @@
   {
     "label": "Wiring Material",
     "title": "Wiring Material Offer",
-    "message": "Purchase selected wiring material and get a limited-time discount from Jambh Electrics.",
+    "message": "Purchase selected wiring material and get a limited-time discount from Jambh Electricals.",
     "category": "special_offer",
     "ctaLabel": "Shop Now"
   },
@@ -72,7 +72,7 @@
   {
     "label": "LED Bulbs",
     "title": "LED Bulb Purchase Offer",
-    "message": "Buy LED bulbs and selected lighting products with special discount at Jambh Electrics.",
+    "message": "Buy LED bulbs and selected lighting products with special discount at Jambh Electricals.",
     "category": "special_offer",
     "ctaLabel": "Buy Now"
   },
@@ -128,7 +128,7 @@
   {
     "label": "New Customer",
     "title": "New Customer Discount",
-    "message": "First-time customers get a special discount on their first service booking with Jambh Electrics.",
+    "message": "First-time customers get a special discount on their first service booking with Jambh Electricals.",
     "category": "special_offer",
     "ctaLabel": "Start Now"
   },
@@ -149,7 +149,7 @@
   {
     "label": "Power Cut Help",
     "title": "Power Issue Support",
-    "message": "Facing a power issue? Contact Jambh Electrics for quick checking and repair support.",
+    "message": "Facing a power issue? Contact Jambh Electricals for quick checking and repair support.",
     "category": "service_update",
     "ctaLabel": "Get Help"
   },
@@ -170,7 +170,7 @@
   {
     "label": "Booking Open",
     "title": "Service Booking Open",
-    "message": "Service slots are open today. Book early to get faster support from Jambh Electrics.",
+    "message": "Service slots are open today. Book early to get faster support from Jambh Electricals.",
     "category": "general",
     "ctaLabel": "Book Now"
   },
@@ -184,7 +184,7 @@
   {
     "label": "Festival Wishes",
     "title": "Festival Wishes",
-    "message": "Warm wishes from Jambh Electrics. May your home stay bright, safe, and happy.",
+    "message": "Warm wishes from Jambh Electricals. May your home stay bright, safe, and happy.",
     "category": "festival_offer",
     "ctaLabel": "Open"
   },

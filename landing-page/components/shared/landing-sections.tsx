@@ -72,8 +72,7 @@ export function HeroSection({
             </div>
             <h1
               className={`text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white leading-[1.08] ${isHindi ? "" : ""}`}
-              style={isHindi ? hindiHeroHeadingStyle : undefined}
-            >
+              style={isHindi ? hindiHeroHeadingStyle : undefined}>
               {t("hero.title")}
             </h1>
             <p className="text-base md:text-lg text-[#B8C0CC] leading-relaxed max-w-lg">
@@ -84,15 +83,13 @@ export function HeroSection({
                 href={`https://wa.me/${support.whatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="glass-button-primary inline-flex h-12 items-center justify-center rounded-2xl px-6 text-base font-semibold text-sky-200 gap-2 max-sm:w-full"
-              >
+                className="glass-button-primary inline-flex h-12 items-center justify-center rounded-2xl px-6 text-base font-semibold text-sky-200 gap-2 max-sm:w-full">
                 <MessageCircle className="h-4 w-4" />
                 {t("hero.whatsapp")}
               </a>
               <a
                 href={`tel:${support.phone}`}
-                className="glass-button inline-flex h-12 items-center justify-center rounded-2xl px-6 text-base font-semibold text-[#E5E7EB] gap-2 max-sm:w-full"
-              >
+                className="glass-button inline-flex h-12 items-center justify-center rounded-2xl px-6 text-base font-semibold text-[#E5E7EB] gap-2 max-sm:w-full">
                 <Phone className="h-4 w-4" />
                 {t("hero.callNow")}
               </a>
@@ -110,7 +107,7 @@ export function HeroSection({
             <div className="ambient-glow w-48 h-48 sm:w-60 sm:h-60 lg:w-72 lg:h-72 bg-sky-500/5 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
             <div className="glass-card-static aspect-square w-full max-w-xs sm:max-w-sm lg:max-w-md flex items-center justify-center p-6 sm:p-8">
               <Image
-                alt="Jambh Electrics brand logo"
+                alt="Jambh Electricals brand logo"
                 src="/je-p-512.png"
                 width={320}
                 height={320}

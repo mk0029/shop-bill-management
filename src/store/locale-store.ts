@@ -16,12 +16,12 @@ interface LocaleState {
 // Basic translations - can be expanded
 const translations = {
   en: {
-    "app.title": "Jambh Electrics",
+    "app.title": "Jambh Electricals",
     "auth.login": "Login",
     "auth.logout": "Logout",
     "auth.welcomeBack": "Welcome back",
-    "auth.signInToContinue": "Sign in to continue to your Jambh Electrics workspace.",
-    "auth.professionalSystem": "Professional Jambh Electrics system",
+    "auth.signInToContinue": "Sign in to continue to your Jambh Electricals workspace.",
+    "auth.professionalSystem": "Professional Jambh Electricals system",
     "nav.dashboard": "Dashboard",
     "nav.customers": "Customers",
     "nav.billing": "Billing",
@@ -41,11 +41,11 @@ const translations = {
     "common.loading": "Loading...",
   },
   hi: {
-    "app.title": "Jambh Electrics",
+    "app.title": "Jambh Electricals",
     "auth.login": "लॉगिन",
     "auth.logout": "लॉगआउट",
     "auth.welcomeBack": "आपका स्वागत है",
-    "auth.signInToContinue": "अपने Jambh Electrics वर्कस्पेस में जारी रखने के लिए साइन इन करें।",
+    "auth.signInToContinue": "अपने Jambh Electricals वर्कस्पेस में जारी रखने के लिए साइन इन करें।",
     "auth.professionalSystem": "जंभ इलेक्ट्रिकल्स सेवा प्रणाली",
     "nav.dashboard": "डैशबोर्ड",
     "nav.customers": "ग्राहक",
@@ -66,7 +66,7 @@ const translations = {
     "common.loading": "लोड हो रहा है...",
   },
   ur: {
-    "app.title": "Jambh Electrics",
+    "app.title": "Jambh Electricals",
     "auth.login": "لاگ ان",
     "auth.logout": "لاگ آؤٹ",
     "nav.dashboard": "ڈیش بورڈ",
