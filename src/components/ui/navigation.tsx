@@ -92,6 +92,11 @@ const adminNavigation: NavigationItem[] = [
         icon: Megaphone,
       },
       {
+        label: "WhatsApp Queue",
+        href: "/admin/whatsapp-queue",
+        icon: RefreshCw,
+      },
+      {
         label: "Stock History",
         href: "/admin/inventory/history",
         icon: History,

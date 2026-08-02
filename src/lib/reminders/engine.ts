@@ -1,6 +1,11 @@
 import { sanityClient } from "@/lib/sanity";
-import { sendWhatsAppNotification } from "@/lib/send-whatsapp-notification";
 import { sendAppEmail } from "@/lib/email/server";
+import {
+  enqueueWhatsAppMessage,
+  getWhatsAppMessage,
+  processDueWhatsAppMessages,
+} from "@/lib/whatsapp/message-queue";
+import { normalizePhoneToE164, phoneRejectLabel } from "@/lib/whatsapp/phone";
 import type {
   CustomerReminderConfig,
   GlobalReminderSettings,
@@ -279,14 +284,41 @@ async function sendViaChannel(
 ): Promise<{ sent: boolean; error?: string }> {
   if (channel === "whatsapp") {
     if (!candidate.customerPhone) return { sent: false, error: "no_phone" };
-    const message = buildWhatsAppMessage(candidate);
-    const result = await sendWhatsAppNotification({
-      eventType: "billReminder.auto",
-      phone: candidate.customerPhone,
-      message,
-      metadata: { idempotencyKey, billId: candidate.billId, customerId: candidate.customerId },
+
+    const normalized = normalizePhoneToE164(candidate.customerPhone);
+    if (!normalized.ok) {
+      return { sent: false, error: `invalid_phone:${phoneRejectLabel(normalized.reason)}` };
+    }
+
+    const queued = await enqueueWhatsAppMessage({
+      customerId: candidate.customerId,
+      customerName: candidate.customerName,
+      billId: candidate.billId,
+      phoneNumber: candidate.customerPhone,
+      messageType: "billReminder.auto",
+      message: buildWhatsAppMessage(candidate),
+      idempotencyKey,
+      scheduledAt: new Date(),
     });
-    return { sent: result.ok, error: result.error || result.reason };
+
+    if (!queued.ok) return { sent: false, error: queued.error };
+
+    if (queued.duplicate) {
+      const existing = queued.entry;
+      if (existing.status === "failed") return { sent: false, error: existing.failureReason };
+      return { sent: true, error: "already_queued" };
+    }
+
+    await processDueWhatsAppMessages({ limit: 1, onlyIds: [queued.entry._id] });
+    const final = await getWhatsAppMessage(queued.entry._id);
+    if (!final) return { sent: false, error: "queue_lookup_failed" };
+    if (final.status === "sent") return { sent: true };
+    return {
+      sent: false,
+      error: final.status === "failed"
+        ? (final.failureReason || "send_failed")
+        : (final.retryAt ? `retry_scheduled_at_${final.retryAt}` : "send_failed"),
+    };
   }
 
   if (channel === "email") {
@@ -474,6 +506,16 @@ export async function runAutoReminders(
           reason: "customer_reminders_disabled",
           idempotencyKey: "",
         });
+        await createReminderLog({
+          idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
+          customerId: latest.customerId,
+          billId: latest.billId,
+          channel: "whatsapp",
+          status: "skipped",
+          reason: "customer_reminders_disabled",
+          mode: "auto",
+          reminderNumber: latest.reminderCount + 1,
+        });
         continue;
       }
 
@@ -486,6 +528,16 @@ export async function runAutoReminders(
           skipped: true,
           reason: "below_minimum_amount",
           idempotencyKey: "",
+        });
+        await createReminderLog({
+          idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
+          customerId: latest.customerId,
+          billId: latest.billId,
+          channel: "whatsapp",
+          status: "skipped",
+          reason: `below_minimum_amount:${latest.balanceAmount}`,
+          mode: "auto",
+          reminderNumber: latest.reminderCount + 1,
         });
         continue;
       }
@@ -500,6 +552,16 @@ export async function runAutoReminders(
           skipped: true,
           reason: dueCheck.reason || "not_eligible",
           idempotencyKey: "",
+        });
+        await createReminderLog({
+          idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
+          customerId: latest.customerId,
+          billId: latest.billId,
+          channel: "whatsapp",
+          status: "skipped",
+          reason: dueCheck.reason || "not_eligible",
+          mode: "auto",
+          reminderNumber: latest.reminderCount + 1,
         });
         continue;
       }
@@ -520,6 +582,16 @@ export async function runAutoReminders(
           reason: "duplicate_today",
           idempotencyKey,
         });
+        await createReminderLog({
+          idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
+          customerId: latest.customerId,
+          billId: latest.billId,
+          channel: "whatsapp",
+          status: "skipped",
+          reason: "duplicate_today",
+          mode: "auto",
+          reminderNumber: latest.reminderCount + 1,
+        });
         continue;
       }
 
@@ -536,6 +608,16 @@ export async function runAutoReminders(
           skipped: true,
           reason: "bill_no_longer_eligible",
           idempotencyKey,
+        });
+        await createReminderLog({
+          idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
+          customerId: latest.customerId,
+          billId: latest.billId,
+          channel: "whatsapp",
+          status: "skipped",
+          reason: "bill_no_longer_eligible",
+          mode: "auto",
+          reminderNumber: latest.reminderCount + 1,
         });
         continue;
       }

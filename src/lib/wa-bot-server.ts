@@ -1,4 +1,5 @@
 import { sendOpenWaText, sendOpenWaBulk } from "@/lib/openwa-client"
+import { waitSendGap } from "@/lib/whatsapp/send-gap"
 import { notificationTemplates, formatCurrency, formatDate, greetingByTime, footerText } from "@/lib/notifications/template-engine"
 
 type SendResult = {
@@ -66,6 +67,7 @@ export async function sendViaWaBotServer(input: { phones?: string[]; phone?: str
         results.push({ ok: true, phone, skipped: true })
         continue
       }
+      await waitSendGap()
       const res = await sendOpenWaText(phone, message)
       if (!res.ok) {
         idempotencyCache.delete(idempotencyKey)
