@@ -18,6 +18,12 @@ interface SessionDetail {
   lastError?: string | null;
 }
 
+interface ReminderResult {
+  sent: number;
+  skipped: number;
+  failed: number;
+}
+
 const STATUS_COLOR: Record<string, string> = {
   ready: "text-green-400 border-green-500/30 bg-green-500/8",
   created: "text-gray-400 border-gray-500/30 bg-gray-500/8",
@@ -61,6 +67,9 @@ export default function WhatsAppBotClient() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [, setTick] = useState(0); // forces re-render every 1s so relative time ticks
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const [reminderResult, setReminderResult] = useState<ReminderResult | null>(null);
+  const [reminderError, setReminderError] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -84,6 +93,28 @@ export default function WhatsAppBotClient() {
     const timer = setInterval(fetchSessions, REFRESH_INTERVAL);
     return () => clearInterval(timer);
   }, [fetchSessions]);
+
+  const triggerBillReminder = useCallback(async () => {
+    setReminderLoading(true);
+    setReminderResult(null);
+    setReminderError(null);
+    try {
+      const res = await fetch("/api/super/bill-reminder/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setReminderResult({ sent: json.sent || 0, skipped: json.skipped || 0, failed: json.failed || 0 });
+      } else {
+        setReminderError(json.error || "Failed to trigger reminder");
+      }
+    } catch (err) {
+      setReminderError(err instanceof Error ? err.message : "Network error");
+    } finally {
+      setReminderLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 1000);
@@ -110,6 +141,41 @@ export default function WhatsAppBotClient() {
           </Badge>
         </div>
       </div>
+
+      <Card className="!border-gray-800/60">
+        <CardContent className="p-4 md:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white">Daily Bill Reminder</p>
+              <p className="text-xs text-gray-500">Manually trigger WhatsApp payment reminders for all pending bills</p>
+            </div>
+            <button
+              onClick={triggerBillReminder}
+              disabled={reminderLoading}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                reminderLoading
+                  ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-500 active:bg-blue-700",
+              )}
+            >
+              {reminderLoading ? "Sending..." : "Trigger Reminders"}
+            </button>
+          </div>
+          {reminderResult && (
+            <div className="mt-3 rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2">
+              <p className="text-xs text-green-400">
+                Done — Sent: {reminderResult.sent} | Skipped: {reminderResult.skipped} | Failed: {reminderResult.failed}
+              </p>
+            </div>
+          )}
+          {reminderError && (
+            <div className="mt-3 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2">
+              <p className="text-xs text-red-400">{reminderError}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="!border-gray-800/60">
         <CardContent className="p-3 md:p-5">
