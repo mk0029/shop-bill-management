@@ -22,6 +22,7 @@ interface ReminderResult {
   sent: number;
   skipped: number;
   failed: number;
+  debug?: string;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -105,7 +106,12 @@ export default function WhatsAppBotClient() {
       });
       const json = await res.json();
       if (json.success) {
-        setReminderResult({ sent: json.sent || 0, skipped: json.skipped || 0, failed: json.failed || 0 });
+        setReminderResult({
+          sent: json.sent || 0,
+          skipped: json.skipped || 0,
+          failed: json.failed || 0,
+          debug: json.debug || undefined,
+        });
       } else {
         setReminderError(json.error || "Failed to trigger reminder");
       }
@@ -167,6 +173,9 @@ export default function WhatsAppBotClient() {
               <p className="text-xs text-green-400">
                 Done — Sent: {reminderResult.sent} | Skipped: {reminderResult.skipped} | Failed: {reminderResult.failed}
               </p>
+              {reminderResult.debug && (
+                <p className="text-xs text-yellow-400 mt-1">Reason: {reminderResult.debug}</p>
+              )}
             </div>
           )}
           {reminderError && (
