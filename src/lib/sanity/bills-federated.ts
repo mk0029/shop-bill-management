@@ -31,9 +31,9 @@ const BILL_PROJECTION = `{
   }
 }`;
 
-export const FEDERATED_BILLS_QUERY = (customerId?: string) => {
-  const filter = customerId
-    ? `customer._ref == $customerId || customer == $customerId || customer._id == $customerId || customerId == $customerId || customer->customerId == $customerId`
+export const FEDERATED_BILLS_QUERY = (customerIds: string[] = []) => {
+  const filter = customerIds.length
+    ? `customer._ref in $customerIds || customer in $customerIds || customer._id in $customerIds || customerId in $customerIds || customer->customerId in $customerIds`
     : `_type == "bill"`;
   return `*[_type == "bill" && (${filter})]${BILL_PROJECTION} | order(coalesce(createdAt, _createdAt) desc)`;
 };
@@ -110,10 +110,18 @@ function mergeBills(primary: any[], billing: any[]): any[] {
  * Fetch bills from primary + billing DBs and merge into a single list.
  * Runs the two queries in parallel; a failure in one DB is non-fatal.
  */
-export async function fetchBills(opts: { customerId?: string } = {}): Promise<Record<string, any>[]> {
-  const { customerId } = opts;
-  const query = FEDERATED_BILLS_QUERY(customerId);
-  const params = customerId ? { customerId } : {};
+export async function fetchBills(
+  opts: { customerId?: string; customerIds?: string[] } = {}
+): Promise<Record<string, any>[]> {
+  const customerIds = Array.from(
+    new Set(
+      [opts.customerId, ...(opts.customerIds ?? [])]
+        .filter(Boolean)
+        .map((v) => String(v)),
+    ),
+  );
+  const query = FEDERATED_BILLS_QUERY(customerIds);
+  const params = customerIds.length ? { customerIds } : {};
 
   const [primaryRes, billingRes] = await Promise.allSettled([
     sanityClient.fetch(query, params),

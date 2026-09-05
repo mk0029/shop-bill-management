@@ -84,6 +84,11 @@ export function UpiPaymentModal({
   }, [apps, merchantUpiId, merchantName, amount, billReference]);
 
   const [copyFallback, setCopyFallback] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleOtherUpi = useCallback(() => {
     const uri = generateUpiUri({
@@ -216,6 +221,6 @@ export function UpiPaymentModal({
     </div>
   );
 
-  if (typeof window === "undefined") return null;
+  if (!mounted) return null;
   return createPortal(content, document.body);
 }

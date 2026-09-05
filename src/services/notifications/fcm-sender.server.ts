@@ -28,20 +28,63 @@ function getProjectId() {
   }
 }
 
+// The GoogleAuth instance and its OAuth2 access token are cached at module
+// scope. google-auth-library only re-acquires the token when it is about to
+// expire (~1h), so a warm lambda performs zero network calls for auth. The
+// previous implementation constructed a fresh GoogleAuth per token per send
+// attempt, causing a full OAuth exchange (signing + metadata/token endpoint
+// round trip) for every single recipient — a primary latency source.
+let cachedAuth: GoogleAuth | null = null;
+let cachedAccessToken: string | null = null;
+let cachedAccessTokenExpiresAt = 0;
+
+// Token refresh slack: refresh the token early so an in-flight request can
+// never race the hard expiry.
+const ACCESS_TOKEN_REFRESH_SLACK_MS = 60_000;
+
 function getGoogleAuth() {
+  if (cachedAuth) return cachedAuth;
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  return new GoogleAuth({
+  const auth = new GoogleAuth({
     ...(json ? { credentials: JSON.parse(json) } : {}),
     scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
   });
+  cachedAuth = auth;
+  return auth;
 }
 
-async function getAccessToken() {
+function jwtExpiryMs(token: string): number {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return 0;
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function getAccessToken(force = false): Promise<string> {
+  if (
+    !force &&
+    cachedAccessToken &&
+    Date.now() < cachedAccessTokenExpiresAt - ACCESS_TOKEN_REFRESH_SLACK_MS
+  ) {
+    return cachedAccessToken;
+  }
   const client = await getGoogleAuth().getClient();
   const token = (await client.getAccessToken()) as AccessTokenShape;
-  if (typeof token === "string") return token;
-  if (token?.token) return token.token;
-  throw new Error("Unable to acquire Google OAuth2 access token");
+  const value = typeof token === "string" ? token : token?.token;
+  if (!value) throw new Error("Unable to acquire Google OAuth2 access token");
+  cachedAccessToken = value;
+  cachedAccessTokenExpiresAt = jwtExpiryMs(value) || Date.now() + 3_600_000;
+  return value;
+}
+
+export function clearFcmAccessTokenCache() {
+  cachedAuth = null;
+  cachedAccessToken = null;
+  cachedAccessTokenExpiresAt = 0;
 }
 
 function getSiteOrigin() {

@@ -38,6 +38,11 @@ export function ProductSelectionModal({
   const [selected, setSelected] = useState<string[]>(initialSelected);
   const [page, setPage] = useState(1);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setSelected(initialSelected);
@@ -125,7 +130,7 @@ export function ProductSelectionModal({
     [categories],
   );
 
-  if (typeof window === "undefined") return null;
+  if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>

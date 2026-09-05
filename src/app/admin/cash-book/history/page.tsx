@@ -46,6 +46,9 @@ export default function CashBookHistoryPage() {
     "all" | "Manual" | "Bill Payment"
   >("all");
   const [filterUser, setFilterUser] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<
+    "all" | "pending" | "completed"
+  >("all");
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   useCashBookRealtime({
@@ -114,11 +117,24 @@ export default function CashBookHistoryPage() {
     const matchesSource =
       filterSource === "all" || entry.source === filterSource;
     const matchesUser = filterUser === "all" || entry.user?._id === filterUser;
-    return matchesSearch && matchesType && matchesSource && matchesUser;
+    const hasPending = (Number(entry.pendingAmount) || 0) > 0;
+    const matchesStatus =
+      filterStatus === "all" ||
+      (filterStatus === "pending" ? hasPending : !hasPending);
+    return (
+      matchesSearch &&
+      matchesType &&
+      matchesSource &&
+      matchesUser &&
+      matchesStatus
+    );
   });
 
   const pendingTotals = computePendingTotals(entries);
-  const groupedData = groupEntriesByDateAndCustomer(filteredEntries, pendingTotals);
+  const groupedData = groupEntriesByDateAndCustomer(
+    filteredEntries,
+    pendingTotals,
+  );
 
   const handleViewBill = async (billId: string) => {
     try {
@@ -136,17 +152,22 @@ export default function CashBookHistoryPage() {
   };
 
   const hasActiveFilters =
-    filterType !== "all" || filterSource !== "all" || filterUser !== "all";
+    filterType !== "all" ||
+    filterSource !== "all" ||
+    filterUser !== "all" ||
+    filterStatus !== "all";
   const activeFilterCount = [
     filterType !== "all",
     filterSource !== "all",
     filterUser !== "all",
+    filterStatus !== "all",
   ].filter(Boolean).length;
 
   const clearFilters = () => {
     setFilterType("all");
     setFilterSource("all");
     setFilterUser("all");
+    setFilterStatus("all");
     setSearchTerm("");
   };
 
@@ -187,7 +208,7 @@ export default function CashBookHistoryPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by name, phone, bill..."
-              className="bg-gray-800 border-gray-700 text-white placeholder-gray-500 pl-10 h-10 text-sm"
+              className="bg-gray-800 border-gray-700 text-white placeholder-gray-500 !pl-10 h-10 text-sm"
             />
             {searchTerm && (
               <button
@@ -198,6 +219,19 @@ export default function CashBookHistoryPage() {
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              setFilterStatus(filterStatus === "pending" ? "all" : "pending")
+            }
+            className={`h-10 px-3 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+              filterStatus === "pending"
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                : "bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500"
+            }`}
+          >
+            Pending
+          </button>
           <Button
             size="sm"
             onClick={() => setShowFilterModal(true)}
@@ -307,6 +341,27 @@ export default function CashBookHistoryPage() {
             </div>
             <div>
               <Label
+                htmlFor="filter-status"
+                className="text-gray-300 text-sm mb-1.5 block"
+              >
+                Status
+              </Label>
+              <SelectField
+                id="filter-status"
+                value={filterStatus}
+                onValueChange={(value: "all" | "pending" | "completed") =>
+                  setFilterStatus(value)
+                }
+                options={[
+                  { value: "all", label: "All Statuses" },
+                  { value: "pending", label: "Pending" },
+                  { value: "completed", label: "Completed" },
+                ]}
+                className="bg-gray-700 border-gray-600 text-white"
+              />
+            </div>
+            <div>
+              <Label
                 htmlFor="filter-user"
                 className="text-gray-300 text-sm mb-1.5 block"
               >
@@ -334,6 +389,7 @@ export default function CashBookHistoryPage() {
                   setFilterType("all");
                   setFilterSource("all");
                   setFilterUser("all");
+                  setFilterStatus("all");
                 }}
               >
                 Reset

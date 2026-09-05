@@ -41,6 +41,11 @@ export function MultiBillPaymentModal({
 }: MultiBillPaymentModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const selectedBills = useMemo(
     () => bills.filter((b) => selectedIds.has(b._id)),
@@ -194,6 +199,6 @@ export function MultiBillPaymentModal({
     </div>
   );
 
-  if (typeof window === "undefined") return null;
+  if (!mounted) return null;
   return createPortal(content, document.body);
 }

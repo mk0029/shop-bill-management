@@ -86,6 +86,7 @@ export async function resolveUserId(userId: string): Promise<string> {
 }
 
 export async function registerFcmToken(input: RegisterFcmTokenInput) {
+  invalidateTokenCache();
   const token = String(input.token || "").trim();
   const requestedUserId = String(input.userId || "").trim();
   if (!requestedUserId) throw new Error("Missing userId");
@@ -138,6 +139,7 @@ export async function registerFcmToken(input: RegisterFcmTokenInput) {
 }
 
 export async function registerUserDeviceSession(input: RegisterFcmTokenInput) {
+  invalidateTokenCache();
   const token = String(input.token || "").trim();
   const requestedUserId = String(input.userId || "").trim();
   if (!requestedUserId) throw new Error("Missing userId");
@@ -243,6 +245,7 @@ export async function getDeviceSessionStatus(input: { userId: string; deviceId: 
 }
 
 export async function unregisterFcmToken(userId: string, token: string) {
+  invalidateTokenCache();
   const resolvedUserId = await resolveUserId(userId);
   const now = new Date().toISOString();
   await usersClient()
@@ -361,12 +364,47 @@ async function deactivateDuplicateDeviceDocs(
   }
 }
 
+// In-memory TTL cache for resolved token lists. Each notification dispatch hit
+// the customers database 1-3 times to resolve tokens; during a burst (e.g. a
+// bill payment notifying several admins) that multiplies Sanity round trips in
+// the critical path before FCM fires. A short TTL collapses them to ~1.
+const TOKEN_CACHE_TTL_MS = 5_000;
+const tokenCache = new Map<string, { tokens: string[]; at: number }>();
+
+function tokenCacheKey(userIds: string[]) {
+  return Array.from(new Set((userIds || []).map(String).filter(Boolean))).sort().join("|");
+}
+
+function invalidateTokenCache() {
+  tokenCache.clear();
+}
+
+function pruneTokenCache() {
+  if (tokenCache.size <= 256) return;
+  const cutoff = Date.now() - TOKEN_CACHE_TTL_MS;
+  for (const [key, entry] of tokenCache) {
+    if (entry.at < cutoff) tokenCache.delete(key);
+  }
+}
+
+export function clearFcmTokenCache() {
+  tokenCache.clear();
+}
+
 export async function getActiveTokenStringsForUsers(userIds: string[]): Promise<string[]> {
+  if (!userIds?.length) return [];
+  const key = tokenCacheKey(userIds);
+  const hit = tokenCache.get(key);
+  if (hit && Date.now() - hit.at < TOKEN_CACHE_TTL_MS) return hit.tokens;
   const docs = await getActiveFcmTokensForUsers(userIds);
-  return Array.from(new Set(docs.map((doc) => doc.token).filter(Boolean)));
+  const tokens = Array.from(new Set(docs.map((doc) => doc.token).filter(Boolean)));
+  tokenCache.set(key, { tokens, at: Date.now() });
+  pruneTokenCache();
+  return tokens;
 }
 
 export async function deactivateFcmTokens(tokens: string[]) {
+  invalidateTokenCache();
   const unique = Array.from(new Set((tokens || []).map(String).filter(Boolean)));
   if (!unique.length) return;
   const now = new Date().toISOString();

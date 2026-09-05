@@ -1,14 +1,15 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { sanityClient } from "@/lib/sanity";
 import { createDocument } from "@/lib/sanity/write-router";
-import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getActiveTokenStringsForUsers } from "@/lib/fcm/tokens.server";
 import { buildNotificationData, hasNotificationText } from "@/lib/fcm/payload";
 import { sendFcmToTokens } from "./fcm-sender.server";
 import { sanitizeUserText } from "@/constants/defaults";
 import type {
   NotificationEventType,
+  NotificationLatencyMark,
   NotificationSendResult,
   SendNotificationEventInput,
 } from "@/types/notifications";
@@ -38,12 +39,6 @@ type NotificationDoc = {
 
 function unique(values: Array<string | undefined | null>) {
   return Array.from(new Set(values.map((value) => String(value || "").trim()).filter(Boolean)));
-}
-
-function tracePayload(payload: Record<string, unknown>) {
-  try {
-  } catch {
-  }
 }
 
 function eventIdFor(input: SendNotificationEventInput) {
@@ -141,7 +136,69 @@ function cleanNotificationText(value: string, fallback: string) {
   return cleaned || fallback;
 }
 
-async function persistNotification(input: SendNotificationEventInput, targetUserIds: string[], id: string, dedupeKey?: string) {
+// ---------------------------------------------------------------------------
+// Idempotency: one business event => at most one FCM push per recipient.
+// The lock is in-memory (per lambda instance, 60s window) and mirrors the
+// previous Sanity document-conflict dedupe, but with ZERO database round trip
+// in the fast path. Derived dedupeKeys inherit the exact legacy bucketing, so
+// this is strictly weaker/equal to the old behavior (never suppresses more).
+// ---------------------------------------------------------------------------
+const IDEMPOTENCY_TTL_MS = 60_000;
+const dispatchedLocks = new Map<string, number>();
+
+function lockKey(eventId: string, userId: string) {
+  return `${eventId}:${userId}`;
+}
+
+function isDuplicateDispatch(eventId: string, userId: string) {
+  const key = lockKey(eventId, userId);
+  const now = Date.now();
+  const seenAt = dispatchedLocks.get(key);
+  if (seenAt !== undefined && now - seenAt < IDEMPOTENCY_TTL_MS) return true;
+  dispatchedLocks.set(key, now);
+  if (dispatchedLocks.size > 10_000) {
+    for (const [k, at] of dispatchedLocks) {
+      if (now - at > IDEMPOTENCY_TTL_MS) dispatchedLocks.delete(k);
+    }
+  }
+  return false;
+}
+
+function isDuplicateDedupe(dedupeKey: string) {
+  if (!dedupeKey) return false;
+  return isDuplicateDispatch(`d:${dedupeKey}`, "user");
+}
+
+export function clearNotificationIdempotencyLocks() {
+  dispatchedLocks.clear();
+}
+
+function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let index = 0;
+  async function worker() {
+    while (index < items.length) {
+      const i = index;
+      index += 1;
+      results[i] = await fn(items[i]);
+    }
+  }
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  return Promise.all(workers).then(() => results);
+}
+
+// Single best-effort write used ONLY to power the in-app notification inbox.
+// It never gates or delays FCM: the push is sent first, then this persists the
+// final status in one write (the old flow issued a create + 1-2 patches per
+// notification, adding Sanity round trips before any FCM call).
+async function persistNotification(
+  input: SendNotificationEventInput,
+  targetUserIds: string[],
+  id: string,
+  dedupeKey: string | undefined,
+  status: "sent" | "failed",
+  detail?: string,
+) {
   const createdAt = new Date().toISOString();
   const title = cleanNotificationText(input.title, "Notification");
   const body = cleanNotificationText(input.body, "You have a new update.");
@@ -160,9 +217,11 @@ async function persistNotification(input: SendNotificationEventInput, targetUser
       route: input.data?.route || input.data?.route_path,
     },
     readBy: [],
-    deliveryStatus: "queued",
-    statusHistory: [{ status: "queued", at: createdAt }],
-    deliveryAttempts: 0,
+    deliveryStatus: status,
+    statusHistory: [{ status, at: createdAt, ...(detail ? { detail } : {}) }],
+    deliveryAttempts: 1,
+    ...(status === "sent" ? { sentAt: createdAt } : {}),
+    ...(detail ? { deliveryError: detail.slice(0, 1000) } : {}),
     createdAt,
     eventId: id,
     ...(dedupeKey ? { dedupeKey } : {}),
@@ -174,48 +233,130 @@ async function persistNotification(input: SendNotificationEventInput, targetUser
       documentId: intendedId,
     });
     if (!result.success) {
-      const status = (result.errorCategory === "AUTH" || result.errorCategory === "CONFLICT") ? 409 : undefined;
-      if (status === 409) return { created: false, notificationId: intendedId, conflict: true };
-      throw new Error(result.error || "Notification create failed");
+      console.warn("[Notifications] inbox persist skipped", {
+        eventId: id,
+        userId: targetUserIds[0],
+        reason: result.errorCategory || result.error || "unknown",
+      });
+      return { created: false, notificationId: intendedId, conflict: true };
     }
     return { created: true, notificationId: intendedId };
   } catch (error) {
-    const status = (error as { status?: number; statusCode?: number })?.status || (error as { statusCode?: number })?.statusCode;
-    if (status === 409) return { created: false, notificationId: doc._id, conflict: true };
+    const statusCode = (error as { status?: number })?.status || (error as { statusCode?: number })?.statusCode;
+    if (statusCode === 409) return { created: false, notificationId: doc._id, conflict: true };
     throw error;
   }
 }
 
-async function updateNotificationDeliveryStatus(args: {
+type PerUserDispatchResult = {
+  targetUserId: string;
+  skipped: boolean;
+  noTokens: boolean;
   notificationId?: string;
-  status: "sent" | "failed";
-  attempts: number;
-  detail?: string;
-}) {
-  if (!args.notificationId) return;
-  const now = new Date().toISOString();
-  await getSanityClient("comms")
-    .patch(args.notificationId)
-    .set({
-      deliveryStatus: args.status,
-      deliveryAttempts: args.attempts,
-      updatedAt: now,
-      ...(args.status === "sent" ? { sentAt: now } : {}),
-      ...(args.detail ? { deliveryError: args.detail.slice(0, 1000) } : {}),
-    })
-    .setIfMissing({ statusHistory: [] })
-    .append("statusHistory", [
-      {
-        _key: `${args.status}.${Date.now()}`,
-        status: args.status,
-        at: now,
-        ...(args.detail ? { detail: args.detail.slice(0, 500) } : {}),
-      },
-    ])
-    .commit({ autoGenerateArrayKeys: true })
-    .catch((error) => {
-      console.error("[Notifications] Failed to update delivery status", error);
+  send?: NotificationSendResult;
+  mark?: NotificationLatencyMark;
+};
+
+async function dispatchToUser(
+  safeInput: SendNotificationEventInput,
+  eventId: string,
+  targetUserId: string,
+): Promise<PerUserDispatchResult> {
+  const t0 = performance.now();
+  const dedupeKey = dedupeKeyFor(safeInput, targetUserId, eventId);
+  const notificationId = notificationDocumentId(eventId, dedupeKey);
+
+  if (isDuplicateDispatch(eventId, targetUserId) || isDuplicateDedupe(dedupeKey)) {
+    return { targetUserId, skipped: true, noTokens: false };
+  }
+
+  const targetInput = {
+    ...safeInput,
+    userId: targetUserId,
+    userIds: [targetUserId],
+    data: { ...(safeInput.data || {}), dedupeKey },
+    dedupeKey,
+  };
+
+  const tokens = await getActiveTokenStringsForUsers([targetUserId]);
+  const t1 = performance.now();
+  if (!tokens.length) {
+    const mark: NotificationLatencyMark = {
+      eventId,
+      type: safeInput.type,
+      userId: targetUserId,
+      tokenCount: 0,
+      t0: Math.round(t0),
+      t1: Math.round(t1),
+      t2: Math.round(t1),
+      totalMs: Math.round(t1 - t0),
+      tokenResolveMs: Math.round(t1 - t0),
+      fcmMs: 0,
+      sent: 0,
+      failed: 0,
+      skipped: false,
+      noTokens: true,
+    };
+    safeInput.latencyTrace?.(mark);
+    return { targetUserId, skipped: false, noTokens: true, mark };
+  }
+
+  const safeTitle = safeInput.title;
+  const safeBody = safeInput.body;
+  const payload = buildNotificationData({
+    id: notificationId,
+    type: safeInput.type,
+    title: safeTitle,
+    body: safeBody,
+    data: targetInput.data,
+  });
+
+  const send = await sendFcmToTokens({
+    tokens,
+    title: safeTitle,
+    body: safeBody,
+    data: payload,
+    imageUrl: typeof safeInput.data?.imageUrl === "string" ? safeInput.data.imageUrl : undefined,
+  });
+  const t2 = performance.now();
+
+  const mark: NotificationLatencyMark = {
+    eventId,
+    type: safeInput.type,
+    userId: targetUserId,
+    tokenCount: tokens.length,
+    t0: Math.round(t0),
+    t1: Math.round(t1),
+    t2: Math.round(t2),
+    totalMs: Math.round(t2 - t0),
+    tokenResolveMs: Math.round(t1 - t0),
+    fcmMs: Math.round(t2 - t1),
+    sent: send.sent,
+    failed: send.failed,
+    skipped: false,
+    noTokens: false,
+  };
+  safeInput.latencyTrace?.(mark);
+
+  const detail = send.errors?.slice(0, 3).join(" | ");
+  try {
+    await persistNotification(
+      safeInput,
+      [targetUserId],
+      eventId,
+      dedupeKey,
+      send.sent > 0 ? "sent" : "failed",
+      detail,
+    );
+  } catch (persistError) {
+    console.error("[Notifications] inbox persist failed (push unaffected)", {
+      eventId,
+      userId: targetUserId,
+      error: persistError instanceof Error ? persistError.message : String(persistError),
     });
+  }
+
+  return { targetUserId, skipped: false, noTokens: false, notificationId, send, mark };
 }
 
 export async function createAndDispatchNotification(input: SendNotificationEventInput): Promise<{
@@ -225,6 +366,7 @@ export async function createAndDispatchNotification(input: SendNotificationEvent
   send: NotificationSendResult;
   error?: string;
 }> {
+  const t0 = performance.now();
   try {
     const safeTitle = cleanNotificationText(input.title, "Notification");
     const safeBody = cleanNotificationText(input.body, "You have a new update.");
@@ -249,77 +391,50 @@ export async function createAndDispatchNotification(input: SendNotificationEvent
         send: { success: true, sent: 0, failed: 0 },
       };
     }
+
     const eventId = eventIdFor(input);
-    const safeInput = { ...input, title: safeTitle, body: safeBody };
+    const safeInput: SendNotificationEventInput = { ...input, title: safeTitle, body: safeBody };
+
+    const results = await mapLimit(targetUserIds, 10, (targetUserId) =>
+      dispatchToUser(safeInput, eventId, targetUserId),
+    );
+
     const aggregate: NotificationSendResult = { success: true, sent: 0, failed: 0, errors: [], invalidTokens: [] };
     let firstNotificationId: string | undefined;
-
-    for (const targetUserId of targetUserIds) {
-      const dedupeKey = dedupeKeyFor(safeInput, targetUserId, eventId);
-      const targetInput = {
-        ...safeInput,
-        userId: targetUserId,
-        userIds: [targetUserId],
-        data: { ...(safeInput.data || {}), dedupeKey },
-        dedupeKey,
-      };
-      const persisted = await persistNotification(targetInput, [targetUserId], eventId, dedupeKey);
-      firstNotificationId ||= persisted.notificationId;
-      if ("conflict" in persisted && persisted.conflict) {
+    let skipped = 0;
+    let noTokens = 0;
+    for (const result of results) {
+      if (result.noTokens) {
+        noTokens += 1;
+        aggregate.errors?.push(`No active tokens for ${result.targetUserId}`);
         continue;
       }
-
-      const tokens = await getActiveTokenStringsForUsers([targetUserId]);
-      if (!tokens.length) {
-        await updateNotificationDeliveryStatus({
-          notificationId: persisted.notificationId,
-          status: "failed",
-          attempts: 0,
-          detail: "No active tokens",
-        });
-        aggregate.errors?.push(`No active tokens for ${targetUserId}`);
+      if (result.skipped) {
+        skipped += 1;
         continue;
       }
-
-      const payload = buildNotificationData({
-        id: persisted.notificationId,
-        type: input.type,
-        title: safeTitle,
-        body: safeBody,
-        data: targetInput.data,
-      });
-      tracePayload(payload);
-      const send = await sendFcmToTokens({
-        tokens,
-        title: safeTitle,
-        body: safeBody,
-        data: payload,
-        imageUrl: typeof input.data?.imageUrl === "string" ? input.data.imageUrl : undefined,
-      });
-      if (send.errors?.length) {
-        console.error("[notifications] FCM send failure", { userId: targetUserId, dedupeKey, errors: send.errors.slice(0, 5) });
-        aggregate.errors?.push(...send.errors);
+      firstNotificationId ||= result.notificationId;
+      if (result.send) {
+        aggregate.sent += result.send.sent;
+        aggregate.failed += result.send.failed;
+        if (result.send.errors?.length) aggregate.errors?.push(...result.send.errors);
+        if (result.send.invalidTokens?.length) aggregate.invalidTokens?.push(...result.send.invalidTokens);
       }
-      if (send.invalidTokens?.length) aggregate.invalidTokens?.push(...send.invalidTokens);
-      aggregate.sent += send.sent;
-      aggregate.failed += send.failed;
-
-      await updateNotificationDeliveryStatus({
-        notificationId: persisted.notificationId,
-        status: send.sent > 0 ? "sent" : "failed",
-        attempts: tokens.length,
-        detail: send.errors?.slice(0, 3).join(" | "),
-      });
     }
 
     aggregate.success = aggregate.failed === 0 && (!aggregate.errors || aggregate.errors.length === 0);
     if (!aggregate.errors?.length) delete aggregate.errors;
     if (!aggregate.invalidTokens?.length) delete aggregate.invalidTokens;
+
+    const totalMs = Math.round(performance.now() - t0);
+    console.log(
+      `[NOTIFY_PERF] event=${eventId} type=${input.type} targets=${targetUserIds.length} sent=${aggregate.sent} failed=${aggregate.failed} skipped=${skipped} noTokens=${noTokens} totalMs=${totalMs}`,
+    );
+
     return { ok: true, notificationId: firstNotificationId, targetUserIds, send: aggregate };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[Notifications] createAndDispatchNotification failed", message);
-    console.error("[FCM_TRACE] firebase_error", message);
     return {
       ok: false,
       targetUserIds: [],

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/server-auth";
 import { toolRentalService } from "@/lib/tool-rental-service";
+import { sanitizeRentalForCustomer } from "@/lib/customer-data-sanitizer";
 
 function canManage(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
         const cref = String(r.customerRefId || "");
         return matchIds.has(cid) || matchIds.has(cref);
       });
-      return NextResponse.json({ success: true, data: mine });
+      return NextResponse.json({ success: true, data: mine.map(sanitizeRentalForCustomer) });
     }
     if (!canManage(auth.role)) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });

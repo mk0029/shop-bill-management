@@ -8,6 +8,26 @@ import { fallbackData } from "./fallback-data";
 import { type SanityClient } from "@sanity/client";
 import type { Subscription } from "rxjs";
 
+// Per-step timeout for the initial data load / refresh paths. A stuck browser
+// request to api.sanity.io (or an API route) must never leave the app in the
+// permanent "Syncing latest data…" state, so every awaited step is aborted if
+// it does not settle in time and the step is skipped instead of hanging.
+const STEP_TIMEOUT_MS = 15_000;
+
+interface AbortHandle {
+  signal: AbortSignal;
+  cancel: () => void;
+}
+
+function withAbort(ms = STEP_TIMEOUT_MS): AbortHandle {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  return {
+    signal: controller.signal,
+    cancel: () => clearTimeout(id),
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sanitizeProductForTechnician(product: any) {
   if (!product || typeof product !== "object") return product;
@@ -273,22 +293,36 @@ export const useDataStore = create<DataStore>((set, get) => ({
       }
 
       for (const step of loadingSteps) {
-        // Bills are federated across primary + billing DBs via the server route
         let data;
-        if (step.name === "bills") {
-          const cid = opts?.customerId || opts?.userId || "";
-          try {
-            const res = await fetch(
-              `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`
-            );
-            const json = await res.json();
-            data = json?.success ? json.data : [];
-          } catch {
-            data = await sanityClient.fetch(step.query, step.params ?? {});
+        let stepFailed = false;
+        const { signal, cancel } = withAbort();
+        try {
+          // Bills are federated across primary + billing DBs via the server route
+          if (step.name === "bills") {
+            const cid = opts?.customerId || opts?.userId || "";
+            try {
+              const res = await fetch(
+                `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`,
+                { signal }
+              );
+              const json = await res.json();
+              data = json?.success ? json.data : [];
+            } catch {
+              data = await sanityClient.fetch(step.query, step.params ?? {}, { signal });
+            }
+          } else {
+            data = await sanityClient.fetch(step.query, step.params ?? {}, { signal });
           }
-        } else {
-          data = await sanityClient.fetch(step.query, step.params ?? {});
+        } catch (e) {
+          console.warn(
+            `[data-store] step "${step.name}" timed out or failed; skipping (${e instanceof Error ? e.message : "unknown"})`
+          );
+          stepFailed = true;
+        } finally {
+          cancel();
         }
+
+        if (stepFailed) continue;
 
         // Update the appropriate map
         const currentState = get();
@@ -534,15 +568,19 @@ export const useDataStore = create<DataStore>((set, get) => ({
       }
 
       let data;
+      const { signal, cancel } = withAbort();
       try {
         const cid = role === "customer" ? String(customerId || "") : "";
         const res = await fetch(
-          `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`
+          `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`,
+          { signal }
         );
         const json = await res.json();
         data = json?.success ? json.data : [];
       } catch {
-        data = await sanityClient.fetch(query, params ?? {});
+        data = await sanityClient.fetch(query, params ?? {}, { signal });
+      } finally {
+        cancel();
       }
 
       const bills = new Map(get().bills);

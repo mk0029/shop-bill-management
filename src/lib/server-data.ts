@@ -85,7 +85,7 @@ export async function getCustomerBillsData(opts: {
 
   const [customer, bills] = await Promise.all([
     sanityClient.fetch(customerQuery, { userId: userId || "", customerId: customerId || "" }),
-    fetchBills({ customerId: String(cid) }),
+    fetchBills({ customerIds: [userId, customerId, cid].filter(Boolean).map((v) => String(v)) }),
   ]);
 
   return {

@@ -1,89 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getReadableDatabases } from "@/lib/sanity/database-registry";
+import {
+  fetchCashBookEntries,
+  type CashBookEntryRow,
+} from "@/lib/cashbook-entry-projection";
 
 export const runtime = "nodejs";
-
-const ENTRY_PROJECTION = `{
-  _id,
-  _createdAt,
-  createdAt,
-  updatedAt,
-  user,
-  userName,
-  amount,
-  totalAmount,
-  pendingAmount,
-  receivedAmount,
-  type,
-  source,
-  category,
-  notes,
-  customerName,
-  customerId,
-  isCustomName,
-  status,
-  createdBy,
-  bill,
-  billCount,
-  fullyPaidCount,
-  partialCount,
-  appliedBills[]{
-    billNumber,
-    appliedAmount,
-    status,
-    billRefId,
-    billRef->{
-      _id,
-      billNumber
-    }
-  },
-  user->{
-    _id,
-    name,
-    phone,
-    email
-  },
-  bill->{
-    _id,
-    billNumber,
-    customer->{
-      _id,
-      name
-    }
-  }
-}`;
-
-interface CashBookEntryRow {
-  _id: string;
-  _createdAt: string;
-  createdAt?: string;
-  updatedAt?: string;
-  userName?: string;
-  amount: number;
-  totalAmount?: number;
-  pendingAmount?: number;
-  receivedAmount?: number;
-  type: "credit" | "debit";
-  source: string;
-  customerName?: string;
-  customerId?: string | null;
-  isCustomName?: boolean;
-  status?: "completed" | "partial";
-  createdBy?: string;
-  bill?: {
-    _id: string;
-    billNumber: string;
-    customer?: { _id: string; name: string };
-  };
-  user?: {
-    _id: string;
-    name: string;
-    phone?: string;
-    email?: string;
-  };
-  databaseKey?: string;
-}
 
 function sortByCreatedDesc(a: CashBookEntryRow, b: CashBookEntryRow) {
   const ta = new Date(a.createdAt || a._createdAt || 0).getTime();
@@ -107,14 +30,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    let baseQuery = `*[_type == "cashBookEntry"]`;
-    const params: Record<string, unknown> = {};
-    if (startDate || endDate) {
-      baseQuery += ` && createdAt >= $startDate && createdAt <= $endDate`;
-      params.startDate = startDate || "1970-01-01T00:00:00.000Z";
-      params.endDate = endDate || "9999-12-31T23:59:59.999Z";
-    }
-
     const entries: CashBookEntryRow[] = [];
     const dedup = new Set<string>();
     const errors: string[] = [];
@@ -122,9 +37,8 @@ export async function GET(req: NextRequest) {
     for (const db of dbs) {
       try {
         const client = getSanityClient(db.key);
-        const rows = (await client.fetch<any[]>(`${baseQuery} | order(createdAt desc) ${ENTRY_PROJECTION}`, params)) || [];
+        const rows = await fetchCashBookEntries(client, { startDate, endDate });
         for (const row of rows) {
-          if (!row || !row._id) continue;
           if (dedup.has(row._id)) continue;
           dedup.add(row._id);
           entries.push({ ...row, databaseKey: db.key });
