@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { listenToolRentals, toolRentalService, type ToolRental } from "@/lib/tool-rental-service";
+import * as toolRentalApi from "@/lib/tool-rental-api";
+import type { ToolRental } from "@/lib/tool-rental-service";
 import { formatDayDateTime } from "@/lib/date-time";
 import EmptyState from "@/components/ui/empty-state";
 import { PackageSearch } from "lucide-react";
@@ -35,7 +36,7 @@ export default function CustomerRentedItemsClient() {
   const load = async () => {
     try {
       setLoading(true);
-      const all = await toolRentalService.getToolRentals();
+      const all = await toolRentalApi.getToolRentals();
       const matchIds = new Set([
         String((user as any)?.id || ""),
         String((user as any)?._id || ""),
@@ -56,8 +57,8 @@ export default function CustomerRentedItemsClient() {
   useEffect(() => {
     if (!user) return;
     load();
-    const sub = listenToolRentals(load);
-    return () => sub.unsubscribe();
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
   }, [user]);
 
   const sorted = useMemo(() => {

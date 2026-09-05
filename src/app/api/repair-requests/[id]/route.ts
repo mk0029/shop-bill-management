@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { createDocument, updateDocument } from "@/lib/sanity/write-router";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getServerAuth } from "@/lib/server-auth";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName } from "@/lib/display-text";
@@ -24,6 +26,7 @@ type RepairRequestDoc = {
   customer?: { _id: string; name?: string; phone?: string };
   technician?: { _id: string; name?: string; phone?: string; role?: string };
   workTask?: { _id: string };
+  _sourceDb?: "primary" | "operations";
 };
 
 const STATUS_BY_ACTION = {
@@ -42,7 +45,63 @@ function isValidDateTime(input: string) {
 }
 
 async function fetchRepairRequest(id: string) {
-  return sanityClient.fetch<RepairRequestDoc | null>(
+  const opsClient = getSanityClient("operations");
+  const opsDoc = await opsClient
+    .fetch<
+      | {
+          _id: string;
+          requestId?: string;
+          details?: string;
+          notes?: string;
+          priority?: string;
+          source?: string;
+          status?: string;
+          scheduledAt?: string;
+          cancelledByName?: string;
+          cancelledByRole?: string;
+          cancelledAt?: string;
+          customerId?: string;
+          customerName?: string;
+          customerPhone?: string;
+          technicianId?: string;
+          technicianName?: string;
+          workTaskId?: string;
+        }
+      | null
+    >(`*[_type=="repairRequest" && _id==$id][0]`, { id })
+    .catch(() => null);
+
+  if (opsDoc?._id) {
+    return {
+      _id: opsDoc._id,
+      requestId: opsDoc.requestId || "",
+      details: opsDoc.details,
+      notes: opsDoc.notes,
+      priority: opsDoc.priority as RepairRequestDoc["priority"],
+      source: opsDoc.source as RepairRequestDoc["source"],
+      status: opsDoc.status,
+      scheduledAt: opsDoc.scheduledAt,
+      cancelledByName: opsDoc.cancelledByName,
+      cancelledByRole: opsDoc.cancelledByRole,
+      cancelledAt: opsDoc.cancelledAt,
+      customerRefId: opsDoc.customerId || undefined,
+      technicianRefId: opsDoc.technicianId || undefined,
+      customer: {
+        _id: opsDoc.customerId || "",
+        name: opsDoc.customerName,
+        ...(opsDoc.customerPhone ? { phone: opsDoc.customerPhone } : {}),
+      },
+      technician: {
+        _id: opsDoc.technicianId || "",
+        name: opsDoc.technicianName,
+        role: "technician",
+      },
+      workTask: opsDoc.workTaskId ? { _id: opsDoc.workTaskId } : undefined,
+      _sourceDb: "operations",
+    } as RepairRequestDoc;
+  }
+
+  const legacy = await sanityClient.fetch<RepairRequestDoc | null>(
     `*[_type=="repairRequest" && _id==$id][0]{
       _id, requestId, details, notes, priority, source, status, scheduledAt,
       cancelledByName, cancelledByRole, cancelledAt,
@@ -54,6 +113,28 @@ async function fetchRepairRequest(id: string) {
     }`,
     { id },
   );
+  return legacy ? { ...legacy, _sourceDb: "primary" as const, customerRefId: legacy.customerRefId, technicianRefId: legacy.technicianRefId } : null;
+}
+
+async function patchRepairRequest(
+  id: string,
+  fields: Record<string, unknown>,
+  sourceDb: RepairRequestDoc["_sourceDb"] = "operations",
+) {
+  if (sourceDb !== "primary") {
+    const result = await updateDocument(id, fields, "repair-requests");
+    if (!result.success) {
+      throw new Error(result.error || "Failed to update repair request");
+    }
+    return { _id: id, ...fields };
+  }
+  return sanityClient.patch(id).set(fields).commit();
+}
+
+function workTaskRefField(taskId: string, sourceDb: RepairRequestDoc["_sourceDb"]) {
+  return sourceDb === "primary"
+    ? { workTask: { _type: "reference", _ref: taskId } as { _type: string; _ref: string } }
+    : { workTaskId: taskId };
 }
 
 async function notifyCustomer(args: {
@@ -119,12 +200,22 @@ function workTaskStatusForRepairStatus(status: string) {
 }
 
 async function createWorkTaskFromRepairRequest(request: RepairRequestDoc, actorUserId: string, taskStatus = "pending") {
+  const sourceDb = request._sourceDb || "primary";
   if (request.workTask?._id) {
-    await sanityClient.patch(request.workTask._id).set({
-      status: taskStatus,
-      ...(request.scheduledAt ? { dueAt: request.scheduledAt } : {}),
-      updatedAt: new Date().toISOString(),
-    }).commit();
+    const taskId = request.workTask._id;
+    if (sourceDb === "primary") {
+      await sanityClient.patch(taskId).set({
+        status: taskStatus,
+        ...(request.scheduledAt ? { dueAt: request.scheduledAt } : {}),
+        updatedAt: new Date().toISOString(),
+      }).commit();
+    } else {
+      await updateDocument(taskId, {
+        status: taskStatus,
+        ...(request.scheduledAt ? { dueAt: request.scheduledAt } : {}),
+        updatedAt: new Date().toISOString(),
+      }, "work-tasks");
+    }
     return request.workTask;
   }
   const customerId = request.customer?._id || request.customerRefId;
@@ -150,7 +241,7 @@ async function createWorkTaskFromRepairRequest(request: RepairRequestDoc, actorU
     `Source: ${request.source === "whatsapp" ? "WhatsApp" : "In-chat"}`,
   ].filter(Boolean).join("\n\n");
 
-  const created = await sanityClient.create({
+  const createPayload: Record<string, unknown> = {
     _type: "workTask",
     title,
     description,
@@ -158,22 +249,35 @@ async function createWorkTaskFromRepairRequest(request: RepairRequestDoc, actorU
     customerNotes: notes,
     requestSource: request.source === "whatsapp" ? "WhatsApp" : "In-chat",
     repairRequestId: request.requestId,
-    customerRef: { _type: "reference", _ref: customerId },
-    assignedTechnician: { _type: "reference", _ref: technicianId },
+    customerRefId: customerId,
+    assignedTechnicianId: technicianId,
     assignedTechnicianName: safeTechnicianName,
     priority: request.priority === "high" ? "high" : "medium",
     status: taskStatus,
     issueCategory: "repair",
     dueAt: request.scheduledAt,
-    repairRequest: { _type: "reference", _ref: request._id },
-    createdBy: { _type: "reference", _ref: actorUserId },
+    createdByUserId: actorUserId,
     createdByName: actor?.name || "",
     completedAt: null,
     createdAt: now,
     updatedAt: now,
-  });
+  };
+  if (sourceDb === "primary") {
+    createPayload.customerRef = { _type: "reference", _ref: customerId };
+    createPayload.assignedTechnician = { _type: "reference", _ref: technicianId };
+    createPayload.repairRequest = { _type: "reference", _ref: request._id };
+    createPayload.createdBy = { _type: "reference", _ref: actorUserId };
+    delete createPayload.customerRefId;
+    delete createPayload.assignedTechnicianId;
+    delete createPayload.createdByUserId;
+  }
 
-  return { _id: String(created._id || "") };
+  const createResult = await createDocument(createPayload, "work-tasks");
+  if (!createResult.success) {
+    throw new Error(createResult.error || "Failed to create work task");
+  }
+
+  return { _id: String(createResult.documentId || "") };
 }
 
 export async function PATCH(
@@ -189,7 +293,7 @@ export async function PATCH(
   const body = await req.json().catch(() => ({}));
   const action = String(body?.action || "").trim();
   const scheduledAt = String(body?.scheduledAt || "").trim();
-  const request = await fetchRepairRequest(id);
+  const request: RepairRequestDoc | null = await fetchRepairRequest(id);
 
   if (!request) {
     return NextResponse.json({ success: false, error: "Repair request not found" }, { status: 404 });
@@ -212,14 +316,14 @@ export async function PATCH(
     if (request.status === "added_to_work_list") {
       return NextResponse.json({ success: false, error: "Request already added to work list" }, { status: 400 });
     }
-    const patched = await sanityClient.patch(id).set({
+    const patched = await patchRepairRequest(id, {
       status: "cancelled",
       cancelledByName: actorName,
       cancelledByRole: auth.role || "customer",
       cancelledAt: now,
       updatedAt: now,
-      updatedBy: { _type: "reference", _ref: auth.userId },
-    }).commit();
+      updatedByUserId: auth.userId,
+    }, request._sourceDb);
 
     const technicianId = request.technician?._id || request.technicianRefId;
     const adminIds = technicianId ? [technicianId] : await getActiveAdminUserIds();
@@ -251,16 +355,23 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: "Valid assigned time is required" }, { status: 400 });
     }
     if (request.workTask?._id) {
-      await sanityClient.patch(request.workTask._id).set({
-        dueAt: scheduledAt,
-        updatedAt: now,
-      }).commit();
+      if (request._sourceDb === "primary") {
+        await sanityClient.patch(request.workTask._id).set({
+          dueAt: scheduledAt,
+          updatedAt: now,
+        }).commit();
+      } else {
+        await updateDocument(request.workTask._id, {
+          dueAt: scheduledAt,
+          updatedAt: now,
+        }, "work-tasks");
+      }
     }
-    const patched = await sanityClient.patch(id).set({
+    const patched = await patchRepairRequest(id, {
       scheduledAt,
       updatedAt: now,
-      updatedBy: { _type: "reference", _ref: auth.userId },
-    }).commit();
+      updatedByUserId: auth.userId,
+    }, request._sourceDb);
 
     await notifyCustomer({
       request: { ...request, scheduledAt },
@@ -287,14 +398,14 @@ export async function PATCH(
   if (action in STATUS_BY_ACTION) {
     const nextStatus = STATUS_BY_ACTION[action as keyof typeof STATUS_BY_ACTION];
     if (nextStatus === "rejected") {
-      const patched = await sanityClient.patch(id).set({
+      const patched = await patchRepairRequest(id, {
         status: "rejected",
         cancelledByName: actorName,
         cancelledByRole: auth.role || "admin",
         cancelledAt: now,
         updatedAt: now,
-        updatedBy: { _type: "reference", _ref: auth.userId },
-      }).commit();
+        updatedByUserId: auth.userId,
+      }, request._sourceDb);
 
       await Promise.allSettled([
         notifyCustomer({
@@ -325,20 +436,13 @@ export async function PATCH(
       auth.userId,
       workTaskStatusForRepairStatus(nextStatus),
     );
-    const patched = await sanityClient.patch(id).set({
+    const patched = await patchRepairRequest(id, {
       status: nextStatus,
       scheduledAt: nextScheduledAt,
-      workTask: { _type: "reference", _ref: task._id },
-      ...(nextStatus === "rejected"
-        ? {
-            cancelledByName: actorName,
-            cancelledByRole: auth.role || "admin",
-            cancelledAt: now,
-          }
-        : {}),
+      ...workTaskRefField(task._id, request._sourceDb),
       updatedAt: now,
-      updatedBy: { _type: "reference", _ref: auth.userId },
-    }).commit();
+      updatedByUserId: auth.userId,
+    }, request._sourceDb);
 
     await Promise.allSettled([
       notifyCustomer({
@@ -366,13 +470,13 @@ export async function PATCH(
     const requestForTask = { ...request, scheduledAt: nextScheduledAt };
     try {
       const task = await createWorkTaskFromRepairRequest(requestForTask, auth.userId, "pending");
-      const patched = await sanityClient.patch(id).set({
+      const patched = await patchRepairRequest(id, {
         status: "added_to_work_list",
         scheduledAt: nextScheduledAt,
-        workTask: { _type: "reference", _ref: task._id },
+        ...workTaskRefField(task._id, request._sourceDb),
         updatedAt: now,
-        updatedBy: { _type: "reference", _ref: auth.userId },
-      }).commit();
+        updatedByUserId: auth.userId,
+      }, request._sourceDb);
 
       const technicianId = request.technician?._id || request.technicianRefId;
       const targetAdminIds = technicianId ? [technicianId] : await getActiveAdminUserIds();

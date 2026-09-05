@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sanityClient } from '@/lib/sanity'
+import { getSanityClient } from '@/lib/sanity'
+import { updateDocument } from '@/lib/sanity/write-router'
 import { processOfferLiveNotification } from '@/services/notifications/offer-notification.server'
 
 export const runtime = 'nodejs'
@@ -45,14 +46,14 @@ export async function GET(req: NextRequest) {
   const now = new Date().toISOString()
   const results: Array<{ offerId: string; title: string; status: string; notified?: number; error?: string }> = []
 
-  const offersToActivate = await sanityClient.fetch<Array<{ _id: string; title: string }>>(
+  const offersToActivate = await getSanityClient("offers").fetch<Array<{ _id: string; title: string }>>(
     `*[_type=="offer" && status=="inactive" && startAt <= $now && endAt >= $now]`,
     { now },
   )
 
   for (const offer of offersToActivate) {
     try {
-      await sanityClient.patch(offer._id).set({ status: 'active', updatedAt: now }).commit()
+      await updateDocument(offer._id, { status: 'active', updatedAt: now }, 'offers')
       const r = await processOfferLiveNotification(offer._id)
       results.push({ offerId: offer._id, title: offer.title, status: 'activated', notified: r.notified })
     } catch (err) {

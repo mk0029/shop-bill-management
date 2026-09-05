@@ -2,11 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  toolRentalService,
-  type ToolItem,
-  listenTools,
-} from "@/lib/tool-rental-service";
+import * as toolRentalApi from "@/lib/tool-rental-api";
+import type { ToolItem } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
 import { confirmDialog } from "@/store/confirm-store";
 
@@ -19,7 +16,7 @@ export default function AdminToolsListClient() {
   const load = async () => {
     try {
       setLoading(true);
-      const data = await toolRentalService.getTools();
+      const data = await toolRentalApi.getTools();
       setTools(Array.isArray(data) ? data : []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load tools");
@@ -30,8 +27,8 @@ export default function AdminToolsListClient() {
 
   useEffect(() => {
     load();
-    const sub = listenTools(load);
-    return () => sub.unsubscribe();
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
   }, []);
 
   const filtered = useMemo(() => {
@@ -49,7 +46,7 @@ export default function AdminToolsListClient() {
     const ok = await confirmDialog({ title: "Disable Tool?", description: `Are you sure you want to disable "${tool.toolName}"? This will remove it permanently.`, confirmText: "Disable", variant: "destructive" });
     if (!ok) return;
     try {
-      await toolRentalService.deleteTool(tool._id);
+      await toolRentalApi.deleteTool(tool._id);
       toast.success("Tool disabled");
       await load();
     } catch (e) {

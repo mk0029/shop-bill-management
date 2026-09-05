@@ -1,5 +1,7 @@
 import 'server-only'
 import { sanityClient } from '@/lib/sanity'
+import { getSanityClient } from '@/lib/sanity/client-factory'
+import { createDocument, updateDocument } from '@/lib/sanity/write-router'
 import { createAndDispatchNotification } from './notification-events.server'
 import { emitWaEventServer } from '@/lib/wa-bot-server'
 import type { Offer } from '@/types/offers'
@@ -62,15 +64,21 @@ async function ensureNotificationLog(
   const createdAt = new Date().toISOString()
   const docId = `offerNLog.${offerId}.${customerId}.${channel}`
   try {
-    await sanityClient.create({
+    const { _id, ...doc } = {
       _id: docId,
-      _type: 'offerNotificationLog',
+      _type: 'offerNotificationLog' as const,
       offerId,
       customerId,
       channel,
       status: 'pending',
       createdAt,
+    }
+    const result = await createDocument(doc as unknown as Record<string, unknown>, 'notifications', {
+      documentId: _id,
     })
+    if (!result.success) {
+      throw new Error(result.error || 'Log create failed')
+    }
     return { created: true, logId: docId }
   } catch {
     return { created: false, logId: docId }
@@ -88,7 +96,18 @@ async function markNotificationLogResult(
   }
   if (details?.messageId) patch.messageId = details.messageId
   if (details?.error) patch.errorMessage = details.error?.slice(0, 1000)
-  await sanityClient.patch(logId).set(patch).commit().catch(() => {})
+  await updateDocument(logId, patch, 'notifications').catch(() => {})
+}
+
+async function fetchOffer(offerId: string): Promise<OfferDoc | null> {
+  const offer =
+    (await getSanityClient('offers')
+      .fetch<OfferDoc | null>(`*[_type=="offer" && _id==$offerId][0]`, { offerId })
+      .catch(() => null)) ||
+    (await sanityClient
+      .fetch<OfferDoc | null>(`*[_type=="offer" && _id==$offerId][0]`, { offerId })
+      .catch(() => null))
+  return offer
 }
 
 export async function processOfferLiveNotification(
@@ -105,10 +124,7 @@ export async function processOfferLiveNotification(
     channels,
   }
 
-  const offer = await sanityClient.fetch<OfferDoc | null>(
-    `*[_type=="offer" && _id==$offerId][0]`,
-    { offerId },
-  )
+  const offer = await fetchOffer(offerId)
   if (!offer) {
     result.errors = ['Offer not found']
     return result
@@ -242,10 +258,7 @@ export async function forceNotifySingleCustomer(
   customerId: string,
   offerId: string,
 ): Promise<boolean> {
-  const offer = await sanityClient.fetch<OfferDoc | null>(
-    `*[_type=="offer" && _id==$offerId][0]`,
-    { offerId },
-  )
+  const offer = await fetchOffer(offerId)
   if (!offer || !isOfferActive(offer)) return false
   const r = await notifyCustomer(customerId, offer, ['fcm', 'in_app'])
   return r.notified > 0

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { updateDocument, deleteDocument } from "@/lib/sanity/write-router";
 import { getServerAuth } from "@/lib/server-auth";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { updateStockForBill } from "@/lib/inventory-management";
@@ -331,7 +332,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       updatedAt: new Date().toISOString(),
     };
 
-    const updated = await sanityClient.patch(id).set(patch).commit();
+    // Patch the bill in the billing database (purpose-routed write).
+    // Fall back to the legacy primary doc best-effort if it only exists there.
+    const updateResult = await updateDocument(id, patch, "bills");
+    if (!updateResult.success) {
+      const lower = String(updateResult.error || "").toLowerCase();
+      if (lower.includes("not found") || lower.includes("does not exist")) {
+        try {
+          await sanityClient.patch(id).set(patch).commit();
+        } catch (legacyErr) {
+          return NextResponse.json(
+            { success: false, error: updateResult.error || "Failed to update bill" },
+            { status: 500 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { success: false, error: updateResult.error || "Failed to update bill" },
+          { status: 500 }
+        );
+      }
+    }
+    const updated = { _id: id, ...patch };
     // Central WhatsApp event: comprehensive bill change detection (fire-and-forget)
     try {
       const next = {
@@ -435,11 +457,21 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       );
     }
 
-    const tx = sanityClient.transaction();
-    for (const referenceId of Array.from(new Set(dependentDocumentIds || []).values())) {
-      tx.delete(String(referenceId));
+    // Delete dependent docs that reference this bill (best-effort, legacy primary target)
+    const dependentIds = Array.from(new Set(dependentDocumentIds || []).values());
+    for (const referenceId of dependentIds) {
+      try {
+        await sanityClient.delete(String(referenceId));
+      } catch {}
     }
-    tx.delete(id);
+
+    // Delete the bill via the purpose-routed write (billing DB), with legacy primary fallback.
+    const del = await deleteDocument(id, "bills");
+    if (!del.success && !String(del.error || "").toLowerCase().includes("not found")) {
+      try {
+        await sanityClient.delete(id);
+      } catch {}
+    }
 
     // Restore inventory stock (uses its own commits internally). Best-effort.
     try {
@@ -449,8 +481,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     } catch (invErr) {
       console.warn("[API] DELETE /api/super/bills: inventory restore failed", invErr);
     }
-
-    await tx.commit();
 
     // Central WhatsApp event: bill deleted (fire-and-forget)
     try {

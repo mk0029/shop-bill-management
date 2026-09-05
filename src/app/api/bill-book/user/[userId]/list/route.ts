@@ -4,7 +4,7 @@ import { sanityClient } from "@/lib/sanity";
 export async function GET(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
   try {
-    const query = `*[_type == "bill" && customer._ref == $userId] {
+    const query = `*[_type == "bill" && customer._ref == $userId || customer == $userId] {
       _id,
       billId,
       billNumber,

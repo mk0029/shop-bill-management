@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sanityClient } from "@/lib/sanity";
+
+// The cashbook DB (oojkmj55) is not publicly readable, so a browser Sanity
+// `listen` client cannot subscribe (403). Instead of polling every few seconds,
+// we subscribe once via a server-side SSE stream (GET /api/cashbook/entries/live)
+// which holds a token-backed `listen` on the new cashbook DB. The old poll is
+// kept strictly as a fallback if the stream cannot be established.
 
 export interface CashBookEntry {
   _id: string;
@@ -46,77 +51,175 @@ interface UseCashBookRealtimeProps {
   onEntryAdded?: (entry: CashBookEntry) => void;
   onEntryUpdated?: (entry: CashBookEntry) => void;
   onEntryDeleted?: (entryId: string) => void;
+  pollIntervalMs?: number;
+}
+
+const DEFAULT_POLL_MS = 8000;
+const STREAM_OPEN_TIMEOUT_MS = 5000;
+const LIVE_ROUTE = '/api/cashbook/entries/live';
+const ENTRIES_ROUTE = '/api/cashbook/entries';
+
+function shallowEntryEquals(a: CashBookEntry, b: CashBookEntry): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
 }
 
 export function useCashBookRealtime({
   onEntryAdded,
   onEntryUpdated,
   onEntryDeleted,
+  pollIntervalMs = DEFAULT_POLL_MS,
 }: UseCashBookRealtimeProps = {}) {
   const [isConnected, setIsConnected] = useState(false);
-  const subscriptionRef = useRef<any>(null);
+  const snapshotRef = useRef<Map<string, CashBookEntry>>(new Map());
+  const callbacksRef = useRef({ onEntryAdded, onEntryUpdated, onEntryDeleted });
+  callbacksRef.current = { onEntryAdded, onEntryUpdated, onEntryDeleted };
 
   useEffect(() => {
-    const setupRealtimeSubscription = async () => {
+    let active = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let openTimer: ReturnType<typeof setTimeout> | null = null;
+    let es: EventSource | null = null;
+    let pollMode = false;
+
+    const applyDiff = (next: Map<string, CashBookEntry>) => {
+      const prev = snapshotRef.current;
+
+      for (const id of prev.keys()) {
+        if (!next.has(id)) {
+          callbacksRef.current.onEntryDeleted?.(id);
+        }
+      }
+
+      for (const [id, entry] of next) {
+        const prior = prev.get(id);
+        if (!prior) {
+          callbacksRef.current.onEntryAdded?.(entry);
+        } else if (!shallowEntryEquals(prior, entry)) {
+          callbacksRef.current.onEntryUpdated?.(entry);
+        }
+      }
+
+      snapshotRef.current = next;
+    };
+
+    const poll = async () => {
       try {
-        // Listen to cash book entry changes
-        const query = `*[_type == "cashBookEntry"]`;
-        const params = {};
-        
-        subscriptionRef.current = sanityClient
-          .listen(query, params, { includeResult: true })
-          .subscribe({
-            next: (update: any) => {
-              const { transition, result, documentId } = update;
-              
-              if (!result && transition !== "disappear") return;
-
-              switch (transition) {
-                case "appear":
-                case "update":
-                  // Entry created or updated
-                  const entry = result as CashBookEntry;
-                  if (transition === "appear") {
-                    onEntryAdded?.(entry);
-                  } else {
-                    onEntryUpdated?.(entry);
-                  }
-                  break;
-                case "disappear":
-                  // Entry deleted
-                  onEntryDeleted?.(documentId);
-                  break;
-              }
-            },
-            error: (error: any) => {
-              console.warn('[realtime] cash-book subscription error:', error instanceof Error ? error.message : error);
-              setIsConnected(false);
-            },
-            complete: () => {
-              setIsConnected(false);
-            },
-          });
-
-        setIsConnected(true);
-
+        const res = await fetch(ENTRIES_ROUTE);
+        const json = await res.json().catch(() => ({ success: false }));
+        if (!res.ok || !json?.success) {
+          if (active) setIsConnected(false);
+          return;
+        }
+        const rows: CashBookEntry[] = Array.isArray(json?.data) ? json.data : [];
+        const next = new Map<string, CashBookEntry>();
+        for (const row of rows) {
+          if (row && row._id) next.set(row._id, row);
+        }
+        applyDiff(next);
+        if (active) setIsConnected(true);
       } catch (error) {
-        console.warn('[realtime] cash-book setup error:', error instanceof Error ? error.message : error);
-        setIsConnected(false);
+        if (active) setIsConnected(false);
+        // silent — retry on next interval
       }
     };
 
-    setupRealtimeSubscription();
+    const startPolling = () => {
+      if (!active || pollMode) return;
+      pollMode = true;
+      if (es) {
+        es.close();
+        es = null;
+      }
+      if (openTimer) clearTimeout(openTimer);
+      void poll();
+      timer = setInterval(poll, pollIntervalMs);
+    };
 
-    // Cleanup
-    return () => {
+    const handleStreamEntry = (type: 'added' | 'updated' | 'deleted', data: any) => {
+      if (!data || typeof data !== 'object') return;
+      const next = new Map(snapshotRef.current);
+      if (type === 'deleted') {
+        if (next.delete(data._id)) {
+          snapshotRef.current = next;
+          callbacksRef.current.onEntryDeleted?.(data._id);
+        }
+        return;
+      }
+      if (!data._id) return;
+      const prior = next.get(data._id);
+      next.set(data._id, data as CashBookEntry);
+      const updated = new Map(next);
+      // Only emit when the entry actually changed relative to our snapshot.
+      if (!prior) {
+        snapshotRef.current = updated;
+        callbacksRef.current.onEntryAdded?.(data);
+      } else if (!shallowEntryEquals(prior, data)) {
+        snapshotRef.current = updated;
+        callbacksRef.current.onEntryUpdated?.(data);
+      }
+    };
+
+    // Seed the snapshot once so stream diffs are correct.
+    const seed = async () => {
       try {
-      } catch {}
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
+        const res = await fetch(ENTRIES_ROUTE);
+        const json = await res.json().catch(() => ({ success: false }));
+        if (active && json?.success) {
+          const rows: CashBookEntry[] = Array.isArray(json?.data) ? json.data : [];
+          const next = new Map<string, CashBookEntry>();
+          for (const row of rows) {
+            if (row && row._id) next.set(row._id, row);
+          }
+          snapshotRef.current = next;
+        }
+      } catch {
+        // stream/poll will surface connectivity
       }
     };
-  }, [onEntryAdded, onEntryUpdated, onEntryDeleted]);
+
+    // Primary: one server-side subscription (SSE) on the new cashbook DB.
+    try {
+      es = new EventSource(LIVE_ROUTE);
+      es.addEventListener('open', () => {
+        if (active) setIsConnected(true);
+      });
+      es.addEventListener('added', (e) => handleStreamEntry('added', e.data ? JSON.parse(e.data) : null));
+      es.addEventListener('updated', (e) => handleStreamEntry('updated', e.data ? JSON.parse(e.data) : null));
+      es.addEventListener('deleted', (e) => handleStreamEntry('deleted', e.data ? JSON.parse(e.data) : null));
+      es.addEventListener('error', () => {
+        if (!active) return;
+        // EventSource reconnects on its own; only fall back to polling when
+        // the stream proves unusable (never opened).
+        if (es && es.readyState === EventSource.CLOSED) {
+          setIsConnected(false);
+          startPolling();
+        }
+      });
+      openTimer = setTimeout(() => {
+        if (active && es && es.readyState !== EventSource.OPEN) {
+          startPolling();
+        }
+      }, STREAM_OPEN_TIMEOUT_MS);
+    } catch {
+      startPolling();
+    }
+
+    void seed();
+
+    return () => {
+      active = false;
+      if (es) es.close();
+      if (openTimer) clearTimeout(openTimer);
+      if (timer) clearInterval(timer);
+      snapshotRef.current = new Map();
+    };
+  }, [pollIntervalMs]);
 
   return {
     isConnected,

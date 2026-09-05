@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sanityClient } from '@/lib/sanity'
+import { createDocument } from '@/lib/sanity/write-router'
 import { notificationService } from '@/lib/notification-service'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
@@ -57,7 +57,11 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }
 
-    const created = await sanityClient.create(newProduct as any)
+    const createdResult = await createDocument(newProduct as any, 'products')
+    if (!createdResult.success) {
+      return NextResponse.json({ success: false, error: createdResult.error || 'Failed to create product' }, { status: 500 })
+    }
+    const created = { _id: createdResult.documentId, ...newProduct } as any
 
     const initial = (productData as any).initialStockTransaction
     if (initial && typeof initial === 'object') {
@@ -72,7 +76,8 @@ export async function POST(req: NextRequest) {
         _type: 'stockTransaction',
         transactionId: stockTransactionId,
         type: String(initial.type || 'purchase'),
-        product: { _type: 'reference', _ref: (created as any)._id },
+        productId: String((created as any)._id),
+        productName: String((created as any)?.name || name),
         quantity: qty,
         unitPrice,
         totalAmount: qty * unitPrice,
@@ -83,7 +88,7 @@ export async function POST(req: NextRequest) {
         createdById: actorUserId,
       }
       try {
-        await sanityClient.create(stockTransaction as any)
+        await createDocument(stockTransaction as any, 'stock')
       } catch (e) {
         // best-effort
       }

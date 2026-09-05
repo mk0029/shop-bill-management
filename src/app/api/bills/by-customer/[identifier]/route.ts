@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
-import { sanityClient, queries } from "@/lib/sanity";
+import { sanityClient } from "@/lib/sanity";
+import { fetchBills } from "@/lib/sanity/bills-federated";
+import { getServerAuth } from "@/lib/server-auth";
+import { sanitizeBillForCustomer } from "@/lib/customer-data-sanitizer";
 
 // Use previewDrafts on the server to include drafts if any
 const serverClient = sanityClient.withConfig({ perspective: "previewDrafts" });
+
+function isStaff(role: string | null) {
+  return role === "admin" || role === "super_admin" || role === "technician";
+}
 
 export async function GET(
   req: Request,
@@ -12,9 +19,16 @@ export async function GET(
   const url = new URL(req.url);
   const by = (url.searchParams.get("by") || "_id") as "_id" | "customerId" | "secretKey";
 
+  const auth = await getServerAuth();
+  if (!auth.isAuthenticated) {
+    return NextResponse.json({ bills: [], error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const candidates: string[] = [];
     const esc = (v: unknown) => String(v ?? "").replace(/"/g, '\\"');
+    // Resolved user doc (when the identifier resolves to a user) for the auth check
+    let resolvedUser: { _id?: string; customerId?: string } | null = null;
 
     // Helper to push unique values
     const push = (v?: string) => {
@@ -29,6 +43,7 @@ export async function GET(
       if (!user) {
         return NextResponse.json({ bills: [] });
       }
+      resolvedUser = user;
       push(user._id);
       push(user.customerId);
     }
@@ -46,6 +61,7 @@ export async function GET(
       const userQuery = `*[_type == "user" && (customerId == "${esc(identifier)}" || customerId == "${esc(cidAlt)}")][0]{ _id, customerId }`;
       const user = await serverClient.fetch(userQuery);
       if (user) {
+        resolvedUser = user;
         push(user._id);
         push(user.customerId);
       }
@@ -57,6 +73,7 @@ export async function GET(
       const userQuery = `*[_type == "user" && (_id == "${esc(identifier)}" || id == "${esc(identifier)}")][0]{ _id, customerId }`;
       const user = await serverClient.fetch(userQuery);
       if (user) {
+        resolvedUser = user;
         push(user.customerId);
         push(user._id);
       }
@@ -67,17 +84,32 @@ export async function GET(
       candidates.push(identifier);
     }
 
-    // Try candidates until we get data
-    for (const id of candidates) {
-      try {
-        const query = queries.customerBills(id);
-        const bills = await serverClient.fetch(query);
-        if (Array.isArray(bills) && bills.length > 0) {
-          return NextResponse.json({ bills });
-        }
-      } catch (e) {
-        // continue trying other candidates
+    // Customers may only read their OWN bills. Reject if the identifier cannot
+    // be tied to the authenticated customer. (Staff may query anyone.)
+    if (!isStaff(auth.role)) {
+      const own = new Set(
+        [auth.userId, auth.customerId].filter(Boolean).map((v) => String(v)),
+      );
+      const identifierOwn = own.has(String(identifier));
+      const userOwn =
+        own.has(String(resolvedUser?._id ?? "")) ||
+        own.has(String(resolvedUser?.customerId ?? ""));
+      if (!identifierOwn && !userOwn) {
+        return NextResponse.json({ bills: [], error: "Forbidden" }, { status: 403 });
       }
+    }
+
+    // Try all candidates in a single federated query
+    try {
+      const bills = await fetchBills({ customerIds: Array.from(new Set(candidates)) });
+      const safeBills = isStaff(auth.role)
+        ? bills
+        : Array.isArray(bills)
+          ? bills.map((b) => sanitizeBillForCustomer(b))
+          : [];
+      return NextResponse.json({ bills: Array.isArray(bills) ? safeBills : [] });
+    } catch (e) {
+      // fall through to empty result
     }
 
     // Nothing found

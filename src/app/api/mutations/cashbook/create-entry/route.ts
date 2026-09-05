@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { createDocument, updateDocument } from '@/lib/sanity/write-router'
+import { querySingleDocument } from '@/lib/sanity/read-router'
+import { denormalizeCashbookEntry } from '@/lib/sanity/denormalize'
 import { notificationService } from '@/lib/notification-service'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
@@ -92,26 +95,28 @@ export async function POST(req: NextRequest) {
     if (isCustomName && customerName) {
       try {
         const normalizedName = customerName.trim().replace(/\s+/g, ' ').toLowerCase()
-        const existingName = await sanityClient.fetch(
+        const existingNameRes = await querySingleDocument<{ _id: string; usageCount?: number }>(
           `*[_type == "manualCashbookName" && normalizedName == $nn][0]`,
-          { nn: normalizedName }
+          { nn: normalizedName },
+          'cashbook'
         )
+        const existingName = existingNameRes.data
         if (existingName) {
-          await sanityClient.patch(existingName._id).set({
+          await updateDocument(existingName._id, {
             usageCount: (existingName.usageCount || 0) + 1,
             lastUsedAt: new Date().toISOString(),
-          }).commit()
+          }, 'cashbook')
           customerId = existingName._id
         } else {
-          const created = await sanityClient.create({
+          const created = await createDocument({
             _type: 'manualCashbookName',
             name: customerName.trim(),
             normalizedName,
             usageCount: 1,
             lastUsedAt: new Date().toISOString(),
             createdAt: new Date().toISOString(),
-          })
-          customerId = created._id
+          }, 'cashbook')
+          customerId = created.documentId || customerId
         }
       } catch (e) {
         console.error('[CreateEntry] Failed to upsert manual name:', e)
@@ -121,15 +126,16 @@ export async function POST(req: NextRequest) {
       if (ref._ref) customerId = String(ref._ref)
     }
 
-    // Dedup by transactionId if provided
-    const transactionId = String((entryData as any).transactionId || "").trim()
-    if (transactionId) {
-      const existing = await sanityClient.fetch(
-        `*[_type == "cashBookEntry" && transactionId == $tid][0]._id`,
-        { tid: transactionId }
+    if ((entryData as any).bill && typeof (entryData as any).bill === 'object' && (entryData as any).bill._ref) {
+      const billRef = String((entryData as any).bill._ref)
+      const existingBillEntryRes = await querySingleDocument(
+        `*[_type == "cashBookEntry" && bill._ref == $billRef][0]._id`,
+        { billRef },
+        'cashbook'
       )
-      if (existing) {
-        return NextResponse.json({ success: true, data: { _id: existing }, message: 'Duplicate: entry already exists for this transaction' }, { status: 200 })
+      const existingBillEntry = existingBillEntryRes.data
+      if (existingBillEntry) {
+        return NextResponse.json({ success: true, data: { _id: existingBillEntry }, message: 'Duplicate: entry already exists for this bill' }, { status: 200 })
       }
     }
 
@@ -161,19 +167,24 @@ export async function POST(req: NextRequest) {
     if ((entryData as any).bill) {
       newEntry.bill = (entryData as any).bill
     }
-    if (transactionId) {
-      newEntry.transactionId = transactionId
-    }
 
-    const created = await sanityClient.create(newEntry)
+    // Cashbook lives in its own DB; strip cross-dataset references so Sanity
+    // doesn't reject references to users/bills that live in the primary DB.
+    const denormalizedEntry = denormalizeCashbookEntry(newEntry)
+
+    const created = await createDocument(denormalizedEntry, 'cashbook')
+    if (!created.success) {
+      return NextResponse.json({ success: false, error: created.error || 'Failed to create cash book entry' }, { status: 500 })
+    }
+    const createdDoc = { _id: created.documentId, ...denormalizedEntry }
 
     try {
-      const userRef = (created as any)?.user
+      const userRef = (createdDoc as any)?.user
       const notifCustomerId = userRef && typeof userRef === 'object' && typeof userRef._ref === 'string' ? String(userRef._ref) : undefined
-      const createdType = String((created as any)?.type || type).trim()
-      const createdSource = String((created as any)?.source || source).trim()
-      const createdCategory = String((created as any)?.category || '').trim()
-      const createdId = String((created as any)?._id || '').trim()
+      const createdType = String((createdDoc as any)?.type || type).trim()
+      const createdSource = String((createdDoc as any)?.source || source).trim()
+      const createdCategory = String((createdDoc as any)?.category || '').trim()
+      const createdId = String((createdDoc as any)?._id || '').trim()
 
       const title = createdType === 'debit' ? 'Debit recorded' : 'Credit recorded'
       const parts: string[] = []
@@ -197,7 +208,7 @@ export async function POST(req: NextRequest) {
       }).catch(() => {})
     } catch {}
 
-    return NextResponse.json({ success: true, data: created }, { status: 200 })
+    return NextResponse.json({ success: true, data: createdDoc }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })

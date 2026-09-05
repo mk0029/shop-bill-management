@@ -5,6 +5,7 @@
 
 import { sanityClient } from "./sanity";
 import { getCookie } from "@/lib/cookies";
+import { createStockTransactionRecord } from "./stock-transaction-router";
 
 export interface StockValidationResult {
   isValid: boolean;
@@ -297,7 +298,13 @@ export async function updateStockForBill(
           createdAt: new Date().toISOString(),
         };
 
-        const transactionResult = await sanityClient.create(stockTransaction);
+        const txResult = await createStockTransactionRecord(stockTransaction);
+        if (!txResult.success) {
+          throw new Error(
+            txResult.error || "Failed to create stock transaction"
+          );
+        }
+        const transactionResult = { _id: txResult.id, ...stockTransaction } as any;
         transactions.push(transactionResult);
 
         results.push({

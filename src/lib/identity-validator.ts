@@ -1,4 +1,5 @@
 import { sanityClient } from "@/lib/sanity"
+import { getSanityClient } from "@/lib/sanity/client-factory"
 import { normalizeAndValidate, getPhoneFormats } from "@/lib/phone-utils"
 
 export interface IdentityConflict {
@@ -76,25 +77,28 @@ async function findExistingUser(email?: string, phone?: string): Promise<Identit
 
 async function findExistingRequest(email?: string, phone?: string): Promise<IdentityConflict | null> {
   const phoneFormats = phone ? getPhoneFormats(phone) : []
+  const clients = [sanityClient, getSanityClient("operations")]
   const queries: Promise<{ field: "email" | "phone"; result: any }>[] = []
 
-  if (email) {
-    queries.push(
-      sanityClient
-        .fetch(`*[_type == "customerRequest" && status == "pending" && email == $email][0]{_id, requestId}`, { email })
-        .then((r) => ({ field: "email" as const, result: r })),
-    )
-  }
+  for (const client of clients) {
+    if (email) {
+      queries.push(
+        client
+          .fetch(`*[_type == "customerRequest" && status == "pending" && email == $email][0]{_id, requestId}`, { email })
+          .then((r) => ({ field: "email" as const, result: r })),
+      )
+    }
 
-  if (phoneFormats.length > 0) {
-    queries.push(
-      sanityClient
-        .fetch(`*[_type == "customerRequest" && status == "pending" && (normalizedPhone == $normalizedPhone || phone in $formats)][0]{_id, requestId}`, {
-          normalizedPhone: phone,
-          formats: phoneFormats,
-        })
-        .then((r) => ({ field: "phone" as const, result: r })),
-    )
+    if (phoneFormats.length > 0) {
+      queries.push(
+        client
+          .fetch(`*[_type == "customerRequest" && status == "pending" && (normalizedPhone == $normalizedPhone || phone in $formats)][0]{_id, requestId}`, {
+            normalizedPhone: phone,
+            formats: phoneFormats,
+          })
+          .then((r) => ({ field: "phone" as const, result: r })),
+      )
+    }
   }
 
   if (queries.length === 0) return null

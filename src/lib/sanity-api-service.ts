@@ -1,6 +1,10 @@
 import { sanityClient } from "./sanity";
 import { strapiService } from "./strapi-service";
-import { toolRentalService } from "./tool-rental-service";
+import {
+  createStockTransactionRecord,
+  updateStockTransactionRecord,
+  deleteStockTransactionRecord,
+} from "./stock-transaction-router";
 // Note: Do NOT statically import server-only modules here, this file is used by client code too.
 import { getCookie } from "@/lib/cookies";
 
@@ -197,7 +201,16 @@ export const userApiService = {
         updatedAt: new Date().toISOString(),
       };
 
-      const createdUser = await sanityClient.create(newUser);
+      const createdResult = await fetch('/api/mutations/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: { ...newUser, role: userData.role, _type: 'user' } }),
+      });
+      const createdJson = await createdResult.json().catch(() => ({}));
+      if (!createdResult.ok || !createdJson?.success) {
+        return { success: false, error: createdJson?.error || 'Failed to create user' };
+      }
+      const createdUser = createdJson.data;
 
       // Send secret key via WhatsApp (placeholder)
 
@@ -234,13 +247,16 @@ export const userApiService = {
     }>
   ): Promise<ApiResponse<any>> {
     try {
-      const updatedUser = await sanityClient
-        .patch(userId)
-        .set({
-          ...userData,
-          updatedAt: new Date().toISOString(),
-        })
-        .commit();
+      const res = await fetch('/api/mutations/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, updates: userData }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to update user' };
+      }
+      const updatedUser = json.data;
 
       // Sync to Strapi
       try {
@@ -261,7 +277,15 @@ export const userApiService = {
    */
   async deleteUser(userId: string): Promise<ApiResponse<void>> {
     try {
-      await sanityClient.delete(userId);
+      const res = await fetch('/api/mutations/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to delete user' };
+      }
       return { success: true, message: 'User deleted successfully' };
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -745,32 +769,16 @@ export const billApiService = {
 
   async getCustomerBills(customerId: string): Promise<ApiResponse<any[]>> {
     try {
-      const query = `*[_type == "bill" && customer._ref == $customerId] {
-        ...,
-        "discount": coalesce(discount, discountAmount, 0),
-        customer->{
-          _id,
-          name,
-          phone,
-          email,
-          location,
-          role
-        },
-        customerAddress->{
-          _id,
-          addressType,
-          addressObject
-        },
-        technician->{
-          _id,
-          name,
-          phone,
-          email
-        }
-      } | order(createdAt desc)`;
-
-      const bills = await sanityClient.fetch(query, { customerId });
-      return { success: true, data: bills };
+      // Federated read: primary (legacy bills) + billing DB (new bills)
+      const res = await fetch(
+        `/api/bills/federated?customerId=${encodeURIComponent(customerId)}`,
+        { cache: "no-store" }
+      );
+      const json = await res.json();
+      if (!json?.success) {
+        return { success: false, error: json?.error || "Failed to fetch customer bills" };
+      }
+      return { success: true, data: Array.isArray(json.data) ? json.data : [] };
     } catch (error) {
       console.error('Error fetching customer bills:', error);
       return { success: false, error: 'Failed to fetch customer bills' };
@@ -789,7 +797,20 @@ export const billApiService = {
         updatedAt: new Date().toISOString(),
       };
 
-      const createdBill = await sanityClient.create(newBill);
+      const actorUserId = getActorUserIdFromPersistedAuth() || undefined;
+      const res = await fetch("/api/mutations/bills/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bill: newBill, actorUserId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        return {
+          success: false,
+          error: json?.error || `Failed to create bill (${res.status})`,
+        };
+      }
+      const createdBill = (json?.data || {}) as any;
 
       // Sync to Strapi
       try {
@@ -820,13 +841,19 @@ export const billApiService = {
     billData: any
   ): Promise<ApiResponse<any>> {
     try {
-      const updatedBill = await sanityClient
-        .patch(billId)
-        .set({
-          ...billData,
-          updatedAt: new Date().toISOString(),
-        })
-        .commit();
+      const res = await fetch(`/api/bills/${encodeURIComponent(billId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(billData || {}),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        return {
+          success: false,
+          error: json?.error || `Failed to update bill (${res.status})`,
+        };
+      }
+      const updatedBill = (json?.data || {}) as any;
 
       // Mark this bill as recently updated in this session to suppress local self-toasts
       try {
@@ -948,7 +975,14 @@ export const stockTransactionApiService = {
         updatedAt: new Date().toISOString(),
       };
 
-      const createdTransaction = await sanityClient.create(newTransaction);
+      const txResult = await createStockTransactionRecord(newTransaction);
+      if (!txResult.success) {
+        return {
+          success: false,
+          error: txResult.error || "Failed to create stock transaction",
+        };
+      }
+      const createdTransaction = { _id: txResult.id, ...newTransaction };
 
       // Sync to Strapi
       try {
@@ -972,13 +1006,17 @@ export const stockTransactionApiService = {
     transactionData: any
   ): Promise<ApiResponse<any>> {
     try {
-      const updatedTransaction = await sanityClient
-        .patch(transactionId)
-        .set({
-          ...transactionData,
-          updatedAt: new Date().toISOString(),
-        })
-        .commit();
+      const txResult = await updateStockTransactionRecord(transactionId, {
+        ...transactionData,
+        updatedAt: new Date().toISOString(),
+      });
+      if (!txResult.success) {
+        return {
+          success: false,
+          error: txResult.error || "Failed to update stock transaction",
+        };
+      }
+      const updatedTransaction = { _id: transactionId, ...transactionData };
 
       // Sync to Strapi
       try {
@@ -999,7 +1037,13 @@ export const stockTransactionApiService = {
    */
   async deleteStockTransaction(transactionId: string): Promise<ApiResponse<void>> {
     try {
-      await sanityClient.delete(transactionId);
+      const txResult = await deleteStockTransactionRecord(transactionId);
+      if (!txResult.success) {
+        return {
+          success: false,
+          error: txResult.error || "Failed to delete stock transaction",
+        };
+      }
       return { success: true, message: 'Stock transaction deleted successfully' };
     } catch (error) {
       console.error('Error deleting stock transaction:', error);
@@ -1771,57 +1815,12 @@ export const cashBookApiService = {
    */
   async getAllEntries(): Promise<ApiResponse<any[]>> {
     try {
-      const query = `*[_type == "cashBookEntry"] {
-        _id,
-        _createdAt,
-        createdAt,
-        updatedAt,
-        user,
-        userName,
-        amount,
-        totalAmount,
-        pendingAmount,
-        receivedAmount,
-        type,
-        source,
-        category,
-        notes,
-        customerName,
-        customerId,
-        isCustomName,
-        status,
-        createdBy,
-        bill,
-        billCount,
-        fullyPaidCount,
-        partialCount,
-        appliedBills[]{
-          billNumber,
-          appliedAmount,
-          status,
-          billRef->{
-            _id,
-            billNumber
-          }
-        },
-        user->{
-          _id,
-          name,
-          phone,
-          email
-        },
-        bill->{
-          _id,
-          billNumber,
-          customer->{
-            _id,
-            name
-          }
-        }
-      } | order(createdAt desc)`;
-
-      const entries = await sanityClient.fetch(query);
-      return { success: true, data: entries };
+      const res = await fetch('/api/cashbook/entries');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to fetch cash book entries' };
+      }
+      return { success: true, data: json?.data };
     } catch (error) {
       console.error('Error fetching cash book entries:', error);
       return { success: false, error: 'Failed to fetch cash book entries' };
@@ -1856,6 +1855,7 @@ export const cashBookApiService = {
         }
       }
       
+      const { createDocument } = await import('./sanity/write-router');
       const newEntry = {
         _type: "cashBookEntry",
         ...entryData,
@@ -1864,12 +1864,12 @@ export const cashBookApiService = {
         updatedAt: new Date().toISOString(),
       };
 
-      const createdEntry = await sanityClient.create(newEntry);
-      
-      // Note: Strapi sync for cash book not implemented yet
-      // TODO: Add Strapi sync when cash book model is added to Strapi
+      const writeResult = await createDocument(newEntry, 'cashbook');
+      if (!writeResult.success) {
+        return { success: false, error: writeResult.error || 'Failed to create cash book entry' };
+      }
 
-      return { success: true, data: createdEntry };
+      return { success: true, data: { _id: writeResult.documentId, ...newEntry } };
     } catch (error) {
       console.error('Error creating cash book entry:', error);
       return { success: false, error: 'Failed to create cash book entry' };
@@ -2002,45 +2002,16 @@ export const cashBookApiService = {
    */
   async getEntriesByDateRange(startDate: string, endDate: string): Promise<ApiResponse<any[]>> {
     try {
-      const query = `*[_type == "cashBookEntry" && createdAt >= $startDate && createdAt <= $endDate] {
-        _id,
-        _createdAt,
-        createdAt,
-        updatedAt,
-        user,
-        userName,
-        amount,
-        totalAmount,
-        pendingAmount,
-        receivedAmount,
-        type,
-        source,
-        category,
-        notes,
-        customerName,
-        customerId,
-        isCustomName,
-        status,
-        createdBy,
-        bill,
-        user->{
-          _id,
-          name,
-          phone,
-          email
-        },
-        bill->{
-          _id,
-          billNumber,
-          customer->{
-            _id,
-            name
-          }
-        }
-      } | order(createdAt desc)`;
-
-      const entries = await sanityClient.fetch(query, { startDate, endDate });
-      return { success: true, data: entries };
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      params.set('summary', 'true');
+      const res = await fetch(`/api/cashbook/entries?${params.toString()}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to fetch cash book entries by date range' };
+      }
+      return { success: true, data: json?.data };
     } catch (error) {
       console.error('Error fetching cash book entries by date range:', error);
       return { success: false, error: 'Failed to fetch cash book entries by date range' };
@@ -2052,25 +2023,12 @@ export const cashBookApiService = {
    */
   async getSummary(): Promise<ApiResponse<any>> {
     try {
-      const query = `*[_type == "cashBookEntry"] {
-        type,
-        amount
-      }`;
-
-      const entries = await sanityClient.fetch(query);
-      
-      const summary = entries.reduce((acc: any, entry: any) => {
-        if (entry.type === 'credit') {
-          acc.totalCredits += entry.amount;
-        } else if (entry.type === 'debit') {
-          acc.totalDebits += entry.amount;
-        }
-        return acc;
-      }, { totalCredits: 0, totalDebits: 0, balance: 0 });
-
-      summary.balance = summary.totalCredits - summary.totalDebits;
-
-      return { success: true, data: summary };
+      const res = await fetch('/api/cashbook/entries?summary=true');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        return { success: false, error: json?.error || 'Failed to fetch cash book summary' };
+      }
+      return { success: true, data: json?.summary };
     } catch (error) {
       console.error('Error fetching cash book summary:', error);
       return { success: false, error: 'Failed to fetch cash book summary' };
@@ -2091,6 +2049,5 @@ export const sanityApiService = {
   followUps: followUpApiService,
   suppliers: supplierApiService,
   online: onlineApiService,
-  cashBook: cashBookApiService,
-  toolRentals: toolRentalService,
+cashBook: cashBookApiService,
 };

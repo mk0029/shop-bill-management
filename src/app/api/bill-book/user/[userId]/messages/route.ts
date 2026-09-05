@@ -6,7 +6,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ userId:
   const { userId } = await params;
   try {
     // Find all bill ids for this user
-    const billIdsQuery = `*[_type == "bill" && customer._ref == $userId]._id`;
+    const billIdsQuery = `*[_type == "bill" && customer._ref == $userId || customer == $userId]._id`;
     const billIds: string[] = await sanityClient.fetch(billIdsQuery, { userId });
 
     if (!billIds || billIds.length === 0) {

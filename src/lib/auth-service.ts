@@ -183,7 +183,6 @@ export async function createCustomerAccount(data: {
       .substring(0, 16);
 
     const newUser = {
-      _type: "user",
       clerkId: `customer_${Date.now()}`,
       customerId,
       secretKey,
@@ -193,11 +192,18 @@ export async function createCustomerAccount(data: {
       location: data.location,
       role: "customer" as const,
       isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    const createdUser = await sanityClient.create(newUser);
+    const res = await fetch('/api/mutations/users/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ register: true, user: newUser }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error || 'Failed to create customer account');
+    }
+    const createdUser = json.data;
 
     const loginUrl = data.phone
       ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(data.phone)}&passKey=${encodeURIComponent(secretKey)}`

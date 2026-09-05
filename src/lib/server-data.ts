@@ -1,5 +1,6 @@
 import { unstable_cache, unstable_noStore as noStore } from "next/cache";
 import { sanityClient, queries } from "@/lib/sanity";
+import { fetchBills } from "@/lib/sanity/bills-federated";
 
 export type AdminDashboardData = {
   products: unknown[];
@@ -56,7 +57,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     sanityClient.fetch(queries.brands),
     sanityClient.fetch(queries.categories),
     sanityClient.fetch(queries.customers),
-    sanityClient.fetch(queries.bills),
+    fetchBills(),
   ]);
 
   return {
@@ -84,7 +85,7 @@ export async function getCustomerBillsData(opts: {
 
   const [customer, bills] = await Promise.all([
     sanityClient.fetch(customerQuery, { userId: userId || "", customerId: customerId || "" }),
-    sanityClient.fetch(queries.customerBills(String(cid))),
+    fetchBills({ customerIds: [userId, customerId, cid].filter(Boolean).map((v) => String(v)) }),
   ]);
 
   return {
@@ -160,7 +161,7 @@ export async function getAdminSpecificationsData(): Promise<AdminSpecificationsD
 export async function getAdminBillingData(): Promise<AdminBillingData> {
   noStore();
   const [bills, customers, products, brands, categories] = await Promise.all([
-    sanityClient.fetch(queries.bills),
+    fetchBills(),
     sanityClient.fetch(queries.customers),
     sanityClient.fetch(queries.activeProducts),
     sanityClient.fetch(queries.brands),
@@ -180,7 +181,7 @@ export async function getAdminCustomersData(): Promise<AdminCustomersData> {
   noStore();
   const [customers, bills] = await Promise.all([
     sanityClient.fetch(queries.customers),
-    sanityClient.fetch(queries.bills),
+    fetchBills(),
   ]);
 
   return {

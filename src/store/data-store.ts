@@ -1,11 +1,32 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
 import { getCookie } from "@/lib/cookies";
+import { catalogCreate, catalogUpdate, catalogDelete } from "@/lib/catalog-mutations";
 import { useAuthStore } from "@/store/auth-store";
 import { useBillBookStore } from "@/store/bill-book-store";
 import { fallbackData } from "./fallback-data";
 import { type SanityClient } from "@sanity/client";
 import type { Subscription } from "rxjs";
+
+// Per-step timeout for the initial data load / refresh paths. A stuck browser
+// request to api.sanity.io (or an API route) must never leave the app in the
+// permanent "Syncing latest data…" state, so every awaited step is aborted if
+// it does not settle in time and the step is skipped instead of hanging.
+const STEP_TIMEOUT_MS = 15_000;
+
+interface AbortHandle {
+  signal: AbortSignal;
+  cancel: () => void;
+}
+
+function withAbort(ms = STEP_TIMEOUT_MS): AbortHandle {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  return {
+    signal: controller.signal,
+    cancel: () => clearTimeout(id),
+  };
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sanitizeProductForTechnician(product: any) {
@@ -272,7 +293,36 @@ export const useDataStore = create<DataStore>((set, get) => ({
       }
 
       for (const step of loadingSteps) {
-        const data = await sanityClient.fetch(step.query, step.params ?? {});
+        let data;
+        let stepFailed = false;
+        const { signal, cancel } = withAbort();
+        try {
+          // Bills are federated across primary + billing DBs via the server route
+          if (step.name === "bills") {
+            const cid = opts?.customerId || opts?.userId || "";
+            try {
+              const res = await fetch(
+                `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`,
+                { signal }
+              );
+              const json = await res.json();
+              data = json?.success ? json.data : [];
+            } catch {
+              data = await sanityClient.fetch(step.query, step.params ?? {}, { signal });
+            }
+          } else {
+            data = await sanityClient.fetch(step.query, step.params ?? {}, { signal });
+          }
+        } catch (e) {
+          console.warn(
+            `[data-store] step "${step.name}" timed out or failed; skipping (${e instanceof Error ? e.message : "unknown"})`
+          );
+          stepFailed = true;
+        } finally {
+          cancel();
+        }
+
+        if (stepFailed) continue;
 
         // Update the appropriate map
         const currentState = get();
@@ -517,7 +567,21 @@ export const useDataStore = create<DataStore>((set, get) => ({
         query = queries.bills;
       }
 
-      const data = await sanityClient.fetch(query, params ?? {});
+      let data;
+      const { signal, cancel } = withAbort();
+      try {
+        const cid = role === "customer" ? String(customerId || "") : "";
+        const res = await fetch(
+          `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`,
+          { signal }
+        );
+        const json = await res.json();
+        data = json?.success ? json.data : [];
+      } catch {
+        data = await sanityClient.fetch(query, params ?? {}, { signal });
+      } finally {
+        cancel();
+      }
 
       const bills = new Map(get().bills);
       const billsByCustomer = new Map<string, string[]>();
@@ -991,7 +1055,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         delete normalized.categoryId;
       }
 
-      const product = await sanityClient.create({
+      const product = await catalogCreate("product", {
         _type: "product",
         ...normalized,
         createdAt: new Date().toISOString(),
@@ -1063,10 +1127,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
         delete normalized.categoryId;
       }
 
-      const product = await sanityClient
-        .patch(productId)
-        .set({ ...normalized, updatedAt: new Date().toISOString() })
-        .commit();
+      const product = await catalogUpdate("product", productId, {
+        ...normalized,
+        updatedAt: new Date().toISOString(),
+      });
 
       // Update local store
       const products = new Map(get().products);
@@ -1090,7 +1154,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   deleteProduct: async (productId) => {
     try {
-      await sanityClient.delete(productId);
+      await catalogDelete("product", productId);
 
       // Update local store
       const products = new Map(get().products);
@@ -1104,7 +1168,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   deleteBrand: async (brandId) => {
     try {
-      await sanityClient.delete(brandId);
+      await catalogDelete("brand", brandId);
 
       // Update local store
       const brands = new Map(get().brands);
@@ -1116,34 +1180,29 @@ export const useDataStore = create<DataStore>((set, get) => ({
     }
   },
 
-  createBill: async (billData) => {
+createBill: async (billData) => {
     try {
-      const bill = await sanityClient.create({
+      const newBill = {
         _type: "bill",
         ...billData,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+      };
+
+      const res = await fetch("/api/mutations/bills/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bill: newBill }),
       });
-
-      // Don't add to local state here - let the realtime listener handle it
-      // This prevents duplicates when the realtime "appear" event fires
-
-      // Notify admins on bill creation (client-side)
-      if (typeof window !== "undefined") {
-        try {
-          const actorId = (function getActorId(){
-            try {
-              const raw = getCookie('auth-storage');
-              if (!raw) return null;
-              const parsed = JSON.parse(decodeURIComponent(raw));
-              return parsed?.state?.user?.id ?? null;
-            } catch {
-              return null;
-            }
-          })();
-          // Notifications handled server-side by /api/mutations/bills/create/route.ts
-        } catch {}
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || `Failed to create bill (${res.status})`);
       }
+      const bill = (json?.data || {}) as any;
+
+      // Don't add to local state here - let the store refresh / poll surface it.
+      // WA billing.created event + admin/customer notifications are dispatched
+      // server-side by the mutation route.
 
       return bill as unknown as Bill;
     } catch (error) {
@@ -1225,17 +1284,20 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   createUser: async (userData) => {
     try {
-      const user = await sanityClient.create({
-        _type: "user",
-        ...userData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      const res = await fetch('/api/mutations/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: userData }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Failed to create user');
+      }
 
       // Don't add to local state here - let the realtime listener handle it
       // This prevents duplicates when the realtime "appear" event fires
 
-      return user as unknown as User;
+      return json.data as unknown as User;
     } catch (error) {
       console.error("Failed to create user:", error);
       throw error;
@@ -1244,17 +1306,22 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   updateUser: async (userId, updates) => {
     try {
-      const user = await sanityClient
-        .patch(userId)
-        .set({ ...updates, updatedAt: new Date().toISOString() })
-        .commit();
+      const res = await fetch('/api/mutations/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, updates }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Failed to update user');
+      }
 
       // Update local store
       const users = new Map(get().users);
-      users.set(userId, user as unknown as User);
+      users.set(userId, json.data as unknown as User);
       set({ users });
 
-      return user as unknown as User;
+      return json.data as unknown as User;
     } catch (error) {
       console.error("Failed to update user:", error);
       throw error;

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { sanityClient } from "@/lib/sanity";
+import { updateDocument, deleteDocument } from "@/lib/sanity/write-router";
+import { querySingleDocument } from "@/lib/sanity/read-router";
 import { getServerAuth } from "@/lib/server-auth";
 
 async function resolveCashbookEntryDocumentId(identifier: string): Promise<string | null> {
@@ -8,10 +9,12 @@ async function resolveCashbookEntryDocumentId(identifier: string): Promise<strin
   if (!key) return null;
 
   // First try as document _id
-  const byId = await sanityClient.fetch(
+  const byIdRes = await querySingleDocument(
     `*[_type == "cashBookEntry" && _id == $key][0]{ _id }`,
-    { key }
+    { key },
+    'cashbook'
   );
+  const byId = byIdRes.data;
   if (byId?._id) return String(byId._id);
 
   return null;
@@ -53,7 +56,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ success: false, error: "Cashbook entry not found" }, { status: 404 });
     }
 
-    const entry = await sanityClient.fetch(
+    const entryRes = await querySingleDocument(
       `*[_type == "cashBookEntry" && _id == $id][0]{
         _id,
         amount,
@@ -68,8 +71,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         user->{_id, name},
         bill->{_id, billNumber}
       }`,
-      { id }
+      { id },
+      'cashbook'
     );
+    const entry = entryRes.data;
 
     if (!entry) {
       return NextResponse.json({ success: false, error: "Cashbook entry not found" }, { status: 404 });
@@ -119,38 +124,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     const body = await req.json().catch(() => ({}));
 
-    const patch: Record<string, any> = {
+    const patch = {
+      amount: Number(body?.amount || 0),
+      type: String(body?.type || "credit"),
+      description: String(body?.description || ""),
+      date: String(body?.date || new Date().toISOString().slice(0, 10)),
+      paymentMethod: String(body?.paymentMethod || "cash"),
+      reference: String(body?.reference || ""),
+      notes: String(body?.notes || ""),
       updatedAt: new Date().toISOString(),
     };
 
-    if (body?.createdAt) {
-      patch.createdAt = String(body.createdAt);
-    }
-    if (body?.amount !== undefined) {
-      patch.amount = Number(body.amount);
-    }
-    if (body?.type) {
-      patch.type = String(body.type);
-    }
-    if (body?.description !== undefined) {
-      patch.description = String(body.description);
-    }
-    if (body?.date) {
-      patch.date = String(body.date).slice(0, 10);
-    }
-    if (body?.paymentMethod) {
-      patch.paymentMethod = String(body.paymentMethod);
-    }
-    if (body?.reference !== undefined) {
-      patch.reference = String(body.reference);
-    }
-    if (body?.notes !== undefined) {
-      patch.notes = String(body.notes);
-    }
+    const updated = await updateDocument(id, patch, 'cashbook');
 
-    const updated = await sanityClient.patch(id).set(patch).commit();
-
-    return NextResponse.json({ success: true, data: updated }, { status: 200 });
+    return NextResponse.json({ success: true, data: { _id: id, ...patch } }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || "Server error" }, { status: 500 });
   }
@@ -193,7 +180,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     }
 
     // Get entry details before deletion for reference handling
-    const entry = await sanityClient.fetch(
+    const entryRes = await querySingleDocument(
       `*[_type == "cashBookEntry" && _id == $id][0]{
         _id,
         amount,
@@ -204,8 +191,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
           product->{_id}
         }
       }`,
-      { id }
+      { id },
+      'cashbook'
     );
+    const entry = entryRes.data;
 
     if (!entry) {
       return NextResponse.json({ success: false, error: "Cashbook entry not found" }, { status: 404 });
@@ -236,7 +225,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     }
 
     // Delete the cashbook entry
-    await sanityClient.delete(id);
+    await deleteDocument(id, 'cashbook');
     
     return NextResponse.json({ success: true, message: "Cashbook entry deleted" }, { status: 200 });
   } catch (e: any) {

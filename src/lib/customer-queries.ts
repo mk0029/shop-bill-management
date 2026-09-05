@@ -27,7 +27,7 @@ export const getCustomerById = async (customerId: string) => {
 // Get customer's bills with related product details
 export const getCustomerBills = (customerId: string) => {
   const query = `
-    *[_type == "bill" && (customer._ref == $customerId || customer._id == $customerId)] | order(_createdAt desc) {
+    *[_type == "bill" && (customer._ref == $customerId || customer._id == $customerId || customer == $customerId)] | order(_createdAt desc) {
       _id,
       _createdAt,
       _updatedAt,
@@ -86,7 +86,7 @@ export const getCustomerBills = (customerId: string) => {
 // Subscribe to real-time updates for customer's bills
 export const subscribeToCustomerBills = (customerId: string, callback: (bills: any[]) => void) => {
   const query = `
-    *[_type == "bill" && (customer._ref == $customerId || customer._id == $customerId)] {
+    *[_type == "bill" && (customer._ref == $customerId || customer._id == $customerId || customer == $customerId)] {
       _id,
       _createdAt,
       _updatedAt,
@@ -115,7 +115,7 @@ export const subscribeToCustomerBills = (customerId: string, callback: (bills: a
 export const getCustomerActivity = async (customerId: string, limit = 5) => {
   const query = `
     {
-      "bills": *[_type == "bill" && (customer._ref == $customerId || customer._id == $customerId)] | order(_createdAt desc) [0...$limit] {
+      "bills": *[_type == "bill" && (customer._ref == $customerId || customer._id == $customerId || customer == $customerId)] | order(_createdAt desc) [0...$limit] {
         _id,
         _createdAt,
         billNumber,
@@ -123,7 +123,7 @@ export const getCustomerActivity = async (customerId: string, limit = 5) => {
         paymentStatus,
         status
       },
-      "payments": *[_type == "payment" && (customer._ref == $customerId || customer._id == $customerId)] | order(date desc) [0...$limit] {
+      "payments": *[_type == "payment" && (customer._ref == $customerId || customer._id == $customerId || customer == $customerId)] | order(date desc) [0...$limit] {
         _id,
         _createdAt,
         amount,

@@ -14,9 +14,7 @@ import {
 } from "lucide-react";
 import {
   workTaskService,
-  listenWorkTasks,
   type WorkTask,
-  type WorkTaskRealtimeEvent,
 } from "@/lib/work-task-service";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -398,51 +396,22 @@ export default function WorkListClient({
     ],
   );
 
-  const applyRealtimeEvent = useCallback((event?: WorkTaskRealtimeEvent) => {
-    const id = String(event?.documentId || event?.result?._id || "");
-    if (!id) return;
-    const transition = event?.mutation?.transition;
-    if (transition === "disappear") {
-      setTasks((prev) => prev.filter((t) => t._id !== id));
-      return;
-    }
-    const nextTask = event?.result;
-    if (!nextTask) return;
-    setTasks((prev) => {
-      // Check if task already exists to avoid duplicates
-      const alreadyExists = prev.some((t) => t._id === id);
-      if (alreadyExists) {
-        // Update existing task
-        return prev.map((t) => (t._id === id ? nextTask : t));
-      }
-      // Remove any temp/local tasks when online task arrives
-      // Match by title only for reliability (customer/technician might be optional)
-      const without = prev.filter((t) => {
-        // Keep the online task and remove temp tasks
-        if (t._id === id) return false;
-        // Remove temp tasks with matching title
-        if (t._id.startsWith("temp-") && t.title === nextTask.title) {
-          return false;
-        }
-        return true;
-      });
-      return [nextTask, ...without];
-    });
-  }, []);
-
   useEffect(() => {
     sanityApiService.users
       .getAllUsers()
       .then((res) => setUsers(res.data || []))
       .catch(() => setUsers([]));
     load({ silent: isInitialized });
-    const sub = listenWorkTasks((event) => {
-      applyRealtimeEvent(event);
-      // Don't call load here to avoid race conditions with temp task removal
-      // The realtime event handler handles the task updates
-    });
-    return () => sub.unsubscribe();
-  }, [isInitialized, load, applyRealtimeEvent]);
+    // Task docs live in the operations DB, so browser listeners on the primary
+    // client never fire. Poll instead (polling is silent — no flicker).
+    const interval = setInterval(() => load({ silent: true }), 15000);
+    const onFocus = () => load({ silent: true });
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [isInitialized, load]);
 
   // Dev test task removed to avoid confusion with duplicate tasks
 

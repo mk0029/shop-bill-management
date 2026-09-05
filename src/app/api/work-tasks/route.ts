@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { createDocument } from "@/lib/sanity/write-router";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getServerAuth } from "@/lib/server-auth";
 import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
@@ -87,7 +89,7 @@ export async function GET(req: NextRequest) {
   const date = url.searchParams.get("date");
   const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
-  const query = auth.role === "customer"
+const query = auth.role === "customer"
     ? `*[_type == "workTask" && (customerRef._ref == $customerUserId || customerRef->customerId == $customerCode)]{
     _id, title, description, repairRequestId, repairDetails, customerNotes, requestSource, priority, status, issueCategory, dueAt,
     completionNotes, cancellationReason, holdReason, completedAt, createdAt, updatedAt, createdByName, assignedTechnicianName,
@@ -102,10 +104,42 @@ export async function GET(req: NextRequest) {
     assignedTechnician->{_id, name, phone},
     createdBy->{_id, name}
   } | order(dueAt asc)`;
-  let tasks = await sanityClient.fetch<any[]>(query, {
+  const opsQuery = auth.role === "customer"
+    ? `*[_type == "workTask" && customerRefId == $customerUserId]{
+    _id, title, description, repairRequestId, repairDetails, customerNotes, requestSource, priority, status, issueCategory, dueAt,
+    completionNotes, cancellationReason, holdReason, completedAt, createdAt, updatedAt, createdByName, assignedTechnicianName,
+    "customerRef": {"_id": customerRefId, "name": customerName, "phone": customerPhone},
+    "assignedTechnician": {"_id": coalesce(assignedTechnicianId, assignedTechnician, ""), "name": assignedTechnicianName},
+    "createdBy": {"_id": createdByUserId, "name": createdByName}
+  } | order(dueAt asc)`
+    : `*[_type == "workTask"]{
+    _id, title, description, repairRequestId, repairDetails, customerNotes, requestSource, priority, status, issueCategory, dueAt,
+    completionNotes, cancellationReason, holdReason, completedAt, createdAt, updatedAt, createdByName, assignedTechnicianName,
+    "customerRef": {"_id": customerRefId, "name": customerName, "phone": customerPhone},
+    "assignedTechnician": {"_id": coalesce(assignedTechnicianId, assignedTechnician, ""), "name": assignedTechnicianName},
+    "createdBy": {"_id": createdByUserId, "name": createdByName}
+  } | order(dueAt asc)`;
+  const params = {
     customerUserId: auth.userId,
     customerCode: auth.customerId,
-  });
+  };
+  const [legacyTasks, opsTasks] = await Promise.all([
+    sanityClient.fetch<any[]>(query, params),
+    getSanityClient("operations")
+      .fetch<any[]>(opsQuery, params)
+      .catch(() => []),
+  ]);
+  const tasksById = new Map<string, any>();
+  for (const t of opsTasks) {
+    if (t?._id) tasksById.set(t._id, { ...t, _sourceDb: "operations" });
+  }
+  let tasks = legacyTasks.map((t) => ({
+    ...t,
+    ...(tasksById.get(t?._id) || {}),
+  }));
+for (const t of tasksById.values()) {
+    if (!tasks.some((x) => x?._id === t._id)) tasks.push(t);
+  }
 
   if (status) tasks = tasks.filter((t) => String(t.status) === status);
   if (technicianId) tasks = tasks.filter((t) => t?.assignedTechnician?._id === technicianId);
@@ -161,13 +195,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Assignee must be Admin / Super Admin / Technician" }, { status: 400 });
   }
 
-  const now = new Date().toISOString();
+const now = new Date().toISOString();
+  const customerRefId = String(body?.customerRefId || "").trim();
   const doc = {
     _type: "workTask",
     title,
     description: String(body?.description || "").trim(),
-    ...(body?.customerRefId ? { customerRef: { _type: "reference", _ref: String(body.customerRefId) } } : {}),
-    assignedTechnician: { _type: "reference", _ref: assignedTechnicianId },
+    ...(customerRefId ? { customerRefId } : {}),
+    assignedTechnician: assignedTechnicianId,
     assignedTechnicianName: tech.name || "",
     priority: ["low", "medium", "high", "urgent"].includes(String(body?.priority)) ? String(body.priority) : "medium",
     status: ["pending", "in-progress", "completed", "cancelled", "hold"].includes(String(body?.status)) ? String(body.status) : "pending",
@@ -176,21 +211,28 @@ export async function POST(req: NextRequest) {
     completionNotes: String(body?.completionNotes || "").trim(),
     cancellationReason: String(body?.cancellationReason || "").trim(),
     holdReason: String(body?.holdReason || "").trim(),
-    createdBy: { _type: "reference", _ref: actorUserId },
+    createdByUserId: actorUserId,
     createdByName: actor?.name || "",
     completedAt: String(body?.status) === "completed" ? now : null,
     createdAt: now,
     updatedAt: now,
   };
 
-  const created = await sanityClient.create(doc as any);
+  const createResult = await createDocument(doc as any, "work-tasks");
+  if (!createResult.success) {
+    return NextResponse.json(
+      { success: false, error: createResult.error || "Failed to create work task" },
+      { status: 500 },
+    );
+  }
+  const created = { _id: createResult.documentId, ...doc } as any;
 
   let safeCustomerName = "";
   let safeCustomerPhone = "";
-  if (body?.customerRefId) {
+  if (customerRefId) {
     const customer = await sanityClient.fetch<any>(
       `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
-      { id: String(body.customerRefId) },
+      { id: customerRefId },
     );
     safeCustomerName = sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
     safeCustomerPhone = String(customer?.phone || "");

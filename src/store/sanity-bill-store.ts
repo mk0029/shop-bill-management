@@ -152,7 +152,7 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
     }
   },
 
-  // Create a new bill in Sanity
+  // Create a new bill via the secure mutation route (writes to the billing DB)
   createBill: async (billData) => {
     set({ loading: true, error: null });
 
@@ -164,72 +164,20 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
         updatedAt: new Date().toISOString(),
       };
 
-      const result = await sanityClient.create(newBill);
-      // The real-time listener will automatically update the local state
-      try {
-        if (typeof window !== 'undefined') {
-          const actorId = (function getActorId(){
-            try {
-              const raw = getCookie('auth-storage');
-              if (!raw) return null as string | null;
-              let parsedUnknown: unknown = null;
-              try { parsedUnknown = JSON.parse(decodeURIComponent(raw)); } catch { parsedUnknown = null; }
-              const parsed = typeof parsedUnknown === 'object' && parsedUnknown !== null ? parsedUnknown as { state?: { user?: any } } : undefined;
-              const user = parsed?.state?.user as any;
-              return (user?.id as string) || (user?._id as string) || null;
-            } catch { return null as string | null; }
-          })();
-          const billId = String((result as any)?._id || '');
-          const billNo = String((result as any)?.billNumber || billData.billNumber || '');
-          const customerId = String((result as any)?.customer?._ref || billData.customer || '').trim();
-          const amount = Number((result as any)?.totalAmount || billData.totalAmount || 0);
-          const payStatus = String((result as any)?.paymentStatus || billData.paymentStatus || 'pending');
-          let customerName = '';
-          let customerPhone = '';
-          try {
-            if (customerId) {
-              const doc = await sanityClient.fetch<{ name?: string; phone?: string } | null>(
-                `*[_type=="user" && _id==$id][0]{name,phone}`,
-                { id: customerId },
-              );
-              customerName = String(doc?.name || '').trim();
-              customerPhone = String(doc?.phone || '').trim();
-            }
-          } catch {}
+      const res = await fetch('/api/mutations/bills/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bill: newBill }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || `Failed to create bill (${res.status})`);
+      }
+      const result = (json?.data || {}) as any;
 
-
-          const grossTotal = Number((result as any)?.totalAmount || billData.totalAmount || amount);
-          const discount = Number((result as any)?.discount || billData.discount || 0);
-          const paidAmt = Number((result as any)?.paidAmount || billData.paidAmount || 0);
-          const finalTotal = Math.max(0, grossTotal - discount);
-
-          emitWaEventClient('billing.created', {
-            billId,
-            billNumber: billNo,
-            customerId,
-            customerName,
-            customerPhone,
-            phone: customerPhone,
-            totalAmount: grossTotal,
-            discount,
-            finalTotal,
-            paidAmount: paidAmt,
-            balanceAmount: Number((result as any)?.balanceAmount || billData.balanceAmount || Math.max(0, finalTotal - paidAmt)),
-            paymentStatus: payStatus,
-            isFullyPaid: payStatus === 'paid',
-            dueDate: String((result as any)?.dueDate || billData.dueDate || ''),
-            loginUrl: customerPhone
-              ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(customerPhone)}`
-              : '',
-            updatedAt: new Date().toISOString(),
-            idempotencyKey: `billing.created:${billId || ''}`,
-          }).catch((e) => {
-            console.warn('[WA] billing.created event failed:', e);
-          });
-
-          // Notifications handled server-side by /api/mutations/bills/create/route.ts
-        }
-      } catch {}
+      // WA billing.created event + admin/customer notifications are dispatched
+      // server-side by the mutation route. The realtime listener / store refresh
+      // will surface the new bill.
       set({ loading: false });
       return result as Bill;
     } catch (error) {
@@ -304,7 +252,30 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
             }).catch(() => {});
           }
 
-          // Admin-wide notification excluding actor (customer notified server-side via PATCH route)
+          // Always notify customer generically
+          if (customerId) {
+            const billNo: string = (result as any)?.billNumber ?? prev?.billNumber ?? '';
+            fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                eventId: `billing.updated.${String((result as any)?._id ?? billId)}.customer`,
+                eventType: 'billing.updated',
+                title: 'Bill updated',
+                body: billNo ? `Bill ${billNo} was updated` : 'Your bill was updated',
+                userIds: [customerId],
+                data: {
+                  billId: String((result as any)?._id ?? billId),
+                  event: 'bill-updated',
+                  route: `/customer/bills?open=${encodeURIComponent(String((result as any)?._id ?? billId))}`,
+                  route_path: '/customer/bills',
+                },
+                sound: 'default',
+              }),
+            }).catch(() => {});
+          }
+
+          // Admin-wide notification excluding actor
           try {
             const actorId = (function getActorId(){
               try {
@@ -374,11 +345,16 @@ export const useSanityBillStore = create<BillState>((set, get) => ({
     }
   },
 
-  // Delete a bill in Sanity
+  // Delete a bill via the secure API route (billing DB)
   deleteBill: async (billId) => {
     try {
-      await sanityClient.delete(billId);
-      // The real-time listener will automatically update the local state
+      const res = await fetch(`/api/bills/${encodeURIComponent(String(billId))}`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json?.success === false) {
+        throw new Error(json?.error || `Failed to delete bill (${res.status})`);
+      }
       return true;
     } catch (error) {
       console.error("❌ Error deleting bill:", error);

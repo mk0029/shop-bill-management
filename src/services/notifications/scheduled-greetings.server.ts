@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient as getCommsClient } from "@/lib/sanity/client-factory";
 import { getActiveFcmTokensForUsers } from "@/lib/fcm/tokens.server";
 import { createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 import { sanitizeUserText } from "@/constants/defaults";
@@ -330,7 +331,7 @@ async function seedFestivalCalendar(year: number) {
   const now = new Date().toISOString();
   await Promise.allSettled(
     [...apiFestivals, ...fallbackFestivals].map((festival) =>
-      sanityClient.createIfNotExists({
+      getCommsClient("comms").createIfNotExists({
         _id: `festivalCalendar.${festival.date}.${festival.slug}`,
         _type: "festivalCalendar",
         name: festival.name,
@@ -346,14 +347,31 @@ async function seedFestivalCalendar(year: number) {
         notes: "Hindu festival greeting calendar. Edit this document if your regional observance date differs.",
         createdAt: now,
         updatedAt: now,
-      }),
+      }).catch(() => {}),
     ),
   );
 }
 
 async function festivalsForDate(localDate: string, year: number) {
   await seedFestivalCalendar(year);
-  return sanityClient.fetch<FestivalDoc[]>(
+  const festivals =
+    (await getCommsClient("comms")
+      .fetch<FestivalDoc[]>(
+        `*[_type=="festivalCalendar" && isActive != false && date==$date] | order(name asc) {
+      _id,
+      name,
+      date,
+      year,
+      title,
+      body,
+      emoji,
+      slug
+    }`,
+        { date: localDate },
+      )
+      .catch(() => [])) || [];
+  if (festivals.length) return festivals;
+  const primary = await sanityClient.fetch<FestivalDoc[]>(
     `*[_type=="festivalCalendar" && isActive != false && date==$date] | order(name asc) {
       _id,
       name,
@@ -366,6 +384,7 @@ async function festivalsForDate(localDate: string, year: number) {
     }`,
     { date: localDate },
   );
+  return primary || [];
 }
 
 async function hasUserLog(input: {
@@ -375,13 +394,15 @@ async function hasUserLog(input: {
   type: ScheduledNotificationType;
   festivalSlug?: string;
 }) {
-  const existing = await sanityClient.fetch<string | null>(
-    `*[_type=="scheduledNotificationLog" && userId==$userId && notificationType==$type && (
+  const query = `*[_type=="scheduledNotificationLog" && userId==$userId && notificationType==$type && (
       ($type == "daily_good_morning" && date==$date) ||
       ($type == "hindu_festival_greeting" && festivalSlug==$festivalSlug && year==$year)
-    )][0]._id`,
-    input,
-  );
+    )][0]._id`;
+  const existing =
+    (await getCommsClient("comms")
+      .fetch<string | null>(query, input)
+      .catch(() => null)) ||
+    (await sanityClient.fetch<string | null>(query, input).catch(() => null));
   return Boolean(existing);
 }
 
@@ -398,35 +419,37 @@ async function writeLog(input: {
   token?: { _id?: string; token?: string; deviceId?: string; deviceName?: string };
 }) {
   const festivalSlug = input.festival?.slug?.current || "";
-  await sanityClient.createIfNotExists({
-    _id: logDocId({
+  await getCommsClient("comms")
+    .createIfNotExists({
+      _id: logDocId({
+        userId: input.user._id,
+        date: input.date,
+        year: input.year,
+        type: input.type,
+        festivalSlug,
+        tokenDocId: input.token?._id,
+      }),
+      _type: "scheduledNotificationLog",
       userId: input.user._id,
+      user: { _type: "reference", _ref: input.user._id },
+      notificationType: input.type,
+      greetingDate: input.date,
       date: input.date,
       year: input.year,
-      type: input.type,
+      festivalName: input.festival?.name || "",
       festivalSlug,
-      tokenDocId: input.token?._id,
-    }),
-    _type: "scheduledNotificationLog",
-    userId: input.user._id,
-    user: { _type: "reference", _ref: input.user._id },
-    notificationType: input.type,
-    greetingDate: input.date,
-    date: input.date,
-    year: input.year,
-    festivalName: input.festival?.name || "",
-    festivalSlug,
-    timezone: input.timezone,
-    fcmToken: input.token?.token || "",
-    tokenDocId: input.token?._id || "",
-    deviceId: input.token?.deviceId || "",
-    deviceName: input.token?.deviceName || "",
-    status: input.status,
-    reason: input.reason || "",
-    notificationId: input.notificationId || "",
-    sentAt: input.status === "sent" ? new Date().toISOString() : undefined,
-    createdAt: new Date().toISOString(),
-  });
+      timezone: input.timezone,
+      fcmToken: input.token?.token || "",
+      tokenDocId: input.token?._id || "",
+      deviceId: input.token?.deviceId || "",
+      deviceName: input.token?.deviceName || "",
+      status: input.status,
+      reason: input.reason || "",
+      notificationId: input.notificationId || "",
+      sentAt: input.status === "sent" ? new Date().toISOString() : undefined,
+      createdAt: new Date().toISOString(),
+    })
+    .catch(() => {});
 }
 
 function dailyMessage(user: GreetingUser) {

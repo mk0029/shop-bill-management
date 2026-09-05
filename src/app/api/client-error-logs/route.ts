@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument } from "@/lib/sanity/write-router";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +41,11 @@ export async function POST(request: NextRequest) {
       receivedAt: now,
     };
 
-    await sanityClient.create(doc);
-    return NextResponse.json({ success: true });
+    const result = await createDocument(doc, "error-logs");
+    if (!result.success) {
+      throw new Error(result.error || "Failed to persist client error");
+    }
+    return NextResponse.json({ success: true, id: result.documentId });
   } catch (error) {
     console.error("[client-error-logs] Failed to persist client error", error);
     return NextResponse.json({ success: false }, { status: 202 });
@@ -53,9 +58,7 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(Number(searchParams.get("limit") || 50), 100);
   const filter = oppoOnly ? "&& isOppo == true" : "";
 
-  try {
-    const logs = await sanityClient.fetch(
-      `*[_type == "clientErrorLog" ${filter}] | order(receivedAt desc)[0...$limit] {
+  const query = `*[_type == "clientErrorLog" ${filter}] | order(receivedAt desc)[0...$limit] {
         _id,
         source,
         message,
@@ -73,9 +76,25 @@ export async function GET(request: NextRequest) {
         extra,
         occurredAt,
         receivedAt
-      }`,
-      { limit },
-    );
+      }`;
+
+  try {
+    const [primaryLogs, commsLogs] = await Promise.all([
+      sanityClient.fetch(query, { limit }).catch(() => []),
+      getSanityClient("comms").fetch(query, { limit }).catch(() => []),
+    ]);
+    const byId = new Map<string, unknown>();
+    for (const log of [...(commsLogs || []), ...(primaryLogs || [])]) {
+      const entry = log as { _id?: string };
+      if (entry?._id && !byId.has(entry._id)) byId.set(entry._id, log);
+    }
+    const logs = Array.from(byId.values())
+      .sort((a, b) => {
+        const ta = (a as { receivedAt?: string })?.receivedAt || "";
+        const tb = (b as { receivedAt?: string })?.receivedAt || "";
+        return tb.localeCompare(ta);
+      })
+      .slice(0, limit);
     return NextResponse.json({ success: true, logs });
   } catch (error) {
     console.error("[client-error-logs] Failed to read client errors", error);

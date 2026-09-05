@@ -5,7 +5,6 @@ import {
   updateOffer,
   deleteOffer,
 } from '@/lib/offer-service'
-import { sendNewOfferNotification } from '@/lib/offer-notifications'
 import { sanityClient } from '@/lib/sanity'
 import { isAdminLike } from '@/lib/rbac'
 

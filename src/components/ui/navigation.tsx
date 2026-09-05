@@ -28,8 +28,6 @@ import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw.js";
 
 import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3.js";
 import Tag from "lucide-react/dist/esm/icons/tag.js";
-import ShoppingCart from "lucide-react/dist/esm/icons/shopping-cart.js";
-import Store from "lucide-react/dist/esm/icons/store.js";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./button";
@@ -70,36 +68,15 @@ const adminNavigation: NavigationItem[] = [
   { label: "Offers", href: "/admin/offers", icon: Tag },
   { label: "Work List", href: "/dashboard/work-list", icon: FileText },
   {
-    label: "Online Shop",
-    href: "/admin/shop",
-    icon: ShoppingCart,
-    children: [
-      { label: "Dashboard", href: "/admin/shop", icon: Store },
-      { label: "Products", href: "/admin/shop/products", icon: Package },
-      { label: "Categories", href: "/admin/shop/categories", icon: Tag },
-    ],
-  },
-  {
     label: "Other",
     href: "/admin/settings",
     icon: Settings,
     children: [
       { label: "Settings", href: "/admin/settings", icon: Settings },
-      { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
       {
         label: "Send Notifications",
         href: "/admin/notifications",
         icon: Megaphone,
-      },
-      {
-        label: "WhatsApp Queue",
-        href: "/admin/whatsapp-queue",
-        icon: RefreshCw,
-      },
-      {
-        label: "Stock History",
-        href: "/admin/inventory/history",
-        icon: History,
       },
     ],
   },
@@ -693,55 +670,55 @@ export function Navigation() {
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="fixed right-0 top-0 z-[210] flex h-[var(--app-vh,100dvh)] w-[85vw] max-w-sm flex-col border-l border-gray-800 bg-gray-900/94 shadow-2xl shadow-black/40 backdrop-blur-2xl xl:hidden">
+                className="fixed right-0 top-0 z-[210] flex h-[var(--app-vh,100dvh)] w-[85vw] max-w-sm flex-col border-l border-gray-800 bg-gray-900/94 shadow-2xl shadow-black/40 backdrop-blur-2xl xl:hidden"
+              >
                 <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b border-gray-800">
                   <h2 className="text-xl font-bold text-white">Menu</h2>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="hover:bg-gray-800">
+                    className="hover:bg-gray-800"
+                  >
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
 
                 <div className="sm:p-4 p-3 space-y-2 flex-1 overflow-auto flex flex-col grow">
                   {navigation.map((item) => renderNavigationItem(item, true))}
-                </div>
-
-                <div className="border-t border-gray-800">
-                  <div className="px-4 py-3">
+                  <div className="pt-2 px-4">
                     <OnlineStatusToggle />
                   </div>
-                  <div className="border-t border-gray-800/50 p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-                        <SanityImage
-                          src={
-                            (user as any)?.profileImage ||
-                            (user as any)?.profileImageUrl
-                          }
-                          alt={displayName || "Profile"}
-                          width={40}
-                          height={40}
-                          className="w-full h-full object-cover"
-                          fallback={<User className="w-5 h-5 text-white" />}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-white font-medium">{displayName}</p>
-                        <p className="text-gray-400 text-sm">
-                          {role === "super_admin"
-                            ? "Super Admin"
-                            : role === "admin"
-                              ? "Administrator"
-                              : role === "technician"
-                                ? "Technician"
-                                : "User"}
-                        </p>
-                      </div>
-                      {renderAccountMenu()}
+                </div>
+
+                <div className="p-4 border-t border-gray-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+                      <SanityImage
+                        src={
+                          (user as any)?.profileImage ||
+                          (user as any)?.profileImageUrl
+                        }
+                        alt={displayName || "Profile"}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        fallback={<User className="w-5 h-5 text-white" />}
+                      />
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-white font-medium">{displayName}</p>
+                      <p className="text-gray-400 text-sm">
+                        {role === "super_admin"
+                          ? "Super Admin"
+                          : role === "admin"
+                            ? "Administrator"
+                            : role === "technician"
+                              ? "Technician"
+                              : "User"}
+                      </p>
+                    </div>
+                    {renderAccountMenu()}
                   </div>
                 </div>
               </motion.div>
@@ -754,7 +731,8 @@ export function Navigation() {
       <nav className="fixed left-0 top-0 z-50 hidden h-[var(--app-vh,100dvh)] w-[var(--admin-nav-w,16rem)] min-w-[var(--admin-nav-w,16rem)] flex-col overflow-hidden border-r-[0.5px] border-solid border-r-white/10 backdrop-blur-[2px] transition-[width,min-width] duration-200 xl:flex">
         <div className="shrink-0 p-4 border-b border-gray-800">
           <div
-            className={`flex items-center ${isDesktopNavMinimized ? "justify-center" : "gap-3"}`}>
+            className={`flex items-center ${isDesktopNavMinimized ? "justify-center" : "gap-3"}`}
+          >
             <div className="h-10 w-10 shrink-0 rounded-lg bg-blue-600 p-1.5">
               <Image
                 src="/je-p-48.png"
@@ -778,7 +756,8 @@ export function Navigation() {
                   type="button"
                   onClick={() => setIsDesktopNavMinimized((v) => !v)}
                   className="ml-auto rounded-md p-1.5 text-gray-300 hover:bg-gray-800"
-                  title="Minimize sidebar">
+                  title="Minimize sidebar"
+                >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
               </>
@@ -790,7 +769,8 @@ export function Navigation() {
                 type="button"
                 onClick={() => setIsDesktopNavMinimized(false)}
                 className="rounded-md p-1.5 text-gray-300 hover:bg-gray-800"
-                title="Expand sidebar">
+                title="Expand sidebar"
+              >
                 <PanelLeftOpen className="h-4 w-4" />
               </button>
             </div>
@@ -799,45 +779,42 @@ export function Navigation() {
 
         <div className="min-h-0 flex-1 overflow-y-auto touch-pan-y sm:p-4 p-3 space-y-2">
           {navigation.map((item) => renderNavigationItem(item))}
+          {!isDesktopNavMinimized && (
+            <div className="pt-2">
+              <OnlineStatusToggle />
+            </div>
+          )}
         </div>
 
-        <div className="shrink-0 border-t border-gray-800">
-          {!isDesktopNavMinimized && (
-            // <div className="px-4 py-3">
-            <OnlineStatusToggle />
-            // </div>
-          )}
-          <div className="border-t border-gray-800/50 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
-                <SanityImage
-                  src={
-                    (user as any)?.profileImage ||
-                    (user as any)?.profileImageUrl
-                  }
-                  alt={displayName || "Profile"}
-                  width={40}
-                  height={40}
-                  className="w-full h-full object-cover"
-                  fallback={<User className="w-5 h-5 text-white" />}
-                />
-              </div>
-              {!isDesktopNavMinimized && (
-                <div className="min-w-0">
-                  <p className="text-white font-medium">{displayName}</p>
-                  <p className="text-gray-400 text-sm">
-                    {role === "super_admin"
-                      ? "Super Admin"
-                      : role === "admin"
-                        ? "Administrator"
-                        : role === "technician"
-                          ? "Technician"
-                          : "User"}
-                  </p>
-                </div>
-              )}
-              {renderAccountMenu(isDesktopNavMinimized)}
+        <div className="shrink-0 border-t border-gray-800 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <SanityImage
+                src={
+                  (user as any)?.profileImage || (user as any)?.profileImageUrl
+                }
+                alt={displayName || "Profile"}
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+                fallback={<User className="w-5 h-5 text-white" />}
+              />
             </div>
+            {!isDesktopNavMinimized && (
+              <div className="min-w-0">
+                <p className="text-white font-medium">{displayName}</p>
+                <p className="text-gray-400 text-sm">
+                  {role === "super_admin"
+                    ? "Super Admin"
+                    : role === "admin"
+                      ? "Administrator"
+                      : role === "technician"
+                        ? "Technician"
+                        : "User"}
+                </p>
+              </div>
+            )}
+            {renderAccountMenu(isDesktopNavMinimized)}
           </div>
         </div>
       </nav>
@@ -857,7 +834,8 @@ export function Navigation() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsMobileMenuOpen(true)}
-                  className="xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2 relative">
+                  className="xl:hidden bg-gray-900 border border-gray-700 max-sm:!py-2 relative"
+                >
                   <Menu className="w-5 h-5" />
                   {hasChatUnread && (
                     <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse" />

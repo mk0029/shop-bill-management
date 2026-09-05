@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument, updateDocument } from "@/lib/sanity/write-router";
 import { getServerAuth } from "@/lib/server-auth";
 import { getActiveTokenStringsForUsers } from "@/lib/fcm/tokens.server";
 import { sendFcmToTokens } from "@/services/notifications/fcm-sender.server";
+
+type NotificationCampaignDoc = {
+  _id: string;
+  title?: string;
+  description?: string;
+  audience?: BroadcastAudience;
+  category?: string;
+  imageUrl?: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+  expiresAt?: string;
+  targetUserIds?: string[];
+  createdBy?: { _ref?: string };
+};
 
 type BroadcastAudience = "customers" | "admins" | "all";
 
@@ -73,24 +89,17 @@ export async function GET(req: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const campaigns = await sanityClient.fetch<Array<{
-      _id: string;
-      title?: string;
-      description?: string;
-      audience?: BroadcastAudience;
-      category?: string;
-      imageUrl?: string;
-      ctaLabel?: string;
-      ctaUrl?: string;
-      expiresAt?: string;
-      targetUserIds?: string[];
-      createdBy?: { _ref?: string };
-    }>>(
-      `*[_type=="notificationCampaign" && status=="queued" && scheduledAt <= $now][0...20]{
+    const campaignQuery = `*[_type=="notificationCampaign" && status=="queued" && scheduledAt <= $now][0...20]{
         _id,title,description,audience,category,imageUrl,ctaLabel,ctaUrl,expiresAt,targetUserIds,createdBy
-      }`,
-      { now },
-    );
+      }`;
+    const commsCampaigns = (await getSanityClient("comms")
+      .fetch<NotificationCampaignDoc[]>(campaignQuery, { now })
+      .catch(() => [])) || [];
+    const campaigns = commsCampaigns.length
+      ? commsCampaigns
+      : ((await sanityClient
+          .fetch<NotificationCampaignDoc[]>(campaignQuery, { now })
+          .catch(() => [])) || []);
 
     const results: Array<{
       campaignId: string;
@@ -116,15 +125,16 @@ export async function GET(req: NextRequest) {
         body: String(campaign.description || ""),
         data: notificationData,
       });
-      await sanityClient
-        .patch(campaign._id)
-        .set({
+      await updateDocument(
+        campaign._id,
+        {
           status: result.ok ? "sent" : "failed",
           publishedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           ...(!result.ok ? { error: result.errorMessage || "FCM send failed" } : {}),
-        })
-        .commit();
+        },
+        "notifications",
+      ).catch(() => {});
       results.push({ campaignId: campaign._id, success: result.ok });
     }
 
@@ -190,7 +200,7 @@ export async function POST(req: NextRequest) {
       : new Date(now.getTime() + expiresInHours * 60 * 60 * 1000).toISOString();
 
     if (isFutureDate(scheduledAt)) {
-      const campaign = await sanityClient.create({
+      const campaign = await createDocument({
         _type: "notificationCampaign",
         title,
         description: message,
@@ -206,11 +216,14 @@ export async function POST(req: NextRequest) {
         createdBy: actorUserId ? { _type: "reference", _ref: actorUserId } : undefined,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
-      });
+      } as unknown as Record<string, unknown>, "notifications");
+      if (!campaign.success) {
+        throw new Error(campaign.error || "Failed to create campaign");
+      }
       return NextResponse.json({
         success: true,
         scheduled: true,
-        campaignId: campaign._id,
+        campaignId: campaign.documentId,
         targetCount: targetUserIds.length,
       });
     }

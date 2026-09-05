@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { updateDocument, deleteDocument } from "@/lib/sanity/write-router";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getServerAuth } from "@/lib/server-auth";
 import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
@@ -134,6 +136,71 @@ async function sendTechnicianTaskAssigned(args: {
   });
 }
 
+function normalizeOpsTask(raw: any) {
+  const assignedTechId =
+    typeof raw?.assignedTechnician === "string"
+      ? raw.assignedTechnician
+      : raw?.assignedTechnician?._id || raw?.assignedTechnician?._ref || raw?.assignedTechnicianId || "";
+  const customerRefId =
+    typeof raw?.customerRef === "string"
+      ? raw.customerRef
+      : raw?.customerRefId || raw?.customerRef?._ref || raw?.customerRef?._id || "";
+  return {
+    ...raw,
+    customerRef:
+      raw?.customerRef && typeof raw.customerRef === "object"
+        ? raw.customerRef
+        : customerRefId
+          ? { _ref: customerRefId, _id: customerRefId }
+          : undefined,
+    customerRefId,
+    assignedTechnician:
+      raw?.assignedTechnician && typeof raw.assignedTechnician === "object"
+        ? raw.assignedTechnician
+        : { _id: assignedTechId },
+    assignedTechnicianId: assignedTechId,
+    assignedTechnicianName: raw?.assignedTechnicianName || "",
+  };
+}
+
+async function fetchTaskWithSource(id: string): Promise<{ doc: any; sourceDb: "primary" | "operations" } | null> {
+  const opsDoc = await getSanityClient("operations")
+    .fetch<any>(`*[_type=="workTask" && _id==$id][0]`, { id })
+    .catch(() => null);
+  if (opsDoc?._id) return { doc: normalizeOpsTask(opsDoc), sourceDb: "operations" };
+
+  const legacy = await sanityClient
+    .fetch<any>(
+      `*[_type=="workTask" && _id==$id][0]{
+        title, description, priority, status, issueCategory, dueAt,
+        repairRequestId, repairDetails, customerNotes, requestSource,
+        completionNotes, cancellationReason, holdReason, createdAt, updatedAt,
+        repairRequest->{_id,requestId},
+        assignedTechnician->{_id,name}, assignedTechnicianName, customerRef
+      }`,
+      { id },
+    )
+    .catch(() => null);
+  return legacy?._id ? { doc: legacy, sourceDb: "primary" } : null;
+}
+
+async function fetchLinkedRepairRequest(taskId: string, requestId: string) {
+  const legacy = await sanityClient
+    .fetch<any>(
+      `*[_type=="repairRequest" && (workTask._ref==$taskId || requestId==$requestId)][0]{_id,requestId}`,
+      { taskId, requestId },
+    )
+    .catch(() => null);
+  if (legacy?._id) return legacy;
+  const opsResult = await getSanityClient("operations")
+    .fetch<any>(
+      `*[_type=="repairRequest" && (workTaskId==$taskId || requestId==$requestId)][0]{_id,requestId}`,
+      { taskId, requestId },
+    )
+    .catch(() => null);
+  return opsResult?._id ? opsResult : null;
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await getServerAuth();
   if (!auth.isAuthenticated || !canAccess(auth.role)) {
@@ -143,8 +210,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const actorUserId = String(auth.userId || "").trim();
   const { id } = await params;
   const body = await req.json().catch(() => ({} as any));
-  const existing = await sanityClient.fetch<any>(`*[_type=="workTask" && _id==$id][0]`, { id });
-  if (!existing) return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+  const fetched = await fetchTaskWithSource(id);
+  if (!fetched) return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+  const existing = fetched.doc;
+  const sourceDb = fetched.sourceDb;
 
   const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (body?.title != null) patch.title = String(body.title || "").trim();
@@ -173,7 +242,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!tech || !["technician", "admin", "super_admin"].includes(String(tech.role || ""))) {
       return NextResponse.json({ success: false, error: "Assignee must be Admin / Super Admin / Technician" }, { status: 400 });
     }
-    patch.assignedTechnician = { _type: "reference", _ref: assignedTechnicianId };
+    patch.assignedTechnician = assignedTechnicianId;
     patch.assignedTechnicianName = tech.name || "";
   }
 
@@ -187,7 +256,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ success: false, error: "Hold reason is required" }, { status: 400 });
   }
 
-  const updated = await sanityClient.patch(id).set(patch).commit();
+  let updateResult: { success: boolean; error?: string; documentId?: string } | null = null;
+  let updated: any;
+  if (sourceDb === "primary") {
+    try {
+      updated = await sanityClient.patch(id).set(patch).commit();
+    } catch (err: any) {
+      return NextResponse.json(
+        { success: false, error: err?.message || "Failed to update work task" },
+        { status: 500 },
+      );
+    }
+  } else {
+    updateResult = await updateDocument(id, patch, "work-tasks");
+    if (!updateResult.success) {
+      return NextResponse.json(
+        { success: false, error: updateResult.error || "Failed to update work task" },
+        { status: 500 },
+      );
+    }
+    updated = { _id: id, ...patch } as any;
+  }
 
   if (
     body?.assignedTechnicianId &&
@@ -378,27 +467,17 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
   const actorUserId = String(auth.userId || "").trim();
   const { id } = await params;
-  const existing = await sanityClient.fetch<any>(
-    `*[_type=="workTask" && _id==$id][0]{
-      title, description, priority, status, issueCategory, dueAt,
-      repairRequestId, repairDetails, customerNotes, requestSource,
-      completionNotes, cancellationReason, holdReason, createdAt, updatedAt,
-      repairRequest->{_id,requestId},
-      assignedTechnician->{_id,name}, assignedTechnicianName, customerRef
-    }`,
-    { id },
-  );
-  if (!existing) return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+  const fetched = await fetchTaskWithSource(id);
+  if (!fetched) return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+  const existing = fetched.doc;
+  const sourceDb = fetched.sourceDb;
 
   const now = new Date().toISOString();
   const actor = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{name,role}`, { id: actorUserId });
   const linkedRepairRequest =
     existing?.repairRequest?._id
       ? existing.repairRequest
-      : await sanityClient.fetch<any>(
-          `*[_type=="repairRequest" && (workTask._ref==$taskId || requestId==$requestId)][0]{_id,requestId}`,
-          { taskId: id, requestId: String(existing?.repairRequestId || "") },
-        );
+      : await fetchLinkedRepairRequest(id, String(existing?.repairRequestId || ""));
 
   if (linkedRepairRequest?._id) {
     const repairPatch: Record<string, unknown> = {
@@ -409,17 +488,30 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       updatedAt: now,
     };
     if (actorUserId) {
-      repairPatch.updatedBy = { _type: "reference", _ref: actorUserId };
+      repairPatch.updatedByUserId = actorUserId;
     }
-    await sanityClient
-      .patch(linkedRepairRequest._id)
-      .set(repairPatch)
-      .unset(["workTask"])
-      .commit();
+    if (sourceDb === "primary") {
+      try {
+        await sanityClient.patch(linkedRepairRequest._id).set(repairPatch).unset(["workTask"]).commit();
+      } catch {}
+    } else {
+      const repairUpdate = await updateDocument(linkedRepairRequest._id, repairPatch, "repair-requests");
+      if (repairUpdate.success) {
+        try {
+          await getSanityClient("operations").patch(linkedRepairRequest._id).unset(["workTask"]).commit();
+        } catch {}
+      }
+    }
   }
 
-  await sanityClient.delete(id);
-  const customerRefId = String(existing?.customerRef?._ref || existing?.customerRef?._id || "");
+  const deleteResult = await deleteDocument(id, "work-tasks");
+  if (!deleteResult.success && !deleteResult.error?.toLowerCase().includes("not found")) {
+    return NextResponse.json(
+      { success: false, error: deleteResult.error || "Failed to delete work task" },
+      { status: 500 },
+    );
+  }
+  const customerRefId = String(existing?.customerRefId || existing?.customerRef?._ref || existing?.customerRef?._id || "");
   if (customerRefId) {
     await publishWorkTaskShopChatEvent(req, {
       customerId: customerRefId,

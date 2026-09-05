@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 
 type ClearBody = {
   userId?: string;
@@ -26,34 +27,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const dps = [sanityClient, getSanityClient("comms")];
+    const dbExisting: string[][] = await Promise.all(
+      dps.map((client) =>
+        client
+          .fetch<string[]>(`*[_type == "notification"]{_id}._id`)
+          .then((ids) => (Array.isArray(ids) ? ids : []))
+          .catch(() => []),
+      ),
+    );
+
     let idsToClear = targetIds;
     if (!idsToClear.length) {
-      const allIds = await sanityClient.fetch<string[]>(
-        `*[_type == "notification"]{_id}._id`,
-      );
-      idsToClear = Array.isArray(allIds) ? allIds : [];
+      idsToClear = Array.from(new Set(dbExisting.flat()));
     }
 
     if (!idsToClear.length) {
       return NextResponse.json({ ok: true, cleared: 0 }, { status: 200 });
     }
 
-    const tx = sanityClient.transaction();
     const validIds = idsToClear.filter((id) => !id.includes(":") && !id.includes(".."));
-    for (const id of validIds) {
-      tx.patch(id, (p: any) => {
-        let patch = p.setIfMissing({
-          clearedByUserIds: [],
-          clearedByPhones: [],
-        });
-        if (userId) patch = patch.insert("after", "clearedByUserIds[-1]", [userId]);
-        if (phone) patch = patch.insert("after", "clearedByPhones[-1]", [phone]);
-        return patch;
-      });
-    }
-    if (validIds.length > 0) await tx.commit();
+    const validSet = new Set(validIds);
+    let cleared = 0;
 
-    return NextResponse.json({ ok: true, cleared: validIds.length, skipped: idsToClear.length - validIds.length }, { status: 200 });
+    for (let i = 0; i < dps.length; i++) {
+      const present = dbExisting[i].filter((id) => validSet.has(id));
+      if (!present.length) continue;
+      const tx = dps[i].transaction();
+      for (const id of present) {
+        tx.patch(id, (p: any) => {
+          let patch = p.setIfMissing({
+            clearedByUserIds: [],
+            clearedByPhones: [],
+          });
+          if (userId) patch = patch.insert("after", "clearedByUserIds[-1]", [userId]);
+          if (phone) patch = patch.insert("after", "clearedByPhones[-1]", [phone]);
+          return patch;
+        });
+      }
+      await tx.commit();
+      cleared += present.length;
+    }
+
+    return NextResponse.json({ ok: true, cleared, skipped: validIds.length - cleared }, { status: 200 });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { updateDocument } from '@/lib/sanity/write-router'
+import { getSanityClient } from '@/lib/sanity/client-factory'
 import { getServerAuth } from '@/lib/server-auth'
 import { notificationService } from '@/lib/notification-service'
 import { sendAppEmail } from '@/lib/email/server'
@@ -18,9 +20,11 @@ function siteUrl() {
 async function addAuditEntry(
   requestId: string,
   entry: { action: string; adminId: string; adminName: string; details: string },
+  inOps: boolean,
 ) {
-  await sanityClient.patch(requestId).setIfMissing({ auditTrail: [] }).commit()
-  await sanityClient
+  const client = inOps ? getSanityClient('operations') : sanityClient
+  await client.patch(requestId).setIfMissing({ auditTrail: [] }).commit()
+  await client
     .patch(requestId)
     .insert('after', 'auditTrail[-1]', [
       {
@@ -50,10 +54,21 @@ export async function POST(
 
     const { id } = await params
 
-    const requestData: Record<string, any> | null = await sanityClient.fetch(
-      `*[_type == "customerRequest" && _id == $id][0]`,
-      { id },
-    )
+    let requestData: Record<string, any> | null = null
+    let inOps = false
+    const opsClient = getSanityClient('operations')
+
+    requestData = await opsClient
+      .fetch(`*[_type == "customerRequest" && _id == $id][0]`, { id })
+      .catch(() => null)
+    if (requestData) {
+      inOps = true
+    } else {
+      requestData = await sanityClient.fetch(
+        `*[_type == "customerRequest" && _id == $id][0]`,
+        { id },
+      )
+    }
 
     if (!requestData) {
       return NextResponse.json({ success: false, error: 'Registration request not found' }, { status: 404 })
@@ -68,7 +83,12 @@ export async function POST(
 
     const expired = requestData.expiresAt && new Date(requestData.expiresAt).getTime() < Date.now()
     if (expired) {
-      await sanityClient.patch(id).set({ status: 'expired', resolvedAt: new Date().toISOString() }).commit()
+      const expiryPatch = { status: 'expired', resolvedAt: new Date().toISOString() }
+      if (inOps) {
+        await updateDocument(id, expiryPatch, 'customer-requests')
+      } else {
+        await sanityClient.patch(id).set(expiryPatch).commit()
+      }
       return NextResponse.json(
         { success: false, error: 'This request has expired and can no longer be approved.' },
         { status: 410 },
@@ -97,15 +117,21 @@ export async function POST(
         adminId: auth.userId!,
         adminName: (auth.user?.name as string) || 'Unknown',
         details: `Duplicate identity detected (${identityResult.conflict?.field}): email=${email || 'N/A'} phone=${canonicalPhone}`,
-      })
-      await sanityClient.patch(id).set({
+      }, inOps)
+      const duplicatePatch: Record<string, unknown> = {
         status: 'cancelled',
         cancelledReason: 'This registration request could not proceed because one or more identity fields already belong to an existing customer.',
         cancelledAt: new Date().toISOString(),
         cancelledBy: 'system',
         resolvedAt: new Date().toISOString(),
-        resolvedBy: { _ref: auth.userId!, _type: 'reference' },
-      }).commit()
+      }
+      if (inOps) {
+        duplicatePatch.resolvedByUserId = auth.userId!
+        await updateDocument(id, duplicatePatch, 'customer-requests')
+      } else {
+        duplicatePatch.resolvedBy = { _ref: auth.userId!, _type: 'reference' }
+        await sanityClient.patch(id).set(duplicatePatch).commit()
+      }
       return NextResponse.json(
         { success: false, error: 'A customer with these identity details already exists. Request has been cancelled.', code: 'DUPLICATE_IDENTITY' },
         { status: 409 },
@@ -157,20 +183,27 @@ export async function POST(
     const now = new Date().toISOString()
     const adminName = (auth.user?.name as string) || 'Unknown'
 
-    await sanityClient.patch(id).set({
+    const approvedPatch: Record<string, unknown> = {
       status: 'approved',
       resolvedAt: now,
-      resolvedBy: { _ref: auth.userId!, _type: 'reference' },
-      customerRef: { _ref: created._id, _type: 'reference' },
       customerId,
-    }).commit()
+    }
+    if (inOps) {
+      approvedPatch.resolvedByUserId = auth.userId!
+      approvedPatch.customerRefId = String(created?._id || '')
+      await updateDocument(id, approvedPatch, 'customer-requests')
+    } else {
+      approvedPatch.resolvedBy = { _ref: auth.userId!, _type: 'reference' }
+      approvedPatch.customerRef = { _ref: created._id, _type: 'reference' }
+      await sanityClient.patch(id).set(approvedPatch).commit()
+    }
 
     await addAuditEntry(id, {
       action: 'APPROVED',
       adminId: auth.userId!,
       adminName,
       details: `Customer created: ${name} (${customerId})`,
-    })
+    }, inOps)
 
     // Fire welcome delivery
     const loginUrl = `${siteUrl()}/login?phone=${encodeURIComponent(phone)}&passKey=${encodeURIComponent(secretKey)}`

@@ -6,8 +6,8 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Resource-Policy": "same-origin",
-  "Permissions-Policy":
-    "camera=(), microphone=(), geolocation=(), payment=(self), display-capture=(), clipboard-write=(self)",
+"Permissions-Policy":
+  "camera=(self), microphone=(self), geolocation=(), payment=(self), display-capture=(), clipboard-write=(self)",
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   Pragma: "no-cache",
   Expires: "0",

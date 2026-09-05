@@ -1,6 +1,8 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument } from "@/lib/sanity/write-router";
+import { queryDocuments } from "@/lib/sanity/read-router";
 import { getServerAuth } from "@/lib/server-auth";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { billPaymentNotes } from "@/lib/sanity-api-service";
@@ -8,13 +10,6 @@ import {
   createAndDispatchNotification,
   getActiveAdminUserIds,
 } from "@/services/notifications/notification-events.server";
-import {
-  toMoney,
-  fetchCustomerAdvanceBalance,
-  updateCustomerAdvanceBalance,
-  createAdvanceTransaction,
-  calculateAdvanceOnMultiPayment,
-} from "@/lib/customer-advance";
 
 function makeHash(str: string): string {
   let hash = 0;
@@ -80,7 +75,8 @@ export async function POST(req: Request) {
     const idempotencyKey = `billing.multiPaid:${customerId}:${makeHash(sortedIds)}:${receivedAmount}:${paymentDate || "today"}`;
 
     // Fetch all requested bills
-    const bills = await sanityClient.fetch(
+    const billingClient = getSanityClient('billing');
+    const bills = await billingClient.fetch(
       `*[_type == "bill" && _id in $billIds]{
         _id, billNumber, paymentStatus, paidAmount, balanceAmount,
         totalAmount, discount, serviceDate, createdAt,
@@ -116,52 +112,10 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
     const payDate = paymentDate || now;
 
-    // Fetch customer advance balance
-    const customerAdvanceBalance = await fetchCustomerAdvanceBalance(customerId);
-    const effectiveReceivedAmount = customAmountEnabled
-      ? Math.max(0, Number(receivedAmount || 0))
+    // Distribution logic
+    let remainingAmount = customAmountEnabled
+      ? Math.min(Math.max(0, Number(receivedAmount || 0)), totalPending)
       : totalPending;
-
-    // Validate: advance cannot exceed actual customer balance
-    if (customerAdvanceBalance < 0 || !Number.isFinite(customerAdvanceBalance)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid customer advance balance" },
-        { status: 400 },
-      );
-    }
-
-    // Calculate advance on multi-payment
-    const advanceCalc = calculateAdvanceOnMultiPayment({
-      customerAdvanceBalance,
-      totalPending,
-      receivedAmount: effectiveReceivedAmount,
-    });
-
-    // Validate: advanceApplied must never exceed customer's actual balance
-    if (advanceCalc.advanceApplied > customerAdvanceBalance + 0.01) {
-      return NextResponse.json(
-        { success: false, error: `advanceApplied (${advanceCalc.advanceApplied}) exceeds customer balance (${customerAdvanceBalance})` },
-        { status: 400 },
-      );
-    }
-    if (advanceCalc.advanceApplied < 0 || !Number.isFinite(advanceCalc.advanceApplied)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid advanceApplied value" },
-        { status: 400 },
-      );
-    }
-
-    // Distribution logic - use amount needed from customer (after advance) + customer payment
-    let distributionAmount: number;
-    if (customerAdvanceBalance > 0 && advanceCalc.advanceApplied > 0) {
-      distributionAmount = Math.min(effectiveReceivedAmount, totalPending);
-    } else {
-      distributionAmount = customAmountEnabled
-        ? Math.min(Math.max(0, Number(receivedAmount || 0)), totalPending)
-        : totalPending;
-    }
-
-    let remainingAmount = distributionAmount;
 
     const fullyPaidBills: string[] = [];
     let partialBillNumber: string | null = null;
@@ -170,28 +124,11 @@ export async function POST(req: Request) {
     const patchOps: Array<{ id: string; patches: any; amount: number }> = [];
     const notes: string[] = [];
 
-    // Track advance distribution per bill
-    let advanceRemaining = advanceCalc.advanceApplied;
-
     for (const bill of billsToPay) {
-      if (remainingAmount <= 0 && advanceRemaining <= 0) break;
+      if (remainingAmount <= 0) break;
 
       const due = getDueAmount(bill);
-      let appliedFromCash = 0;
-      let appliedFromAdvance = 0;
-
-      if (advanceRemaining > 0) {
-        appliedFromAdvance = Math.min(advanceRemaining, due);
-        advanceRemaining -= appliedFromAdvance;
-      }
-
-      const remainingDue = due - appliedFromAdvance;
-      if (remainingDue > 0 && remainingAmount > 0) {
-        appliedFromCash = Math.min(remainingAmount, remainingDue);
-        remainingAmount -= appliedFromCash;
-      }
-
-      const applied = appliedFromCash + appliedFromAdvance;
+      const applied = Math.min(remainingAmount, due);
       if (applied <= 0) continue;
 
       const newPaid = Number(bill.paidAmount || 0) + applied;
@@ -201,23 +138,17 @@ export async function POST(req: Request) {
       const discount = Number(bill.discount || 0);
       const grandTotal = Math.max(0, total - discount);
 
-      const patches: any = {
-        paidAmount: newPaid,
-        balanceAmount: Math.round(newDue * 100) / 100,
-        paymentStatus: isFullyPaid ? "paid" : "partial",
-        paymentDate: payDate,
-        paymentMethod: paymentMode,
-        updatedAt: now,
-      };
-
-      if (appliedFromAdvance > 0) {
-        patches.advanceApplied = appliedFromAdvance;
-      }
-
       patchOps.push({
         id: bill._id,
         amount: applied,
-        patches,
+        patches: {
+          paidAmount: newPaid,
+          balanceAmount: Math.round(newDue * 100) / 100,
+          paymentStatus: isFullyPaid ? "paid" : "partial",
+          paymentDate: payDate,
+          paymentMethod: paymentMode,
+          updatedAt: now,
+        },
       });
 
       if (isFullyPaid) {
@@ -230,6 +161,7 @@ export async function POST(req: Request) {
       }
 
       totalApplied += applied;
+      remainingAmount -= applied;
     }
 
     if (patchOps.length === 0) {
@@ -240,11 +172,8 @@ export async function POST(req: Request) {
     }
 
     // Generate smart note
-    const isAdvanceOnly = advanceCalc.advanceApplied > 0 && effectiveReceivedAmount === 0 && Number(receivedAmount) === 0;
     const smartNote = note || [
-      isAdvanceOnly
-        ? `Applied \u20b9${advanceCalc.advanceApplied.toLocaleString()} from customer's advance balance.`
-        : `Received \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()} from customer.`,
+      `Received \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()} from customer.`,
       `Auto-adjusted against oldest pending bills.`,
       fullyPaidBills.length > 0 ? `Fully paid: ${fullyPaidBills.join(", ")}.` : "",
       partialBillNumber ? `Partially paid ${partialBillNumber} with \u20b9${partialApplied.toLocaleString()}.` : "",
@@ -254,8 +183,8 @@ export async function POST(req: Request) {
     const customerDoc = billsToPay[0]?.customer || {};
 
     // Calculate total outstanding across ALL customer bills (BEFORE payment patch)
-    const allCustomerBills = await sanityClient.fetch(
-      `*[_type == "bill" && customer._ref == $customerId]{
+    const allCustomerBills = await billingClient.fetch(
+      `*[_type == "bill" && (customer._ref == $customerId || customer == $customerId || customer._id == $customerId)]{
         _id, totalAmount, paidAmount, discount, balanceAmount, paymentStatus
       }`,
       { customerId }
@@ -273,7 +202,7 @@ export async function POST(req: Request) {
     const remainingOutstanding = Math.max(0, totalOutstandingBeforePayment - totalApplied);
 
     // Execute in Sanity transaction
-    const tx = sanityClient.transaction();
+    const tx = billingClient.transaction();
     for (const op of patchOps) {
       tx.patch(op.id, (p: any) => p.set(op.patches));
     }
@@ -291,21 +220,27 @@ export async function POST(req: Request) {
       };
     });
 
-    // Create ONE cashbook entry instead of many (batch existence check)
+    // Create ONE cashbook entry instead of many
     try {
-      const billRefs = appliedBillsData.map(ab => ab.billRef?._ref).filter(Boolean);
-      const existingEntries = billRefs.length ? await sanityClient.fetch(
-        `*[_type == "cashBookEntry" && bill._ref in $billRefs][0]._id`,
-        { billRefs }
-      ) : null;
+      let anyAlreadyHasEntry = false;
+      for (const ab of appliedBillsData) {
+        const billRef = ab.billRef?._ref;
+        if (!billRef) continue;
+        const existing = await queryDocuments(
+          `*[_type == "cashBookEntry" && bill._ref == $billRef][0]._id`,
+          { billRef },
+          'cashbook'
+        );
+        if (existing.data && existing.data.length > 0) { anyAlreadyHasEntry = true; break; }
+      }
 
-      if (!existingEntries) {
+      if (!anyAlreadyHasEntry) {
         const entryNotes = billPaymentNotes({
           billCount: patchOps.length,
           paymentStatus: fullyPaidBills.length === patchOps.length ? 'paid' : 'partial',
         });
 
-        await sanityClient.create({
+        await createDocument({
           _type: "cashBookEntry",
           user: { _type: "reference", _ref: customerId },
           userName: customerDoc?.name || "Customer",
@@ -322,46 +257,10 @@ export async function POST(req: Request) {
           partialCount: partialBillNumber ? 1 : 0,
           createdAt: payDate,
           updatedAt: now,
-        });
+        }, 'cashbook');
       }
     } catch (e) {
       console.error("[PayMultiple] cashbook entry creation failed:", e);
-    }
-
-    // Update customer advance balance
-    if (advanceCalc.advanceCreated > 0) {
-      (async () => {
-        try {
-          await updateCustomerAdvanceBalance(customerId, advanceCalc.advanceCreated);
-          await createAdvanceTransaction({
-            customerId,
-            amount: advanceCalc.advanceCreated,
-            type: "created",
-            reason: "excess_payment",
-            reference: `Bulk payment (${fullyPaidBills.length} bills)`,
-            createdBy: actorUserId || "system",
-          });
-        } catch (err) {
-          console.error("[Advance] Failed to create advance:", err);
-        }
-      })();
-    }
-    if (advanceCalc.advanceApplied > 0) {
-      (async () => {
-        try {
-          await updateCustomerAdvanceBalance(customerId, -advanceCalc.advanceApplied);
-          await createAdvanceTransaction({
-            customerId,
-            amount: advanceCalc.advanceApplied,
-            type: "used",
-            reason: "applied_to_bill",
-            reference: `Bulk payment (${fullyPaidBills.length} bills)`,
-            createdBy: actorUserId || "system",
-          });
-        } catch (err) {
-          console.error("[Advance] Failed to apply advance:", err);
-        }
-      })();
     }
 
     // ONE combined WhatsApp event (fire-and-forget)
@@ -389,8 +288,6 @@ export async function POST(req: Request) {
       totalOutstandingBefore: totalOutstandingBeforePayment,
       fullyPaidCount: fullyPaidBills.length,
       partialCount: partialBillNumber ? 1 : 0,
-      advanceApplied: advanceCalc.advanceApplied || 0,
-      advanceCreated: advanceCalc.advanceCreated || 0,
       paymentMode,
       paymentDate: payDate,
       paidByAdmin: actorUserId,
@@ -425,8 +322,6 @@ export async function POST(req: Request) {
             fullyPaidCount: fullyPaidBills.length,
             partialCount: partialBillNumber ? 1 : 0,
             paymentMode,
-            ...(advanceCalc.advanceApplied > 0 ? { advanceApplied: advanceCalc.advanceApplied } : {}),
-            ...(advanceCalc.advanceCreated > 0 ? { advanceCreated: advanceCalc.advanceCreated } : {}),
             route: adminRoute,
             route_path: adminRoute,
           },
@@ -450,24 +345,18 @@ export async function POST(req: Request) {
           actorUserId,
           userIds: [customerId],
           title: "Payment Received Successfully",
-          body: advanceCalc.advanceApplied > 0 && effectiveReceivedAmount === 0
-            ? `Dear ${customerDisplayName(customerDoc)}, your advance balance of \u20b9${advanceCalc.advanceApplied.toLocaleString()} has been applied to your pending bill(s). ${fullyPaidText} ${partialText} ${remainingText} Thank you, Jambh Electricals`
-            : `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. ${fullyPaidText} ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment, Jambh Electricals`,
+          body: `Dear ${customerDisplayName(customerDoc)}, we have received your payment of \u20b9${(customAmountEnabled ? Number(receivedAmount) : totalPending).toLocaleString()}. ${fullyPaidText} ${partialText} ${remainingText} Payment Mode: ${paymentMode}. Thank you for your payment, Jambh Electricals`,
           data: {
             customerId,
             billNumbersFullyPaid: fullyPaidBills.join(","),
             billNumberPartiallyPaid: partialBillNumber || "",
-            totalReceived: customAmountEnabled
-              ? (advanceCalc.advanceApplied > 0 && Number(receivedAmount) === 0 ? totalApplied : Number(receivedAmount))
-              : totalPending,
+            totalReceived: customAmountEnabled ? Number(receivedAmount) : totalPending,
             totalApplied,
             totalOutstandingBefore: totalOutstandingBeforePayment,
             remainingOutstanding,
             fullyPaidCount: fullyPaidBills.length,
             partialCount: partialBillNumber ? 1 : 0,
             paymentMode,
-            ...(advanceCalc.advanceApplied > 0 ? { advanceApplied: advanceCalc.advanceApplied } : {}),
-            ...(advanceCalc.advanceCreated > 0 ? { advanceCreated: advanceCalc.advanceCreated } : {}),
             route: customerRoute,
             route_path: customerRoute,
           },
@@ -486,9 +375,7 @@ export async function POST(req: Request) {
         fullyPaidBills,
         partiallyPaidBill: partialBillNumber,
         partialApplied,
-        totalReceived: customAmountEnabled
-          ? (advanceCalc.advanceApplied > 0 && Number(receivedAmount) === 0 ? totalApplied : Number(receivedAmount))
-          : totalPending,
+        totalReceived: customAmountEnabled ? Number(receivedAmount) : totalPending,
         totalApplied,
         totalOutstandingBefore: totalOutstandingBeforePayment,
         remainingOutstanding,

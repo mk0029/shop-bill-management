@@ -41,6 +41,26 @@ export type createAndDispatchNotificationInput = {
   eventId?: string;
   dedupeKey?: string;
   skipActor?: boolean;
+  latencyTrace?: (mark: NotificationLatencyMark) => void;
+};
+
+export type SendNotificationEventInput = createAndDispatchNotificationInput;
+
+export type NotificationLatencyMark = {
+  eventId: string;
+  type: string;
+  userId: string;
+  tokenCount: number;
+  t0: number;
+  t1: number;
+  t2: number;
+  totalMs: number;
+  tokenResolveMs: number;
+  fcmMs: number;
+  sent: number;
+  failed: number;
+  skipped: boolean;
+  noTokens: boolean;
 };
 
 export type FcmDeviceInfo = {

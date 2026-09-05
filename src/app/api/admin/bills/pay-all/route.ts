@@ -1,6 +1,8 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument } from "@/lib/sanity/write-router";
+import { queryDocuments } from "@/lib/sanity/read-router";
 import { getServerAuth } from "@/lib/server-auth";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { billPaymentNotes } from "@/lib/sanity-api-service";
@@ -8,12 +10,6 @@ import {
   createAndDispatchNotification,
   getActiveAdminUserIds,
 } from "@/services/notifications/notification-events.server";
-import {
-  toMoney,
-  fetchCustomerAdvanceBalance,
-  updateCustomerAdvanceBalance,
-  createAdvanceTransaction,
-} from "@/lib/customer-advance";
 
 function makeHash(str: string): string {
   let hash = 0;
@@ -71,7 +67,8 @@ export async function POST(req: Request) {
     const idempotencyKey = `billing.bulkPaid:${customerId}:${makeHash(sortedIds)}:${paymentDate || "today"}`;
 
     // Fetch all requested bills
-    const bills = await sanityClient.fetch(
+    const billingClient = getSanityClient('billing');
+    const bills = await billingClient.fetch(
       `*[_type == "bill" && _id in $billIds]{
         _id, billNumber, paymentStatus, paidAmount, balanceAmount,
         totalAmount, discount, customer->{_id, name, nickname, phone}
@@ -170,78 +167,37 @@ export async function POST(req: Request) {
       );
     }
 
-    // Apply customer advance balance proportionally across bills
-    const customerAdvanceBalance = await fetchCustomerAdvanceBalance(customerId);
-    let advanceRemaining = customerAdvanceBalance;
-    let totalAdvanceApplied = 0;
-
-    if (advanceRemaining > 0 && totalRemainingBeforeDiscount > 0) {
-      for (const op of patchOps) {
-        if (advanceRemaining <= 0) break;
-        const bill = billsToPay.find((b: any) => b._id === op.id);
-        if (!bill) continue;
-        const paid = Number(bill.paidAmount || 0);
-        const total = Number(bill.totalAmount || 0);
-        const billDiscount = Number(bill.discount || 0);
-        const grandTotal = Math.max(0, total - billDiscount);
-        const remaining = Math.max(0, grandTotal - paid);
-        const advanceForBill = Math.min(advanceRemaining, remaining);
-        if (advanceForBill > 0) {
-          advanceRemaining -= advanceForBill;
-          totalAdvanceApplied += advanceForBill;
-          op.patches.advanceApplied = advanceForBill;
-          op.patches.paidAmount = paid + advanceForBill;
-          op.patches.balanceAmount = 0;
-        }
-      }
-
-      if (totalAdvanceApplied > 0) {
-        (async () => {
-          try {
-            await updateCustomerAdvanceBalance(customerId, -totalAdvanceApplied);
-            await createAdvanceTransaction({
-              customerId,
-              amount: totalAdvanceApplied,
-              type: "used",
-              reason: "applied_to_bill",
-              reference: `Bulk pay all (${patchOps.length} bills)`,
-              createdBy: actorUserId || "system",
-            });
-          } catch (err) {
-            console.error("[Advance] Failed to apply advance in pay-all:", err);
-          }
-        })();
-      }
-    }
-
     // Execute in Sanity transaction for atomicity
-    const tx = sanityClient.transaction();
+    const tx = billingClient.transaction();
     for (const op of patchOps) {
       tx.patch(op.id, (p: any) => p.set(op.patches));
     }
     await tx.commit();
 
-    // Create cashbook entries in batch (single query + single transaction)
-    try {
-      const billIds = patchOps.map(op => op.id);
-      const existingIds: string[] = billIds.length ? await sanityClient.fetch(
-        `*[_type == "cashBookEntry" && bill._ref in $billIds].bill._ref`,
-        { billIds }
-      ) : [];
-
-      const existingSet = new Set(existingIds);
-      const cbeTx = sanityClient.transaction();
-      let hasEntries = false;
-      for (const op of patchOps) {
-        if (existingSet.has(op.id)) continue;
-        const bill = billsToPay.find((b: any) => b._id === op.id);
-        if (!bill) continue;
+    // Create cashbook entries (fire-and-forget per bill)
+    for (const op of patchOps) {
+      const bill = billsToPay.find((b: any) => b._id === op.id);
+      if (!bill) continue;
+      try {
+        const existingEntries = await queryDocuments(
+          `*[_type == "cashBookEntry" && bill._ref == $billId][0]._id`,
+          { billId: bill._id },
+          'cashbook'
+        );
+        if (existingEntries.data && existingEntries.data.length > 0) continue;
 
         const total = Number(bill.total || bill.totalAmount || 0);
         const discount = Number(bill.discount || 0);
         const grandTotal = Math.max(0, total - discount);
+        const paid = Number(bill.paidAmount || 0);
+        const wasAlreadyFullyPaid = paid >= grandTotal;
 
-        cbeTx.create({
+        const notes = billPaymentNotes({
+          billNumber: bill.billNumber,
+          paymentStatus: wasAlreadyFullyPaid ? 'paid' : 'partial',
+        });
+
+        await createDocument({
           _type: "cashBookEntry",
           user: { _type: "reference", _ref: customerId },
           userName: bill.customer?.name || "",
@@ -250,16 +206,14 @@ export async function POST(req: Request) {
           amount: grandTotal,
           type: "credit",
           source: "Bill Payment",
-          notes: billPaymentNotes({ billNumber: bill.billNumber, paymentStatus: 'paid' }),
+          notes,
           bill: { _type: "reference", _ref: bill._id },
           createdAt: payDate,
           updatedAt: now,
-        });
-        hasEntries = true;
+        }, 'cashbook');
+      } catch (e) {
+        console.error("[PayAll] cashbook entry failed for", op.id, e);
       }
-      if (hasEntries) await cbeTx.commit();
-    } catch (e) {
-      console.error("[PayAll] cashbook entries failed:", e);
     }
 
     // Fetch customer info for notifications
@@ -293,7 +247,6 @@ export async function POST(req: Request) {
       remainingBalance: 0,
       discountApplied: bulkDiscount > 0 ? discountApplied : 0,
       discountReason: bulkDiscount > 0 ? discountReason : "",
-      advanceApplied: totalAdvanceApplied || 0,
       paymentMode,
       paymentDate: payDate,
       paidByAdmin: actorUserId,
@@ -324,7 +277,6 @@ export async function POST(req: Request) {
             discountApplied,
             discountReason,
             paymentMode,
-            ...(totalAdvanceApplied > 0 ? { advanceApplied: totalAdvanceApplied } : {}),
             route: adminRoute,
             route_path: adminRoute,
           },
@@ -354,7 +306,6 @@ export async function POST(req: Request) {
             discountApplied,
             discountReason,
             paymentMode,
-            ...(totalAdvanceApplied > 0 ? { advanceApplied: totalAdvanceApplied } : {}),
             route: customerRoute,
             route_path: customerRoute,
           },

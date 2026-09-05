@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sanityClient } from '@/lib/sanity'
+import { createDocument } from '@/lib/sanity/write-router'
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,21 +10,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Provide userId' }, { status: 400 })
     }
 
-    // Check if user already exists
-    const existingUser = await sanityClient.fetch(
-      `*[_type=="user" && _id == $userId][0]`,
-      { userId }
-    )
-
-    if (existingUser) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'User already exists in database' 
-      })
-    }
-
     // Create new customer user
-    const newUser = {
+    const newUser: Record<string, unknown> = {
       _type: 'user',
       _id: userId,
       clerkId: clerkId || userId,
@@ -41,18 +28,21 @@ export async function POST(req: NextRequest) {
       fcmTokensDev: null
     }
 
-    const result = await sanityClient.create(newUser)
-    
-    return NextResponse.json({ 
-      success: true, 
+    const result = await createDocument(newUser, 'users', { documentId: userId })
+    if (!result.success) {
+      return NextResponse.json({ success: false, error: result.error || 'Failed to create user' }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
       user: result,
       message: 'Customer account created successfully'
     })
   } catch (error) {
     console.error('Create customer error:', error)
-    return NextResponse.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Server error' 
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Server error'
     }, { status: 500 })
   }
 }
