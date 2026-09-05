@@ -1,5 +1,116 @@
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument, updateDocument } from "@/lib/sanity/write-router";
 import { notifyAdmins } from "@/lib/admin-notifier";
+
+const RENTAL_PURPOSE = "tool-rental";
+
+function rentalsClient() {
+  return getSanityClient("rentals");
+}
+
+async function fetchScoped<T>(query: string, params?: Record<string, any>): Promise<T | null> {
+  let fromRentals: T | null = null;
+  try {
+    fromRentals = params
+      ? await rentalsClient().fetch<T>(query, params)
+      : await rentalsClient().fetch<T>(query);
+  } catch {
+    fromRentals = null;
+  }
+  if (fromRentals != null && (!Array.isArray(fromRentals) || (fromRentals as unknown[]).length)) {
+    return fromRentals;
+  }
+  try {
+    const result = params
+      ? await sanityClient.fetch<T>(query, params)
+      : await sanityClient.fetch<T>(query);
+    if (result != null && (!Array.isArray(result) || (result as unknown[]).length)) return result;
+  } catch {
+    /* fall through */
+  }
+  return fromRentals;
+}
+
+// Legacy docs created before the rentals migration live only in the (read-only)
+// primary dataset. Before patching such a doc on the rentals DB we mirror it
+// there with the same _id, so transactions/patches target an existing document.
+function stripSanityMeta(doc: Record<string, any>) {
+  const { _rev, _createdAt, _updatedAt, _system, ...rest } = doc;
+  return { _id: doc._id, _type: rest._type || doc._type, ...rest };
+}
+
+async function ensureDocInRentals(doc: Record<string, any> | null | undefined, fallbackType?: string) {
+  if (!doc?._id) return false;
+  const payload = stripSanityMeta(doc);
+  if (!payload._type && fallbackType) payload._type = fallbackType;
+  if (!payload._type || !payload._id) return false;
+  try {
+    await rentalsClient().createIfNotExists(payload);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Customer records are `user` docs that live in the primary (or customers) DB.
+// A rental's `customer` reference must resolve inside the rentals DB, so the
+// referenced user doc is mirrored there before the rental is written.
+async function fetchCustomerUserDoc(customerId: string) {
+  const query = `*[_type == "user" && _id == $id][0]`;
+  for (const source of [
+    { name: "primary", client: sanityClient },
+    { name: "customers", client: getSanityClient("customers") },
+  ]) {
+    if (source.name === "customers") {
+      try {
+        const doc = await source.client.fetch(query, { id: customerId });
+        if (doc?._id) return doc;
+      } catch {
+        /* customers DB may not be registered/empty — try next */
+      }
+    } else {
+      try {
+        const doc = await source.client.fetch(query, { id: customerId });
+        if (doc?._id) return doc;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchAnyScoped(documentId: string) {
+  return fetchScoped<Record<string, any>>(`*[_id == $id][0]`, { id: documentId });
+}
+
+async function patchRentalScoped(documentId: string, patch: Record<string, unknown>) {
+  const result = await updateDocument(documentId, patch, RENTAL_PURPOSE);
+  if (result.success) return true;
+
+  // The doc may only exist in the legacy primary dataset. Adopt it into the
+  // rentals DB, then retry the patch once.
+  const errorText = String(result.error || "").toLowerCase();
+  if (
+    result.errorCategory === "NOT_FOUND" ||
+    errorText.includes("not found") ||
+    errorText.includes("document with the id")
+  ) {
+    const legacy = await fetchAnyScoped(documentId);
+    if (legacy?._id && (await ensureDocInRentals(legacy))) {
+      const retry = await updateDocument(documentId, patch, RENTAL_PURPOSE);
+      if (retry.success) return true;
+    }
+  }
+
+  try {
+    await sanityClient.patch(documentId).set(patch).commit();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export type DurationType = "hour" | "day";
 export type RentalStatus = "active" | "overdue" | "returned" | "cancelled";
@@ -231,12 +342,12 @@ async function createOutstandingRentalBill(args: {
 export const toolRentalService = {
   async getTools() {
     const query = '*[_type == "tool"] | order(_createdAt desc)';
-    return await sanityClient.fetch<ToolItem[]>(query);
+    return (await fetchScoped<ToolItem[]>(query)) || [];
   },
 
   async getToolById(toolId: string) {
     const query = `*[_type == "tool" && _id == "${toolId}"][0]`;
-    return await sanityClient.fetch<ToolItem>(query);
+    return await fetchScoped<ToolItem>(query);
   },
 
   async createTool(payload: Partial<ToolItem>) {
@@ -253,30 +364,32 @@ export const toolRentalService = {
       createdAt: now,
       updatedAt: now,
     };
-    return sanityClient.create(doc as any);
+    const result = await createDocument(doc as unknown as Record<string, unknown>, RENTAL_PURPOSE);
+    if (!result.success) throw new Error(result.error || "Tool create failed");
+    return { _id: result.documentId || "" };
   },
 
   async updateTool(toolId: string, payload: Partial<ToolItem>) {
-    return sanityClient.patch(toolId).set({ ...payload, updatedAt: new Date().toISOString() }).commit();
+    return patchRentalScoped(toolId, { ...payload, updatedAt: new Date().toISOString() });
   },
 
   async deleteTool(toolId: string) {
-    return sanityClient.patch(toolId).set({ isActive: false, updatedAt: new Date().toISOString() }).commit();
+    return patchRentalScoped(toolId, { isActive: false, updatedAt: new Date().toISOString() });
   },
 
   async getToolRentals() {
     const query = `*[_type == "toolRental"] | order(createdAt desc)`;
-    return sanityClient.fetch<ToolRental[]>(query);
+    return (await fetchScoped<ToolRental[]>(query)) || [];
   },
 
   async getActiveRentals() {
     const query = `*[_type == "toolRental" && rentalStatus in ["active", "overdue"]] | order(expectedReturnTime asc)`;
-    return sanityClient.fetch<ToolRental[]>(query);
+    return (await fetchScoped<ToolRental[]>(query)) || [];
   },
 
   async getOverdueRentals() {
     const query = `*[_type == "toolRental" && rentalStatus == "overdue"] | order(expectedReturnTime asc)`;
-    return sanityClient.fetch<ToolRental[]>(query);
+    return (await fetchScoped<ToolRental[]>(query)) || [];
   },
 
   async createToolRental(input: {
@@ -307,8 +420,11 @@ export const toolRentalService = {
 
     const paymentStatus: PaymentStatus = paidAmount <= 0 ? "unpaid" : paidAmount >= totalAmount ? "paid" : "partial";
 
-    const now = new Date().toISOString();
-    const transaction = sanityClient.transaction();
+const now = new Date().toISOString();
+    const customerDoc = await fetchCustomerUserDoc(input.customer._id);
+    await ensureDocInRentals(customerDoc, "user");
+    await ensureDocInRentals(input.tool, "tool");
+    const transaction = rentalsClient().transaction();
     const rentalId = `toolRental.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
 
     transaction.patch(input.tool._id, {
@@ -352,9 +468,9 @@ export const toolRentalService = {
       updatedAt: now,
     } as any;
 
-    transaction.create(createPayload);
+transaction.create(createPayload);
     await transaction.commit();
-    const rental = await sanityClient.fetch<ToolRental>(`*[_type == "toolRental" && _id == $rentalId][0]`, { rentalId });
+    const rental = await rentalsClient().fetch<ToolRental>(`*[_type == "toolRental" && _id == $rentalId][0]`, { rentalId });
 
     notifyAdmins({
       title: "New tool rental created",
@@ -399,8 +515,8 @@ export const toolRentalService = {
     return rental;
   },
 
-  async updateToolRental(rentalId: string, patch: Partial<ToolRental>) {
-    return sanityClient.patch(rentalId).set({ ...patch, updatedAt: new Date().toISOString() }).commit();
+async updateToolRental(rentalId: string, patch: Partial<ToolRental>) {
+    await patchRentalScoped(rentalId, { ...patch, updatedAt: new Date().toISOString() });
   },
 
   async updateRentalDuration(rentalId: string, input: { durationType: DurationType; durationValue: number }) {
@@ -411,11 +527,11 @@ export const toolRentalService = {
       throw new Error("Duration must be greater than 0");
     }
 
-    const rental = await sanityClient.fetch<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
+    const rental = await fetchScoped<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
     if (!rental) throw new Error("Rental not found");
     if (rental.rentalStatus === "returned") throw new Error("Returned rental cannot be edited");
 
-    const tool = await sanityClient.fetch<ToolItem>(`*[_type == "tool" && _id == $id][0]`, { id: rental.toolId });
+    const tool = await fetchScoped<ToolItem>(`*[_type == "tool" && _id == $id][0]`, { id: rental.toolId });
     if (!tool) throw new Error("Tool not found");
 
     const rentAmount = calculateRentAmount(tool, input.durationType, input.durationValue);
@@ -426,25 +542,23 @@ export const toolRentalService = {
     if (paidAmount > totalAmount) throw new Error("Paid amount exceeds updated total amount");
     const paymentStatus: PaymentStatus = paidAmount <= 0 ? "unpaid" : paidAmount >= totalAmount ? "paid" : "partial";
 
-    const updated = await sanityClient
-      .patch(rentalId)
-      .set({
-        durationType: input.durationType,
-        durationValue: input.durationValue,
-        expectedReturnTime,
-        rentAmount,
-        totalAmount,
-        currentTotalAmount: totalAmount,
-        extraChargeAmount: 0,
-        rentalStatus: "active",
-        paymentStatus,
-        isPaid: paymentStatus === "paid",
-        overdueReminderCount: 0,
-        lastReminderSentAt: null,
-        lastOverdueUnitNotified: 0,
-        updatedAt: new Date().toISOString(),
-      })
-      .commit();
+    const patch = {
+      durationType: input.durationType,
+      durationValue: input.durationValue,
+      expectedReturnTime,
+      rentAmount,
+      totalAmount,
+      currentTotalAmount: totalAmount,
+      extraChargeAmount: 0,
+      rentalStatus: "active",
+      paymentStatus,
+      isPaid: paymentStatus === "paid",
+      overdueReminderCount: 0,
+      lastReminderSentAt: null,
+      lastOverdueUnitNotified: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    await patchRentalScoped(rentalId, patch);
 
     notifyAdmins({
       title: "Rental duration updated",
@@ -460,11 +574,11 @@ export const toolRentalService = {
       customerUserId: rental.customerRefId || rental.customerId,
       title: "Tool rental updated",
       body: `${rental.toolName} rental duration updated. New return due: ${formatDateTime(expectedReturnTime)}`,
-      rentalId,
+rentalId,
       toolName: rental.toolName,
     });
 
-    return updated;
+    return true;
   },
 
   async markToolReturned(rental: ToolRental, tool: ToolItem, paidAmount?: number) {
@@ -482,7 +596,11 @@ export const toolRentalService = {
     const resolvedPaidAmount = Math.min(finalTotal, Math.max(0, Number(paidAmount ?? rental.paidAmount ?? 0)));
     const paymentStatus: PaymentStatus = resolvedPaidAmount <= 0 ? "unpaid" : resolvedPaidAmount >= finalTotal ? "paid" : "partial";
 
-    const tx = sanityClient.transaction();
+await Promise.all([
+      ensureDocInRentals(rental, "toolRental"),
+      ensureDocInRentals(tool, "tool"),
+    ]);
+    const tx = rentalsClient().transaction();
     tx.patch(rental._id, {
       set: {
         rentalStatus: "returned",
@@ -546,23 +664,20 @@ export const toolRentalService = {
     return { overdueUnits, extraChargeAmount, finalTotal, paymentStatus };
   },
 
-  async markRentalPaid(rentalId: string, currentTotalAmount: number, paidAmount: number) {
-    const before = await sanityClient.fetch<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
+async markRentalPaid(rentalId: string, currentTotalAmount: number, paidAmount: number) {
+    const before = await fetchScoped<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
     const normalizedPaid = Math.max(0, paidAmount);
     if (normalizedPaid > currentTotalAmount) {
       throw new Error("Paid amount cannot be greater than total amount");
     }
     const paymentStatus: PaymentStatus = normalizedPaid <= 0 ? "unpaid" : normalizedPaid >= currentTotalAmount ? "paid" : "partial";
-    const updated = await sanityClient
-      .patch(rentalId)
-      .set({
-        paidAmount: normalizedPaid,
-        isPaid: paymentStatus === "paid",
-        paymentStatus,
-        updatedAt: new Date().toISOString(),
-      })
-      .commit();
-    const rental = await sanityClient.fetch<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
+    const updated = await patchRentalScoped(rentalId, {
+      paidAmount: normalizedPaid,
+      isPaid: paymentStatus === "paid",
+      paymentStatus,
+      updatedAt: new Date().toISOString(),
+    });
+    const rental = await fetchScoped<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
     if (rental) {
       const actorUserId = getActorUserIdFromAuthCookie();
       const deltaReceived = Math.max(0, normalizedPaid - Number(before?.paidAmount || 0));
@@ -590,18 +705,23 @@ export const toolRentalService = {
         rentalId,
         toolName: rental.toolName,
       });
-    }
+}
     return updated;
   },
 
   async deleteToolRental(rentalId: string) {
-    const rental = await sanityClient.fetch<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
+    const rental = await fetchScoped<ToolRental>(`*[_type == "toolRental" && _id == $id][0]`, { id: rentalId });
     if (!rental) throw new Error("Rental not found");
 
-    const tool = await sanityClient.fetch<ToolItem>(`*[_type == "tool" && _id == $id][0]`, { id: rental.toolId });
+const tool = await fetchScoped<ToolItem>(`*[_type == "tool" && _id == $id][0]`, { id: rental.toolId });
 
-    const tx = sanityClient.transaction();
-    if (tool && rental.rentalStatus !== "returned" && rental.rentalStatus !== "cancelled") {
+    const shouldRestoreQuantity = tool && rental.rentalStatus !== "returned" && rental.rentalStatus !== "cancelled";
+    if (tool && shouldRestoreQuantity) {
+      await ensureDocInRentals(tool, "tool");
+    }
+
+    const tx = rentalsClient().transaction();
+    if (tool && shouldRestoreQuantity) {
       tx.patch(tool._id, {
         set: {
           availableQuantity: Math.min(Number(tool.totalQuantity || 0), Number(tool.availableQuantity || 0) + 1),

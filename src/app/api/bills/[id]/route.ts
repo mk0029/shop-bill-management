@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { sanityClient } from "@/lib/sanity";
+import { sanityClient, getSanityClient } from "@/lib/sanity";
+import { updateDocument, deleteDocument } from "@/lib/sanity/write-router";
+import { fetchBillById } from "@/lib/sanity/bills-federated";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { notificationService } from "@/lib/notification-service";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
@@ -10,21 +12,57 @@ import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services
 import { safeUserName } from "@/lib/display-text";
 import { resolveBillEvents, emitBillEventsInBackground } from "@/lib/bill-events";
 
+async function runOnAllDatabases<T>(
+  query: string,
+  params: Record<string, unknown>
+): Promise<T[]> {
+  const billingClient = getSanityClient("billing");
+  const [primary, billing] = await Promise.allSettled([
+    sanityClient.fetch<T[]>(query, params),
+    billingClient.fetch<T[]>(query, params),
+  ]);
+  return [
+    ...(primary.status === "fulfilled" ? primary.value : []),
+    ...(billing.status === "fulfilled" ? billing.value : []),
+  ];
+}
+
 async function getBillDependentDocumentIds(billId: string): Promise<string[]> {
-  return await sanityClient.fetch(
-    `*[_type in ["cashBookEntry","cashbookItem","billMessage","billItem"] && bill._ref == $billId]._id`,
+  const rows = await runOnAllDatabases<{ _id: string }>(
+    `*[_type in ["cashBookEntry","cashbookItem","billMessage","billItem","payment","transaction"] && (bill._ref == $billId || billId == $billId)]._id`,
     { billId }
   );
+  return Array.from(new Set(rows.map((r) => String(r._id)))).filter(Boolean);
 }
 
 async function getRemainingBillReferences(billId: string): Promise<Array<{ _id: string; _type: string }>> {
-  return await sanityClient.fetch(
+  const rows = await runOnAllDatabases<{ _id: string; _type: string }>(
     `*[
       references($billId)
-      && !(_type in ["bill","cashBookEntry","cashbookItem","billMessage","billItem"])
+      && !(_type in ["bill","cashBookEntry","cashbookItem","billMessage","billItem","payment","transaction"])
     ]{_id,_type}`,
     { billId }
   );
+  const seen = new Set<string>();
+  const out: Array<{ _id: string; _type: string }> = [];
+  for (const r of rows) {
+    const key = `${r._type}:${r._id}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+async function deleteDocBestEffort(docId: string): Promise<void> {
+  try {
+    await getSanityClient("billing").delete(docId);
+    return;
+  } catch {}
+  try {
+    await sanityClient.delete(docId);
+  } catch {}
 }
 
 
@@ -131,7 +169,11 @@ export async function PATCH(
       "technician",
     ]);
     const requestedKeys = Object.keys(body || {});
-    const hasUnsafeKeys = requestedKeys.some((k) => !adminSafeKeys.has(k));
+    const isDraftUpdate =
+      id.startsWith("drafts.") || String((prev as any)?.status) === "draft";
+    const hasUnsafeKeys = requestedKeys.some(
+      (k) => !adminSafeKeys.has(k) && !(isDraftUpdate && k === "customer")
+    );
     if (auth.role !== "super_admin" && hasUnsafeKeys) {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
@@ -160,6 +202,7 @@ export async function PATCH(
       "dueDate",
       "priority",
       "technician",
+      ...(isDraftUpdate ? ["customer"] : []),
     ]);
     const updates: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(body || {})) {
@@ -168,9 +211,15 @@ export async function PATCH(
     // Always set updatedAt
     updates["updatedAt"] = new Date().toISOString();
 
-    // Patch published doc
+    // Patch bill in the billing DB (primary is read-only)
     const startTime = Date.now();
-    const updated = await sanityClient.patch(id).set(updates).commit();
+    const updateResult = await updateDocument(id, updates, 'bills');
+    if (!updateResult.success) {
+      return NextResponse.json(
+        { success: false, error: updateResult.error || "Failed to update bill" },
+        { status: 500 }
+      );
+    }
 
     // Central WhatsApp event: comprehensive bill change detection (fire-and-forget)
     try {
@@ -266,7 +315,7 @@ export async function PATCH(
       (async () => {
         try {
           // Fetch the bill to get customer details
-          const bill = await sanityClient.fetch(`*[_type == "bill" && _id == $id][0]{ _id, billNumber, paidAmount, customer->{_id, name} }`, { id });
+          const bill = await fetchBillById(id);
           
           if (bill && bill.customer) {
             // Determine payment status from paid amount
@@ -320,11 +369,8 @@ export async function PATCH(
       }
     }
     
-    // Best-effort: also patch draft if it exists
-    try {
-      await sanityClient.patch(`drafts.${id}`).set(updates).commit();
-    } catch {}
-    return NextResponse.json({ success: true, data: updated });
+    // Best-effort: also patch draft if it exists (removed — drafts no longer live in primary)
+    return NextResponse.json({ success: true, data: { _id: id, ...updates } });
   } catch (error: any) {
     console.error("API: Failed to patch bill", error);
     return NextResponse.json(
@@ -362,19 +408,7 @@ export async function DELETE(
     }
 
     // Fetch bill items snapshot so we can restore inventory before deleting the bill.
-    const bill = await sanityClient.fetch(
-      `*[_type == "bill" && _id == $id][0]{
-        _id,
-        billNumber,
-        customer->{phone},
-        items[]{
-          quantity,
-          unitPrice,
-          product->{_id}
-        }
-      }`,
-      { id }
-    );
+    const bill = await fetchBillById(id).catch(() => null);
 
     const itemsForRestore = Array.isArray(bill?.items)
       ? (bill.items as any[])
@@ -410,11 +444,16 @@ export async function DELETE(
       );
     }
 
-    const tx = sanityClient.transaction();
-    for (const referenceId of Array.from(new Set(dependentDocumentIds || []).values())) {
-      tx.delete(String(referenceId));
+    // Delete dependent docs across billing + primary DBs (best-effort each).
+    await Promise.allSettled(
+      dependentDocumentIds.map((refId) => deleteDocBestEffort(refId))
+    );
+
+    // Delete the bill itself via the purpose-routed write (billing DB).
+    const del = await deleteDocument(id, "bills");
+    if (!del.success && !del.error?.toLowerCase().includes("not found")) {
+      await deleteDocBestEffort(id);
     }
-    tx.delete(id);
 
     // Restore inventory stock (uses its own commits internally). Best-effort.
     try {
@@ -424,8 +463,6 @@ export async function DELETE(
     } catch (invErr) {
       console.warn("[API] DELETE /api/bills: inventory restore failed", invErr);
     }
-
-    await tx.commit();
 
     // Central WhatsApp event: bill deleted (fire-and-forget)
     try {

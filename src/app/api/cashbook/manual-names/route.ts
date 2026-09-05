@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sanityClient } from '@/lib/sanity'
+import { createDocument, updateDocument } from '@/lib/sanity/write-router'
+import { queryDocuments, querySingleDocument } from '@/lib/sanity/read-router'
 
 export async function GET() {
   try {
-    const query = `*[_type == "manualCashbookName"] | order(usageCount desc, lastUsedAt desc) {
-      _id,
-      name,
-      normalizedName,
-      usageCount,
-      lastUsedAt,
-      createdAt
-    }`
-    const names = await sanityClient.fetch(query)
-    return NextResponse.json({ success: true, data: names }, { status: 200 })
+    const namesRes = await queryDocuments(
+      `*[_type == "manualCashbookName"] | order(usageCount desc, lastUsedAt desc) {
+        _id,
+        name,
+        normalizedName,
+        usageCount,
+        lastUsedAt,
+        createdAt
+      }`,
+      {},
+      'cashbook'
+    )
+    return NextResponse.json({ success: true, data: namesRes.data }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })
@@ -31,20 +35,19 @@ export async function POST(req: NextRequest) {
       .replace(/\s+/g, ' ')
       .toLowerCase()
 
-    const existing = await sanityClient.fetch(
+    const existingRes = await querySingleDocument<{ _id: string; usageCount?: number; name?: string; normalizedName?: string }>(
       `*[_type == "manualCashbookName" && normalizedName == $nn][0]`,
-      { nn: normalizedName }
+      { nn: normalizedName },
+      'cashbook'
     )
+    const existing = existingRes.data
 
     if (existing) {
-      const updated = await sanityClient
-        .patch(existing._id)
-        .set({
-          usageCount: (existing.usageCount || 0) + 1,
-          lastUsedAt: new Date().toISOString(),
-        })
-        .commit()
-      return NextResponse.json({ success: true, data: updated, created: false }, { status: 200 })
+      const updated = await updateDocument(existing._id, {
+        usageCount: (existing.usageCount || 0) + 1,
+        lastUsedAt: new Date().toISOString(),
+      }, 'cashbook')
+      return NextResponse.json({ success: true, data: { ...existing, _id: existing._id, usageCount: (existing.usageCount || 0) + 1 }, created: false }, { status: 200 })
     }
 
     const doc = {
@@ -55,8 +58,8 @@ export async function POST(req: NextRequest) {
       lastUsedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     }
-    const created = await sanityClient.create(doc)
-    return NextResponse.json({ success: true, data: created, created: true }, { status: 201 })
+    const created = await createDocument(doc, 'cashbook')
+    return NextResponse.json({ success: true, data: { _id: created.documentId, ...doc }, created: true }, { status: 201 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })

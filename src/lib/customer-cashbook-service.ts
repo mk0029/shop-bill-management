@@ -1,4 +1,5 @@
-import { sanityClient } from "./sanity";
+import { createDocument } from "./sanity/write-router";
+import { queryDocuments, querySingleDocument } from "./sanity/read-router";
 import type { ApiResponse } from "./sanity-api-service";
 import { getCookie } from "@/lib/cookies";
 
@@ -28,8 +29,8 @@ export const customerCashbookService = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      const created = await sanityClient.create(doc);
-      return { success: true, data: created };
+      const created = await createDocument(doc, 'cashbook');
+      return { success: true, data: { _id: created.documentId, ...doc } };
     } catch (error) {
       console.error('Error creating customer cashbook:', error);
       return { success: false, error: 'Failed to create customer cashbook' };
@@ -39,8 +40,8 @@ export const customerCashbookService = {
   async getCashbooksByCustomer(customerId: string): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "customerCashbook" && customer._ref == $customerId] | order(updatedAt desc)`;
-      const data = await sanityClient.fetch(query, { customerId });
-      return { success: true, data };
+      const res = await queryDocuments(query, { customerId }, 'cashbook');
+      return { success: true, data: res.data };
     } catch (error) {
       console.error('Error fetching customer cashbooks:', error);
       return { success: false, error: 'Failed to fetch customer cashbooks' };
@@ -56,7 +57,8 @@ export const customerCashbookService = {
         notes,
         customer->{ _id, name, phone }
       }`;
-      const data = await sanityClient.fetch(query, { id: cashbookId });
+      const res = await querySingleDocument(query, { id: cashbookId }, 'cashbook');
+      const data = res.data;
       if (!data) return { success: false, error: 'Cashbook not found' };
       return { success: true, data };
     } catch (error) {
@@ -101,8 +103,8 @@ export const customerCashbookService = {
   async getItems(cashbookId: string): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "cashbookItem" && cashbook._ref == $cashbookId] | order(createdAt asc)`;
-      const data = await sanityClient.fetch(query, { cashbookId });
-      return { success: true, data };
+      const res = await queryDocuments(query, { cashbookId }, 'cashbook');
+      return { success: true, data: res.data };
     } catch (error) {
       console.error('Error fetching cashbook items:', error);
       return { success: false, error: 'Failed to fetch cashbook items' };
@@ -112,8 +114,8 @@ export const customerCashbookService = {
   async getPendingItems(cashbookId: string): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "cashbookItem" && cashbook._ref == $cashbookId && !defined(bill)] | order(createdAt asc)`;
-      const data = await sanityClient.fetch(query, { cashbookId });
-      return { success: true, data };
+      const res = await queryDocuments(query, { cashbookId }, 'cashbook');
+      return { success: true, data: res.data };
     } catch (error) {
       console.error('Error fetching pending cashbook items:', error);
       return { success: false, error: 'Failed to fetch pending items' };
@@ -123,8 +125,8 @@ export const customerCashbookService = {
   async getBilledItems(cashbookId: string): Promise<ApiResponse<any[]>> {
     try {
       const query = `*[_type == "cashbookItem" && cashbook._ref == $cashbookId && defined(bill)] | order(createdAt asc)`;
-      const data = await sanityClient.fetch(query, { cashbookId });
-      return { success: true, data };
+      const res = await queryDocuments(query, { cashbookId }, 'cashbook');
+      return { success: true, data: res.data };
     } catch (error) {
       console.error('Error fetching billed cashbook items:', error);
       return { success: false, error: 'Failed to fetch billed items' };

@@ -33,11 +33,6 @@ export async function POST(
       )
     }
 
-    const offer = await sanityClient.fetch<{ title: string }>(
-      `*[_type == "offer" && _id == $offerId][0]{title}`,
-      { offerId },
-    )
-
     const productNames: string[] = []
     if (result.claim?.productIds?.length) {
       const products = await sanityClient.fetch<Array<{ name: string }>>(
@@ -50,7 +45,6 @@ export async function POST(
     sendClaimSuccessNotification(
       auth.customerId,
       offerId,
-      offer?.title || 'Offer',
       productNames,
     ).catch((err) => console.error('[OfferFCM] Background claim notification failed:', err))
 

@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  toolRentalService,
-  type ToolItem,
-  listenTools,
-} from "@/lib/tool-rental-service";
+import * as toolRentalApi from "@/lib/tool-rental-api";
+import type { ToolItem } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
 import { Dropdown } from "@/components/ui/dropdown";
 
@@ -33,7 +30,7 @@ export default function AdminToolsCreateClient() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const tools = await toolRentalService.getTools();
+        const tools = await toolRentalApi.getTools();
         setExistingTools(tools || []);
 
         // Extract unique categories from existing tools
@@ -47,8 +44,8 @@ export default function AdminToolsCreateClient() {
     };
 
     loadData();
-    const sub = listenTools(loadData);
-    return () => sub?.unsubscribe();
+    const timer = setInterval(loadData, 15000);
+    return () => clearInterval(timer);
   }, []);
 
   const submit = async () => {
@@ -66,7 +63,7 @@ export default function AdminToolsCreateClient() {
         return toast.error("Available quantity is required");
 
       setSaving(true);
-      await toolRentalService.createTool({
+      await toolRentalApi.createTool({
         toolName: form.toolName,
         toolCode: form.toolCode,
         category: form.category,

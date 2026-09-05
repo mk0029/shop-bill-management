@@ -1,19 +1,23 @@
-import { sanityClient } from "./sanity";
+import { createDocument, updateDocument } from "./sanity/write-router";
+import { queryDocuments, querySingleDocument } from "./sanity/read-router";
 import type { ApiResponse } from "./sanity-api-service";
 
 export const manualCashbookNamesService = {
   async getAll(): Promise<ApiResponse<any[]>> {
     try {
-      const query = `*[_type == "manualCashbookName"] | order(usageCount desc, lastUsedAt desc) {
-        _id,
-        name,
-        normalizedName,
-        usageCount,
-        lastUsedAt,
-        createdAt
-      }`;
-      const names = await sanityClient.fetch(query);
-      return { success: true, data: names };
+      const namesRes = await queryDocuments(
+        `*[_type == "manualCashbookName"] | order(usageCount desc, lastUsedAt desc) {
+          _id,
+          name,
+          normalizedName,
+          usageCount,
+          lastUsedAt,
+          createdAt
+        }`,
+        {},
+        'cashbook'
+      );
+      return { success: true, data: namesRes.data };
     } catch (error) {
       console.error('Error fetching manual cashbook names:', error);
       return { success: false, error: 'Failed to fetch manual names' };
@@ -24,20 +28,19 @@ export const manualCashbookNamesService = {
     try {
       const normalizedName = name.trim().replace(/\s+/g, ' ').toLowerCase();
 
-      const existing = await sanityClient.fetch(
+      const existingRes = await querySingleDocument<{ _id: string; usageCount?: number; name?: string; normalizedName?: string; lastUsedAt?: string; createdAt?: string }>(
         `*[_type == "manualCashbookName" && normalizedName == $nn][0]`,
-        { nn: normalizedName }
+        { nn: normalizedName },
+        'cashbook'
       );
+      const existing = existingRes.data;
 
       if (existing) {
-        const updated = await sanityClient
-          .patch(existing._id)
-          .set({
-            usageCount: (existing.usageCount || 0) + 1,
-            lastUsedAt: new Date().toISOString(),
-          })
-          .commit();
-        return { success: true, data: updated };
+        const updated = await updateDocument(existing._id, {
+          usageCount: (existing.usageCount || 0) + 1,
+          lastUsedAt: new Date().toISOString(),
+        }, 'cashbook');
+        return { success: true, data: { ...existing, _id: existing._id, usageCount: (existing.usageCount || 0) + 1 } };
       }
 
       const doc = {
@@ -48,8 +51,8 @@ export const manualCashbookNamesService = {
         lastUsedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       };
-      const created = await sanityClient.create(doc);
-      return { success: true, data: created };
+      const created = await createDocument(doc, 'cashbook');
+      return { success: true, data: { _id: created.documentId, ...doc } };
     } catch (error) {
       console.error('Error upserting manual cashbook name:', error);
       return { success: false, error: 'Failed to save manual name' };

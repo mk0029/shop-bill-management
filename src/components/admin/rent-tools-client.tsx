@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import * as toolRentalApi from "@/lib/tool-rental-api";
 import {
   calculateOverdueExtraCharge,
   type DurationType,
-  listenToolRentals,
-  listenTools,
-  toolRentalService,
   type ToolRental,
 } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
@@ -117,8 +115,7 @@ export default function AdminRentToolsClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const authUser = useAuthStore((state) => state.user) as { id?: string; _id?: string } | null;
-  const [tools, setTools] = useState<any[]>([]);
-  const [rentals, setRentals] = useState<ToolRental[]>([]);
+const [rentals, setRentals] = useState<ToolRental[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
@@ -136,11 +133,9 @@ export default function AdminRentToolsClient() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [toolsData, rentalsData] = await Promise.all([
-        toolRentalService.getTools(),
-        toolRentalService.getToolRentals(),
+const [rentalsData] = await Promise.all([
+        toolRentalApi.getToolRentals(),
       ]);
-      setTools(toolsData || []);
       const deduped = Array.from(
         new Map((rentalsData || []).map((r) => [r._id, r])).values(),
       );
@@ -163,14 +158,10 @@ export default function AdminRentToolsClient() {
     load();
   }, [closeCreateModal, load]);
 
-  useEffect(() => {
+useEffect(() => {
     load();
-    const subA = listenTools(load);
-    const subB = listenToolRentals(load);
-    return () => {
-      subA.unsubscribe();
-      subB.unsubscribe();
-    };
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
   }, [load]);
 
   const filteredRentals = useMemo(() => {
@@ -190,10 +181,8 @@ export default function AdminRentToolsClient() {
     if (!returnTarget) return;
     const target = returnTarget;
     setReturnTarget(null);
-    try {
-      const tool = tools.find((t) => t._id === target.toolId);
-      if (!tool) return toast.error("Tool not found");
-      await toolRentalService.markToolReturned(target, tool);
+try {
+      await toolRentalApi.markToolReturned(target._id);
       toast.success("Tool returned and customer notified");
       await load();
     } catch (e) {
@@ -212,7 +201,7 @@ export default function AdminRentToolsClient() {
       return toast.error("Paid amount cannot be greater than total amount");
     try {
       setPayTarget(null);
-      await toolRentalService.markRentalPaid(target._id, total, payInput);
+      await toolRentalApi.markRentalPaid(target._id, total, payInput);
       toast.success("Payment updated, cashbook updated, customer notified");
       await load();
     } catch (e) {
@@ -226,7 +215,7 @@ export default function AdminRentToolsClient() {
     const target = editTarget;
     try {
       setEditTarget(null);
-      await toolRentalService.updateRentalDuration(target._id, {
+await toolRentalApi.updateRentalDuration(target._id, {
         durationType: editDurationType,
         durationValue: editDurationValue,
       });
@@ -245,7 +234,7 @@ export default function AdminRentToolsClient() {
     try {
       setDeletingRentalId(targetId);
       setRentals((prev) => prev.filter((r) => r._id !== targetId));
-      await toolRentalService.deleteToolRental(targetId);
+      await toolRentalApi.deleteToolRental(targetId);
       toast.success("Rental deleted successfully");
       setDeleteTarget(null);
       setEditTarget(null);

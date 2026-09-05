@@ -7,6 +7,7 @@ import {
   updateStockForBill,
   BillItem,
 } from "./inventory-management";
+import { createStockTransactionRecord } from "./stock-transaction-router";
 import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 import { TAX_RATE } from "../constants/defaults";
 import { syncSingleBillPayment } from "./bill-payment-sync";
@@ -76,7 +77,13 @@ export async function checkExistingUserByPhone(
  */
 export async function deleteBillById(billId: string): Promise<FormSubmissionResult> {
   try {
-    await sanityClient.delete(billId);
+    const res = await fetch(`/api/bills/${encodeURIComponent(String(billId))}`, {
+      method: "DELETE",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json?.success === false) {
+      throw new Error(json?.error || `Failed to delete bill (${res.status})`);
+    }
     return { success: true, message: "Bill deleted successfully" };
   } catch (error) {
     console.error("❌ Failed to delete bill:", error);
@@ -179,7 +186,21 @@ export async function saveDraftBill(billData: {
       updatedAt: new Date().toISOString(),
     } as any;
 
-    const result = await sanityClient.create(newDraft);
+    const actorUserId = getActorUserId();
+    const res = await fetch("/api/mutations/bills/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bill: newDraft,
+        actorUserId: actorUserId || undefined,
+        draft: true,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error || `Failed to save draft (${res.status})`);
+    }
+    const result = (json?.data || {}) as any;
 
     return {
       success: true,
@@ -277,10 +298,18 @@ export async function updateDraftBill(
       updatedAt: new Date().toISOString(),
     };
 
-    const result = await sanityClient
-      .patch(draftId)
-      .set(patch)
-      .commit();
+    const actorUserId = getActorUserId();
+
+    const res = await fetch(`/api/bills/${encodeURIComponent(draftId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actorUserId, ...patch }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error || `Failed to update draft (${res.status})`);
+    }
+    const result = (json?.data || {}) as any;
 
     return { success: true, data: result, message: "Draft updated" };
   } catch (error) {
@@ -793,15 +822,24 @@ export async function createBill(billData: {
       updatedAt: new Date().toISOString(),
     };
 
-    // Step 7: Create bill with atomic stock updates (single transaction)
+    // Step 7: Create bill via the secure mutation route (writes to the billing DB)
 
     try {
-      // Use Sanity transaction for atomic operations
-      const transaction = sanityClient.transaction();
-
-      // Create the bill
-      const result = await transaction.create(newBill).commit();
-      const createdId = (result as any)?.results?.[0]?.id || (result as any)?._id;
+      const actorIdRoute = getActorUserId();
+      const res = await fetch("/api/mutations/bills/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bill: newBill,
+          actorUserId: actorId || actorIdRoute || undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || `Failed to create bill (${res.status})`);
+      }
+      const createdDoc = (json?.data || {}) as Record<string, any>;
+      const createdId = String(createdDoc?._id || "");
       // Step 8/9/10: Fire-and-forget side effects, never block bill creation response
       void (async () => {
         // Cash book sync
@@ -833,41 +871,7 @@ export async function createBill(billData: {
             });
         }
 
-        // WhatsApp bill-created event (non-blocking)
-        const customerPromise = billData.customerId
-          ? sanityClient.fetch<{ phone?: string; name?: string } | null>(
-              `*[_type=="user" && _id==$id][0]{phone,name}`,
-              { id: String(billData.customerId) }
-            ).catch(() => null)
-          : Promise.resolve(null)
-        customerPromise.then((customer) => {
-          void emitWaEventClient("billing.created", {
-            billId: String(createdId || ""),
-            billNumber: String(billNumber || ""),
-            customerId: String(billData.customerId || ""),
-            customerName: String(customer?.name || ""),
-            customerPhone: String(customer?.phone || ""),
-            phone: String(customer?.phone || ""),
-            totalAmount: Number(grossTotal || 0),
-            discount: Number(discount || 0),
-            finalTotal: Number(netPayable || 0),
-            paidAmount: Number(billData.paidAmount || 0),
-            balanceAmount: Number(billData.balanceAmount ?? netPayable),
-            paymentStatus: String(billData.paymentStatus || "pending"),
-            isFullyPaid: String(billData.paymentStatus || "") === "paid",
-            dueDate: billData.dueDate,
-            serviceName: billData.serviceType || "",
-            loginUrl: customer?.phone
-              ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(customer.phone)}`
-              : '',
-            updatedAt: new Date().toISOString(),
-            idempotencyKey: `billing.created:${String(createdId || "")}`,
-          }).catch((e) => {
-            console.warn("[WA] billing.created event failed (non-blocking):", e);
-          });
-        });
-
-        // Notifications + WhatsApp
+        // Shop-chat event (WA billing.created + admin/customer notifications are handled by the mutation route)
         try {
           if (typeof window !== "undefined") {
             const customerId = String(billData.customerId || "").trim();
@@ -891,15 +895,6 @@ export async function createBill(billData: {
               } catch {
                 return "";
               }
-            })();
-
-            const currentToken: string | null = await (async () => {
-              try {
-                const mod = await import("@/lib/fcm-client");
-                if (typeof mod.getTokenWithoutRegister === "function")
-                  return await mod.getTokenWithoutRegister();
-              } catch {}
-              return null;
             })();
 
             const customerName = await (async () => {
@@ -927,51 +922,6 @@ export async function createBill(billData: {
               console.warn("[ShopChat] bill_created event failed", error);
             });
 
-            try {
-              const amount = Number(grossTotal || 0);
-              const payStatus = String(billData.paymentStatus || "pending");
-              const adminBody = `${customerName || "Customer"} | ₹${amount} | ${payStatus}`;
-
-              void fetch("/api/notifications/send", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  audience: "admins",
-                  eventId: `billing.created.${String(createdId)}.admins`,
-                  eventType: "billing.created",
-                  actorUserId: actorUserId || undefined,
-                  title: "Bill created",
-                  body: adminBody,
-                  data: {
-                    event: "bill-created",
-                    billId: String(createdId),
-                    billNumber: String(billNumber),
-                    route: `/admin/billing?open=${encodeURIComponent(String(createdId))}`,
-                  },
-                }),
-              }).catch(() => {});
-            } catch {}
-
-            void fetch("/api/notifications/send", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                eventId: `billing.created.${String(createdId)}.customer`,
-                eventType: "billing.created",
-                title: "Bill created",
-                body: billNumber ? `Your bill ${billNumber} was created` : "Your bill was created",
-                actorUserId: actorUserId || undefined,
-                userIds: [customerId],
-                data: {
-                  event: "bill-created",
-                  billId: String(createdId),
-                  billNumber: String(billNumber),
-                  route: "/customer/bills",
-                },
-                excludeTokens: currentToken ? [currentToken] : undefined,
-              }),
-            }).catch(() => {});
-
           }
         } catch {}
       })();
@@ -987,7 +937,7 @@ export async function createBill(billData: {
       return {
         success: true,
         data: {
-          ...result,
+          ...createdDoc,
           billNumber,
           totalAmount: grossTotal,
         },
@@ -1048,7 +998,13 @@ export async function createStockTransaction(transactionData: {
       createdAt: new Date().toISOString(),
     };
 
-    const result = await sanityClient.create(newTransaction);
+    const txResult = await createStockTransactionRecord(newTransaction);
+    if (!txResult.success) {
+      throw new Error(
+        txResult.error || "Failed to create stock transaction"
+      );
+    }
+    const result = { _id: txResult.id, ...newTransaction } as any;
 
     // Update product inventory
     if (transactionData.type === "sale" || transactionData.type === "damage") {

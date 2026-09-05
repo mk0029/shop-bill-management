@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { createDocument, updateDocument } from '@/lib/sanity/write-router'
+import { denormalizeBill } from '@/lib/sanity/denormalize'
 import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { getActiveAdminUserIds, createAndDispatchNotification } from '@/services/notifications/notification-events.server'
 import { safeUserName } from '@/lib/display-text'
@@ -36,11 +38,14 @@ export async function POST(req: NextRequest) {
     const customerId = (() => {
       const c = (bill as any)?.customer
       if (c && typeof c === 'object' && typeof c._ref === 'string') return c._ref
+      if (c && typeof c === 'string') return c
       return ''
     })()
+    let customerName = ''
+    let customerPhone = ''
     if (customerId) {
-      const customerDoc = await sanityClient.fetch<{ role?: string } | null>(
-        `*[_type == "user" && _id == $id][0]{ role }`,
+      const customerDoc = await sanityClient.fetch<{ role?: string; name?: string; phone?: string | null } | null>(
+        `*[_type == "user" && _id == $id][0]{ role, name, phone }`,
         { id: customerId },
       )
       const role = String(
@@ -52,15 +57,29 @@ export async function POST(req: NextRequest) {
           { status: 403 },
         )
       }
+      customerName = String(customerDoc?.name || '')
+      customerPhone = String(customerDoc?.phone || '')
     }
 
-    const created = await sanityClient.create({
+    const rawBill: Record<string, unknown> = {
       ...(bill as any),
       _type: 'bill',
       createdAt: (bill as any).createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ...(actorUserId ? { technician: { _type: 'reference', _ref: actorUserId } } : {}),
-    } as any)
+    }
+    if (customerName && !rawBill.customerName) rawBill.customerName = customerName
+    if (customerPhone && !rawBill.customerPhone) rawBill.customerPhone = customerPhone
+
+    const billData = denormalizeBill(rawBill) as Record<string, unknown>
+    const createdResult = await createDocument(billData, 'bills')
+    if (!createdResult.success) {
+      return NextResponse.json(
+        { success: false, error: createdResult.error || 'Failed to create bill' },
+        { status: 500 },
+      )
+    }
+    const created = { _id: createdResult.documentId, ...billData } as any
 
     const createdCustomerId = (() => {
       const c = (created as any)?.customer
@@ -68,7 +87,10 @@ export async function POST(req: NextRequest) {
       return ''
     })()
 
-    void (async () => {
+    // Draft bills skip WhatsApp events + admin/customer notifications.
+    const isDraft = (body as any)?.draft === true || String((bill as any)?.status || (created as any)?.status || '') === 'draft'
+
+    if (!isDraft) void (async () => {
       try {
         const resolvedCustomerId = createdCustomerId || customerId
         const user = resolvedCustomerId
@@ -123,70 +145,74 @@ export async function POST(req: NextRequest) {
       }
     })()
 
-    try {
-      await sanityClient.patch(String((created as any)._id)).set({ updatedAt: new Date().toISOString() }).commit()
-    } catch {}
+    if (!isDraft) {
+      try {
+        await updateDocument(String((created as any)._id), { updatedAt: new Date().toISOString() }, 'bills')
+      } catch {}
+    }
 
-    try {
-      const billId = String((created as any)?.billNumber || (created as any)?._id || '')
-      const adminRoute = `/admin/billing?open=${encodeURIComponent(String(billId || ''))}`
-      const customerName = await (async () => {
-        try {
-          if (!customerId) return ''
-          const doc = await sanityClient.fetch<{ name?: string } | null>(
-            `*[_type=="user" && _id==$id][0]{name}`,
-            { id: String(customerId) }
-          )
-          return safeUserName(doc?.name, 'Customer')
-        } catch {
-          return ''
-        }
-      })()
-      const amount = Number((created as any)?.totalAmount || 0)
-      const adminNotification = billCreatedAdminNotification({ amount, customerName })
-      const customerNotification = billCreatedCustomerNotification({ amount, customerName })
+    if (!isDraft) {
+      try {
+        const billId = String((created as any)?.billNumber || (created as any)?._id || '')
+        const adminRoute = `/admin/billing?open=${encodeURIComponent(String(billId || ''))}`
+        const customerName = await (async () => {
+          try {
+            if (!customerId) return ''
+            const doc = await sanityClient.fetch<{ name?: string } | null>(
+              `*[_type=="user" && _id==$id][0]{name}`,
+              { id: String(customerId) }
+            )
+            return safeUserName(doc?.name, 'Customer')
+          } catch {
+            return ''
+          }
+        })()
+        const amount = Number((created as any)?.totalAmount || 0)
+        const adminNotification = billCreatedAdminNotification({ amount, customerName })
+        const customerNotification = billCreatedCustomerNotification({ amount, customerName })
 
-      const adminIds = await getActiveAdminUserIds()
-      await createAndDispatchNotification({
-        eventId: `billing.created.${String((created as any)?._id || billId)}.admins`,
-        type: adminNotification.type,
-        actorUserId,
-        userIds: adminIds,
-        title: adminNotification.title,
-        body: adminNotification.body,
-        data: {
-          billId,
-          billNumber: String((created as any)?.billNumber || ''),
-          customerId,
-          targetRole: adminNotification.targetRole,
-          route: adminRoute,
-          route_path: adminRoute,
-        },
-        skipActor: true,
-      })
-
-      if (customerId) {
-        const customerRoute = `/customer/bills?open=${encodeURIComponent(String((created as any)?._id || billId))}`
+        const adminIds = await getActiveAdminUserIds()
         await createAndDispatchNotification({
-          eventId: `billing.created.${String((created as any)?._id || billId)}.customer.${String(customerId)}`,
-          type: customerNotification.type,
+          eventId: `billing.created.${String((created as any)?._id || billId)}.admins`,
+          type: adminNotification.type,
           actorUserId,
-          userId: String(customerId),
-          title: customerNotification.title,
-          body: customerNotification.body,
+          userIds: adminIds,
+          title: adminNotification.title,
+          body: adminNotification.body,
           data: {
-            billId: String((created as any)?._id || billId),
+            billId,
             billNumber: String((created as any)?.billNumber || ''),
-            customerId: String(customerId),
-            targetRole: customerNotification.targetRole,
-            route: customerRoute,
-            route_path: customerRoute,
+            customerId,
+            targetRole: adminNotification.targetRole,
+            route: adminRoute,
+            route_path: adminRoute,
           },
           skipActor: true,
         })
+
+        if (customerId) {
+          const customerRoute = `/customer/bills?open=${encodeURIComponent(String((created as any)?._id || billId))}`
+          await createAndDispatchNotification({
+            eventId: `billing.created.${String((created as any)?._id || billId)}.customer.${String(customerId)}`,
+            type: customerNotification.type,
+            actorUserId,
+            userId: String(customerId),
+            title: customerNotification.title,
+            body: customerNotification.body,
+            data: {
+              billId: String((created as any)?._id || billId),
+              billNumber: String((created as any)?.billNumber || ''),
+              customerId: String(customerId),
+              targetRole: customerNotification.targetRole,
+              route: customerRoute,
+              route_path: customerRoute,
+            },
+            skipActor: true,
+          })
+        }
+      } catch (e) {
+        console.error('[Notify] bill_created emit failed', e)
       }
-    } catch (e) {
-      console.error('[Notify] bill_created emit failed', e)
     }
 
     return NextResponse.json({ success: true, data: created }, { status: 200 })

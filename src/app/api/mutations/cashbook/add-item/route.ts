@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sanityClient } from '@/lib/sanity'
+import { createDocument, updateDocument } from '@/lib/sanity/write-router'
+import { denormalizeReferences } from '@/lib/sanity/denormalize'
 import { notificationService } from '@/lib/notification-service'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
@@ -54,9 +55,22 @@ export async function POST(req: NextRequest) {
       locked: false,
     }
 
-    const created = await sanityClient.create(doc)
+    // Drop references to user/product docs that live in the primary DB.
+    const denormalizedDoc = denormalizeReferences(doc, {
+      referenceFields: ['customer', 'product'],
+      arrayReferenceFields: [],
+      hoistRefs: true,
+    })
+    if (customerId && doc.customer) {
+      (denormalizedDoc as any).customerId = customerId
+    }
+    if (productId && doc.product) {
+      (denormalizedDoc as any).productId = productId
+    }
+
+    const created = await createDocument(denormalizedDoc, 'cashbook')
     try {
-      await sanityClient.patch(cashbookId).set({ updatedAt: new Date().toISOString() }).commit()
+      await updateDocument(cashbookId, { updatedAt: new Date().toISOString() }, 'cashbook')
     } catch {}
 
     try {
@@ -76,7 +90,7 @@ export async function POST(req: NextRequest) {
       console.error('[Notify] cashbook_entry emit failed', e)
     }
 
-    return NextResponse.json({ success: true, data: created }, { status: 200 })
+    return NextResponse.json({ success: true, data: { _id: created.documentId, ...denormalizedDoc } }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'
     return NextResponse.json({ success: false, error: message }, { status: 500 })

@@ -1,8 +1,37 @@
 import { NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { getSanityClient } from '@/lib/sanity/client-factory'
 import { getServerAuth } from '@/lib/server-auth'
 
 export const runtime = 'nodejs'
+
+const opsProjection = `{
+        _id,
+        requestId,
+        name,
+        phone,
+        email,
+        location,
+        company,
+        requestType,
+        status,
+        deviceFingerprint,
+        ipAddress,
+        adminNotes,
+        submittedAt,
+        expiresAt,
+        resolvedAt,
+        rejectionReason,
+        customerId,
+        createdAt,
+        auditTrail,
+        cancelledReason,
+        cancelledAt,
+        cancelledBy,
+        "resolvedBy": resolvedByUserId == "" ? null : {"_id": resolvedByUserId, "name": null},
+        "rejectedBy": rejectedByUserId == "" ? null : {"_id": rejectedByUserId, "name": null},
+        "customerRef": customerRefId == "" ? null : {"_id": customerRefId, "name": null, "customerId": customerId},
+      }`
 
 export async function GET(
   _req: Request,
@@ -19,8 +48,8 @@ export async function GET(
 
     const { id } = await params
 
-    const requestData = await sanityClient.fetch(
-      `*[_type == "customerRequest" && (_id == $id || requestId == $id)][0] {
+    const query = `*[_type == "customerRequest" && (_id == $id || requestId == $id)][0] `
+    const legacyProjection = `{
         _id,
         requestId,
         name,
@@ -46,9 +75,15 @@ export async function GET(
         "resolvedBy": resolvedBy->{_id, name},
         "rejectedBy": rejectedBy->{_id, name},
         "customerRef": customerRef->{_id, name, customerId, phone, email, location},
-      }`,
-      { id },
-    )
+      }`
+
+    const requestData =
+      (await getSanityClient('operations')
+        .fetch(query + opsProjection, { id })
+        .catch(() => null)) ||
+      (await sanityClient
+        .fetch(query + legacyProjection, { id })
+        .catch(() => null))
 
     if (!requestData) {
       return NextResponse.json({ success: false, error: 'Request not found' }, { status: 404 })

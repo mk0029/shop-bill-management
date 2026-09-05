@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { updateDocument, deleteDocument } from '@/lib/sanity/write-router'
+import { getSanityClient } from '@/lib/sanity/client-factory'
 import { getServerAuth } from '@/lib/server-auth'
 import { sendNotificationToAdmins } from '@/services/notifications/notification-events.server'
 
@@ -20,10 +22,19 @@ export async function POST(
 
     const { id } = await params
 
-    const requestData: Record<string, any> | null = await sanityClient.fetch(
-      `*[_type == "customerRequest" && _id == $id][0]{_id, status, name, requestId}`,
-      { id },
-    )
+    let requestData: Record<string, any> | null = await getSanityClient('operations')
+      .fetch(
+        `*[_type == "customerRequest" && _id == $id][0]{_id, status, name, requestId}`,
+        { id },
+      )
+      .catch(() => null)
+    let inOps = !!requestData
+    if (!requestData) {
+      requestData = await sanityClient.fetch(
+        `*[_type == "customerRequest" && _id == $id][0]{_id, status, name, requestId}`,
+        { id },
+      )
+    }
 
     if (!requestData) {
       return NextResponse.json({ success: false, error: 'Registration request not found' }, { status: 404 })
@@ -44,13 +55,18 @@ export async function POST(
     const requestName = String(requestData?.name || 'A customer')
 
     if (isDuplicateCancel) {
-      await sanityClient.patch(id).set({
+      const cancelFields: Record<string, unknown> = {
         status: 'cancelled',
         cancelledReason: reason || 'Duplicate identity detected.',
         cancelledAt: new Date().toISOString(),
         cancelledBy: auth.userId || 'system',
         resolvedAt: new Date().toISOString(),
-      }).commit()
+      }
+      if (inOps) {
+        await updateDocument(id, cancelFields, 'customer-requests')
+      } else {
+        await sanityClient.patch(id).set(cancelFields).commit()
+      }
 
       sendNotificationToAdmins({
         type: "customer.request.cancelled",
@@ -60,7 +76,11 @@ export async function POST(
         data: { route: "/admin/customers", requestId: id, entityId: id, customerName: requestName },
       }).catch((e) => console.error("[Reject] FCM notification failed:", e))
     } else {
-      await sanityClient.delete(id)
+      if (inOps) {
+        await deleteDocument(id, 'customer-requests')
+      } else {
+        await sanityClient.delete(id)
+      }
 
       sendNotificationToAdmins({
         type: "customer.request.rejected",

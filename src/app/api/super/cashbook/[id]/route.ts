@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { sanityClient } from "@/lib/sanity";
+import { updateDocument, deleteDocument } from "@/lib/sanity/write-router";
+import { querySingleDocument } from "@/lib/sanity/read-router";
 import { getServerAuth } from "@/lib/server-auth";
 
 async function resolveCashbookEntryDocumentId(identifier: string): Promise<string | null> {
@@ -8,10 +9,12 @@ async function resolveCashbookEntryDocumentId(identifier: string): Promise<strin
   if (!key) return null;
 
   // First try as document _id
-  const byId = await sanityClient.fetch(
+  const byIdRes = await querySingleDocument(
     `*[_type == "cashBookEntry" && _id == $key][0]{ _id }`,
-    { key }
+    { key },
+    'cashbook'
   );
+  const byId = byIdRes.data;
   if (byId?._id) return String(byId._id);
 
   return null;
@@ -53,7 +56,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ success: false, error: "Cashbook entry not found" }, { status: 404 });
     }
 
-    const entry = await sanityClient.fetch(
+    const entryRes = await querySingleDocument(
       `*[_type == "cashBookEntry" && _id == $id][0]{
         _id,
         amount,
@@ -68,8 +71,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         user->{_id, name},
         bill->{_id, billNumber}
       }`,
-      { id }
+      { id },
+      'cashbook'
     );
+    const entry = entryRes.data;
 
     if (!entry) {
       return NextResponse.json({ success: false, error: "Cashbook entry not found" }, { status: 404 });
@@ -130,9 +135,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       updatedAt: new Date().toISOString(),
     };
 
-    const updated = await sanityClient.patch(id).set(patch).commit();
+    const updated = await updateDocument(id, patch, 'cashbook');
 
-    return NextResponse.json({ success: true, data: updated }, { status: 200 });
+    return NextResponse.json({ success: true, data: { _id: id, ...patch } }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || "Server error" }, { status: 500 });
   }
@@ -175,7 +180,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     }
 
     // Get entry details before deletion for reference handling
-    const entry = await sanityClient.fetch(
+    const entryRes = await querySingleDocument(
       `*[_type == "cashBookEntry" && _id == $id][0]{
         _id,
         amount,
@@ -186,8 +191,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
           product->{_id}
         }
       }`,
-      { id }
+      { id },
+      'cashbook'
     );
+    const entry = entryRes.data;
 
     if (!entry) {
       return NextResponse.json({ success: false, error: "Cashbook entry not found" }, { status: 404 });
@@ -218,7 +225,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     }
 
     // Delete the cashbook entry
-    await sanityClient.delete(id);
+    await deleteDocument(id, 'cashbook');
     
     return NextResponse.json({ success: true, message: "Cashbook entry deleted" }, { status: 200 });
   } catch (e: any) {

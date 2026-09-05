@@ -13,9 +13,7 @@ import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { toast } from "sonner";
 import {
   workTaskService,
-  listenWorkTasks,
   type WorkTask,
-  type WorkTaskRealtimeEvent,
 } from "@/lib/work-task-service";
 import { formatDayDateTime } from "@/lib/date-time";
 
@@ -113,28 +111,18 @@ export default function WorkListDashboardSection({
     }
   }, []);
 
-  const applyRealtimeEvent = useCallback((event?: WorkTaskRealtimeEvent) => {
-    const id = String(event?.documentId || event?.result?._id || "");
-    if (!id) return;
-    if (event?.mutation?.transition === "disappear") {
-      setTasks((prev) => prev.filter((t) => t._id !== id));
-      return;
-    }
-    if (!event?.result) return;
-    setTasks((prev) => {
-      const without = prev.filter((t) => t._id !== id);
-      return [event.result as WorkTask, ...without];
-    });
-  }, []);
-
   useEffect(() => {
     load();
-    const sub = listenWorkTasks((event) => {
-      applyRealtimeEvent(event);
-      load({ silent: true });
-    });
-    return () => sub.unsubscribe();
-  }, [load, applyRealtimeEvent]);
+    // Task docs live in the operations DB, so browser listeners on the primary
+    // client never fire. Poll instead.
+    const interval = setInterval(() => load({ silent: true }), 15000);
+    const onFocus = () => load({ silent: true });
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [load]);
 
   const pendingTasks = useMemo(
     () =>

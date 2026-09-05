@@ -1,7 +1,32 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import type { FcmDeviceInfo, RegisterFcmTokenInput } from "@/types/notifications";
+
+// Primary (idji8ni7) is read-only, so all FCM-token reads/writes target the
+// dedicated users database (CUSTOMERS role -> wpzry5rh) where user data lives.
+// Primary is still readable, so user-resolution reads fall back to it while
+// users are being migrated. The `user` reference is denormalized to a plain
+// `userId` string to avoid cross-dataset reference validation failures.
+const usersClient = () => getSanityClient("customers");
+const primaryClient = () => getSanityClient("primary");
+
+async function fetchAcrossUserDbs<T>(
+  groq: string,
+  params: Record<string, unknown>,
+): Promise<T | null> {
+  try {
+    const first = await usersClient().fetch<T | null>(groq, params);
+    if (first != null) return first;
+  } catch {
+    /* fall through to primary */
+  }
+  try {
+    return await primaryClient().fetch<T | null>(groq, params);
+  } catch {
+    return null;
+  }
+}
 
 export type ActiveFcmToken = {
   _id: string;
@@ -40,7 +65,7 @@ function clampAllowedDeviceCount(value: unknown) {
 }
 
 export async function getAllowedDevicesCount(userId: string): Promise<number> {
-  const user = await sanityClient.fetch<SanityUserDeviceLimit | null>(
+  const user = await fetchAcrossUserDbs<SanityUserDeviceLimit | null>(
     `*[_type=="user" && (_id==$id || clerkId==$id || customerId==$id) && isActive != false][0]{
       _id,
       allowedDevicesCount
@@ -52,7 +77,7 @@ export async function getAllowedDevicesCount(userId: string): Promise<number> {
 }
 
 export async function resolveUserId(userId: string): Promise<string> {
-  const id = await sanityClient.fetch<string | null>(
+  const id = await fetchAcrossUserDbs<string | null>(
     `*[_type=="user" && (_id==$id || clerkId==$id || customerId==$id) && isActive != false][0]._id`,
     { id: userId },
   );
@@ -72,21 +97,21 @@ export async function registerFcmToken(input: RegisterFcmTokenInput) {
   const stableDeviceId = String(deviceInfo.deviceId || "").trim();
   const docId = stableDeviceId ? deviceDocId(userId, stableDeviceId) : tokenDocId(token);
 
-  await sanityClient.createIfNotExists({
+  await usersClient().createIfNotExists({
     _id: docId,
     _type: "userFcmToken",
     token,
     createdAt: now,
-    user: { _type: "reference", _ref: userId },
+    user: userId,
     userId,
     deviceId: stableDeviceId || docId,
     isActive: true,
   });
 
-  await sanityClient
+  await usersClient()
     .patch(docId)
     .set({
-      user: { _type: "reference", _ref: userId },
+      user: userId,
       userId,
       deviceId: stableDeviceId || docId,
       deviceName: deviceInfo.deviceName || deviceInfo.platform || "Device",
@@ -128,21 +153,21 @@ export async function registerUserDeviceSession(input: RegisterFcmTokenInput) {
   if (!stableDeviceId && !token) throw new Error("Missing deviceId/token");
   const docId = stableDeviceId ? deviceDocId(userId, stableDeviceId) : tokenDocId(token);
 
-  await sanityClient.createIfNotExists({
+  await usersClient().createIfNotExists({
       _id: docId,
       _type: "userFcmToken",
       token,
       createdAt: now,
-      user: { _type: "reference", _ref: userId },
+      user: userId,
       userId,
       deviceId: deviceInfo.deviceId || docId,
       isActive: true,
     });
 
-  await sanityClient
+  await usersClient()
     .patch(docId)
     .set({
-      user: { _type: "reference", _ref: userId },
+      user: userId,
       userId,
       deviceId: deviceInfo.deviceId || docId,
       deviceName: deviceInfo.deviceName || deviceInfo.platform || "Device",
@@ -165,7 +190,7 @@ export async function registerUserDeviceSession(input: RegisterFcmTokenInput) {
     });
   }
 
-  await sanityClient
+  await usersClient()
     .patch(userId)
     .set({
       allowedDevicesCount,
@@ -188,7 +213,7 @@ export async function getDeviceSessionStatus(input: { userId: string; deviceId: 
   const deviceId = String(input.deviceId || "").trim();
   if (!requestedUserId || !deviceId) throw new Error("Missing userId/deviceId");
   const userId = await resolveUserId(requestedUserId);
-  const doc = await sanityClient.fetch<{
+  const doc = await usersClient().fetch<{
     _id: string;
     isActive?: boolean | null;
     deactivatedReason?: string | null;
@@ -220,7 +245,7 @@ export async function getDeviceSessionStatus(input: { userId: string; deviceId: 
 export async function unregisterFcmToken(userId: string, token: string) {
   const resolvedUserId = await resolveUserId(userId);
   const now = new Date().toISOString();
-  await sanityClient
+  await usersClient()
     .patch(tokenDocId(token))
     .set({ isActive: false, updatedAt: now })
     .unset(["lastUsedAt"])
@@ -236,7 +261,7 @@ export async function getActiveFcmTokensForUsers(userIds: string[]): Promise<Act
   if (!ids.length) return [];
   const resolvedIds = await resolveUserIdsForNotificationTargets(ids);
   const lookupIds = Array.from(new Set([...ids, ...resolvedIds]));
-  const tokenDocs = await sanityClient.fetch<ActiveFcmToken[]>(
+  const tokenDocs = await usersClient().fetch<ActiveFcmToken[]>(
     `*[_type=="userFcmToken" && isActive == true && defined(token) && token != "" && (userId in $ids || user._ref in $ids)] | order(updatedAt desc) {
       _id,
       userId,
@@ -249,7 +274,7 @@ export async function getActiveFcmTokensForUsers(userIds: string[]): Promise<Act
     { ids: lookupIds },
   );
 
-  const legacyUsers = await sanityClient.fetch<LegacyUserTokens[]>(
+  const legacyUsers = await usersClient().fetch<LegacyUserTokens[]>(
     `*[_type=="user" && _id in $ids]{
       _id,
       fcmTokens,
@@ -286,7 +311,7 @@ export async function getActiveFcmTokensForUsers(userIds: string[]): Promise<Act
 
 async function resolveUserIdsForNotificationTargets(ids: string[]) {
   if (!ids.length) return [];
-  const resolved = await sanityClient.fetch<string[]>(
+  const resolved = await usersClient().fetch<string[]>(
     `*[_type=="user" && (_id in $ids || clerkId in $ids || customerId in $ids) && isActive != false]._id`,
     { ids },
   );
@@ -299,7 +324,7 @@ async function deactivateDuplicateDeviceDocs(
   keepDocId: string,
   options: { notifyRevokedDevices: boolean; reason: string },
 ) {
-  const duplicates = await sanityClient.fetch<Array<{ _id: string; token?: string; deviceName?: string }>>(
+  const duplicates = await usersClient().fetch<Array<{ _id: string; token?: string; deviceName?: string }>>(
     `*[_type=="userFcmToken" && userId==$userId && deviceId==$deviceId && _id != $keepDocId && isActive == true]{
       _id,
       token,
@@ -311,7 +336,7 @@ async function deactivateDuplicateDeviceDocs(
   const now = new Date().toISOString();
   await Promise.allSettled(
     duplicates.map((doc) =>
-      sanityClient
+      usersClient()
         .patch(doc._id)
         .set({
           isActive: false,
@@ -345,13 +370,13 @@ export async function deactivateFcmTokens(tokens: string[]) {
   const unique = Array.from(new Set((tokens || []).map(String).filter(Boolean)));
   if (!unique.length) return;
   const now = new Date().toISOString();
-  const docs = await sanityClient.fetch<Array<{ _id: string; userId?: string }>>(
+  const docs = await usersClient().fetch<Array<{ _id: string; userId?: string }>>(
     `*[_type=="userFcmToken" && token in $tokens]{_id,userId}`,
     { tokens: unique },
   );
   await Promise.allSettled(
     docs.map((doc) =>
-      sanityClient.patch(doc._id).set({ isActive: false, updatedAt: now }).commit(),
+      usersClient().patch(doc._id).set({ isActive: false, updatedAt: now }).commit(),
     ),
   );
 
@@ -365,7 +390,7 @@ async function enforceUserFcmTokenLimit(
   latestDeviceName: string,
   keepDocId: string,
 ) {
-  const active = await sanityClient.fetch<Array<{ _id: string; token?: string; deviceId?: string; deviceName?: string; updatedAt?: string }>>(
+  const active = await usersClient().fetch<Array<{ _id: string; token?: string; deviceId?: string; deviceName?: string; updatedAt?: string }>>(
     `*[_type=="userFcmToken" && userId==$userId && isActive == true] | order(updatedAt desc) {
       _id,
       token,
@@ -386,7 +411,7 @@ async function enforceUserFcmTokenLimit(
   const now = new Date().toISOString();
   await Promise.allSettled(
     stale.map((doc) =>
-      sanityClient
+      usersClient()
         .patch(doc._id)
         .set({
           isActive: false,
@@ -452,7 +477,7 @@ async function removeLegacyUserToken(userId: string, token: string) {
 async function removeLegacyUserTokens(userId: string, tokens: string[]) {
   const unique = new Set(tokens.filter(Boolean));
   if (!unique.size) return;
-  const user = await sanityClient.fetch<{
+  const user = await usersClient().fetch<{
     fcmTokens?: string[] | null;
     fcmTokensProd?: string[] | null;
     fcmTokensDev?: string[] | null;
@@ -462,7 +487,7 @@ async function removeLegacyUserTokens(userId: string, tokens: string[]) {
   );
   if (!user) return;
   const filter = (arr?: string[] | null) => (Array.isArray(arr) ? arr.filter((t) => !unique.has(t)) : []);
-  await sanityClient
+  await usersClient()
     .patch(userId)
     .set({
       fcmTokens: filter(user.fcmTokens),

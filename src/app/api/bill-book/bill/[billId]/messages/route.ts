@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument } from "@/lib/sanity/write-router";
 import { createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 import { safeUserName } from "@/lib/display-text";
 
@@ -9,8 +11,7 @@ export async function GET(
 ) {
   const { billId } = await params;
   try {
-    const messages = await sanityClient.fetch(
-      `*[_type == "billMessage" && bill._ref == $billId] | order(createdAt asc) {
+    const query = `*[_type == "billMessage" && bill._ref == $billId] | order(createdAt asc) {
         _id,
         bill,
         sender,
@@ -25,9 +26,17 @@ export async function GET(
         createdAt,
         updatedAt,
         isEncrypted
-      }`,
-      { billId },
-    );
+      }`;
+    const [primaryMessages, commsMessages] = await Promise.all([
+      sanityClient.fetch(query, { billId }).catch(() => []),
+      getSanityClient("comms").fetch(query, { billId }).catch(() => []),
+    ]);
+    const byId = new Map<string, unknown>();
+    for (const message of [...(commsMessages || []), ...(primaryMessages || [])]) {
+      const entry = message as { _id?: string };
+      if (entry?._id && !byId.has(entry._id)) byId.set(entry._id, message);
+    }
+    const messages = Array.from(byId.values());
 
     return NextResponse.json({ success: true, data: messages || [] });
   } catch (error) {
@@ -55,8 +64,8 @@ export async function POST(
       );
     }
 
-    const now = new Date().toISOString();
-    const doc = await sanityClient.create({
+const now = new Date().toISOString();
+    const docBody = {
       _type: "billMessage",
       bill: { _type: "reference", _ref: String(billId) },
       sender: senderId
@@ -75,7 +84,12 @@ export async function POST(
       isEncrypted: false,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+    const writeResult = await createDocument(docBody, "bill-messages");
+    if (!writeResult.success) {
+      throw new Error(writeResult.error || "Failed to create message");
+    }
+    const doc = { _id: writeResult.documentId || "" };
 
     if (recipientId && String(recipientId) !== String(senderId || "")) {
       const [recipient, sender, bill] = await Promise.all([
@@ -102,8 +116,8 @@ export async function POST(
         ? `/customer/bills?open=${encodeURIComponent(String(billId))}`
         : `/admin/billing?open=${encodeURIComponent(String(billId))}`;
 
-      createAndDispatchNotification({
-        eventId: `bill.message.created.${String((doc as { _id?: string })?._id || Date.now())}`,
+createAndDispatchNotification({
+        eventId: `bill.message.created.${String(doc._id || Date.now())}`,
         type: "bill.message.created",
         actorUserId: senderId ? String(senderId) : undefined,
         userId: String(recipientId),
@@ -112,9 +126,9 @@ export async function POST(
         data: {
           userId: String(recipientId),
           billId: String(billId),
-          billNumber: bill?.billNumber || "",
+billNumber: bill?.billNumber || "",
           customerId: bill?.customer?._id || "",
-          messageId: String((doc as { _id?: string })?._id || ""),
+          messageId: String(doc._id || ""),
           senderId: senderId ? String(senderId) : "",
           senderName,
           route: targetRoute,

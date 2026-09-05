@@ -1,5 +1,6 @@
 import 'server-only'
-import { sanityClient } from './sanity'
+import { sanityClient, getSanityClient } from './sanity'
+import { createDocument, updateDocument, deleteDocument } from './sanity/write-router'
 import type { Offer, OfferClaim, OfferWithProduct, CreateOfferInput, UpdateOfferInput, ClaimStatus } from '@/types/offers'
 
 const OFFER_FIELDS = `{
@@ -8,6 +9,7 @@ const OFFER_FIELDS = `{
   description,
   offerType,
   discountValue,
+  productIds,
   products[]->{ _id, name, slug, brand, images, pricing, category->{ _id, name, slug } },
   startAt,
   endAt,
@@ -141,24 +143,37 @@ export async function claimOffer(
   }
 
   const now = new Date().toISOString()
-  const claim = await sanityClient.create({
+  const createResult = await createDocument({
     _type: 'offerClaim',
-    offer: { _type: 'reference', _ref: offerId },
     offerId,
-    customer: { _type: 'reference', _ref: userId },
     customerId,
     productIds,
     claimedAt: now,
     status: 'claimed',
     createdAt: now,
     updatedAt: now,
-  }) as unknown as OfferClaim
+  }, 'offers')
 
-  await sanityClient
-    .patch(offerId)
-    .inc({ currentClaimCount: 1 })
-    .set({ updatedAt: now })
-    .commit()
+  if (!createResult.success) {
+    return { success: false, reason: createResult.error || 'Failed to claim offer' }
+  }
+  const claim = { _id: createResult.documentId, offerId, customerId, productIds, claimedAt: now, status: 'claimed', createdAt: now, updatedAt: now } as unknown as OfferClaim
+
+  // Increment claim count on the offer (offers DB).
+  try {
+    const offersClient = getSanityClient("offers");
+    const current = await offersClient.fetch<{ currentClaimCount?: number } | null>(
+      `*[_type == "offer" && _id == $id][0]{ currentClaimCount }`,
+      { id: offerId },
+    )
+    await updateDocument(
+      offerId,
+      { currentClaimCount: Number(current?.currentClaimCount || 0) + 1, updatedAt: now },
+      'offers',
+    )
+  } catch (e) {
+    console.warn('Failed to increment offer claim count', e)
+  }
 
   return { success: true, claim }
 }
@@ -293,13 +308,13 @@ export async function createOffer(
     _weak: false,
   }))
 
-  const offer = await sanityClient.create({
+  const offerCreateResult = await createDocument({
     _type: 'offer',
     title: input.title.trim(),
     description: input.description?.trim() || '',
     offerType: input.offerType,
     discountValue: input.discountValue ?? 0,
-    products,
+    productIds: validIds,
     startAt: input.startAt,
     endAt: input.endAt,
     status: input.status || 'active',
@@ -308,10 +323,15 @@ export async function createOffer(
     minimumOrderAmount: input.minimumOrderAmount ?? 0,
     minimumQuantity: input.minimumQuantity ?? 0,
     terms: input.terms?.trim() || '',
-    createdBy: { _type: 'reference', _ref: createdByUserId, _weak: true },
+    createdByUserId,
     createdAt: now,
     updatedAt: now,
-  }) as unknown as Offer
+  }, 'offers')
+
+  if (!offerCreateResult.success) {
+    return { success: false, error: offerCreateResult.error || 'Failed to create offer' }
+  }
+  const offer = { _id: offerCreateResult.documentId, ...(offerCreateResult as any) } as unknown as Offer
 
   return { success: true, offer }
 }
@@ -338,10 +358,7 @@ export async function updateOffer(
       }
     }
 
-    patch.products = validIds.map((id) => ({
-      _type: 'reference',
-      _ref: id,
-    }))
+    patch.productIds = validIds
   }
   if (input.startAt !== undefined) patch.startAt = input.startAt
   if (input.endAt !== undefined) patch.endAt = input.endAt
@@ -353,17 +370,31 @@ export async function updateOffer(
   if (input.terms !== undefined) patch.terms = input.terms.trim()
   if (input.currentClaimCount !== undefined) patch.currentClaimCount = input.currentClaimCount
 
-  let offerPatch = sanityClient.patch(offerId).set(patch)
-  if (await offerHasInvalidCreatedBy(offerId)) {
-    offerPatch = offerPatch.unset(['createdBy'])
+  const result = await updateDocument(offerId, patch, 'offers')
+  if (!result.success) {
+    return { success: false, error: result.error || 'Failed to update offer' }
   }
 
-  const offer = await offerPatch.commit() as unknown as Offer
+  // Clean up an invalid createdBy reference (best-effort).
+  if (await offerHasInvalidCreatedBy(offerId)) {
+    try {
+      await getSanityClient("offers").patch(offerId).unset(["createdBy"]).commit()
+    } catch {}
+    delete patch.createdBy
+  }
+
+  const offer = await sanityClient.fetch<Offer | null>(
+    `*[_type == "offer" && _id == $id][0]`,
+    { id: offerId },
+  ) as unknown as Offer
   return { success: true, offer }
 }
 
 export async function deleteOffer(offerId: string): Promise<{ success: boolean; error?: string }> {
-  await sanityClient.delete(offerId)
+  const result = await deleteDocument(offerId, 'offers')
+  if (!result.success && !result.error?.toLowerCase().includes('not found')) {
+    return { success: false, error: result.error || 'Failed to delete offer' }
+  }
   return { success: true }
 }
 

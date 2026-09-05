@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { getSanityClient } from '@/lib/sanity/client-factory'
 import { getServerAuth } from '@/lib/server-auth'
 
 export const runtime = 'nodejs'
@@ -7,6 +8,31 @@ export const runtime = 'nodejs'
 function errorResponse(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status })
 }
+
+const opsProjection = `{
+      _id,
+      requestId,
+      name,
+      phone,
+      email,
+      location,
+      company,
+      requestType,
+      status,
+      submittedAt,
+      expiresAt,
+      resolvedAt,
+      rejectionReason,
+      customerId,
+      ipAddress,
+      deviceFingerprint,
+      cancelledReason,
+      cancelledAt,
+      cancelledBy,
+      "resolvedBy": resolvedByUserId == "" ? null : {"_id": resolvedByUserId, "name": null},
+      "rejectedBy": rejectedByUserId == "" ? null : {"_id": rejectedByUserId, "name": null},
+      "customerRef": customerRefId == "" ? null : {"_id": customerRefId, "name": null, "customerId": customerId},
+    }`
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,11 +77,10 @@ export async function GET(req: NextRequest) {
     }
 
     const filterStr = filters.length > 0 ? `&& ${filters.join(' && ')}` : ''
-    const countQuery = `count(*[_type == "customerRequest" ${filterStr}])`
-    const total = await sanityClient.fetch(countQuery, params)
-
+    const baseQuery = `*[_type == "customerRequest" ${filterStr}]`
     const orderPrefix = safeOrder === 'asc' ? '' : '-'
-    const dataQuery = `*[_type == "customerRequest" ${filterStr}] | order(${orderPrefix}${safeSort}) [${(page - 1) * pageSize}...${page * pageSize}] {
+
+    const legacyProjection = `{
       _id,
       requestId,
       name,
@@ -79,11 +104,29 @@ export async function GET(req: NextRequest) {
       "rejectedBy": rejectedBy->{_id, name},
       "customerRef": customerRef->{_id, name, customerId},
     }`
-    const requests = await sanityClient.fetch(dataQuery, params)
+
+    const [legacy, ops] = await Promise.all([
+      sanityClient.fetch<any[]>(`${baseQuery} | order(${orderPrefix}${safeSort}) ${legacyProjection}`, params).catch(() => []),
+      getSanityClient('operations').fetch<any[]>(`${baseQuery} | order(${orderPrefix}${safeSort}) ${opsProjection}`, params).catch(() => []),
+    ])
+
+    const merged = legacy
+      .map((r) => ({ ...r }))
+      .concat(ops.map((r) => ({ ...r, _sourceDb: 'operations' })))
+
+    merged.sort((a, b) => {
+      const av = a?.[safeSort]
+      const bv = b?.[safeSort]
+      const cmp = safeOrder === 'asc' ? String(av ?? '').localeCompare(String(bv ?? '')) : String(bv ?? '').localeCompare(String(av ?? ''))
+      return cmp
+    })
+
+    const total = merged.length
+    const data = merged.slice((page - 1) * pageSize, page * pageSize)
 
     return NextResponse.json({
       success: true,
-      data: requests,
+      data,
       pagination: {
         page,
         pageSize,

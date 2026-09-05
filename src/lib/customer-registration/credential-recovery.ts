@@ -1,4 +1,5 @@
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 import { normalizePhone, getPhoneFormats } from "@/lib/phone-utils";
 
@@ -62,27 +63,30 @@ export async function findUserByIdentifier(
   }
 
   const pendingQueries: Promise<{ by: string; result: any }>[] = [];
+  const pendingClients = [sanityClient, getSanityClient("operations")];
 
-  if (email) {
-    pendingQueries.push(
-      sanityClient
-        .fetch(
-          `*[_type == "customerRequest" && status == "pending" && defined(email) && lower(email) == lower($email)][0] { _id, name, email, phone }`,
-          { email },
-        )
-        .then((r) => ({ by: "email", result: r })),
-    );
-  }
+  for (const client of pendingClients) {
+    if (email) {
+      pendingQueries.push(
+        client
+          .fetch(
+            `*[_type == "customerRequest" && status == "pending" && defined(email) && lower(email) == lower($email)][0] { _id, name, email, phone }`,
+            { email },
+          )
+          .then((r) => ({ by: "email", result: r })),
+      );
+    }
 
-  if (phoneFormats.length > 0) {
-    pendingQueries.push(
-      sanityClient
-        .fetch(
-          `*[_type == "customerRequest" && status == "pending" && (normalizedPhone == $normalizedPhone || phone in $formats)][0] { _id, name, email, phone }`,
-          { normalizedPhone, formats: phoneFormats },
-        )
-        .then((r) => ({ by: "phone", result: r })),
-    );
+    if (phoneFormats.length > 0) {
+      pendingQueries.push(
+        client
+          .fetch(
+            `*[_type == "customerRequest" && status == "pending" && (normalizedPhone == $normalizedPhone || phone in $formats)][0] { _id, name, email, phone }`,
+            { normalizedPhone, formats: phoneFormats },
+          )
+          .then((r) => ({ by: "phone", result: r })),
+      );
+    }
   }
 
   const pendingResults = await Promise.all(pendingQueries);

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { sanityClient, queries } from "@/lib/sanity";
 import { getCookie } from "@/lib/cookies";
+import { catalogCreate, catalogUpdate, catalogDelete } from "@/lib/catalog-mutations";
 import { useAuthStore } from "@/store/auth-store";
 import { useBillBookStore } from "@/store/bill-book-store";
 import { fallbackData } from "./fallback-data";
@@ -272,7 +273,22 @@ export const useDataStore = create<DataStore>((set, get) => ({
       }
 
       for (const step of loadingSteps) {
-        const data = await sanityClient.fetch(step.query, step.params ?? {});
+        // Bills are federated across primary + billing DBs via the server route
+        let data;
+        if (step.name === "bills") {
+          const cid = opts?.customerId || opts?.userId || "";
+          try {
+            const res = await fetch(
+              `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`
+            );
+            const json = await res.json();
+            data = json?.success ? json.data : [];
+          } catch {
+            data = await sanityClient.fetch(step.query, step.params ?? {});
+          }
+        } else {
+          data = await sanityClient.fetch(step.query, step.params ?? {});
+        }
 
         // Update the appropriate map
         const currentState = get();
@@ -517,7 +533,17 @@ export const useDataStore = create<DataStore>((set, get) => ({
         query = queries.bills;
       }
 
-      const data = await sanityClient.fetch(query, params ?? {});
+      let data;
+      try {
+        const cid = role === "customer" ? String(customerId || "") : "";
+        const res = await fetch(
+          `/api/bills/federated${cid ? `?customerId=${encodeURIComponent(cid)}` : ""}`
+        );
+        const json = await res.json();
+        data = json?.success ? json.data : [];
+      } catch {
+        data = await sanityClient.fetch(query, params ?? {});
+      }
 
       const bills = new Map(get().bills);
       const billsByCustomer = new Map<string, string[]>();
@@ -991,7 +1017,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         delete normalized.categoryId;
       }
 
-      const product = await sanityClient.create({
+      const product = await catalogCreate("product", {
         _type: "product",
         ...normalized,
         createdAt: new Date().toISOString(),
@@ -1063,10 +1089,10 @@ export const useDataStore = create<DataStore>((set, get) => ({
         delete normalized.categoryId;
       }
 
-      const product = await sanityClient
-        .patch(productId)
-        .set({ ...normalized, updatedAt: new Date().toISOString() })
-        .commit();
+      const product = await catalogUpdate("product", productId, {
+        ...normalized,
+        updatedAt: new Date().toISOString(),
+      });
 
       // Update local store
       const products = new Map(get().products);
@@ -1090,7 +1116,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   deleteProduct: async (productId) => {
     try {
-      await sanityClient.delete(productId);
+      await catalogDelete("product", productId);
 
       // Update local store
       const products = new Map(get().products);
@@ -1104,7 +1130,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   deleteBrand: async (brandId) => {
     try {
-      await sanityClient.delete(brandId);
+      await catalogDelete("brand", brandId);
 
       // Update local store
       const brands = new Map(get().brands);
@@ -1116,90 +1142,29 @@ export const useDataStore = create<DataStore>((set, get) => ({
     }
   },
 
-  createBill: async (billData) => {
+createBill: async (billData) => {
     try {
-      const bill = await sanityClient.create({
+      const newBill = {
         _type: "bill",
         ...billData,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+      };
+
+      const res = await fetch("/api/mutations/bills/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bill: newBill }),
       });
-
-      // Don't add to local state here - let the realtime listener handle it
-      // This prevents duplicates when the realtime "appear" event fires
-
-      // Notify admins on bill creation (client-side)
-      if (typeof window !== "undefined") {
-        try {
-          const actorId = (function getActorId(){
-            try {
-              const raw = getCookie('auth-storage');
-              if (!raw) return null;
-              const parsed = JSON.parse(decodeURIComponent(raw));
-              return parsed?.state?.user?.id ?? null;
-            } catch {
-              return null;
-            }
-          })();
-          const billNo = (bill as any)?.billNumber ?? '';
-          const customerId = (bill as any)?.customer?._ref ? String((bill as any).customer._ref) : ''
-          const customerName = await (async () => {
-            try {
-              if (!customerId) return ''
-              const doc = await sanityClient.fetch<{ name?: string } | null>(
-                `*[_type=="user" && _id==$id][0]{name}`,
-                { id: String(customerId) }
-              )
-              return String(doc?.name || '').trim()
-            } catch {
-              return ''
-            }
-          })()
-          const amount = Number((bill as any)?.totalAmount || 0)
-          const payStatus = String((bill as any)?.paymentStatus || (bill as any)?.status || 'pending')
-          fetch('/api/notifications/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audience: 'admins',
-              eventId: `billing.created.${String((bill as any)?._id || Date.now())}.admins`,
-              eventType: 'billing.created',
-              actorUserId: actorId || undefined,
-              title: 'Bill created',
-              body: `${customerName || 'Customer'} | ₹${amount} | ${payStatus}`,
-              data: {
-                billId: (bill as any)?._id,
-                event: 'bill-created',
-                billNumber: String(billNo),
-                route: `/admin/billing?open=${encodeURIComponent(String((bill as any)?._id || ''))}`,
-              },
-              excludeUserIds: actorId ? [actorId] : undefined,
-            }),
-          }).catch(() => {});
-          if (customerId) {
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                eventId: `billing.created.${String((bill as any)?._id || Date.now())}.customer`,
-                eventType: 'billing.created',
-                actorUserId: actorId || undefined,
-                title: 'Bill created',
-                body: billNo ? `Your bill ${String(billNo)} was created` : 'Your bill was created',
-                userIds: [customerId],
-                data: {
-                  billId: (bill as any)?._id,
-                  event: 'bill-created',
-                  billNumber: String(billNo),
-                  customerId,
-                  route: `/customer/bills?open=${encodeURIComponent(String((bill as any)?._id || ''))}`,
-                  route_path: '/customer/bills',
-                },
-              }),
-            }).catch(() => {});
-          }
-        } catch {}
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || `Failed to create bill (${res.status})`);
       }
+      const bill = (json?.data || {}) as any;
+
+      // Don't add to local state here - let the store refresh / poll surface it.
+      // WA billing.created event + admin/customer notifications are dispatched
+      // server-side by the mutation route.
 
       return bill as unknown as Bill;
     } catch (error) {
@@ -1281,17 +1246,20 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   createUser: async (userData) => {
     try {
-      const user = await sanityClient.create({
-        _type: "user",
-        ...userData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      const res = await fetch('/api/mutations/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: userData }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Failed to create user');
+      }
 
       // Don't add to local state here - let the realtime listener handle it
       // This prevents duplicates when the realtime "appear" event fires
 
-      return user as unknown as User;
+      return json.data as unknown as User;
     } catch (error) {
       console.error("Failed to create user:", error);
       throw error;
@@ -1300,17 +1268,22 @@ export const useDataStore = create<DataStore>((set, get) => ({
 
   updateUser: async (userId, updates) => {
     try {
-      const user = await sanityClient
-        .patch(userId)
-        .set({ ...updates, updatedAt: new Date().toISOString() })
-        .commit();
+      const res = await fetch('/api/mutations/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, updates }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || 'Failed to update user');
+      }
 
       // Update local store
       const users = new Map(get().users);
-      users.set(userId, user as unknown as User);
+      users.set(userId, json.data as unknown as User);
       set({ users });
 
-      return user as unknown as User;
+      return json.data as unknown as User;
     } catch (error) {
       console.error("Failed to update user:", error);
       throw error;

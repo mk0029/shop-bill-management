@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerAuth } from "@/lib/server-auth";
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument } from "@/lib/sanity/write-router";
 import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 import { notificationTemplates, formatCustomerName } from "@/lib/notifications/template-engine";
 
@@ -92,17 +94,20 @@ function markSent(customerId: string, shareType: ShareType, entityId?: string) {
 async function wasSentRecently(customerId: string, shareType: ShareType, entityId?: string) {
   const since = new Date(Date.now() - RATE_LIMIT_MS).toISOString();
   const eventType = eventTypeForShareType(shareType);
-  const existing = await sanityClient.fetch<{ _id: string } | null>(
-    `*[
+  const params = { eventType, customerId, relatedEntityId: entityId || customerId, since };
+  const query = `*[
       _type == "whatsAppEventLog" &&
       eventType == $eventType &&
       status == "sent" &&
       customerId == $customerId &&
       relatedEntityId == $relatedEntityId &&
       createdAt >= $since
-    ][0]{_id}`,
-    { eventType, customerId, relatedEntityId: entityId || customerId, since },
-  );
+    ][0]{_id}`;
+  const existing =
+    (await getSanityClient("comms")
+      .fetch<{ _id: string } | null>(query, params)
+      .catch(() => null)) ||
+    (await sanityClient.fetch<{ _id: string } | null>(query, params).catch(() => null));
   return Boolean(existing?._id);
 }
 
@@ -148,8 +153,11 @@ async function createAuditLog(input: {
     payload: JSON.stringify(input.result || {}),
   };
 
-  try {
-    await sanityClient.create(doc);
+try {
+    const result = await createDocument(doc, "bill-messages");
+    if (!result.success) {
+      console.error("[manual-whatsapp] audit log create failed", result.error);
+    }
   } catch (error) {
     console.error("[manual-whatsapp] audit log create failed", error);
   }
@@ -167,7 +175,7 @@ async function getCustomer(customerId: string) {
 async function getBill(billId: string, customerId: string) {
   return sanityClient.fetch<BillDoc | null>(
     `*[_type == "bill" && (_id == $billId || billId == $billId) && (
-      customer._ref == $customerId || customerId == $customerId || customer._id == $customerId
+      customer._ref == $customerId || customerId == $customerId || customer._id == $customerId || customer == $customerId
     )][0]{
       _id, billNumber, totalAmount, paidAmount, balanceAmount, paymentStatus, dueDate, createdAt, serviceType, technicianName, notes, items
     }`,
@@ -186,7 +194,7 @@ async function getBillById(billId: string) {
 
 async function getCustomerPendingBills(customerId: string) {
   return sanityClient.fetch<BillDoc[]>(
-    `*[_type == "bill" && (customer._ref == $customerId || customerId == $customerId || customer._id == $customerId) && paymentStatus != "paid"] | order(createdAt desc)[0...10]{
+    `*[_type == "bill" && (customer._ref == $customerId || customerId == $customerId || customer._id == $customerId || customer == $customerId) && paymentStatus != "paid"] | order(createdAt desc)[0...10]{
       _id, billNumber, totalAmount, paidAmount, balanceAmount, paymentStatus, dueDate, createdAt, serviceType, technicianName, notes, items
     }`,
     { customerId },

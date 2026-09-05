@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, TrendingUp, History, Tag } from "lucide-react";
+import { Plus, Package, TrendingUp, Tag } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
@@ -136,15 +136,7 @@ export const RealtimeInventoryHeader = ({
               <Tag className="w-4 h-4" />
               <span className="hidden sm:inline">Offers</span>
             </Button>
-            <Button
-              onClick={() => router.push("/admin/inventory/history")}
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-            >
-              <History className="w-4 h-4" />
-              <span className="hidden sm:inline">History</span>
-            </Button>
+            {/* Stock History page removed */}
             <Button onClick={onAddProduct} size="sm" className="gap-1.5">
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Add</span>

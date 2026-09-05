@@ -73,16 +73,10 @@ const adminNavigation: NavigationItem[] = [
     icon: Settings,
     children: [
       { label: "Settings", href: "/admin/settings", icon: Settings },
-      { label: "Sales Report", href: "/admin/sales-report", icon: BarChart3 },
       {
         label: "Send Notifications",
         href: "/admin/notifications",
         icon: Megaphone,
-      },
-      {
-        label: "Stock History",
-        href: "/admin/inventory/history",
-        icon: History,
       },
     ],
   },

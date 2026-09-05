@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { sanityClient } from "@/lib/sanity";
+import { createDocument } from "@/lib/sanity/write-router";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getServerAuth } from "@/lib/server-auth";
 import { safeUserName } from "@/lib/display-text";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
@@ -49,6 +51,15 @@ const repairRequestProjection = `{
   workTask->{_id, title, status, dueAt}
 }`;
 
+const opsRepairRequestProjection = `{
+  _id, requestId, details, notes, priority, source, status, scheduledAt, createdAt, updatedAt,
+  cancelledByName, cancelledByRole, cancelledAt,
+  customerName, customerPhone, technicianName,
+  "customer": {"_id": customerId, "name": customerName, "phone": customerPhone},
+  "technician": {"_id": technicianId, "name": technicianName, "role": "technician"},
+  "workTask": workTaskId == "" ? null : {"_id": workTaskId, "title": null, "status": null, "dueAt": null}
+}`;
+
 export async function GET(req: NextRequest) {
   const auth = await getServerAuth();
   if (!auth.isAuthenticated) {
@@ -70,6 +81,11 @@ export async function GET(req: NextRequest) {
     : canManage(auth.role)
       ? `_type=="repairRequest"`
       : "";
+  const opsBaseFilter = auth.role === "customer"
+    ? `_type=="repairRequest" && customerId==$authUserId`
+    : canManage(auth.role)
+      ? `_type=="repairRequest"`
+      : "";
 
   if (!baseFilter) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
@@ -87,11 +103,32 @@ export async function GET(req: NextRequest) {
     statusClause,
     canManage(auth.role) && customerId ? `customer._ref == $customerId` : "",
   ].filter(Boolean).join(" && ");
+  const opsExtra = [
+    statusClause,
+    canManage(auth.role) && customerId ? `customerId == $customerId` : "",
+  ].filter(Boolean).join(" && ");
 
   const query = `*[${baseFilter}${extra ? ` && ${extra}` : ""}]${repairRequestProjection} | order(createdAt desc)`;
-  const requests = await sanityClient.fetch(query, params);
+  const opsQuery = `*[${opsBaseFilter}${opsExtra ? ` && ${opsExtra}` : ""}]${opsRepairRequestProjection} | order(createdAt desc)`;
 
-  return NextResponse.json({ success: true, data: requests || [] });
+  const [legacy, ops] = await Promise.all([
+    sanityClient.fetch(query, params).catch(() => []),
+    getSanityClient("operations").fetch<any[]>(opsQuery, params).catch(() => []),
+  ]);
+
+  const requestsById = new Map<string, any>();
+  for (const r of ops) {
+    if (r?._id) requestsById.set(r._id, { ...r, _sourceDb: "operations" });
+  }
+  const merged = legacy
+    .map((r: any) => ({ ...r, ...(requestsById.get(r?._id) || {}) }))
+    .concat(
+      Array.from(requestsById.values()).filter(
+        (r) => !legacy.some((x: any) => x?._id === r._id),
+      ),
+    );
+
+  return NextResponse.json({ success: true, data: merged || [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -143,23 +180,30 @@ export async function POST(req: NextRequest) {
   const safeCustomerName = safeUserName(customer.name, "Customer");
   const safeTechnicianName = safeUserName(technician.name, "Technician");
 
-  const created = await sanityClient.create({
+const createResult = await createDocument({
     _type: "repairRequest",
     requestId,
-    customer: { _type: "reference", _ref: customer._id },
+    customerId: customer._id,
     customerName: safeCustomerName,
     customerPhone: customer.phone || "",
     details,
     notes,
     priority,
     source,
-    technician: { _type: "reference", _ref: technician._id },
+    technicianId: technician._id,
     technicianName: safeTechnicianName,
     status: "pending",
-    createdBy: { _type: "reference", _ref: customer._id },
+    createdByUserId: customer._id,
     createdAt: now,
     updatedAt: now,
-  });
+  }, "repair-requests");
+  if (!createResult.success) {
+    return NextResponse.json(
+      { success: false, error: createResult.error || "Failed to create repair request" },
+      { status: 500 },
+    );
+  }
+  const created = { _id: createResult.documentId } as any;
 
   const selectedTechnicianId = technician._id;
   const adminIds = selectedTechnicianId ? [selectedTechnicianId] : await getActiveAdminUserIds();

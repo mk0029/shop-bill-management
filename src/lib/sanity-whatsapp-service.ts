@@ -2,6 +2,10 @@
 
 import { WhatsAppConfig, WhatsAppDevice } from "./whatsapp-utils";
 import { sanityClient } from "./sanity";
+import { getSanityClient } from "./sanity/client-factory";
+import { createDocument, updateDocument } from "./sanity/write-router";
+
+const WA_PURPOSE = "bill-messages";
 
 export interface SanityWhatsAppConfig {
   _id: string;
@@ -158,10 +162,16 @@ export class SanityWhatsAppService {
   // Fetch all active WhatsApp configurations
   static async fetchConfigurations(): Promise<WhatsAppConfig[]> {
     try {
-      const sanityConfigs = await sanityClient.fetch<SanityWhatsAppConfig[]>(
-        WHATSAPP_CONFIG_QUERY
-      );
-      return sanityConfigs.map(transformSanityToWhatsAppConfig);
+      const commsConfigs = await getSanityClient("comms")
+        .fetch<SanityWhatsAppConfig[]>(WHATSAPP_CONFIG_QUERY)
+        .catch(() => []);
+      if (commsConfigs?.length) {
+        return commsConfigs.map(transformSanityToWhatsAppConfig);
+      }
+      const primaryConfigs = await sanityClient
+        .fetch<SanityWhatsAppConfig[]>(WHATSAPP_CONFIG_QUERY)
+        .catch(() => []);
+      return (primaryConfigs || []).map(transformSanityToWhatsAppConfig);
     } catch (error) {
       console.error("Error fetching WhatsApp configurations:", error);
       throw new Error("Failed to fetch WhatsApp configurations");
@@ -173,10 +183,14 @@ export class SanityWhatsAppService {
     configId: string
   ): Promise<WhatsAppConfig | null> {
     try {
-      const sanityConfig = await sanityClient.fetch<SanityWhatsAppConfig>(
-        SINGLE_WHATSAPP_CONFIG_QUERY,
-        { configId }
-      );
+      const commsConfig = await getSanityClient("comms")
+        .fetch<SanityWhatsAppConfig>(SINGLE_WHATSAPP_CONFIG_QUERY, { configId })
+        .catch(() => null);
+      const sanityConfig =
+        commsConfig ||
+        (await sanityClient
+          .fetch<SanityWhatsAppConfig>(SINGLE_WHATSAPP_CONFIG_QUERY, { configId })
+          .catch(() => null));
       return sanityConfig
         ? transformSanityToWhatsAppConfig(sanityConfig)
         : null;
@@ -190,8 +204,11 @@ export class SanityWhatsAppService {
   static async createConfiguration(config: WhatsAppConfig): Promise<string> {
     try {
       const sanityDoc = transformWhatsAppConfigToSanity(config);
-      const result = await sanityClient.create(sanityDoc);
-      return result._id;
+      const result = await createDocument(sanityDoc, WA_PURPOSE);
+      if (!result.success) {
+        throw new Error(result.error || "Create failed");
+      }
+      return result.documentId || "";
     } catch (error) {
       console.error("Error creating WhatsApp configuration:", error);
       throw new Error("Failed to create WhatsApp configuration");
@@ -208,7 +225,10 @@ export class SanityWhatsAppService {
         updates as WhatsAppConfig,
         configId
       );
-      await sanityClient.patch(configId).set(sanityUpdates).commit();
+      const result = await updateDocument(configId, sanityUpdates, WA_PURPOSE);
+      if (!result.success) {
+        throw new Error(result.error || "Update failed");
+      }
     } catch (error) {
       console.error("Error updating WhatsApp configuration:", error);
       throw new Error("Failed to update WhatsApp configuration");
@@ -244,12 +264,11 @@ export class SanityWhatsAppService {
         ? `*[_type == "whatsappConfig" && _id == "${configId}"]`
         : `*[_type == "whatsappConfig"]`;
 
-      const configs = await sanityClient.fetch(query);
-      for (const config of configs) {
-        await sanityClient
-          .patch(config._id)
-          .set({ "devices[].currentDailyCount": 0 })
-          .commit();
+      const configs = await getSanityClient("comms")
+        .fetch<Array<{ _id: string }>>(query)
+        .catch(() => []);
+      for (const config of configs || []) {
+        await updateDocument(config._id, { "devices[].currentDailyCount": 0 }, WA_PURPOSE).catch(() => {});
       }
     } catch (error) {
       console.error("Error resetting daily counters:", error);

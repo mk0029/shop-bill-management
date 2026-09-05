@@ -1,5 +1,6 @@
 import { TAX_RATE } from "../constants/defaults";
 import { sanityClient } from "./sanity";
+import { createStockTransactionRecord } from "./stock-transaction-router";
 
 export interface BulkInventoryApiResponse<T = unknown> {
   success: boolean;
@@ -111,7 +112,7 @@ export const bulkInventoryApi = {
               .toString("base64")
               .substring(0, 12);
 
-            await sanityClient.create({
+            const txResult = await createStockTransactionRecord({
               _type: "stockTransaction",
               transactionId: stockTransactionId,
               type: productData.initialStockTransaction.type,
@@ -131,6 +132,11 @@ export const bulkInventoryApi = {
               createdByName: productData.createdBy?.name,
               createdById: productData.createdBy?.id,
             });
+            if (!txResult.success) {
+              throw new Error(
+                txResult.error || "Failed to create stock transaction"
+              );
+            }
           }
 
           return {

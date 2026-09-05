@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { sanityApiService } from "@/lib/sanity-api-service";
+import * as toolRentalApi from "@/lib/tool-rental-api";
 import {
   calculateExpectedReturnTime,
   calculateRentAmount,
-  toolRentalService,
   type DurationType,
   type ToolItem,
 } from "@/lib/tool-rental-service";
@@ -47,7 +47,7 @@ export default function AdminRentToolsCreateClient({
         setLoading(true);
         const [customerRes, toolsData] = await Promise.all([
           sanityApiService.users.getCustomers(),
-          toolRentalService.getTools(),
+          toolRentalApi.getTools(),
         ]);
         setCustomers(customerRes.data || []);
         setTools((toolsData || []).filter((t) => t.isActive));
@@ -98,7 +98,7 @@ export default function AdminRentToolsCreateClient({
         return toast.error("Paid amount cannot be greater than total amount");
 
       setSaving(true);
-      await toolRentalService.createToolRental({
+      await toolRentalApi.createToolRental({
         customer: selectedCustomer,
         tool: selectedTool,
         durationType,

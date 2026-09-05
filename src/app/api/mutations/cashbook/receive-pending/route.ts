@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sanityClient } from '@/lib/sanity'
+import { createDocument, updateDocument } from '@/lib/sanity/write-router'
+import { querySingleDocument } from '@/lib/sanity/read-router'
+import { denormalizeCashbookEntry } from '@/lib/sanity/denormalize'
 import { notificationService } from '@/lib/notification-service'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
@@ -48,10 +50,12 @@ export async function POST(req: NextRequest) {
 
     const safePaymentAmount = roundCurrency(paymentAmount)
 
-    const existingEntry = await sanityClient.fetch(
+    const existingEntryRes = await querySingleDocument(
       `*[_type == "cashBookEntry" && _id == $id][0]`,
-      { id: entryId }
+      { id: entryId },
+      'cashbook'
     )
+    const existingEntry = existingEntryRes.data
 
     if (!existingEntry) {
       return NextResponse.json({ success: false, error: 'Cashbook entry not found' }, { status: 404 })
@@ -72,16 +76,13 @@ export async function POST(req: NextRequest) {
     const newReceivedAmount = roundCurrency(currentReceived + actualPayment)
     const newStatus = newPendingAmount > 0 ? 'partial' : 'completed'
 
-    await sanityClient
-      .patch(entryId)
-      .set({
-        pendingAmount: newPendingAmount,
-        receivedAmount: newReceivedAmount,
-        amount: newReceivedAmount,
-        status: newStatus,
-        updatedAt: new Date().toISOString(),
-      })
-      .commit()
+    await updateDocument(entryId, {
+      pendingAmount: newPendingAmount,
+      receivedAmount: newReceivedAmount,
+      amount: newReceivedAmount,
+      status: newStatus,
+      updatedAt: new Date().toISOString(),
+    }, 'cashbook')
 
     const linkedEntryData: any = {
       _type: 'cashBookEntry',
@@ -109,7 +110,14 @@ export async function POST(req: NextRequest) {
       linkedEntryData.user = userRef
     }
 
-    const linkedEntry = await sanityClient.create(linkedEntryData)
+    const linkedResult = await createDocument(
+      denormalizeCashbookEntry(linkedEntryData),
+      'cashbook'
+    )
+    if (!linkedResult.success) {
+      return NextResponse.json({ success: false, error: linkedResult.error || 'Failed to create linked entry' }, { status: 500 })
+    }
+    const linkedEntry = { _id: linkedResult.documentId, ...linkedEntryData }
 
     try {
       const title = 'Pending payment received'

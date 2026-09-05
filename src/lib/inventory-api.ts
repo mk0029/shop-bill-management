@@ -1,5 +1,6 @@
 import { TAX_RATE } from "../constants/defaults";
 import { sanityClient } from "./sanity";
+import { createStockTransactionRecord } from "./stock-transaction-router";
 
 export interface InventoryApiResponse<T = unknown> {
   success: boolean;
@@ -375,13 +376,11 @@ export const inventoryApi = {
       const safeUpdate = (typeof updateData === 'object' && updateData !== null)
         ? (updateData as Record<string, unknown>)
         : {}
-      const result = await sanityClient
-        .patch(productId)
-        .set({
-          ...safeUpdate,
-          updatedAt: new Date().toISOString(),
-        })
-        .commit();
+      const { catalogUpdate } = await import("@/lib/catalog-mutations");
+      const result = await catalogUpdate("product", productId, {
+        ...safeUpdate,
+        updatedAt: new Date().toISOString(),
+      });
 
       return { success: true, data: result };
     } catch (error) {
@@ -405,24 +404,25 @@ export const inventoryApi = {
   ): Promise<InventoryApiResponse> {
     try {
       const { name, pricing, stockToAdd } = details;
-      const patch = sanityClient.patch(productId);
 
-      if (name) {
-        patch.set({ name });
-      }
-      if (pricing.purchasePrice) {
-        patch.set({ "pricing.purchasePrice": pricing.purchasePrice });
-      }
-      if (pricing.sellingPrice) {
-        patch.set({ "pricing.sellingPrice": pricing.sellingPrice });
-      }
-      if (stockToAdd > 0) {
-        patch.inc({ "inventory.currentStock": stockToAdd });
-      }
+      // Read current inventory so we can apply the stock increment via a set.
+      let currentStock = 0;
+      try {
+        const existing = await sanityClient.fetch<{ inventory?: { currentStock?: number } } | null>(
+          `*[_type == "product" && _id == $id][0]{ inventory{currentStock} }`,
+          { id: productId }
+        );
+        currentStock = Number(existing?.inventory?.currentStock || 0);
+      } catch {}
 
-      patch.set({ updatedAt: new Date().toISOString() });
+      const { catalogUpdate } = await import("@/lib/catalog-mutations");
+      const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+      if (name) patch.name = name;
+      if (pricing.purchasePrice) patch["pricing.purchasePrice"] = pricing.purchasePrice;
+      if (pricing.sellingPrice) patch["pricing.sellingPrice"] = pricing.sellingPrice;
+      if (stockToAdd > 0) patch["inventory.currentStock"] = Math.max(0, currentStock + stockToAdd);
 
-      const result = await patch.commit();
+      const result = await catalogUpdate("product", productId, patch);
 
       // If stock was added, create a stock transaction record
       if (stockToAdd > 0) {
@@ -618,7 +618,7 @@ export const inventoryApi = {
                 .toString("base64")
                 .substring(0, 12);
 
-              const createdTxn = await sanityClient.create({
+              const createdTxn = await createStockTransactionRecord({
                 _type: "stockTransaction",
                 transactionId: stockTransactionId,
                 type: originalData.initialStockTransaction.type,
@@ -638,6 +638,11 @@ export const inventoryApi = {
                 createdByName: originalData.createdBy?.name,
                 createdById: originalData.createdBy?.id,
               });
+              if (!createdTxn.success) {
+                throw new Error(
+                  createdTxn.error || "Failed to create stock transaction"
+                );
+              }
 
               // Create corresponding cash book debit entry for the initial stock
               try {
@@ -832,7 +837,13 @@ export const stockApi = {
         createdById: transactionData.createdBy?.id,
       };
 
-      const result = await sanityClient.create(newTransaction);
+      const txResult = await createStockTransactionRecord(newTransaction);
+      if (!txResult.success) {
+        throw new Error(
+          txResult.error || "Failed to create stock transaction"
+        );
+      }
+      const result = { _id: txResult.id, ...newTransaction } as any;
 
       // Update product inventory based on transaction type (only if updateInventory is true)
       if (transactionData.updateInventory !== false) {
@@ -985,7 +996,7 @@ export const stockApi = {
                 .toString("base64")
                 .substring(0, 12);
 
-              const createdTxn = await sanityClient.create({
+              const createdTxn = await createStockTransactionRecord({
                 _type: "stockTransaction",
                 transactionId: stockTransactionId,
                 type: originalData.initialStockTransaction.type,
@@ -1005,6 +1016,11 @@ export const stockApi = {
                 createdByName: originalData.createdBy?.name,
                 createdById: originalData.createdBy?.id,
               });
+              if (!createdTxn.success) {
+                throw new Error(
+                  createdTxn.error || "Failed to create stock transaction"
+                );
+              }
 
               try {
                 const isInventoryAddition = ["purchase", "adjustment"].includes(

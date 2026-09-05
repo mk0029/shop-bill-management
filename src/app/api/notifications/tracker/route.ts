@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument, deleteDocument } from "@/lib/sanity/write-router";
 
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET || process.env.NOTIFICATION_TRACKER_SECRET || "";
@@ -24,8 +26,7 @@ export async function GET(req: NextRequest) {
     if (channel) filter += ` && channel == "${channel}"`;
     if (since) filter += ` && trackedAtMs >= ${Number(since)}`;
 
-    const logs = await sanityClient.fetch(
-      `*[${filter}] | order(trackedAtMs desc) [0...${limit}] {
+    const query = `*[${filter}] | order(trackedAtMs desc) [0...${limit}] {
         _id,
         channel,
         eventType,
@@ -36,8 +37,19 @@ export async function GET(req: NextRequest) {
         meta,
         trackedAtMs,
         createdAt
-      }`
-    );
+      }`;
+    const [primaryLogs, commsLogs] = await Promise.all([
+      sanityClient.fetch(query).catch(() => []),
+      getSanityClient("comms").fetch(query).catch(() => []),
+    ]);
+    const byId = new Map<string, unknown>();
+    for (const log of [...(commsLogs || []), ...(primaryLogs || [])]) {
+      const entry = log as { _id?: string };
+      if (entry?._id && !byId.has(entry._id)) byId.set(entry._id, log);
+    }
+    const logs = Array.from(byId.values())
+      .sort((a, b) => ((b as { trackedAtMs?: number })?.trackedAtMs || 0) - ((a as { trackedAtMs?: number })?.trackedAtMs || 0))
+      .slice(0, limit);
 
     return NextResponse.json({ success: true, logs, count: logs.length });
   } catch (error) {
@@ -70,8 +82,11 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    const result = await sanityClient.create(doc);
-    return NextResponse.json({ success: true, id: result._id });
+    const result = await createDocument(doc, "notifications");
+    if (!result.success) {
+      throw new Error(result.error || "Failed to create tracker log");
+    }
+    return NextResponse.json({ success: true, id: result.documentId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
@@ -88,12 +103,16 @@ export async function DELETE(req: NextRequest) {
     if (!Array.isArray(ids) || !ids.length) {
       return NextResponse.json({ success: false, error: "Provide array of _id values" }, { status: 400 });
     }
-    const transaction = sanityClient.transaction();
+    let deleted = 0;
     for (const id of ids.slice(0, 100)) {
-      transaction.delete(id);
+      const result = await deleteDocument(String(id), "notifications").catch(() => null);
+      if (result && result.success) {
+        deleted++;
+      } else {
+        await getSanityClient("comms").delete(String(id)).catch(() => {});
+      }
     }
-    await transaction.commit();
-    return NextResponse.json({ success: true, deleted: ids.length });
+    return NextResponse.json({ success: true, deleted });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Server error";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

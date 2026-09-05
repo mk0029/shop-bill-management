@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
+import { createDocument, updateDocument } from "@/lib/sanity/write-router";
+import { fetchBillById } from "@/lib/sanity/bills-federated";
 
 export const runtime = "nodejs";
 
@@ -39,20 +40,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch bill to compute amounts
-    const bill = await sanityClient.fetch(
-      `*[_type == "bill" && _id == $id][0]{
-        _id,
-        billNumber,
-        serviceType,
-        totalAmount,
-        discount,
-        paidAmount,
-        balanceAmount,
-        technician->{_id, name},
-        customer->{_id, name, phone, email}
-      }`,
-      { id: billId }
-    );
+    const bill = await fetchBillById(billId);
     if (!bill) {
       return NextResponse.json({ error: "Bill not found" }, { status: 404 });
     }
@@ -68,7 +56,7 @@ export async function POST(req: Request) {
 
     // Create payment record (minimal)
     try {
-      await sanityClient.create({
+      await createDocument({
         _type: "payment",
         bill: { _type: "reference", _ref: billId },
         gateway: "razorpay",
@@ -77,19 +65,16 @@ export async function POST(req: Request) {
         amount: add,
         status: "captured",
         createdAt: new Date().toISOString(),
-      });
+      }, 'payments');
     } catch {}
 
     // Update bill
-    const updated = await sanityClient
-      .patch(billId)
-      .set({
-        paidAmount: paidNext,
-        balanceAmount: balance,
-        paymentStatus,
-        updatedAt: new Date().toISOString(),
-      })
-      .commit();
+    const updated = await updateDocument(billId, {
+      paidAmount: paidNext,
+      balanceAmount: balance,
+      paymentStatus,
+      updatedAt: new Date().toISOString(),
+    }, 'bills');
 
     // Central WhatsApp event: payment update (fire-and-forget)
     try {
@@ -144,7 +129,10 @@ export async function POST(req: Request) {
       // Don't fail payment if cash book entry fails
     }
 
-    return NextResponse.json({ success: true, bill: updated });
+    return NextResponse.json({
+      success: true,
+      bill: { ...bill, paidAmount: paidNext, balanceAmount: balance, paymentStatus },
+    });
   } catch (error: any) {
     return NextResponse.json({ error: "Failed to verify payment", details: String(error?.message || error) }, { status: 500 });
   }

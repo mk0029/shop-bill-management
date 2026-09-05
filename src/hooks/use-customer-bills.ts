@@ -32,7 +32,12 @@ export const useCustomerBills = () => {
   const customerBills = bills.filter(
     (bill) => {
       const uid = (user as any)?.id || (user as any)?._id || (user as any)?.customerId;
-      return bill.customer?.customerId === uid || bill.customer?._id === uid;
+      return (
+        bill.customer?.customerId === uid ||
+        bill.customer?._id === uid ||
+        bill.customer === uid ||
+        bill.customerId === uid
+      );
     }
   );
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { sanityClient, queries } from "@/lib/sanity";
+import { sanityClient } from "@/lib/sanity";
+import { fetchBills } from "@/lib/sanity/bills-federated";
 
 // Use previewDrafts on the server to include drafts if any
 const serverClient = sanityClient.withConfig({ perspective: "previewDrafts" });
@@ -70,8 +71,7 @@ export async function GET(
     // Try candidates until we get data
     for (const id of candidates) {
       try {
-        const query = queries.customerBills(id);
-        const bills = await serverClient.fetch(query);
+        const bills = await fetchBills({ customerId: id });
         if (Array.isArray(bills) && bills.length > 0) {
           return NextResponse.json({ bills });
         }

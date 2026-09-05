@@ -1,6 +1,8 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { sanityClient } from "@/lib/sanity";
+import { getSanityClient } from "@/lib/sanity/client-factory";
+import { createDocument } from "@/lib/sanity/write-router";
+import { queryDocuments } from "@/lib/sanity/read-router";
 import { getServerAuth } from "@/lib/server-auth";
 import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { billPaymentNotes } from "@/lib/sanity-api-service";
@@ -73,7 +75,8 @@ export async function POST(req: Request) {
     const idempotencyKey = `billing.multiPaid:${customerId}:${makeHash(sortedIds)}:${receivedAmount}:${paymentDate || "today"}`;
 
     // Fetch all requested bills
-    const bills = await sanityClient.fetch(
+    const billingClient = getSanityClient('billing');
+    const bills = await billingClient.fetch(
       `*[_type == "bill" && _id in $billIds]{
         _id, billNumber, paymentStatus, paidAmount, balanceAmount,
         totalAmount, discount, serviceDate, createdAt,
@@ -180,8 +183,8 @@ export async function POST(req: Request) {
     const customerDoc = billsToPay[0]?.customer || {};
 
     // Calculate total outstanding across ALL customer bills (BEFORE payment patch)
-    const allCustomerBills = await sanityClient.fetch(
-      `*[_type == "bill" && customer._ref == $customerId]{
+    const allCustomerBills = await billingClient.fetch(
+      `*[_type == "bill" && (customer._ref == $customerId || customer == $customerId || customer._id == $customerId)]{
         _id, totalAmount, paidAmount, discount, balanceAmount, paymentStatus
       }`,
       { customerId }
@@ -199,7 +202,7 @@ export async function POST(req: Request) {
     const remainingOutstanding = Math.max(0, totalOutstandingBeforePayment - totalApplied);
 
     // Execute in Sanity transaction
-    const tx = sanityClient.transaction();
+    const tx = billingClient.transaction();
     for (const op of patchOps) {
       tx.patch(op.id, (p: any) => p.set(op.patches));
     }
@@ -223,11 +226,12 @@ export async function POST(req: Request) {
       for (const ab of appliedBillsData) {
         const billRef = ab.billRef?._ref;
         if (!billRef) continue;
-        const existing = await sanityClient.fetch(
+        const existing = await queryDocuments(
           `*[_type == "cashBookEntry" && bill._ref == $billRef][0]._id`,
-          { billRef }
+          { billRef },
+          'cashbook'
         );
-        if (existing) { anyAlreadyHasEntry = true; break; }
+        if (existing.data && existing.data.length > 0) { anyAlreadyHasEntry = true; break; }
       }
 
       if (!anyAlreadyHasEntry) {
@@ -236,7 +240,7 @@ export async function POST(req: Request) {
           paymentStatus: fullyPaidBills.length === patchOps.length ? 'paid' : 'partial',
         });
 
-        await sanityClient.create({
+        await createDocument({
           _type: "cashBookEntry",
           user: { _type: "reference", _ref: customerId },
           userName: customerDoc?.name || "Customer",
@@ -253,7 +257,7 @@ export async function POST(req: Request) {
           partialCount: partialBillNumber ? 1 : 0,
           createdAt: payDate,
           updatedAt: now,
-        });
+        }, 'cashbook');
       }
     } catch (e) {
       console.error("[PayMultiple] cashbook entry creation failed:", e);

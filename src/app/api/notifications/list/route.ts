@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
+import { getSanityClient } from '@/lib/sanity/client-factory'
 import { notificationCutoffIso, scheduledGreetingCutoffIso, offerNotificationCutoffIso } from '@/lib/notifications/age'
 
 /**
@@ -85,20 +86,43 @@ export async function GET(req: NextRequest) {
       customerId
     }`
 
-    const includeCleared = url.searchParams.get('includeCleared') === 'true'
-    const items = await sanityClient.fetch<any[]>(query, {
-      ids,
-      phones,
-      isAdmin,
-      limit,
-      includeCleared,
-      adminSkippedInAppTypes,
-      cutoffIso,
-      scheduledGreetingCutoffIso: scheduledGreetingMaxAgeCutoffIso,
-      offerCutoffIso: offerMaxAgeCutoffIso,
-      nowIso,
-      scheduledGreetingTypes: ['daily_good_morning', 'hindu_festival_greeting'],
-    })
+const includeCleared = url.searchParams.get('includeCleared') === 'true'
+    const [legacy, ops] = await Promise.all([
+      sanityClient.fetch<any[]>(query, {
+        ids,
+        phones,
+        isAdmin,
+        limit: 400,
+        includeCleared,
+        adminSkippedInAppTypes,
+        cutoffIso,
+        scheduledGreetingCutoffIso: scheduledGreetingMaxAgeCutoffIso,
+        offerCutoffIso: offerMaxAgeCutoffIso,
+        nowIso,
+        scheduledGreetingTypes: ['daily_good_morning', 'hindu_festival_greeting'],
+      }).catch(() => []),
+      getSanityClient('comms').fetch<any[]>(query, {
+        ids,
+        phones,
+        isAdmin,
+        limit: 400,
+        includeCleared,
+        adminSkippedInAppTypes,
+        cutoffIso,
+        scheduledGreetingCutoffIso: scheduledGreetingMaxAgeCutoffIso,
+        offerCutoffIso: offerMaxAgeCutoffIso,
+        nowIso,
+        scheduledGreetingTypes: ['daily_good_morning', 'hindu_festival_greeting'],
+      }).catch(() => []),
+    ])
+
+    const byId = new Map<string, any>()
+    for (const item of [legacy, ops].flat()) {
+      if (item?._id && !byId.has(item._id)) byId.set(item._id, item)
+    }
+    const items = Array.from(byId.values())
+      .sort((a, b) => String(b?.createdAt || b?._createdAt || "").localeCompare(String(a?.createdAt || a?._createdAt || "")))
+      .slice(0, limit)
     return NextResponse.json({ items: items || [] }, { status: 200 })
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Server error'

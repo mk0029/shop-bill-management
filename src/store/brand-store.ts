@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { sanityClient } from "@/lib/sanity";
+import { catalogCreate, catalogUpdate, catalogDelete } from "@/lib/catalog-mutations";
 import { Brand, CreateBrandData } from "@/types";
 import type { Subscription } from "rxjs";
 
@@ -107,7 +108,7 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
         updatedAt: new Date().toISOString(),
       };
 
-      const result = await sanityClient.create(newBrand);
+      const result = await catalogCreate("brand", newBrand);
 
       if (result) {
         // Don't add to local state here - let the realtime listener handle it
@@ -147,13 +148,10 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const result = await sanityClient
-        .patch(id)
-        .set({
+      const result = await catalogUpdate("brand", id, {
           ...updates,
           updatedAt: new Date().toISOString(),
-        })
-        .commit();
+        });
 
       if (result) {
         // Don't update local state here - let the realtime listener handle it
@@ -180,7 +178,7 @@ export const useBrandStore = create<BrandStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      await sanityClient.delete(id);
+      await catalogDelete("brand", id);
 
       // Don't update local state here - let the realtime listener handle it
       // This prevents inconsistencies when the realtime "disappear" event fires

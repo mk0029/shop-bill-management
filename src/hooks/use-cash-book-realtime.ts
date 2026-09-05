@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { sanityClient } from "@/lib/sanity";
+
+// The cashbook DB (oojkmj55) dataset is not publicly readable, so a browser
+// Sanity `listen` client cannot subscribe (403). Instead we poll the
+// token-safe server route /api/cashbook/entries and diff against the last
+// snapshot to emit appear/update/disappear events with the same contract.
 
 export interface CashBookEntry {
   _id: string;
@@ -46,77 +50,86 @@ interface UseCashBookRealtimeProps {
   onEntryAdded?: (entry: CashBookEntry) => void;
   onEntryUpdated?: (entry: CashBookEntry) => void;
   onEntryDeleted?: (entryId: string) => void;
+  pollIntervalMs?: number;
+}
+
+const DEFAULT_POLL_MS = 8000;
+
+function shallowEntryEquals(a: CashBookEntry, b: CashBookEntry): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
 }
 
 export function useCashBookRealtime({
   onEntryAdded,
   onEntryUpdated,
   onEntryDeleted,
+  pollIntervalMs = DEFAULT_POLL_MS,
 }: UseCashBookRealtimeProps = {}) {
   const [isConnected, setIsConnected] = useState(false);
-  const subscriptionRef = useRef<any>(null);
+  const snapshotRef = useRef<Map<string, CashBookEntry>>(new Map());
+  const callbacksRef = useRef({ onEntryAdded, onEntryUpdated, onEntryDeleted });
+  callbacksRef.current = { onEntryAdded, onEntryUpdated, onEntryDeleted };
 
   useEffect(() => {
-    const setupRealtimeSubscription = async () => {
+    let active = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const poll = async () => {
       try {
-        // Listen to cash book entry changes
-        const query = `*[_type == "cashBookEntry"]`;
-        const params = {};
-        
-        subscriptionRef.current = sanityClient
-          .listen(query, params, { includeResult: true })
-          .subscribe({
-            next: (update: any) => {
-              const { transition, result, documentId } = update;
-              
-              if (!result && transition !== "disappear") return;
+        const res = await fetch('/api/cashbook/entries');
+        const json = await res.json().catch(() => ({ success: false }));
+        if (!res.ok || !json?.success) {
+          if (active) setIsConnected(false);
+          return;
+        }
+        const rows: CashBookEntry[] = Array.isArray(json?.data) ? json.data : [];
+        const next = new Map<string, CashBookEntry>();
+        for (const row of rows) {
+          if (row && row._id) next.set(row._id, row);
+        }
 
-              switch (transition) {
-                case "appear":
-                case "update":
-                  // Entry created or updated
-                  const entry = result as CashBookEntry;
-                  if (transition === "appear") {
-                    onEntryAdded?.(entry);
-                  } else {
-                    onEntryUpdated?.(entry);
-                  }
-                  break;
-                case "disappear":
-                  // Entry deleted
-                  onEntryDeleted?.(documentId);
-                  break;
-              }
-            },
-            error: (error: any) => {
-              console.warn('[realtime] cash-book subscription error:', error instanceof Error ? error.message : error);
-              setIsConnected(false);
-            },
-            complete: () => {
-              setIsConnected(false);
-            },
-          });
+        const prev = snapshotRef.current;
 
-        setIsConnected(true);
+        // Deletions (present before, missing now)
+        for (const id of prev.keys()) {
+          if (!next.has(id)) {
+            callbacksRef.current.onEntryDeleted?.(id);
+          }
+        }
 
+        // Additions / updates
+        for (const [id, entry] of next) {
+          const prior = prev.get(id);
+          if (!prior) {
+            callbacksRef.current.onEntryAdded?.(entry);
+          } else if (!shallowEntryEquals(prior, entry)) {
+            callbacksRef.current.onEntryUpdated?.(entry);
+          }
+        }
+
+        snapshotRef.current = next;
+        if (active) setIsConnected(true);
       } catch (error) {
-        console.warn('[realtime] cash-book setup error:', error instanceof Error ? error.message : error);
-        setIsConnected(false);
+        if (active) setIsConnected(false);
+        // silent — retry on next interval
       }
     };
 
-    setupRealtimeSubscription();
+    poll();
+    timer = setInterval(poll, pollIntervalMs);
 
-    // Cleanup
     return () => {
-      try {
-      } catch {}
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
-      }
+      active = false;
+      if (timer) clearInterval(timer);
+      snapshotRef.current = new Map();
     };
-  }, [onEntryAdded, onEntryUpdated, onEntryDeleted]);
+  }, [pollIntervalMs]);
 
   return {
     isConnected,

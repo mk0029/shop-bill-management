@@ -1,6 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { sanityClient } from "@/lib/sanity";
+import { createDocument } from "@/lib/sanity/write-router";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getActiveTokenStringsForUsers } from "@/lib/fcm/tokens.server";
 import { buildNotificationData, hasNotificationText } from "@/lib/fcm/payload";
 import { sendFcmToTokens } from "./fcm-sender.server";
@@ -167,8 +169,16 @@ async function persistNotification(input: SendNotificationEventInput, targetUser
   };
 
   try {
-    await sanityClient.create(doc);
-    return { created: true, notificationId: doc._id };
+    const { _id: intendedId, ...docBody } = doc;
+    const result = await createDocument(docBody as unknown as Record<string, unknown>, "notifications", {
+      documentId: intendedId,
+    });
+    if (!result.success) {
+      const status = (result.errorCategory === "AUTH" || result.errorCategory === "CONFLICT") ? 409 : undefined;
+      if (status === 409) return { created: false, notificationId: intendedId, conflict: true };
+      throw new Error(result.error || "Notification create failed");
+    }
+    return { created: true, notificationId: intendedId };
   } catch (error) {
     const status = (error as { status?: number; statusCode?: number })?.status || (error as { statusCode?: number })?.statusCode;
     if (status === 409) return { created: false, notificationId: doc._id, conflict: true };
@@ -184,7 +194,7 @@ async function updateNotificationDeliveryStatus(args: {
 }) {
   if (!args.notificationId) return;
   const now = new Date().toISOString();
-  await sanityClient
+  await getSanityClient("comms")
     .patch(args.notificationId)
     .set({
       deliveryStatus: args.status,

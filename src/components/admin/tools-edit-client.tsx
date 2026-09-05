@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  toolRentalService,
-  type ToolItem,
-  listenTools,
-} from "@/lib/tool-rental-service";
+import * as toolRentalApi from "@/lib/tool-rental-api";
+import type { ToolItem } from "@/lib/tool-rental-service";
 import { toast } from "sonner";
 import { Dropdown } from "@/components/ui/dropdown";
 
@@ -20,7 +17,7 @@ export default function AdminToolsEditClient({ toolId }: { toolId: string }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const tools = await toolRentalService.getTools();
+        const tools = await toolRentalApi.getTools();
 
         // Extract unique categories from existing tools
         const uniqueCategories = [
@@ -33,14 +30,14 @@ export default function AdminToolsEditClient({ toolId }: { toolId: string }) {
     };
 
     loadData();
-    const sub = listenTools(loadData);
-    return () => sub?.unsubscribe();
+    const timer = setInterval(loadData, 15000);
+    return () => clearInterval(timer);
   }, []);
 
   const loadTool = async () => {
     try {
       setLoading(true);
-      const tool = await toolRentalService.getToolById(toolId);
+      const tool = await toolRentalApi.getToolById(toolId);
       if (!tool) {
         toast.error("Tool not found");
         router.push("/admin/tools");
@@ -57,8 +54,8 @@ export default function AdminToolsEditClient({ toolId }: { toolId: string }) {
 
   useEffect(() => {
     loadTool();
-    const sub = listenTools(loadTool);
-    return () => sub?.unsubscribe();
+    const timer = setInterval(loadTool, 15000);
+    return () => clearInterval(timer);
   }, [toolId]);
 
   const submit = async () => {
@@ -81,7 +78,7 @@ export default function AdminToolsEditClient({ toolId }: { toolId: string }) {
       }
 
       setSaving(true);
-      await toolRentalService.updateTool(toolId, {
+      await toolRentalApi.updateTool(toolId, {
         toolName: form.toolName!,
         toolCode: form.toolCode!,
         category: form.category!,

@@ -4,6 +4,7 @@
  */
 
 import { sanityClient } from "./sanity";
+import { createStockTransactionRecord } from "./stock-transaction-router";
 import {
   validateStockAvailability,
   fetchLatestPrices,
@@ -441,7 +442,7 @@ export const enhancedInventoryApi = {
                 .toString(36)
                 .substr(2, 9)}`;
 
-              const auditTransaction = await sanityClient.create({
+              const auditTxResult = await createStockTransactionRecord({
                 _type: "stockTransaction",
                 transactionId,
                 type: "adjustment",
@@ -455,7 +456,7 @@ export const enhancedInventoryApi = {
                 createdAt: new Date().toISOString(),
               });
 
-              auditTransactionId = auditTransaction._id;
+              auditTransactionId = auditTxResult.success ? auditTxResult.id : null;
             } catch (auditError) {
               console.warn(
                 `Failed to create audit trail for ${id}:`,
@@ -612,7 +613,7 @@ export const enhancedInventoryApi = {
                 .toString(36)
                 .substr(2, 9)}`;
 
-              const auditTransaction = await sanityClient.create({
+              const auditTxResult = await createStockTransactionRecord({
                 _type: "stockTransaction",
                 transactionId,
                 type: "adjustment",
@@ -626,7 +627,7 @@ export const enhancedInventoryApi = {
                 createdAt: new Date().toISOString(),
               });
 
-              auditTransactionId = auditTransaction._id;
+              auditTransactionId = auditTxResult.success ? auditTxResult.id : null;
             } catch (auditError) {
               console.warn(
                 `Failed to create audit trail for ${id}:`,
@@ -738,7 +739,7 @@ export const enhancedInventoryApi = {
         .toString(36)
         .substr(2, 9)}`;
 
-      await sanityClient.create({
+      const restoreTxResult = await createStockTransactionRecord({
         _type: "stockTransaction",
         transactionId,
         type: "adjustment",
@@ -751,6 +752,9 @@ export const enhancedInventoryApi = {
         transactionDate: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       });
+      if (!restoreTxResult.success) {
+        console.warn("Failed to create restore audit transaction", restoreTxResult.error);
+      }
 
       return {
         success: true,
@@ -933,7 +937,7 @@ export const enhancedInventoryApi = {
             const transactionId = `txn_${Date.now()}_${Math.random()
               .toString(36)
               .substr(2, 9)}`;
-            await sanityClient.create({
+            const adjustmentTxResult = await createStockTransactionRecord({
               _type: "stockTransaction",
               transactionId,
               type: "adjustment",
@@ -951,6 +955,9 @@ export const enhancedInventoryApi = {
               transactionDate: new Date().toISOString(),
               createdAt: new Date().toISOString(),
             });
+            if (!adjustmentTxResult.success) {
+              console.warn("Failed to create bulk stock adjustment transaction", adjustmentTxResult.error);
+            }
           }
 
           results.push({

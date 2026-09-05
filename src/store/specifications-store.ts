@@ -1,4 +1,5 @@
 import { sanityClient } from "@/lib/sanity";
+import { catalogCreate, catalogUpdate, catalogDelete } from "@/lib/catalog-mutations";
 import {
   fetchAllSpecificationOptions
 } from "@/lib/sanity-queries";
@@ -393,7 +394,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       option: Omit<SpecificationOption, "_id">
     ) => {
       try {
-        const newOption = await sanityClient.create({
+        const newOption = await catalogCreate("specification", {
           _type: "specificationOption",
           ...option,
         });
@@ -413,10 +414,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
       updates: Partial<SpecificationOption>
     ) => {
       try {
-        const updatedOption = await sanityClient
-          .patch(id)
-          .set(updates)
-          .commit();
+        const updatedOption = await catalogUpdate("specification", id, updates);
 
         // Update local state
         set((state) => ({
@@ -432,7 +430,7 @@ export const useSpecificationsStore = create<SpecificationsStore>(
 
     deleteSpecificationOption: async (id: string) => {
       try {
-        await sanityClient.delete(id);
+        await catalogDelete("specification", id);
 
         // Update local state
         set((state) => ({

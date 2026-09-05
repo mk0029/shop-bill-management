@@ -33,6 +33,7 @@ const CameraCaptureButton: React.FC<CameraCaptureButtonProps> = ({
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -104,6 +105,7 @@ const CameraCaptureButton: React.FC<CameraCaptureButtonProps> = ({
     setCapturedBlob(null);
     setView("live");
     setZoom(1);
+    setCameraError(null);
     resetEdit();
   };
 
@@ -127,6 +129,16 @@ const CameraCaptureButton: React.FC<CameraCaptureButtonProps> = ({
     } catch (error) {
       console.error("Camera start failed:", error);
       setHasStream(false);
+      const err = error as DOMException;
+      if (err.name === "NotAllowedError") {
+        setCameraError("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (err.name === "NotFoundError") {
+        setCameraError("No camera found on this device.");
+      } else if (err.name === "NotReadableError") {
+        setCameraError("Camera is in use by another app. Close it and try again.");
+      } else {
+        setCameraError("Unable to access camera.");
+      }
     }
   };
 
@@ -333,8 +345,8 @@ const CameraCaptureButton: React.FC<CameraCaptureButtonProps> = ({
                 )}
 
                 {view === "live" && !hasStream && (
-                  <div className="absolute inset-0 grid place-items-center text-sm text-white/80">
-                    Unable to access camera
+                  <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-white/80">
+                    {cameraError || "Unable to access camera"}
                   </div>
                 )}
 

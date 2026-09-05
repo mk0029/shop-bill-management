@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
+import { createDocument } from "@/lib/sanity/write-router";
 import { detectMaliciousPayload } from "@/lib/security/waf";
 import { isOriginAllowed, corsHeaders, SECURITY_HEADERS } from "@/lib/security/headers";
 import {
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
 
     try {
-      await sanityClient.create({
+      const createResult = await createDocument({
         _type: "customerRequest",
         requestId,
         name,
@@ -155,7 +156,10 @@ export async function POST(request: Request) {
         submittedAt: now,
         expiresAt,
         createdAt: now,
-      });
+      }, "customer-requests");
+      if (!createResult.success) {
+        throw new Error(createResult.error || "Create failed");
+      }
     } catch (sanityError) {
       console.error("Sanity create failed:", sanityError);
       return errorResponse("SERVER_ERROR", "Failed to submit registration request. Please try again.", 500);

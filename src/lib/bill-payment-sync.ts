@@ -4,7 +4,8 @@
  */
 
 import { sanityApiService, billPaymentNotes } from './sanity-api-service';
-import { sanityClient } from './sanity';
+import { sanityClient, getSanityClient } from './sanity';
+import { fetchBills, fetchBillById } from './sanity/bills-federated';
 
 function ensureUTC(dateStr: string | undefined | null): string {
   if (!dateStr) return new Date().toISOString();
@@ -48,41 +49,24 @@ export interface SyncResult {
  */
 export async function getBillsWithPayments(): Promise<BillPaymentData[]> {
   try {
-    const query = `*[_type == "bill" && paymentStatus in ["paid", "partial"]] {
-      _id,
-      billNumber,
-      paymentStatus,
-      paymentDate,
-      lastPaymentDate,
-      totalAmount,
-      paidAmount,
-      balanceAmount,
-      customer->{
-        _id,
-        name,
-        phone
-      },
-      createdAt, // This will be used as billDate
-      updatedAt
-    } | order(paymentDate desc, lastPaymentDate desc, updatedAt desc)`;
-
-    const bills = await sanityClient.fetch(query);
-    
-    return bills.map((bill: any) => ({
-      billId: bill._id,
-      billNumber: bill.billNumber,
-      customerId: bill.customer?._id || '',
-      customerName: bill.customer?.name || 'Unknown Customer',
-      customerPhone: bill.customer?.phone,
-      amount: bill.paidAmount || 0,
-      paymentStatus: bill.paymentStatus,
-      paymentDate: ensureUTC(bill.paymentDate),
-      lastPaymentDate: ensureUTC(bill.lastPaymentDate),
-      billDate: ensureUTC(bill.createdAt),
-      totalAmount: bill.totalAmount || 0,
-      paidAmount: bill.paidAmount || 0,
-      balanceAmount: bill.balanceAmount ?? 0,
-    }));
+    const bills = await fetchBills();
+    return (bills || [])
+      .filter((bill: any) => ['paid', 'partial'].includes(bill?.paymentStatus))
+      .map((bill: any) => ({
+        billId: bill._id,
+        billNumber: bill.billNumber,
+        customerId: bill.customer?._id || bill.customerId || '',
+        customerName: bill.customer?.name || bill.customerName || 'Unknown Customer',
+        customerPhone: bill.customer?.phone || bill.customerPhone,
+        amount: bill.paidAmount || 0,
+        paymentStatus: bill.paymentStatus,
+        paymentDate: ensureUTC(bill.paymentDate),
+        lastPaymentDate: ensureUTC(bill.lastPaymentDate),
+        billDate: ensureUTC(bill.createdAt),
+        totalAmount: bill.totalAmount || 0,
+        paidAmount: bill.paidAmount || 0,
+        balanceAmount: bill.balanceAmount ?? 0,
+      }));
   } catch (error) {
     console.error('Error fetching bills with payments:', error);
     return [];
@@ -94,12 +78,14 @@ export async function getBillsWithPayments(): Promise<BillPaymentData[]> {
  */
 export async function checkCashBookEntryExists(billId: string): Promise<boolean> {
   try {
-    const query = `*[_type == "cashBookEntry" && bill._ref == $billId][0] {
+    const query = `*[_type == "cashBookEntry" && (bill._ref == $billId || billId == $billId)][0] {
       _id
     }`;
-    
-    const entry = await sanityClient.fetch(query, { billId });
-    return !!entry;
+    const [primary, cashbook] = await Promise.all([
+      sanityClient.fetch(query, { billId }).catch(() => null),
+      getSanityClient("public").fetch(query, { billId }).catch(() => null),
+    ]);
+    return !!(primary || cashbook);
   } catch (error) {
     console.error('Error checking cash book entry:', error);
     return false;
@@ -271,27 +257,10 @@ export async function syncBillPaymentsToCashBook(): Promise<SyncResult> {
  */
 export async function syncSingleBillPayment(billId: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Get the specific bill
-    const query = `*[_type == "bill" && _id == $billId && paymentStatus in ["paid", "partial"]][0] {
-      _id,
-      billNumber,
-      paymentStatus,
-      paymentDate,
-      lastPaymentDate,
-      totalAmount,
-      paidAmount,
-      balanceAmount,
-      customer->{
-        _id,
-        name,
-        phone
-      },
-      createdAt // Add createdAt for billDate
-    }`;
-    
-    const bill = await sanityClient.fetch(query, { billId });
-    
-    if (!bill) {
+    // Get the specific bill (federated across primary + billing DBs)
+    const bill = await fetchBillById(billId);
+
+    if (!bill || !['paid', 'partial'].includes(bill.paymentStatus)) {
       return { 
         success: false, 
         message: 'Bill not found or not in paid/partial status' 
@@ -312,9 +281,9 @@ export async function syncSingleBillPayment(billId: string): Promise<{ success: 
     const billData: BillPaymentData = {
       billId: bill._id,
       billNumber: bill.billNumber,
-      customerId: bill.customer?._id || '',
-      customerName: bill.customer?.name || 'Unknown Customer',
-      customerPhone: bill.customer?.phone,
+      customerId: bill.customer?._id || bill.customerId || '',
+      customerName: bill.customer?.name || bill.customerName || 'Unknown Customer',
+      customerPhone: bill.customer?.phone || bill.customerPhone,
       amount: bill.paidAmount || 0,
       paymentStatus: bill.paymentStatus,
       paymentDate: ensureUTC(bill.paymentDate),

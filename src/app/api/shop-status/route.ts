@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@sanity/client';
 import { notificationService } from '@/lib/notification-service';
 import { getShopStatusMessage, getShopStatusMessages } from '@/lib/shop-status-messages.server';
+import { sanityClient } from '@/lib/sanity';
+import { getSanityClient } from '@/lib/sanity/client-factory';
+import { createDocument, updateDocument } from '@/lib/sanity/write-router';
 
 type ShopStatus = 'offline' | 'online' | 'at_shop';
 
@@ -15,26 +17,18 @@ interface OnlineStatusDoc {
   note?: string;
 }
 
-// Create a server-side Sanity client with proper error handling
-const getSanityClient = () => {
-  const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'idji8ni7';
-  const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || 'live-shop';
-  const token = process.env.SANITY_API_WRITE_TOKEN || process.env.NEXT_PUBLIC_SANITY_API_TOKEN;
+const GET_STATUS_QUERY = `*[_id == "onlineStatus"][0]{ _id, _type, isOnline, atShop, updatedAt, note }`;
 
-  if (!token) {
-    console.error('Sanity API token is not configured');
-    throw new Error('Server configuration error');
-  }
-
-  return createClient({
-    projectId,
-    dataset,
-    token,
-    useCdn: false,
-    apiVersion: '2024-01-01',
-    perspective: 'published',
-  });
-};
+async function readOnlineStatus() {
+  const commsDoc = await getSanityClient('comms')
+    .fetch<OnlineStatusDoc | null>(GET_STATUS_QUERY)
+    .catch(() => null);
+  if (commsDoc) return commsDoc;
+  const primaryDoc = await sanityClient
+    .fetch<OnlineStatusDoc | null>(GET_STATUS_QUERY)
+    .catch(() => null);
+  return primaryDoc || null;
+}
 
 // Map Sanity's format to our status
 const mapStateToStatus = ({ isOnline, atShop }: { isOnline?: boolean; atShop?: boolean }): ShopStatus => {
@@ -53,7 +47,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const sanityClient = getSanityClient();
+    const sanityClient = getSanityClient('comms');
 
     // Parse and validate request body
     let body;
@@ -84,32 +78,36 @@ export async function POST(req: Request) {
 
     
     try {
-      const existingDoc = await sanityClient.fetch('*[_id == "onlineStatus"][0]');
+      const existingDoc = await readOnlineStatus();
       // Compute previous status for notification decisioning
       const prevStatus: ShopStatus | undefined = existingDoc
         ? mapStateToStatus({ isOnline: existingDoc?.isOnline, atShop: existingDoc?.atShop })
         : undefined;
 
       if (!existingDoc) {
-        await sanityClient.create({
-          _id: 'onlineStatus',
+        const doc = {
           _type: 'online',
           isOnline,
           atShop,
           note: note || '',
           updatedAt: updatedAt || new Date().toISOString()
-        });
+        };
+        const writeResult = await createDocument(doc, 'shop-status', { documentId: 'onlineStatus' });
+        if (!writeResult.success) {
+          throw new Error(writeResult.error || 'Failed to create onlineStatus');
+        }
       } else {
         // Update existing document
-        await sanityClient
-          .patch('onlineStatus')
-          .set({
-            isOnline,
-            atShop,
-            note: note || '',
-            updatedAt: updatedAt || new Date().toISOString(),
-          })
-          .commit();
+        const patch = {
+          isOnline,
+          atShop,
+          note: note || '',
+          updatedAt: updatedAt || new Date().toISOString(),
+        };
+        const writeResult = await updateDocument('onlineStatus', patch, 'shop-status');
+        if (!writeResult.success) {
+          throw new Error(writeResult.error || 'Failed to update onlineStatus');
+        }
       }
 
       // Decide if we need to broadcast an FCM notification
@@ -180,21 +178,18 @@ export async function GET() {
   try {
     // Public GET (used by client to read status); no Clerk auth required
 
-    // Fetch the current status from Sanity
-    const client = getSanityClient();
-    const statusDoc = await client.getDocument<OnlineStatusDoc>('onlineStatus');
+    // Fetch the current status from Sanity (comms first, primary fallback)
+    const statusDoc = await readOnlineStatus();
     
     // If no status document exists, create one
     if (!statusDoc) {
       const newStatus = { 
-        _id: 'onlineStatus',
         _type: 'online',
         isOnline: false,
         atShop: false,
         updatedAt: new Date().toISOString()
       };
-      
-      await client.create(newStatus);
+      await createDocument(newStatus, 'shop-status', { documentId: 'onlineStatus' }).catch(() => {});
       return NextResponse.json({ status: 'offline' });
     }
     

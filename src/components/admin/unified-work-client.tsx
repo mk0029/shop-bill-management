@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -38,11 +38,9 @@ import CustomerAutocomplete from "@/components/ui/customer-autocomplete";
 import { formatDayDateTime } from "@/lib/date-time";
 import { safeUserName, safeInitial } from "@/lib/display-text";
 import { getAdminCustomerDisplayName } from "@/lib/customer-utils";
-import { sanityClient } from "@/lib/sanity";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import {
   workTaskService,
-  listenWorkTasks,
   type WorkTask,
 } from "@/lib/work-task-service";
 import EmptyState from "@/components/ui/empty-state";
@@ -251,8 +249,8 @@ export default function UnifiedWorkClient() {
   );
 
   /* ─── Data loading ─── */
-  const loadIncomingRequests = useCallback(async () => {
-    setIncomingLoading(true);
+  const loadIncomingRequests = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setIncomingLoading(true);
     try {
       const res = await fetch("/api/repair-requests?status=pending", {
         cache: "no-store",
@@ -273,11 +271,11 @@ export default function UnifiedWorkClient() {
     } catch {
       setIncomingRequests([]);
     }
-    setIncomingLoading(false);
+    if (!opts?.silent) setIncomingLoading(false);
   }, []);
 
-  const loadActiveTasks = useCallback(async () => {
-    setActiveLoading(true);
+  const loadActiveTasks = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setActiveLoading(true);
     try {
       const data = await workTaskService.getWorkTasks();
       const deduped = Array.from(
@@ -287,11 +285,11 @@ export default function UnifiedWorkClient() {
     } catch {
       /* ignore */
     }
-    setActiveLoading(false);
+    if (!opts?.silent) setActiveLoading(false);
   }, [deletedIds]);
 
-  const loadHistoryData = useCallback(async () => {
-    setHistoryLoading(true);
+  const loadHistoryData = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setHistoryLoading(true);
     try {
       const [reqRes, taskData] = await Promise.all([
         fetch(
@@ -313,27 +311,27 @@ export default function UnifiedWorkClient() {
     } catch {
       setHistoryRequests([]);
     }
-    setHistoryLoading(false);
+    if (!opts?.silent) setHistoryLoading(false);
   }, [deletedIds]);
 
   const loadTabData = useCallback(
-    (t: Tab) => {
+    (t: Tab, opts?: { silent?: boolean }) => {
       if (t === "incoming") {
-        loadIncomingRequests();
+        loadIncomingRequests(opts);
       } else if (t === "active") {
-        loadActiveTasks();
+        loadActiveTasks(opts);
       } else {
-        loadHistoryData();
+        loadHistoryData(opts);
       }
     },
     [loadIncomingRequests, loadActiveTasks, loadHistoryData],
   );
 
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (opts?: { silent?: boolean }) => {
     await Promise.all([
-      loadIncomingRequests(),
-      loadActiveTasks(),
-      loadHistoryData(),
+      loadIncomingRequests(opts),
+      loadActiveTasks(opts),
+      loadHistoryData(opts),
     ]);
   }, [loadIncomingRequests, loadActiveTasks, loadHistoryData]);
 
@@ -343,22 +341,26 @@ export default function UnifiedWorkClient() {
       .then((r) => setUsers(r.data || []))
       .catch(() => {});
     loadAll();
-    const sub1 = sanityClient
-      .listen('*[_type == "repairRequest"]', {}, { includeResult: false })
-      .subscribe(() => loadTabData(tab));
-    const sub2 = listenWorkTasks(() => {
-      loadTabData(tab);
-    });
-    const onFocus = () => loadTabData(tab);
+    // Task/request docs live in the operations DB, so browser-side Sanity
+    // listeners on the primary client can never see writes. Poll silently so
+    // background refreshes don't flash the loading skeletons.
+    const interval = setInterval(() => loadTabData(tab, { silent: true }), 15000);
+    const onFocus = () => loadTabData(tab, { silent: true });
     window.addEventListener("focus", onFocus);
     return () => {
-      sub1.unsubscribe();
-      sub2.unsubscribe();
+      clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
   }, [loadAll, loadActiveTasks, loadTabData, tab]);
 
+  // Reload on tab switch, but skip the initial run — loadAll() on mount
+  // already fetches every tab (avoids a redundant refresh right after visiting).
+  const skipInitialTabLoad = useRef(true);
   useEffect(() => {
+    if (skipInitialTabLoad.current) {
+      skipInitialTabLoad.current = false;
+      return;
+    }
     loadTabData(tab);
   }, [tab, loadTabData]);
 
@@ -641,10 +643,11 @@ export default function UnifiedWorkClient() {
         setTasks((prev) => prev.map((t) => (t._id === u._id ? u : t)));
         toast.success("Task updated");
       } else {
-        // No optimistic update - let realtime event handle adding the task
-        // This prevents duplicates from both API response and realtime event
         await workTaskService.createWorkTask(payload as any);
         toast.success("Task created");
+        // Reload silently so the task shows in the active list right away
+        // without flashing the loading skeletons.
+        await loadAll({ silent: true });
       }
       setShowForm(false);
       setEditingTask(null);
