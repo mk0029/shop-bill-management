@@ -29,9 +29,11 @@ import { ShareModal } from "./bill-detail-modal/ShareModal";
 import { PaymentUpdateModal } from "@/components/ui/payment-update-modal";
 
 import { useLocaleStore } from "@/store/locale-store";
-import { BillDetails, generateWhatsAppMessage } from "@/lib/whatsapp-share";
-import { sendManualReminder } from "@/lib/manual-reminder";
-import { sendManualWhatsApp } from "@/lib/manual-whatsapp";
+import {
+  BillDetails,
+  generateWhatsAppMessage,
+  shareBillOnWhatsApp,
+} from "@/lib/whatsapp-share";
 
 interface BillDetailModalProps {
   isOpen: boolean;
@@ -124,50 +126,16 @@ export const BillDetailModal = ({
 
   const handleShareOnWhatsApp = useCallback(async () => {
     if (!bill) return;
-    if (role !== "admin") {
-      toast.error("Only Admin and Super Admin can send WhatsApp messages");
-      return;
-    }
-
-    const customerId =
-      bill.customer?._id ||
-      bill.customer?._ref ||
-      bill.customerId ||
-      bill.userId;
-    if (!customerId) {
-      toast.error("Customer ID is required");
-      return;
-    }
-
     try {
       setIsSendingWhatsApp(true);
-      const result = await sendManualWhatsApp({
-        shareType: "bill",
-        customerId: String(customerId),
-        billId: String(bill._id || bill.id || bill.billId || ""),
-      });
-
-      if (result.rateLimited) {
-        toast.error(
-          result.error ||
-            "One manual WhatsApp message per customer/bill is allowed every 5 minutes",
-        );
-        return;
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || "Unable to send WhatsApp message");
-      }
-
-      toast.success("WhatsApp message sent successfully");
+      await shareBillOnWhatsApp(buildBillDetails(bill));
       setShowShareModal(false);
     } catch (e: any) {
-      const msg = e?.message || "Unable to send WhatsApp message";
-      toast.error(msg);
+      toast.error(e?.message || "Unable to open WhatsApp");
     } finally {
       setIsSendingWhatsApp(false);
     }
-  }, [bill, role]);
+  }, [bill, buildBillDetails]);
   const handleNativeShare = useCallback(() => {
     if (!bill) return;
     const details = buildBillDetails(bill);
@@ -220,31 +188,17 @@ export const BillDetailModal = ({
     if (!bill) return;
     try {
       setIsSendingReminder(true);
-      const result = await sendManualReminder({
-        billId: bill._id || bill.id || bill.billId,
-        customerId: bill.customer?._id || bill.customerId,
-      });
-
-      if (result.rateLimited) {
-        toast.info(
-          "Reminder was already sent recently. Please wait a few minutes before trying again.",
-        );
-        return;
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send reminder");
-      }
-
-      toast.success("WhatsApp reminder sent successfully!");
+      await shareBillOnWhatsApp(buildBillDetails(bill));
+      setShowShareModal(false);
+      toast.success("Reminder opened in WhatsApp");
     } catch (e: any) {
       toast.error(
-        e?.message || "Unable to send WhatsApp reminder. Please try again.",
+        e?.message || "Unable to open WhatsApp reminder. Please try again.",
       );
     } finally {
       setIsSendingReminder(false);
     }
-  }, [bill]);
+  }, [bill, buildBillDetails]);
 
   const handlePaymentUpdateWrapper = useCallback(
     async (billId: string, paymentData: any) => {

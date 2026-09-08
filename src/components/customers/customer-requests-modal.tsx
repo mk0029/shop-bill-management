@@ -69,6 +69,14 @@ export function CustomerRequestsModal({ isOpen, onClose }: CustomerRequestsModal
       const data = await res.json()
       if (data.success) {
         setRequests(data.data)
+        // Keep the heading count in sync with the list by deriving it from the same
+        // response that feeds the rows. The global store count can go stale (e.g. when
+        // requests live in the operations/customers DBs, which the primary-only live
+        // listener doesn't observe), causing "Registration Requests (1)" with an empty list.
+        if (!searchTerm) {
+          const next = Number(data?.pagination?.total ?? requests.length)
+          useRegistrationRequestStore.getState().setPendingCount(next)
+        }
       }
     } catch { toast.error("Failed to load requests") }
     finally { setIsLoading(false) }

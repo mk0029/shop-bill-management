@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScheduledGreetings } from "@/services/notifications/scheduled-greetings.server";
-import { processDueWhatsAppMessages } from "@/lib/whatsapp/message-queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,10 +32,7 @@ async function handle(req: NextRequest) {
     skipDailyGoodMorning: !includeDailyGoodMorning,
   });
 
-  const queueLimit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("queueLimit") || 100), 1), 200);
-  const queueResult = await processDueWhatsAppMessages({ limit: queueLimit, timeBudgetMs: 45_000 });
-
-  return NextResponse.json({ success: true, ...result, whatsappQueue: queueResult });
+  return NextResponse.json({ success: true, ...result });
 }
 
 export async function GET(req: NextRequest) {

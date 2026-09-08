@@ -4,7 +4,6 @@ import { getSanityClient } from "@/lib/sanity/client-factory";
 import { createDocument } from "@/lib/sanity/write-router";
 import { queryDocuments } from "@/lib/sanity/read-router";
 import { getServerAuth } from "@/lib/server-auth";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { billPaymentNotes } from "@/lib/sanity-api-service";
 import {
   createAndDispatchNotification,
@@ -70,9 +69,7 @@ export async function POST(req: Request) {
 
     const actorUserId = String(auth.userId || "").trim();
 
-    // Idempotency key
     const sortedIds = [...billIds].sort().join(",");
-    const idempotencyKey = `billing.multiPaid:${customerId}:${makeHash(sortedIds)}:${receivedAmount}:${paymentDate || "today"}`;
 
     // Fetch all requested bills
     const billingClient = getSanityClient('billing');
@@ -262,41 +259,6 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("[PayMultiple] cashbook entry creation failed:", e);
     }
-
-    // ONE combined WhatsApp event (fire-and-forget)
-    const waBills = patchOps.map((op) => {
-      const bill = billsToPay.find((b: any) => b._id === op.id);
-      return {
-        _id: op.id,
-        billId: bill?.billId || op.id,
-        billNumber: bill?.billNumber || "",
-        totalAmount: bill?.totalAmount || 0,
-        paidAmount: op.amount,
-        balanceAmount: Math.max(0, (bill?.balanceAmount ?? bill?.totalAmount ?? 0) - op.amount),
-        paymentStatus: op.patches?.paymentStatus || "partial",
-      };
-    });
-    void emitWaEventServer("billing.multiPaid", {
-      customerId,
-      customerName: customerDisplayName(customerDoc),
-      customerNickname: customerDoc.nickname || customerDisplayName(customerDoc),
-      customerPhone: customerDoc.phone || "",
-      customer: { name: customerDisplayName(customerDoc), nickname: customerDoc.nickname || "" },
-      bills: waBills,
-      totalPaid: totalApplied,
-      remainingBalance: remainingOutstanding,
-      totalOutstandingBefore: totalOutstandingBeforePayment,
-      fullyPaidCount: fullyPaidBills.length,
-      partialCount: partialBillNumber ? 1 : 0,
-      paymentMode,
-      paymentDate: payDate,
-      paidByAdmin: actorUserId,
-      idempotencyKey,
-    }).then((result) => {
-      if (!result.ok) console.warn("[WA] multiPaid event failed:", result.error);
-    }).catch((error) => {
-      console.error("[WA] multiPaid event dispatch failed:", error);
-    });
 
     // ONE combined admin notification
     try {

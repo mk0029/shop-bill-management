@@ -12,9 +12,9 @@ import { useDataStore } from "@/store/data-store";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useAuthStore } from "@/store/auth-store";
 import { safeUserName } from "@/lib/display-text";
-import { trackFcm, trackWhatsApp } from "@/lib/notification-tracker";
+import { trackFcm } from "@/lib/notification-tracker";
 
-export type Audience = "admins" | "all" | "users" | "whatsapp";
+export type Audience = "admins" | "all" | "users";
 
 type Props = {
   open: boolean;
@@ -35,8 +35,6 @@ export default function NotificationBroadcastModal({
   const [body, setBody] = useState("");
   const [link, setLink] = useState("");
   const [alsoNotifyAdmins, setAlsoNotifyAdmins] = useState(false);
-  const [sendWhatsApp, setSendWhatsApp] = useState(false);
-  const [whatsappMessage, setWhatsappMessage] = useState("");
   // User picker state
   const [dropdownValue, setDropdownValue] = useState<string | undefined>(
     undefined,
@@ -167,11 +165,7 @@ export default function NotificationBroadcastModal({
   const canSubmit =
     title.trim().length > 0 &&
     body.trim().length > 0 &&
-    (audience !== "users" ||
-      selectedUserIds.length > 0 ||
-      selectedPhones.length > 0) &&
-    (!sendWhatsApp || selectedPhones.length > 0) &&
-    (audience !== "whatsapp" || selectedPhones.length > 0);
+    (audience !== "users" || selectedUserIds.length > 0);
 
   async function handleSend() {
     if (!canSubmit) return;
@@ -217,67 +211,37 @@ export default function NotificationBroadcastModal({
         if (alsoNotifyAdmins) {
           requests.push({ ...base, audience: "admins" });
         }
-      } else if (audience !== "whatsapp") {
+      } else {
         requests.push({ ...base, audience } as AdminAudiencePayload);
       }
 
       let totalSent = 0;
       let totalFailed = 0;
 
-      // Send regular notifications (only if not WhatsApp-only mode)
-      if (audience !== "whatsapp") {
-        for (const payload of requests) {
-          const res = await fetch("/api/notifications/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const json = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            const err =
-              json?.error ||
-              (Array.isArray(json?.errors) ? json.errors[0] : "Failed to send");
-            throw new Error(err);
-          }
-          totalSent += Number(json?.sent || 0);
-          totalFailed += Number(json?.failed || 0);
+      for (const payload of requests) {
+        const res = await fetch("/api/notifications/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const err =
+            json?.error ||
+            (Array.isArray(json?.errors) ? json.errors[0] : "Failed to send");
+          throw new Error(err);
         }
+        totalSent += Number(json?.sent || 0);
+        totalFailed += Number(json?.failed || 0);
       }
-
-      // WhatsApp delivery is intentionally centralized in the backend wa-t event service.
-      let whatsappSent = 0;
-      let whatsappFailed = 0;
-      if ((sendWhatsApp && selectedPhones.length > 0) || audience === "whatsapp") {
-        whatsappFailed = selectedPhones.length;
-        console.warn("[Notifications] WhatsApp broadcast skipped: backend event route required");
-      }
-      const totalMessages = totalSent + whatsappSent;
-      const totalFailures = totalFailed + whatsappFailed;
 
       trackFcm({ eventType: "broadcast-fcm", ok: totalSent > 0, durationMs: Date.now() - startMs, target: audience, meta: { sent: totalSent, failed: totalFailed, audience } });
-      if (whatsappSent > 0 || whatsappFailed > 0) {
-        trackWhatsApp({ eventType: "broadcast-whatsapp", phone: selectedPhones[0], ok: whatsappFailed === 0 && whatsappSent > 0, durationMs: Date.now() - startMs });
-      }
 
-      if (audience === "whatsapp") {
-        toast.success(
-          whatsappFailed > 0
-            ? `Sent ${whatsappSent} WhatsApp messages. Failed: ${whatsappFailed}`
-            : `Sent ${whatsappSent} WhatsApp messages`,
-        );
-      } else if (sendWhatsApp) {
-        toast.success(
-          totalFailures > 0
-            ? `Sent ${totalSent} notifications, ${whatsappSent} WhatsApp messages. Failed: ${totalFailed} notifications, ${whatsappFailed} WhatsApp`
-            : `Sent ${totalSent} notifications${whatsappSent > 0 ? ` and ${whatsappSent} WhatsApp messages` : ""}`,
-        );
-      } else {
-        toast.success(
-          totalFailures > 0
-            ? `Sent ${totalSent}, failed ${totalFailures}`
-            : `Sent ${totalSent} notifications`,
-        );
-      }
+      toast.success(
+        totalFailed > 0
+          ? `Sent ${totalSent}, failed ${totalFailed}`
+          : `Sent ${totalSent} notifications`,
+      );
 
       // Save locally only if there is NO active Service Worker (to avoid duplicates).
       try {
@@ -314,8 +278,6 @@ export default function NotificationBroadcastModal({
       setSelected([]);
       setAudience("admins");
       setAlsoNotifyAdmins(false);
-      setSendWhatsApp(false);
-      setWhatsappMessage("");
     } catch (e: unknown) {
       const msg =
         e instanceof Error ? e.message : "Failed to send notification";
@@ -360,7 +322,7 @@ export default function NotificationBroadcastModal({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {(["admins", "all", "users", "whatsapp"] as Audience[]).map((key) => (
+          {(["admins", "all", "users"] as Audience[]).map((key) => (
             <Button
               key={key}
               type="button"
@@ -369,16 +331,9 @@ export default function NotificationBroadcastModal({
               className={cn(
                 "capitalize",
                 audience === key ? "" : "bg-transparent",
-                key === "whatsapp"
-                  ? "bg-green-600 hover:bg-green-700 text-white border-green-500"
-                  : "",
               )}
             >
-              {key === "users"
-                ? "Specific users"
-                : key === "whatsapp"
-                  ? "📱 WhatsApp"
-                  : key}
+              {key === "users" ? "Specific users" : key}
             </Button>
           ))}
         </div>
@@ -415,70 +370,7 @@ export default function NotificationBroadcastModal({
               Also notify admins
             </label>
 
-            {audience === "users" && selectedPhones.length > 0 && (
-              <label className="flex items-center gap-2 text-xs text-green-400 border border-green-400/30 rounded px-2 py-1">
-                <input
-                  type="checkbox"
-                  className="accent-green-500"
-                  checked={sendWhatsApp}
-                  onChange={(e) => setSendWhatsApp(e.target.checked)}
-                />
-                <span className="flex items-center gap-1">
-                  📱 Also send WhatsApp message ({selectedPhones.length} phone
-                  {selectedPhones.length !== 1 ? "s" : ""})
-                </span>
-              </label>
-            )}
-
-            {selected.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selected.map((u) => (
-                  <span
-                    key={u.id}
-                    className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-md border border-gray-800 bg-gray-900 text-gray-200"
-                  >
-                    <span>{safeUserName(u.name, "Unnamed")}</span>
-                    <button
-                      type="button"
-                      className="text-gray-400 hover:text-white"
-                      onClick={() =>
-                        setSelected((prev) => prev.filter((s) => s.id !== u.id))
-                      }
-                      aria-label={`Remove ${safeUserName(u.name, "Unnamed")}`}
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {audience === "whatsapp" && (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <label className="text-sm text-gray-300">Select users</label>
-              <Dropdown
-                options={dropdownOptions.map((o) => ({
-                  value: o.value,
-                  label: o.label,
-                }))}
-                value={dropdownValue}
-                onValueChange={onPickUser}
-                placeholder="Choose customer"
-                searchable={true}
-                searchPlaceholder="Search customers..."
-                className="bg-gray-800 border-gray-700"
-                minW
-              />
-              <p className="text-xs text-gray-500">
-                We will send WhatsApp messages to the selected users' phone
-                numbers.
-              </p>
-            </div>
-
-            {selected.length > 0 && (
+            {audience === "users" && selected.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {selected.map((u) => (
                   <span
@@ -525,25 +417,6 @@ export default function NotificationBroadcastModal({
           />
         </div>
 
-        {(sendWhatsApp || audience === "whatsapp") && (
-          <div className="space-y-2">
-            <label className="text-sm text-green-400">
-              Custom WhatsApp Message (optional)
-            </label>
-            <Textarea
-              rows={3}
-              placeholder="Leave empty to use title + message + link"
-              value={whatsappMessage}
-              onChange={(e) => setWhatsappMessage(e.target.value)}
-              onKeyDown={onKeyDown}
-              className="border-green-400/30"
-            />
-            <p className="text-xs text-gray-500">
-              If empty, we'll combine the title, message, and link for WhatsApp.
-            </p>
-          </div>
-        )}
-
         <div className="space-y-2">
           <label className="text-sm text-gray-300">Deep link (optional)</label>
           <Input
@@ -563,11 +436,7 @@ export default function NotificationBroadcastModal({
             Cancel
           </Button>
           <Button onClick={handleSend} disabled={!canSubmit || loading}>
-            {loading
-              ? "Sending..."
-              : audience === "whatsapp"
-                ? "Send WhatsApp"
-                : "Send"}
+            {loading ? "Sending..." : "Send"}
           </Button>
         </div>
       </div>

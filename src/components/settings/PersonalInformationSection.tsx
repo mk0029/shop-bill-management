@@ -13,7 +13,6 @@ import {
   KeyRound,
   Lock,
   Mail,
-  MessageCircle,
   Save,
   ShieldCheck,
   Trash2,
@@ -59,13 +58,7 @@ const emptyAddress: HomeAddress = {
 };
 
 type ResetStep = 1 | 2 | 3;
-type OtpChannel = "whatsapp" | "email";
-
-function maskPhone(value?: string) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (digits.length <= 5) return digits || "Not available";
-  return `${digits.slice(0, 5)}${"X".repeat(Math.min(5, digits.length - 5))}`;
-}
+type OtpChannel = "email";
 
 function maskEmail(value?: string) {
   const email = String(value || "").trim();
@@ -110,7 +103,7 @@ export default function PersonalInformationSection({
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
-  const [otpChannel, setOtpChannel] = useState<OtpChannel>("whatsapp");
+  const [otpChannel, setOtpChannel] = useState<OtpChannel>("email");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -305,10 +298,8 @@ export default function PersonalInformationSection({
     }));
   };
 
-  const phoneValue = user?.phone || authUser?.phone || "";
   const emailValue = user?.email || authUser?.email || "";
-  const selectedDestination =
-    otpChannel === "whatsapp" ? maskPhone(phoneValue) : maskEmail(emailValue);
+  const selectedDestination = maskEmail(emailValue);
   const strength = passwordScore(newPassword);
   const strengthLabel = ["Too weak", "Basic", "Fair", "Good", "Strong"][
     strength
@@ -325,12 +316,7 @@ export default function PersonalInformationSection({
     passwordUpdateBusy;
 
   const requestOtp = async () => {
-    if (otpChannel === "whatsapp" && !phoneValue) {
-      setWizardError("No mobile number is available for this account.");
-      toast.error("No mobile number is available for this account");
-      return;
-    }
-    if (otpChannel === "email" && !emailValue) {
+    if (!emailValue) {
       setWizardError("Add an email address in Personal Information first.");
       toast.error("Add an email address in Personal Information first");
       return;
@@ -826,32 +812,7 @@ export default function PersonalInformationSection({
                   </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    disabled={!phoneValue}
-                    onClick={() => setOtpChannel("whatsapp")}
-                    className={`flex items-center gap-3 rounded-xl border px-4 py-4 text-left transition ${
-                      otpChannel === "whatsapp"
-                        ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-100"
-                        : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
-                    } disabled:cursor-not-allowed disabled:opacity-50`}
-                  >
-                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-current">
-                      {otpChannel === "whatsapp" ? (
-                        <span className="h-2.5 w-2.5 rounded-full bg-current" />
-                      ) : null}
-                    </span>
-                    <MessageCircle className="h-4 w-4 shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">
-                        WhatsApp
-                      </span>
-                      <span className="block truncate text-xs opacity-75">
-                        {maskPhone(phoneValue)}
-                      </span>
-                    </span>
-                  </button>
+                <div className="grid gap-3 sm:grid-cols-1">
                   <button
                     type="button"
                     disabled={!emailValue}
@@ -892,11 +853,7 @@ export default function PersonalInformationSection({
                     disabled={otpVerifyBusy || passwordUpdateBusy}
                     className="gap-2 bg-blue-600 text-white hover:bg-blue-500"
                   >
-                    {otpChannel === "whatsapp" ? (
-                      <MessageCircle className="h-4 w-4" />
-                    ) : (
-                      <Mail className="h-4 w-4" />
-                    )}
+                    <Mail className="h-4 w-4" />
                     Send OTP
                   </Button>
                 </div>
@@ -924,8 +881,7 @@ export default function PersonalInformationSection({
                     Verification code sent successfully.
                   </div>
                   <div className="mt-1 text-xs text-slate-400">
-                    {otpChannel === "whatsapp" ? "WhatsApp" : "Email"}:{" "}
-                    {selectedDestination}
+                    Email: {selectedDestination}
                   </div>
                 </div>
 

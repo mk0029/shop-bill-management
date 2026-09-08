@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 type OtpRecord = {
   code: string;
   userId: string;
-  channel: "email" | "whatsapp";
+  channel: "email";
   expiresAt: number;
   verifiedUntil?: number;
 };
@@ -40,35 +40,6 @@ async function sendOtpEmail(email: string, code: string) {
   });
 }
 
-async function sendOtpWhatsApp(phone: string, code: string, name?: string | null) {
-  const waBotBaseUrl = (process.env.WA_BOT_URL || "").replace(/\/+$/, "");
-  const token = process.env.WA_BOT_TOKEN || "";
-  if (!waBotBaseUrl || !token) return { sent: false, reason: "WhatsApp service is not configured" };
-
-  const firstName = String(name || "").trim().split(/\s+/)[0] || "Customer";
-  const response = await fetch(`${waBotBaseUrl}/send-message`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": token,
-    },
-    body: JSON.stringify({
-      phone,
-      message: `Hi ${firstName}, your Jambh Electric password OTP is ${code}. It expires in 10 minutes. Do not share it with anyone.`,
-    }),
-  });
-
-  const json = await response.json().catch(() => ({}));
-  if (!response.ok || !json?.ok) {
-    return { sent: false, reason: json?.error || `WhatsApp send failed (${response.status})` };
-  }
-  return { sent: true };
-}
-
-function channelLabel(channel: "email" | "whatsapp") {
-  return channel === "whatsapp" ? "WhatsApp" : "email";
-}
-
 export async function POST(request: NextRequest) {
   try {
     const auth = await getServerAuth();
@@ -85,53 +56,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
       }
 
-      const requestedChannel = String(body?.channel || "").toLowerCase();
-      const channel: "email" | "whatsapp" =
-        requestedChannel === "email" || requestedChannel === "whatsapp"
-          ? requestedChannel
-          : user.phone
-            ? "whatsapp"
-            : "email";
-
-      if (channel === "email" && !user.email) {
+      if (!user.email) {
         return NextResponse.json({ success: false, error: "Add an email address in Personal Information first" }, { status: 400 });
-      }
-      if (channel === "whatsapp" && !user.phone) {
-        return NextResponse.json({ success: false, error: "No mobile number is available for this account" }, { status: 400 });
       }
       const code = String(randomInt(100000, 999999));
       otpStore().set(auth.userId, {
         code,
         userId: auth.userId,
-        channel,
+        channel: "email",
         expiresAt: Date.now() + 10 * 60 * 1000,
       });
-      const result =
-        channel === "whatsapp"
-          ? await sendOtpWhatsApp(user.phone || "", code, user.name).catch((error) => ({
-              sent: false,
-              reason: error instanceof Error ? error.message : "WhatsApp failed",
-            }))
-          : await sendOtpEmail(user.email || "", code).catch((error) => ({
-              sent: false,
-              reason: error instanceof Error ? error.message : "Email failed",
-            }));
+      const result = await sendOtpEmail(user.email, code).catch((error) => ({
+        sent: false,
+        reason: error instanceof Error ? error.message : "Email failed",
+      }));
 
       if (!result.sent && process.env.NODE_ENV === "production") {
         return NextResponse.json(
-          { success: false, error: result.reason || `${channelLabel(channel)} OTP could not be sent` },
+          { success: false, error: result.reason || "OTP could not be sent" },
           { status: 502 },
         );
       }
 
       return NextResponse.json({
         success: true,
-        channel,
-        emailSent: channel === "email" ? result.sent : false,
-        whatsappSent: channel === "whatsapp" ? result.sent : false,
+        channel: "email",
+        emailSent: result.sent,
         message: result.sent
-          ? `OTP sent on ${channelLabel(channel)}`
-          : `Dev OTP generated. ${result.reason || `${channelLabel(channel)} service is not configured`}`,
+          ? "OTP sent on email"
+          : `Dev OTP generated. ${result.reason || "Email service is not configured"}`,
         devOtp: process.env.NODE_ENV !== "production" ? code : undefined,
       });
     }

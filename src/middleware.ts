@@ -25,7 +25,6 @@ const PUBLIC_PATHS = [
   "/api/public/auth/recover",
 ];
 const UPLOAD_PATHS = [/^\/api\/upload\//];
-const WHATSAPP_PATHS = [/^\/api\/whatsapp\//];
 
 const MAX_BODY_SIZE = 10 * 1024 * 1024;
 
@@ -207,17 +206,6 @@ export default async function middleware(request: NextRequest) {
         logBlock(request, "rate_limit:upload", 429);
         return NextResponse.json(
           { error: "Too many upload requests. Please slow down." },
-          { status: 429, headers: SECURITY_HEADERS },
-        );
-      }
-    }
-
-    if (WHATSAPP_PATHS.some((p) => p.test(pathname))) {
-      const result = checkRateLimit(identifier, RATE_LIMIT_CONFIGS.WHATSAPP);
-      if (!result.allowed) {
-        logBlock(request, "rate_limit:whatsapp", 429);
-        return NextResponse.json(
-          { error: "Too many requests. Please slow down." },
           { status: 429, headers: SECURITY_HEADERS },
         );
       }

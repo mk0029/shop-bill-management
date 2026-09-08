@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import AdminNavigationShell from "@/components/ui/admin-navigation-shell";
 import NotificationSyncGate from "@/components/system/notification-sync-gate";
+import CustomerRequestCleanup from "@/components/system/customer-request-cleanup";
 import { getServerAuth } from "@/lib/server-auth";
 import { redirect } from "next/navigation";
 import AdminWelcomeGate from "@/components/admin/AdminWelcomeGate";
@@ -31,6 +32,7 @@ export default async function AdminLayout({
       <div className="relative z-10">
         <AdminViewportHeight />
         <NotificationSyncGate />
+        <CustomerRequestCleanup />
         <AdminNavigationShell />
         <AdminWelcomeGate />
       </div>

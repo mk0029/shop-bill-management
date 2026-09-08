@@ -11,6 +11,7 @@ import AutoNotifications from "@/notifications/components/AutoNotifications";
 import ForegroundSystemNotifier from "@/notifications/components/ForegroundSystemNotifier";
 import NotificationToaster from "@/components/notifications/NotificationToaster";
 import NotificationServerSync from "@/components/notifications/NotificationServerSync";
+import RouteVisitAutoClear from "@/components/notifications/RouteVisitAutoClear";
 import RegistrationRequestToast from "@/components/realtime/registration-request-toast";
 
 export default function BackgroundFeaturesGate() {
@@ -24,6 +25,7 @@ export default function BackgroundFeaturesGate() {
       <AskForNotifications />
       <AutoNotifications />
       <NotificationServerSync />
+      <RouteVisitAutoClear />
       <ForegroundSystemNotifier />
       <NotificationToaster />
     </>

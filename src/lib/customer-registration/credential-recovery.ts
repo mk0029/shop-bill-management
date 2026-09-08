@@ -1,6 +1,5 @@
 import { sanityClient } from "@/lib/sanity";
 import { getSanityClient } from "@/lib/sanity/client-factory";
-import { sendViaWaBotServer } from "@/lib/wa-bot-server";
 import { normalizePhone, getPhoneFormats } from "@/lib/phone-utils";
 
 export interface UserLookup {
@@ -101,22 +100,6 @@ export async function findUserByIdentifier(
   return { found: false };
 }
 
-function buildWaCredentialMessage(name: string, phone: string, secretKey: string): string {
-  const rawDigits = phone.replace(/\D/g, "");
-  const loginPhone = rawDigits.length === 10 ? rawDigits : rawDigits.length > 10 ? rawDigits.slice(-10) : rawDigits;
-  return [
-    `Hello ${name},`,
-    "",
-    "Your Jambh Electricals login credentials:",
-    "",
-    `Phone Number: ${loginPhone}`,
-    `Secret Key: ${secretKey}`,
-    "",
-    "Please keep these details secure.",
-    "For support, contact Jambh Electricals.",
-  ].join("\n");
-}
-
 async function sendRecoveryEmail(user: { email: string; name: string; phone: string; secretKey: string }): Promise<boolean> {
   try {
     const internalToken = process.env.RECOVERY_INTERNAL_TOKEN;
@@ -145,29 +128,10 @@ async function sendRecoveryEmail(user: { email: string; name: string; phone: str
   }
 }
 
-async function sendRecoveryWhatsApp(user: { phone: string; name: string; secretKey: string }): Promise<boolean> {
-  try {
-    const raw = user.phone.replace(/\D/g, "");
-    const waPhone = raw.length === 10 ? `91${raw}` : raw;
-    const result = await sendViaWaBotServer({
-      phone: waPhone,
-      message: buildWaCredentialMessage(user.name, user.phone, user.secretKey),
-    });
-    if (!result.ok || result.failed > 0) {
-      console.error("WA credential send failed:", result.error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error("WA credential send error:", err);
-    return false;
-  }
-}
-
 export async function processRecovery(
   identifier: string,
   type: "email" | "phone",
-): Promise<{ sent: boolean; found: boolean; pendingRequest?: boolean; disabled?: boolean; methods?: { email: boolean; whatsapp: boolean } }> {
+): Promise<{ sent: boolean; found: boolean; pendingRequest?: boolean; disabled?: boolean; methods?: { email: boolean } }> {
   const lookup = await findUserByIdentifier(identifier, type);
 
   if (!lookup.found || !lookup.user) {
@@ -180,13 +144,11 @@ export async function processRecovery(
 
   const user = lookup.user;
 
-  const [emailOk, waOk] = await Promise.all([
-    user.email && user.phone ? sendRecoveryEmail({ email: user.email, name: user.name, phone: user.phone, secretKey: user.secretKey }) : Promise.resolve(false),
-    user.phone ? sendRecoveryWhatsApp({ phone: user.phone, name: user.name, secretKey: user.secretKey }) : Promise.resolve(false),
-  ]);
+  const emailOk =
+    user.email ? await sendRecoveryEmail({ email: user.email, name: user.name, phone: user.phone || "", secretKey: user.secretKey }) : false;
 
-  const methods = { email: emailOk, whatsapp: waOk };
-  const sent = emailOk || waOk;
+  const methods = { email: emailOk };
+  const sent = emailOk;
 
   return { sent, found: true, methods };
 }

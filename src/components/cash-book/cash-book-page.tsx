@@ -17,7 +17,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { stockApi } from "@/lib/inventory-api";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -78,6 +78,23 @@ export function CashBookPage() {
   const { role, user: authUser } = useAuthStore();
   const isTechnician = role === "technician";
   const [entries, setEntries] = useState<CashBookEntry[]>([]);
+
+  // Mirrors the _id's currently rendered in `entries` so realtime "added"
+  // events can never insert the same server entry twice (SSE/poll can deliver
+  // an entry we already optimistically appended right after creating it).
+  const entryIdsRef = useRef<Set<string>>(new Set());
+  const applyEntries = (next: CashBookEntry[]) => {
+    entryIdsRef.current = new Set(
+      next.map((e) => e?._id).filter(Boolean) as string[],
+    );
+    setEntries(next);
+  };
+  const addEntryIfNew = (entry: CashBookEntry) => {
+    if (!entry?._id) return;
+    if (entryIdsRef.current.has(entry._id)) return;
+    entryIdsRef.current.add(entry._id);
+    setEntries((prev) => [entry, ...prev]);
+  };
   const [users, setUsers] = useState<User[]>([]);
   const [summary, setSummary] = useState<CashBookSummary>({
     totalCredits: 0,
@@ -162,7 +179,7 @@ export function CashBookPage() {
             sanityApiService.cashBook.getSummary(),
             manualCashbookNamesService.getAll(),
           ]);
-        if (entriesRes.success) setEntries(entriesRes.data as CashBookEntry[]);
+if (entriesRes.success) applyEntries(entriesRes.data as CashBookEntry[]);
         if (usersRes.success) setUsers(usersRes.data as User[]);
         if (summaryRes.success) setSummary(summaryRes.data as CashBookSummary);
         if (manualNamesRes.success) setManualNames(manualNamesRes.data || []);
@@ -180,7 +197,7 @@ export function CashBookPage() {
         sanityApiService.cashBook.getSummary(),
         manualCashbookNamesService.getAll(),
       ]);
-      if (entriesRes.success) setEntries(entriesRes.data as CashBookEntry[]);
+      if (entriesRes.success) applyEntries(entriesRes.data as CashBookEntry[]);
       if (summaryRes.success) setSummary(summaryRes.data as CashBookSummary);
       if (manualNamesRes.success) setManualNames(manualNamesRes.data || []);
     } catch (error) {
@@ -453,7 +470,7 @@ export function CashBookPage() {
       setSelectedSaleItems({});
       const entriesResponse = await sanityApiService.cashBook.getAllEntries();
       if (entriesResponse.success && entriesResponse.data)
-        setEntries(entriesResponse.data);
+        applyEntries(entriesResponse.data);
     } catch (e) {
       console.error("Failed to add sale record", e);
       toast.error("Failed to add sale record");
@@ -464,7 +481,9 @@ export function CashBookPage() {
 
   useCashBookRealtime({
     onEntryAdded: (newEntry) => {
-      setEntries((prev) => [newEntry, ...prev]);
+      const isNew = !entryIdsRef.current.has(newEntry?._id || "");
+      addEntryIfNew(newEntry);
+      if (!isNew) return;
       setSummary((prev) => ({
         ...prev,
         totalCredits:
@@ -485,6 +504,7 @@ export function CashBookPage() {
       );
     },
     onEntryDeleted: (deletedId) => {
+      entryIdsRef.current.delete(deletedId);
       setEntries((prev) => {
         const deletedEntry = prev.find((entry) => entry._id === deletedId);
         if (deletedEntry) {
@@ -618,7 +638,7 @@ export function CashBookPage() {
         setShowAddForm(false);
         setIsSubmitting(false);
         if (newEntry) {
-          setEntries((prev) => [newEntry, ...prev]);
+          addEntryIfNew(newEntry);
         }
         if (isAdvancePayment) {
           toast.success(
@@ -636,7 +656,7 @@ export function CashBookPage() {
         sanityApiService.cashBook
           .getAllEntries()
           .then((r) => {
-            if (r.success && r.data) setEntries(r.data);
+            if (r.success && r.data) applyEntries(r.data);
           })
           .catch(() => {});
         sanityApiService.cashBook

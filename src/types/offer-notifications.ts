@@ -1,6 +1,6 @@
 export type OfferAudience = 'all' | 'selected_groups' | 'selected_categories' | 'selected_customers'
 
-export type OfferNotificationChannel = 'fcm' | 'in_app' | 'whatsapp' | 'email'
+export type OfferNotificationChannel = 'fcm' | 'in_app' | 'email'
 
 export type OfferNotificationStatus = 'pending' | 'sent' | 'skipped' | 'failed'
 

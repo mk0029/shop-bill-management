@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, Send, ArrowLeft, CheckCircle, MessageCircle } from "lucide-react";
+import { Mail, Phone, Send, ArrowLeft, CheckCircle } from "lucide-react";
 
 interface LoginRecoveryModalProps {
   isOpen: boolean;
@@ -17,7 +17,7 @@ export function LoginRecoveryModal({
   const [identifier, setIdentifier] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [deliveryMethods, setDeliveryMethods] = useState<{ email: boolean; whatsapp: boolean }>({ email: false, whatsapp: false });
+  const [deliveryMethods, setDeliveryMethods] = useState<{ email: boolean }>({ email: false });
   const [error, setError] = useState("");
 
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
@@ -63,7 +63,7 @@ export function LoginRecoveryModal({
         return;
       }
 
-      setDeliveryMethods(data.methods || { email: false, whatsapp: false });
+      setDeliveryMethods(data.methods || { email: false });
       setSubmitted(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -75,7 +75,7 @@ export function LoginRecoveryModal({
   const resetForm = () => {
     setIdentifier("");
     setSubmitted(false);
-    setDeliveryMethods({ email: false, whatsapp: false });
+    setDeliveryMethods({ email: false });
     setError("");
   };
 
@@ -96,17 +96,12 @@ export function LoginRecoveryModal({
               <CheckCircle className="w-6 h-6 text-green-400" />
             </div>
             <p className="text-[#B8C0CC] text-sm leading-relaxed">
-              {deliveryMethods.email && deliveryMethods.whatsapp
-                ? <>Your login credentials have been sent via WhatsApp and email. Please check both.</>
-                : deliveryMethods.whatsapp
-                  ? <>Your login credentials have been sent via WhatsApp. Please check your messages.</>
-                  : <>Your login credentials have been sent to your email. Please check your inbox.</>
+              {deliveryMethods.email
+                ? <>Your login credentials have been sent to your email. Please check your inbox.</>
+                : <>We could not determine a delivery method for your credentials. Please contact support.</>
               }
             </p>
             <div className="flex items-center justify-center gap-3 text-[#B8C0CC]/60 text-xs">
-              {deliveryMethods.whatsapp && (
-                <span className="inline-flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" /> WhatsApp</span>
-              )}
               {deliveryMethods.email && (
                 <span className="inline-flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</span>
               )}

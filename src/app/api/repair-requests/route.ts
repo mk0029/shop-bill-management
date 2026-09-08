@@ -5,7 +5,6 @@ import { createDocument } from "@/lib/sanity/write-router";
 import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getServerAuth } from "@/lib/server-auth";
 import { safeUserName } from "@/lib/display-text";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 
 export const dynamic = "force-dynamic";
@@ -226,31 +225,6 @@ const createResult = await createDocument({
     }),
   ];
 
-  if (priority === "high") {
-    postCreateJobs.push(
-      emitWaEventServer("workTask.created", {
-        requestId,
-        taskId: String(created._id),
-        title: "High priority repair request",
-        description: details,
-        status: "pending",
-        customerId: customer._id,
-        customerName: safeCustomerName,
-        customerPhone: customer.phone || "",
-        technicianId: selectedTechnicianId,
-        technicianName: safeTechnicianName,
-        technicianPhone: technician.phone || "",
-        priority,
-        source: "repairRequest",
-        idempotencyKey: `workTask.created:${String(created._id)}:${now}`,
-      }).then((result) => {
-        if (!result.ok) {
-          console.error("[RepairRequest] WhatsApp event failed", { requestId, error: result.error });
-        }
-        return result;
-      }),
-    );
-  }
   void Promise.allSettled(postCreateJobs).catch((error) => {
     console.error("[RepairRequest] post-create notification jobs failed", error);
   });

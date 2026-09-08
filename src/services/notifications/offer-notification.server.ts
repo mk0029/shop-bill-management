@@ -3,7 +3,6 @@ import { sanityClient } from '@/lib/sanity'
 import { getSanityClient } from '@/lib/sanity/client-factory'
 import { createDocument, updateDocument } from '@/lib/sanity/write-router'
 import { createAndDispatchNotification } from './notification-events.server'
-import { emitWaEventServer } from '@/lib/wa-bot-server'
 import type { Offer } from '@/types/offers'
 import type { OfferNotificationChannel, OfferNotificationResult } from '@/types/offer-notifications'
 
@@ -114,7 +113,7 @@ export async function processOfferLiveNotification(
   offerId: string,
   options?: { channels?: OfferNotificationChannel[] },
 ): Promise<OfferNotificationResult> {
-  const channels = options?.channels || ['fcm', 'in_app', 'whatsapp']
+  const channels = options?.channels || ['fcm', 'in_app']
   const result: OfferNotificationResult = {
     offerId,
     totalCustomers: 0,
@@ -205,44 +204,6 @@ async function notifyCustomer(
         })
         if (ok) notified++
         else failed++
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        await markNotificationLogResult(log.logId, 'failed', { error: msg })
-        failed++
-      }
-    }
-
-    if (channel === 'whatsapp') {
-      try {
-        const customer = await sanityClient.fetch<{ name?: string; phone?: string } | null>(
-          `*[_type=="user" && _id==$customerId && role=="customer"][0]{name,phone}`,
-          { customerId },
-        )
-        if (!customer?.phone) {
-          await markNotificationLogResult(log.logId, 'skipped', { error: 'Customer has no WhatsApp phone number' })
-          skipped++
-          continue
-        }
-        const wa = await emitWaEventServer('offer.distributed', {
-          offerId: offer._id,
-          customerId,
-          customerName: customer.name || 'Customer',
-          customerPhone: customer.phone,
-          offerTitle: offer.title,
-          offerType: offer.offerType,
-          discountValue: offer.discountValue,
-          description: offer.description,
-          minimumOrderAmount: offer.minimumOrderAmount,
-          endAt: offer.endAt,
-          eventId: `offer.distributed.${offer._id}.${customerId}`,
-        })
-        if (!wa.ok) {
-          await markNotificationLogResult(log.logId, 'failed', { error: wa.error })
-          failed++
-        } else {
-          await markNotificationLogResult(log.logId, 'sent')
-          notified++
-        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         await markNotificationLogResult(log.logId, 'failed', { error: msg })

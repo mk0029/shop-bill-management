@@ -93,7 +93,6 @@ export const RATE_LIMIT_CONFIGS = {
   PUBLIC_API: { windowMs: 60_000, max: 60, name: "public_api" },
   API: { windowMs: 60_000, max: 100, name: "api" },
   UPLOAD: { windowMs: 60_000, max: 10, name: "upload" },
-  WHATSAPP: { windowMs: 60_000, max: 30, name: "whatsapp" },
 };
 
 export function getRateLimitKey(request: Request): string {

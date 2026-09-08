@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { sanityApiService } from "@/lib/sanity-api-service";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { createDocument, updateDocument } from "@/lib/sanity/write-router";
 import { fetchBillById } from "@/lib/sanity/bills-federated";
 
@@ -76,35 +75,6 @@ export async function POST(req: Request) {
       updatedAt: new Date().toISOString(),
     }, 'bills');
 
-    // Central WhatsApp event: payment update (fire-and-forget)
-    try {
-      const eventType = paymentStatus === "paid" ? "billing.payment.paid" : "billing.payment.partial";
-      const updatedAt = new Date().toISOString();
-      void emitWaEventServer(eventType, {
-        billId,
-        billNumber: bill.billNumber || billId,
-        paymentId: razorpay_payment_id,
-        customerId: bill.customer?._id,
-        customerName: bill.customer?.name || "",
-        customerPhone: bill.customer?.phone || "",
-        grandTotal: total,
-        totalAmount: total,
-        paidNow: add,
-        paidAmount: paidNext,
-        totalPaid: paidNext,
-        balance,
-        balanceAmount: balance,
-        paymentMode: "razorpay",
-        paymentDate: updatedAt,
-        updatedAt,
-        eventId: `billing.payment.${paymentStatus}.${billId}.${razorpay_payment_id}`,
-        idempotencyKey: `billing.payment.${paymentStatus === "paid" ? "paid" : "partial"}:${billId}:${razorpay_payment_id}`,
-      }).then((result) => {
-        if (!result.ok) console.warn("[WA] bill payment event failed", result.error);
-      });
-    } catch (e) {
-      console.error("[WA] bill payment event dispatch failed", e);
-    }
     // Create cash book entry for this payment
     try {
       if (bill.customer && add > 0) {

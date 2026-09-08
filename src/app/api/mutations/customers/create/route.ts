@@ -22,7 +22,7 @@ function supportInfo() {
   }
 }
 
-async function claimDelivery(key: string, channel: 'email' | 'whatsapp') {
+async function claimDelivery(key: string, channel: 'email') {
   try { await sanityClient.delete(key) } catch { /* ignore */ }
   try {
     await sanityClient.create({

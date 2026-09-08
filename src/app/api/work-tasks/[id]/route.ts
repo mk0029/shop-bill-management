@@ -7,7 +7,6 @@ import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent, type WorkTaskShopChatEventInput } from "@/lib/shop-chat/server-events";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -62,78 +61,6 @@ function notificationTypeForStatus(status: string) {
   if (status === "cancelled") return "workTask.cancelled" as const;
   if (status === "hold") return "workTask.hold" as const;
   return "workTask.updated" as const;
-}
-
-async function sendCustomerWorkUpdate(args: {
-  customerRefId?: string;
-  taskTitle: string;
-  technicianName: string;
-  type: "completed" | "cancelled" | "deleted" | "back_in_progress" | "hold";
-  holdReason?: string;
-  taskId?: string;
-  status?: string;
-  updatedAt?: string;
-}) {
-  if (!args.customerRefId) return;
-  const customer = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,phone}`, { id: args.customerRefId });
-  const mappedEvent = args.type === "completed" ? "workTask.completed" : args.type === "cancelled" || args.type === "deleted" ? "workTask.cancelled" : args.type === "hold" ? "workTask.hold" : "workTask.updated";
-  await emitWaEventServer(mappedEvent, {
-    taskId: args.taskId || "",
-    customerId: args.customerRefId,
-    customerName: sanitizeUserText(String(customer?.name || "")).trim() || "Customer",
-    customerPhone: String(customer?.phone || ""),
-    title: args.taskTitle,
-    assignedTechnicianName: args.technicianName,
-    status: args.status || args.type,
-    holdReason: args.holdReason || "",
-    updatedAt: args.updatedAt || new Date().toISOString(),
-  });
-}
-
-async function sendCustomerDueTimeUpdate(args: {
-  customerRefId?: string;
-  previousDueAt?: string;
-  nextDueAt?: string;
-  taskId?: string;
-  taskTitle?: string;
-}) {
-  if (!args.customerRefId || !args.previousDueAt || !args.nextDueAt) return;
-  const customer = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,phone}`, { id: args.customerRefId });
-  await emitWaEventServer("workTask.updated", {
-    taskId: args.taskId || "",
-    customerId: args.customerRefId,
-    customerName: sanitizeUserText(String(customer?.name || "")).trim() || "Customer",
-    customerPhone: String(customer?.phone || ""),
-    title: args.taskTitle || "Work task",
-    dueAt: args.nextDueAt,
-    previousDueAt: args.previousDueAt,
-    status: "due_changed",
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-async function sendTechnicianTaskAssigned(args: {
-  technicianId?: string;
-  taskTitle: string;
-  dueAt?: string;
-  priority?: string;
-  taskId?: string;
-  customerName?: string;
-}) {
-  const technicianId = String(args.technicianId || "").trim();
-  if (!technicianId) return;
-  const tech = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{_id,name,phone}`, { id: technicianId });
-  await emitWaEventServer("workTask.updated", {
-    taskId: args.taskId || "",
-    title: args.taskTitle,
-    assignedTechnicianName: sanitizeUserText(String(tech?.name || "")).trim() || "Technician",
-    technicianPhone: String(tech?.phone || ""),
-    customerName: args.customerName || "",
-    dueAt: args.dueAt || "",
-    priority: args.priority || "medium",
-    status: "assigned",
-    updatedAt: new Date().toISOString(),
-  });
 }
 
 function normalizeOpsTask(raw: any) {
@@ -278,29 +205,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     updated = { _id: id, ...patch } as any;
   }
 
-  if (
-    body?.assignedTechnicianId &&
-    String(existing?.assignedTechnician?._ref || existing?.assignedTechnician?._id || "") !==
-      String(body.assignedTechnicianId)
-  ) {
-    try {
-      let custName = "";
-      const custRefId = String(existing?.customerRef?._ref || existing?.customerRef?._id || "");
-      if (custRefId) {
-        const cust = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{name}`, { id: custRefId });
-        custName = sanitizeUserText(String(cust?.name || "")).trim() || "Customer";
-      }
-      await sendTechnicianTaskAssigned({
-        technicianId: String(body.assignedTechnicianId),
-        taskTitle: updated?.title || existing?.title || "Work",
-        dueAt: String(updated?.dueAt || existing?.dueAt || ""),
-        priority: String(updated?.priority || existing?.priority || "medium"),
-        taskId: id,
-        customerName: custName,
-      });
-    } catch {}
-  }
-
   const previousDueAt = String(existing?.dueAt || "");
   const nextDueAt = String(updated?.dueAt || patch?.dueAt || "");
   const dueChanged = !!(previousDueAt && nextDueAt && previousDueAt !== nextDueAt);
@@ -339,80 +243,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       holdReason: String(updated?.holdReason || patch.holdReason || ""),
     });
   }
-  if (
-    dueChanged &&
-    !["completed", "cancelled"].includes(String(updated?.status || existing?.status || ""))
-  ) {
-    try {
-      await sendCustomerDueTimeUpdate({
-        customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
-        previousDueAt,
-        nextDueAt,
-      });
-    } catch {}
-  }
-
-  if (patch.status === "completed") {
-    try {
-      await sendCustomerWorkUpdate({
-        customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
-        taskTitle: updated?.title || existing?.title || "Work",
-        technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
-        type: "completed",
-        taskId: id,
-        status: "completed",
-        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
-      });
-    } catch {
-      // Do not fail completion if WhatsApp message fails
-    }
-  }
-  if (patch.status === "cancelled") {
-    try {
-      await sendCustomerWorkUpdate({
-        customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
-        taskTitle: updated?.title || existing?.title || "Work",
-        technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
-        type: "cancelled",
-        taskId: id,
-        status: "cancelled",
-        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
-      });
-    } catch {
-      // Do not fail cancellation if WhatsApp message fails
-    }
-  }
-  if (patch.status === "hold") {
-    try {
-      await sendCustomerWorkUpdate({
-        customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
-        taskTitle: updated?.title || existing?.title || "Work",
-        technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
-        type: "hold",
-        taskId: id,
-        status: "hold",
-        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
-        holdReason: String(updated?.holdReason || patch.holdReason || ""),
-      });
-    } catch {}
-  }
-  if (
-    patch.status === "in-progress" &&
-    ["completed", "hold"].includes(String(existing?.status || ""))
-  ) {
-    try {
-      await sendCustomerWorkUpdate({
-        customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
-        taskTitle: updated?.title || existing?.title || "Work",
-        technicianName: updated?.assignedTechnicianName || existing?.assignedTechnicianName || "Technician",
-        type: "back_in_progress",
-        taskId: id,
-        status: "in-progress",
-        updatedAt: String(updated?.updatedAt || new Date().toISOString()),
-      });
-    } catch {}
-  }
-
   const actor = await sanityClient.fetch<any>(`*[_type=="user" && _id==$id][0]{name}`, { id: actorUserId });
   const dueStr = updated?.dueAt ? formatDayDateTime(updated.dueAt) : "-";
   const techName = updated?.assignedTechnicianName || "Technician";
@@ -420,7 +250,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const eventType = notificationTypeForStatus(String(updated?.status || patch.status || "updated"));
   const updateTitle = "Work task updated";
   const updateBody = `${updated?.title || existing?.title} updated by ${actor?.name || "User"}. Technician: ${techName}. Status: ${status}. Due: ${dueStr}.`;
-  try {
+try {
     await notify(
       actorUserId,
       id,
@@ -531,19 +361,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       cancellationReason: String(existing?.cancellationReason || ""),
       holdReason: String(existing?.holdReason || ""),
     });
-  }
-  try {
-    await sendCustomerWorkUpdate({
-      customerRefId: existing?.customerRef?._ref || existing?.customerRef?._id,
-      taskTitle: existing?.title || "Work",
-      technicianName: sanitizeUserText(String(existing?.assignedTechnicianName || existing?.assignedTechnician?.name || "")).trim() || "Technician",
-      type: "deleted",
-      taskId: id,
-      status: "deleted",
-      updatedAt: now,
-    });
-  } catch {
-    // Do not fail delete if WhatsApp message fails
   }
   await notify(
     actorUserId,

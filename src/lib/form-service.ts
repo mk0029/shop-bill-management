@@ -1,5 +1,4 @@
 import { sanityClient } from "./sanity";
-import { emitWaEventClient } from "@/lib/wa-bot-server";
 import { getCookie } from "@/lib/cookies";
 import {
   validateStockAvailability,
@@ -10,7 +9,6 @@ import {
 import { createStockTransactionRecord } from "./stock-transaction-router";
 import { deduplicateBillItems, validateBillItems } from "./bill-utils";
 import { TAX_RATE } from "../constants/defaults";
-import { syncSingleBillPayment } from "./bill-payment-sync";
 import { createBillCreatedShopChatEvent } from "@/lib/shop-chat/api";
 
 
@@ -346,26 +344,6 @@ export async function createCustomer(customerData: {
     if (!res.ok || !json?.success) {
       return { success: false, error: json?.error || 'Failed to create customer', code: json?.code }
     }
-
-    const created = json?.data || {};
-    const customerId = created._id || created.customerId || '';
-    const secretKey = created.secretKey || '';
-    const phone = customerData.phone || '';
-    const loginUrl = phone
-      ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(phone)}&passKey=${encodeURIComponent(secretKey)}`
-      : '';
-
-    void emitWaEventClient('customer.created', {
-      customerId,
-      customerName: customerData.name,
-      customerPhone: phone,
-      phone,
-      secretKey,
-      loginUrl,
-      shopName: 'Jambh Electricals',
-      eventId: `customer.created.${customerId}`,
-      idempotencyKey: `customer.created.${customerId}`,
-    }).catch((e) => console.error('[WA_CUSTOMER_CREATED]', { customerId, phone, ok: false, error: e?.message || String(e) }));
 
     return {
       success: true,
@@ -842,19 +820,6 @@ export async function createBill(billData: {
       const createdId = String(createdDoc?._id || "");
       // Step 8/9/10: Fire-and-forget side effects, never block bill creation response
       void (async () => {
-        // Cash book sync
-        if (["paid", "partial"].includes(billData.paymentStatus || "pending")) {
-          syncSingleBillPayment(String(createdId))
-            .then((syncResult) => {
-              if (!syncResult.success) {
-                console.warn("⚠️ Failed to create cash book entry:", syncResult.message);
-              }
-            })
-            .catch((error) => {
-              console.error("❌ Cash book sync error:", error);
-            });
-        }
-
         // Stock update
         if (standardItems.length > 0) {
           updateStockForBill(standardItems, createdId, "reduce")

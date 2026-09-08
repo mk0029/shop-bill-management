@@ -1856,6 +1856,7 @@ export const cashBookApiService = {
       }
       
       const { createDocument } = await import('./sanity/write-router');
+      const { denormalizeCashbookEntry } = await import('./sanity/denormalize');
       const newEntry = {
         _type: "cashBookEntry",
         ...entryData,
@@ -1864,12 +1865,18 @@ export const cashBookApiService = {
         updatedAt: new Date().toISOString(),
       };
 
-      const writeResult = await createDocument(newEntry, 'cashbook');
+      // The cashbook lives in its own DB which does not host the referenced
+      // user/bill docs, so strip cross-dataset references into plain-string ids
+      // (userId/billId) or Sanity rejects the write with
+      // "references non-existent document".
+      const denormalizedEntry = denormalizeCashbookEntry(newEntry);
+
+      const writeResult = await createDocument(denormalizedEntry as any, 'cashbook');
       if (!writeResult.success) {
         return { success: false, error: writeResult.error || 'Failed to create cash book entry' };
       }
 
-      return { success: true, data: { _id: writeResult.documentId, ...newEntry } };
+      return { success: true, data: { _id: writeResult.documentId, ...denormalizedEntry } };
     } catch (error) {
       console.error('Error creating cash book entry:', error);
       return { success: false, error: 'Failed to create cash book entry' };

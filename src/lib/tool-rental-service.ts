@@ -2,7 +2,6 @@ import { sanityClient } from "@/lib/sanity";
 import { getSanityClient } from "@/lib/sanity/client-factory";
 import { createDocument, updateDocument } from "@/lib/sanity/write-router";
 import { notifyAdmins } from "@/lib/admin-notifier";
-import { emitWaEventClient } from "@/lib/wa-bot-server";
 
 const RENTAL_PURPOSE = "tool-rental";
 
@@ -263,7 +262,6 @@ function notifyCustomerToolRent(args: {
   totalAmount?: number;
   paidAmount?: number;
   expectedReturnTime?: string;
-  whatsappEventType?: string;
 }) {
   const customerUserId = String(args.customerUserId || "").trim();
   if (!customerUserId) return;
@@ -288,22 +286,6 @@ function notifyCustomerToolRent(args: {
   }).catch((error) => {
     console.warn("[FCM] tool rent customer notification failed", error);
   });
-
-  if (args.customerPhone) {
-    void emitWaEventClient(args.whatsappEventType || args.eventType, {
-      customerId: customerUserId,
-      customerName: args.customerName || "Customer",
-      customerPhone: args.customerPhone,
-      toolName: args.toolName,
-      totalAmount: args.totalAmount,
-      paidAmount: args.paidAmount,
-      expectedReturnTime: args.expectedReturnTime,
-      returnedDate: args.whatsappEventType === "toolRent.returned" ? new Date().toISOString() : undefined,
-      eventId: args.eventId,
-    }).then((result) => {
-      if (!result.ok) console.warn("[WA] tool rental event failed", args.whatsappEventType || args.eventType, result.error);
-    });
-  }
 }
 
 function generateRentalBillNumber() {
@@ -696,7 +678,6 @@ await Promise.all([
       customerPhone: rental.customerPhone,
       totalAmount: finalTotal,
       paidAmount: resolvedPaidAmount,
-      whatsappEventType: "toolRent.returned",
     });
 
     return { overdueUnits, extraChargeAmount, finalTotal, paymentStatus };
@@ -746,7 +727,6 @@ async markRentalPaid(rentalId: string, currentTotalAmount: number, paidAmount: n
       customerPhone: rental.customerPhone,
       totalAmount: currentTotalAmount,
       paidAmount: normalizedPaid,
-      whatsappEventType: paymentStatus === "paid" ? "toolRent.paid" : "toolRent.updated",
       });
 }
     return updated;
@@ -795,7 +775,6 @@ const tool = await fetchScoped<ToolItem>(`*[_type == "tool" && _id == $id][0]`, 
       customerPhone: rental.customerPhone,
       totalAmount: rental.totalAmount,
       paidAmount: rental.paidAmount,
-      whatsappEventType: "toolRent.deleted",
     });
 
     return { success: true };

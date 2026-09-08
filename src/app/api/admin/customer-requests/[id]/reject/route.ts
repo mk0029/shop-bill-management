@@ -3,7 +3,7 @@ import { sanityClient } from '@/lib/sanity'
 import { updateDocument, deleteDocument } from '@/lib/sanity/write-router'
 import { getSanityClient } from '@/lib/sanity/client-factory'
 import { getServerAuth } from '@/lib/server-auth'
-import { sendNotificationToAdmins } from '@/services/notifications/notification-events.server'
+import { sendNotificationToAdmins, deleteNotificationsForEntity } from '@/services/notifications/notification-events.server'
 
 export const runtime = 'nodejs'
 
@@ -68,6 +68,11 @@ export async function POST(
         await sanityClient.patch(id).set(cancelFields).commit()
       }
 
+      // Instantly remove in-app/FCM notifications for this request.
+      deleteNotificationsForEntity(id).catch((e) =>
+        console.error("[Reject] Notification cleanup failed:", e),
+      )
+
       sendNotificationToAdmins({
         type: "customer.request.cancelled",
         eventId: `customer.request.cancelled.${id}`,
@@ -81,6 +86,11 @@ export async function POST(
       } else {
         await sanityClient.delete(id)
       }
+
+      // Instantly remove in-app/FCM notifications for this request.
+      deleteNotificationsForEntity(id).catch((e) =>
+        console.error("[Reject] Notification cleanup failed:", e),
+      )
 
       sendNotificationToAdmins({
         type: "customer.request.rejected",

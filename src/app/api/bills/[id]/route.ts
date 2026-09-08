@@ -5,12 +5,10 @@ import { updateDocument, deleteDocument } from "@/lib/sanity/write-router";
 import { fetchBillById } from "@/lib/sanity/bills-federated";
 import { sanityApiService } from "@/lib/sanity-api-service";
 import { notificationService } from "@/lib/notification-service";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { getServerAuth } from "@/lib/server-auth";
 import { updateStockForBill } from "@/lib/inventory-management";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
 import { safeUserName } from "@/lib/display-text";
-import { resolveBillEvents, emitBillEventsInBackground } from "@/lib/bill-events";
 
 async function runOnAllDatabases<T>(
   query: string,
@@ -117,11 +115,13 @@ export async function PATCH(
       );
     }
 
-    // Fetch previous snapshot for change detection (best-effort)
+    // Fetch previous snapshot for change detection (best-effort).
+    // Bills live in the billing DB (new bills) and/or primary (legacy), so read
+    // from both and prefer the billing copy — otherwise prev is null and the
+    // cashbook delta computed below would be wrong (full paidAmount).
     const prev = await (async () => {
       try {
-        return await sanityClient.fetch(
-          `*[_type == "bill" && _id == $id][0]{
+        const q = `*[_type == "bill" && _id == $id][0]{
             _id,
             billNumber,
             status,
@@ -133,10 +133,22 @@ export async function PATCH(
             serviceType,
             dueDate,
             technician->{_id, name},
-            customer->{_id, phone, name}
-          }`,
-          { id }
-        );
+            customer->{_id, phone, name},
+            _updatedAt
+          }`;
+        const billingClient = getSanityClient("billing");
+        const [billingRes, primaryRes] = await Promise.allSettled([
+          billingClient.fetch(q, { id }),
+          sanityClient.fetch(q, { id }),
+        ]);
+        const billing = billingRes.status === "fulfilled" ? billingRes.value : null;
+        const primary = primaryRes.status === "fulfilled" ? primaryRes.value : null;
+        if (billing && primary) {
+          const bt = new Date(billing._updatedAt || 0).getTime();
+          const pt = new Date(primary._updatedAt || 0).getTime();
+          return bt > pt ? billing : primary;
+        }
+        return billing || primary;
       } catch {
         return null;
       }
@@ -221,17 +233,6 @@ export async function PATCH(
       );
     }
 
-    // Central WhatsApp event: comprehensive bill change detection (fire-and-forget)
-    try {
-      const bill = await sanityClient.fetch(
-        `*[_type == "bill" && _id == $id][0]{_id,billNumber,paymentStatus,totalAmount,discount,paidAmount,balanceAmount,paymentMethod,paymentDate,serviceType,dueDate,status,customer->{_id,name,phone},technician->{_id,name}}`,
-        { id }
-      );
-      const events = resolveBillEvents(prev, bill, body as Record<string, any>);
-      emitBillEventsInBackground(events);
-    } catch (e) {
-      console.error("[WA] bill event dispatch failed", e);
-    }
     // Unified notification: bill status/payment update.
     try {
       const actorUserId = String(auth.userId || req.headers.get('x-user-id') || '').trim()
@@ -318,8 +319,8 @@ export async function PATCH(
           const bill = await fetchBillById(id);
           
           if (bill && bill.customer) {
-            // Determine payment status from paid amount
-            const paidAmount = Number(bill.paidAmount || 0) + Number(paymentDelta);
+            // Determine payment status from the current paid amount (already includes the delta)
+            const paidAmount = Number(bill.paidAmount || 0);
             const totalAmount = Number((bill as any).totalAmount || (bill as any).total || 0);
             const paymentStatus = totalAmount > 0 && paidAmount >= totalAmount ? 'paid' : 'partial';
 
@@ -464,20 +465,6 @@ export async function DELETE(
       console.warn("[API] DELETE /api/bills: inventory restore failed", invErr);
     }
 
-    // Central WhatsApp event: bill deleted (fire-and-forget)
-    try {
-      void emitWaEventServer("bill-deleted", {
-        billId: id,
-        billNumber: bill?.billNumber || id,
-        customerPhone: bill?.customer?.phone || "",
-        eventId: id,
-        idempotencyKey: `billDeleted:${id}`,
-      }).then((result) => {
-        if (!result.ok) console.warn("[WA] bill deleted event failed", result.error);
-      });
-    } catch {
-      // best-effort
-    }
     return NextResponse.json({ success: true, message: "Bill deleted" });
   } catch (error: any) {
     console.error("API: Failed to delete bill", error);

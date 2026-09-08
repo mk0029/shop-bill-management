@@ -22,7 +22,7 @@ export default async function SuperAccessIndexPage() {
         >
           <div className="font-semibold text-white">Update Bills</div>
           <div className="text-sm text-gray-400">
-            Edit any bill, add/remove items, and resend customer WhatsApp update message.
+            Edit any bill, add/remove items, and resend customer updates.
           </div>
         </Link>
         <Link
@@ -44,21 +44,12 @@ export default async function SuperAccessIndexPage() {
           </div>
         </Link>
         <Link
-          href="/admin/super-access/whatsapp-bot"
-          className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:bg-gray-800"
-        >
-          <div className="font-semibold text-white">WhatsApp Bot</div>
-          <div className="text-sm text-gray-400">
-            View bot session details, status, QR code. Wake, restart, or force-reset sessions.
-          </div>
-        </Link>
-        <Link
           href="/admin/super-access/testing-ground"
           className="rounded-lg border border-green-800 bg-gray-900 p-4 hover:bg-gray-800"
         >
           <div className="font-semibold text-green-400">Testing Ground</div>
           <div className="text-sm text-gray-400">
-            Simulate WhatsApp & FCM messages for any event type. Test billing, tool rental, work tasks, and more.
+            Simulate FCM push messages for any event type. Test billing, tool rental, work tasks, and more.
           </div>
         </Link>
       </div>

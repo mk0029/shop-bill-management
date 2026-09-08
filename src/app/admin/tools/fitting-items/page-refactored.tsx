@@ -15,7 +15,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { sanitizeUserText } from "@/constants/defaults";
 import { Modal } from "@/components/ui/modal";
 import { toast } from "sonner";
-import { sendManualWhatsApp } from "@/lib/manual-whatsapp";
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
 
 // Import sub-components
 import HeaderSection from "./components/HeaderSection";
@@ -281,32 +281,19 @@ export default function FittingItemsListPage() {
     const selectedCustomer = customers.find(
       (c) => c._id === selectedCustomerId,
     );
-    if (!selectedCustomer?._id) {
-      toast.error("Customer ID is required");
+    const phone = String(selectedCustomer?.phone || "").replace(/\D/g, "");
+    if (!phone) {
+      toast.error("Customer phone number is required");
       return;
     }
 
     try {
       setIsSendingWhatsApp(true);
-      const result = await sendManualWhatsApp({
-        shareType: "customer",
-        customerId: selectedCustomer._id,
-      });
-
-      if (result.rateLimited) {
-        toast.error(result.error || "One manual WhatsApp message per customer/bill is allowed every 5 minutes");
-        return;
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || "Unable to send WhatsApp message");
-      }
-
-      toast.success("WhatsApp message sent successfully");
+      await shareToWhatsAppApp({ text: formatWhatsAppMessage(), phone });
       setShowShareModal(false);
       setShowSharePopup(false);
     } catch (e: any) {
-      const msg = e?.message || "Unable to send WhatsApp message";
+      const msg = e?.message || "Unable to open WhatsApp";
       toast.error(msg);
     } finally {
       setIsSendingWhatsApp(false);

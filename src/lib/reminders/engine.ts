@@ -1,11 +1,5 @@
 import { sanityClient } from "@/lib/sanity";
 import { sendAppEmail } from "@/lib/email/server";
-import {
-  enqueueWhatsAppMessage,
-  getWhatsAppMessage,
-  processDueWhatsAppMessages,
-} from "@/lib/whatsapp/message-queue";
-import { normalizePhoneToE164, phoneRejectLabel } from "@/lib/whatsapp/phone";
 import type {
   CustomerReminderConfig,
   GlobalReminderSettings,
@@ -19,7 +13,7 @@ const DEFAULT_CUSTOMER_CONFIG: CustomerReminderConfig = {
   reminderEnabled: true,
   firstReminderOffsetDays: 6,
   reminderIntervalDays: 7,
-  preferredChannels: ["whatsapp"],
+  preferredChannels: ["email"],
   stopAfterPayment: true,
 };
 
@@ -215,7 +209,7 @@ function isReminderDue(
   return { eligible: true };
 }
 
-function buildWhatsAppMessage(candidate: ReminderCandidate): string {
+function buildReminderPlainText(candidate: ReminderCandidate): string {
   const name = candidate.customerName;
   const formattedDue = candidate.dueDate
     ? new Intl.DateTimeFormat("en-GB", {
@@ -282,45 +276,6 @@ async function sendViaChannel(
   channel: ReminderChannel,
   idempotencyKey: string,
 ): Promise<{ sent: boolean; error?: string }> {
-  if (channel === "whatsapp") {
-    if (!candidate.customerPhone) return { sent: false, error: "no_phone" };
-
-    const normalized = normalizePhoneToE164(candidate.customerPhone);
-    if (!normalized.ok) {
-      return { sent: false, error: `invalid_phone:${phoneRejectLabel(normalized.reason)}` };
-    }
-
-    const queued = await enqueueWhatsAppMessage({
-      customerId: candidate.customerId,
-      customerName: candidate.customerName,
-      billId: candidate.billId,
-      phoneNumber: candidate.customerPhone,
-      messageType: "billReminder.auto",
-      message: buildWhatsAppMessage(candidate),
-      idempotencyKey,
-      scheduledAt: new Date(),
-    });
-
-    if (!queued.ok) return { sent: false, error: queued.error };
-
-    if (queued.duplicate) {
-      const existing = queued.entry;
-      if (existing.status === "failed") return { sent: false, error: existing.failureReason };
-      return { sent: true, error: "already_queued" };
-    }
-
-    await processDueWhatsAppMessages({ limit: 1, onlyIds: [queued.entry._id] });
-    const final = await getWhatsAppMessage(queued.entry._id);
-    if (!final) return { sent: false, error: "queue_lookup_failed" };
-    if (final.status === "sent") return { sent: true };
-    return {
-      sent: false,
-      error: final.status === "failed"
-        ? (final.failureReason || "send_failed")
-        : (final.retryAt ? `retry_scheduled_at_${final.retryAt}` : "send_failed"),
-    };
-  }
-
   if (channel === "email") {
     if (!candidate.customerEmail) return { sent: false, error: "no_email" };
     const html = buildEmailHtml(candidate);
@@ -328,7 +283,7 @@ async function sendViaChannel(
       to: candidate.customerEmail,
       subject: `Payment Reminder - ${candidate.billNumber}`,
       html,
-      text: buildWhatsAppMessage(candidate),
+      text: buildReminderPlainText(candidate),
     });
     return { sent: result.sent, error: result.reason };
   }
@@ -500,7 +455,7 @@ export async function runAutoReminders(
         results.push({
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           sent: false,
           skipped: true,
           reason: "customer_reminders_disabled",
@@ -510,7 +465,7 @@ export async function runAutoReminders(
           idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           status: "skipped",
           reason: "customer_reminders_disabled",
           mode: "auto",
@@ -523,7 +478,7 @@ export async function runAutoReminders(
         results.push({
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           sent: false,
           skipped: true,
           reason: "below_minimum_amount",
@@ -533,7 +488,7 @@ export async function runAutoReminders(
           idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           status: "skipped",
           reason: `below_minimum_amount:${latest.balanceAmount}`,
           mode: "auto",
@@ -547,7 +502,7 @@ export async function runAutoReminders(
         results.push({
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           sent: false,
           skipped: true,
           reason: dueCheck.reason || "not_eligible",
@@ -557,7 +512,7 @@ export async function runAutoReminders(
           idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           status: "skipped",
           reason: dueCheck.reason || "not_eligible",
           mode: "auto",
@@ -576,7 +531,7 @@ export async function runAutoReminders(
         results.push({
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           sent: false,
           skipped: true,
           reason: "duplicate_today",
@@ -586,7 +541,7 @@ export async function runAutoReminders(
           idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           status: "skipped",
           reason: "duplicate_today",
           mode: "auto",
@@ -603,7 +558,7 @@ export async function runAutoReminders(
         results.push({
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           sent: false,
           skipped: true,
           reason: "bill_no_longer_eligible",
@@ -613,7 +568,7 @@ export async function runAutoReminders(
           idempotencyKey: `dailyReminder:${latest.customerId}:${latest.billId}:${dateKey}:skip`,
           customerId: latest.customerId,
           billId: latest.billId,
-          channel: "whatsapp",
+          channel: "email",
           status: "skipped",
           reason: "bill_no_longer_eligible",
           mode: "auto",
@@ -625,7 +580,7 @@ export async function runAutoReminders(
       const channels =
         config.preferredChannels.length > 0
           ? config.preferredChannels
-          : (["whatsapp"] as ReminderChannel[]);
+          : (["email"] as ReminderChannel[]);
 
       for (const channel of channels) {
         const channelKey = `${idempotencyKey}:${channel}`;
@@ -731,7 +686,7 @@ export async function sendManualReminder(input: {
         ? input.channels
         : config.preferredChannels.length > 0
           ? config.preferredChannels
-          : (["whatsapp"] as ReminderChannel[]);
+          : (["email"] as ReminderChannel[]);
 
     for (const channel of channels) {
       const idempotencyKey = `manualReminder:${latest.customerId}:${latest.billId}:${channel}:${Date.now()}`;

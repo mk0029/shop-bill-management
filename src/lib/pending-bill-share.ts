@@ -178,17 +178,7 @@ export function generatePendingBillsMessage({
 export async function sharePendingBills(input: PendingBillShareInput): Promise<string> {
   const message = generatePendingBillsMessage(input);
 
-  // Try Web Share API first
-  try {
-    if (typeof navigator !== "undefined" && (navigator as any).share) {
-      await (navigator as any).share({ text: message });
-      return message;
-    }
-  } catch {
-    // Fall through to WhatsApp if native share fails
-  }
-
-  // WhatsApp fallback (prefer customer's number if available)
+  // Open pre-filled WhatsApp chat via wa.me (customer's number if available)
   const phone = normalizePhone(input.customer?.phone);
   try {
     await shareToWhatsAppApp({ text: message, phone });

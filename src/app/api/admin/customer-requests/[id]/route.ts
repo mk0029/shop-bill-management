@@ -28,9 +28,9 @@ const opsProjection = `{
         cancelledReason,
         cancelledAt,
         cancelledBy,
-        "resolvedBy": resolvedByUserId == "" ? null : {"_id": resolvedByUserId, "name": null},
-        "rejectedBy": rejectedByUserId == "" ? null : {"_id": rejectedByUserId, "name": null},
-        "customerRef": customerRefId == "" ? null : {"_id": customerRefId, "name": null, "customerId": customerId},
+        resolvedByUserId,
+        rejectedByUserId,
+        customerRefId,
       }`
 
 export async function GET(
@@ -80,6 +80,17 @@ export async function GET(
     const requestData =
       (await getSanityClient('operations')
         .fetch(query + opsProjection, { id })
+        .then((r: any) => ({
+          ...r,
+          resolvedBy: r?.resolvedByUserId ? { _id: r.resolvedByUserId, name: null } : null,
+          rejectedBy: r?.rejectedByUserId ? { _id: r.rejectedByUserId, name: null } : null,
+          customerRef: r?.customerRefId
+            ? { _id: r.customerRefId, name: null, customerId: r.customerId, phone: null, email: null, location: null }
+            : null,
+          resolvedByUserId: undefined,
+          rejectedByUserId: undefined,
+          customerRefId: undefined,
+        }))
         .catch(() => null)) ||
       (await sanityClient
         .fetch(query + legacyProjection, { id })

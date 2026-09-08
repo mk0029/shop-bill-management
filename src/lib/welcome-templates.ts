@@ -9,11 +9,18 @@ export interface WelcomeTemplateData {
 
 const DEFAULT_COMPANY = "Jambh Electricals"
 
-function safeName(data: WelcomeTemplateData): string {
+type TemplateContact = {
+  customerName?: string;
+  displayName?: string;
+  supportEmail?: string;
+  supportPhone?: string;
+};
+
+function safeName(data: TemplateContact): string {
   return data.displayName || data.customerName || "Customer"
 }
 
-function supportContact(data: WelcomeTemplateData): string {
+function supportContact(data: TemplateContact): string {
   const parts: string[] = []
   if (data.supportPhone) parts.push(`Phone: ${data.supportPhone}`)
   if (data.supportEmail) parts.push(`Email: ${data.supportEmail}`)
@@ -89,6 +96,83 @@ function escapeHtml(value: string): string {
 const FEATURES_HTML = FEATURES.map(
   (f) => `<tr><td style="padding:3px 0;color:#64748B;font-size:14px;line-height:1.5">${escapeHtml(f)}</td></tr>`,
 ).join("")
+
+export interface RegistrationReceivedTemplateData {
+  customerName: string;
+  companyName?: string;
+  supportEmail?: string;
+  supportPhone?: string;
+}
+
+export function buildRegistrationReceivedText(data: RegistrationReceivedTemplateData): string {
+  const name = safeName(data);
+  const company = data.companyName || DEFAULT_COMPANY;
+  const support = supportContact(data);
+
+  return [
+    `Dear ${name},`,
+    "",
+    `Thank you for registering with ${company}. We have received your registration request.`,
+    "",
+    "Our team will review your request and contact you shortly.",
+    "",
+    "Need help? Our support team is always happy to assist you.",
+    support,
+    "",
+    `${company} Team`,
+  ].join("\n");
+}
+
+export function buildRegistrationReceivedHtml(data: RegistrationReceivedTemplateData): string {
+  const name = escapeHtml(safeName(data));
+  const company = escapeHtml(data.companyName || DEFAULT_COMPANY);
+  const supportEmail = data.supportEmail ? escapeHtml(data.supportEmail) : "";
+  const supportPhone = data.supportPhone ? escapeHtml(data.supportPhone) : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<style>
+  @media only screen and (max-width:600px) {
+    .container { width:100% !important; }
+    .content { padding:24px 20px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F1F5F9">
+<tr><td align="center" style="padding:40px 16px">
+  <table class="container" role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
+    <tr>
+      <td style="padding:0 0 24px 0;text-align:center">
+        <h1 style="margin:0;font-size:22px;font-weight:700;color:#1E293B">${company}</h1>
+      </td>
+    </tr>
+    <tr>
+      <td class="content" style="background:#FFFFFF;border-radius:12px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+        <h2 style="margin:0 0 16px 0;font-size:18px;font-weight:600;color:#1E293B">Hello, ${name}</h2>
+        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#475569">Thank you for registering with ${company}. We have received your registration request and our team will review it shortly.</p>
+        <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#475569">We will contact you once your account is ready. No further action is needed from your side at this time.</p>
+        <hr style="border:none;border-top:1px solid #E2E8F0;margin:20px 0">
+        <p style="margin:0 0 8px 0;font-size:13px;line-height:1.5;color:#64748B"><strong>Need help?</strong> Our support team is happy to assist you.</p>
+        ${supportPhone ? `<p style="margin:0 0 4px 0;font-size:13px;color:#64748B">Phone: ${supportPhone}</p>` : ""}
+        ${supportEmail ? `<p style="margin:0 0 0 0;font-size:13px;color:#64748B">Email: ${supportEmail}</p>` : ""}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 0 0 0;text-align:center">
+        <p style="margin:0;font-size:12px;color:#94A3B8">&copy; ${new Date().getFullYear()} ${company}. All rights reserved.</p>
+      </td>
+    </tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
 
 export function buildWelcomeEmailHtml(data: WelcomeTemplateData): string {
   const name = escapeHtml(safeName(data))

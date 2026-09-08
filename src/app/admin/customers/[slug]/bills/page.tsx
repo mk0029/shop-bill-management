@@ -29,7 +29,6 @@ import {
 } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { sanityApiService } from "@/lib/sanity-api-service";
 import {
   sharePendingBills,
   generatePendingBillsMessage,
@@ -43,7 +42,7 @@ import {
   getEffectiveReminderLimit,
 } from "@/lib/due-reminder";
 import { sanityClient } from "@/lib/sanity";
-import { sendManualWhatsApp } from "@/lib/manual-whatsapp";
+import { shareToWhatsAppApp } from "@/lib/whatsapp-app-share";
 import { useAuthStore } from "@/store/auth-store";
 
 export default function CustomerBillsPage() {
@@ -74,7 +73,7 @@ export default function CustomerBillsPage() {
   const [dueReminderRepeatDays, setDueReminderRepeatDays] = useState<number>(6);
   const [allowDueReminder, setAllowDueReminder] = useState<boolean>(true);
   const [reminderIntervalDays, setReminderIntervalDays] = useState<number>(7);
-  const [preferredChannels, setPreferredChannels] = useState<string[]>(["whatsapp"]);
+  const [preferredChannels, setPreferredChannels] = useState<string[]>(["email"]);
   const [preferredReminderTime, setPreferredReminderTime] = useState<string>("08:30");
   const [isSendingManualReminder, setIsSendingManualReminder] = useState(false);
 
@@ -213,8 +212,8 @@ export default function CustomerBillsPage() {
     );
     setPreferredChannels(
       Array.isArray((customer as any)?.preferredChannels)
-        ? (customer as any).preferredChannels
-        : ["whatsapp"],
+        ? (customer as any).preferredChannels.filter((c: string) => c === "email")
+        : ["email"],
     );
     setPreferredReminderTime(
       String((customer as any)?.preferredReminderTime || "08:30"),
@@ -268,29 +267,27 @@ export default function CustomerBillsPage() {
     }
   };
 
+  const openWhatsAppWithMessage = async (message: string) => {
+    const phone = String(customer?.phone || "").replace(/\D/g, "");
+    if (!phone) {
+      toast.error("Customer phone number is required");
+      return false;
+    }
+    try {
+      await shareToWhatsAppApp({ text: message, phone });
+      return true;
+    } catch {
+      toast.error("Unable to open WhatsApp");
+      return false;
+    }
+  };
+
   const sendManualReminder = async () => {
     if (!customer?._id) return;
     try {
       setIsSendingManualReminder(true);
-      const res = await fetch("/api/bill-reminder/send-manual", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: customer._id,
-          channels: preferredChannels,
-          sentBy: "admin",
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.remindersSent > 0) {
-        toast.success(`Sent ${data.remindersSent} reminder(s)`);
-      } else if (data.remindersSkipped > 0) {
-        toast.info("No eligible bills for reminder");
-      } else {
-        toast.error("Failed to send reminder");
-      }
-    } catch {
-      toast.error("Failed to send reminder");
+      const opened = await openWhatsAppWithMessage(buildShareMessage("pending"));
+      if (opened) setShowReminderSettingsModal(false);
     } finally {
       setIsSendingManualReminder(false);
     }
@@ -392,34 +389,13 @@ export default function CustomerBillsPage() {
       toast.error("Only Admin and Super Admin can send WhatsApp messages");
       return;
     }
-    if (!customer?._id) {
-      toast.error("Customer ID is required");
-      return;
-    }
 
     try {
       setIsSendingWhatsApp(true);
-      const result = await sendManualWhatsApp({
-        shareType: shareMode === "pending" ? "reminder" : "customer",
-        customerId: customer._id,
-      });
-
-      if (result.rateLimited) {
-        toast.error(
-          result.error ||
-            "One manual WhatsApp message per customer/bill is allowed every 5 minutes",
-        );
-        return;
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || "Unable to send WhatsApp message");
-      }
-
-      toast.success("WhatsApp message sent successfully");
-      setShowShareModal(false);
+      const opened = await openWhatsAppWithMessage(buildShareMessage());
+      if (opened) setShowShareModal(false);
     } catch (e: any) {
-      const msg = e?.message || "Unable to send WhatsApp message";
+      const msg = e?.message || "Unable to open WhatsApp";
       toast.error(msg);
     } finally {
       setIsSendingWhatsApp(false);
@@ -516,11 +492,8 @@ export default function CustomerBillsPage() {
           : 0;
       const totalDiscount = existingDiscount + addDiscount;
 
-      // Calculate the amount being paid in this transaction
-      const previousPaidAmount = Number(existingBill?.paidAmount || 0);
-      const newPaidAmount = paymentData.paidAmount;
-      const paymentAmount = newPaidAmount - previousPaidAmount;
-
+      // The server-side PATCH /api/bills/[id] handles the received amount by
+      // creating the cashbook entry — do NOT create another entry here.
       await updateBill(billId, {
         paymentStatus: paymentData.paymentStatus,
         paidAmount: paymentData.paidAmount,
@@ -528,39 +501,6 @@ export default function CustomerBillsPage() {
         ...(addDiscount > 0 ? { discount: totalDiscount } : {}),
         updatedAt: new Date().toISOString(),
       } as any);
-
-      // Create cash book entry asynchronously (don't wait for it)
-      if (paymentAmount > 0 && customer) {
-        // Fire and forget - don't await to avoid blocking the UI
-        (async () => {
-          try {
-            const result =
-              await sanityApiService.cashBook.createEntryFromBillPayment({
-                billId: billId,
-                userId: customer._id,
-                userName: customer.name,
-                amount: paymentAmount,
-                paymentType: "credit",
-                billNumber: existingBill?.billNumber,
-                totalAmount: Number(existingBill?.totalAmount || existingBill?.total || 0),
-                paymentStatus: paymentData.paymentStatus,
-              });
-
-            if (!result.success) {
-              console.error(
-                "❌ Failed to create cash book entry for manual payment:",
-                result.error,
-              );
-            }
-          } catch (cashBookError) {
-            console.error(
-              "❌ Failed to create cash book entry:",
-              cashBookError,
-            );
-            // Don't fail payment update if cash book entry fails
-          }
-        })(); // Execute async function without awaiting
-      }
 
       toast.success(
         paymentData.paymentStatus === "paid"
@@ -873,7 +813,7 @@ export default function CustomerBillsPage() {
               <div className="space-y-1">
                 <label className="text-sm text-gray-300">Preferred Channels</label>
                 <div className="flex flex-wrap gap-3">
-                  {["whatsapp", "email"].map((ch) => (
+                  {["email"].map((ch) => (
                     <label key={ch} className="flex items-center gap-1.5 text-sm text-gray-200">
                       <input
                         type="checkbox"
@@ -886,10 +826,13 @@ export default function CustomerBillsPage() {
                           )
                         }
                       />
-                      {ch === "whatsapp" ? "WhatsApp" : "Email"}
+                      Email
                     </label>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500">
+                  Reminders are sent via email.
+                </p>
               </div>
               <div className="space-y-1">
                 <label className="text-sm text-gray-300">Preferred Time</label>

@@ -5,10 +5,9 @@ import { getSanityClient } from '@/lib/sanity/client-factory'
 import { getServerAuth } from '@/lib/server-auth'
 import { notificationService } from '@/lib/notification-service'
 import { sendAppEmail } from '@/lib/email/server'
-import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { normalizeAndValidate } from '@/lib/phone-utils'
 import { validateIdentity } from '@/lib/identity-validator'
-import { sendNotificationToAdmins } from '@/services/notifications/notification-events.server'
+import { sendNotificationToAdmins, deleteNotificationsForEntity } from '@/services/notifications/notification-events.server'
 import { buildWelcomeText, buildWelcomeEmailHtml } from '@/lib/welcome-templates'
 
 export const runtime = 'nodejs'
@@ -205,6 +204,12 @@ export async function POST(
       details: `Customer created: ${name} (${customerId})`,
     }, inOps)
 
+    // Remove the "new registration request" admin notification now that this
+    // request has been resolved.
+    deleteNotificationsForEntity(id).catch((e) =>
+      console.error("[Approve] Notification cleanup failed:", e),
+    )
+
     // Fire welcome delivery
     const loginUrl = `${siteUrl()}/login?phone=${encodeURIComponent(phone)}&passKey=${encodeURIComponent(secretKey)}`
     const safeName = name || 'Customer'
@@ -245,19 +250,6 @@ export async function POST(
         text: buildWelcomeText(templateData),
         html: buildWelcomeEmailHtml(templateData),
       }) : Promise.resolve(),
-      emitWaEventServer('customer.created', {
-        customerId: created._id,
-        customerName: name,
-        customerPhone: phone,
-        phone,
-        secretKey,
-        loginUrl,
-        shopName: 'Jambh Electricals',
-        eventId: `customer.created.${created._id}`,
-        idempotencyKey: `customer.created.${created._id}`,
-      }).then((result) => {
-        if (!result.ok) console.error('[WA_CUSTOMER_CREATED_FAILED]', { customerId: created._id, phone, error: result.error })
-      }),
     ]).catch((e) => console.error('[Approve] delivery tasks failed', e))
 
     return NextResponse.json({

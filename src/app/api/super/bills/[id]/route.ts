@@ -3,9 +3,7 @@ import { NextResponse } from "next/server";
 import { sanityClient } from "@/lib/sanity";
 import { updateDocument, deleteDocument } from "@/lib/sanity/write-router";
 import { getServerAuth } from "@/lib/server-auth";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
 import { updateStockForBill } from "@/lib/inventory-management";
-import { resolveBillEvents, emitBillEventsInBackground } from "@/lib/bill-events";
 
 async function resolveBillDocumentId(identifier: string): Promise<string | null> {
   const key = String(identifier || "").trim();
@@ -354,22 +352,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
     }
     const updated = { _id: id, ...patch };
-    // Central WhatsApp event: comprehensive bill change detection (fire-and-forget)
-    try {
-      const next = {
-        ...patch,
-        _id: id,
-        billNumber: prev?.billNumber || id,
-        customer: prev?.customer,
-        technician: prev?.technician,
-        paymentMethod: (body as any)?.paymentMode || (body as any)?.paymentMethod || prev?.paymentMethod || "manual",
-      };
-      const events = resolveBillEvents(prev, next, body as Record<string, any>);
-      emitBillEventsInBackground(events);
-    } catch (e) {
-      console.error("[WA] bill event dispatch failed", e);
-    }
-
     return NextResponse.json({ success: true, data: updated }, { status: 200 });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || "Server error" }, { status: 500 });
@@ -482,23 +464,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       console.warn("[API] DELETE /api/super/bills: inventory restore failed", invErr);
     }
 
-    // Central WhatsApp event: bill deleted (fire-and-forget)
-    try {
-      void emitWaEventServer("bill-deleted", {
-        billId: id,
-        billNumber: bill?.billNumber || id,
-        customerName: bill?.customer?.name || "Customer",
-        customerPhone: bill?.customer?.phone || "",
-        totalAmount: bill?.totalAmount || 0,
-        serviceName: bill?.serviceType || "",
-        eventId: id,
-        idempotencyKey: `billDeleted:${id}`,
-      }).then((result) => {
-        if (!result.ok) console.warn("[WA] bill deleted event failed", result.error);
-      });
-    } catch {
-      // best-effort
-    }
     return NextResponse.json({ success: true, message: "Bill deleted" });
   } catch (error: any) {
     console.error("API: Failed to delete bill", error);

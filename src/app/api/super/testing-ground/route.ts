@@ -3,16 +3,6 @@ import { getServerAuth } from '@/lib/server-auth'
 import { sanityClient } from '@/lib/sanity'
 import { sendFcmToTokens } from '@/services/notifications/fcm-sender.server'
 
-const WA_EVENTS = [
-  'billing.created', 'billing.updated', 'billing.deleted',
-  'billing.payment.partial', 'billing.payment.paid', 'billing.payment.updated', 'billing.payment.removed',
-  'billing.multiPaid', 'billing.bulkPaid',
-  'toolRent.created', 'toolRent.updated', 'toolRent.paid', 'toolRent.overdue', 'toolRent.returned',
-  'workTask.created', 'workTask.updated', 'workTask.completed', 'workTask.cancelled', 'workTask.hold',
-  'customer.created',
-  'scheduled.goodMorning', 'scheduled.festivalGreeting',
-]
-
 const FCM_EVENTS = [
   { key: 'custom', label: 'Custom Message' },
   { key: 'billing.created', label: 'Bill Created' },
@@ -27,25 +17,6 @@ const FCM_EVENTS = [
   { key: 'scheduled.festivalGreeting', label: 'Festival Greeting' },
   { key: 'system.general', label: 'System General' },
 ]
-
-async function handleWAEvent(eventType: string, payload: Record<string, any>) {
-  const { emitWaEventServer } = await import('@/lib/wa-bot-server')
-
-  const trace: any[] = []
-  const t = (step: string, data: any) => trace.push({ step, ...data, ts: new Date().toISOString() })
-
-  try {
-    const start = Date.now()
-    const result = await emitWaEventServer(eventType, payload)
-    const ms = Date.now() - start
-    t('response', { ms, ok: result.ok, body: result.error || 'sent' })
-    if (result.ok) return { ok: true, response: result, trace }
-    return { ok: false, error: result.error || 'send failed', trace }
-  } catch (err: any) {
-    t('error', { message: err.message })
-    return { ok: false, error: err.message, trace }
-  }
-}
 
 async function handleFCMEvent(eventType: string, payload: Record<string, any>) {
   const trace: any[] = []
@@ -95,38 +66,6 @@ async function handleFCMEvent(eventType: string, payload: Record<string, any>) {
 async function handleHealthCheck(service: string) {
   const trace: any[] = []
   const t = (step: string, data: any) => trace.push({ step, ...data, ts: new Date().toISOString() })
-
-  if (service === 'wa') {
-    const openwaUrl = (process.env.OPENWA_URL || '').replace(/\/+$/, '') || process.env.WA_BOT_URL?.replace(/\/+$/, '') || ''
-    const apiKey = process.env.OPENWA_API_KEY || process.env.WA_API_KEY || ''
-    t('config', { openwaUrl: openwaUrl || 'MISSING', hasApiKey: !!apiKey })
-    if (!openwaUrl) return { ok: false, error: 'OpenWA URL not configured', trace }
-
-    try {
-      const start = Date.now()
-      const res = await fetch(`${openwaUrl}/api/health`, { headers: { 'X-API-Key': apiKey } })
-      const ms = Date.now() - start
-      const json = await res.json().catch(() => ({}))
-      t('response', { status: res.status, ok: res.ok, ms, body: json })
-
-      // Also check session status
-      const sid = process.env.OPENWA_SESSION_ID || ''
-      let botState = 'unknown'
-      if (sid) {
-        try {
-          const sres = await fetch(`${openwaUrl}/api/sessions/${sid}`, { headers: { 'X-API-Key': apiKey } })
-          const sj = await sres.json().catch(() => ({}))
-          botState = sj.status || 'unknown'
-          t('session', { status: sj.status, phone: sj.phone, pushName: sj.pushName })
-        } catch {}
-      }
-
-      return { ok: res.ok, response: { botState, queueSize: 0, ...json }, trace }
-    } catch (err: any) {
-      t('error', { message: err.message })
-      return { ok: false, error: err.message, trace }
-    }
-  }
 
   if (service === 'fcm') {
     const hasFirebase = !!(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.PROJECT_ID || process.env.FIREBASE_PROJECT_ID)
@@ -211,22 +150,15 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const openwaUrl = (process.env.OPENWA_URL || '').replace(/\/+$/, '') || process.env.WA_BOT_URL?.replace(/\/+$/, '') || ''
-  const waEvents = WA_EVENTS
   const fcmEvents = FCM_EVENTS
 
   return NextResponse.json({
     ok: true,
-    wa: {
-      backendUrl: openwaUrl || 'NOT SET',
-      hasSecret: !!(process.env.OPENWA_API_KEY || process.env.WA_API_KEY || process.env.WA_BOT_TOKEN || process.env.API_KEY),
-    },
     fcm: {
       hasFirebase: !!(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.PROJECT_ID || process.env.FIREBASE_PROJECT_ID),
       projectId: process.env.PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'NOT SET',
       hasChatBackend: !!(process.env.SHOP_CHAT_URL || process.env.NEXT_PUBLIC_SHOP_CHAT_URL),
     },
-    waEvents,
     fcmEvents,
   })
 }
@@ -241,12 +173,7 @@ export async function POST(req: NextRequest) {
   const { channel, eventType, payload } = body
 
   if (!channel || !eventType) {
-    return NextResponse.json({ ok: false, error: 'channel (wa/fcm) and eventType required' }, { status: 400 })
-  }
-
-  if (channel === 'wa') {
-    const result = await handleWAEvent(eventType, payload || {})
-    return NextResponse.json(result)
+    return NextResponse.json({ ok: false, error: 'channel (fcm) and eventType required' }, { status: 400 })
   }
 
   if (channel === 'fcm') {

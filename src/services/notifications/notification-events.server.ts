@@ -2,7 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { sanityClient } from "@/lib/sanity";
-import { createDocument } from "@/lib/sanity/write-router";
+import { createDocument, deleteDocument } from "@/lib/sanity/write-router";
+import { getSanityClient } from "@/lib/sanity/client-factory";
 import { getActiveTokenStringsForUsers } from "@/lib/fcm/tokens.server";
 import { buildNotificationData, hasNotificationText } from "@/lib/fcm/payload";
 import { sendFcmToTokens } from "./fcm-sender.server";
@@ -468,4 +469,61 @@ export async function filterUserIdsByRole(userIds: string[], roles: string[]) {
 export async function sendNotificationToAdmins(input: Omit<SendNotificationEventInput, "userIds" | "userId">) {
   const userIds = await getActiveAdminUserIds();
   return createAndDispatchNotification({ ...input, userIds, skipActor: true });
+}
+
+/**
+ * Delete persisted in-app/FCM notification documents tied to a business entity.
+ * Registration requests persist notifications (they live in the comms DB via the
+ * "notifications" purpose, with primary as a legacy fallback). When a request is
+ * deleted, any notification whose eventId/data references that request should be
+ * removed instantly too.
+ */
+export async function deleteNotificationsForEntity(entityId: string): Promise<{ deleted: number; total: number }> {
+  if (!entityId) return { deleted: 0, total: 0 };
+
+  const eventIdPrefix = `customer.request.created.${entityId}`;
+  const sourceQuery = `*[_type == "notification" && (
+    eventId == $eventId ||
+    data.requestId == $entityId ||
+    data.entityId == $entityId
+  )][0...100]._id`;
+
+  const commsDb = (() => {
+    try {
+      return getSanityClient("comms");
+    } catch {
+      return null;
+    }
+  })();
+
+  const [primaryIds, commsIds] = await Promise.all([
+    sanityClient.fetch<string[]>(sourceQuery, {
+      eventId: eventIdPrefix,
+      entityId,
+    }).catch(() => [] as string[]),
+    commsDb
+      ? commsDb.fetch<string[]>(sourceQuery, { eventId: eventIdPrefix, entityId }).catch(() => [] as string[])
+      : Promise.resolve([] as string[]),
+  ]);
+
+  const ids = Array.from(new Set([...primaryIds, ...commsIds])).filter(Boolean).slice(0, 100);
+  if (!ids.length) return { deleted: 0, total: 0 };
+
+  let deleted = 0;
+  for (const id of ids) {
+    const result = await deleteDocument(String(id), "notifications").catch(() => null);
+    if (result && result.success) {
+      deleted++;
+      continue;
+    }
+    if (commsDb) {
+      await commsDb.delete(String(id)).catch(() => {});
+      deleted++;
+    } else {
+      await sanityClient.delete(String(id)).catch(() => {});
+      deleted++;
+    }
+  }
+
+  return { deleted, total: ids.length };
 }

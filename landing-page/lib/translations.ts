@@ -48,6 +48,12 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       rentTools: "Rent Tools",
       contact: "Contact",
       requestAccount: "Request Account",
+      sections: {
+        main: "Main",
+        business: "Business",
+        company: "Company",
+        account: "Account",
+      },
     },
     hero: {
       eyebrow: "Jambh Electricals",
@@ -773,6 +779,12 @@ export const landingTranslations: Record<LandingLanguage, TranslationTree> = {
       rentTools: "किराये के टूल",
       contact: "संपर्क",
       requestAccount: "अकाउंट अनुरोध",
+      sections: {
+        main: "मुख्य",
+        business: "व्यापार",
+        company: "कंपनी",
+        account: "अकाउंट",
+      },
     },
     hero: {
       eyebrow: "जंभ इलेक्ट्रिकल्स",

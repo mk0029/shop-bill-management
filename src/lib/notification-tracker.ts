@@ -4,7 +4,7 @@ export type TrackEntry = {
   id: string;
   ts: string;
   tsMs: number;
-  channel: "fcm" | "whatsapp" | "socket";
+  channel: "fcm" | "socket";
   eventType: string;
   ok: boolean;
   skipped?: boolean;
@@ -84,27 +84,6 @@ export function trackNotification(entry: Omit<TrackEntry, "id" | "ts" | "tsMs" |
   persistToSanity(full);
 }
 
-export function trackWhatsApp(input: {
-  eventType: string;
-  phone?: string;
-  ok: boolean;
-  skipped?: boolean;
-  error?: string;
-  durationMs?: number;
-  idempotencyKey?: string;
-}) {
-  trackNotification({
-    channel: "whatsapp",
-    eventType: input.eventType,
-    ok: input.ok,
-    skipped: input.skipped,
-    error: input.error,
-    durationMs: input.durationMs,
-    target: input.phone ? input.phone.slice(0, 4) + "****" : undefined,
-    meta: input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined,
-  });
-}
-
 export function trackFcm(input: {
   eventType: string;
   ok: boolean;
@@ -125,7 +104,7 @@ export function trackFcm(input: {
 }
 
 export async function loadTrackedNotifications(filter?: {
-  channel?: "fcm" | "whatsapp" | "socket";
+  channel?: "fcm" | "socket";
   count?: number;
   fromSanity?: boolean;
 }): Promise<TrackEntry[]> {
@@ -161,7 +140,7 @@ export async function loadTrackedNotifications(filter?: {
 }
 
 export function getTrackedNotifications(filter?: {
-  channel?: "fcm" | "whatsapp" | "socket";
+  channel?: "fcm" | "socket";
   count?: number;
 }): TrackEntry[] {
   let entries = getEntries();

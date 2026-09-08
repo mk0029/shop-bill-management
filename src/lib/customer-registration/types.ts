@@ -38,7 +38,7 @@ export interface DuplicateCheckResult {
   detail?: string;
 }
 
-export const REGISTRATION_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000;
+export const REGISTRATION_TOKEN_EXPIRY_MS = 48 * 60 * 60 * 1000;
 export const RECOVERY_TOKEN_EXPIRY_MS = 15 * 60 * 1000;
 export const MAX_PAYLOAD_SIZE = 10_240;
 export const RATE_LIMIT_REGISTRATION = { windowMs: 600_000, max: 3 };

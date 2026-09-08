@@ -7,7 +7,7 @@ const SIM_ID = () => `sim_${Date.now().toString(36)}_${Math.random().toString(36
 type SimEvent = {
   label: string
   category: string
-  channels: ('wa' | 'fcm')[]
+  channels: 'fcm'[]
   buildPayload: (ctx: { phone: string; name: string }) => Record<string, any>
   fcmTitle?: string
   fcmBody?: string
@@ -30,7 +30,7 @@ const EVENTS: Record<string, SimEvent> = {
   'customer.request.created': {
     label: 'Customer Request (WA to Admins)',
     category: 'Customer',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], customerLocation: 'Delhi',
@@ -44,7 +44,7 @@ const EVENTS: Record<string, SimEvent> = {
   'customer.created': {
     label: 'Customer Created',
     category: 'Customer',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], customerLocation: 'Delhi',
@@ -58,7 +58,7 @@ const EVENTS: Record<string, SimEvent> = {
   'billing.created': {
     label: 'Bill Created',
     category: 'Billing',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => {
       const amt = randAmt()
       return {
@@ -76,7 +76,7 @@ const EVENTS: Record<string, SimEvent> = {
   'billing.payment.paid': {
     label: 'Payment Received (Full)',
     category: 'Billing',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => {
       const amt = randAmt()
       return {
@@ -93,7 +93,7 @@ const EVENTS: Record<string, SimEvent> = {
   'billing.payment.partial': {
     label: 'Partial Payment',
     category: 'Billing',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => {
       const total = randAmt(1000, 5000)
       const paid = Math.floor(total * (0.2 + Math.random() * 0.5))
@@ -108,7 +108,7 @@ const EVENTS: Record<string, SimEvent> = {
   'billing.updated': {
     label: 'Bill Updated',
     category: 'Billing',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], billId: SIM_ID(), billNumber: billNum(),
@@ -119,7 +119,7 @@ const EVENTS: Record<string, SimEvent> = {
   'billing.deleted': {
     label: 'Bill Deleted',
     category: 'Billing',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], billId: SIM_ID(), billNumber: billNum(),
@@ -129,7 +129,7 @@ const EVENTS: Record<string, SimEvent> = {
   'billing.multiPaid': {
     label: 'Multi Bill Pay (Pay Multiple at Once)',
     category: 'Billing',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => {
       const billCount = Math.floor(Math.random() * 3) + 2
       const extraPendingCount = Math.floor(Math.random() * 2) + 1
@@ -197,7 +197,7 @@ const EVENTS: Record<string, SimEvent> = {
   'billing.bulkPaid': {
     label: 'Bulk Bill Pay (Pay All Bills)',
     category: 'Billing',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => {
       const billCount = Math.floor(Math.random() * 4) + 3
       const extraPendingCount = Math.floor(Math.random() * 2) + 1
@@ -249,7 +249,7 @@ const EVENTS: Record<string, SimEvent> = {
   'toolRent.created': {
     label: 'Tool Rental Created',
     category: 'Tool Rental',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], toolId: SIM_ID(),
@@ -264,7 +264,7 @@ const EVENTS: Record<string, SimEvent> = {
   'toolRent.overdue': {
     label: 'Tool Rental Overdue',
     category: 'Tool Rental',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], toolId: SIM_ID(),
@@ -275,7 +275,7 @@ const EVENTS: Record<string, SimEvent> = {
   'toolRent.returned': {
     label: 'Tool Rental Returned',
     category: 'Tool Rental',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], toolId: SIM_ID(),
@@ -288,7 +288,7 @@ const EVENTS: Record<string, SimEvent> = {
   'workTask.created': {
     label: 'Work Task Created',
     category: 'Work Task',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], taskId: SIM_ID(),
@@ -303,7 +303,7 @@ const EVENTS: Record<string, SimEvent> = {
   'workTask.completed': {
     label: 'Work Task Completed',
     category: 'Work Task',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], taskId: SIM_ID(),
@@ -316,7 +316,7 @@ const EVENTS: Record<string, SimEvent> = {
   'workTask.cancelled': {
     label: 'Work Task Cancelled',
     category: 'Work Task',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       customerNickname: name.split(' ')[0], taskId: SIM_ID(),
@@ -328,7 +328,7 @@ const EVENTS: Record<string, SimEvent> = {
   'workTask.reminder.overdue': {
     label: 'Technician: Overdue Task Reminder',
     category: 'Technician',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       technicianPhone: phone, technicianName: name,
       technicianId: SIM_ID(), customerId: SIM_ID(),
@@ -346,7 +346,7 @@ const EVENTS: Record<string, SimEvent> = {
   'workTask.reminder.due': {
     label: 'Technician: Due Task Reminder',
     category: 'Technician',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       technicianPhone: phone, technicianName: name,
       technicianId: SIM_ID(), customerId: SIM_ID(),
@@ -363,7 +363,7 @@ const EVENTS: Record<string, SimEvent> = {
   'workTask.reminder.pending': {
     label: 'Technician: Pending Task Follow-up',
     category: 'Technician',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       technicianPhone: phone, technicianName: name,
       technicianId: SIM_ID(), customerId: SIM_ID(),
@@ -380,7 +380,7 @@ const EVENTS: Record<string, SimEvent> = {
   'bill.reminder.technician': {
     label: 'Technician: Bill Assigned Reminder',
     category: 'Technician',
-    channels: ['wa'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => {
       const amt = randAmt()
       return {
@@ -436,7 +436,7 @@ const EVENTS: Record<string, SimEvent> = {
   'scheduled.goodMorning': {
     label: 'Good Morning Greeting',
     category: 'Scheduled',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       greetingDate: new Date().toISOString().split('T')[0],
@@ -447,7 +447,7 @@ const EVENTS: Record<string, SimEvent> = {
   'scheduled.festivalGreeting': {
     label: 'Festival Greeting',
     category: 'Scheduled',
-    channels: ['wa', 'fcm'],
+    channels: ['fcm'],
     buildPayload: ({ phone, name }) => ({
       phone, customerPhone: phone, customerId: SIM_ID(), customerName: name,
       festivalName: 'Diwali', festivalMessage: 'Wishing you a Happy Diwali!',
@@ -455,26 +455,6 @@ const EVENTS: Record<string, SimEvent> = {
     fcmTitle: 'Happy Diwali!',
     fcmBody: 'Wishing you a prosperous Diwali!',
   },
-}
-
-async function fireWA(eventType: string, payload: Record<string, any>) {
-  const { emitWaEventServer } = await import('@/lib/wa-bot-server')
-
-  const trace: any[] = []
-  const log = (step: string, data: any) => trace.push({ step, ...data, ts: new Date().toISOString() })
-
-  log('fire_wa', { eventType, phone: String(payload.phone || '').slice(0, 4) + '****' })
-
-  try {
-    const start = Date.now()
-    const result = await emitWaEventServer(eventType, { ...payload, _simulated: true })
-    const ms = Date.now() - start
-    log('response', { ms, ok: result.ok, body: result.error || 'sent' })
-    return { ok: result.ok, response: result, trace }
-  } catch (err: any) {
-    log('error', { message: err.message })
-    return { ok: false, error: err.message, trace }
-  }
 }
 
 async function fireFCM(eventType: string, payload: Record<string, any>, title: string, body: string) {
@@ -673,9 +653,6 @@ export async function POST(req: NextRequest) {
   const channels = targetChannels || simEvent.channels
   const results: Record<string, any> = {}
 
-  if (channels.includes('wa')) {
-    results.wa = await fireWA(eventType, payload)
-  }
   if (channels.includes('fcm')) {
     results.fcm = await fireFCM(
       eventType, payload,

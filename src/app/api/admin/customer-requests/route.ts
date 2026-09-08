@@ -9,6 +9,12 @@ function errorResponse(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status })
 }
 
+// NOTE: GROQ does not support inline object literals inside ternary expressions
+// (e.g. `field == "" ? null : { ... }`), which made these queries throw a parse
+// error and (after `.catch(() => [])`) return an empty list while the plain
+// `count()` in /stats kept working — the source of the badge-vs-list mismatch.
+// Ops docs store person/customer refs as plain string id fields, so we project the
+// primitives and rebuild the object shapes in JS below.
 const opsProjection = `{
       _id,
       requestId,
@@ -29,9 +35,9 @@ const opsProjection = `{
       cancelledReason,
       cancelledAt,
       cancelledBy,
-      "resolvedBy": resolvedByUserId == "" ? null : {"_id": resolvedByUserId, "name": null},
-      "rejectedBy": rejectedByUserId == "" ? null : {"_id": rejectedByUserId, "name": null},
-      "customerRef": customerRefId == "" ? null : {"_id": customerRefId, "name": null, "customerId": customerId},
+      resolvedByUserId,
+      rejectedByUserId,
+      customerRefId,
     }`
 
 export async function GET(req: NextRequest) {
@@ -110,9 +116,27 @@ export async function GET(req: NextRequest) {
       getSanityClient('operations').fetch<any[]>(`${baseQuery} | order(${orderPrefix}${safeSort}) ${opsProjection}`, params).catch(() => []),
     ])
 
+    // Rebuild object-shaped ref fields for operations rows (stored as plain string ids).
+    const opsNormalized = ops.map((r) => {
+      const ref = (id?: string | null) =>
+        id ? { _id: id, name: null } : null
+      return {
+        ...r,
+        _sourceDb: 'operations',
+        resolvedBy: ref(r.resolvedByUserId),
+        rejectedBy: ref(r.rejectedByUserId),
+        customerRef: r.customerRefId
+          ? { _id: r.customerRefId, name: null, customerId: r.customerId }
+          : null,
+        resolvedByUserId: undefined,
+        rejectedByUserId: undefined,
+        customerRefId: undefined,
+      }
+    })
+
     const merged = legacy
       .map((r) => ({ ...r }))
-      .concat(ops.map((r) => ({ ...r, _sourceDb: 'operations' })))
+      .concat(opsNormalized)
 
     merged.sort((a, b) => {
       const av = a?.[safeSort]

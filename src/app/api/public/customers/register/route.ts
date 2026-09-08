@@ -14,26 +14,8 @@ import { checkDuplicates } from "@/lib/customer-registration/duplicate-checker";
 import { generateRequestId, generateDeviceToken } from "@/lib/customer-registration/token-service";
 import { checkIdentityRateLimit } from "@/lib/security/identity-rate-limiter";
 import { sendNotificationToAdmins } from "@/services/notifications/notification-events.server";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
-
-async function sendWAToSuperAdmins(eventType: string, payload: Record<string, any>) {
-  try {
-    const { sanityClient } = await import("@/lib/sanity")
-    const admins = await sanityClient.fetch<{ _id: string; phone: string | null; name: string }[]>(
-      `*[_type == "user" && role in ["admin", "super_admin"] && isActive != false && defined(phone)]{ _id, phone, name }`
-    )
-    const superAdmins = (admins || []).filter(a => a.phone)
-    if (!superAdmins.length) return
-
-    for (const admin of superAdmins) {
-      const phone = String(admin.phone || "").replace(/\D/g, "")
-      if (!phone || phone.length < 7) continue
-      emitWaEventServer(eventType, { ...payload, phone, customerPhone: phone, customerName: admin.name || "Admin" })
-    }
-  } catch {
-    // silent — WA is best-effort for admin alerts
-  }
-}
+import { sendAppEmail } from "@/lib/email/server";
+import { buildRegistrationReceivedText, buildRegistrationReceivedHtml } from "@/lib/welcome-templates";
 
 function errorResponse(code: string, message: string, status: number, errors?: Record<string, string[]>) {
   return NextResponse.json(
@@ -160,6 +142,24 @@ export async function POST(request: Request) {
       if (!createResult.success) {
         throw new Error(createResult.error || "Create failed");
       }
+
+      // Mirror to customers DB (fire-and-forget, best-effort)
+      createDocument({
+        _type: "customerRequest",
+        requestId,
+        name,
+        phone,
+        normalizedPhone: canonicalPhone,
+        email,
+        location,
+        requestType,
+        status: "pending",
+        deviceFingerprint: deviceFingerprint || undefined,
+        ipAddress: clientIp,
+        submittedAt: now,
+        expiresAt,
+        createdAt: now,
+      }, "customers").catch(() => {});
     } catch (sanityError) {
       console.error("Sanity create failed:", sanityError);
       return errorResponse("SERVER_ERROR", "Failed to submit registration request. Please try again.", 500);
@@ -178,15 +178,15 @@ export async function POST(request: Request) {
       },
     }).catch((e) => console.error("[Register] FCM notification failed:", e));
 
-    sendWAToSuperAdmins("customer.request.created", {
-      customerName: name,
-      customerPhone: canonicalPhone,
-      phone: canonicalPhone,
-      name,
-      requestId,
-      requestType: requestType || "self_registration",
-      status: "pending",
-    }).catch((e) => console.error("[Register] WA admin notification failed:", e));
+    // Notify the customer via email that their request was received (fire-and-forget)
+    if (email) {
+      sendAppEmail({
+        to: email,
+        subject: "Registration Request Received",
+        text: buildRegistrationReceivedText({ customerName: name }),
+        html: buildRegistrationReceivedHtml({ customerName: name }),
+      }).catch((e) => console.error("[Register] Customer email failed:", e));
+    }
 
     return successResponse("Your registration request has been submitted successfully.", {
       requestId,

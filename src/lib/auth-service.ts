@@ -1,6 +1,5 @@
 import { sanityClient } from "./sanity";
 import { strapiService } from "./strapi-service";
-import { emitWaEventClient } from "./wa-bot-server";
 
 export interface LoginCredentials {
   customerId: string;
@@ -204,24 +203,6 @@ export async function createCustomerAccount(data: {
       throw new Error(json?.error || 'Failed to create customer account');
     }
     const createdUser = json.data;
-
-    const loginUrl = data.phone
-      ? `https://jambh-ell.vercel.app/login?phone=${encodeURIComponent(data.phone)}&passKey=${encodeURIComponent(secretKey)}`
-      : '';
-
-    void emitWaEventClient('customer.created', {
-      customerId: createdUser._id || customerId,
-      customerName: data.name,
-      customerPhone: data.phone,
-      phone: data.phone,
-      secretKey,
-      loginUrl,
-      shopName: 'Jambh Electricals',
-      eventId: `customer.created.${createdUser._id || customerId}`,
-      idempotencyKey: `customer.created.${createdUser._id || customerId}`,
-    }).then((r) => {
-      if (!r.ok) console.error('[WA_CUSTOMER_CREATED_FAILED]', { customerId: createdUser._id, error: r.error });
-    }).catch((e) => console.error('[WA_CUSTOMER_CREATED_FAILED]', { error: e?.message || String(e) }));
 
     // Sync user to Strapi
     try {

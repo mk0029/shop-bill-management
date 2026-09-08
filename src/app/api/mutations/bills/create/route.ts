@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sanityClient } from '@/lib/sanity'
 import { createDocument, updateDocument } from '@/lib/sanity/write-router'
 import { denormalizeBill } from '@/lib/sanity/denormalize'
-import { emitWaEventServer } from '@/lib/wa-bot-server'
 import { getActiveAdminUserIds, createAndDispatchNotification } from '@/services/notifications/notification-events.server'
 import { safeUserName } from '@/lib/display-text'
 import {
@@ -11,11 +10,7 @@ import {
 } from '@/lib/notifications/templates'
 import { getServerAuth } from '@/lib/server-auth'
 import { isAdminLike } from '@/lib/rbac'
-import { calculateBillPaymentSummary } from '@/lib/bill-utils'
-
-function siteUrl() {
-  return 'https://jambh-ell.vercel.app'
-}
+import { createCashBookEntryFromBill, type BillPaymentData } from '@/lib/bill-payment-sync'
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,69 +76,8 @@ export async function POST(req: NextRequest) {
     }
     const created = { _id: createdResult.documentId, ...billData } as any
 
-    const createdCustomerId = (() => {
-      const c = (created as any)?.customer
-      if (c && typeof c === 'object' && typeof c._ref === 'string') return c._ref
-      return ''
-    })()
-
-    // Draft bills skip WhatsApp events + admin/customer notifications.
+    // Draft bills skip admin/customer notifications.
     const isDraft = (body as any)?.draft === true || String((bill as any)?.status || (created as any)?.status || '') === 'draft'
-
-    if (!isDraft) void (async () => {
-      try {
-        const resolvedCustomerId = createdCustomerId || customerId
-        const user = resolvedCustomerId
-          ? await sanityClient.fetch<{ phone?: string | null; name?: string | null; secretKey?: string | null } | null>(`*[_type=="user" && _id==$id][0]{ phone, name, secretKey }`, { id: String(resolvedCustomerId) })
-          : null
-
-        const loginUrl = user?.phone
-          ? `${siteUrl()}/login?phone=${encodeURIComponent(user.phone)}&passKey=${encodeURIComponent(user.secretKey || '')}`
-          : ''
-
-        const summary = calculateBillPaymentSummary({
-          totalAmount: Number((created as any)?.totalAmount || 0),
-          paidAmount: Number((created as any)?.paidAmount || 0),
-          discount: Number((created as any)?.discount || 0),
-        })
-
-        let eventType = 'billing.created.unpaid'
-        if (summary.finalTotal === 0) {
-          eventType = 'billing.created.zero_balance'
-        } else if (summary.isFullyPaid) {
-          eventType = 'billing.created.paid'
-        } else if (summary.paymentStatus === 'partial') {
-          eventType = 'billing.created.partial'
-        }
-
-        const billId = String((created as any)?._id || '')
-        const waResult = await emitWaEventServer(eventType, {
-          billId,
-          billNumber: String((created as any)?.billNumber || ''),
-          customerId,
-          customerName: safeUserName(user?.name, 'Customer'),
-          customerPhone: String(user?.phone || ''),
-          phone: String(user?.phone || ''),
-          loginUrl,
-          totalAmount: summary.subtotal,
-          discount: summary.discount,
-          paidAmount: summary.amountPaid,
-          balanceAmount: summary.remainingBalance,
-          paymentStatus: summary.paymentStatus,
-          isFullyPaid: summary.isFullyPaid,
-          finalTotal: summary.finalTotal,
-          dueDate: (created as any)?.dueDate,
-          serviceName: (created as any)?.serviceType || (created as any)?.serviceName || '',
-          technicianName: (created as any)?.technicianName || '',
-          updatedAt: (created as any)?.updatedAt || new Date().toISOString(),
-          idempotencyKey: `${eventType}:${billId}:${(created as any)?.updatedAt || Date.now()}`,
-        })
-        if (!waResult.ok) console.error('[WA] billing.created event failed', eventType, waResult.error)
-
-      } catch (e) {
-        console.error('[WA] billing.created event threw', e)
-      }
-    })()
 
     if (!isDraft) {
       try {
@@ -214,6 +148,44 @@ export async function POST(req: NextRequest) {
         console.error('[Notify] bill_created emit failed', e)
       }
     }
+
+    // When a bill is created as already paid/partially paid, the received
+    // amount must be recorded in the cash book. This runs server-side so every
+    // creation path (form, offline queue, store, etc.) is covered. It is
+    // idempotent — createCashBookEntryFromBill skips if an entry already exists
+    // for this bill — so the client-side sync in form-service.ts cannot double it.
+    try {
+      const status = String((created as any)?.paymentStatus || '').toLowerCase()
+      if (status === 'paid' || status === 'partial') {
+        const paidAmount = Number((created as any)?.paidAmount || 0)
+        const totalAmount = Number((created as any)?.totalAmount || 0)
+        if (paidAmount > 0 && customerId && totalAmount > 0) {
+          const entryData: BillPaymentData = {
+            billId: String((created as any)?._id),
+            billNumber: String((created as any)?.billNumber || ''),
+            customerId: customerId,
+            customerName: customerName || 'Customer',
+            customerPhone: customerPhone || undefined,
+            amount: paidAmount,
+            paymentStatus: status as 'paid' | 'partial',
+            paymentDate: new Date().toISOString(),
+            totalAmount,
+            paidAmount,
+            balanceAmount: Math.max(0, totalAmount - paidAmount),
+          }
+          void (async () => {
+            try {
+              const result = await createCashBookEntryFromBill(entryData)
+              if (!result.success && !/already exists/i.test(result.message)) {
+                console.warn('[BillCreate] cashbook sync:', result.message)
+              }
+            } catch (err) {
+              console.error('[BillCreate] cashbook sync error:', err)
+            }
+          })()
+        }
+      }
+    } catch {}
 
     return NextResponse.json({ success: true, data: created }, { status: 200 })
   } catch (e: unknown) {

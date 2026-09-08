@@ -7,7 +7,6 @@ import { formatDayDateTime } from "@/lib/date-time";
 import { sanitizeUserText } from "@/constants/defaults";
 import { publishWorkTaskShopChatEvent } from "@/lib/shop-chat/server-events";
 import { getActiveAdminUserIds, createAndDispatchNotification } from "@/services/notifications/notification-events.server";
-import { emitWaEventServer } from "@/lib/wa-bot-server";
 
 function canAccess(role: string | null) {
   return role === "admin" || role === "super_admin" || role === "technician";
@@ -52,27 +51,6 @@ async function notifyWorkTaskEvent(args: {
       taskId: args.taskId,
     },
     skipActor: true,
-  });
-}
-
-async function sendTechnicianTaskAssigned(args: {
-  technicianPhone?: string;
-  technicianName?: string;
-  customerName?: string;
-  taskTitle: string;
-  dueAt: string;
-  priority?: string;
-  taskId?: string;
-}) {
-  await emitWaEventServer("workTask.created", {
-    taskId: args.taskId || "",
-    title: args.taskTitle,
-    assignedTechnicianName: args.technicianName || "Technician",
-    technicianPhone: args.technicianPhone || "",
-    customerName: args.customerName || "",
-    dueAt: args.dueAt,
-    priority: args.priority || "medium",
-    updatedAt: new Date().toISOString(),
   });
 }
 
@@ -228,14 +206,12 @@ const now = new Date().toISOString();
   const created = { _id: createResult.documentId, ...doc } as any;
 
   let safeCustomerName = "";
-  let safeCustomerPhone = "";
   if (customerRefId) {
     const customer = await sanityClient.fetch<any>(
       `*[_type=="user" && _id==$id][0]{_id,name,phone}`,
       { id: customerRefId },
     );
     safeCustomerName = sanitizeUserText(String(customer?.name || "")).trim() || "Customer";
-    safeCustomerPhone = String(customer?.phone || "");
   }
 
   const postCreateJobs: Promise<unknown>[] = [];
@@ -276,7 +252,6 @@ const now = new Date().toISOString();
           },
           skipActor: true,
         });
-        await emitWaEventServer("workTask.created", { taskId: String(created?._id || ""), customerId: String(body.customerRefId), customerName: safeCustomerName, customerPhone: safeCustomerPhone, title, description: String(body?.description || "").trim(), status: String(doc.status || "pending"), priority: String(doc.priority || "medium"), dueAt, updatedAt: now });
       })(),
     );
   }
@@ -289,17 +264,6 @@ const now = new Date().toISOString();
       body: `New work assigned: ${title}. Technician: ${sanitizeUserText(String(tech.name || "")).trim() || "Technician"}. Due: ${formatDayDateTime(dueAt)}.`,
       assignedTechnicianId,
       notifyAllTechnicians: false,
-    }),
-  );
-  postCreateJobs.push(
-    sendTechnicianTaskAssigned({
-      technicianPhone: tech?.phone,
-      technicianName: sanitizeUserText(String(tech?.name || "")).trim() || "Technician",
-      customerName: safeCustomerName,
-      taskTitle: title,
-      dueAt,
-      priority: String(body?.priority || "medium"),
-      taskId: String(created?._id || ""),
     }),
   );
 

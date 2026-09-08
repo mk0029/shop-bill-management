@@ -16,41 +16,9 @@ import {
   type TrackEntry,
 } from "@/lib/notification-tracker";
 
-type Tab = "simulate" | "wa" | "fcm" | "tracker";
-type TrackerFilter = "all" | "fcm" | "whatsapp";
+type Tab = "simulate" | "fcm" | "tracker";
+type TrackerFilter = "all" | "fcm";
 type TraceStep = { step: string; ts: string; [k: string]: any };
-type User = {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  role: string;
-};
-
-const WA_EVENTS = [
-  "billing.created",
-  "billing.updated",
-  "billing.deleted",
-  "billing.payment.partial",
-  "billing.payment.paid",
-  "billing.payment.updated",
-  "billing.payment.removed",
-  "billing.multiPaid",
-  "billing.bulkPaid",
-  "toolRent.created",
-  "toolRent.updated",
-  "toolRent.paid",
-  "toolRent.overdue",
-  "toolRent.returned",
-  "workTask.created",
-  "workTask.updated",
-  "workTask.completed",
-  "workTask.cancelled",
-  "workTask.hold",
-  "customer.created",
-  "scheduled.goodMorning",
-  "scheduled.festivalGreeting",
-];
 
 const ROLE_BADGES: Record<string, string> = {
   customer: "bg-blue-900 text-blue-300",
@@ -61,7 +29,6 @@ const ROLE_BADGES: Record<string, string> = {
 
 const CHANNEL_COLORS: Record<string, string> = {
   fcm: "text-blue-400",
-  whatsapp: "text-green-400",
   socket: "text-purple-400",
 };
 
@@ -150,7 +117,7 @@ function SimulatePanel() {
   >([]);
   const [catFilter, setCatFilter] = useState<string>("all");
   const [selectedEvent, setSelectedEvent] = useState<string>("");
-  const [channels, setChannels] = useState<("wa" | "fcm")[]>(["wa"]);
+  const [channels, setChannels] = useState<string[]>(["fcm"]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [trace, setTrace] = useState<any[]>([]);
@@ -301,7 +268,6 @@ function SimulatePanel() {
       const json = await res.json();
       setResult(json);
       const allTrace: any[] = [];
-      if (json.results?.wa?.trace) allTrace.push(...json.results.wa.trace);
       if (json.results?.fcm?.trace) allTrace.push(...json.results.fcm.trace);
       setTrace(allTrace);
       if (json.error) setError(json.error);
@@ -337,8 +303,8 @@ function SimulatePanel() {
           </span>
         </div>
         <p className="text-xs text-gray-500 -mt-2">
-          Real customer phone &amp; name required. Fires actual WA + FCM
-          bridges. No business data saved.
+          Real customer phone &amp; name required. Fires actual FCM push.
+          No business data saved.
         </p>
 
         {/* Category chips */}
@@ -371,11 +337,6 @@ function SimulatePanel() {
               <div className="font-medium text-white truncate">{ev.label}</div>
               <div className="text-gray-500 text-[10px] mt-0.5">{ev.key}</div>
               <div className="flex gap-1 mt-1">
-                {ev.channels.includes("wa") && (
-                  <span className="text-[10px] px-1 rounded bg-green-900/50 text-green-400">
-                    WA
-                  </span>
-                )}
                 {ev.channels.includes("fcm") && (
                   <span className="text-[10px] px-1 rounded bg-blue-900/50 text-blue-400">
                     FCM
@@ -388,21 +349,6 @@ function SimulatePanel() {
 
         {/* Channel toggles + fire button */}
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="flex items-center gap-1 text-xs text-gray-400">
-            <input
-              type="checkbox"
-              checked={channels.includes("wa")}
-              onChange={(e) =>
-                setChannels((ch) =>
-                  e.target.checked
-                    ? [...ch, "wa"]
-                    : ch.filter((c) => c !== "wa"),
-                )
-              }
-              className="w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 text-green-500 focus:ring-green-500"
-            />
-            WhatsApp
-          </label>
           <label className="flex items-center gap-1 text-xs text-gray-400">
             <input
               type="checkbox"
@@ -717,13 +663,13 @@ function SimulatePanel() {
             Object.entries(result.results).map(([ch, r]: [string, any]) => (
               <div
                 key={ch}
-                className={`rounded p-3 text-xs ${ch === "wa" ? "bg-green-950/30 border border-green-900" : "bg-blue-950/30 border border-blue-900"}`}
+                className={`rounded p-3 text-xs ${ch === "fcm" ? "bg-blue-950/30 border border-blue-900" : "bg-gray-950/30 border border-gray-800"}`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span
-                    className={`font-medium ${ch === "wa" ? "text-green-400" : "text-blue-400"}`}
+                    className={`font-medium ${ch === "fcm" ? "text-blue-400" : "text-gray-400"}`}
                   >
-                    {ch === "wa" ? "WhatsApp" : "FCM"}
+                    {ch === "fcm" ? "FCM" : "FCM"}
                   </span>
                   <span className={r.ok ? "text-green-400" : "text-red-400"}>
                     {r.ok ? "Success" : r.error || "Failed"}
@@ -871,7 +817,6 @@ function NotificationTrackerPanel() {
   const stats = {
     total: entries.length,
     fcm: entries.filter((e) => e.channel === "fcm").length,
-    whatsapp: entries.filter((e) => e.channel === "whatsapp").length,
     sent: entries.filter((e) => e.ok && !e.skipped).length,
     failed: entries.filter((e) => !e.ok).length,
     skipped: entries.filter((e) => e.skipped).length,
@@ -880,7 +825,7 @@ function NotificationTrackerPanel() {
   return (
     <div className="space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-white">{stats.total}</div>
           <div className="text-xs text-gray-400">Total</div>
@@ -888,12 +833,6 @@ function NotificationTrackerPanel() {
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-blue-400">{stats.fcm}</div>
           <div className="text-xs text-gray-400">FCM</div>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
-          <div className="text-lg font-bold text-green-400">
-            {stats.whatsapp}
-          </div>
-          <div className="text-xs text-gray-400">WhatsApp</div>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-green-400">{stats.sent}</div>
@@ -914,13 +853,13 @@ function NotificationTrackerPanel() {
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1 bg-gray-900 rounded-lg p-1">
-          {(["all", "fcm", "whatsapp"] as TrackerFilter[]).map((f) => (
+          {(["all", "fcm"] as TrackerFilter[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filter === f ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"}`}
             >
-              {f === "all" ? "All" : f === "fcm" ? "FCM" : "WhatsApp"}
+              {f === "all" ? "All" : "FCM"}
             </button>
           ))}
         </div>
@@ -1056,31 +995,12 @@ function NotificationTrackerPanel() {
 
 export function TestingGroundClient() {
   const [tab, setTab] = useState<Tab>("tracker");
-  const [phone, setPhone] = useState("");
-  const [waEvent, setWaEvent] = useState("billing.created");
-  const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState<any>(null);
-  const [healthWA, setHealthWA] = useState<any>(null);
   const [healthFCM, setHealthFCM] = useState<any>(null);
   const [result, setResult] = useState<any>(null);
   const [trace, setTrace] = useState<TraceStep[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<
-    Array<{
-      ts: string;
-      channel: string;
-      event: string;
-      ok: boolean;
-      target?: string;
-    }>
-  >([]);
   const [composerOpen, setComposerOpen] = useState(false);
-
-  const [users, setUsers] = useState<User[]>([]);
-  const [userSearch, setUserSearch] = useState("");
-  const [userRoleFilter, setUserRoleFilter] = useState("all");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -1093,95 +1013,14 @@ export function TestingGroundClient() {
     } catch {}
   };
 
-  const loadUsers = useCallback(async (role: string) => {
-    setLoadingUsers(true);
+  const checkHealth = async () => {
     try {
-      const res = await fetch(
-        `/api/super/testing-ground?users=true&role=${role}`,
-      );
+      const res = await fetch(`/api/super/testing-ground?service=fcm`);
       const json = await res.json();
-      setUsers(json.users || []);
-    } catch {
-      setUsers([]);
-    }
-    setLoadingUsers(false);
-  }, []);
-
-  useEffect(() => {
-    loadUsers(userRoleFilter);
-  }, [userRoleFilter, loadUsers]);
-
-  const filteredUsers = users.filter((u) => {
-    if (!userSearch) return true;
-    const q = userSearch.toLowerCase();
-    return (
-      u.name.toLowerCase().includes(q) ||
-      (u.email || "").toLowerCase().includes(q) ||
-      (u.phone || "").includes(q)
-    );
-  });
-
-  const checkHealth = async (service: "wa" | "fcm") => {
-    try {
-      const res = await fetch(`/api/super/testing-ground?service=${service}`);
-      const json = await res.json();
-      if (service === "wa") setHealthWA(json);
-      else setHealthFCM(json);
+      setHealthFCM(json);
     } catch {}
   };
 
-  const sendWA = async () => {
-    if (!phone) return setError("Enter phone number");
-    setLoading(true);
-    setResult(null);
-    setTrace(null);
-    setError(null);
-    try {
-      const res = await fetch("/api/super/testing-ground", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channel: "wa",
-          eventType: waEvent,
-          payload: {
-            phone: phone.replace(/\D/g, ""),
-            customerPhone: phone.replace(/\D/g, ""),
-            customerName: selectedUser?.name || "Test Customer",
-            customerNickname: selectedUser?.name?.split(" ")[0] || "Test",
-            customerId: selectedUser?.id || "test",
-            grandTotal: 1500,
-            totalPaid: 500,
-            balanceAmount: 1000,
-            totalAmount: 1500,
-            paidAmount: 500,
-            billNumber: "TEST-" + Date.now().toString(36).toUpperCase(),
-            paymentStatus: "partial",
-          },
-        }),
-      });
-      const json = await res.json();
-      if (json.trace) setTrace(json.trace);
-      if (json.error) setError(json.error);
-      setResult(json);
-      setHistory((h) =>
-        [
-          {
-            ts: new Date().toISOString(),
-            channel: "WA",
-            event: waEvent,
-            ok: json.ok,
-            target: phone.slice(0, 4) + "****",
-          },
-          ...h,
-        ].slice(0, 20),
-      );
-    } catch (err: any) {
-      setError(err.message);
-    }
-    setLoading(false);
-  };
-
-  const waOk = config?.wa?.hasSecret && config?.wa?.backendUrl !== "NOT SET";
   const fcmOk = config?.fcm?.hasFirebase;
 
   return (
@@ -1189,53 +1028,12 @@ export function TestingGroundClient() {
       <div>
         <h1 className="text-2xl font-bold text-white">Testing Ground</h1>
         <p className="text-sm text-gray-400 mt-1">
-          Track all FCM and WhatsApp notifications with exact timestamps
+          Track all FCM notifications with exact timestamps
         </p>
       </div>
 
       {/* Health */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-white">
-              WhatsApp Bot
-            </span>
-            <HealthBadge
-              ok={healthWA?.ok ?? null}
-              label={healthWA?.ok ? "Connected" : "Down"}
-            />
-          </div>
-          <div className="text-xs text-gray-400 space-y-1">
-            <div>
-              URL:{" "}
-              <span className={waOk ? "text-green-400" : "text-red-400"}>
-                {config?.wa?.backendUrl || "..."}
-              </span>
-            </div>
-            <div>
-              Secret:{" "}
-              <span
-                className={
-                  config?.wa?.hasSecret ? "text-green-400" : "text-red-400"
-                }
-              >
-                {config?.wa?.hasSecret ? "SET" : "MISSING"}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={() => checkHealth("wa")}
-            className="mt-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1 rounded"
-          >
-            Check Health
-          </button>
-          {healthWA?.response?.botState && (
-            <div className="text-xs text-green-400 mt-1">
-              Bot: {healthWA.response.botState} | Queue:{" "}
-              {healthWA.response.queueSize || 0}
-            </div>
-          )}
-        </div>
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-white">
@@ -1261,7 +1059,7 @@ export function TestingGroundClient() {
             </div>
           </div>
           <button
-            onClick={() => checkHealth("fcm")}
+            onClick={checkHealth}
             className="mt-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1 rounded"
           >
             Check Auth
@@ -1295,17 +1093,6 @@ export function TestingGroundClient() {
         </button>
         <button
           onClick={() => {
-            setTab("wa");
-            setResult(null);
-            setTrace(null);
-            setError(null);
-          }}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === "wa" ? "bg-green-600 text-white" : "text-gray-400 hover:text-white"}`}
-        >
-          WhatsApp
-        </button>
-        <button
-          onClick={() => {
             setTab("fcm");
             setResult(null);
             setTrace(null);
@@ -1322,74 +1109,6 @@ export function TestingGroundClient() {
 
       {/* Tracker Panel */}
       {tab === "tracker" && <NotificationTrackerPanel />}
-
-      {/* WA Panel */}
-      {tab === "wa" && (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Phone Number
-            </label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="9876543210"
-              className="w-full bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-green-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">
-              Event Type
-            </label>
-            <select
-              value={waEvent}
-              onChange={(e) => setWaEvent(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500"
-            >
-              <optgroup label="Billing">
-                {WA_EVENTS.filter((e) => e.startsWith("billing")).map((e) => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Tool Rental">
-                {WA_EVENTS.filter((e) => e.startsWith("toolRent")).map((e) => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Work Tasks">
-                {WA_EVENTS.filter((e) => e.startsWith("workTask")).map((e) => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Other">
-                {WA_EVENTS.filter(
-                  (e) =>
-                    !e.startsWith("billing") &&
-                    !e.startsWith("toolRent") &&
-                    !e.startsWith("workTask"),
-                ).map((e) => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-          <button
-            onClick={sendWA}
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-md text-sm transition-colors"
-          >
-            {loading ? "Sending..." : `Send ${waEvent} via WhatsApp`}
-          </button>
-        </div>
-      )}
 
       {/* FCM Panel */}
       {tab === "fcm" && (

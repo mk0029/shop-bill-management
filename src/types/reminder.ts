@@ -1,4 +1,4 @@
-export type ReminderChannel = "whatsapp" | "email";
+export type ReminderChannel = "email";
 
 export interface CustomerReminderConfig {
   reminderEnabled: boolean;
